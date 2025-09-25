@@ -1,11 +1,22 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// --- Enums ---
+
 enum ProjectStatus {
   FUNDRAISING
   SUCCESSFUL
-  FAILED
   COMPLETED
+  CANCELED
 }
 
 enum OfferStatus {
@@ -19,135 +30,131 @@ enum MessageSenderType {
   FLORIST
 }
 
-enum PayoutStatus {
-  PENDING
-  COMPLETED
-  REJECTED
-}
-
 enum ProjectVisibility {
   PUBLIC
   UNLISTED
 }
 
-generator client {
-  provider = "prisma-client-js"
-}
-
-datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-}
+// --- Models ---
 
 model User {
-  id                   String    @id @default(cuid())
-  email                String    @unique
+  id                   String             @id @default(cuid())
+  email                String             @unique
   handleName           String
   password             String
-  points               Int       @default(0)
-  referralCode         String    @unique @default(cuid())
+  points               Int                @default(0)
+  referralCode         String             @unique @default(cuid())
   referredById         String?
-  hasMadeFirstPurchase Boolean   @default(false)
-  createdAt            DateTime  @default(now())
-  updatedAt            DateTime  @updatedAt
-  pollVotes            PollVote[]
-  projects             Project[]
+  hasMadeFirstPurchase Boolean            @default(false)
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  // Relations
+  referrer             User?              @relation("Referrals", fields: [referredById], references: [id])
+  referredUsers        User[]             @relation("Referrals")
+  createdProjects      Project[]          @relation("PlannerProjects")
   pledges              Pledge[]
   reviews              Review[]
-  messages      Message[] 
-  groupChatMessages GroupChatMessage[] 
-  reports           ProjectReport[]
+  messages             Message[]
+  groupChatMessages    GroupChatMessage[]
+  pollVotes            PollVote[]
+  reports              ProjectReport[]    @relation("UserReports")
+  sentChatMessages     ChatMessage[]      @relation("UserChatMessages")
 }
 
 model Project {
-  id                 String            @id @default(cuid())
-  title              String
-  description        String            @db.Text
-  status            String    @default("FUNDRAISING") 
-  targetAmount       Int
-  reports           ProjectReport[] 
-  imageUrl           String?
-  deliveryAddress    String
-  deliveryDateTime   DateTime
-  designDetails      String?           @db.Text
-  size               String?
-  flowerTypes        String?
-  status             ProjectStatus     @default(FUNDRAISING)
-  collectedAmount    Int               @default(0)
-  visibility         ProjectVisibility @default(PUBLIC)
-  activePoll    ActivePoll? 
-  plannerId          String
-  planner            User              @relation(fields: [plannerId], references: [id])
-  tasks         Task[]  
-  pledges            Pledge[]
-  offer              Offer?
-  review             Review?
-  announcements      Announcement[]
-  expenses           Expense[]
-  commission         Commission?
-  quotation          Quotation?
-  messages      Message[]
-  createdAt          DateTime          @default(now())
-  updatedAt          DateTime          @updatedAt
-  groupChatMessages GroupChatMessage[] 
-  isVisible         Boolean   @default(true)
-  completionImageUrls String[]  // ★ この行を追記
-  completionComment String?   @db.Text // ★ この行を追記
+  id                  String            @id @default(cuid())
+  title               String
+  description         String            @db.Text
+  targetAmount        Int
+  collectedAmount     Int               @default(0)
+  deliveryAddress     String
+  deliveryDateTime    DateTime
+  imageUrl            String?
+  designDetails       String?           @db.Text
+  size                String?
+  flowerTypes         String?
+  status              ProjectStatus     @default(FUNDRAISING)
+  visibility          ProjectVisibility @default(PUBLIC)
+  completionImageUrls String[]
+  completionComment   String?           @db.Text
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  // Relations
+  plannerId           String
+  planner             User              @relation("PlannerProjects", fields: [plannerId], references: [id])
+  pledges             Pledge[]
+  offer               Offer?
+  review              Review?
+  announcements       Announcement[]
+  expenses            Expense[]
+  commission          Commission?
+  quotation           Quotation?
+  messages            Message[]
+  tasks               Task[]
+  groupChatMessages   GroupChatMessage[]
+  activePoll          ActivePoll?
+  reports             ProjectReport[]
 }
 
 model Pledge {
   id        String   @id @default(cuid())
   amount    Int
   comment   String?
+  createdAt DateTime @default(now())
+
+  // Relations
   projectId String
   project   Project  @relation(fields: [projectId], references: [id])
   userId    String
   user      User     @relation(fields: [userId], references: [id])
-  createdAt DateTime @default(now())
 }
 
 model Florist {
-  id             String          @id @default(cuid())
-  email          String          @unique
-  password       String
-  shopName       String
-  contactName    String
-  address        String?
-  phoneNumber    String?
-  website        String?
-  portfolio      String?         @db.Text
-  balance        Int             @default(0)
-  laruBotApiKey  String?
+  id            String          @id @default(cuid())
+  email         String          @unique
+  password      String
+  shopName      String
+  contactName   String
+  address       String?
+  phoneNumber   String?
+  website       String?
+  portfolio     String?         @db.Text
+  balance       Int             @default(0)
+  laruBotApiKey String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
 
-  offers         Offer[]
-  reviews        Review[]
-  payoutRequests PayoutRequest[]
-
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
+  // Relations
+  offers           Offer[]
+  reviews          Review[]
+  payoutRequests   PayoutRequest[]
+  sentChatMessages ChatMessage[]   @relation("FloristChatMessages")
 }
 
 model Offer {
   id        String      @id @default(cuid())
   status    OfferStatus @default(PENDING)
-
-  projectId String      @unique
-  project   Project     @relation(fields: [projectId], references: [id])
-  floristId String
-  florist   Florist     @relation(fields: [floristId], references: [id])
-
-  chatRoom  ChatRoom?
-
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
+
+  // Relations
+  projectId String    @unique
+  project   Project   @relation(fields: [projectId], references: [id])
+  floristId String
+  florist   Florist   @relation(fields: [floristId], references: [id])
+  chatRoom  ChatRoom?
 }
 
 model ChatRoom {
   id        String        @id @default(cuid())
-  offerId   String        @unique
-  offer     Offer         @relation(fields: [offerId], references: [id])
-  messages  ChatMessage[]
   createdAt DateTime      @default(now())
+
+  // Relations
+  offerId  String        @unique
+  offer    Offer         @relation(fields: [offerId], references: [id])
+  messages ChatMessage[]
 }
 
 model ChatMessage {
@@ -155,11 +162,15 @@ model ChatMessage {
   content        String            @db.Text
   senderType     MessageSenderType
   isAutoResponse Boolean           @default(false)
-  userId         String?
-  floristId      String?
-  chatRoomId     String
-  chatRoom       ChatRoom          @relation(fields: [chatRoomId], references: [id])
   createdAt      DateTime          @default(now())
+
+  // Relations
+  chatRoomId String
+  chatRoom   ChatRoom @relation(fields: [chatRoomId], references: [id])
+  userId     String?
+  user       User?    @relation("UserChatMessages", fields: [userId], references: [id])
+  floristId  String?
+  florist    Florist? @relation("FloristChatMessages", fields: [floristId], references: [id])
 }
 
 model Venue {
@@ -177,66 +188,72 @@ model Review {
   id        String   @id @default(cuid())
   rating    Int
   comment   String?  @db.Text
-
-  projectId String   @unique
-  project   Project  @relation(fields: [projectId], references: [id])
-  floristId String
-  florist   Florist  @relation(fields: [floristId], references: [id])
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
-
   createdAt DateTime @default(now())
+
+  // Relations
+  projectId String  @unique
+  project   Project @relation(fields: [projectId], references: [id])
+  floristId String
+  florist   Florist @relation(fields: [floristId], references: [id])
+  userId    String
+  user      User    @relation(fields: [userId], references: [id])
 }
 
 model Commission {
   id        String   @id @default(cuid())
   amount    Int
-  projectId String   @unique
-  project   Project  @relation(fields: [projectId], references: [id])
   createdAt DateTime @default(now())
+
+  // Relations
+  projectId String  @unique
+  project   Project @relation(fields: [projectId], references: [id])
 }
 
 model Announcement {
   id        String   @id @default(cuid())
   title     String
   content   String   @db.Text
+  createdAt DateTime @default(now())
+
+  // Relations
   projectId String
   project   Project  @relation(fields: [projectId], references: [id])
-  createdAt DateTime @default(now())
 }
 
 model PayoutRequest {
   id          String   @id @default(cuid())
   amount      Int
   accountInfo String   @db.Text
-  status      String   @default("PENDING") // ★ この行を追記 (PENDING | COMPLETED)
+  status      String   @default("PENDING")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  // --- Relations ---
-  florist     Florist @relation(fields: [floristId], references: [id])
-  floristId   String
+  // Relations
+  floristId String
+  florist   Florist  @relation(fields: [floristId], references: [id])
 }
 
 model Expense {
   id        String   @id @default(cuid())
   itemName  String
   amount    Int
+  createdAt DateTime @default(now())
+
+  // Relations
   projectId String
   project   Project  @relation(fields: [projectId], references: [id])
-  createdAt DateTime @default(now())
 }
 
 model Quotation {
   id          String          @id @default(cuid())
   totalAmount Int
   isApproved  Boolean         @default(false)
-
-  projectId   String          @unique
-  project     Project         @relation(fields: [projectId], references: [id])
-  items       QuotationItem[]
-
   createdAt   DateTime        @default(now())
+
+  // Relations
+  projectId String          @unique
+  project   Project         @relation(fields: [projectId], references: [id])
+  items     QuotationItem[]
 }
 
 model QuotationItem {
@@ -244,95 +261,90 @@ model QuotationItem {
   itemName    String
   amount      Int
 
+  // Relations
   quotationId String
   quotation   Quotation @relation(fields: [quotationId], references: [id])
 }
 
 model Task {
-  id          String   @id @default(cuid())
-  title       String   // タスクの内容
-  isCompleted Boolean  @default(false) // 完了したかどうか
-  dueDate     DateTime? // 締め切り日 (任意)
+  id          String    @id @default(cuid())
+  title       String
+  isCompleted Boolean   @default(false)
+  dueDate     DateTime?
+  createdAt   DateTime  @default(now())
 
-  // 関連付け
+  // Relations
   projectId String
-  project   Project  @relation(fields: [projectId], references: [id])
-
-  createdAt DateTime @default(now())
+  project   Project   @relation(fields: [projectId], references: [id])
 }
 
 model Message {
   id        String   @id @default(cuid())
-  content   String   @db.Text // メッセージ本文 (長文もOK)
-  cardName  String   // カードに印刷する名前
+  content   String   @db.Text
+  cardName  String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // --- Relations ---
-  project   Project @relation(fields: [projectId], references: [id])
+  // Relations
   projectId String
-  user      User    @relation(fields: [userId], references: [id])
+  project   Project  @relation(fields: [projectId], references: [id])
   userId    String
+  user      User     @relation(fields: [userId], references: [id])
 
-  // 1ユーザーは1企画に1メッセージまで
   @@unique([projectId, userId])
 }
 
 model GroupChatMessage {
   id         String   @id @default(cuid())
-  templateId String?    // 選択されたテンプレートのID
-  content    String? 
+  templateId String?
+  content    String?
   createdAt  DateTime @default(now())
 
-  // --- Relations ---
-  project    Project @relation(fields: [projectId], references: [id])
-  projectId  String
-  user       User    @relation(fields: [userId], references: [id])
-  userId     String
+  // Relations
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id])
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
 }
 
-// 企画ごとに1つだけ存在するアクティブなアンケート
 model ActivePoll {
-  id        String   @id @default(cuid())
+  id        String     @id @default(cuid())
   question  String
-  options   String[] // 選択肢を文字列の配列として保持
-  createdAt DateTime @default(now())
+  options   String[]
+  createdAt DateTime   @default(now())
 
-  // --- Relations ---
+  // Relations
+  projectId String     @unique
   project   Project    @relation(fields: [projectId], references: [id])
-  projectId String     @unique // 1企画に1アンケート
   votes     PollVote[]
 }
 
-// 新しいアンケートへの投票
 model PollVote {
-  id        String @id @default(cuid())
-  optionIndex Int    // ユーザーが選んだ選択肢の番号 (0, 1, 2...)
+  id          String     @id @default(cuid())
+  optionIndex Int
 
-  // --- Relations ---
-  poll      ActivePoll @relation(fields: [pollId], references: [id])
-  pollId    String
-  user      User       @relation(fields: [userId], references: [id])
-  userId    String
+  // Relations
+  pollId String
+  poll   ActivePoll @relation(fields: [pollId], references: [id])
+  userId String
+  user   User       @relation(fields: [userId], references: [id])
 
-  // 1ユーザーは1アンケートに1回だけ投票可能
   @@unique([pollId, userId])
 }
 
 model ProjectReport {
-  id        String   @id @default(cuid())
-  reason    String   // 通報理由 (例: SPAM, INAPPROPRIATE, SCAM)
-  details   String?  @db.Text // 詳細な説明 (任意)
-  status    String   @default("SUBMITTED") // (SUBMITTED | REVIEWED)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String   @id @default(cuid())
+  reason     String
+  details    String?  @db.Text
+  status     String   @default("SUBMITTED")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  // --- Relations ---
-  project   Project @relation(fields: [projectId], references: [id])
-  projectId String
-  reporter  User    @relation(fields: [reporterId], references: [id])
+  // Relations
+  projectId  String
+  project    Project  @relation(fields: [projectId], references: [id])
   reporterId String
+  reporter   User     @relation("UserReports", fields: [reporterId], references: [id])
 
-  // 1ユーザーは1企画に1回だけ通報可能
   @@unique([projectId, reporterId])
 }
