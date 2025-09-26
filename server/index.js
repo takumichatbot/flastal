@@ -39,11 +39,10 @@ const httpServer = createServer(app); // Expressアプリからhttpサーバー�
 const allowedOrigins = [
   'http://localhost:3000',
   process.env.FRONTEND_URL
-].filter(Boolean); // .filter(Boolean)で、環境変数がなくてもエラーにならないようにする
+].filter(Boolean);
 
 const corsOptions = {
   origin: (origin, callback) => {
-    // !originはPostmanなどブラウザ以外からのアクセスを許可するため
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
