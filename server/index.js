@@ -38,29 +38,32 @@ const app = express();
 const httpServer = createServer(app); // Expressアプリからhttpサーバーを作成
 const allowedOrigins = [
   'http://localhost:3000',
-  process.env.FRONTEND_URL // Renderで設定する本番のフロントエンドURL
-];
+  process.env.FRONTEND_URL
+].filter(Boolean); // .filter(Boolean)で、環境変数がなくてもエラーにならないようにする
 
 const corsOptions = {
   origin: (origin, callback) => {
-    // !origin は Postmanなどブラウザ以外からのリクエストを許可するために必要
+    // !originはPostmanなどブラウザ以外からのアクセスを許可するため
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
     }
-  }
+  },
+  methods: ["GET", "POST", "PATCH", "DELETE"],
 };
 
-// ★★★ Socket.IOのServerインスタンス作成部分を修正 ★★★
 const io = new Server(httpServer, {
   cors: corsOptions
 });
 
-
 const prisma = new PrismaClient();
-const PORT = process.env.PORT || 3001;
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+
+
+
+const PORT = process.env.PORT || 3001;
+
 
 // ★★★ Stripe Webhook API ★★★
 // Stripeからのリクエストの正当性を検証するため、JSONパーサーの前にこのルートを定義します
@@ -419,14 +422,12 @@ io.on('connection', (socket) => {
   // ★★★【新規】参加者グループチャット用のメッセージ送信 ★★★
   socket.on('sendGroupChatMessage', async ({ projectId, userId, templateId, content }) => {
     try {
-      // 1. 権限チェック (支援者または企画者か)
       const project = await prisma.project.findUnique({ where: { id: projectId } });
-      if (!project) return; // 企画が存在しない場合は何もしない
+      if (!project) return;
       const pledge = await prisma.pledge.findFirst({ where: { projectId, userId } });
       const isPlanner = project.plannerId === userId;
-      if (!pledge && !isPlanner) return; // 権限がない場合は何もしない
+      if (!pledge && !isPlanner) return;
 
-      // 2. データ検証とNGワードチェック
       let template = null;
       if (templateId) {
         template = CHAT_TEMPLATES.find(t => t.id === templateId);
@@ -435,7 +436,7 @@ io.on('connection', (socket) => {
       if (content && content.trim() !== '') {
         const containsNGWord = NG_WORDS.some(word => content.toLowerCase().includes(word.toLowerCase()));
         if (containsNGWord) {
-          socket.emit('messageError', '送信できない単語が含まれています。'); // 送信者にのみエラーを通知
+          socket.emit('messageError', '送信できない単語が含まれています。');
           return;
         }
       } else if (template && template.hasCustomInput) {
@@ -444,7 +445,6 @@ io.on('connection', (socket) => {
         return;
       }
 
-      // 3. メッセージをDBに保存
       const newMessage = await prisma.groupChatMessage.create({
         data: {
           projectId,
@@ -455,14 +455,17 @@ io.on('connection', (socket) => {
         include: { user: { select: { handleName: true } } }
       });
 
-      // 4. 同じルームにいる全員に新しいメッセージを配信
       io.to(projectId).emit('receiveGroupChatMessage', newMessage);
-
     } catch (error) {
       console.error("Group chat message error:", error);
       socket.emit('messageError', 'メッセージの送信に失敗しました。');
     }
   });
+
+  socket.on('disconnect', () => {
+    console.log('user disconnected:', socket.id);
+  });
+});
 
   socket.on('disconnect', () => {
     console.log('user disconnected:', socket.id);
@@ -699,35 +702,16 @@ app.post('/api/checkout/create-session', async (req, res) => {
   const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
 
   try {
-    // Stripeの決済セッションを作成
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
-      line_items: [
-        {
-          price_data: {
-            currency: 'jpy', // 通貨を日本円に設定
-            product_data: {
-              name: `${points} ポイント購入`,
-            },
-            unit_amount: amount, // 金額（円）
-          },
-          quantity: 1,
-        },
-      ],
+      line_items: [ { price_data: { currency: 'jpy', product_data: { name: `${points} ポイント購入` }, unit_amount: amount, }, quantity: 1, }, ],
       mode: 'payment',
-      // 決済成功時とキャンセル時のリダイレクト先URL
       success_url: `${frontendUrl}/payment/success`,
       cancel_url: `${frontendUrl}/points`,
-      // 決済成功時に、どのユーザーが購入したかをStripeに覚えさせておくための情報
       client_reference_id: userId,
-      metadata: {
-          points: points // ★ポイント数をメタデータとして追加
-      },
+      metadata: { points: points },
     });
-
-    // フロントエンドに決済ページのURLを返す
     res.json({ url: session.url });
-
   } catch (error) {
     console.error('Stripe session creation error:', error);
     res.status(500).json({ message: '決済セッションの作成に失敗しました。' });
