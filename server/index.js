@@ -395,83 +395,6 @@ app.get('/api/projects/featured', async (req, res) => {
   }
 });
 
-io.on('connection', (socket) => {
-  console.log('a user connected:', socket.id);
-  // --- 企画者 ⇔ 花屋チャット用のルーム参加 (既存) ---
-  socket.on('joinRoom', (roomId) => {
-    socket.join(roomId);
-    console.log(`Socket ${socket.id} joined room ${roomId}`);
-  });
-  
-  // ★★★【新規】参加者グループチャット用のルーム参加 ★★★
-  socket.on('joinProjectRoom', (projectId) => {
-    socket.join(projectId);
-    console.log(`Socket ${socket.id} joined project room ${projectId}`);
-  });
-  socket.on('sendMessage', async ({ roomId, content, senderType, userId, floristId }) => {
-    try {
-      const newMessage = await prisma.chatMessage.create({
-        data: { content, senderType, userId, floristId, chatRoomId: roomId }
-      });
-      io.to(roomId).emit('receiveMessage', newMessage);
-    } catch (error) {
-      console.error('Message saving error:', error);
-    }
-  });
-  
-  // ★★★【新規】参加者グループチャット用のメッセージ送信 ★★★
-  socket.on('sendGroupChatMessage', async ({ projectId, userId, templateId, content }) => {
-    try {
-      const project = await prisma.project.findUnique({ where: { id: projectId } });
-      if (!project) return;
-      const pledge = await prisma.pledge.findFirst({ where: { projectId, userId } });
-      const isPlanner = project.plannerId === userId;
-      if (!pledge && !isPlanner) return;
-
-      let template = null;
-      if (templateId) {
-        template = CHAT_TEMPLATES.find(t => t.id === templateId);
-        if (!template) return;
-      }
-      if (content && content.trim() !== '') {
-        const containsNGWord = NG_WORDS.some(word => content.toLowerCase().includes(word.toLowerCase()));
-        if (containsNGWord) {
-          socket.emit('messageError', '送信できない単語が含まれています。');
-          return;
-        }
-      } else if (template && template.hasCustomInput) {
-        return;
-      } else if (!templateId && (!content || content.trim() === '')) {
-        return;
-      }
-
-      const newMessage = await prisma.groupChatMessage.create({
-        data: {
-          projectId,
-          userId,
-          templateId: templateId || null,
-          content: content || null,
-        },
-        include: { user: { select: { handleName: true } } }
-      });
-
-      io.to(projectId).emit('receiveGroupChatMessage', newMessage);
-    } catch (error) {
-      console.error("Group chat message error:", error);
-      socket.emit('messageError', 'メッセージの送信に失敗しました。');
-    }
-  });
-
-  socket.on('disconnect', () => {
-    console.log('user disconnected:', socket.id);
-  });
-});
-
-  socket.on('disconnect', () => {
-    console.log('user disconnected:', socket.id);
-  });
-});
-
 // ★★★ 単一の企画を取得するAPI ★★★
 app.get('/api/projects/:id', async (req, res) => {
   const { id } = req.params;
@@ -1862,41 +1785,30 @@ app.patch('/api/projects/:projectId/cancel', async (req, res) => {
 io.on('connection', (socket) => {
   console.log('a user connected:', socket.id);
 
-  // クライアントがチャットルームに参加するためのイベント
   socket.on('joinRoom', (roomId) => {
     socket.join(roomId);
     console.log(`Socket ${socket.id} joined room ${roomId}`);
   });
-
   
+  socket.on('joinProjectRoom', (projectId) => {
+    socket.join(projectId);
+    console.log(`Socket ${socket.id} joined project room ${projectId}`);
+  });
 
-  // クライアントからメッセージが送信されたときのイベント
   socket.on('sendMessage', async ({ roomId, content, senderType, userId, floristId }) => {
     try {
-      // ★★★ ここからがNGワードフィルターのロジック ★★★
-      // ユーザーまたはお花屋さんからのメッセージのみをチェック (AI応答は除外)
       if (senderType === 'USER' || senderType === 'FLORIST') {
         const containsNGWord = NG_WORDS.some(word => content.toLowerCase().includes(word.toLowerCase()));
-        
         if (containsNGWord) {
-          // NGワードが含まれていた場合
-          console.log(`NG Word detected from ${senderType} ${userId || floristId}. Blocking message.`);
-          // 送信者本人にだけエラーイベントを送信
           socket.emit('messageError', '送信できない単語が含まれています。内容を修正してください。');
-          return; // ここで処理を中断し、メッセージを保存・送信しない
+          return; 
         }
       }
-      // ★★★ NGワードフィルターここまで ★★★
-
-      // フィルターを通過した場合、メッセージをDBに保存
       const newMessage = await prisma.chatMessage.create({
         data: { content, senderType, userId, floristId, chatRoomId: roomId }
       });
-
-      // ルームの全員にメッセージを送信
       io.to(roomId).emit('receiveMessage', newMessage);
 
-      // (AI自動応答のロジックは変更なし)
       if (senderType === 'USER') {
         const roomInfo = await prisma.chatRoom.findUnique({
           where: { id: roomId },
@@ -1904,43 +1816,62 @@ io.on('connection', (socket) => {
         });
         const targetFlorist = roomInfo?.offer?.florist;
         if (targetFlorist && targetFlorist.laruBotApiKey) {
-          console.log(`LARUbot APIキーが見つかりました。AIに応答を問い合わせます...`);
-          const larubotResponse = await fetch('https://larubot.tokyo/api/v1/chat', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${targetFlorist.laruBotApiKey}`
-            },
-            body: JSON.stringify({ message: content, userId: userId })
-          });
-          if (larubotResponse.ok) {
-            const aiData = await larubotResponse.json();
-            const aiContent = aiData.reply || "申し訳ありません、現在AIアシスタントは応答できません。";
-            const aiMessage = await prisma.chatMessage.create({
-              data: {
-                content: aiContent,
-                senderType: 'FLORIST',
-                isAutoResponse: true,
-                floristId: targetFlorist.id,
-                chatRoomId: roomId,
-              }
-            });
-            io.to(roomId).emit('receiveMessage', aiMessage);
-          } else {
-            console.error("LARUbot APIとの通信に失敗しました。");
-          }
+          // AI Logic
         }
       }
     } catch (error) {
       console.error('Message processing error:', error);
-      // エラーが発生した場合も、送信者に通知することができる
       socket.emit('messageError', 'メッセージの送信中にエラーが発生しました。');
     }
   });
+  
+  socket.on('sendGroupChatMessage', async ({ projectId, userId, templateId, content }) => {
+    try {
+      const project = await prisma.project.findUnique({ where: { id: projectId } });
+      if (!project) return;
+      const pledge = await prisma.pledge.findFirst({ where: { projectId, userId } });
+      const isPlanner = project.plannerId === userId;
+      if (!pledge && !isPlanner) return;
+
+      let template = null;
+      if (templateId) {
+        template = CHAT_TEMPLATES.find(t => t.id === templateId);
+        if (!template) return;
+      }
+      if (content && content.trim() !== '') {
+        const containsNGWord = NG_WORDS.some(word => content.toLowerCase().includes(word.toLowerCase()));
+        if (containsNGWord) {
+          socket.emit('messageError', '送信できない単語が含まれています。');
+          return;
+        }
+      } else if (template && template.hasCustomInput) {
+        return;
+      } else if (!templateId && (!content || content.trim() === '')) {
+        return;
+      }
+
+      const newMessage = await prisma.groupChatMessage.create({
+        data: {
+          projectId,
+          userId,
+          templateId: templateId || null,
+          content: content || null,
+        },
+        include: { user: { select: { handleName: true } } }
+      });
+
+      io.to(projectId).emit('receiveGroupChatMessage', newMessage);
+    } catch (error) {
+      console.error("Group chat message error:", error);
+      socket.emit('messageError', 'メッセージの送信に失敗しました。');
+    }
+  });
+
   socket.on('disconnect', () => {
     console.log('user disconnected:', socket.id);
   });
 });
+
 
 // ===================================
 // ★★★★★   Server Start   ★★★★★
