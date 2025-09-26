@@ -4,6 +4,8 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
 export default function EditFloristProfilePage({ params }) {
   const { id } = params;
   const [formData, setFormData] = useState({
@@ -22,7 +24,7 @@ export default function EditFloristProfilePage({ params }) {
     if (id) {
       const fetchFlorist = async () => {
         try {
-          const res = await fetch(`http://localhost:3001/api/florists/${id}`);
+          const res = await fetch(`${API_URL}/api/florists/${id}`);
           if (!res.ok) throw new Error('データ読み込み失敗');
           const data = await res.json();
           // データベースの値がnullの場合、空文字列に変換してフォームに設定
@@ -50,7 +52,7 @@ export default function EditFloristProfilePage({ params }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch(`http://localhost:3001/api/florists/${id}`, {
+      const res = await fetch(`${API_URL}/api/florists/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),

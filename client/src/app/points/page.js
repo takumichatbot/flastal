@@ -4,6 +4,8 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '../contexts/AuthContext'; // ★ AuthContextをインポート
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
 const pointPackages = [
   { points: 500, amount: 500, color: 'bg-sky-500', hover: 'hover:bg-sky-600' },
   { points: 1000, amount: 1000, color: 'bg-blue-500', hover: 'hover:bg-blue-600' },
@@ -21,7 +23,7 @@ export default function PointsPage() {
     }
 
     try {
-      const response = await fetch('http://localhost:3001/api/checkout/create-session', {
+      const response = await fetch(`${API_URL}/api/checkout/create-session`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

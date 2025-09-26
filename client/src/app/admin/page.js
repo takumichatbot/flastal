@@ -1,6 +1,8 @@
 'use client';
 import { useState, useEffect } from 'react';
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
 export default function AdminPage() {
   const [password, setPassword] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -11,7 +13,7 @@ export default function AdminPage() {
     e.preventDefault();
     try {
       // ★★★ ここが修正箇所です！宛先をバックエンドサーバーに修正 ★★★
-      const res = await fetch('http://localhost:3001/api/admin/login', {
+      const res = await fetch(`${API_URL}/api/admin/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ password }),
@@ -29,7 +31,7 @@ export default function AdminPage() {
         setLoading(true);
         try {
           // ★★★ ここも修正箇所です！宛先をバックエンドサーバーに修正 ★★★
-          const res = await fetch('http://localhost:3001/api/admin/commissions');
+          const res = await fetch(`${API_URL}/api/admin/commissions`);
           if (!res.ok) throw new Error('データ取得に失敗');
           const data = await res.json();
           setCommissions(data);

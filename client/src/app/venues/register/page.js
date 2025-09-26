@@ -4,6 +4,8 @@
 import { useState } from 'react';
 import Link from 'next/link';
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
 export default function VenueRegisterPage() {
   const [formData, setFormData] = useState({
     venueName: '',
@@ -18,7 +20,7 @@ export default function VenueRegisterPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch('http://localhost:3001/api/venues/register', {
+      const response = await fetch(`${API_URL}/api/venues/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),

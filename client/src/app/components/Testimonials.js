@@ -1,6 +1,8 @@
 'use client';
 import { useState, useEffect } from 'react';
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
 export default function Testimonials() {
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -8,7 +10,7 @@ export default function Testimonials() {
   useEffect(() => {
     const fetchReviews = async () => {
       try {
-        const res = await fetch('http://localhost:3001/api/reviews/featured');
+        const res = await fetch(`${API_URL}/api/reviews/featured`);
         if (res.ok) {
           const data = await res.json();
           setReviews(data);

@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import StarRating from '../components/StarRating'; // ★ 以前作成した星評価コンポーネントを再利用
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
 // ★★★ お花屋さんカードの部品をここに定義 ★★★
 function FloristCard({ florist }) {
   return (
@@ -40,7 +42,7 @@ export default function FloristsPage() {
   useEffect(() => {
     const fetchFlorists = async () => {
       try {
-        const response = await fetch('http://localhost:3001/api/florists');
+        const response = await fetch(`${API_URL}/api/florists`);
         if (!response.ok) throw new Error('データの取得に失敗しました。');
         const data = await response.json();
         setFlorists(data);

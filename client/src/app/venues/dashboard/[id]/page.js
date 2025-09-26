@@ -4,6 +4,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
 export default function VenueDashboardPage({ params }) {
   const { id } = params;
   const router = useRouter();
@@ -18,7 +20,7 @@ export default function VenueDashboardPage({ params }) {
     if (id) {
       const fetchVenue = async () => {
         try {
-          const res = await fetch(`http://localhost:3001/api/venues/${id}`);
+          const res = await fetch(`${API_URL}/api/venues/${id}`);
           if (!res.ok) throw new Error('データ読み込み失敗');
           const data = await res.json();
           Object.keys(data).forEach(key => {
@@ -39,7 +41,7 @@ export default function VenueDashboardPage({ params }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch(`http://localhost:3001/api/venues/${id}`, {
+      const res = await fetch(`${API_URL}/api/venues/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),

@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext'; // ★ AuthContextをインポート
 import Link from 'next/link'; // ★ Linkをインポート
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
 // ★ オファー用のモーダルコンポーネント (useAuthフックを使うように修正)
 function OfferModal({ floristId, onClose }) {
   const { user, userType } = useAuth(); // ★ ログイン中のユーザー情報を取得
@@ -17,7 +19,7 @@ function OfferModal({ floristId, onClose }) {
       const fetchUserProjects = async () => {
         setLoadingProjects(true);
         try {
-          const res = await fetch(`http://localhost:3001/api/users/${user.id}/projects`);
+          const res = await fetch(`${API_URL}/api/users/${user.id}/projects`);
           if (!res.ok) throw new Error('企画の取得に失敗しました。');
           const data = await res.json();
           setProjects(data);
@@ -41,7 +43,7 @@ function OfferModal({ floristId, onClose }) {
       return;
     }
     try {
-      const res = await fetch('http://localhost:3001/api/offers', {
+      const res = await fetch(`${API_URL}/api/offers`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -96,7 +98,7 @@ export default function FloristDetailPage({ params }) {
     if (id) {
       const fetchFlorist = async () => {
         try {
-          const response = await fetch(`http://localhost:3001/api/florists/${id}`);
+          const response = await fetch(`${API_URL}/api/florists/${id}`);
           if (!response.ok) throw new Error('お花屋さんが見つかりませんでした。');
           const data = await response.json();
           setFlorist(data);

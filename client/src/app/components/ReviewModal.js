@@ -1,6 +1,9 @@
 'use client';
 import { useState } from 'react';
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
+
 export default function ReviewModal({ project, offer, user, onClose, onReviewSubmitted }) {
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
@@ -10,7 +13,7 @@ export default function ReviewModal({ project, offer, user, onClose, onReviewSub
     setIsSubmitting(true); // ★ 送信開始
     try {
       // ★★★ ここが修正箇所です！宛先をバックエンドサーバーに修正 ★★★
-      const res = await fetch('http://localhost:3001/api/reviews', {
+      const res = await fetch(`${API_URL}/api/reviews`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

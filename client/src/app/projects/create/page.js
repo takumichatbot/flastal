@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
 export default function CreateProjectPage() {
   const { user, userType } = useAuth();
   const router = useRouter();
@@ -34,7 +36,7 @@ export default function CreateProjectPage() {
     }
     const fetchVenues = async () => {
       try {
-        const res = await fetch('http://localhost:3001/api/venues');
+        const res = await fetch(`${API_URL}/api/venues`);
         if (!res.ok) throw new Error('会場リストの取得に失敗しました。');
         const data = await res.json();
         setVenues(data);
@@ -74,7 +76,7 @@ export default function CreateProjectPage() {
     const uploadFormData = new FormData();
     uploadFormData.append('image', imageFile);
     try {
-      const res = await fetch('http://localhost:3001/api/upload', {
+      const res = await fetch(`${API_URL}/api/upload`, {
         method: 'POST',
         body: uploadFormData,
       });
@@ -96,7 +98,7 @@ export default function CreateProjectPage() {
       plannerId: user.id,
     };
     try {
-      const response = await fetch('http://localhost:3001/api/projects', {
+      const response = await fetch(`${API_URL}/api/projects`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(projectData),

@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import ReviewModal from '../components/ReviewModal';
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
 export default function MyPage() {
   const { user, userType } = useAuth();
   const router = useRouter();
@@ -22,8 +24,8 @@ export default function MyPage() {
     setLoading(true);
     try {
       const [createdRes, pledgedRes] = await Promise.all([
-        fetch(`http://localhost:3001/api/users/${user.id}/created-projects`),
-        fetch(`http://localhost:3001/api/users/${user.id}/pledged-projects`)
+        fetch(`${API_URL}/api/users/${user.id}/created-projects`),
+        fetch(`${API_URL}/api/users/${user.id}/pledged-projects`)
       ]);
       if (!createdRes.ok || !pledgedRes.ok) {
         throw new Error('データの取得に失敗しました。');

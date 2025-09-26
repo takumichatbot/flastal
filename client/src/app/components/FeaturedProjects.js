@@ -2,6 +2,8 @@
 import { useState, useEffect } from 'react';
 import ProjectCard from './ProjectCard'; // 以前作成した企画カードを再利用
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
 export default function FeaturedProjects() {
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true); // ★ ローディング状態を追加
@@ -10,7 +12,7 @@ export default function FeaturedProjects() {
     const fetchFeatured = async () => {
       setLoading(true); // ★ 読み込み開始
       try {
-        const res = await fetch('http://localhost:3001/api/projects/featured');
+        const res = await fetch(`${API_URL}/api/projects/featured`);
         if(res.ok) {
           const data = await res.json();
           setProjects(data);

@@ -6,6 +6,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
 // ★★★ 見積書作成モーダルの部品 ★★★
 function QuotationModal({ project, onClose, onQuotationSubmitted }) {
   const { user } = useAuth();
@@ -33,7 +35,7 @@ function QuotationModal({ project, onClose, onQuotationSubmitted }) {
   const handleSubmit = async () => {
     setIsSubmitting(true);
     try {
-      const res = await fetch('http://localhost:3001/api/quotations', {
+      const res = await fetch(`${API_URL}/api/quotations`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -107,7 +109,7 @@ export default function ChatPage() {
 
   const fetchChatData = async () => {
     try {
-      const res = await fetch(`http://localhost:3001/api/chat/${roomId}`);
+      const res = await fetch(`${API_URL}/api/chat/${roomId}`);
       if (!res.ok) throw new Error('チャットルームの読み込みに失敗しました。');
       const data = await res.json();
       setRoomInfo(data);
@@ -124,7 +126,7 @@ export default function ChatPage() {
     
     fetchChatData();
 
-    const newSocket = io('http://localhost:3001');
+    const newSocket = io(`${API_URL}`);
     setSocket(newSocket);
 
     newSocket.emit('joinRoom', roomId);
@@ -176,7 +178,7 @@ export default function ChatPage() {
   const handleApproveQuotation = async (quotationId) => {
     if (window.confirm("この見積書の内容で支払いを確定します。集まったポイントから合計額が引き落とされます。よろしいですか？")) {
       try {
-        const res = await fetch(`http://localhost:3001/api/quotations/${quotationId}/approve`, {
+        const res = await fetch(`${API_URL}/api/quotations/${quotationId}/approve`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ userId: user.id })

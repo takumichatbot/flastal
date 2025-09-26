@@ -5,6 +5,9 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
+
 // ダッシュボードの上部に表示される統計情報カードの部品です
 const StatCard = ({ title, value, icon }) => (
   <div className="bg-white p-6 rounded-2xl shadow-lg">
@@ -46,8 +49,8 @@ export default function FloristDashboardPage() {
     try {
       // ダッシュボード情報と出金履歴を同時に取得
       const [dashboardRes, payoutsRes] = await Promise.all([
-        fetch(`http://localhost:3001/api/florists/${user.id}/dashboard`),
-        fetch(`http://localhost:3001/api/florists/${user.id}/payouts`),
+        fetch(`${API_URL}/api/florists/${user.id}/dashboard`),
+        fetch(`${API_URL}/api/florists/${user.id}/payouts`),
       ]);
       if (!dashboardRes.ok || !payoutsRes.ok) throw new Error('データ取得に失敗しました');
       
@@ -78,7 +81,7 @@ export default function FloristDashboardPage() {
   // オファーの状態を更新する（承認・辞退）関数
   const handleUpdateOfferStatus = async (offerId, newStatus) => {
     try {
-        const response = await fetch(`http://localhost:3001/api/offers/${offerId}`, {
+        const response = await fetch(`${API_URL}/api/offers/${offerId}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ status: newStatus }),
@@ -98,7 +101,7 @@ export default function FloristDashboardPage() {
     e.preventDefault();
     if (window.confirm(`${payoutAmount}ptを出金申請します。よろしいですか？`)) {
       try {
-        const res = await fetch('http://localhost:3001/api/payouts', {
+        const res = await fetch(`${API_URL}/api/payouts`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

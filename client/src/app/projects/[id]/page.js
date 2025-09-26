@@ -6,6 +6,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import ImageModal from '../../components/ImageModal';
 import { io } from 'socket.io-client';
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
 // ★★★ 寄せ書きメッセージ投稿フォームの部品 ★★★
 function MessageForm({ projectId, userId, onMessagePosted }) {
   const [content, setContent] = useState('');
@@ -18,7 +20,7 @@ function MessageForm({ projectId, userId, onMessagePosted }) {
       return;
     }
     try {
-      const res = await fetch('http://localhost:3001/api/messages', {
+      const res = await fetch(`${API_URL}/api/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content, cardName, projectId, userId }),
@@ -88,7 +90,7 @@ function PollCreationModal({ projectId, userId, onClose, onPollCreated }) {
       return;
     }
     try {
-      const res = await fetch('http://localhost:3001/api/group-chat/polls', {
+      const res = await fetch(`${API_URL}/api/group-chat/polls`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -149,7 +151,7 @@ function GroupChat({ project, user, isPlanner, isPledger, onUpdate, socket }) {
   useEffect(() => {
     const fetchTemplates = async () => {
       try {
-        const res = await fetch('http://localhost:3001/api/chat-templates');
+        const res = await fetch(`${API_URL}/api/chat-templates`);
         if (!res.ok) throw new Error('テンプレート取得失敗');
         setTemplates(await res.json());
       } catch (error) { console.error(error); }
@@ -214,7 +216,7 @@ function GroupChat({ project, user, isPlanner, isPledger, onUpdate, socket }) {
   const handleVote = async (optionIndex) => {
     if (!project.activePoll) return;
     try {
-      const res = await fetch('http://localhost:3001/api/group-chat/polls/vote', {
+      const res = await fetch(`${API_URL}/api/group-chat/polls/vote`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ pollId: project.activePoll.id, userId: user.id, optionIndex }),
       });
@@ -574,7 +576,7 @@ export default function ProjectDetailPage() {
 
   const fetchProject = async () => {
     try {
-      const response = await fetch(`http://localhost:3001/api/projects/${id}`);
+      const response = await fetch(`${API_URL}/api/projects/${id}`);
       if (!response.ok) throw new Error('企画の読み込みに失敗しました。');
       const data = await response.json();
       setProject(data);
@@ -590,7 +592,7 @@ export default function ProjectDetailPage() {
 
     fetchProject();
 
-    const newSocket = io('http://localhost:3001');
+    const newSocket = io(`${API_URL}`);
     setSocket(newSocket);
     
     newSocket.emit('joinProjectRoom', id);
@@ -625,7 +627,7 @@ export default function ProjectDetailPage() {
       return;
     }
     try {
-      const response = await fetch('http://localhost:3001/api/pledges', {
+      const response = await fetch(`${API_URL}/api/pledges`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -650,7 +652,7 @@ export default function ProjectDetailPage() {
   const handleAnnouncementSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch('http://localhost:3001/api/announcements', {
+      const response = await fetch(`${API_URL}/api/announcements`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -676,7 +678,7 @@ export default function ProjectDetailPage() {
   const handleAddExpense = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch('http://localhost:3001/api/expenses', {
+      const res = await fetch(`${API_URL}/api/expenses`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -699,7 +701,7 @@ export default function ProjectDetailPage() {
   const handleDeleteExpense = async (expenseId) => {
     if (window.confirm('この支出項目を削除しますか？')) {
       try {
-        const res = await fetch(`http://localhost:3001/api/expenses/${expenseId}`, {
+        const res = await fetch(`${API_URL}/api/expenses/${expenseId}`, {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ userId: user.id }),
@@ -717,7 +719,7 @@ export default function ProjectDetailPage() {
     e.preventDefault();
     if (!newTaskTitle.trim()) return;
     try {
-      const res = await fetch('http://localhost:3001/api/tasks', {
+      const res = await fetch(`${API_URL}/api/tasks`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: newTaskTitle, projectId: id, userId: user.id }),
@@ -730,7 +732,7 @@ export default function ProjectDetailPage() {
 
   const handleToggleTask = async (taskId, currentStatus) => {
     try {
-      const res = await fetch(`http://localhost:3001/api/tasks/${taskId}`, {
+      const res = await fetch(`${API_URL}/api/tasks/${taskId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ isCompleted: !currentStatus, userId: user.id }),
@@ -743,7 +745,7 @@ export default function ProjectDetailPage() {
   const handleDeleteTask = async (taskId) => {
     if (window.confirm('このタスクを削除しますか？')) {
       try {
-        const res = await fetch(`http://localhost:3001/api/tasks/${taskId}`, {
+        const res = await fetch(`${API_URL}/api/tasks/${taskId}`, {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ userId: user.id }),
