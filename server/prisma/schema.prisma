@@ -25,6 +25,12 @@ enum OfferStatus {
   REJECTED
 }
 
+enum FloristStatus {
+  PENDING   // 審査待ち
+  APPROVED  // 承認済み
+  REJECTED  // 拒否
+}
+
 enum MessageSenderType {
   USER
   FLORIST
@@ -115,7 +121,6 @@ model Florist {
   id            String          @id @default(cuid())
   email         String          @unique
   password      String
-  shopName      String
   contactName   String
   address       String?
   phoneNumber   String?
@@ -125,6 +130,10 @@ model Florist {
   laruBotApiKey String?
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
+  shopName      String          // 実店舗名（運営確認用）
+  platformName  String          @unique // プラットフォーム上の活動名（公開用）
+  status        FloristStatus   @default(PENDING) // 審査ステータス
+
 
   // Relations
   offers           Offer[]

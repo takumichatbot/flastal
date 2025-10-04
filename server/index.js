@@ -105,6 +105,7 @@ app.get('/', (req, res) => {
   res.send('FLASTAL APIサーバーへようこそ！');
 });
 
+// ★★★ ユーザー登録API (メール重複チェック機能付き) ★★★
 app.post('/api/users/register', async (req, res) => {
   try {
     const { email, password, handleName, referralCode } = req.body;
@@ -120,14 +121,22 @@ app.post('/api/users/register', async (req, res) => {
       });
       if (referrer) {
         userData.referredById = referrer.id;
-        console.log(`New user referred by ${referrer.handleName} (ID: ${referrer.id})`);
       }
     }
     const newUser = await prisma.user.create({
       data: userData,
     });
-    res.status(201).json({ message: 'ユーザー登録が完了しました。', user: newUser });
+    // ★ パスワード情報は返さないようにする
+    const { password: _, ...userWithoutPassword } = newUser;
+    res.status(201).json({ message: 'ユーザー登録が完了しました。', user: userWithoutPassword });
   } catch (error) {
+    // ★★★ ここからが修正箇所です ★★★
+    // もし、エラーが「重複エラー(P2002)」だったら...
+    if (error.code === 'P2002') {
+      // 親切なメッセージを返す
+      return res.status(409).json({ message: 'このメールアドレスは既に使用されています。' });
+    }
+    // その他の予期せぬエラー
     console.error('ユーザー登録エラー:', error);
     res.status(500).json({ message: 'サーバーエラーが発生しました。' });
   }
@@ -546,23 +555,32 @@ app.get('/api/admin/commissions', async (req, res) => {
   }
 });
 
+// server/index.js (修正)
+
 app.post('/api/florists/register', async (req, res) => {
   try {
-    const { email, password, shopName, contactName } = req.body;
-    if (!email || !password || !shopName || !contactName) {
+    // ★ platformName を受け取るように変更
+    const { email, password, shopName, contactName, platformName } = req.body;
+
+    if (!email || !password || !shopName || !contactName || !platformName) {
       return res.status(400).json({ message: '必須項目が不足しています。' });
     }
     const hashedPassword = await bcrypt.hash(password, 10);
+
     const newFlorist = await prisma.florist.create({
       data: {
         email,
         password: hashedPassword,
-        shopName,
+        shopName,      // 実店舗名
+        platformName,  // 活動名
         contactName,
+        // statusはデフォルトでPENDINGになる
       },
     });
+
     const { password: _, ...floristWithoutPassword } = newFlorist;
-    res.status(201).json({ message: 'お花屋さんの登録が完了しました。', florist: floristWithoutPassword });
+    res.status(201).json({ message: 'お花屋さんの登録申請が完了しました。運営による承認をお待ちください。', florist: floristWithoutPassword });
+
   } catch (error) {
     if (error.code === 'P2002') {
       return res.status(409).json({ message: 'このメールアドレスは既に使用されています。' });
@@ -575,21 +593,16 @@ app.post('/api/florists/register', async (req, res) => {
 app.get('/api/florists', async (req, res) => {
   try {
     const florists = await prisma.florist.findMany({
+      where: {
+        status: 'APPROVED' // ★ 承認済みの花屋のみ
+      },
+      select: { // ★ 公開して良い情報だけを選択
+        id: true,
+        platformName: true,
+        portfolio: true,
+        reviews: true,
+      },
       orderBy: { createdAt: 'desc' },
-      include: { reviews: true, }
-    });
-    const floristsWithRatings = florists.map(florist => {
-      const { password, ...floristData } = florist;
-      if (floristData.reviews.length > 0) {
-        const totalRating = floristData.reviews.reduce((acc, review) => acc + review.rating, 0);
-        floristData.averageRating = totalRating / floristData.reviews.length;
-        floristData.reviewCount = floristData.reviews.length;
-      } else {
-        floristData.averageRating = 0;
-        floristData.reviewCount = 0;
-      }
-      delete floristData.reviews;
-      return floristData;
     });
     res.status(200).json(floristsWithRatings);
   } catch (error) {
@@ -663,18 +676,20 @@ app.post('/api/florists/login', async (req, res) => {
     const florist = await prisma.florist.findUnique({
       where: { email },
     });
-    if (!florist) {
-      return res.status(404).json({ message: 'お花屋さんが見つかりません。' });
-    }
+
+    if (!florist) { /* ... */ }
+
     const isPasswordValid = await bcrypt.compare(password, florist.password);
-    if (!isPasswordValid) {
-      return res.status(401).json({ message: 'パスワードが間違っています。' });
-    }
+
+    if (!isPasswordValid) { /* ... */ }
+
+    // ★ レスポンスにステータスが含まれていることを確認
     const { password: _, ...floristWithoutPassword } = florist;
     res.status(200).json({
       message: 'ログインに成功しました。',
-      florist: floristWithoutPassword,
+      florist: floristWithoutPassword, // ここにstatusが含まれている
     });
+
   } catch (error) {
     console.error('お花屋さんログインエラー:', error);
     res.status(500).json({ message: 'サーバーエラーが発生しました。' });
@@ -1368,6 +1383,40 @@ app.patch('/api/projects/:projectId/cancel', async (req, res) => {
     res.status(400).json({ message: error.message || '企画の中止処理中にエラーが発生しました。' });
   }
 });
+
+// ★★★【管理者用】審査待ちの花屋さん一覧を取得するAPI ★★★
+app.get('/api/admin/florists/pending', async (req, res) => {
+  try {
+    const pendingFlorists = await prisma.florist.findMany({
+      where: { status: 'PENDING' },
+      orderBy: { createdAt: 'asc' },
+    });
+    res.status(200).json(pendingFlorists);
+  } catch (error) {
+    res.status(500).json({ message: '審査待ちリストの取得に失敗しました。' });
+  }
+});
+
+// ★★★【管理者用】花屋さんの登録を承認/拒否するAPI ★★★
+app.patch('/api/admin/florists/:floristId/status', async (req, res) => {
+  const { floristId } = req.params;
+  const { status } = req.body; // "APPROVED" or "REJECTED"
+
+  if (status !== 'APPROVED' && status !== 'REJECTED') {
+    return res.status(400).json({ message: '無効なステータスです。' });
+  }
+
+  try {
+    const updatedFlorist = await prisma.florist.update({
+      where: { id: floristId },
+      data: { status: status },
+    });
+    res.status(200).json(updatedFlorist);
+  } catch (error) {
+    res.status(500).json({ message: 'ステータスの更新に失敗しました。' });
+  }
+});
+
 
 
 // ===================================
