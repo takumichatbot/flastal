@@ -323,13 +323,17 @@ app.get('/api/projects/featured', async (req, res) => {
   }
 });
 
+// ★★★ 単一の企画を取得するAPI (最終完成版) ★★★
 app.get('/api/projects/:id', async (req, res) => {
-  const { id } = req.params;
+  const { id } = req.params; 
+
   try {
     const project = await prisma.project.findUnique({
       where: {
         id: id,
       },
+      // ★★★ ここが修正箇所です ★★★
+      // projectに紐づく、全ての関連情報を取得するようにします
       include: {
         planner: true,
         pledges: {
@@ -345,29 +349,23 @@ app.get('/api/projects/:id', async (req, res) => {
         tasks: {
           orderBy: { createdAt: 'asc' }
         },
-        activePoll: {
+        poll: {
           include: {
-            votes: true
-          }
-        },
-        messages: {
-          orderBy: { createdAt: 'asc' },
-          include: {
-            user: {
-              select: { handleName: true }
-            }
-          }
-        },
-        groupChatMessages: {
-          orderBy: { createdAt: 'asc' },
-          include: {
-            user: {
-              select: { handleName: true }
+            options: {
+              include: {
+                votes: true
+              }
+            },
+            votes: {
+              select: {
+                userId: true
+              }
             }
           }
         }
       },
     });
+
     if (project) {
       res.status(200).json(project);
     } else {
