@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 export default function RegisterPage() {
@@ -22,11 +23,14 @@ export default function RegisterPage() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.message);
       
-      alert('登録成功！\n' + data.message);
-      // ... (フォームリセット) ...
-      setEmail(''); setPassword(''); setHandleName(''); setReferralCode('');
+      alert('ユーザー登録が完了しました！');
+      
+      // 登録後、そのままログイン処理を実行
+      await login(email, password); 
+      // login関数が成功すれば、自動的にダッシュボードにリダイレクトされます
+      
     } catch (error) {
-      alert('登録エラー\n' + error.message);
+      alert(`エラー: ${error.message}`);
     }
   };
 

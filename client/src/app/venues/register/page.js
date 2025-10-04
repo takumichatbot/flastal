@@ -2,9 +2,7 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+import { useRouter } from 'next/navigation'; // ★ 1. useRouter をインポート
 
 export default function VenueRegisterPage() {
   const [formData, setFormData] = useState({
@@ -12,6 +10,7 @@ export default function VenueRegisterPage() {
     email: '',
     password: '',
   });
+  const router = useRouter(); // ★ 2. routerインスタンスを作成
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -27,14 +26,21 @@ export default function VenueRegisterPage() {
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.message);
-      alert(data.message);
-      setFormData({ venueName: '', email: '', password: '' });
+
+      console.log('API通信成功。これからrouter.pushを実行します。');
+
+
+      // ★ 3. 登録成功後の処理を修正
+      alert('会場の登録が完了しました。ログインページに移動します。');
+      router.push('/venues/login'); // '/venues/login' ページへ遷移させる
+
     } catch (error) {
       alert(`登録エラー: ${error.message}`);
     }
   };
 
   return (
+    // ... (JSX部分は変更なし) ...
     <div className="flex items-center justify-center min-h-screen bg-green-50">
       <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-md">
         <h2 className="text-2xl font-bold text-center text-gray-900">

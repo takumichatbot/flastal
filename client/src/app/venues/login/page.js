@@ -52,6 +52,17 @@ export default function VenueLoginPage() {
             </button>
           </div>
         </form>
+        
+        {/* ★★★ ここにリンクを追加 ★★★ */}
+        <p className="text-sm text-center text-gray-600">
+          アカウントをお持ちでないですか？{' '}
+          <Link href="/venues/register">
+            <span className="font-medium text-sky-600 hover:underline">
+              新規登録
+            </span>
+          </Link>
+        </p>
+
       </div>
     </div>
   );
