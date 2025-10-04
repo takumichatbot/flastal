@@ -1,5 +1,7 @@
-// app/florists/pending/page.js
 'use client';
+
+// 1. next/link から Link をインポートします
+import Link from 'next/link';
 
 export default function PendingApprovalPage() {
   return (
@@ -14,9 +16,10 @@ export default function PendingApprovalPage() {
           承認まで今しばらくお待ちください。
         </p>
         <div className="mt-6 text-sm">
-          <a href="/" className="font-medium text-sky-600 hover:underline">
+          {/* 2. <a> タグを <Link> タグに変更しました */}
+          <Link href="/" className="font-medium text-sky-600 hover:underline">
             トップページに戻る
-          </a>
+          </Link>
         </div>
       </div>
     </div>
