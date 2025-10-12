@@ -7,6 +7,8 @@ import cors from 'cors';
 import Stripe from 'stripe';
 import multer from 'multer';
 import cloudinary from './config/cloudinary.js';
+import jwt from 'jsonwebtoken';
+import { Resend } from 'resend';
 
 // --- 定数定義 ---
 const CHAT_TEMPLATES = [
@@ -57,6 +59,7 @@ const io = new Server(httpServer, {
 
 const prisma = new PrismaClient();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 // --- Expressミドルウェア設定 ---
 app.post('/api/webhooks/stripe', express.raw({type: 'application/json'}), async (req, res) => {
@@ -310,7 +313,6 @@ app.get('/api/projects/featured', async (req, res) => {
     const projects = await prisma.project.findMany({
       where: { status: 'FUNDRAISING',
                visibility: 'PUBLIC',
-               isVisible: true,
       },
       take: 4,
       orderBy: { createdAt: 'desc' },
@@ -1384,37 +1386,86 @@ app.patch('/api/projects/:projectId/cancel', async (req, res) => {
 
 // ★★★ パスワード再設定リクエストAPI ★★★
 app.post('/api/forgot-password', async (req, res) => {
-  const { email, userType } = req.body; // 'USER', 'FLORIST', 'VENUE'
+  const { email, userType } = req.body;
+  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
 
   try {
-    let userExists = false;
-    // ユーザー種別に応じて、探すテーブルを切り替える
+    let user = null;
     if (userType === 'USER') {
-      const user = await prisma.user.findUnique({ where: { email } });
-      if (user) userExists = true;
+      user = await prisma.user.findUnique({ where: { email } });
     } else if (userType === 'FLORIST') {
-      const florist = await prisma.florist.findUnique({ where: { email } });
-      if (florist) userExists = true;
+      user = await prisma.florist.findUnique({ where: { email } });
     } else if (userType === 'VENUE') {
-      const venue = await prisma.venue.findUnique({ where: { email } });
-      if (venue) userExists = true;
+      user = await prisma.venue.findUnique({ where: { email } });
     }
 
-    if (userExists) {
-      // 本来はここで、メール送信ライブラリ（Nodemailerなど）を使って
-      // パスワード再設定用のトークンを含んだURLを生成し、メールを送信します。
-      console.log(`パスワード再設定リクエスト受信: ${email} (${userType})。メール送信をシミュレートします。`);
-    } else {
-      // セキュリティのため、ユーザーが存在しない場合でも、その事実は伝えない
-      console.log(`パスワード再設定リクエスト受信（未登録）: ${email} (${userType})。`);
+    if (user) {
+      // 1. ユーザーIDと種類を含む、1時間だけ有効なトークンを生成
+      const token = jwt.sign(
+        { id: user.id, type: userType },
+        process.env.JWT_SECRET,
+        { expiresIn: '1h' }
+      );
+
+      // 2. パスワード再設定ページのURLを作成
+      const resetLink = `${frontendUrl}/reset-password/${token}`;
+
+      // 3. Resendを使ってメールを送信
+      const { data, error } = await resend.emails.send({
+        from: 'FLASTAL <onboarding@resend.dev>', // Resendのテスト用送信元アドレス
+        to: [email],
+        subject: 'FLASTAL パスワード再設定のご案内',
+        html: `
+          <p>FLASTALのパスワード再設定リクエストを受け付けました。</p>
+          <p>以下のリンクをクリックして、新しいパスワードを設定してください。このリンクは1時間有効です。</p>
+          <a href="${resetLink}" style="display: inline-block; padding: 10px 20px; font-size: 16px; color: white; background-color: #0ea5e9; text-decoration: none; border-radius: 5px;">パスワードを再設定する</a>
+          <p>もしこのメールに心当たりがない場合は、無視してください。</p>
+        `,
+      });
+
+      if (error) {
+        console.error("メール送信エラー:", error);
+        throw new Error('メールの送信に失敗しました。');
+      }
     }
-
-    // ユーザーが存在するかどうかに関わらず、常に成功メッセージを返すのがセキュリティのベストプラクティスです。
-    res.status(200).json({ message: 'ご入力いただいたメールアドレスに、パスワード再設定用のリンクを送信しました。メールが届かない場合は、入力したアドレスに誤りがないかご確認ください。' });
-
+    
+    res.status(200).json({ message: 'ご入力いただいたメールアドレスに、パスワード再設定用のリンクを送信しました。' });
   } catch (error) {
     console.error("パスワード再設定リクエストエラー:", error);
     res.status(500).json({ message: '処理中にエラーが発生しました。' });
+  }
+});
+
+// ★★★【新規】パスワードをリセットするAPI ★★★
+app.post('/api/reset-password', async (req, res) => {
+  const { token, password } = req.body;
+
+  try {
+    // 1. トークンが有効か、秘密の合言葉で検証する
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const { id, type } = decoded;
+
+    // 2. 新しいパスワードをハッシュ化
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // 3. ユーザー種別に応じて、正しいテーブルのパスワードを更新
+    if (type === 'USER') {
+      await prisma.user.update({ where: { id }, data: { password: hashedPassword } });
+    } else if (type === 'FLORIST') {
+      await prisma.florist.update({ where: { id }, data: { password: hashedPassword } });
+    } else if (type === 'VENUE') {
+      await prisma.venue.update({ where: { id }, data: { password: hashedPassword } });
+    } else {
+      throw new Error('無効なユーザータイプです。');
+    }
+
+    res.status(200).json({ message: 'パスワードが正常に更新されました。' });
+  } catch (error) {
+    console.error("パスワードリセットエラー:", error);
+    if (error.name === 'TokenExpiredError') {
+      return res.status(400).json({ message: 'このリンクは有効期限が切れています。もう一度やり直してください。' });
+    }
+    res.status(500).json({ message: 'パスワードの更新中にエラーが発生しました。' });
   }
 });
 
