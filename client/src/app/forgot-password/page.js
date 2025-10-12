@@ -13,7 +13,12 @@ export default function ForgotPasswordPage() {
     setIsLoading(true);
     setMessage('');
     try {
-      const response = await fetch('http://localhost:3001/api/forgot-password', {
+      // ★★★ ここからが修正箇所です ★★★
+      // 環境変数からAPIのベースURLを取得します
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+      
+      const response = await fetch(`${apiUrl}/api/forgot-password`, { // ← URLを動的に組み立てる
+      // ★★★ ここまでが修正箇所です ★★★
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, userType }),
@@ -22,7 +27,7 @@ export default function ForgotPasswordPage() {
       if (!response.ok) {
         throw new Error(data.message || '処理に失敗しました。');
       }
-      setMessage(data.message); // バックエンドからの成功メッセージを表示
+      setMessage(data.message);
     } catch (error) {
       setMessage(error.message);
     } finally {
@@ -39,13 +44,11 @@ export default function ForgotPasswordPage() {
         </div>
 
         {message ? (
-          // メッセージ表示画面
           <div className="p-4 text-center bg-green-100 text-green-800 rounded-lg">
             <p>{message}</p>
             <Link href="/"><span className="mt-4 inline-block font-semibold text-sky-600 hover:underline">トップページに戻る</span></Link>
           </div>
         ) : (
-          // フォーム表示画面
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">アカウントの種類</label>
