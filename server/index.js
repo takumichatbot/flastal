@@ -1382,6 +1382,42 @@ app.patch('/api/projects/:projectId/cancel', async (req, res) => {
   }
 });
 
+// ★★★ パスワード再設定リクエストAPI ★★★
+app.post('/api/forgot-password', async (req, res) => {
+  const { email, userType } = req.body; // 'USER', 'FLORIST', 'VENUE'
+
+  try {
+    let userExists = false;
+    // ユーザー種別に応じて、探すテーブルを切り替える
+    if (userType === 'USER') {
+      const user = await prisma.user.findUnique({ where: { email } });
+      if (user) userExists = true;
+    } else if (userType === 'FLORIST') {
+      const florist = await prisma.florist.findUnique({ where: { email } });
+      if (florist) userExists = true;
+    } else if (userType === 'VENUE') {
+      const venue = await prisma.venue.findUnique({ where: { email } });
+      if (venue) userExists = true;
+    }
+
+    if (userExists) {
+      // 本来はここで、メール送信ライブラリ（Nodemailerなど）を使って
+      // パスワード再設定用のトークンを含んだURLを生成し、メールを送信します。
+      console.log(`パスワード再設定リクエスト受信: ${email} (${userType})。メール送信をシミュレートします。`);
+    } else {
+      // セキュリティのため、ユーザーが存在しない場合でも、その事実は伝えない
+      console.log(`パスワード再設定リクエスト受信（未登録）: ${email} (${userType})。`);
+    }
+
+    // ユーザーが存在するかどうかに関わらず、常に成功メッセージを返すのがセキュリティのベストプラクティスです。
+    res.status(200).json({ message: 'ご入力いただいたメールアドレスに、パスワード再設定用のリンクを送信しました。メールが届かない場合は、入力したアドレスに誤りがないかご確認ください。' });
+
+  } catch (error) {
+    console.error("パスワード再設定リクエストエラー:", error);
+    res.status(500).json({ message: '処理中にエラーが発生しました。' });
+  }
+});
+
 // ★★★【管理者用】審査待ちの花屋さん一覧を取得するAPI ★★★
 app.get('/api/admin/florists/pending', async (req, res) => {
   try {

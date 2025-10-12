@@ -52,6 +52,13 @@ export default function VenueLoginPage() {
             </button>
           </div>
         </form>
+        <div className="text-sm text-center text-gray-600">
+          <Link href="/forgot-password">
+            <span className="font-medium text-sky-600 hover:underline">
+              パスワードを忘れた方はこちら
+            </span>
+          </Link>
+        </div>
         
         {/* ★★★ ここにリンクを追加 ★★★ */}
         <p className="text-sm text-center text-gray-600">

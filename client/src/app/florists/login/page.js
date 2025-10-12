@@ -69,6 +69,13 @@ export default function FloristLoginPage() {
             </button>
           </div>
         </form>
+        <div className="text-sm text-center text-gray-600">
+          <Link href="/forgot-password">
+            <span className="font-medium text-sky-600 hover:underline">
+              パスワードを忘れた方はこちら
+            </span>
+          </Link>
+        </div>
         <p className="text-sm text-center text-gray-600">
           アカウントをお持ちでないですか？{' '}
           <Link href="/florists/register">
