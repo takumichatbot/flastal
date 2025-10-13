@@ -27,10 +27,10 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
-    "jsonwebtoken": "^9.0.2", // ★ この行を追加
+    "jsonwebtoken": "^9.0.2",
     "multer": "^1.4.5-lts.1",
     "prisma": "^5.16.2",
-    "resend": "^3.5.0", // ★ この行を追加
+    "resend": "^3.5.0",
     "socket.io": "^4.7.5",
     "stripe": "^14.12.0"
   },
