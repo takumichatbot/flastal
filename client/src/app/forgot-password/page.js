@@ -7,29 +7,31 @@ export default function ForgotPasswordPage() {
   const [userType, setUserType] = useState('USER');
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
     setMessage('');
+    setError('');
     try {
-      // ★★★ ここからが修正箇所です ★★★
+      // ★★★ ここが修正箇所です ★★★
       // 環境変数からAPIのベースURLを取得します
       const apiUrl = process.env.NEXT_PUBLIC_API_URL;
       
       const response = await fetch(`${apiUrl}/api/forgot-password`, { // ← URLを動的に組み立てる
-      // ★★★ ここまでが修正箇所です ★★★
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, userType }),
       });
+
       const data = await response.json();
       if (!response.ok) {
         throw new Error(data.message || '処理に失敗しました。');
       }
       setMessage(data.message);
-    } catch (error) {
-      setMessage(error.message);
+    } catch (err) {
+      setError(err.message);
     } finally {
       setIsLoading(false);
     }
@@ -62,6 +64,9 @@ export default function ForgotPasswordPage() {
               <label htmlFor="email" className="block text-sm font-medium text-gray-700">メールアドレス</label>
               <input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-3 py-2 mt-1 text-gray-900 border border-gray-300 rounded-md"/>
             </div>
+
+            {error && <p className="text-sm text-red-500">{error}</p>}
+
             <div>
               <button type="submit" disabled={isLoading} className="w-full px-4 py-2 font-medium text-white bg-sky-500 rounded-lg hover:bg-sky-600 disabled:bg-slate-400">
                 {isLoading ? '処理中...' : '再設定リンクを送信'}
