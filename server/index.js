@@ -1384,7 +1384,7 @@ app.patch('/api/projects/:projectId/cancel', async (req, res) => {
   }
 });
 
-// ★★★ パスワード再設定リクエストAPI ★★★
+// ★★★ パスワード再設定リクエストAPI (本物のメール送信機能付き) ★★★
 app.post('/api/forgot-password', async (req, res) => {
   const { email, userType } = req.body;
   const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
@@ -1399,6 +1399,7 @@ app.post('/api/forgot-password', async (req, res) => {
       user = await prisma.venue.findUnique({ where: { email } });
     }
 
+    // もしユーザーが存在したら、メール送信処理を実行
     if (user) {
       // 1. ユーザーIDと種類を含む、1時間だけ有効なトークンを生成
       const token = jwt.sign(
@@ -1416,22 +1417,35 @@ app.post('/api/forgot-password', async (req, res) => {
         to: [email],
         subject: 'FLASTAL パスワード再設定のご案内',
         html: `
-          <p>FLASTALのパスワード再設定リクエストを受け付けました。</p>
-          <p>以下のリンクをクリックして、新しいパスワードを設定してください。このリンクは1時間有効です。</p>
-          <a href="${resetLink}" style="display: inline-block; padding: 10px 20px; font-size: 16px; color: white; background-color: #0ea5e9; text-decoration: none; border-radius: 5px;">パスワードを再設定する</a>
-          <p>もしこのメールに心当たりがない場合は、無視してください。</p>
+          <div style="font-family: sans-serif; padding: 20px; color: #333;">
+            <h2 style="color: #0ea5e9;">FLASTAL パスワード再設定</h2>
+            <p>FLASTALのパスワード再設定リクエストを受け付けました。</p>
+            <p>以下のボタンをクリックして、新しいパスワードを設定してください。このリンクは1時間有効です。</p>
+            <a href="${resetLink}" style="display: inline-block; margin: 20px 0; padding: 12px 24px; font-size: 16px; color: white; background-color: #0ea5e9; text-decoration: none; border-radius: 8px;">パスワードを再設定する</a>
+            <p>もしこのメールに心当たりがない場合は、安全のため、このメールを無視してください。</p>
+            <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
+            <p style="font-size: 12px; color: #9ca3af;">FLASTAL</p>
+          </div>
         `,
       });
 
       if (error) {
         console.error("メール送信エラー:", error);
-        throw new Error('メールの送信に失敗しました。');
+        // フロントエンドには一般的なエラーメッセージを返す
+        return res.status(500).json({ message: 'メールの送信に失敗しました。時間をおいて再度お試しください。' });
       }
+
+      console.log(`パスワード再設定メールを ${email} に送信しました。`);
+    } else {
+      // ユーザーが存在しない場合でも、セキュリティのためログには残す
+      console.log(`パスワード再設定リクエスト受信（未登録）: ${email} (${userType})。`);
     }
     
+    // ユーザーが存在するかどうかに関わらず、常に成功メッセージを返す
     res.status(200).json({ message: 'ご入力いただいたメールアドレスに、パスワード再設定用のリンクを送信しました。' });
+
   } catch (error) {
-    console.error("パスワード再設定リクエストエラー:", error);
+    console.error("パスワード再設定リクエストAPIで予期せぬエラー:", error);
     res.status(500).json({ message: '処理中にエラーが発生しました。' });
   }
 });
