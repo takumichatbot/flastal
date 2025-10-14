@@ -1,75 +1,59 @@
-// client/src/app/login/page.js
-'use client';
+"use client";
 
 import { useState } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '../contexts/AuthContext'; // ★ useAuthフックをインポート
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+import { useAuth } from '../contexts/AuthContext'; // useAuthをインポート
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState(null);
+  const { login } = useAuth(); // AuthContextからlogin関数を取得
   const router = useRouter();
-  const { login } = useAuth(); // ★ login関数を取得
 
-  const handleSubmit = async (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    try {
-      const response = await fetch(`${API_URL}/api/users/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.message);
-      
-      // ★ Contextにユーザー情報を保存
-      login(data.user, 'USER');
-      
-      // ★ トップページにリダイレクト
-      router.push('/');
+    setError(null);
 
-    } catch (error) {
-      alert(`ログインエラー: ${error.message}`);
+    try {
+      await login(email, password);
+      // 成功した場合、AuthContextが自動でページ遷移させる
+    } catch (err) {
+      // 失敗した場合、AuthContextからスローされたエラーを受け取る
+      setError(err.message || 'ログインに失敗しました。メールアドレスかパスワードを確認してください。');
     }
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-100">
-      <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-md">
-        <h2 className="text-2xl font-bold text-center text-gray-900">
-          FLASTAL ログイン
-        </h2>
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* ... (フォームの中身は変更なし) ... */}
+    <div className="bg-sky-50 min-h-screen flex items-center justify-center">
+      <div className="bg-white max-w-md w-full p-8 border rounded-xl shadow-md">
+        <h1 className="text-4xl font-bold text-sky-600 text-center mb-8">ログイン</h1>
+        <form onSubmit={handleLogin} className="flex flex-col gap-4">
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700">メールアドレス</label>
-            <input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-3 py-2 mt-1 text-gray-900 border border-gray-300 rounded-md"/>
+            <label className="font-semibold text-gray-700">メールアドレス:</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              className="w-full p-3 border-2 border-gray-200 rounded-lg mt-2 focus:border-sky-500 focus:ring-0 transition"
+            />
           </div>
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700">パスワード</label>
-            <input id="password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-3 py-2 mt-1 text-gray-900 border border-gray-300 rounded-md"/>
+            <label className="font-semibold text-gray-700">パスワード:</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              className="w-full p-3 border-2 border-gray-200 rounded-lg mt-2 focus:border-sky-500 focus:ring-0 transition"
+            />
           </div>
-          <div>
-            <button type="submit" className="w-full px-4 py-2 font-medium text-white bg-blue-500 rounded-md hover:bg-blue-600">
-              ログインする
-            </button>
-          </div>
+          {error && <p className="text-red-500 text-center">{error}</p>}
+          <button type="submit" className="w-full p-3 bg-sky-500 text-white rounded-lg hover:bg-sky-600 transition-colors text-lg font-semibold mt-4">
+            ログインする
+          </button>
         </form>
-        <div className="text-sm text-center text-gray-600">
-          <Link href="/forgot-password">
-            <span className="font-medium text-sky-600 hover:underline">
-              パスワードを忘れた方はこちら
-            </span>
-          </Link>
-        </div>
-        <div className="text-sm text-center">
-          <Link href="/register" className="font-medium text-blue-600 hover:text-blue-500">
-            アカウントをお持ちでないですか？ 新規登録
-          </Link>
-        </div>
       </div>
     </div>
   );

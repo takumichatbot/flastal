@@ -1,70 +1,82 @@
-'use client';
+"use client";
 
 import { useState } from 'react';
-import Link from 'next/link';
-
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+import { useRouter } from 'next/navigation';
 
 export default function RegisterPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  // --- ここからが新しいコード ---
   const [handleName, setHandleName] = useState('');
-  const [referralCode, setReferralCode] = useState(''); // ★ 紹介コード用のStateを追加
+  // --- 変更ここまで ---
+  const [error, setError] = useState(null);
+  const router = useRouter();
 
-  const handleSubmit = async (e) => {
+  const handleRegister = async (e) => {
     e.preventDefault();
-    try {
-      const response = await fetch(`${API_URL}/api/users/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, handleName, referralCode }), // ★ referralCodeを送信
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.message);
-      
-      alert('ユーザー登録が完了しました！');
-      
-      // 登録後、そのままログイン処理を実行
-      await login(email, password); 
-      // login関数が成功すれば、自動的にダッシュボードにリダイレクトされます
-      
-    } catch (error) {
-      alert(`エラー: ${error.message}`);
+    setError(null);
+
+    const response = await fetch('http://127.0.0.1:8000/api/users/register', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      // --- ここからが新しいコード ---
+      body: JSON.stringify({ email, password, handleName }),
+      // --- 変更ここまで ---
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      setError(data.detail || '登録に失敗しました。');
+    } else {
+      alert('登録が完了しました！ログインページに移動します。');
+      router.push('/login');
     }
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-100">
-      <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-md">
-        <h2 className="text-2xl font-bold text-center text-gray-900">
-          新規ユーザー登録
-        </h2>
-        <form onSubmit={handleSubmit} className="space-y-6">
+    <div className="bg-sky-50 min-h-screen flex items-center justify-center">
+      <div className="bg-white max-w-md w-full p-8 border rounded-xl shadow-md">
+        <h1 className="text-4xl font-bold text-sky-600 text-center mb-8">新規登録</h1>
+        <form onSubmit={handleRegister} className="flex flex-col gap-4">
+          {/* --- ここからが新しいコード --- */}
           <div>
-            <label htmlFor="handleName" className="block text-sm font-medium text-gray-700">ハンドルネーム</label>
-            <input id="handleName" type="text" required value={handleName} onChange={(e) => setHandleName(e.target.value)} className="w-full px-3 py-2 mt-1 text-gray-900 border border-gray-300 rounded-md"/>
+            <label className="font-semibold text-gray-700">ハンドルネーム:</label>
+            <input
+              type="text"
+              value={handleName}
+              onChange={(e) => setHandleName(e.target.value)}
+              required
+              className="w-full p-3 border-2 border-gray-200 rounded-lg mt-2 focus:border-sky-500 focus:ring-0 transition"
+            />
+          </div>
+          {/* --- 変更ここまで --- */}
+          <div>
+            <label className="font-semibold text-gray-700">メールアドレス:</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              className="w-full p-3 border-2 border-gray-200 rounded-lg mt-2 focus:border-sky-500 focus:ring-0 transition"
+            />
           </div>
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700">メールアドレス</label>
-            <input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-3 py-2 mt-1 text-gray-900 border border-gray-300 rounded-md"/>
+            <label className="font-semibold text-gray-700">パスワード:</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              className="w-full p-3 border-2 border-gray-200 rounded-lg mt-2 focus:border-sky-500 focus:ring-0 transition"
+            />
           </div>
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700">パスワード</label>
-            <input id="password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-3 py-2 mt-1 text-gray-900 border border-gray-300 rounded-md"/>
-          </div>
-
-          {/* ★★★ 紹介コード入力欄を追加 ★★★ */}
-          <div>
-            <label htmlFor="referralCode" className="block text-sm font-medium text-gray-700">紹介コード（任意）</label>
-            <input id="referralCode" type="text" value={referralCode} onChange={(e) => setReferralCode(e.target.value)} className="w-full px-3 py-2 mt-1 text-gray-900 border border-gray-300 rounded-md"/>
-          </div>
-
-          <div>
-            <button type="submit" className="w-full px-4 py-2 font-medium text-white bg-blue-500 rounded-md hover:bg-blue-600">
-              登録する
-            </button>
-          </div>
+          {error && <p className="text-red-500 text-center">{error}</p>}
+          <button type="submit" className="w-full p-3 bg-sky-500 text-white rounded-lg hover:bg-sky-600 transition-colors text-lg font-semibold mt-4">
+            登録する
+          </button>
         </form>
       </div>
     </div>

@@ -6,7 +6,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import ImageModal from '../../components/ImageModal';
 import { io } from 'socket.io-client';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const API_URL = process.env.NEXT_PUBLIC_API_URL_PYTHON || 'http://127.0.0.1:8000';
 
 // ★★★ 寄せ書きメッセージ投稿フォームの部品 ★★★
 function MessageForm({ projectId, userId, onMessagePosted }) {
