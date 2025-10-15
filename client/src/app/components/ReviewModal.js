@@ -3,7 +3,7 @@
 import { useState } from 'react';
 
 // ★ 1. APIの接続先をPythonバックエンドに変更
-const API_URL = process.env.NEXT_PUBLIC_API_URL_PYTHON || 'http://127.0.0.1:8000';
+const API_URL = process.env.NEXT_PUBLIC_API_URL_PYTHON || 'https://flastal-backend.onrender.com';
 
 // ★ offerは不要になったので削除
 export default function ReviewModal({ project, user, onClose, onReviewSubmitted }) {
