@@ -89,7 +89,7 @@ def forgot_password(request: schemas.EmailSchema, db: Session = Depends(get_db))
             "subject": "FLASTAL パスワード再設定のご案内",
             "html": f"<p>パスワードを再設定するには、以下のリンクをクリックしてください:</p><p><a href='{reset_link}'>パスワードを再設定する</a></p><p>このリンクは1時間有効です。</p>",
         }
-        email = resend.emails.send(params)
+        email = resend.Emails.send(params)
     except Exception as e:
         print(e)
         raise HTTPException(status_code=500, detail="Email could not be sent")
