@@ -6,6 +6,8 @@ from jose import JWTError, jwt
 import json
 import secrets
 import string
+import os # osをインポート
+from resend import Resend # Resendをインポート
 
 import models, schemas, security
 from database import SessionLocal, engine
@@ -27,6 +29,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+# Resendクライアントを初期化
+resend = Resend(os.environ.get("RESEND_API_KEY"))
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/token")
 
@@ -60,6 +64,37 @@ def read_users_me(current_user: models.User = Depends(get_current_user)):
     return current_user
 
 # === ユーザー認証 API ===
+
+@app.post("/api/forgot-password")
+def forgot_password(request: schemas.EmailSchema, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.email == request.email).first()
+    if not user:
+        # ユーザーが存在しない場合でも、セキュリティのため成功したように見せかける
+        return {"message": "Password reset email sent"}
+
+    # パスワードリセット用の特別なトークンを生成（有効期限1時間）
+    reset_token = security.create_access_token(
+        data={"sub": user.email, "scope": "password_reset"},
+        expires_delta_minutes=60
+    )
+    
+    # フロントエンドのパスワードリセットページのURL
+    reset_link = f"https://flastal-frontend.onrender.com/reset-password/{reset_token}"
+    
+    try:
+        params = {
+            # "onboarding@resend.dev" から、あなたのドメインのアドレスに変更
+            "from": "FLASTAL <noreply@flastal.com>", 
+            "to": [user.email],
+            "subject": "FLASTAL パスワード再設定のご案内",
+            "html": f"<p>パスワードを再設定するには、以下のリンクをクリックしてください:</p><p><a href='{reset_link}'>パスワードを再設定する</a></p><p>このリンクは1時間有効です。</p>",
+        }
+        email = resend.emails.send(params)
+    except Exception as e:
+        print(e)
+        raise HTTPException(status_code=500, detail="Email could not be sent")
+
+    return {"message": "Password reset email sent"}
 
 @app.post("/api/token")
 def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):

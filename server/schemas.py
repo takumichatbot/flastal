@@ -70,3 +70,6 @@ class Pledge(PledgeBase):
 
     class Config:
         from_attributes = True
+        
+class EmailSchema(BaseModel):
+    email: str
