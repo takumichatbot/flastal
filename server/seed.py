@@ -37,6 +37,13 @@ try:
     print("---")
     print("Test User 1: user1@example.com / pass: test1")
     print("---")
+    
+    venue1 = models.Venue(venueName="東京ドーム", regulations="スタンド花のサイズは幅40cm、高さ180cmまでです。")
+    venue2 = models.Venue(venueName="日本武道館", regulations="楽屋花のみ受付可能です。スタンド花はご遠慮ください。")
+    db.add_all([venue1, venue2])
+    db.commit()
+
+    print("データベースに会場の初期データを投入しました。")
 
 finally:
     db.close()

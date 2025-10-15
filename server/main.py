@@ -298,3 +298,7 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
                 print(f"User {user_id} purchased {points_purchased} points.")
 
     return {"status": "success"}
+
+@app.get("/api/venues", response_model=list[schemas.Venue])
+def get_venues(db: Session = Depends(get_db)):
+    return db.query(models.Venue).all()

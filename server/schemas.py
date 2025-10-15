@@ -82,3 +82,10 @@ class ResetPasswordSchema(BaseModel):
 class CheckoutRequest(BaseModel):
     points: int
     amount: int
+    
+class Venue(BaseModel):
+    id: int
+    venueName: str
+    regulations: str | None = None
+    class Config:
+        from_attributes = True

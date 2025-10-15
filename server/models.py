@@ -65,3 +65,9 @@ class Review(Base):
     # 関連
     project = relationship("Project", back_populates="review")
     user = relationship("User")
+    
+class Venue(Base):
+    __tablename__ = "venues"
+    id = Column(Integer, primary_key=True, index=True)
+    venueName = Column(String, unique=True, index=True)
+    regulations = Column(Text, nullable=True)
