@@ -239,6 +239,9 @@ def create_review(review: schemas.ReviewCreate, db: Session = Depends(get_db), c
 
 @app.post("/api/checkout/create-session")
 def create_checkout_session(request: schemas.CheckoutRequest, current_user: models.User = Depends(get_current_user)):
+    # リクエストから安全なデータを取り出す
+    checkout_data = request.dict()
+    
     try:
         session = stripe.checkout.Session.create(
             payment_method_types=['card'],
@@ -246,22 +249,24 @@ def create_checkout_session(request: schemas.CheckoutRequest, current_user: mode
                 'price_data': {
                     'currency': 'jpy',
                     'product_data': {
-                        'name': f"{request.points} ポイント購入",
+                        'name': f"{checkout_data['points']} ポイント購入",
                     },
-                    'unit_amount': request.amount,
+                    'unit_amount': checkout_data['amount'],
                 },
                 'quantity': 1,
             }],
             mode='payment',
             success_url=f"https://{os.environ.get('FRONTEND_URL', 'flastal-frontend.onrender.com')}/payment/success",
             cancel_url=f"https://{os.environ.get('FRONTEND_URL', 'flastal-frontend.onrender.com')}/points",
-            client_reference_id=str(current_user.id), # Webhookでユーザーを特定するためにIDを渡す
+            client_reference_id=str(current_user.id),
             metadata={
-                'points': str(request.points) # Webhookで購入ポイント数を特定するために渡す
+                'points': str(checkout_data['points'])
             }
         )
         return {"url": session.url}
     except Exception as e:
+        # エラーの詳細をログに出力
+        print(f"Stripe Error: {e}")
         raise HTTPException(status_code=400, detail=str(e))
 
 @app.post("/api/webhooks/stripe")
