@@ -7,7 +7,7 @@ import json
 import secrets
 import string
 import os # osをインポート
-from resend import Resend # Resendをインポート
+import resend
 
 import models, schemas, security
 from database import SessionLocal, engine
@@ -30,7 +30,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 # Resendクライアントを初期化
-resend = Resend(os.environ.get("RESEND_API_KEY"))
+resend.api_key = os.environ.get("RESEND_API_KEY")
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/token")
 
