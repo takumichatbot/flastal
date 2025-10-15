@@ -18,6 +18,8 @@ models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
+# Deploy trigger comment
+
 origins = [
     "http://localhost:3000",
     "https://flastal-frontend.onrender.com",
@@ -255,7 +257,7 @@ def create_checkout_session(request: schemas.CheckoutRequest, current_user: mode
             cancel_url=f"https://{os.environ.get('FRONTEND_URL', 'flastal-frontend.onrender.com')}/points",
             client_reference_id=str(current_user.id), # Webhookでユーザーを特定するためにIDを渡す
             metadata={
-                'points': request.points # Webhookで購入ポイント数を特定するために渡す
+                'points': str(request.points) # Webhookで購入ポイント数を特定するために渡す
             }
         )
         return {"url": session.url}
