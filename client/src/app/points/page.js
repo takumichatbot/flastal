@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useAuth } from '../contexts/AuthContext';
 
 // ★ 1. APIの接続先をPythonバックエンドに変更
-const API_URL = process.env.NEXT_PUBLIC_API_URL_PYTHON || 'http://127.0.0.1:8000';
+const API_URL = process.env.NEXT_PUBLIC_API_URL_PYTHON || 'https://flastal-backend.onrender.com';
 
 const pointPackages = [
   { points: 1000, amount: 1000 },
