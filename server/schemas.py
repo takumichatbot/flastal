@@ -73,3 +73,7 @@ class Pledge(PledgeBase):
         
 class EmailSchema(BaseModel):
     email: str
+    
+class ResetPasswordSchema(BaseModel):
+    token: str
+    new_password: str

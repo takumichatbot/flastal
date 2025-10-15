@@ -96,6 +96,34 @@ def forgot_password(request: schemas.EmailSchema, db: Session = Depends(get_db))
 
     return {"message": "Password reset email sent"}
 
+@app.post("/api/reset-password")
+def reset_password(request: schemas.ResetPasswordSchema, db: Session = Depends(get_db)):
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+    )
+    try:
+        payload = jwt.decode(request.token, SECRET_KEY, algorithms=[ALGORITHM])
+        if payload.get("scope") != "password_reset":
+            raise credentials_exception
+        email: str = payload.get("sub")
+        if email is None:
+            raise credentials_exception
+    except JWTError:
+        raise credentials_exception
+    
+    user = db.query(models.User).filter(models.User.email == email).first()
+    if user is None:
+        raise credentials_exception
+
+    # 新しいパスワードをハッシュ化して保存
+    hashed_password = security.get_password_hash(request.new_password)
+    user.hashed_password = hashed_password
+    db.commit()
+    
+    return {"message": "Password has been reset successfully"}
+
+
 @app.post("/api/token")
 def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.email == form_data.username).first()
