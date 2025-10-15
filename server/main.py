@@ -8,6 +8,7 @@ import secrets
 import string
 import os # osをインポート
 import resend
+import stripe # ★ stripeをインポート
 
 import models, schemas, security
 from database import SessionLocal, engine
@@ -31,6 +32,8 @@ app.add_middleware(
 )
 # Resendクライアントを初期化
 resend.api_key = os.environ.get("RESEND_API_KEY")
+# ★ Stripe APIキーを設定
+stripe.api_key = os.environ.get("STRIPE_API_KEY")
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/token")
 
@@ -228,3 +231,63 @@ def create_review(review: schemas.ReviewCreate, db: Session = Depends(get_db), c
     db.commit()
     db.refresh(new_review)
     return new_review
+
+# === Stripe決済 API ===
+# --- ここからが新しいコード ---
+
+@app.post("/api/checkout/create-session")
+def create_checkout_session(request: schemas.CheckoutRequest, current_user: models.User = Depends(get_current_user)):
+    try:
+        session = stripe.checkout.Session.create(
+            payment_method_types=['card'],
+            line_items=[{
+                'price_data': {
+                    'currency': 'jpy',
+                    'product_data': {
+                        'name': f"{request.points} ポイント購入",
+                    },
+                    'unit_amount': request.amount,
+                },
+                'quantity': 1,
+            }],
+            mode='payment',
+            success_url=f"https://{os.environ.get('FRONTEND_URL', 'flastal-frontend.onrender.com')}/payment/success",
+            cancel_url=f"https://{os.environ.get('FRONTEND_URL', 'flastal-frontend.onrender.com')}/points",
+            client_reference_id=str(current_user.id), # Webhookでユーザーを特定するためにIDを渡す
+            metadata={
+                'points': request.points # Webhookで購入ポイント数を特定するために渡す
+            }
+        )
+        return {"url": session.url}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/api/webhooks/stripe")
+async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
+    payload = await request.body()
+    sig_header = request.headers.get('stripe-signature')
+    webhook_secret = os.environ.get('STRIPE_WEBHOOK_SECRET')
+    
+    try:
+        event = stripe.Webhook.construct_event(
+            payload, sig_header, webhook_secret
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail="Invalid payload")
+    except stripe.error.SignatureVerificationError as e:
+        raise HTTPException(status_code=400, detail="Invalid signature")
+
+    # checkout.session.completed イベントを処理
+    if event['type'] == 'checkout.session.completed':
+        session = event['data']['object']
+        user_id = session.get('client_reference_id')
+        points_purchased = int(session.get('metadata', {}).get('points', 0))
+
+        if user_id and points_purchased > 0:
+            user = db.query(models.User).filter(models.User.id == int(user_id)).first()
+            if user:
+                user.points += points_purchased
+                db.commit()
+                print(f"User {user_id} purchased {points_purchased} points.")
+
+    return {"status": "success"}

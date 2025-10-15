@@ -77,3 +77,8 @@ class EmailSchema(BaseModel):
 class ResetPasswordSchema(BaseModel):
     token: str
     new_password: str
+    
+# --- Checkout Schema ---
+class CheckoutRequest(BaseModel):
+    points: int
+    amount: int
