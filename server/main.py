@@ -184,14 +184,6 @@ def get_my_created_projects(current_user: models.User = Depends(get_current_user
 def get_my_pledged_projects(current_user: models.User = Depends(get_current_user)):
     return current_user.pledges
 
-@app.post("/api/projects", status_code=201)
-def create_project(project: schemas.ProjectCreate, db: Session = Depends(get_db)):
-    new_project = models.Project(title=project.title, organizer=project.organizer)
-    db.add(new_project)
-    db.commit()
-    db.refresh(new_project)
-    return new_project
-
 @app.get("/api/projects")
 def get_projects(db: Session = Depends(get_db)):
     projects = db.query(models.Project).all()
