@@ -184,6 +184,19 @@ def get_my_created_projects(current_user: models.User = Depends(get_current_user
 def get_my_pledged_projects(current_user: models.User = Depends(get_current_user)):
     return current_user.pledges
 
+@app.post("/api/projects", response_model=schemas.Project)
+def create_project(project: schemas.ProjectCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    # 企画者情報としてログインユーザーのハンドルネームを使用
+    # Pydanticモデルから辞書に変換し、organizerを追加
+    project_data = project.dict()
+    project_data['organizer'] = current_user.handleName
+    
+    new_project = models.Project(**project_data)
+    db.add(new_project)
+    db.commit()
+    db.refresh(new_project)
+    return new_project
+
 @app.get("/api/projects")
 def get_projects(db: Session = Depends(get_db)):
     projects = db.query(models.Project).all()
