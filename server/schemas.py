@@ -36,7 +36,19 @@ class Review(ReviewBase):
 
 # --- Project Schemas ---
 # Pledgeで参照されるため、先に定義します
-class ProjectBase(BaseModel):
+class ProjectCreate(BaseModel):
+    title: str
+    description: str
+    targetAmount: int
+    deliveryAddress: str
+    deliveryDateTime: datetime
+    designDetails: str | None = None
+    visibility: str = "PUBLIC"
+    size: str | None = None
+    flowerTypes: str | None = None
+    imageUrl: str | None = None
+
+class ProjectUpdate(BaseModel): # ProjectUpdateも合わせて修正
     title: str
     organizer: str
     description: str | None = None
@@ -47,11 +59,22 @@ class ProjectBase(BaseModel):
     imageUrl: str | None = None
     status: str
 
-class ProjectCreate(ProjectBase):
-    pass
+class Project(BaseModel): # Projectも合わせて修正
+    id: int
+    title: str
+    organizer: str
+    description: str | None = None
+    targetAmount: int
+    collectedAmount: int
+    deliveryAddress: str | None = None
+    deliveryDateTime: datetime | None = None
+    imageUrl: str | None = None
+    status: str
+    review: Review | None = None
+    
+    class Config:
+        from_attributes = True
 
-class ProjectUpdate(ProjectBase):
-    pass
 
 class Project(ProjectBase):
     id: int
