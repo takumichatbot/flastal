@@ -1,5 +1,33 @@
 from pydantic import BaseModel
-from datetime import datetime # datetimeを追加
+from datetime import datetime
+
+# --- Review (先に定義) ---
+class ReviewBase(BaseModel):
+    rating: int
+    comment: str | None = None
+
+class Review(ReviewBase):
+    id: int
+    user_id: int
+    class Config:
+        from_attributes = True
+
+# --- Project (先に定義) ---
+class ProjectBaseForPledge(BaseModel):
+    id: int
+    title: str
+    class Config:
+        from_attributes = True
+
+# --- Pledge Schemas ---
+class PledgeBase(BaseModel):
+    amount: int
+
+class Pledge(PledgeBase):
+    id: int
+    project: ProjectBaseForPledge
+    class Config:
+        from_attributes = True
 
 # --- User Schemas ---
 class UserBase(BaseModel):
@@ -14,28 +42,10 @@ class User(UserBase):
     handleName: str
     points: int
     referralCode: str
-
     class Config:
         from_attributes = True
 
-# --- Review Schemas ---
-# Projectで参照されるため、先に定義します
-class ReviewBase(BaseModel):
-    rating: int
-    comment: str | None = None
-
-class ReviewCreate(ReviewBase):
-    project_id: int
-
-class Review(ReviewBase):
-    id: int
-    user_id: int
-
-    class Config:
-        from_attributes = True
-
-# --- Project Schemas ---
-# Pledgeで参照されるため、先に定義します
+# --- Project Schemas (本体) ---
 class ProjectCreate(BaseModel):
     title: str
     description: str
@@ -48,18 +58,11 @@ class ProjectCreate(BaseModel):
     flowerTypes: str | None = None
     imageUrl: str | None = None
 
-class ProjectUpdate(BaseModel): # ProjectUpdateも合わせて修正
+class ProjectUpdate(BaseModel):
     title: str
     organizer: str
-    description: str | None = None
-    targetAmount: int
-    collectedAmount: int
-    deliveryAddress: str | None = None
-    deliveryDateTime: datetime | None = None
-    imageUrl: str | None = None
-    status: str
 
-class Project(BaseModel): # Projectも合わせて修正
+class Project(BaseModel):
     id: int
     title: str
     organizer: str
@@ -75,25 +78,7 @@ class Project(BaseModel): # Projectも合わせて修正
     class Config:
         from_attributes = True
 
-
-class Project(ProjectBase):
-    id: int
-    review: Review | None = None # 先に定義したReviewを参照
-
-    class Config:
-        from_attributes = True
-
-# --- Pledge Schemas ---
-class PledgeBase(BaseModel):
-    amount: int
-
-class Pledge(PledgeBase):
-    id: int
-    project: Project # 先に定義したProjectを参照
-
-    class Config:
-        from_attributes = True
-        
+# --- その他のスキーマ ---
 class EmailSchema(BaseModel):
     email: str
     
@@ -101,7 +86,6 @@ class ResetPasswordSchema(BaseModel):
     token: str
     new_password: str
     
-# --- Checkout Schema ---
 class CheckoutRequest(BaseModel):
     points: int
     amount: int
@@ -112,3 +96,6 @@ class Venue(BaseModel):
     regulations: str | None = None
     class Config:
         from_attributes = True
+
+class ReviewCreate(ReviewBase):
+    project_id: int
