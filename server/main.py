@@ -14,7 +14,8 @@ import models, schemas, security
 from database import SessionLocal, engine
 from config import SECRET_KEY, ALGORITHM
 
-models.Base.metadata.create_all(bind=engine)
+models.Base.metadata.drop_all(bind=engine)      # 既存のテーブルをすべて削除
+models.Base.metadata.create_all(bind=engine)  # 新しい設計図でテーブルを作成
 
 app = FastAPI()
 
