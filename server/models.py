@@ -17,6 +17,19 @@ class Project(Base):
     deliveryDateTime = Column(DateTime(timezone=True), nullable=True) # お届け日時
     imageUrl = Column(String, nullable=True) # 画像URL
     status = Column(String, default="FUNDRAISING") # 企画ステータス
+    description = Column(Text, nullable=True)
+    targetAmount = Column(Integer, default=0)
+    deliveryAddress = Column(String, nullable=True)
+    deliveryDateTime = Column(DateTime, nullable=True)
+    designDetails = Column(Text, nullable=True) # ★ 追加
+    visibility = Column(String, default="PUBLIC") # ★ 追加
+    size = Column(String, nullable=True) # ★ 追加
+    flowerTypes = Column(String, nullable=True) # ★ 追加
+    imageUrl = Column(String, nullable=True)
+    
+    # 以下の項目は、後々の機能で必要になります
+    collectedAmount = Column(Integer, default=0)
+    status = Column(String, default="FUNDRAISING")
     # --- 追記ここまで ---
     
     pledges = relationship("Pledge", back_populates="project")
