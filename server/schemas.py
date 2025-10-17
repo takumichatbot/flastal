@@ -48,7 +48,7 @@ class ProjectFeatured(BaseModel):
     collectedAmount: int
     imageUrl: str | None = None
     status: str
-    
+
     class Config:
         from_attributes = True
 

@@ -319,24 +319,22 @@ def cancel_project(project_id: int, db: Session = Depends(get_db), current_user:
     db.commit()
     return project
 
-@fastapi_app.get("/api/projects/featured") # ← response_modelを一時的に削除
-def get_featured_projects():
-    # データベースもスキーマも完全に無視して、固定データを返す
-    print("--- ULTIMATE HARDCODE TEST: このメッセージがログに出れば成功 ---")
-    return [
-        {
-            "id": 1, "title": "【テストデータ1】", "organizer": "デバッグ中",
-            "targetAmount": 10000, "collectedAmount": 5000,
-            "imageUrl": "https://via.placeholder.com/400x300.png?text=Test1",
-            "status": "FUNDRAISING"
-        },
-        {
-            "id": 2, "title": "【テストデータ2】", "organizer": "デバッグ中",
-            "targetAmount": 20000, "collectedAmount": 20000,
-            "imageUrl": "https://via.placeholder.com/400x300.png?text=Test2",
-            "status": "SUCCESSFUL"
-        }
-    ]
+@fastapi_app.get("/api/projects/featured", response_model=list[schemas.Project])
+def get_featured_projects(db: Session = Depends(get_db)):
+    query = db.query(models.Project).options(
+        joinedload(models.Project.planner),
+        joinedload(models.Project.pledges).joinedload(models.Pledge.user),
+        joinedload(models.Project.activePoll).joinedload(models.Poll.options),
+        joinedload(models.Project.activePoll).joinedload(models.Poll.votes)
+    )
+    
+    featured_projects = query.filter(
+        models.Project.targetAmount > 0, models.Project.visibility == "PUBLIC"
+    ).order_by(
+        (models.Project.collectedAmount / models.Project.targetAmount).desc()
+    ).limit(4).all()
+    
+    return featured_projects
 
 
 # ===============================================
