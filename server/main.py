@@ -1,49 +1,56 @@
-# main.py の先頭
+# ===============================================
+# Imports
+# ===============================================
 import os
 import json
 import secrets
 import string
-
+import socketio
 import cloudinary
 import cloudinary.uploader
 import resend
 import stripe
-import socketio
 
 from fastapi import FastAPI, Depends, Response, HTTPException, status, Request, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 from jose import JWTError, jwt
-from pydantic import BaseModel # main.py内のスキーマ定義のため
+from pydantic import BaseModel
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy.sql import func # ファイル上部でインポート
+from sqlalchemy.sql import func
 
 from database import SessionLocal, engine
-from config import SECRET_KEY, ALGORITHM
+from config import SECRET_key, ALGORITHM
 import models, schemas, security
 
+# ===============================================
+# 初期設定 (Initial Setup)
+# ===============================================
+
+# Cloudinary設定
 cloudinary.config(
-  cloud_name = os.environ.get('CLOUDINARY_CLOUD_NAME'), 
-  api_key = os.environ.get('CLOUDINARY_API_KEY'), 
+  cloud_name = os.environ.get('CLOUDINARY_CLOUD_NAME'),
+  api_key = os.environ.get('CLOUDINARY_API_KEY'),
   api_secret = os.environ.get('CLOUDINARY_API_SECRET')
 )
 
-models.Base.metadata.create_all(bind=engine)  # 新しい設計図でテーブルを作成
+# データベーステーブル作成
+models.Base.metadata.create_all(bind=engine)
+
+# 1. Socket.IOサーバーのインスタンスを作成
 sio = socketio.AsyncServer(async_mode='asgi', cors_allowed_origins="*")
 
-# FastAPIアプリのインスタンスを作成
+# 2. FastAPIアプリのインスタンスを作成
 app = FastAPI()
 
-
-# Deploy trigger comment
-
+# CORS許可オリジン
 origins = [
     "http://localhost:3000",
     "https://flastal-frontend.onrender.com",
 ]
 
-# 2. CORSミドルウェアを、ラップする「前」のfastapi_appに追加
-fastapi_app.add_middleware(
+# 3. FastAPIアプリにミドルウェアを追加 (Socket.IOでラップする前)
+app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
@@ -51,15 +58,18 @@ fastapi_app.add_middleware(
     allow_headers=["*"],
 )
 
-# 3. 必要な設定がすべて完了したfastapi_appを、Socket.IOでラップする
-#    最終的なアプリケーションの名前は「app」にする
-app = socketio.ASGIApp(sio, fastapi_app)
-# Resendクライアントを初期化
+# 4. 最後に、ミドルウェア設定済みのFastAPIアプリをSocket.IOでラップ
+# これが最終的にUvicornが実行するアプリケーションになる
+app = socketio.ASGIApp(sio, app)
+
+
+# 外部サービスAPIキー設定
 resend.api_key = os.environ.get("RESEND_API_KEY")
-# ★ Stripe APIキーを設定
 stripe.api_key = os.environ.get("STRIPE_API_KEY")
 
+# 認証設定
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/token")
+ADMIN_PASSWORD_HASH = security.get_password_hash(os.environ.get("ADMIN_PASSWORD", "supersecretpassword"))
 
 def get_db():
     db = SessionLocal()
