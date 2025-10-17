@@ -194,10 +194,8 @@ def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db:
     user = db.query(models.User).filter(models.User.email == form_data.username).first()
     if not user or not security.verify_password(form_data.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Incorrect email or password")
-    
-    # ★★★ 修正後: scopeに"user"を明記する ★★★
+    # `scope`に`user`というラベルを付けてトークンを発行します
     access_token = security.create_access_token(data={"sub": user.email, "scope": "user"})
-    
     return {"access_token": access_token, "token_type": "bearer"}
 
 @fastapi_app.get("/api/users/me", response_model=schemas.User)
