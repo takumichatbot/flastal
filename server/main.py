@@ -319,22 +319,14 @@ def cancel_project(project_id: int, db: Session = Depends(get_db), current_user:
     db.commit()
     return project
 
-@fastapi_app.get("/api/projects/featured", response_model=list[schemas.Project])
+@fastapi_app.get("/api/projects/featured", response_model=list[schemas.ProjectFeatured]) # ★★★ ここを変更 ★★★
 def get_featured_projects(db: Session = Depends(get_db)):
-    # データをまとめて取得するようにクエリを修正
-    query = db.query(models.Project).options(
-        joinedload(models.Project.planner),
-        joinedload(models.Project.pledges).joinedload(models.Pledge.user),
-        joinedload(models.Project.activePoll).joinedload(models.Poll.options)
-    )
-    
-    featured_projects = query.filter(
+    # クエリも一旦シンプルなものに戻します
+    return db.query(models.Project).filter(
         models.Project.targetAmount > 0, models.Project.visibility == "PUBLIC"
     ).order_by(
         (models.Project.collectedAmount / models.Project.targetAmount).desc()
     ).limit(4).all()
-    
-    return featured_projects
 
 # ===============================================
 # 支援 (Pledge) & レビュー (Review) API

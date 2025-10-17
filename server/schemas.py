@@ -40,6 +40,17 @@ class User(UserBase):
 # ===============================================
 # Project (企画) 関連スキーマ
 # ===============================================
+class ProjectFeatured(BaseModel):
+    id: int
+    title: str
+    organizer: str
+    targetAmount: int
+    collectedAmount: int
+    imageUrl: str | None = None
+    status: str
+    
+    class Config:
+        from_attributes = True
 
 
 class ProjectCreate(BaseModel):
