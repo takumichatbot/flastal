@@ -341,3 +341,38 @@ class ChatMessageForAdmin(ChatMessage): # 既存のChatMessageを継承
 class ChatsForModeration(BaseModel):
     groupChat: list[GroupChatMessageForAdmin]
     floristChat: list[ChatMessageForAdmin]
+    
+class OfferStatusUpdate(BaseModel):
+    status: str
+
+# ★★★ このOfferスキーマが不足していました ★★★
+class Offer(BaseModel):
+    id: int
+    status: str
+    
+    # フロントエンドで企画名などを表示するために、ネストした情報を含める
+    project: Project 
+    florist: FloristPublic
+
+    class Config:
+        from_attributes = True
+
+class PayoutCreate(BaseModel):
+    amount: int
+    accountInfo: str
+
+class Payout(BaseModel):
+    id: int
+    amount: int
+    status: str
+    createdAt: datetime
+    class Config:
+        from_attributes = True
+
+# Floristダッシュボード用のレスポンススキーマ
+class FloristDashboardData(BaseModel):
+    florist: FloristPublic
+    offers: list[Offer]
+
+class FloristStatusUpdate(BaseModel):
+    status: str
