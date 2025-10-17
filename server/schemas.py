@@ -21,8 +21,14 @@ class ProjectBaseForPledge(BaseModel):
         from_attributes = True
 
 # --- Pledge Schemas ---
-class PledgeBase(BaseModel):
+class Pledge(BaseModel): # Pledgeスキーマを修正
+    id: int
+    comment: str | None = None
     amount: int
+    user: UserNested
+    user_id: int # ★★★ 誰の支援か判定するために user_id を追加 ★★★
+    class Config:
+        from_attributes = True
 
 class Pledge(PledgeBase):
     id: int
@@ -83,7 +89,7 @@ class Project(BaseModel):
     imageUrl: str | None = None
     status: str
     group_chat_messages: list[GroupChatMessage] = []
-    planner: UserNested | None = None
+    planner: UserNested | None = None # ★★★ planner情報をネストして含める ★★★
     pledges: list[Pledge] = []
     messages: list[Message] = []
     tasks: list[Task] = []
