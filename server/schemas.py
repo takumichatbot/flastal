@@ -106,15 +106,25 @@ class Poll(BaseModel):
     question: str
     options: list[str]
     votes: list[PollVote] = []
+
+    @model_validator(mode='before')
+    @classmethod
+    def convert_options_to_strings(cls, data):
+        # 'data' が 'options' 属性を持つORMオブジェクトの場合
+        if hasattr(data, 'options'):
+            # ORMオブジェクトを辞書に変換し、'options' を文字列のリストに変換する
+            return {
+                'id': data.id,
+                'question': data.question,
+                'options': [opt.text for opt in data.options],
+                'votes': data.votes
+            }
+        return data
+
     class Config:
         from_attributes = True
-        @classmethod
-        def from_orm(cls, obj):
-            data = super().from_orm(obj)
-            if hasattr(obj, 'options'):
-                data.options = [opt.text for opt in obj.options]
-            return cls(**data)
-
+        
+        
 class Review(BaseModel):
     id: int
     rating: int
