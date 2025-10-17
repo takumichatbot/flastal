@@ -2,41 +2,26 @@ from __future__ import annotations
 from pydantic import BaseModel
 from datetime import datetime
 
-# --- Review (先に定義) ---
-class ReviewBase(BaseModel):
-    rating: int
-    comment: str | None = None
+# ===============================================
+# ベースとなるスキーマ (他のスキーマが使用)
+# ===============================================
 
-class Review(ReviewBase):
+class UserNested(BaseModel):
     id: int
-    user_id: int
+    handleName: str
     class Config:
         from_attributes = True
 
-# --- Project (先に定義) ---
-class ProjectBaseForPledge(BaseModel):
+class ProjectNested(BaseModel):
     id: int
     title: str
     class Config:
         from_attributes = True
 
-# --- Pledge Schemas ---
-class Pledge(BaseModel): # Pledgeスキーマを修正
-    id: int
-    comment: str | None = None
-    amount: int
-    user: UserNested
-    user_id: int # ★★★ 誰の支援か判定するために user_id を追加 ★★★
-    class Config:
-        from_attributes = True
+# ===============================================
+# User (ファン) 関連スキーマ
+# ===============================================
 
-class Pledge(PledgeBase):
-    id: int
-    project: ProjectBaseForPledge
-    class Config:
-        from_attributes = True
-
-# --- User Schemas ---
 class UserBase(BaseModel):
     email: str
 
@@ -51,15 +36,11 @@ class User(UserBase):
     referralCode: str
     class Config:
         from_attributes = True
-        
-# ネストされたオブジェクト内で使用する、公開しても安全なユーザー情報
-class UserNested(BaseModel):
-    id: int
-    handleName: str
-    class Config:
-        from_attributes = True
 
-# --- Project Schemas (本体) ---
+# ===============================================
+# Project (企画) 関連スキーマ
+# ===============================================
+
 class ProjectCreate(BaseModel):
     title: str
     description: str
@@ -72,68 +53,23 @@ class ProjectCreate(BaseModel):
     flowerTypes: str | None = None
     imageUrl: str | None = None
 
-class ProjectUpdate(BaseModel):
-    title: str
-    organizer: str
-
-
-class Project(BaseModel):
+# ★★★ ここにPledgeスキーマを移動し、正しく定義 ★★★
+class Pledge(BaseModel):
     id: int
-    title: str
-    organizer: str # 将来的にはplanner: UserNested にするとより良い
-    description: str | None = None
-    targetAmount: int
-    collectedAmount: int
-    deliveryAddress: str | None = None
-    deliveryDateTime: datetime | None = None
-    imageUrl: str | None = None
-    status: str
-    group_chat_messages: list[GroupChatMessage] = []
-    planner: UserNested | None = None # ★★★ planner情報をネストして含める ★★★
-    pledges: list[Pledge] = []
-    messages: list[Message] = []
-    tasks: list[Task] = []
-    expenses: list[Expense] = []
-    announcements: list[Announcement] = []
-    review: Review | None = None
-    activePoll: Poll | None = None
-    
-    class Config:
-        from_attributes = True
-
-# --- その他のスキーマ ---
-class EmailSchema(BaseModel):
-    email: str
-    
-class ResetPasswordSchema(BaseModel):
-    token: str
-    new_password: str
-    
-class CheckoutRequest(BaseModel):
-    points: int
-    amount: int
-    
-class Venue(BaseModel):
-    id: int
-    venueName: str
-    regulations: str | None = None
-    class Config:
-        from_attributes = True
-
-class ReviewCreate(ReviewBase):
-    project_id: int
-    
-# 支援を作成するためのスキーマ
-class PledgeCreate(BaseModel):
-    projectId: int
-    amount: int
     comment: str | None = None
+    amount: int
+    user: UserNested
+    user_id: int
+    project: ProjectNested # 支援履歴ページ用にプロジェクト情報も追加
+    class Config:
+        from_attributes = True
 
+# ★★★ 他の関連スキーマもここにまとめる ★★★
 class Message(BaseModel):
     id: int
     content: str
     cardName: str
-    user: UserNested # 誰が投稿したかを表示
+    user: UserNested
     class Config:
         from_attributes = True
 
@@ -150,7 +86,7 @@ class Expense(BaseModel):
     amount: int
     class Config:
         from_attributes = True
-        
+
 class Announcement(BaseModel):
     id: int
     title: str
@@ -159,88 +95,62 @@ class Announcement(BaseModel):
     class Config:
         from_attributes = True
 
-class Pledge(PledgeBase): # 既存のPledgeを拡張
-    id: int
-    comment: str | None = None
-    user: UserNested # 誰が支援したかを表示
-    # project: ProjectBaseForPledge は、Projectスキーマ内で使うと循環参照になるので削除
-    class Config:
-        from_attributes = True
-        
-class AnnouncementCreate(BaseModel):
-    title: str
-    content: str
-    projectId: int
-    
-class ExpenseCreate(BaseModel):
-    itemName: str
-    amount: int
-    projectId: int
-    
-class TaskCreate(BaseModel):
-    title: str
-    projectId: int
-
-class TaskUpdate(BaseModel):
-    isCompleted: bool
-    
-class MessageCreate(BaseModel):
-    content: str
-    cardName: str
-    projectId: int
-    
-# 企画完了報告用のスキーマ
-class ProjectComplete(BaseModel):
-    completionImageUrls: list[str]
-    completionComment: str | None = None
-    
-class GroupChatMessage(BaseModel):
-    id: int
-    content: str | None = None
-    templateId: int | None = None
-    createdAt: datetime
-    user: UserNested # 誰が投稿したか
-    class Config:
-        from_attributes = True
-        
-class ReportCreate(BaseModel):
-    projectId: int
-    reason: str
-    details: str | None = None
-    
 class PollVote(BaseModel):
-    userId: int
-    optionIndex: int
-    class Config: from_attributes = True
-
-class PollOption(BaseModel):
-    text: str
-    class Config: from_attributes = True
+    user_id: int
+    option_index: int
+    class Config:
+        from_attributes = True
 
 class Poll(BaseModel):
     id: int
     question: str
-    options: list[str] # テキストのリストとして返す
+    options: list[str]
     votes: list[PollVote] = []
     class Config:
         from_attributes = True
-        # ORMのoptionsオブジェクトをoptions: list[str]に変換する
         @classmethod
         def from_orm(cls, obj):
             data = super().from_orm(obj)
-            if hasattr(data, 'options'):
+            if hasattr(obj, 'options'):
                 data.options = [opt.text for opt in obj.options]
             return cls(**data)
-        
-class PollCreate(BaseModel):
-    projectId: int
-    question: str
-    options: list[str]
 
-class PollVoteCreate(BaseModel):
-    pollId: int
-    optionIndex: int
-    
+class Review(BaseModel):
+    id: int
+    rating: int
+    comment: str | None = None
+    user_id: int
+    class Config:
+        from_attributes = True
+
+# ★★★ メインのProjectスキーマ (全ての部品が定義された後に記述) ★★★
+class Project(BaseModel):
+    id: int
+    title: str
+    organizer: str
+    description: str | None = None
+    targetAmount: int
+    collectedAmount: int
+    deliveryAddress: str | None = None
+    deliveryDateTime: datetime | None = None
+    imageUrl: str | None = None
+    status: str
+    planner: UserNested | None = None
+    pledges: list[Pledge] = []
+    messages: list[Message] = []
+    tasks: list[Task] = []
+    expenses: list[Expense] = []
+    announcements: list[Announcement] = []
+    review: Review | None = None
+    activePoll: Poll | None = None
+    group_chat_messages: list = [] # 簡略化のため一旦空リスト
+    class Config:
+        from_attributes = True
+
+# ===============================================
+# Venue (会場) & Florist (花屋) 関連スキーマ
+# ===============================================
+
 class VenueCreate(BaseModel):
     venueName: str
     email: str
@@ -259,12 +169,11 @@ class VenuePublic(BaseModel):
     class Config:
         from_attributes = True
 
-# ログイン成功時に返す情報のスキーマ
 class TokenDataVenue(BaseModel):
     access_token: str
     token_type: str
     venue: VenuePublic
-    
+
 class FloristCreate(BaseModel):
     shopName: str
     platformName: str
@@ -285,11 +194,8 @@ class FloristPublic(BaseModel):
     id: int
     shopName: str
     contactName: str
-    
-    # ↓↓↓ 以下を追加 ↓↓↓
     reviewCount: int = 0
     averageRating: float = 0.0
-    
     class Config:
         from_attributes = True
 
@@ -297,75 +203,35 @@ class TokenDataFlorist(BaseModel):
     access_token: str
     token_type: str
     florist: FloristPublic
-
-# オファーやダッシュボードで使うスキーマ
-class OfferCreate(BaseModel):
-    projectId: int
-    floristId: int
     
+# ===============================================
+# Offer, Quotation, Payout 関連スキーマ
+# ===============================================
+
+class Offer(BaseModel):
+    id: int
+    status: str
+    project: ProjectNested 
+    florist: FloristPublic
+    class Config:
+        from_attributes = True
+
 class QuotationItemBase(BaseModel):
     itemName: str
     amount: int
 
 class QuotationItem(QuotationItemBase):
     id: int
-    class Config: from_attributes = True
+    class Config:
+        from_attributes = True
 
 class Quotation(BaseModel):
     id: int
     totalAmount: int
     isApproved: bool
     items: list[QuotationItem]
-    class Config: from_attributes = True
-
-class QuotationCreate(BaseModel):
-    projectId: int
-    items: list[QuotationItemBase]
-    
-class ChatMessage(BaseModel):
-    id: int
-    content: str
-    sender_type: str # 'USER' or 'FLORIST'
-    sender_id: int
-    createdAt: datetime
     class Config:
         from_attributes = True
-    
-# --- 管理者向けスキーマ ---
-
-# グループチャットメッセージ（ユーザー情報付き）
-class GroupChatMessageForAdmin(GroupChatMessage): # 既存のGroupChatMessageを継承
-    user: UserNested
-
-# プライベートチャットメッセージ（ユーザーまたはお花屋さん情報付き）
-class ChatMessageForAdmin(ChatMessage): # 既存のChatMessageを継承
-    # sender_typeに応じてどちらかが入る
-    user: UserNested | None = None
-    florist: FloristPublic | None = None
-
-# チャット監視ページ用のレスポンススキーマ
-class ChatsForModeration(BaseModel):
-    groupChat: list[GroupChatMessageForAdmin]
-    floristChat: list[ChatMessageForAdmin]
-    
-class OfferStatusUpdate(BaseModel):
-    status: str
-
-# ★★★ このOfferスキーマが不足していました ★★★
-class Offer(BaseModel):
-    id: int
-    status: str
-    
-    # フロントエンドで企画名などを表示するために、ネストした情報を含める
-    project: Project 
-    florist: FloristPublic
-
-    class Config:
-        from_attributes = True
-
-class PayoutCreate(BaseModel):
-    amount: int
-    accountInfo: str
 
 class Payout(BaseModel):
     id: int
@@ -375,21 +241,130 @@ class Payout(BaseModel):
     class Config:
         from_attributes = True
 
-# Floristダッシュボード用のレスポンススキーマ
-class FloristDashboardData(BaseModel):
-    florist: FloristPublic
-    offers: list[Offer]
+# ===============================================
+# APIリクエスト/レスポンス用スキーマ
+# ===============================================
 
-class FloristStatusUpdate(BaseModel):
+class EmailSchema(BaseModel):
+    email: str
+    
+class ResetPasswordSchema(BaseModel):
+    token: str
+    new_password: str
+    
+class CheckoutRequest(BaseModel):
+    points: int
+    amount: int
+
+class ReviewCreate(BaseModel):
+    project_id: int
+    rating: int
+    comment: str | None = None
+    
+class PledgeCreate(BaseModel):
+    projectId: int
+    amount: int
+    comment: str | None = None
+
+class MessageCreate(BaseModel):
+    content: str
+    cardName: str
+    projectId: int
+
+class TaskCreate(BaseModel):
+    title: str
+    projectId: int
+
+class TaskUpdate(BaseModel):
+    isCompleted: bool
+
+class ExpenseCreate(BaseModel):
+    itemName: str
+    amount: int
+    projectId: int
+    
+class AnnouncementCreate(BaseModel):
+    title: str
+    content: str
+    projectId: int
+    
+class ProjectComplete(BaseModel):
+    completionImageUrls: list[str]
+    completionComment: str | None = None
+    
+class ReportCreate(BaseModel):
+    projectId: int
+    reason: str
+    details: str | None = None
+
+class PollCreate(BaseModel):
+    projectId: int
+    question: str
+    options: list[str]
+
+class PollVoteCreate(BaseModel):
+    pollId: int
+    optionIndex: int
+
+class OfferCreate(BaseModel):
+    projectId: int
+    floristId: int
+
+class OfferStatusUpdate(BaseModel):
     status: str
 
-class ProjectVisibilityUpdate(BaseModel):
-    isVisible: bool
-    
+class QuotationCreate(BaseModel):
+    projectId: int
+    items: list[QuotationItemBase]
+
+class PayoutCreate(BaseModel):
+    amount: int
+    accountInfo: str
+
 class ChatTemplate(BaseModel):
     id: int
     text: str
     category: str
     hasCustomInput: bool
     placeholder: str | None = None
-    class Config: from_attributes = True
+    class Config:
+        from_attributes = True
+
+# ===============================================
+# チャット & 管理者用スキーマ
+# ===============================================
+
+class GroupChatMessage(BaseModel):
+    id: int
+    content: str | None = None
+    templateId: int | None = None
+    createdAt: datetime
+    user: UserNested
+    class Config:
+        from_attributes = True
+
+class ChatMessage(BaseModel):
+    id: int
+    content: str
+    sender_type: str
+    sender_id: int
+    createdAt: datetime
+    class Config:
+        from_attributes = True
+
+class GroupChatMessageForAdmin(GroupChatMessage):
+    user: UserNested
+
+class ChatMessageForAdmin(ChatMessage):
+    user: UserNested | None = None
+    florist: FloristPublic | None = None
+
+class ChatsForModeration(BaseModel):
+    groupChat: list[GroupChatMessageForAdmin]
+    floristChat: list[ChatMessageForAdmin]
+
+class FloristStatusUpdate(BaseModel):
+    status: str
+
+class ProjectVisibilityUpdate(BaseModel):
+    isVisible: bool
