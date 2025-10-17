@@ -1,109 +1,68 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
-
-// APIサーバーのURL
-const API_URL = process.env.NEXT_PUBLIC_API_URL_PYTHON || 'https://flastal-backend.onrender.com';
+import { createContext, useContext, useState, useEffect } from 'react';
+import { jwtDecode } from 'jwt-decode'; // トークンを解析するライブラリ
 
 const AuthContext = createContext(null);
 
-export const AuthProvider = ({ children }) => {
+export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
-  const [userType, setUserType] = useState(null); // 'USER', 'FLORIST' など
-  const [loading, setLoading] = useState(true);
-  const router = useRouter();
+  const [token, setToken] = useState(null);
+  const [loading, setLoading] = useState(true); // ★ 認証状態の確認中を示す
 
-  const fetchUser = useCallback(async (token) => {
-    if (!token) {
-      setLoading(false);
-      return;
-    }
+  useEffect(() => {
+    // ★★★ アプリケーション起動時に一度だけ実行 ★★★
+    // localStorageに保存されているトークンを探し、有効なら自動ログインする
     try {
-      const response = await fetch(`${API_URL}/api/users/me`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (response.ok) {
-        const userData = await response.json();
-        // Pythonバックエンドから返されるUserモデルの全情報を受け取る
-        setUser(userData);
-        setUserType('USER'); // 今は 'USER' に固定
-      } else {
-        // トークンが無効な場合
-        localStorage.removeItem('accessToken');
-        setUser(null);
-        setUserType(null);
+      const storedToken = localStorage.getItem('authToken');
+      if (storedToken) {
+        // ここではトークンの有効期限チェックなども将来的に追加できます
+        const decodedUser = jwtDecode(storedToken); // トークンからユーザー情報を復元
+        setUser({ email: decodedUser.sub, ...decodedUser }); // ユーザー情報をセット
+        setToken(storedToken);
       }
     } catch (error) {
-      console.error('Failed to fetch user', error);
-      localStorage.removeItem('accessToken');
+      console.error("Failed to initialize auth state:", error);
+      // エラーがあればクリアする
+      localStorage.removeItem('authToken');
     } finally {
-      setLoading(false);
+      setLoading(false); // 確認完了
     }
   }, []);
 
-  useEffect(() => {
-    const token = localStorage.getItem('accessToken');
-    fetchUser(token);
-  }, [fetchUser]);
-
-  const login = async (email, password) => {
+  // ★★★ ログイン時に呼び出す関数 ★★★
+  const login = (newToken) => {
     try {
-      const formData = new URLSearchParams();
-      formData.append('username', email);
-      formData.append('password', password);
-
-      const response = await fetch(`${API_URL}/api/token`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: formData,
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        localStorage.setItem('accessToken', data.access_token);
-        await fetchUser(data.access_token);
-        router.push('/mypage');
-        return true;
-      } else {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'ログインに失敗しました');
-      }
+      const decodedUser = jwtDecode(newToken);
+      setUser({ email: decodedUser.sub, ...decodedUser });
+      setToken(newToken);
+      // ★★★ 最重要: トークンをlocalStorageに保存する ★★★
+      localStorage.setItem('authToken', newToken);
     } catch (error) {
-      console.error("Login failed:", error);
-      // エラーを再スローして呼び出し元に伝える
-      throw error;
-    }
-  };
-  
-  const register = async (email, password, handleName) => {
-    const response = await fetch(`${API_URL}/api/users/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, handleName }), // handleNameも送信
-    });
-
-    if (response.ok) {
-        return true;
-    } else {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || '新規登録に失敗しました');
+      console.error("Failed to process login:", error);
     }
   };
 
+  // ★★★ ログアウト時に呼び出す関数 ★★★
   const logout = () => {
-    localStorage.removeItem('accessToken');
     setUser(null);
-    setUserType(null);
-    router.push('/login');
+    setToken(null);
+    // ★★★ 最重要: localStorageからトークンを削除する ★★★
+    localStorage.removeItem('authToken');
   };
 
-  const value = { user, userType, login, register, logout, loading };
+  const authInfo = { user, token, login, logout, isAuthenticated: !!user };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-};
+  // 認証状態の確認が終わるまで何も表示しない（ちらつき防止）
+  if (loading) {
+    return null; 
+  }
+
+  return (
+    <AuthContext.Provider value={authInfo}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
 
 export const useAuth = () => useContext(AuthContext);

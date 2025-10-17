@@ -1,25 +1,49 @@
-"use client";
+'use client';
 
 import { useState } from 'react';
+import { useAuth } from '../contexts/AuthContext'; // ★ useAuthをインポート
 import { useRouter } from 'next/navigation';
-import { useAuth } from '../contexts/AuthContext';
-import Link from 'next/link'; // ★ Linkをインポート
+import Link from 'next/link';
+import toast from 'react-hot-toast';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL_PYTHON || 'https://flastal-backend.onrender.com';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState(null);
-  const { login } = useAuth();
-  
-  const handleLogin = async (e) => {
+  const router = useRouter();
+  const { login } = useAuth(); // ★ AuthContextからlogin関数を取得
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setError(null);
-    try {
-      await login(email, password);
-    } catch (err) {
-      setError(err.message || 'ログインに失敗しました。');
-    }
+    
+    const formData = new URLSearchParams();
+    formData.append('username', email);
+    formData.append('password', password);
+
+    const promise = fetch(`${API_URL}/api/token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: formData.toString(),
+    }).then(async res => {
+      if (!res.ok) {
+        throw new Error('メールアドレスまたはパスワードが違います。');
+      }
+      return res.json();
+    });
+
+    toast.promise(promise, {
+      loading: 'ログイン中...',
+      success: (data) => {
+        // ★★★ ここでlogin関数を呼び出し、トークンを保存 ★★★
+        login(data.access_token);
+        router.push('/'); // トップページ（ダッシュボード）にリダイレクト
+        return 'ログインしました！';
+      },
+      error: (err) => err.message,
+    });
   };
+
 
   return (
     <div className="bg-sky-50 min-h-screen flex items-center justify-center">
