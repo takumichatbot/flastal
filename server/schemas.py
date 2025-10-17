@@ -376,3 +376,6 @@ class FloristDashboardData(BaseModel):
 
 class FloristStatusUpdate(BaseModel):
     status: str
+
+class ProjectVisibilityUpdate(BaseModel):
+    isVisible: bool
