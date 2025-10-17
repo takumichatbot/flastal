@@ -1,0 +1,19 @@
+services:
+  # 1. バックエンドサービス (Python) の設計図
+  - type: web
+    name: flastal-backend
+    runtime: python
+    rootDir: server
+    buildCommand: "pip install -r ../requirements.txt"
+    startCommand: "uvicorn main:app --host 0.0.0.0 --port $PORT"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11 # あなたのPythonバージョンに合わせてください
+
+  # 2. フロントエンドサービス (Node) の設計図
+  - type: web
+    name: flastal-frontend
+    runtime: node
+    rootDir: client
+    buildCommand: "npm install && npm run build"
+    startCommand: "npm start"
