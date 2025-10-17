@@ -283,3 +283,11 @@ class Commission(Base):
     
     project_id = Column(Integer, ForeignKey("projects.id"))
     project = relationship("Project")
+    
+class ChatTemplate(Base):
+    __tablename__ = "chat_templates"
+    id = Column(Integer, primary_key=True, index=True)
+    text = Column(String, nullable=False)
+    category = Column(String, nullable=False)
+    hasCustomInput = Column(Boolean, default=False)
+    placeholder = Column(String, nullable=True)

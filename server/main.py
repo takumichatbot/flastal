@@ -446,6 +446,17 @@ def create_expense(expense_data: schemas.ExpenseCreate, db: Session = Depends(ge
     db.refresh(new_expense)
     return new_expense
 
+@fastapi_app.get("/api/chat-templates", response_model=list[schemas.ChatTemplate])
+def get_chat_templates():
+    # 本来はデータベースから取得しますが、今回は固定で返します
+    templates = [
+        {"id": 1, "text": "参加しました！よろしくお願いします！", "category": "挨拶", "hasCustomInput": False, "placeholder": None},
+        {"id": 2, "text": "デザイン案について相談したいです。", "category": "相談", "hasCustomInput": False, "placeholder": None},
+        {"id": 3, "text": "金額について質問です！", "category": "質問", "hasCustomInput": False, "placeholder": None},
+        {"id": 4, "text": "...", "category": "自由入力", "hasCustomInput": True, "placeholder": "具体的な内容を入力"},
+    ]
+    return templates
+
 @fastapi_app.delete("/api/expenses/{expense_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_expense(expense_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     expense = db.query(models.Expense).options(joinedload(models.Expense.project)).filter(models.Expense.id == expense_id).first()
@@ -861,15 +872,24 @@ def get_db_session():
         db.close()
 
 @sio.event
-async def connect(sid, environ):
-    token = environ.get('HTTP_AUTHORIZATION', environ.get('asgi.scope', {}).get('auth', {}).get('token'))
+async def connect(sid, environ, auth): # ★★★ auth引数を追加
+    print(f"Socket.IO client connected: {sid}")
+
+    # auth引数から直接トークンを取得する方が確実
+    token = auth.get('token') if auth else None
+
     if not token:
+        print(f"Connection rejected for {sid}: No token provided.")
         raise socketio.exceptions.ConnectionRefusedError('authentication failed')
+
     db = next(get_db_session())
     user, user_type = get_user_from_token(token, db)
     db.close()
+
     if not user:
+        print(f"Connection rejected for {sid}: Invalid token.")
         raise socketio.exceptions.ConnectionRefusedError('authentication failed')
+    
     await sio.save_session(sid, {'user_id': user.id, 'user_type': user_type})
     print(f"Client {sid} authenticated as {user_type} {user.id}")
 

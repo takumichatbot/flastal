@@ -379,3 +379,11 @@ class FloristStatusUpdate(BaseModel):
 
 class ProjectVisibilityUpdate(BaseModel):
     isVisible: bool
+    
+class ChatTemplate(BaseModel):
+    id: int
+    text: str
+    category: str
+    hasCustomInput: bool
+    placeholder: str | None = None
+    class Config: from_attributes = True
