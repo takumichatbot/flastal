@@ -764,6 +764,68 @@ async def upload_image(file: UploadFile = File(...)):
         return {"url": result.get("secure_url")}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Image upload failed: {str(e)}")
+    
+# ===============================================
+# アンケート (Poll) API
+# ===============================================
+
+@fastapi_app.post("/api/group-chat/polls", response_model=schemas.Poll)
+def create_poll(poll_data: schemas.PollCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    project = db.query(models.Project).filter(models.Project.id == poll_data.projectId).first()
+    if not project or project.planner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to create a poll for this project.")
+    
+    # 既存のアクティブなアンケートがあれば無効化する
+    db.query(models.Poll).filter(models.Poll.project_id == poll_data.projectId, models.Poll.isActive == True).update({"isActive": False})
+
+    new_poll = models.Poll(
+        question=poll_data.question,
+        project_id=poll_data.projectId,
+        creator_id=current_user.id
+    )
+    db.add(new_poll)
+    db.flush() # new_poll.id を確定させる
+
+    # 選択肢を作成
+    for option_text in poll_data.options:
+        db.add(models.PollOption(text=option_text, poll_id=new_poll.id))
+    
+    db.commit()
+    db.refresh(new_poll)
+    
+    # WebSocketで企画参加者全員にアンケートが作成されたことを通知する（将来的な拡張）
+    
+    return new_poll
+
+@fastapi_app.post("/api/group-chat/polls/vote", response_model=schemas.PollVote)
+def vote_on_poll(vote_data: schemas.PollVoteCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    poll = db.query(models.Poll).filter(models.Poll.id == vote_data.pollId).first()
+    if not poll or not poll.isActive:
+        raise HTTPException(status_code=400, detail="This poll is not active.")
+    
+    # 支援者のみ投票可能
+    pledge = db.query(models.Pledge).filter(models.Pledge.project_id == poll.project_id, models.Pledge.user_id == current_user.id).first()
+    is_planner = poll.project.planner_id == current_user.id
+    if not pledge and not is_planner:
+        raise HTTPException(status_code=403, detail="Only pledgers or the planner can vote.")
+
+    # 既に投票済みかチェック
+    existing_vote = db.query(models.PollVote).filter(models.PollVote.poll_id == vote_data.pollId, models.PollVote.user_id == current_user.id).first()
+    if existing_vote:
+        raise HTTPException(status_code=400, detail="You have already voted.")
+
+    new_vote = models.PollVote(
+        poll_id=vote_data.pollId,
+        user_id=current_user.id,
+        option_index=vote_data.optionIndex
+    )
+    db.add(new_vote)
+    db.commit()
+    db.refresh(new_vote)
+    
+    # WebSocketで企画参加者全員に投票があったことを通知する（将来的な拡張）
+
+    return new_vote
 
 # ===============================================
 # 管理者 (Admin) API
