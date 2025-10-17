@@ -9,13 +9,14 @@ import toast from 'react-hot-toast';
 import Link from 'next/link';
 
 // 外部コンポーネントとしてすべてインポート
+// 外部コンポーネントとしてすべてインポート
 import ImageModal from '../../components/ImageModal';
 import MessageForm from '../../components/MessageForm';
+// ★★★ インポートパスが './components/...' になっていることを確認 ★★★
 import PollCreationModal from './components/PollCreationModal';
 import GroupChat from './components/GroupChat';
 import CompletionReportModal from './components/CompletionReportModal';
 import ReportModal from './components/ReportModal';
-
 const API_URL = process.env.NEXT_PUBLIC_API_URL_PYTHON || 'https://flastal-backend.onrender.com';
 
 export default function ProjectDetailPage() {
