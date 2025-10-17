@@ -60,7 +60,7 @@ class Pledge(BaseModel):
     amount: int
     user: UserNested
     user_id: int
-    project: ProjectNested # 支援履歴ページ用にプロジェクト情報も追加
+    # project: ProjectNested # ← ★★★ この行をコメントアウト、または削除 ★★★
     class Config:
         from_attributes = True
 
