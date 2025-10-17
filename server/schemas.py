@@ -316,6 +316,15 @@ class QuotationCreate(BaseModel):
     projectId: int
     items: list[QuotationItemBase]
     
+class ChatMessage(BaseModel):
+    id: int
+    content: str
+    sender_type: str # 'USER' or 'FLORIST'
+    sender_id: int
+    createdAt: datetime
+    class Config:
+        from_attributes = True
+    
 # --- 管理者向けスキーマ ---
 
 # グループチャットメッセージ（ユーザー情報付き）
