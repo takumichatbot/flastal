@@ -319,14 +319,32 @@ def cancel_project(project_id: int, db: Session = Depends(get_db), current_user:
     db.commit()
     return project
 
-@fastapi_app.get("/api/projects/featured", response_model=list[schemas.ProjectFeatured]) # ★★★ ここを変更 ★★★
+@fastapi_app.get("/api/projects/featured", response_model=list[schemas.ProjectFeatured])
 def get_featured_projects(db: Session = Depends(get_db)):
-    # クエリも一旦シンプルなものに戻します
-    return db.query(models.Project).filter(
-        models.Project.targetAmount > 0, models.Project.visibility == "PUBLIC"
-    ).order_by(
-        (models.Project.collectedAmount / models.Project.targetAmount).desc()
-    ).limit(4).all()
+    try:
+        # -------------------- ここからデバッグコード --------------------
+        print("--- DEBUG: get_featured_projects関数に入りました ---")
+
+        projects = db.query(models.Project).filter(
+            models.Project.targetAmount > 0, models.Project.visibility == "PUBLIC"
+        ).order_by(
+            (models.Project.collectedAmount / models.Project.targetAmount).desc()
+        ).limit(4).all()
+
+        print(f"--- DEBUG: {len(projects)}件のプロジェクトが見つかりました ---")
+        return projects
+        # -------------------- ここまでデバッグコード --------------------
+
+    except Exception as e:
+        # --- ↓↓↓ エラーが発生した場合、この部分が実行されます ↓↓↓ ---
+        import traceback
+        print("--- !!!!! get_featured_projectsで重大なエラーが発生 !!!!! ---")
+        print(traceback.format_exc()) # エラーの詳細を出力
+        print(f"--- エラー内容: {e} ---")
+        # ---------------------------------------------------------
+        # フロントエンドには500エラーを返す
+        raise HTTPException(status_code=500, detail=f"Internal Server Error: {e}")
+
 
 # ===============================================
 # 支援 (Pledge) & レビュー (Review) API
