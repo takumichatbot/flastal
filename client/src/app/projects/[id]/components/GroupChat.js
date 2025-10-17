@@ -120,18 +120,21 @@ export default function GroupChat({ project, user, isPlanner, isPledger, onUpdat
                     {userVote ? (
                       <div title={`${voteCount} / ${totalVotes} 票`}>
                         <div className="flex justify-between text-sm mb-1">
-                          <span className={`font-semibold ${didUserVoteForThis ? 'text-purple-600' : 'text-gray-700'}`}>{option} {didUserVoteForThis ? ' (あなたが投票)' : ''}</span>
+                          {/* ★★★ 変更点1 ★★★ */}
+                          <span className={`font-semibold ${didUserVoteForThis ? 'text-purple-600' : 'text-gray-700'}`}>{option.text} {didUserVoteForThis ? ' (あなたが投票)' : ''}</span>
                           <span className="text-gray-500">{Math.round(percentage)}%</span>
                         </div>
                         <div className="w-full bg-gray-200 rounded-full h-4"><div className="bg-purple-400 h-4 rounded-full" style={{ width: `${percentage}%` }}></div></div>
                       </div>
                     ) : (
-                      <button onClick={() => handleVote(index)} disabled={!isPledger} className="w-full text-left p-2 border rounded-md text-gray-800 hover:bg-purple-100 disabled:bg-gray-100 disabled:cursor-not-allowed">{option}</button>
+                      /* ★★★ 変更点2 ★★★ */
+                      <button onClick={() => handleVote(index)} disabled={!isPledger} className="w-full text-left p-2 border rounded-md text-gray-800 hover:bg-purple-100 disabled:bg-gray-100 disabled:cursor-not-allowed">{option.text}</button>
                     )}
                   </div>
                 );
               })}
             </div>
+
              {!userVote && !isPledger && <p className="text-xs text-red-500 mt-2">※アンケートへの投票は、この企画の支援者のみ可能です。</p>}
           </div>
         )}

@@ -94,6 +94,11 @@ class Announcement(BaseModel):
     createdAt: datetime
     class Config:
         from_attributes = True
+        
+class PollOption(BaseModel):
+    text: str
+    class Config:
+        from_attributes = True
 
 class PollVote(BaseModel):
     user_id: int
@@ -104,23 +109,8 @@ class PollVote(BaseModel):
 class Poll(BaseModel):
     id: int
     question: str
-    options: list[str]
+    options: list[PollOption]  # ★★★ ここを list[str] から変更 ★★★
     votes: list[PollVote] = []
-
-    @model_validator(mode='before')
-    @classmethod
-    def convert_options_to_strings(cls, data):
-        # 'data' が 'options' 属性を持つORMオブジェクトの場合
-        if hasattr(data, 'options'):
-            # ORMオブジェクトを辞書に変換し、'options' を文字列のリストに変換する
-            return {
-                'id': data.id,
-                'question': data.question,
-                'options': [opt.text for opt in data.options],
-                'votes': data.votes
-            }
-        return data
-
     class Config:
         from_attributes = True
         

@@ -240,7 +240,7 @@ class ChatMessage(Base):
     chat_room = relationship("ChatRoom", back_populates="messages")
     # 送信者とのリレーションを追加
     user = relationship("User", foreign_keys=[sender_id], primaryjoin="and_(ChatMessage.sender_type=='USER', ChatMessage.sender_id==User.id)", backref="sent_chat_messages")
-    florist = relationship("Florist", foreign_keys=[sender_id], primaryjoin="and_(ChatMessage.sender_type=='FLORIST', ChatMessage.sender_id==Florist.id)", backref="sent_chat_messages")
+    florist = relationship("Florist", foreign_keys=[sender_id], primaryjoin="and_(ChatMessage.sender_type=='FLORIST', ChatMessage.sender_id==Florist.id)", backref="sent_chat_messages", overlaps="sent_chat_messages,user") # ★★★ この末尾に overlaps を追加 ★★★
     
 class Quotation(Base):
     __tablename__ = "quotations"
