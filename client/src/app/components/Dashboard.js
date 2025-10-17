@@ -15,9 +15,18 @@ export default function Dashboard() {
       const fetchMyData = async () => {
         setLoading(true);
         try {
+          // 認証トークンをヘッダーに含める
+          const token = localStorage.getItem('authToken'); // 実際のトークンのキー名にしてください
+          const headers = {
+            'Authorization': `Bearer ${token}`
+          };
+
+          // ★★★ APIの接続先をPythonバックエンドに変更 ★★★
+          const API_URL = process.env.NEXT_PUBLIC_API_URL_PYTHON || 'https://flastal-backend.onrender.com';
+
           const [createdRes, pledgedRes] = await Promise.all([
-            fetch(`http://localhost:3001/api/users/${user.id}/created-projects`),
-            fetch(`http://localhost:3001/api/users/${user.id}/pledged-projects`)
+            fetch(`${API_URL}/api/users/me/created-projects`, { headers }),
+            fetch(`${API_URL}/api/users/me/pledged-projects`, { headers })
           ]);
           const createdData = await createdRes.json();
           const pledgedData = await pledgedRes.json();

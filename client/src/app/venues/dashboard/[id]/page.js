@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const API_URL = process.env.NEXT_PUBLIC_API_URL_PYTHON || 'https://flastal-backend.onrender.com';
 
 export default function VenueDashboardPage({ params }) {
   const { id } = params;
@@ -40,10 +40,22 @@ export default function VenueDashboardPage({ params }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // ★★★ localStorageからトークンを取得 ★★★
+    const token = localStorage.getItem('venueToken');
+    if (!token) {
+        alert('認証情報が見つかりません。再度ログインしてください。');
+        router.push('/venues/login');
+        return;
+    }
+
     try {
       const res = await fetch(`${API_URL}/api/venues/${id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}` // ★★★ 認証トークンをヘッダーに追加 ★★★
+        },
         body: JSON.stringify(formData),
       });
       if (!res.ok) throw new Error('更新に失敗しました。');

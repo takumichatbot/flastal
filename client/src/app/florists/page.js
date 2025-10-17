@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import StarRating from '../components/StarRating'; // ★ 以前作成した星評価コンポーネントを再利用
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const API_URL = process.env.NEXT_PUBLIC_API_URL_PYTHON || 'https://flastal-backend.onrender.com';
 
 // ★★★ お花屋さんカードの部品をここに定義 ★★★
 function FloristCard({ florist }) {

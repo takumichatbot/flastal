@@ -1,30 +1,39 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useAuth } from '../../contexts/AuthContext'; // ★ AuthContextをインポート
-import Link from 'next/link'; // ★ Linkをインポート
+import { useAuth } from '../../contexts/AuthContext';
+import Link from 'next/link';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const API_URL = process.env.NEXT_PUBLIC_API_URL_PYTHON || 'https://flastal-backend.onrender.com';
 
-// ★ オファー用のモーダルコンポーネント (useAuthフックを使うように修正)
+// ★ オファー用のモーダルコンポーネント (修正版)
 function OfferModal({ floristId, onClose }) {
-  const { user, userType } = useAuth(); // ★ ログイン中のユーザー情報を取得
+  const { user, userType } = useAuth();
   const [projects, setProjects] = useState([]);
   const [selectedProjectId, setSelectedProjectId] = useState('');
-  const [loadingProjects, setLoadingProjects] = useState(false);
+  const [loadingProjects, setLoadingProjects] = useState(true); // 初期値をtrueに変更
 
-  // モーダルが開かれたときに、ログインユーザーの企画リストを自動で取得する
   useEffect(() => {
     if (user && userType === 'USER') {
       const fetchUserProjects = async () => {
         setLoadingProjects(true);
         try {
-          const res = await fetch(`${API_URL}/api/users/${user.id}/projects`);
+          // ★★★ 1. 安全なAPIエンドポイントに変更 ★★★
+          const token = localStorage.getItem('authToken'); // useAuthから取得するのが理想
+          const res = await fetch(`${API_URL}/api/users/me/created-projects`, {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
           if (!res.ok) throw new Error('企画の取得に失敗しました。');
           const data = await res.json();
-          setProjects(data);
-          if (data.length === 0) {
-            alert('オファーに出せる企画がありません。\n新しい企画を作成してください。');
+          
+          // オファー可能な企画のみをフィルタリング (例: FUNDRAISING中のもの)
+          const offerableProjects = data.filter(p => p.status === 'FUNDRAISING');
+          setProjects(offerableProjects);
+
+          if (offerableProjects.length === 0) {
+            alert('オファーに出せる募集中・達成済みの企画がありません。\n新しい企画を作成するか、企画ページをご確認ください。');
           }
         } catch (error) {
           alert(error.message);
@@ -36,26 +45,33 @@ function OfferModal({ floristId, onClose }) {
     }
   }, [user, userType]);
   
-  // オファーを送信する処理
   const handleOfferSubmit = async () => {
+    // ★★★ 2. バリデーションを先頭に移動 ★★★
     if (!selectedProjectId) {
       alert('オファーする企画を選択してください。');
       return;
     }
+    
+    const token = localStorage.getItem('authToken');
     try {
       const res = await fetch(`${API_URL}/api/offers`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        },
+        // ★★★ 3. 正しいbodyを送信 ★★★
         body: JSON.stringify({
-          projectId: selectedProjectId,
-          floristId: floristId,
+          projectId: parseInt(selectedProjectId),
+          floristId: parseInt(floristId),
         }),
       });
+
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message);
+      if (!res.ok) throw new Error(data.detail || 'オファーの送信に失敗しました。');
       
-      alert('オファーを送信しました！');
-      onClose(); // モーダルを閉じる
+      alert('オファーを送信しました！お花屋さんからの連絡をお待ちください。');
+      onClose();
     } catch (error) {
       alert(`エラー: ${error.message}`);
     }
@@ -70,7 +86,7 @@ function OfferModal({ floristId, onClose }) {
             <div>
               <label className="block text-sm font-medium text-gray-700">オファーする企画を選択</label>
               <select value={selectedProjectId} onChange={(e) => setSelectedProjectId(e.target.value)} className="w-full px-3 py-2 mt-1 text-gray-900 border border-gray-300 rounded-md">
-                <option value="">-- 企画を選んでください --</option>
+                <option value="">-- 募集中・達成済みの企画 --</option>
                 {projects.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
               </select>
             </div>

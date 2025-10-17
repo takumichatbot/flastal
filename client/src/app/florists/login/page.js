@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext'; // ★ useAuthをインポート
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const API_URL = process.env.NEXT_PUBLIC_API_URL_PYTHON || 'https://flastal-backend.onrender.com';
 
 export default function FloristLoginPage() {
   const [email, setEmail] = useState('');
@@ -17,29 +17,33 @@ export default function FloristLoginPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      // ★★★ FastAPIのOAuth2PasswordRequestForm形式で送信 ★★★
+      const formData = new URLSearchParams();
+      formData.append('username', email);
+      formData.append('password', password);
+
       const response = await fetch(`${API_URL}/api/florists/login`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: formData.toString(),
       });
 
       const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.message);
-      }
-
+      if (!response.ok) throw new Error(data.detail || 'ログインに失敗しました');
+      
       const florist = data.florist;
       
-      // ★★★ ここからが修正箇所 ★★★
       if (florist.status === 'APPROVED') {
-        // 承認済みの場合
-        setAuthInfo({ user: florist, userType: 'FLORIST' }); // ログイン状態を保存
-        router.push(`/florists/dashboard/${florist.id}`); // ダッシュボードへ
+        // ★★★ トークンとユーザー情報をuseAuth経由でグローバルに保存 ★★★
+        setAuthInfo({ 
+            user: florist, 
+            userType: 'FLORIST', 
+            token: data.access_token // トークンも保存
+        });
+        router.push(`/florists/dashboard`); // IDは不要
       } else if (florist.status === 'PENDING') {
-        // 審査待ちの場合
-        router.push('/florists/pending'); // 審査待ちページへ
+        router.push('/florists/pending');
       } else {
-        // REJECTED (拒否) またはその他の場合
         alert('アカウントが承認されていません。運営までお問い合わせください。');
       }
 

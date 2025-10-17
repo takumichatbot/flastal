@@ -2,6 +2,9 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 
+// ★ 1. APIのURLをPythonバックエンドに統一
+const API_URL = process.env.NEXT_PUBLIC_API_URL_PYTHON || 'https://flastal-backend.onrender.com';
+
 export default function ModerationProjectListPage() {
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -9,11 +12,23 @@ export default function ModerationProjectListPage() {
   useEffect(() => {
     const fetchProjects = async () => {
       try {
-        const res = await fetch('/api/admin/projects');
+        // ★ 2. 認証トークンを取得
+        const token = localStorage.getItem('adminToken');
+        if (!token) throw new Error('管理者としてログインしていません。');
+
+        // ★ 3. APIリクエストにトークンを付与
+        const res = await fetch(`${API_URL}/api/admin/projects`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        if (!res.ok) throw new Error('プロジェクト一覧の取得に失敗しました。');
+
         const data = await res.json();
         setProjects(data);
       } catch (error) {
         console.error('Failed to fetch projects', error);
+        alert(error.message);
       } finally {
         setLoading(false);
       }

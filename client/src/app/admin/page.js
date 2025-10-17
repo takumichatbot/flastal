@@ -1,7 +1,9 @@
 'use client';
 import { useState, useEffect } from 'react';
+import toast from 'react-hot-toast'; // ★ 1. react-hot-toast をインポート
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+// ★ 2. APIのURLをPythonバックエンドに統一
+const API_URL = process.env.NEXT_PUBLIC_API_URL_PYTHON || 'https://flastal-backend.onrender.com';
 
 export default function AdminPage() {
   const [password, setPassword] = useState('');
@@ -9,20 +11,33 @@ export default function AdminPage() {
   const [commissions, setCommissions] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = async (e) => {
+  const handleLogin = (e) => {
     e.preventDefault();
-    try {
-      // ★★★ ここが修正箇所です！宛先をバックエンドサーバーに修正 ★★★
-      const res = await fetch(`${API_URL}/api/admin/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password }),
-      });
-      if (!res.ok) throw new Error('認証に失敗しました。パスワードを確認してください。');
-      setIsAuthenticated(true);
-    } catch (error) {
-      alert(error.message);
-    }
+
+    // ★ 3. toast.promise を使って、通信の状態を自動で通知する
+    const promise = fetch(`${API_URL}/api/admin/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password }),
+    }).then(res => {
+      // fetchが成功しても、サーバーがエラーを返した場合 (例: 401 Unauthorized)
+      if (!res.ok) {
+        throw new Error('認証に失敗しました。パスワードを確認してください。');
+      }
+      return res.json();
+    });
+
+    // toast.promiseがpromiseの3つの状態（loading, success, error）を監視
+    toast.promise(promise, {
+      loading: '認証中...',
+      success: (data) => {
+        // 成功した場合の処理
+        localStorage.setItem('adminToken', data.access_token);
+        setIsAuthenticated(true);
+        return 'ログインしました！'; // 成功時に表示するメッセージ
+      },
+      error: (err) => err.message, // 失敗時に表示するメッセージ
+    });
   };
 
   useEffect(() => {
@@ -30,13 +45,25 @@ export default function AdminPage() {
       const fetchCommissions = async () => {
         setLoading(true);
         try {
-          // ★★★ ここも修正箇所です！宛先をバックエンドサーバーに修正 ★★★
-          const res = await fetch(`${API_URL}/api/admin/commissions`);
-          if (!res.ok) throw new Error('データ取得に失敗');
+          const token = localStorage.getItem('adminToken');
+          if (!token) {
+            // ★ 4. alertをtoast.errorに置き換え
+            toast.error('認証トークンが見つかりません。');
+            setIsAuthenticated(false); // 認証状態をリセット
+            return;
+          }
+
+          const res = await fetch(`${API_URL}/api/admin/commissions`, {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+          if (!res.ok) throw new Error('データ取得に失敗しました');
           const data = await res.json();
           setCommissions(data);
         } catch (error) {
-          alert(error.message);
+          // ★ 5. alertをtoast.errorに置き換え
+          toast.error(error.message);
         } finally {
           setLoading(false);
         }

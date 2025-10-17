@@ -3,6 +3,9 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 
+// ★ 1. APIのURLをPythonバックエンドに統一
+const API_URL = process.env.NEXT_PUBLIC_API_URL_PYTHON || 'https://flastal-backend.onrender.com';
+
 export default function AdminReportsPage() {
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -11,7 +14,13 @@ export default function AdminReportsPage() {
   const fetchReports = async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/admin/reports');
+      // ★ 2. 認証トークンを取得・付与
+      const token = localStorage.getItem('adminToken');
+      if (!token) throw new Error('管理者としてログインしていません。');
+
+      const res = await fetch(`${API_URL}/api/admin/reports`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
       if (!res.ok) throw new Error('通報リストの読み込みに失敗しました。');
       const data = await res.json();
       setReports(data);
@@ -30,8 +39,13 @@ export default function AdminReportsPage() {
     if (!window.confirm("この通報を「対応済み」としてマークします。よろしいですか？")) return;
 
     try {
-      const res = await fetch(`/api/admin/reports/${reportId}/review`, {
+      // ★ 3. 認証トークンを取得・付与
+      const token = localStorage.getItem('adminToken');
+      if (!token) throw new Error('管理者としてログインしていません。');
+
+      const res = await fetch(`${API_URL}/api/admin/reports/${reportId}/review`, {
         method: 'PATCH',
+        headers: { 'Authorization': `Bearer ${token}` }
       });
       if (!res.ok) throw new Error('ステータスの更新に失敗しました。');
       
@@ -42,22 +56,26 @@ export default function AdminReportsPage() {
     }
   };
   
-  // ★★★ 企画を非公開にする関数を追加 ★★★
   const handleToggleVisibility = async (projectId, currentVisibility) => {
     const actionText = currentVisibility ? "非公開" : "公開";
     if (!window.confirm(`この企画を「${actionText}」にします。この操作は元に戻せます。よろしいですか？`)) return;
 
     try {
-      const res = await fetch(`/api/admin/projects/${projectId}/visibility`, {
+      // ★ 4. 認証トークンを取得・付与
+      const token = localStorage.getItem('adminToken');
+      if (!token) throw new Error('管理者としてログインしていません。');
+
+      const res = await fetch(`${API_URL}/api/admin/projects/${projectId}/visibility`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ isVisible: !currentVisibility }),
       });
       if (!res.ok) throw new Error('公開状態の更新に失敗しました。');
       
       alert(`企画を「${actionText}」にしました。`);
-      // Note: This only affects new page loads. The admin page will still show it until reloaded.
-      // For a more advanced UX, you could update the project state here.
     } catch (err) {
       alert(`エラー: ${err.message}`);
     }
@@ -76,13 +94,22 @@ export default function AdminReportsPage() {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left text-gray-500">
-              {/* (theadは変更なし) */}
+              <thead className="text-xs text-gray-700 uppercase bg-gray-50">
+                  <tr>
+                      <th scope="col" className="px-6 py-3">通報日時</th>
+                      <th scope="col" className="px-6 py-3">対象企画</th>
+                      <th scope="col" className="px-6 py-3">通報者</th>
+                      <th scope="col" className="px-6 py-3">理由</th>
+                      <th scope="col" className="px-6 py-3">詳細</th>
+                      <th scope="col" className="px-6 py-3">アクション</th>
+                  </tr>
+              </thead>
               <tbody>
                 {reports.map((report) => (
                   <tr key={report.id} className="bg-white border-b hover:bg-gray-50">
                     <td className="px-6 py-4">{new Date(report.createdAt).toLocaleString('ja-JP')}</td>
                     <td className="px-6 py-4 font-medium text-gray-900">
-                      <Link href={`/projects/${report.projectId}`}>
+                      <Link href={`/projects/${report.project.id}`} target="_blank" rel="noopener noreferrer">
                         <span className="text-sky-600 hover:underline">{report.project.title}</span>
                       </Link>
                     </td>
@@ -98,9 +125,8 @@ export default function AdminReportsPage() {
                       >
                         対応済みにする
                       </button>
-                      {/* ★★★ 非公開ボタンを追加 ★★★ */}
                       <button
-                        onClick={() => handleToggleVisibility(report.projectId, true)} // 常に非公開にするアクション
+                        onClick={() => handleToggleVisibility(report.project.id, true)}
                         className="font-medium text-white bg-red-500 hover:bg-red-600 px-3 py-1.5 rounded-lg text-xs"
                       >
                         企画を非公開にする

@@ -5,71 +5,16 @@ import { useParams } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
 import ImageModal from '../../components/ImageModal';
 import { io } from 'socket.io-client';
+import toast from 'react-hot-toast';
+
+// ★ 外部コンポーネントとしてMessageFormをインポート
+import MessageForm from '../../components/MessageForm';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL_PYTHON || 'https://flastal-backend.onrender.com';
 
-// ★★★ 寄せ書きメッセージ投稿フォームの部品 ★★★
-function MessageForm({ projectId, userId, onMessagePosted }) {
-  const [content, setContent] = useState('');
-  const [cardName, setCardName] = useState('');
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!content.trim() || !cardName.trim()) {
-      alert('印刷するお名前とメッセージの両方を入力してください。');
-      return;
-    }
-    try {
-      const res = await fetch(`${API_URL}/api/messages`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content, cardName, projectId, userId }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message);
-      
-      alert('メッセージを投稿しました！ご参加ありがとうございます！');
-      onMessagePosted();
-    } catch (error) {
-      alert(`エラー: ${error.message}`);
-    }
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="mt-4 p-4 bg-gray-50 rounded-lg space-y-4">
-      <div>
-        <label htmlFor="cardName" className="block text-sm font-medium text-gray-700">カードに印刷するお名前</label>
-        <input
-          id="cardName"
-          type="text"
-          value={cardName}
-          onChange={(e) => setCardName(e.target.value)}
-          required
-          className="w-full mt-1 p-2 border rounded-md text-gray-900"
-          placeholder="例：〇〇企画有志一同、田中太郎"
-        />
-      </div>
-      <div>
-        <label htmlFor="messageContent" className="block text-sm font-medium text-gray-700">お祝いメッセージ (50字程度推奨)</label>
-        <textarea
-          id="messageContent"
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          required
-          rows="4"
-          className="w-full mt-1 p-2 border rounded-md text-gray-900"
-          placeholder="例：ご出演おめでとうございます！"
-        ></textarea>
-      </div>
-      <button type="submit" className="w-full p-2 bg-pink-500 text-white font-semibold rounded-lg hover:bg-pink-600">
-        この内容でメッセージを投稿する
-      </button>
-    </form>
-  );
-}
-
 // ★★★ アンケート作成モーダル ★★★
-function PollCreationModal({ projectId, userId, onClose, onPollCreated }) {
+function PollCreationModal({ projectId, onClose, onPollCreated }) {
+  const { user } = useAuth(); // useAuthからuserを取得
   const [question, setQuestion] = useState('');
   const [options, setOptions] = useState(['', '']);
 
@@ -83,28 +28,35 @@ function PollCreationModal({ projectId, userId, onClose, onPollCreated }) {
     if (options.length < 5) setOptions([...options, '']);
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
-    if (question.trim() === '' || options.some(o => o.trim() === '')) {
-      alert('質問と全ての選択肢を入力してください。');
-      return;
-    }
-    try {
-      const res = await fetch(`${API_URL}/api/group-chat/polls`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          projectId,
-          userId,
-          question,
-          options: options.filter(o => o.trim() !== ''),
-        }),
-      });
+    const token = localStorage.getItem('authToken');
+
+    const promise = fetch(`${API_URL}/api/group-chat/polls`, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        projectId: parseInt(projectId),
+        question,
+        options: options.filter(o => o.trim() !== ''),
+      }),
+    }).then(res => {
       if (!res.ok) throw new Error('アンケートの作成に失敗しました。');
-      alert('アンケートを作成しました！');
-      onPollCreated();
-      onClose();
-    } catch (error) { alert(`エラー: ${error.message}`); }
+      return res.json();
+    });
+
+    toast.promise(promise, {
+      loading: '作成中...',
+      success: () => {
+        onPollCreated();
+        onClose();
+        return 'アンケートを作成しました！';
+      },
+      error: (err) => err.message,
+    });
   };
 
   return (
@@ -145,7 +97,6 @@ function GroupChat({ project, user, isPlanner, isPledger, onUpdate, socket }) {
     template: null,
     text: '',
   });
-
   const [freeText, setFreeText] = useState('');
 
   useEffect(() => {
@@ -202,27 +153,42 @@ function GroupChat({ project, user, isPlanner, isPledger, onUpdate, socket }) {
 
   const handleSendMessage = (templateId, content) => {
     if (!socket) {
-      alert('チャットサーバーに接続していません。');
+      toast.error('チャットサーバーに接続していません。');
       return;
     }
     socket.emit('sendGroupChatMessage', {
       projectId: project.id,
-      userId: user.id,
       templateId,
       content
     });
   };
   
-  const handleVote = async (optionIndex) => {
+  const handleVote = (optionIndex) => {
     if (!project.activePoll) return;
-    try {
-      const res = await fetch(`${API_URL}/api/group-chat/polls/vote`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pollId: project.activePoll.id, userId: user.id, optionIndex }),
-      });
-      if (!res.ok) throw new Error((await res.json()).message);
-      onUpdate();
-    } catch (error) { alert(`エラー: ${error.message}`); }
+    const token = localStorage.getItem('authToken');
+    
+    const promise = fetch(`${API_URL}/api/group-chat/polls/vote`, {
+      method: 'POST', 
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ pollId: project.activePoll.id, optionIndex }),
+    }).then(async res => {
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.detail || '投票に失敗しました。');
+      }
+    });
+
+    toast.promise(promise, {
+      loading: '投票中...',
+      success: () => {
+        onUpdate();
+        return '投票しました！';
+      },
+      error: (err) => err.message,
+    });
   };
   
   const activePoll = project.activePoll;
@@ -233,7 +199,6 @@ function GroupChat({ project, user, isPlanner, isPledger, onUpdate, socket }) {
     <>
       <div className="bg-orange-50 p-4 rounded-lg">
         <h3 className="text-lg font-bold text-orange-800 mb-2">参加者グループチャット</h3>
-        
         {activePoll && (
           <div className="bg-white border-2 border-purple-300 rounded-lg p-3 mb-4">
             <p className="font-bold text-gray-800 mb-3">💡 アンケート実施中: {activePoll.question}</p>
@@ -303,13 +268,7 @@ function GroupChat({ project, user, isPlanner, isPledger, onUpdate, socket }) {
           <div className="border-t mt-4 pt-3">
              <p className="text-xs font-semibold text-gray-600 mb-1">その他 (自由記述)</p>
              <form onSubmit={handleFreeTextSubmit} className="flex gap-2">
-               <input
-                 type="text"
-                 value={freeText}
-                 onChange={(e) => setFreeText(e.target.value)}
-                 placeholder="メッセージを入力..."
-                 className="p-2 border rounded-md text-gray-900 flex-grow"
-               />
+               <input type="text" value={freeText} onChange={(e) => setFreeText(e.target.value)} placeholder="メッセージを入力..." className="p-2 border rounded-md text-gray-900 flex-grow" />
                <button type="submit" className="p-2 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600">送信</button>
              </form>
           </div>
@@ -328,15 +287,7 @@ function GroupChat({ project, user, isPlanner, isPledger, onUpdate, socket }) {
             <form onSubmit={handleCustomSubmit}>
               <p className="text-sm text-gray-600">テンプレート:</p>
               <p className="mb-4 font-semibold text-lg">{customInputModal.template.text.replace('...', `「${customInputModal.text || '...'}」`)}</p>
-              <input
-                type="text"
-                value={customInputModal.text}
-                onChange={(e) => setCustomInputModal({ ...customInputModal, text: e.target.value })}
-                placeholder={customInputModal.template.placeholder}
-                required
-                autoFocus
-                className="w-full mt-1 p-2 border rounded-md text-gray-900"
-              />
+              <input type="text" value={customInputModal.text} onChange={(e) => setCustomInputModal({ ...customInputModal, text: e.target.value })} placeholder={customInputModal.template.placeholder} required autoFocus className="w-full mt-1 p-2 border rounded-md text-gray-900"/>
               <div className="mt-6 flex justify-end gap-4">
                 <button type="button" onClick={() => setCustomInputModal({ isOpen: false, template: null, text: '' })} className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300">閉じる</button>
                 <button type="submit" className="px-4 py-2 font-bold text-white bg-orange-500 rounded-md hover:bg-orange-600">送信する</button>
@@ -346,13 +297,13 @@ function GroupChat({ project, user, isPlanner, isPledger, onUpdate, socket }) {
         </div>
       )}
       
-      {isPollModalOpen && <PollCreationModal projectId={project.id} userId={user.id} onClose={() => setPollModalOpen(false)} onPollCreated={onUpdate} />}
+      {isPollModalOpen && <PollCreationModal projectId={project.id} onClose={() => setPollModalOpen(false)} onPollCreated={onUpdate} />}
     </>
   );
 }
 
 // ★★★【新規】完成報告フォームのモーダル ★★★
-function CompletionReportModal({ project, userId, onClose, onReportSubmitted }) {
+function CompletionReportModal({ project, onClose, onReportSubmitted }) {
   const [imageUrls, setImageUrls] = useState([]);
   const [comment, setComment] = useState('');
   const [isUploading, setIsUploading] = useState(false);
@@ -364,54 +315,61 @@ function CompletionReportModal({ project, userId, onClose, onReportSubmitted }) 
     if (!files || files.length === 0) return;
 
     setIsUploading(true);
+    const toastId = toast.loading(`画像をアップロード中... (0/${files.length})`);
+    
     const uploadedUrls = [];
-    for (const file of files) {
-      const formData = new FormData();
-      formData.append('image', file);
-      try {
-        const res = await fetch('/api/upload', {
-          method: 'POST',
-          body: formData,
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error('アップロードに失敗しました');
-        uploadedUrls.push(data.url);
-      } catch (error) {
-        alert(`エラー: ${error.message}`);
-        setIsUploading(false);
-        return;
-      }
+    for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const formData = new FormData();
+        formData.append('file', file);
+        try {
+            const res = await fetch(`${API_URL}/api/upload`, { method: 'POST', body: formData });
+            if (!res.ok) throw new Error('アップロードに失敗しました');
+            const data = await res.json();
+            uploadedUrls.push(data.url);
+            toast.loading(`画像をアップロード中... (${i + 1}/${files.length})`, { id: toastId });
+        } catch (error) {
+            toast.error(error.message, { id: toastId });
+            setIsUploading(false);
+            return;
+        }
     }
     setImageUrls(prev => [...prev, ...uploadedUrls]);
+    toast.success('アップロードが完了しました！', { id: toastId });
     setIsUploading(false);
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
     if (imageUrls.length === 0) {
-      alert('少なくとも1枚は写真をアップロードしてください。');
+      toast.error('少なくとも1枚は写真をアップロードしてください。');
       return;
     }
-    setIsSubmitting(true);
-    try {
-      const res = await fetch(`/api/projects/${project.id}/complete`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId,
-          completionImageUrls: imageUrls,
-          completionComment: comment,
-        }),
-      });
-      if (!res.ok) throw new Error('完了報告の投稿に失敗しました。');
-      alert('企画の完了報告を投稿しました！参加者の皆様、お疲れ様でした！');
-      onReportSubmitted();
-      onClose();
-    } catch (error) {
-      alert(`エラー: ${error.message}`);
-    } finally {
-      setIsSubmitting(false);
-    }
+
+    const token = localStorage.getItem('authToken');
+    const promise = fetch(`${API_URL}/api/projects/${project.id}/complete`, {
+      method: 'PATCH',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        completionImageUrls: imageUrls,
+        completionComment: comment,
+      }),
+    }).then(res => {
+        if (!res.ok) throw new Error('完了報告の投稿に失敗しました。');
+    });
+
+    toast.promise(promise, {
+      loading: '投稿中...',
+      success: () => {
+        onReportSubmitted();
+        onClose();
+        return '企画の完了報告を投稿しました！';
+      },
+      error: (err) => err.message,
+    });
   };
 
   return (
@@ -425,11 +383,11 @@ function CompletionReportModal({ project, userId, onClose, onReportSubmitted }) 
               <div className="mt-2 p-4 border-2 border-dashed rounded-lg">
                 <div className="flex flex-wrap gap-4">
                   {imageUrls.map((url, index) => (
-                    <img key={index} src={url} className="h-24 w-24 object-cover rounded-md" alt={`Uploaded image ${index + 1}`} />
+                    <img key={index} src={url} className="h-24 w-24 object-cover rounded-md" alt={`Uploaded ${index + 1}`} />
                   ))}
                   {isUploading && <div className="h-24 w-24 flex items-center justify-center bg-gray-100 rounded-md">...</div>}
                 </div>
-                <button type="button" onClick={() => fileInputRef.current.click()} className="mt-4 px-4 py-2 text-sm bg-sky-100 text-sky-700 rounded-md hover:bg-sky-200">
+                <button type="button" onClick={() => fileInputRef.current.click()} disabled={isUploading} className="mt-4 px-4 py-2 text-sm bg-sky-100 text-sky-700 rounded-md hover:bg-sky-200 disabled:bg-slate-200">
                   {isUploading ? 'アップロード中...' : '画像を選択'}
                 </button>
                 <input type="file" multiple accept="image/*" ref={fileInputRef} onChange={handleImageUpload} className="hidden" />
@@ -437,14 +395,7 @@ function CompletionReportModal({ project, userId, onClose, onReportSubmitted }) 
             </div>
             <div>
               <label htmlFor="completion-comment" className="block text-sm font-medium text-gray-700">参加者へのメッセージ</label>
-              <textarea
-                id="completion-comment"
-                value={comment}
-                onChange={(e) => setComment(e.target.value)}
-                rows="4"
-                className="w-full mt-1 p-2 border rounded-md text-gray-900"
-                placeholder="企画へのご参加ありがとうございました！皆様のおかげで、最高のフラスタを贈ることができました。"
-              ></textarea>
+              <textarea id="completion-comment" value={comment} onChange={(e) => setComment(e.target.value)} rows="4" className="w-full mt-1 p-2 border rounded-md text-gray-900" placeholder="企画へのご参加ありがとうございました！..."></textarea>
             </div>
           </div>
           <div className="mt-6 flex justify-end gap-4">
@@ -460,10 +411,10 @@ function CompletionReportModal({ project, userId, onClose, onReportSubmitted }) 
 }
 
 // ★★★ 企画通報モーダル ★★★
-function ReportModal({ projectId, reporterId, onClose }) {
+function ReportModal({ projectId, onClose }) {
+  const { user } = useAuth();
   const [reason, setReason] = useState('');
   const [details, setDetails] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const reportReasons = [
     { key: 'SPAM', text: 'スパムや詐欺、誤解を招く内容' },
@@ -472,34 +423,41 @@ function ReportModal({ projectId, reporterId, onClose }) {
     { key: 'OTHER', text: 'その他' },
   ];
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
     if (!reason) {
-      alert('通報理由を選択してください。');
+      toast.error('通報理由を選択してください。');
       return;
     }
     if (reason === 'OTHER' && !details.trim()) {
-      alert('「その他」を選択した場合は、詳細を記入してください。');
+      toast.error('「その他」を選択した場合は、詳細を記入してください。');
       return;
     }
     
-    setIsSubmitting(true);
-    try {
-      const res = await fetch('/api/reports/project', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectId, reporterId, reason, details }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message);
-      
-      alert(data.message);
-      onClose();
-    } catch (error) {
-      alert(`エラー: ${error.message}`);
-    } finally {
-      setIsSubmitting(false);
-    }
+    const token = localStorage.getItem('authToken');
+    const promise = fetch(`${API_URL}/api/reports/project`, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ projectId: parseInt(projectId), reason, details }),
+    }).then(async res => {
+        if (!res.ok) {
+            const data = await res.json();
+            throw new Error(data.detail || '通報に失敗しました。');
+        }
+        return res.json();
+    });
+    
+    toast.promise(promise, {
+        loading: '送信中...',
+        success: (data) => {
+            onClose();
+            return data.message;
+        },
+        error: (err) => err.message,
+    });
   };
 
   return (
@@ -512,36 +470,19 @@ function ReportModal({ projectId, reporterId, onClose }) {
               <p className="font-semibold text-sm">通報理由を選択してください</p>
               {reportReasons.map((r) => (
                 <div key={r.key} className="flex items-center">
-                  <input
-                    type="radio"
-                    id={`reason-${r.key}`}
-                    name="reason"
-                    value={r.key}
-                    checked={reason === r.key}
-                    onChange={(e) => setReason(e.target.value)}
-                    className="h-4 w-4 text-sky-600 border-gray-300 focus:ring-sky-500"
-                  />
+                  <input type="radio" id={`reason-${r.key}`} name="reason" value={r.key} checked={reason === r.key} onChange={(e) => setReason(e.target.value)} className="h-4 w-4 text-sky-600 border-gray-300 focus:ring-sky-500"/>
                   <label htmlFor={`reason-${r.key}`} className="ml-3 block text-sm text-gray-900">{r.text}</label>
                 </div>
               ))}
             </div>
             <div>
               <label htmlFor="details" className="block text-sm font-medium text-gray-700">詳細 (任意)</label>
-              <textarea
-                id="details"
-                value={details}
-                onChange={(e) => setDetails(e.target.value)}
-                rows="3"
-                className="w-full mt-1 p-2 border rounded-md text-gray-900"
-                placeholder="問題のある箇所など、具体的な情報をご記入ください。"
-              ></textarea>
+              <textarea id="details" value={details} onChange={(e) => setDetails(e.target.value)} rows="3" className="w-full mt-1 p-2 border rounded-md text-gray-900" placeholder="問題のある箇所など..."></textarea>
             </div>
           </div>
           <div className="mt-6 flex justify-end gap-4">
             <button type="button" onClick={onClose} className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300">キャンセル</button>
-            <button type="submit" disabled={isSubmitting} className="px-4 py-2 font-bold text-white bg-red-500 rounded-md hover:bg-red-600 disabled:bg-gray-400">
-              {isSubmitting ? '送信中...' : '報告する'}
-            </button>
+            <button type="submit" className="px-4 py-2 font-bold text-white bg-red-500 rounded-md hover:bg-red-600">報告する</button>
           </div>
         </form>
       </div>
@@ -576,11 +517,13 @@ export default function ProjectDetailPage() {
 
   const fetchProject = async () => {
     try {
+      // 認証は不要な公開API
       const response = await fetch(`${API_URL}/api/projects/${id}`);
       if (!response.ok) throw new Error('企画の読み込みに失敗しました。');
       const data = await response.json();
       setProject(data);
     } catch (error) {
+      toast.error(error.message);
       console.error(error);
     } finally {
       setLoading(false);
@@ -588,171 +531,226 @@ export default function ProjectDetailPage() {
   };
 
   useEffect(() => {
-    if (!id || !user) return;
-
+    if (!id) return;
     fetchProject();
 
-    const newSocket = io(`${API_URL}`);
-    setSocket(newSocket);
-    
-    newSocket.emit('joinProjectRoom', id);
+    if (user) {
+        const token = localStorage.getItem('authToken');
+        const newSocket = io(API_URL, {
+            auth: { token: token }
+        });
+        setSocket(newSocket);
+        
+        newSocket.emit('joinProjectRoom', id);
 
-    newSocket.on('receiveGroupChatMessage', (newMessage) => {
-      setProject(prevProject => {
-        if (!prevProject) return null;
-        const newMessages = [...prevProject.groupChatMessages, newMessage];
-        return {
-          ...prevProject,
-          groupChatMessages: newMessages
+        newSocket.on('receiveGroupChatMessage', (newMessage) => {
+            setProject(prevProject => {
+                if (!prevProject) return null;
+                const newMessages = [...(prevProject.groupChatMessages || []), newMessage];
+                return { ...prevProject, groupChatMessages: newMessages };
+            });
+        });
+
+        newSocket.on('messageError', (errorMessage) => {
+            setChatError(errorMessage);
+            setTimeout(() => setChatError(''), 5000);
+        });
+
+        return () => {
+            newSocket.off('receiveGroupChatMessage');
+            newSocket.off('messageError');
+            newSocket.disconnect();
         };
-      });
-    });
-
-    newSocket.on('messageError', (errorMessage) => {
-      setChatError(errorMessage);
-      setTimeout(() => setChatError(''), 5000);
-    });
-
-    return () => {
-      newSocket.off('receiveGroupChatMessage');
-      newSocket.off('messageError');
-      newSocket.disconnect();
-    };
+    }
   }, [id, user]);
 
-  const handlePledgeSubmit = async (e) => {
+  const handlePledgeSubmit = (e) => {
     e.preventDefault();
     if (!user) {
-      alert('支援するにはログインが必要です。');
+      toast.error('支援するにはログインが必要です。');
       return;
     }
-    try {
-      const response = await fetch(`${API_URL}/api/pledges`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          projectId: id,
-          userId: user.id,
-          amount: pledgeAmount,
-          comment: comment,
-        }),
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.message);
-      
-      alert('支援ありがとうございます！');
-      setPledgeAmount('');
-      setComment('');
-      fetchProject();
-    } catch (error) {
-      alert(`エラー: ${error.message}`);
-    }
-  };
+    const token = localStorage.getItem('authToken');
 
-  const handleAnnouncementSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      const response = await fetch(`${API_URL}/api/announcements`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: announcementTitle,
-          content: announcementContent,
-          projectId: id,
-          userId: user.id,
-        }),
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.message);
-      
-      alert('お知らせを投稿しました！');
-      setAnnouncementTitle('');
-      setAnnouncementContent('');
-      setShowAnnouncementForm(false);
-      fetchProject();
-    } catch (error) {
-      alert(`エラー: ${error.message}`);
-    }
-  };
-
-  const handleAddExpense = async (e) => {
-    e.preventDefault();
-    try {
-      const res = await fetch(`${API_URL}/api/expenses`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          itemName: expenseName,
-          amount: expenseAmount,
-          projectId: id,
-          userId: user.id,
-        }),
-      });
-      if (!res.ok) throw new Error('支出の追加に失敗しました。');
-      alert('支出項目を追加しました。');
-      setExpenseName('');
-      setExpenseAmount('');
-      fetchProject();
-    } catch (error) {
-      alert(`エラー: ${error.message}`);
-    }
-  };
-
-  const handleDeleteExpense = async (expenseId) => {
-    if (window.confirm('この支出項目を削除しますか？')) {
-      try {
-        const res = await fetch(`${API_URL}/api/expenses/${expenseId}`, {
-          method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: user.id }),
-        });
-        if (!res.ok) throw new Error('支出の削除に失敗しました。');
-        alert('支出項目を削除しました。');
-        fetchProject();
-      } catch (error) {
-        alert(`エラー: ${error.message}`);
+    const promise = fetch(`${API_URL}/api/pledges`, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        projectId: parseInt(id),
+        amount: parseInt(pledgeAmount),
+        comment: comment,
+      }),
+    }).then(async res => {
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.detail || '支援に失敗しました。');
       }
+    });
+
+    toast.promise(promise, {
+      loading: '処理中...',
+      success: () => {
+        setPledgeAmount('');
+        setComment('');
+        fetchProject();
+        return '支援ありがとうございます！';
+      },
+      error: (err) => err.message,
+    });
+  };
+
+  const handleAnnouncementSubmit = (e) => {
+    e.preventDefault();
+    const token = localStorage.getItem('authToken');
+    const promise = fetch(`${API_URL}/api/announcements`, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        title: announcementTitle,
+        content: announcementContent,
+        projectId: parseInt(id),
+      }),
+    }).then(res => {
+      if (!res.ok) throw new Error('お知らせの投稿に失敗しました。');
+    });
+
+    toast.promise(promise, {
+      loading: '投稿中...',
+      success: () => {
+        setAnnouncementTitle('');
+        setAnnouncementContent('');
+        setShowAnnouncementForm(false);
+        fetchProject();
+        return 'お知らせを投稿しました！';
+      },
+      error: (err) => err.message,
+    });
+  };
+
+  const handleAddExpense = (e) => {
+    e.preventDefault();
+    const token = localStorage.getItem('authToken');
+    const promise = fetch(`${API_URL}/api/expenses`, {
+        method: 'POST',
+        headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+            itemName: expenseName,
+            amount: parseInt(expenseAmount),
+            projectId: parseInt(id),
+        }),
+    }).then(res => {
+        if (!res.ok) throw new Error('支出の追加に失敗しました。');
+    });
+
+    toast.promise(promise, {
+        loading: '追加中...',
+        success: () => {
+            setExpenseName('');
+            setExpenseAmount('');
+            fetchProject();
+            return '支出項目を追加しました。';
+        },
+        error: (err) => err.message,
+    });
+  };
+
+  const handleDeleteExpense = (expenseId) => {
+    if (window.confirm('この支出項目を削除しますか？')) {
+      const token = localStorage.getItem('authToken');
+      const promise = fetch(`${API_URL}/api/expenses/${expenseId}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` }
+      }).then(res => {
+          if (!res.ok) throw new Error('支出の削除に失敗しました。');
+      });
+
+      toast.promise(promise, {
+          loading: '削除中...',
+          success: () => {
+              fetchProject();
+              return '支出項目を削除しました。';
+          },
+          error: (err) => err.message,
+      });
     }
   };
 
-  const handleAddTask = async (e) => {
+  const handleAddTask = (e) => {
     e.preventDefault();
     if (!newTaskTitle.trim()) return;
-    try {
-      const res = await fetch(`${API_URL}/api/tasks`, {
+    const token = localStorage.getItem('authToken');
+    const promise = fetch(`${API_URL}/api/tasks`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: newTaskTitle, projectId: id, userId: user.id }),
-      });
-      if (!res.ok) throw new Error('タスクの追加に失敗しました。');
-      setNewTaskTitle('');
-      fetchProject();
-    } catch (error) { alert(`エラー: ${error.message}`); }
+        headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ title: newTaskTitle, projectId: parseInt(id) }),
+    }).then(res => {
+        if (!res.ok) throw new Error('タスクの追加に失敗しました。');
+    });
+
+    toast.promise(promise, {
+        loading: '追加中...',
+        success: () => {
+            setNewTaskTitle('');
+            fetchProject();
+            return 'タスクを追加しました。';
+        },
+        error: (err) => err.message,
+    });
   };
 
-  const handleToggleTask = async (taskId, currentStatus) => {
-    try {
-      const res = await fetch(`${API_URL}/api/tasks/${taskId}`, {
+  const handleToggleTask = (taskId, currentStatus) => {
+    const token = localStorage.getItem('authToken');
+    const promise = fetch(`${API_URL}/api/tasks/${taskId}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isCompleted: !currentStatus, userId: user.id }),
-      });
-      if (!res.ok) throw new Error('タスクの更新に失敗しました。');
-      fetchProject();
-    } catch (error) { alert(`エラー: ${error.message}`); }
+        headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ isCompleted: !currentStatus }),
+    }).then(res => {
+        if (!res.ok) throw new Error('タスクの更新に失敗しました。');
+    });
+
+    toast.promise(promise, {
+        loading: '更新中...',
+        success: () => {
+            fetchProject();
+            return 'タスクを更新しました。';
+        },
+        error: (err) => err.message,
+    });
   };
 
-  const handleDeleteTask = async (taskId) => {
+  const handleDeleteTask = (taskId) => {
     if (window.confirm('このタスクを削除しますか？')) {
-      try {
-        const res = await fetch(`${API_URL}/api/tasks/${taskId}`, {
+      const token = localStorage.getItem('authToken');
+      const promise = fetch(`${API_URL}/api/tasks/${taskId}`, {
           method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: user.id }),
-        });
-        if (!res.ok) throw new Error('タスクの削除に失敗しました。');
-        fetchProject();
-      } catch (error) { alert(`エラー: ${error.message}`); }
+          headers: { 'Authorization': `Bearer ${token}` }
+      }).then(res => {
+          if (!res.ok) throw new Error('タスクの削除に失敗しました。');
+      });
+
+      toast.promise(promise, {
+          loading: '削除中...',
+          success: () => {
+              fetchProject();
+              return 'タスクを削除しました。';
+          },
+          error: (err) => err.message,
+      });
     }
   };
 
@@ -762,33 +760,32 @@ export default function ProjectDetailPage() {
       .map(msg => `${msg.cardName}\n${msg.content}`)
       .join('\n\n---\n\n');
     navigator.clipboard.writeText(textToCopy)
-      .then(() => alert('全メッセージをクリップボードにコピーしました！'))
-      .catch(err => alert('コピーに失敗しました。'));
+      .then(() => toast.success('全メッセージをクリップボードにコピーしました！'))
+      .catch(err => toast.error('コピーに失敗しました。'));
   };
   
-  const handleCancelProject = async () => {
-    if (!window.confirm("本当にこの企画を中止しますか？\n集まったポイントはすべて支援者に返金され、この操作は元に戻せません。")) {
-      return;
-    }
-    if (!window.confirm("最終確認です。参加者への説明は済みましたか？中止を実行します。")) {
-      return;
-    }
+  const handleCancelProject = () => {
+    if (!window.confirm("本当にこの企画を中止しますか？\n集まったポイントはすべて支援者に返金され、この操作は元に戻せません。")) return;
+    if (!window.confirm("最終確認です。参加者への説明は済みましたか？中止を実行します。")) return;
 
-    try {
-      const res = await fetch(`/api/projects/${project.id}/cancel`, {
+    const token = localStorage.getItem('authToken');
+    const promise = fetch(`${API_URL}/api/projects/${project.id}/cancel`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.id }),
-      });
+        headers: { 'Authorization': `Bearer ${token}` }
+    }).then(async res => {
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || '企画の中止に失敗しました。');
+        return data.message;
+    });
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message);
-      
-      alert(data.message);
-      fetchProject();
-    } catch (error) {
-      alert(`エラー: ${error.message}`);
-    }
+    toast.promise(promise, {
+        loading: '処理中...',
+        success: (message) => {
+            fetchProject();
+            return message;
+        },
+        error: (err) => err.message,
+    });
   };
 
   if (loading) return <div className="text-center mt-10">読み込み中...</div>;
@@ -797,7 +794,7 @@ export default function ProjectDetailPage() {
   const deliveryDate = new Date(project.deliveryDateTime).toLocaleString('ja-JP');
   const totalPledged = (project.pledges || []).reduce((sum, pledge) => sum + pledge.amount, 0);
   const progressPercentage = project.targetAmount > 0 ? (totalPledged / project.targetAmount) * 100 : 0;
-  const pageUrl = `http://localhost:3000/projects/${id}`;
+  const pageUrl = typeof window !== 'undefined' ? window.location.href : '';
   const shareText = `【${project.title}】を支援しよう！ #FLASTAL`;
   const twitterShareUrl = `https://twitter.com/intent/tweet?url=${encodeURIComponent(pageUrl)}&text=${encodeURIComponent(shareText)}`;
   const isPlanner = user && user.id === project.planner?.id;
@@ -909,7 +906,7 @@ export default function ProjectDetailPage() {
                       <div>
                         <p className="font-bold text-pink-800">フラスタに添えるメッセージを投稿しませんか？</p>
                         <p className="text-sm text-gray-600 mt-2">あなたの名前とお祝いの言葉が、カードになってお花と一緒に飾られます。</p>
-                        <MessageForm projectId={id} userId={user.id} onMessagePosted={fetchProject} />
+                        <MessageForm projectId={id} onMessagePosted={fetchProject} />
                       </div>
                     )}
                   </div>
@@ -1123,8 +1120,8 @@ export default function ProjectDetailPage() {
       </div>
       
       {isImageModalOpen && <ImageModal src={project.imageUrl} onClose={() => setIsImageModalOpen(false)} />}
-      {isReportModalOpen && <ReportModal projectId={project.id} reporterId={user.id} onClose={() => setReportModalOpen(false)} />}
-      {isCompletionModalOpen && <CompletionReportModal project={project} userId={user.id} onClose={() => setIsCompletionModalOpen(false)} onReportSubmitted={fetchProject} />}
+      {isReportModalOpen && <ReportModal projectId={id} onClose={() => setReportModalOpen(false)} />}
+      {isCompletionModalOpen && <CompletionReportModal project={project} onClose={() => setIsCompletionModalOpen(false)} onReportSubmitted={fetchProject} />}
     </>
   );
 }

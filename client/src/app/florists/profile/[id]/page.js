@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const API_URL = process.env.NEXT_PUBLIC_API_URL_PYTHON || 'https://flastal-backend.onrender.com';
 
 export default function EditFloristProfilePage({ params }) {
   const { id } = params;
@@ -51,10 +51,16 @@ export default function EditFloristProfilePage({ params }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    // ★★★ トークンを取得 ★★★
+    const token = localStorage.getItem('authToken'); // useAuthで保存したトークンキー
+
     try {
       const res = await fetch(`${API_URL}/api/florists/${id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}` // ★★★ トークンを付与 ★★★
+        },
         body: JSON.stringify(formData),
       });
       if (!res.ok) {

@@ -5,7 +5,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation'; // useRouterをインポート
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const API_URL = process.env.NEXT_PUBLIC_API_URL_PYTHON || 'https://flastal-backend.onrender.com';
 
 export default function VenueLoginPage() {
   const [email, setEmail] = useState('');
@@ -15,22 +15,30 @@ export default function VenueLoginPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      // ★★★ bodyをFastAPIのOAuth2PasswordRequestFormに合わせて変更 ★★★
+      const formData = new URLSearchParams();
+      formData.append('username', email);
+      formData.append('password', password);
+
       const response = await fetch(`${API_URL}/api/venues/login`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: formData.toString(),
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.message);
+      if (!response.ok) throw new Error(data.detail || 'ログインに失敗しました');
       
-      // ★ アラートの代わりに、ダッシュボードへリダイレクト
+      // ★★★ 受け取ったトークンと会場情報を保存 ★★★
+      localStorage.setItem('venueToken', data.access_token);
+      localStorage.setItem('venueInfo', JSON.stringify(data.venue));
+
       router.push(`/venues/dashboard/${data.venue.id}`);
 
     } catch (error) {
       alert(`ログインエラー: ${error.message}`);
     }
   };
-
+  
   return (
     <div className="flex items-center justify-center min-h-screen bg-green-50">
       <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-md">

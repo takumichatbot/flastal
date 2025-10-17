@@ -6,7 +6,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const API_URL = process.env.NEXT_PUBLIC_API_URL_PYTHON || 'https://flastal-backend.onrender.com';
 
 // ★★★ 見積書作成モーダルの部品 ★★★
 function QuotationModal({ project, onClose, onQuotationSubmitted }) {
@@ -35,13 +35,18 @@ function QuotationModal({ project, onClose, onQuotationSubmitted }) {
   const handleSubmit = async () => {
     setIsSubmitting(true);
     try {
+      // ★★★ トークンを取得・付与 ★★★
+      const token = localStorage.getItem('authToken');
       const res = await fetch(`${API_URL}/api/quotations`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({
           projectId: project.id,
-          items: items.filter(item => item.itemName && item.amount), // 空の項目は除外
-          floristId: user.id,
+          items: items.filter(item => item.itemName && item.amount),
+          // floristIdは不要 (トークンからサーバーが判断する)
         }),
       });
       if (!res.ok) {
@@ -109,7 +114,13 @@ export default function ChatPage() {
 
   const fetchChatData = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/chat/${roomId}`);
+      // ★★★ トークンを取得 ★★★
+      const token = localStorage.getItem('authToken'); // useAuthで保存しているトークンキー
+      if (!token) throw new Error('認証情報がありません。');
+      
+      const res = await fetch(`${API_URL}/api/chat-rooms/${roomId}`, {
+        headers: { 'Authorization': `Bearer ${token}` } // ★★★ トークンを付与 ★★★
+      });
       if (!res.ok) throw new Error('チャットルームの読み込みに失敗しました。');
       const data = await res.json();
       setRoomInfo(data);
@@ -126,16 +137,18 @@ export default function ChatPage() {
     
     fetchChatData();
 
-    const newSocket = io(`${API_URL}`);
+    // ★★★ 接続時に認証トークンを渡す ★★★
+    const newSocket = io(API_URL, {
+      auth: { token: localStorage.getItem('authToken') }
+    });
     setSocket(newSocket);
 
-    newSocket.emit('joinRoom', roomId);
-
-    newSocket.on('receiveMessage', (newMessage) => {
+    // ★★★ イベント名をより具体的に変更 ★★★
+    newSocket.emit('joinPrivateChatRoom', roomId);
+    newSocket.on('receiveChatMessage', (newMessage) => { // こちらも変更
       setMessages((prevMessages) => [...prevMessages, newMessage]);
     });
 
-    // ▼▼▼ ここから追記 ▼▼▼
     // メッセージ送信エラーを受信したときの処理
     newSocket.on('messageError', (errorMessage) => {
       setChatError(errorMessage); // Stateにエラーメッセージをセット
@@ -162,15 +175,12 @@ export default function ChatPage() {
   const handleSendMessage = (e) => {
     e.preventDefault();
     if (currentMessage.trim() && user && socket) {
-      setChatError(''); // ★ メッセージ送信時に前回のエラーをクリア
-      const messageData = {
-        roomId,
+      setChatError('');
+      // ★★★ 送信するデータをシンプルに！(ユーザー情報は送らない) ★★★
+      socket.emit('sendChatMessage', {
+        chatRoomId: roomId,
         content: currentMessage,
-        senderType: userType,
-        userId: userType === 'USER' ? user.id : null,
-        floristId: userType === 'FLORIST' ? user.id : null,
-      };
-      socket.emit('sendMessage', messageData);
+      });
       setCurrentMessage('');
     }
   };
@@ -178,10 +188,15 @@ export default function ChatPage() {
   const handleApproveQuotation = async (quotationId) => {
     if (window.confirm("この見積書の内容で支払いを確定します。集まったポイントから合計額が引き落とされます。よろしいですか？")) {
       try {
+        // ★★★ トークンを取得・付与 ★★★
+        const token = localStorage.getItem('authToken');
         const res = await fetch(`${API_URL}/api/quotations/${quotationId}/approve`, {
           method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: user.id })
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          // bodyは不要 (トークンからサーバーがユーザーを判断する)
         });
         if (!res.ok) {
           const data = await res.json();

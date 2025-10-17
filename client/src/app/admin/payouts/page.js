@@ -2,6 +2,9 @@
 
 import { useState, useEffect } from 'react';
 
+// ★ 1. APIのURLをPythonバックエンドに統一
+const API_URL = process.env.NEXT_PUBLIC_API_URL_PYTHON || 'https://flastal-backend.onrender.com';
+
 export default function AdminPayoutsPage() {
   const [payouts, setPayouts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -10,7 +13,16 @@ export default function AdminPayoutsPage() {
   const fetchPayouts = async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/admin/payouts');
+      // ★ 2. 認証トークンを取得
+      const token = localStorage.getItem('adminToken');
+      if (!token) throw new Error('管理者としてログインしていません。');
+
+      // ★ 3. APIリクエストにトークンを付与
+      const res = await fetch(`${API_URL}/api/admin/payouts`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       if (!res.ok) throw new Error('出金申請の読み込みに失敗しました。');
       const data = await res.json();
       setPayouts(data);
@@ -31,13 +43,19 @@ export default function AdminPayoutsPage() {
     }
 
     try {
-      const res = await fetch(`/api/admin/payouts/${payoutId}/complete`, {
+      // ★ 4. ステータス更新時も認証トークンが必要
+      const token = localStorage.getItem('adminToken');
+      if (!token) throw new Error('管理者としてログインしていません。');
+      
+      const res = await fetch(`${API_URL}/api/admin/payouts/${payoutId}/complete`, {
         method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
       });
       if (!res.ok) throw new Error('処理の更新に失敗しました。');
       
       alert('出金処理を完了に更新しました。');
-      // 画面から処理済みの項目を消す
       setPayouts(prevPayouts => prevPayouts.filter(p => p.id !== payoutId));
 
     } catch (err) {

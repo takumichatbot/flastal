@@ -2,6 +2,9 @@
 
 import { useState, useEffect } from 'react';
 
+// ★ 1. APIのURLをPythonバックエンドに統一
+const API_URL = process.env.NEXT_PUBLIC_API_URL_PYTHON || 'https://flastal-backend.onrender.com';
+
 export default function AdminFloristApprovalsPage() {
   const [florists, setFlorists] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -9,11 +12,22 @@ export default function AdminFloristApprovalsPage() {
   const fetchPendingFlorists = async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/admin/florists/pending');
+      // ★ 2. 認証トークンを取得
+      const token = localStorage.getItem('adminToken');
+      if (!token) throw new Error('管理者としてログインしていません。');
+
+      // ★ 3. APIリクエストにトークンを付与
+      const res = await fetch(`${API_URL}/api/admin/florists/pending`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (!res.ok) throw new Error('データの取得に失敗しました。');
       const data = await res.json();
       setFlorists(data);
     } catch (error) {
       console.error(error);
+      alert(error.message);
     } finally {
       setLoading(false);
     }
@@ -28,15 +42,22 @@ export default function AdminFloristApprovalsPage() {
     if (!window.confirm(`この申請を「${actionText}」しますか？`)) return;
 
     try {
-      await fetch(`/api/admin/florists/${floristId}/status`, {
+      // ★ 4. ステータス更新時も認証トークンが必要
+      const token = localStorage.getItem('adminToken');
+      if (!token) throw new Error('管理者としてログインしていません。');
+
+      await fetch(`${API_URL}/api/admin/florists/${floristId}/status`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ status }),
       });
       alert(`申請を「${actionText}」しました。`);
       setFlorists(prev => prev.filter(f => f.id !== floristId));
     } catch (error) {
-      alert('処理に失敗しました。');
+      alert(`処理に失敗しました: ${error.message}`);
     }
   };
   
@@ -52,7 +73,8 @@ export default function AdminFloristApprovalsPage() {
           <div className="space-y-4">
             {florists.map(florist => (
               <div key={florist.id} className="border rounded-lg p-4 bg-gray-50">
-                <p><strong>申請日時:</strong> {new Date(florist.createdAt).toLocaleString('ja-JP')}</p>
+                {/* 申請日時はバックエンドのモデルにcreatedAtを追加する必要があります */}
+                {/* <p><strong>申請日時:</strong> {new Date(florist.createdAt).toLocaleString('ja-JP')}</p> */}
                 <p><strong>活動名 (公開):</strong> {florist.platformName}</p>
                 <p><strong>店舗名 (非公開):</strong> {florist.shopName}</p>
                 <p><strong>担当者名:</strong> {florist.contactName}</p>
