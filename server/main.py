@@ -321,20 +321,29 @@ def cancel_project(project_id: int, db: Session = Depends(get_db), current_user:
 
 @fastapi_app.get("/api/projects/featured", response_model=list[schemas.Project])
 def get_featured_projects(db: Session = Depends(get_db)):
-    query = db.query(models.Project).options(
-        joinedload(models.Project.planner),
-        joinedload(models.Project.pledges).joinedload(models.Pledge.user),
-        joinedload(models.Project.activePoll).joinedload(models.Poll.options),
-        joinedload(models.Project.activePoll).joinedload(models.Poll.votes)
-    )
-    
-    featured_projects = query.filter(
-        models.Project.targetAmount > 0, models.Project.visibility == "PUBLIC"
-    ).order_by(
-        (models.Project.collectedAmount / models.Project.targetAmount).desc()
-    ).limit(4).all()
-    
-    return featured_projects
+    try:
+        print("--- FINAL DEBUG: Entering get_featured_projects ---")
+        query = db.query(models.Project).options(
+            joinedload(models.Project.planner),
+            joinedload(models.Project.pledges).joinedload(models.Pledge.user),
+            joinedload(models.Project.activePoll).joinedload(models.Poll.options),
+            joinedload(models.Project.activePoll).joinedload(models.Poll.votes)
+        )
+        
+        featured_projects = query.filter(
+            models.Project.targetAmount > 0, models.Project.visibility == "PUBLIC"
+        ).order_by(
+            (models.Project.collectedAmount / models.Project.targetAmount).desc()
+        ).limit(4).all()
+        
+        print(f"--- FINAL DEBUG: Found {len(featured_projects)} projects. Returning now. ---")
+        return featured_projects
+
+    except Exception as e:
+        import traceback
+        print("--- !!!!! FINAL DEBUG: CAUGHT EXCEPTION !!!!! ---")
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail="Error in get_featured_projects")
 
 
 # ===============================================
