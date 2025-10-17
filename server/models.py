@@ -164,11 +164,14 @@ class Poll(Base):
     isActive = Column(Boolean, default=True)
     createdAt = Column(DateTime(timezone=True), server_default=func.now())
     
-    project_id = Column(Integer, ForeignKey("projects.id"), unique=True) # 1企画にアクティブなPollは1つ
+    project_id = Column(Integer, ForeignKey("projects.id"), unique=True)
     creator_id = Column(Integer, ForeignKey("users.id"))
     
     options = relationship("PollOption", back_populates="poll", cascade="all, delete-orphan")
     votes = relationship("PollVote", back_populates="poll", cascade="all, delete-orphan")
+
+    # ★★★ この一行を追加 ★★★
+    project = relationship("Project", back_populates="activePoll")
 
 class PollOption(Base):
     __tablename__ = "poll_options"
