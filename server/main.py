@@ -16,7 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 from jose import JWTError, jwt
 from pydantic import BaseModel
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload 
 from sqlalchemy.sql import func
 
 from database import SessionLocal, engine
@@ -321,11 +321,20 @@ def cancel_project(project_id: int, db: Session = Depends(get_db), current_user:
 
 @fastapi_app.get("/api/projects/featured", response_model=list[schemas.Project])
 def get_featured_projects(db: Session = Depends(get_db)):
-    return db.query(models.Project).filter(
+    # データをまとめて取得するようにクエリを修正
+    query = db.query(models.Project).options(
+        joinedload(models.Project.planner),
+        joinedload(models.Project.pledges).joinedload(models.Pledge.user),
+        joinedload(models.Project.activePoll).joinedload(models.Poll.options)
+    )
+    
+    featured_projects = query.filter(
         models.Project.targetAmount > 0, models.Project.visibility == "PUBLIC"
     ).order_by(
         (models.Project.collectedAmount / models.Project.targetAmount).desc()
     ).limit(4).all()
+    
+    return featured_projects
 
 # ===============================================
 # 支援 (Pledge) & レビュー (Review) API

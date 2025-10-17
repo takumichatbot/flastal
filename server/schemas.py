@@ -41,6 +41,7 @@ class User(UserBase):
 # Project (企画) 関連スキーマ
 # ===============================================
 
+
 class ProjectCreate(BaseModel):
     title: str
     description: str
