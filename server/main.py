@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.sql import func
 
 from database import SessionLocal, engine
-from config import SECRET_key, ALGORITHM
+from config import SECRET_KEY, ALGORITHMd
 import models, schemas, security
 
 # ===============================================
