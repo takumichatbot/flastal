@@ -20,7 +20,7 @@ class Project(Base):
     __tablename__ = "projects"
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String, index=True)
-    organizer = Column(String)
+    organizer = Column(String) # handleNameを保存
     description = Column(Text, nullable=True)
     targetAmount = Column(Integer, default=0)
     collectedAmount = Column(Integer, default=0)
@@ -32,7 +32,11 @@ class Project(Base):
     visibility = Column(String, default="PUBLIC")
     size = Column(String, nullable=True)
     flowerTypes = Column(String, nullable=True)
-    review = relationship("Review", back_populates="project", uselist=False)
+    completionImageUrls = Column(JSON, nullable=True)
+    completionComment = Column(Text, nullable=True)
+    # "users.id" は、usersテーブルのidカラムを指す、という意味
+    planner_id = Column(Integer, ForeignKey("users.id"))
+    # --- リレーションシップ定義 ---
     planner = relationship("User", back_populates="created_projects")
     pledges = relationship("Pledge", back_populates="project", cascade="all, delete-orphan")
     review = relationship("Review", back_populates="project", uselist=False, cascade="all, delete-orphan")
@@ -40,11 +44,9 @@ class Project(Base):
     tasks = relationship("Task", back_populates="project", cascade="all, delete-orphan")
     expenses = relationship("Expense", back_populates="project", cascade="all, delete-orphan")
     announcements = relationship("Announcement", back_populates="project", cascade="all, delete-orphan")
-    completionImageUrls = Column(JSON, nullable=True) # 写真URLのリスト
-    completionComment = Column(Text, nullable=True)   # 完了コメント
     group_chat_messages = relationship("GroupChatMessage", back_populates="project", cascade="all, delete-orphan")
-    quotation = relationship("Quotation", back_populates="project", uselist=False)
-    visibility = Column(String, default="PUBLIC") # PUBLIC, PRIVATE
+    activePoll = relationship("Poll", uselist=False, back_populates="project")
+    quotation = relationship("Quotation", uselist=False, back_populates="project")
     
 class User(Base):
     __tablename__ = "users"
