@@ -79,7 +79,7 @@ export default function GroupChat({ project, user, isPlanner, isPledger, onUpdat
   
   const handleVote = (optionIndex) => {
     if (!project.activePoll) return;
-    const token = localStorage.getItem('authToken');
+    const token = localStorage.getItem('accessToken');
     
     const promise = fetch(`${API_URL}/api/group-chat/polls/vote`, {
       method: 'POST', 

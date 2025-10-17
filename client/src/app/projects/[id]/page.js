@@ -67,7 +67,7 @@ export default function ProjectDetailPage() {
 
     // 2. ユーザーがログインしていることが確認できた場合のみ、WebSocket接続を開始
     if (user) {
-      const token = localStorage.getItem('authToken');
+      const token = localStorage.getItem('accessToken');
       if (!token) {
         // トークンがない場合（通常は発生しない）、何もしない
         return;
@@ -104,7 +104,7 @@ export default function ProjectDetailPage() {
       toast.error('支援するにはログインが必要です。');
       return;
     }
-    const token = localStorage.getItem('authToken');
+    const token = localStorage.getItem('accessToken');
 
     const promise = fetch(`${API_URL}/api/pledges`, {
       method: 'POST',
@@ -134,7 +134,7 @@ export default function ProjectDetailPage() {
 
   const handleAnnouncementSubmit = (e) => {
     e.preventDefault();
-    const token = localStorage.getItem('authToken');
+    const token = localStorage.getItem('accessToken');
     const promise = fetch(`${API_URL}/api/announcements`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
@@ -162,7 +162,7 @@ export default function ProjectDetailPage() {
 
   const handleAddExpense = (e) => {
     e.preventDefault();
-    const token = localStorage.getItem('authToken');
+    const token = localStorage.getItem('accessToken');
     const promise = fetch(`${API_URL}/api/expenses`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
@@ -189,7 +189,7 @@ export default function ProjectDetailPage() {
 
   const handleDeleteExpense = (expenseId) => {
     if (window.confirm('この支出項目を削除しますか？')) {
-      const token = localStorage.getItem('authToken');
+      const token = localStorage.getItem('accessToken');
       const promise = fetch(`${API_URL}/api/expenses/${expenseId}`, {
           method: 'DELETE',
           headers: { 'Authorization': `Bearer ${token}` }
@@ -206,7 +206,7 @@ export default function ProjectDetailPage() {
   const handleAddTask = (e) => {
     e.preventDefault();
     if (!newTaskTitle.trim()) return;
-    const token = localStorage.getItem('authToken');
+    const token = localStorage.getItem('accessToken');
     const promise = fetch(`${API_URL}/api/tasks`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
@@ -221,7 +221,7 @@ export default function ProjectDetailPage() {
   };
 
   const handleToggleTask = (taskId, currentStatus) => {
-    const token = localStorage.getItem('authToken');
+    const token = localStorage.getItem('accessToken');
     const promise = fetch(`${API_URL}/api/tasks/${taskId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
@@ -237,7 +237,7 @@ export default function ProjectDetailPage() {
 
   const handleDeleteTask = (taskId) => {
     if (window.confirm('このタスクを削除しますか？')) {
-      const token = localStorage.getItem('authToken');
+      const token = localStorage.getItem('accessToken');
       const promise = fetch(`${API_URL}/api/tasks/${taskId}`, {
           method: 'DELETE',
           headers: { 'Authorization': `Bearer ${token}` }
@@ -263,7 +263,7 @@ export default function ProjectDetailPage() {
     if (!window.confirm("本当にこの企画を中止しますか？\n集まったポイントはすべて支援者に返金され、この操作は元に戻せません。")) return;
     if (!window.confirm("最終確認です。参加者への説明は済みましたか？中止を実行します。")) return;
 
-    const token = localStorage.getItem('authToken');
+    const token = localStorage.getItem('accessToken');
     const promise = fetch(`${API_URL}/api/projects/${project.id}/cancel`, {
         method: 'PATCH',
         headers: { 'Authorization': `Bearer ${token}` }

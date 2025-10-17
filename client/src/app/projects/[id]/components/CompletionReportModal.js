@@ -44,7 +44,7 @@ export default function CompletionReportModal({ project, onClose, onReportSubmit
       toast.error('少なくとも1枚は写真をアップロードしてください。');
       return;
     }
-    const token = localStorage.getItem('authToken');
+    const token = localStorage.getItem('accessToken');
     const promise = fetch(`${API_URL}/api/projects/${project.id}/complete`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },

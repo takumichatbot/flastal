@@ -27,7 +27,7 @@ export default function ReportModal({ projectId, onClose }) {
       return;
     }
     
-    const token = localStorage.getItem('authToken');
+    const token = localStorage.getItem('accessToken');
     const promise = fetch(`${API_URL}/api/reports/project`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },

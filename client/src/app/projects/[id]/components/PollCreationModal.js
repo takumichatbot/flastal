@@ -26,7 +26,7 @@ export default function PollCreationModal({ projectId, onClose, onPollCreated })
       toast.error('質問と全ての選択肢を入力してください。');
       return;
     }
-    const token = localStorage.getItem('authToken');
+    const token = localStorage.getItem('accessToken');
 
     const promise = fetch(`${API_URL}/api/group-chat/polls`, {
       method: 'POST',
