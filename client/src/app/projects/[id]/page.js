@@ -3,591 +3,102 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
-import ImageModal from '../../components/ImageModal';
+import { useForm } from 'react-hook-form';
 import { io } from 'socket.io-client';
 import toast from 'react-hot-toast';
+import Link from 'next/link';
 
-// ★ 外部コンポーネントとしてMessageFormをインポート
+// 外部コンポーネントとしてすべてインポート
+import ImageModal from '../../components/ImageModal';
 import MessageForm from '../../components/MessageForm';
+import PollCreationModal from './components/PollCreationModal';
+import GroupChat from './components/GroupChat';
+import CompletionReportModal from './components/CompletionReportModal';
+import ReportModal from './components/ReportModal';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL_PYTHON || 'https://flastal-backend.onrender.com';
 
-// ★★★ アンケート作成モーダル ★★★
-function PollCreationModal({ projectId, onClose, onPollCreated }) {
-  const { user } = useAuth(); // useAuthからuserを取得
-  const [question, setQuestion] = useState('');
-  const [options, setOptions] = useState(['', '']);
-
-  const handleOptionChange = (index, value) => {
-    const newOptions = [...options];
-    newOptions[index] = value;
-    setOptions(newOptions);
-  };
-
-  const addOption = () => {
-    if (options.length < 5) setOptions([...options, '']);
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    const token = localStorage.getItem('authToken');
-
-    const promise = fetch(`${API_URL}/api/group-chat/polls`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({
-        projectId: parseInt(projectId),
-        question,
-        options: options.filter(o => o.trim() !== ''),
-      }),
-    }).then(res => {
-      if (!res.ok) throw new Error('アンケートの作成に失敗しました。');
-      return res.json();
-    });
-
-    toast.promise(promise, {
-      loading: '作成中...',
-      success: () => {
-        onPollCreated();
-        onClose();
-        return 'アンケートを作成しました！';
-      },
-      error: (err) => err.message,
-    });
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
-      <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-lg">
-        <form onSubmit={handleSubmit}>
-          <h2 className="text-xl font-bold mb-4">アンケートを作成</h2>
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700">質問</label>
-              <input type="text" value={question} onChange={(e) => setQuestion(e.target.value)} required className="w-full mt-1 p-2 border rounded-md text-gray-900"/>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">選択肢</label>
-              {options.map((option, index) => (
-                <input key={index} type="text" value={option} onChange={(e) => handleOptionChange(index, e.target.value)} required placeholder={`選択肢 ${index + 1}`} className="w-full mt-1 p-2 border rounded-md text-gray-900"/>
-              ))}
-              {options.length < 5 && <button type="button" onClick={addOption} className="text-sm text-sky-600 hover:underline mt-2">+ 選択肢を追加</button>}
-            </div>
-          </div>
-          <div className="mt-6 flex justify-end gap-4">
-            <button type="button" onClick={onClose} className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300">閉じる</button>
-            <button type="submit" className="px-4 py-2 font-bold text-white bg-green-500 rounded-md hover:bg-green-600">作成する</button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-// ★★★ グループチャットとアンケート機能を持つコンポーネント ★★★
-function GroupChat({ project, user, isPlanner, isPledger, onUpdate, socket }) {
-  const [templates, setTemplates] = useState([]);
-  const [isPollModalOpen, setPollModalOpen] = useState(false);
- 
-  const [customInputModal, setCustomInputModal] = useState({
-    isOpen: false,
-    template: null,
-    text: '',
-  });
-  const [freeText, setFreeText] = useState('');
-
-  useEffect(() => {
-    const fetchTemplates = async () => {
-      try {
-        const res = await fetch(`${API_URL}/api/chat-templates`);
-        if (!res.ok) throw new Error('テンプレート取得失敗');
-        setTemplates(await res.json());
-      } catch (error) { console.error(error); }
-    };
-    fetchTemplates();
-  }, []);
-
-  const formatMessage = (msg) => {
-    if (!msg.templateId && msg.content) {
-      return msg.content;
-    }
-    const template = templates.find(t => t.id === msg.templateId);
-    if (!template) return '不明なメッセージ';
-    if (template.hasCustomInput && msg.content) {
-      return template.text.replace('...', `"${msg.content}"`);
-    }
-    return template.text;
-  };
-
-  const templatesByCategory = templates.reduce((acc, t) => {
-    acc[t.category] = [...(acc[t.category] || []), t];
-    return acc;
-  }, {});
- 
-  const handleTemplateClick = (template) => {
-    if (template.hasCustomInput) {
-      setCustomInputModal({ isOpen: true, template: template, text: '' });
-    } else {
-      handleSendMessage(template.id, null);
-    }
-  };
- 
-  const handleCustomSubmit = (e) => {
-    e.preventDefault();
-    if (customInputModal.template && customInputModal.text.trim()) {
-      handleSendMessage(customInputModal.template.id, customInputModal.text);
-      setCustomInputModal({ isOpen: false, template: null, text: '' });
-    }
-  };
-
-  const handleFreeTextSubmit = (e) => {
-    e.preventDefault();
-    if (freeText.trim()) {
-      handleSendMessage(null, freeText);
-      setFreeText('');
-    }
-  };
-
-  const handleSendMessage = (templateId, content) => {
-    if (!socket) {
-      toast.error('チャットサーバーに接続していません。');
-      return;
-    }
-    socket.emit('sendGroupChatMessage', {
-      projectId: project.id,
-      templateId,
-      content
-    });
-  };
- 
-  const handleVote = (optionIndex) => {
-    if (!project.activePoll) return;
-    const token = localStorage.getItem('authToken');
-   
-    const promise = fetch(`${API_URL}/api/group-chat/polls/vote`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({ pollId: project.activePoll.id, optionIndex }),
-    }).then(async res => {
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.detail || '投票に失敗しました。');
-      }
-    });
-
-    toast.promise(promise, {
-      loading: '投票中...',
-      success: () => {
-        onUpdate();
-        return '投票しました！';
-      },
-      error: (err) => err.message,
-    });
-  };
- 
-  const activePoll = project.activePoll;
-  const userVote = activePoll?.votes.find(v => v.userId === user.id);
-  const totalVotes = activePoll?.votes.length || 0;
-
-  return (
-    <>
-      <div className="bg-orange-50 p-4 rounded-lg">
-        <h3 className="text-lg font-bold text-orange-800 mb-2">参加者グループチャット</h3>
-        {activePoll && (
-          <div className="bg-white border-2 border-purple-300 rounded-lg p-3 mb-4">
-            <p className="font-bold text-gray-800 mb-3">💡 アンケート実施中: {activePoll.question}</p>
-            <div className="space-y-2">
-              {activePoll.options.map((option, index) => {
-                const voteCount = activePoll.votes.filter(v => v.optionIndex === index).length;
-                const percentage = totalVotes > 0 ? (voteCount / totalVotes) * 100 : 0;
-                const didUserVoteForThis = userVote?.optionIndex === index;
-
-                return (
-                  <div key={index}>
-                    {userVote ? (
-                      <div title={`${voteCount} / ${totalVotes} 票`}>
-                        <div className="flex justify-between text-sm mb-1">
-                          <span className={`font-semibold ${didUserVoteForThis ? 'text-purple-600' : 'text-gray-700'}`}>{option} {didUserVoteForThis ? ' (あなたが投票)' : ''}</span>
-                          <span className="text-gray-500">{Math.round(percentage)}%</span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-4">
-                          <div className="bg-purple-400 h-4 rounded-full" style={{ width: `${percentage}%` }}></div>
-                        </div>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => handleVote(index)}
-                        disabled={!isPledger}
-                        className="w-full text-left p-2 border rounded-md text-gray-800 hover:bg-purple-100 disabled:bg-gray-100 disabled:cursor-not-allowed">
-                        {option}
-                      </button>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-              {!userVote && !isPledger && <p className="text-xs text-red-500 mt-2">※アンケートへの投票は、この企画の支援者のみ可能です。</p>}
-          </div>
-        )}
-
-        <div className="h-64 overflow-y-auto bg-white rounded-lg p-3 space-y-3 mb-4 border">
-          {(project.groupChatMessages || []).length > 0 ? (
-            (project.groupChatMessages || []).map(msg => (
-              <div key={msg.id}>
-                <p className="text-xs text-gray-500">{msg.user.handleName}</p>
-                <div className={`inline-block rounded-lg px-3 py-1 mt-1 ${!msg.templateId ? 'bg-green-100' : 'bg-orange-100'}`}>
-                  <p className="text-sm text-gray-800 whitespace-pre-wrap">{formatMessage(msg)}</p>
-                </div>
-              </div>
-            ))
-          ) : (
-            <p className="text-sm text-gray-500 text-center pt-4">まだメッセージはありません。</p>
-          )}
-        </div>
-
-        <div>
-          {Object.entries(templatesByCategory).map(([category, templates]) => (
-            <div key={category} className="mb-2">
-              <p className="text-xs font-semibold text-gray-600 mb-1">{category}</p>
-              <div className="flex flex-wrap gap-2">
-                {templates.map(template => (
-                  <button key={template.id} onClick={() => handleTemplateClick(template)} className="px-3 py-1 text-sm bg-white border text-gray-800 rounded-full hover:bg-orange-200 transition-colors">
-                    {template.text}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ))}
-         
-          <div className="border-t mt-4 pt-3">
-             <p className="text-xs font-semibold text-gray-600 mb-1">その他 (自由記述)</p>
-             <form onSubmit={handleFreeTextSubmit} className="flex gap-2">
-               <input type="text" value={freeText} onChange={(e) => setFreeText(e.target.value)} placeholder="メッセージを入力..." className="p-2 border rounded-md text-gray-900 flex-grow" />
-               <button type="submit" className="p-2 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600">送信</button>
-             </form>
-          </div>
-         
-          {isPlanner && (
-            <button onClick={() => setPollModalOpen(true)} className="w-full mt-4 p-2 text-sm font-semibold bg-purple-500 text-white rounded-lg hover:bg-purple-600">
-              💡 新しいアンケートを作成する
-            </button>
-          )}
-        </div>
-      </div>
-     
-      {customInputModal.isOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
-          <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-lg">
-            <form onSubmit={handleCustomSubmit}>
-              <p className="text-sm text-gray-600">テンプレート:</p>
-              <p className="mb-4 font-semibold text-lg">{customInputModal.template.text.replace('...', `「${customInputModal.text || '...'}」`)}</p>
-              <input type="text" value={customInputModal.text} onChange={(e) => setCustomInputModal({ ...customInputModal, text: e.target.value })} placeholder={customInputModal.template.placeholder} required autoFocus className="w-full mt-1 p-2 border rounded-md text-gray-900"/>
-              <div className="mt-6 flex justify-end gap-4">
-                <button type="button" onClick={() => setCustomInputModal({ isOpen: false, template: null, text: '' })} className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300">閉じる</button>
-                <button type="submit" className="px-4 py-2 font-bold text-white bg-orange-500 rounded-md hover:bg-orange-600">送信する</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-     
-      {isPollModalOpen && <PollCreationModal projectId={project.id} onClose={() => setPollModalOpen(false)} onPollCreated={onUpdate} />}
-    </>
-  );
-}
-
-// ★★★【新規】完成報告フォームのモーダル ★★★
-function CompletionReportModal({ project, onClose, onReportSubmitted }) {
-  const [imageUrls, setImageUrls] = useState([]);
-  const [comment, setComment] = useState('');
-  const [isUploading, setIsUploading] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const fileInputRef = useRef(null);
-
-  const handleImageUpload = async (event) => {
-    const files = event.target.files;
-    if (!files || files.length === 0) return;
-
-    setIsUploading(true);
-    const toastId = toast.loading(`画像をアップロード中... (0/${files.length})`);
-   
-    const uploadedUrls = [];
-    for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        const formData = new FormData();
-        formData.append('file', file);
-        try {
-            const res = await fetch(`${API_URL}/api/upload`, { method: 'POST', body: formData });
-            if (!res.ok) throw new Error('アップロードに失敗しました');
-            const data = await res.json();
-            uploadedUrls.push(data.url);
-            toast.loading(`画像をアップロード中... (${i + 1}/${files.length})`, { id: toastId });
-        } catch (error) {
-            toast.error(error.message, { id: toastId });
-            setIsUploading(false);
-            return;
-        }
-    }
-    setImageUrls(prev => [...prev, ...uploadedUrls]);
-    toast.success('アップロードが完了しました！', { id: toastId });
-    setIsUploading(false);
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (imageUrls.length === 0) {
-      toast.error('少なくとも1枚は写真をアップロードしてください。');
-      return;
-    }
-
-    const token = localStorage.getItem('authToken');
-    const promise = fetch(`${API_URL}/api/projects/${project.id}/complete`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({
-        completionImageUrls: imageUrls,
-        completionComment: comment,
-      }),
-    }).then(res => {
-        if (!res.ok) throw new Error('完了報告の投稿に失敗しました。');
-    });
-
-    toast.promise(promise, {
-      loading: '投稿中...',
-      success: () => {
-        onReportSubmitted();
-        onClose();
-        return '企画の完了報告を投稿しました！';
-      },
-      error: (err) => err.message,
-    });
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
-      <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-2xl">
-        <form onSubmit={handleSubmit}>
-          <h2 className="text-xl font-bold mb-4">🎉 企画完了報告</h2>
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700">完成写真のアップロード</label>
-              <div className="mt-2 p-4 border-2 border-dashed rounded-lg">
-                <div className="flex flex-wrap gap-4">
-                  {imageUrls.map((url, index) => (
-                    <img key={index} src={url} className="h-24 w-24 object-cover rounded-md" alt={`Uploaded ${index + 1}`} />
-                  ))}
-                  {isUploading && <div className="h-24 w-24 flex items-center justify-center bg-gray-100 rounded-md">...</div>}
-                </div>
-                <button type="button" onClick={() => fileInputRef.current.click()} disabled={isUploading} className="mt-4 px-4 py-2 text-sm bg-sky-100 text-sky-700 rounded-md hover:bg-sky-200 disabled:bg-slate-200">
-                  {isUploading ? 'アップロード中...' : '画像を選択'}
-                </button>
-                <input type="file" multiple accept="image/*" ref={fileInputRef} onChange={handleImageUpload} className="hidden" />
-              </div>
-            </div>
-            <div>
-              <label htmlFor="completion-comment" className="block text-sm font-medium text-gray-700">参加者へのメッセージ</label>
-              <textarea id="completion-comment" value={comment} onChange={(e) => setComment(e.target.value)} rows="4" className="w-full mt-1 p-2 border rounded-md text-gray-900" placeholder="企画へのご参加ありがとうございました！..."></textarea>
-            </div>
-          </div>
-          <div className="mt-6 flex justify-end gap-4">
-            <button type="button" onClick={onClose} className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300">キャンセル</button>
-            <button type="submit" disabled={isUploading || isSubmitting} className="px-4 py-2 font-bold text-white bg-green-500 rounded-md hover:bg-green-600 disabled:bg-gray-400">
-              {isSubmitting ? '投稿中...' : '完了を報告する'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-// ★★★ 企画通報モーダル ★★★
-function ReportModal({ projectId, onClose }) {
-  const { user } = useAuth();
-  const [reason, setReason] = useState('');
-  const [details, setDetails] = useState('');
-
-  const reportReasons = [
-    { key: 'SPAM', text: 'スパムや詐欺、誤解を招く内容' },
-    { key: 'INAPPROPRIATE', text: '不適切なコンテンツ（暴力的、差別的など）' },
-    { key: 'COPYRIGHT', text: '著作権やその他の権利の侵害' },
-    { key: 'OTHER', text: 'その他' },
-  ];
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!reason) {
-      toast.error('通報理由を選択してください。');
-      return;
-    }
-    if (reason === 'OTHER' && !details.trim()) {
-      toast.error('「その他」を選択した場合は、詳細を記入してください。');
-      return;
-    }
-   
-    const token = localStorage.getItem('authToken');
-    const promise = fetch(`${API_URL}/api/reports/project`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({ projectId: parseInt(projectId), reason, details }),
-    }).then(async res => {
-        if (!res.ok) {
-            const data = await res.json();
-            throw new Error(data.detail || '通報に失敗しました。');
-        }
-        return res.json();
-    });
-   
-    toast.promise(promise, {
-        loading: '送信中...',
-        success: (data) => {
-            onClose();
-            return data.message;
-        },
-        error: (err) => err.message,
-    });
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
-      <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-lg">
-        <form onSubmit={handleSubmit}>
-          <h2 className="text-xl font-bold mb-4">この企画の問題を報告</h2>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <p className="font-semibold text-sm">通報理由を選択してください</p>
-              {reportReasons.map((r) => (
-                <div key={r.key} className="flex items-center">
-                  <input type="radio" id={`reason-${r.key}`} name="reason" value={r.key} checked={reason === r.key} onChange={(e) => setReason(e.target.value)} className="h-4 w-4 text-sky-600 border-gray-300 focus:ring-sky-500"/>
-                  <label htmlFor={`reason-${r.key}`} className="ml-3 block text-sm text-gray-900">{r.text}</label>
-                </div>
-              ))}
-            </div>
-            <div>
-              <label htmlFor="details" className="block text-sm font-medium text-gray-700">詳細 (任意)</label>
-              <textarea id="details" value={details} onChange={(e) => setDetails(e.target.value)} rows="3" className="w-full mt-1 p-2 border rounded-md text-gray-900" placeholder="問題のある箇所など..."></textarea>
-            </div>
-          </div>
-          <div className="mt-6 flex justify-end gap-4">
-            <button type="button" onClick={onClose} className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300">キャンセル</button>
-            <button type="submit" className="px-4 py-2 font-bold text-white bg-red-500 rounded-md hover:bg-red-600">報告する</button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-
-// ★★★ 企画詳細ページの本体 ★★★
 export default function ProjectDetailPage() {
   const params = useParams();
   const { id } = params;
   const { user } = useAuth();
- 
+  
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
   const [socket, setSocket] = useState(null);
-  const [chatError, setChatError] = useState('');
- 
+  
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [isReportModalOpen, setReportModalOpen] = useState(false);
   const [isCompletionModalOpen, setIsCompletionModalOpen] = useState(false);
- 
-  const [pledgeAmount, setPledgeAmount] = useState('');
-  const [comment, setComment] = useState('');
+  
   const [showAnnouncementForm, setShowAnnouncementForm] = useState(false);
   const [announcementTitle, setAnnouncementTitle] = useState('');
   const [announcementContent, setAnnouncementContent] = useState('');
+  
   const [expenseName, setExpenseName] = useState('');
   const [expenseAmount, setExpenseAmount] = useState('');
+  
   const [newTaskTitle, setNewTaskTitle] = useState('');
 
+  // 企画支援フォームをreact-hook-formで管理
+  const { register: registerPledge, handleSubmit: handleSubmitPledge, formState: { errors: pledgeErrors }, reset: resetPledge } = useForm();
+
+  // --- データ取得とWebSocket接続 ---
   const fetchProject = async () => {
     try {
-      // 認証は不要な公開API
+      setLoading(true);
       const response = await fetch(`${API_URL}/api/projects/${id}`);
       if (!response.ok) throw new Error('企画の読み込みに失敗しました。');
       const data = await response.json();
       setProject(data);
     } catch (error) {
       toast.error(error.message);
-      console.error(error);
     } finally {
       setLoading(false);
     }
   };
 
-  // ==================================================================
-  // ▼▼▼ ここからが修正箇所です ▼▼▼
-  // ==================================================================
   useEffect(() => {
-    if (!id) {
-      return;
-    }
+    if (!id) return;
 
-    // ページが表示されたら、まずプロジェクト情報を取得します。
-    // これはログイン状態に関わらず実行されます。
+    // 1. まず、ログイン状態に関わらず公開情報を取得
     fetchProject();
 
-    // ログインユーザー情報(user)がある場合のみ、WebSocket接続処理を開始します。
+    // 2. ユーザーがログインしていることが確認できた場合のみ、WebSocket接続を開始
     if (user) {
       const token = localStorage.getItem('authToken');
-
-      // 認証トークンがない場合は、エラーを防ぐためにここで処理を中断します。
       if (!token) {
-        // console.error("認証トークンが見つからないため、チャットに接続できません。");
+        // トークンがない場合（通常は発生しない）、何もしない
         return;
       }
 
       const newSocket = io(API_URL, {
         auth: { token: token }
       });
-
       setSocket(newSocket);
-
+      
       newSocket.emit('joinProjectRoom', id);
 
       newSocket.on('receiveGroupChatMessage', (newMessage) => {
-        setProject(prevProject => {
-          if (!prevProject) return null;
-          const newMessages = [...(prevProject.groupChatMessages || []), newMessage];
-          return { ...prevProject, groupChatMessages: newMessages };
-        });
+        setProject(prev => prev ? { ...prev, groupChatMessages: [...(prev.groupChatMessages || []), newMessage] } : null);
       });
 
       newSocket.on('messageError', (errorMessage) => {
-        setChatError(errorMessage);
-        setTimeout(() => setChatError(''), 5000);
+        toast.error(errorMessage);
       });
 
-      // コンポーネントがアンマウントされる時や、user情報が変更された時に
-      // 古い接続をクリーンアップするための関数です。
+      // クリーンアップ関数: コンポーネントが非表示になる際に接続を切断
       return () => {
         newSocket.off('receiveGroupChatMessage');
         newSocket.off('messageError');
         newSocket.disconnect();
       };
     }
-  }, [id, user]);
-  // ==================================================================
-  // ▲▲▲ ここまでが修正箇所です ▲▲▲
-  // ==================================================================
+  }, [id, user]); // idまたはuserが変更されたら再実行
 
-  const handlePledgeSubmit = (e) => {
-    e.preventDefault();
+  // --- ハンドラ関数 ---
+
+  const onPledgeSubmit = (data) => {
     if (!user) {
       toast.error('支援するにはログインが必要です。');
       return;
@@ -596,27 +107,23 @@ export default function ProjectDetailPage() {
 
     const promise = fetch(`${API_URL}/api/pledges`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
       body: JSON.stringify({
         projectId: parseInt(id),
-        amount: parseInt(pledgeAmount),
-        comment: comment,
+        amount: parseInt(data.pledgeAmount),
+        comment: data.comment,
       }),
     }).then(async res => {
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.detail || '支援に失敗しました。');
+        const errData = await res.json();
+        throw new Error(errData.detail || '支援に失敗しました。');
       }
     });
 
     toast.promise(promise, {
       loading: '処理中...',
       success: () => {
-        setPledgeAmount('');
-        setComment('');
+        resetPledge(); // フォームをリセット
         fetchProject();
         return '支援ありがとうございます！';
       },
@@ -629,10 +136,7 @@ export default function ProjectDetailPage() {
     const token = localStorage.getItem('authToken');
     const promise = fetch(`${API_URL}/api/announcements`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
       body: JSON.stringify({
         title: announcementTitle,
         content: announcementContent,
@@ -660,10 +164,7 @@ export default function ProjectDetailPage() {
     const token = localStorage.getItem('authToken');
     const promise = fetch(`${API_URL}/api/expenses`, {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-        },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({
             itemName: expenseName,
             amount: parseInt(expenseAmount),
@@ -691,16 +192,11 @@ export default function ProjectDetailPage() {
       const promise = fetch(`${API_URL}/api/expenses/${expenseId}`, {
           method: 'DELETE',
           headers: { 'Authorization': `Bearer ${token}` }
-      }).then(res => {
-          if (!res.ok) throw new Error('支出の削除に失敗しました。');
-      });
+      }).then(res => { if (!res.ok) throw new Error('支出の削除に失敗しました。'); });
 
       toast.promise(promise, {
           loading: '削除中...',
-          success: () => {
-              fetchProject();
-              return '支出項目を削除しました。';
-          },
+          success: () => { fetchProject(); return '支出項目を削除しました。'; },
           error: (err) => err.message,
       });
     }
@@ -712,22 +208,13 @@ export default function ProjectDetailPage() {
     const token = localStorage.getItem('authToken');
     const promise = fetch(`${API_URL}/api/tasks`, {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-        },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ title: newTaskTitle, projectId: parseInt(id) }),
-    }).then(res => {
-        if (!res.ok) throw new Error('タスクの追加に失敗しました。');
-    });
+    }).then(res => { if (!res.ok) throw new Error('タスクの追加に失敗しました。'); });
 
     toast.promise(promise, {
         loading: '追加中...',
-        success: () => {
-            setNewTaskTitle('');
-            fetchProject();
-            return 'タスクを追加しました。';
-        },
+        success: () => { setNewTaskTitle(''); fetchProject(); return 'タスクを追加しました。'; },
         error: (err) => err.message,
     });
   };
@@ -736,21 +223,13 @@ export default function ProjectDetailPage() {
     const token = localStorage.getItem('authToken');
     const promise = fetch(`${API_URL}/api/tasks/${taskId}`, {
         method: 'PATCH',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-        },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ isCompleted: !currentStatus }),
-    }).then(res => {
-        if (!res.ok) throw new Error('タスクの更新に失敗しました。');
-    });
+    }).then(res => { if (!res.ok) throw new Error('タスクの更新に失敗しました。'); });
 
     toast.promise(promise, {
         loading: '更新中...',
-        success: () => {
-            fetchProject();
-            return 'タスクを更新しました。';
-        },
+        success: () => { fetchProject(); return 'タスクを更新しました。'; },
         error: (err) => err.message,
     });
   };
@@ -761,16 +240,11 @@ export default function ProjectDetailPage() {
       const promise = fetch(`${API_URL}/api/tasks/${taskId}`, {
           method: 'DELETE',
           headers: { 'Authorization': `Bearer ${token}` }
-      }).then(res => {
-          if (!res.ok) throw new Error('タスクの削除に失敗しました。');
-      });
+      }).then(res => { if (!res.ok) throw new Error('タスクの削除に失敗しました。'); });
 
       toast.promise(promise, {
           loading: '削除中...',
-          success: () => {
-              fetchProject();
-              return 'タスクを削除しました。';
-          },
+          success: () => { fetchProject(); return 'タスクを削除しました。'; },
           error: (err) => err.message,
       });
     }
@@ -778,12 +252,10 @@ export default function ProjectDetailPage() {
 
   const handleCopyMessages = () => {
     if (!project || !project.messages || project.messages.length === 0) return;
-    const textToCopy = project.messages
-      .map(msg => `${msg.cardName}\n${msg.content}`)
-      .join('\n\n---\n\n');
+    const textToCopy = project.messages.map(msg => `${msg.cardName}\n${msg.content}`).join('\n\n---\n\n');
     navigator.clipboard.writeText(textToCopy)
       .then(() => toast.success('全メッセージをクリップボードにコピーしました！'))
-      .catch(err => toast.error('コピーに失敗しました。'));
+      .catch(() => toast.error('コピーに失敗しました。'));
   };
  
   const handleCancelProject = () => {
@@ -802,10 +274,7 @@ export default function ProjectDetailPage() {
 
     toast.promise(promise, {
         loading: '処理中...',
-        success: (message) => {
-            fetchProject();
-            return message;
-        },
+        success: (message) => { fetchProject(); return message; },
         error: (err) => err.message,
     });
   };
@@ -820,10 +289,10 @@ export default function ProjectDetailPage() {
   const shareText = `【${project.title}】を支援しよう！ #FLASTAL`;
   const twitterShareUrl = `https://twitter.com/intent/tweet?url=${encodeURIComponent(pageUrl)}&text=${encodeURIComponent(shareText)}`;
   const isPlanner = user && user.id === project.planner?.id;
-  const isPledger = user && (project.pledges || []).some(p => p.userId === user.id);
+  const isPledger = user && (project.pledges || []).some(p => p.user_id === user.id);
   const totalExpense = (project.expenses || []).reduce((sum, exp) => sum + exp.amount, 0);
   const balance = project.collectedAmount - totalExpense;
-  const hasPostedMessage = user && (project.messages || []).some(msg => msg.userId === user.id);
+  const hasPostedMessage = user && (project.messages || []).some(msg => msg.user_id === user.id);
 
   return (
     <>
@@ -835,12 +304,7 @@ export default function ProjectDetailPage() {
                 <h2 className="text-2xl font-bold text-center text-yellow-800 mb-4">🎉 企画完了報告 🎉</h2>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                   {project.completionImageUrls.map((url, index) => (
-                    <img
-                      key={index}
-                      src={url}
-                      alt={`完成写真 ${index + 1}`}
-                      className="w-full h-full object-cover rounded-lg shadow-md cursor-pointer hover:scale-105 transition-transform"
-                    />
+                    <img key={index} src={url} alt={`完成写真 ${index + 1}`} className="w-full h-full object-cover rounded-lg shadow-md cursor-pointer hover:scale-105 transition-transform" />
                   ))}
                 </div>
                 {project.completionComment && (
@@ -851,7 +315,7 @@ export default function ProjectDetailPage() {
                 )}
               </div>
             )}
-           
+            
             {project.status !== 'COMPLETED' && project.imageUrl && (
               <div className="h-80 bg-gray-200 relative group cursor-pointer" onClick={() => setIsImageModalOpen(true)}>
                 <img src={project.imageUrl} alt={project.title} className="w-full h-full object-contain"/>
@@ -860,7 +324,7 @@ export default function ProjectDetailPage() {
                 </div>
               </div>
             )}
-           
+            
             <div className="p-8">
               <h1 className="text-4xl font-bold text-gray-900 mb-4">{project.title}</h1>
               <div className="flex justify-between items-center mb-6">
@@ -868,7 +332,7 @@ export default function ProjectDetailPage() {
                   <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"></path></svg>
                   Xでシェア
                 </a>
-               
+                
                 {user && !isPlanner && (
                   <button onClick={() => setReportModalOpen(true)} className="text-xs text-gray-500 hover:text-red-600 hover:underline">
                     この企画を報告する
@@ -891,7 +355,7 @@ export default function ProjectDetailPage() {
                   <h2 className="text-2xl font-semibold text-gray-800 mb-4">企画を完了する</h2>
                   <div className="bg-green-50 p-4 rounded-lg text-center">
                     <p className="text-green-800 mb-4">目標達成おめでとうございます！<br/>完成したお花の写真と参加者へのメッセージを投稿し、企画を完了させましょう。</p>
-                    <button
+                    <button 
                       onClick={() => setIsCompletionModalOpen(true)}
                       className="px-6 py-3 bg-green-500 text-white font-bold rounded-lg hover:bg-green-600 shadow-lg"
                     >
@@ -904,14 +368,9 @@ export default function ProjectDetailPage() {
               {(isPledger || isPlanner) && (
                 <div className="border-t my-8 pt-6">
                   <GroupChat
-                    project={project}
-                    user={user}
-                    isPlanner={isPlanner}
-                    isPledger={isPledger}
-                    onUpdate={fetchProject}
-                    socket={socket}
+                    project={project} user={user} isPlanner={isPlanner}
+                    isPledger={isPledger} onUpdate={fetchProject} socket={socket}
                   />
-                  {chatError && <p className="text-center text-red-500 text-sm mt-2">{chatError}</p>}
                 </div>
               )}
 
@@ -1095,31 +554,36 @@ export default function ProjectDetailPage() {
               <div className="bg-blue-500 h-2.5 rounded-full" style={{ width: `${Math.min(progressPercentage, 100)}%` }}></div>
             </div>
             <p className="text-right font-bold">{Math.floor(progressPercentage)}%</p>
-           
-            {project.status === 'FUNDRAISING' ? (
+            
+            {project.status === 'FUNDRAISING' && (
               <>
                 <div className="border-t my-6"></div>
                 <h2 className="text-2xl font-semibold text-gray-800 mb-4">この企画を支援する</h2>
-                <form onSubmit={handlePledgeSubmit} className="space-y-4">
+                <form onSubmit={handleSubmitPledge(onPledgeSubmit)} className="space-y-4">
                   <div>
                     <label htmlFor="pledgeAmount" className="block text-sm font-medium text-gray-700">支援ポイント</label>
-                    <input type="number" id="pledgeAmount" value={pledgeAmount} onChange={(e) => setPledgeAmount(e.target.value)} required className="w-full px-3 py-2 mt-1 text-gray-900 border border-gray-300 rounded-md"/>
+                    <input type="number" id="pledgeAmount" 
+                      {...registerPledge("pledgeAmount", { required: "支援ポイントは必須です。" })}
+                      className={`w-full px-3 py-2 mt-1 text-gray-900 border rounded-md ${pledgeErrors.pledgeAmount ? 'border-red-500' : 'border-gray-300'}`}
+                    />
+                    {pledgeErrors.pledgeAmount && <p className="mt-1 text-sm text-red-600">{pledgeErrors.pledgeAmount.message}</p>}
                   </div>
                   <div>
                     <label htmlFor="comment" className="block text-sm font-medium text-gray-700">応援コメント（任意）</label>
-                    <textarea id="comment" value={comment} onChange={(e) => setComment(e.target.value)} rows="3" className="w-full px-3 py-2 mt-1 text-gray-900 border border-gray-300 rounded-md"></textarea>
+                    <textarea id="comment" {...registerPledge("comment")} rows="3" className="w-full px-3 py-2 mt-1 text-gray-900 border border-gray-300 rounded-md"></textarea>
                   </div>
                   <button type="submit" className="w-full px-4 py-3 font-bold text-white bg-green-500 rounded-lg hover:bg-green-600">
                     支援を確定する
                   </button>
                 </form>
               </>
-            ) : project.status === 'CANCELED' ? (
+            )}
+            {project.status === 'CANCELED' ? (
               <div className="mt-6 p-4 bg-red-100 text-red-800 rounded-lg text-center">
                 <p className="font-bold">この企画は中止されました。</p>
                 <p className="text-sm mt-1">ご支援いただいたポイントは、すべて返金済みです。</p>
               </div>
-            ) : (
+            ) : project.status !== 'FUNDRAISING' && (
                <div className="mt-6 p-4 bg-green-100 text-green-800 rounded-lg text-center">
                  この企画は目標を達成しました！たくさんのご支援、ありがとうございました！
                </div>
@@ -1140,7 +604,7 @@ export default function ProjectDetailPage() {
           </div>
         </div>
       </div>
-     
+      
       {isImageModalOpen && <ImageModal src={project.imageUrl} onClose={() => setIsImageModalOpen(false)} />}
       {isReportModalOpen && <ReportModal projectId={id} onClose={() => setReportModalOpen(false)} />}
       {isCompletionModalOpen && <CompletionReportModal project={project} onClose={() => setIsCompletionModalOpen(false)} onReportSubmitted={fetchProject} />}
