@@ -34,8 +34,6 @@ sio = socketio.AsyncServer(async_mode='asgi', cors_allowed_origins="*")
 # FastAPIアプリのインスタンスを作成
 app = FastAPI()
 
-# FastAPIアプリをSocket.IOアプリでラップ
-app = socketio.ASGIApp(sio, app)
 
 # Deploy trigger comment
 
@@ -44,13 +42,18 @@ origins = [
     "https://flastal-frontend.onrender.com",
 ]
 
-app.add_middleware(
+# 2. CORSミドルウェアを、ラップする「前」のfastapi_appに追加
+fastapi_app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# 3. 必要な設定がすべて完了したfastapi_appを、Socket.IOでラップする
+#    最終的なアプリケーションの名前は「app」にする
+app = socketio.ASGIApp(sio, fastapi_app)
 # Resendクライアントを初期化
 resend.api_key = os.environ.get("RESEND_API_KEY")
 # ★ Stripe APIキーを設定
