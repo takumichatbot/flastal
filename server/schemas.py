@@ -143,7 +143,7 @@ class Project(BaseModel):
     announcements: list[Announcement] = []
     review: Review | None = None
     activePoll: Poll | None = None
-    group_chat_messages: list = [] # 簡略化のため一旦空リスト
+    group_chat_messages: list[GroupChatMessage] = []
     class Config:
         from_attributes = True
 
