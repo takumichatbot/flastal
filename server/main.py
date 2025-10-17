@@ -1,15 +1,14 @@
-# ===============================================
-# Imports
-# ===============================================
+# main.py の先頭
 import os
 import json
 import secrets
 import string
-import socketio
+
 import cloudinary
 import cloudinary.uploader
 import resend
 import stripe
+import socketio
 
 from fastapi import FastAPI, Depends, Response, HTTPException, status, Request, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -23,34 +22,30 @@ from database import SessionLocal, engine
 from config import SECRET_KEY, ALGORITHM
 import models, schemas, security
 
-# ===============================================
-# 初期設定 (Initial Setup)
-# ===============================================
-
-# Cloudinary設定
+# --- 初期設定 ---
 cloudinary.config(
   cloud_name = os.environ.get('CLOUDINARY_CLOUD_NAME'),
   api_key = os.environ.get('CLOUDINARY_API_KEY'),
   api_secret = os.environ.get('CLOUDINARY_API_SECRET')
 )
 
-# データベーステーブル作成
 models.Base.metadata.create_all(bind=engine)
 
-# 1. Socket.IOサーバーのインスタンスを作成
+# ★★★ ここからが修正箇所です ★★★
+
+# 1. Socket.IOサーバーと、FastAPIアプリ本体を別々の変数名で作成
 sio = socketio.AsyncServer(async_mode='asgi', cors_allowed_origins="*")
+fastapi_app = FastAPI() # FastAPI本体の名前を `fastapi_app` に変更
 
-# 2. FastAPIアプリのインスタンスを作成
-app = FastAPI()
+# Deploy trigger comment
 
-# CORS許可オリジン
 origins = [
     "http://localhost:3000",
     "https://flastal-frontend.onrender.com",
 ]
 
-# 3. FastAPIアプリにミドルウェアを追加 (Socket.IOでラップする前)
-app.add_middleware(
+# 2. CORSミドルウェアを、ラップする「前」のfastapi_appに追加
+fastapi_app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
@@ -58,18 +53,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 4. 最後に、ミドルウェア設定済みのFastAPIアプリをSocket.IOでラップ
-# これが最終的にUvicornが実行するアプリケーションになる
-app = socketio.ASGIApp(sio, app)
+# 3. 必要な設定がすべて完了したfastapi_appを、Socket.IOでラップする
+#    最終的なアプリケーションの名前は「app」にする
+app = socketio.ASGIApp(sio, fastapi_app)
 
+# ★★★ 修正箇所はここまで ★★★
 
-# 外部サービスAPIキー設定
+# Resendクライアントを初期化
 resend.api_key = os.environ.get("RESEND_API_KEY")
+# Stripe APIキーを設定
 stripe.api_key = os.environ.get("STRIPE_API_KEY")
 
-# 認証設定
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/token")
-ADMIN_PASSWORD_HASH = security.get_password_hash(os.environ.get("ADMIN_PASSWORD", "supersecretpassword"))
 
 def get_db():
     db = SessionLocal()
@@ -96,13 +91,13 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
         raise credentials_exception
     return user
 
-@app.get("/api/users/me", response_model=schemas.User)
+@fastapi_app.get("/api/users/me", response_model=schemas.User)
 def read_users_me(current_user: models.User = Depends(get_current_user)):
     return current_user
 
 # === ユーザー認証 API ===
 
-@app.post("/api/forgot-password")
+@fastapi_app.post("/api/forgot-password")
 def forgot_password(request: schemas.EmailSchema, db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.email == request.email).first()
     if not user:
@@ -133,7 +128,7 @@ def forgot_password(request: schemas.EmailSchema, db: Session = Depends(get_db))
 
     return {"message": "Password reset email sent"}
 
-@app.post("/api/reset-password")
+@fastapi_app.post("/api/reset-password")
 def reset_password(request: schemas.ResetPasswordSchema, db: Session = Depends(get_db)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -161,7 +156,7 @@ def reset_password(request: schemas.ResetPasswordSchema, db: Session = Depends(g
     return {"message": "Password has been reset successfully"}
 
 
-@app.post("/api/token")
+@fastapi_app.post("/api/token")
 def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.email == form_data.username).first()
     if not user or not security.verify_password(form_data.password, user.hashed_password):
@@ -173,7 +168,7 @@ def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db:
     access_token = security.create_access_token(data={"sub": user.email})
     return {"access_token": access_token, "token_type": "bearer"}
 
-@app.post("/api/users/register", response_model=schemas.User)
+@fastapi_app.post("/api/users/register", response_model=schemas.User)
 def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
     db_user_by_email = db.query(models.User).filter(models.User.email == user.email).first()
     if db_user_by_email:
@@ -200,7 +195,7 @@ def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
 
 # === 企画 API ===
 # 「注目の企画」を取得するAPI (例: 目標達成率が高い順に4件)
-@app.get("/api/projects/featured", response_model=list[schemas.Project])
+@fastapi_app.get("/api/projects/featured", response_model=list[schemas.Project])
 def get_featured_projects(db: Session = Depends(get_db)):
     # 達成率(progress)を計算し、それで並び替える
     # collectedAmount / targetAmount が大きい順。ただしtargetAmountが0の場合は除外
@@ -213,7 +208,7 @@ def get_featured_projects(db: Session = Depends(get_db)):
     return featured_projects
 
 # 「主催者の声（レビュー）」を取得するAPI (例: 最新のレビューを3件)
-@app.get("/api/reviews/featured", response_model=list[schemas.Review])
+@fastapi_app.get("/api/reviews/featured", response_model=list[schemas.Review])
 def get_featured_reviews(db: Session = Depends(get_db)):
     # 関連するユーザーとプロジェクトの情報も一緒に取得する
     featured_reviews = db.query(models.Review).options(
@@ -225,7 +220,7 @@ def get_featured_reviews(db: Session = Depends(get_db)):
 
     return featured_reviews
 
-@app.get("/api/projects/{project_id}", response_model=schemas.Project)
+@fastapi_app.get("/api/projects/{project_id}", response_model=schemas.Project)
 def get_project_by_id(project_id: int, db: Session = Depends(get_db)):
     db_project = db.query(models.Project).options(
         joinedload(models.Project.planner),
@@ -242,13 +237,13 @@ def get_project_by_id(project_id: int, db: Session = Depends(get_db)):
         
     return db_project
 
-@app.get("/api/users/me/created-projects", response_model=list[schemas.Project])
+@fastapi_app.get("/api/users/me/created-projects", response_model=list[schemas.Project])
 def get_my_created_projects(current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
     # ★★★ 文字列の 'organizer' ではなく、安全な 'planner_id' で比較 ★★★
     projects = db.query(models.Project).filter(models.Project.planner_id == current_user.id).all()
     return projects
     
-@app.get("/api/users/me/pledged-projects", response_model=list[schemas.Pledge])
+@fastapi_app.get("/api/users/me/pledged-projects", response_model=list[schemas.Pledge])
 def get_my_pledged_projects(current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
     # ★★★ フロントエンドでプロジェクト情報を表示するため、joinedload を追加 ★★★
     pledges = db.query(models.Pledge).options(
@@ -256,7 +251,7 @@ def get_my_pledged_projects(current_user: models.User = Depends(get_current_user
     ).filter(models.Pledge.user_id == current_user.id).all()
     return pledges
 
-@app.post("/api/projects", response_model=schemas.Project)
+@fastapi_app.post("/api/projects", response_model=schemas.Project)
 def create_project(project: schemas.ProjectCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     project_data = project.dict()
     new_project = models.Project(
@@ -270,13 +265,13 @@ def create_project(project: schemas.ProjectCreate, db: Session = Depends(get_db)
     return new_project
 
 
-@app.get("/api/projects")
+@fastapi_app.get("/api/projects")
 def get_projects(db: Session = Depends(get_db)):
     projects = db.query(models.Project).all()
     projects_dict = [{"id": p.id, "title": p.title, "organizer": p.organizer} for p in projects]
     return Response(content=json.dumps(projects_dict, ensure_ascii=False), media_type="application/json; charset=utf-8")
 
-@app.put("/api/projects/{project_id}")
+@fastapi_app.put("/api/projects/{project_id}")
 def update_project(project_id: int, project_data: schemas.ProjectUpdate, db: Session = Depends(get_db)):
     db_project = db.query(models.Project).filter(models.Project.id == project_id).first()
     if db_project is None:
@@ -287,7 +282,7 @@ def update_project(project_id: int, project_data: schemas.ProjectUpdate, db: Ses
     db.refresh(db_project)
     return db_project
 
-@app.delete("/api/projects/{project_id}")
+@fastapi_app.delete("/api/projects/{project_id}")
 def delete_project(project_id: int, db: Session = Depends(get_db)):
     project_to_delete = db.query(models.Project).filter(models.Project.id == project_id).first()
     if project_to_delete is None:
@@ -297,7 +292,7 @@ def delete_project(project_id: int, db: Session = Depends(get_db)):
     return {"message": "Project deleted successfully"}
     
 # === レビュー API ===
-@app.post("/api/reviews", response_model=schemas.Review)
+@fastapi_app.post("/api/reviews", response_model=schemas.Review)
 def create_review(review: schemas.ReviewCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     db_review = db.query(models.Review).filter(models.Review.project_id == review.project_id).first()
     if db_review:
@@ -312,7 +307,7 @@ def create_review(review: schemas.ReviewCreate, db: Session = Depends(get_db), c
     db.refresh(new_review)
     return new_review
 
-@app.post("/api/pledges", response_model=schemas.Pledge)
+@fastapi_app.post("/api/pledges", response_model=schemas.Pledge)
 def create_pledge(pledge_data: schemas.PledgeCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
 
     # 支援対象のプロジェクトが存在するか確認
@@ -380,7 +375,7 @@ def get_current_venue(token: str = Depends(oauth2_scheme), db: Session = Depends
     return venue
 
 # 会場 新規登録
-@app.post("/api/venues/register", response_model=schemas.VenuePublic)
+@fastapi_app.post("/api/venues/register", response_model=schemas.VenuePublic)
 def register_venue(venue_data: schemas.VenueCreate, db: Session = Depends(get_db)):
     if db.query(models.Venue).filter(models.Venue.email == venue_data.email).first():
         raise HTTPException(status_code=400, detail="このメールアドレスは既に使用されています")
@@ -396,7 +391,7 @@ def register_venue(venue_data: schemas.VenueCreate, db: Session = Depends(get_db
     return new_venue
 
 # 会場 ログイン
-@app.post("/api/venues/login", response_model=schemas.TokenDataVenue)
+@fastapi_app.post("/api/venues/login", response_model=schemas.TokenDataVenue)
 def login_venue(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     venue = db.query(models.Venue).filter(models.Venue.email == form_data.username).first()
     if not venue or not security.verify_password(form_data.password, venue.hashed_password):
@@ -407,7 +402,7 @@ def login_venue(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = 
     return {"access_token": access_token, "token_type": "bearer", "venue": venue}
 
 # 会場 情報取得 (これは誰でも見れる公開情報)
-@app.get("/api/venues/{venue_id}", response_model=schemas.VenuePublic)
+@fastapi_app.get("/api/venues/{venue_id}", response_model=schemas.VenuePublic)
 def get_venue_details(venue_id: int, db: Session = Depends(get_db)):
     venue = db.query(models.Venue).filter(models.Venue.id == venue_id).first()
     if not venue:
@@ -415,7 +410,7 @@ def get_venue_details(venue_id: int, db: Session = Depends(get_db)):
     return venue
 
 # 会場 情報更新 (★★ 認証が必須 ★★)
-@app.patch("/api/venues/{venue_id}", response_model=schemas.VenuePublic)
+@fastapi_app.patch("/api/venues/{venue_id}", response_model=schemas.VenuePublic)
 def update_venue_details(
     venue_id: int, 
     venue_data: schemas.VenueUpdate, 
@@ -461,7 +456,7 @@ def get_current_florist(token: str = Depends(oauth2_scheme), db: Session = Depen
 
 # --- 登録・ログイン ---
 
-@app.post("/api/florists/register")
+@fastapi_app.post("/api/florists/register")
 def register_florist(florist_data: schemas.FloristCreate, db: Session = Depends(get_db)):
     if db.query(models.Florist).filter(models.Florist.email == florist_data.email).first():
         raise HTTPException(status_code=400, detail="このメールアドレスは既に使用されています")
@@ -482,7 +477,7 @@ def register_florist(florist_data: schemas.FloristCreate, db: Session = Depends(
     
     return {"message": "登録申請を受け付けました。運営による承認をお待ちください。"}
 
-@app.post("/api/florists/login", response_model=schemas.TokenDataFlorist)
+@fastapi_app.post("/api/florists/login", response_model=schemas.TokenDataFlorist)
 def login_florist(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     florist = db.query(models.Florist).filter(models.Florist.email == form_data.username).first()
     if not florist or not security.verify_password(form_data.password, florist.hashed_password):
@@ -494,7 +489,7 @@ def login_florist(form_data: OAuth2PasswordRequestForm = Depends(), db: Session 
 
 # --- 公開API (認証不要) ---
 
-@app.get("/api/florists", response_model=list[schemas.FloristPublic])
+@fastapi_app.get("/api/florists", response_model=list[schemas.FloristPublic])
 def get_all_florists(db: Session = Depends(get_db)):
     florists = db.query(models.Florist).filter(models.Florist.status == "APPROVED").all()
     
@@ -512,7 +507,7 @@ def get_all_florists(db: Session = Depends(get_db)):
         
     return results
 
-@app.get("/api/florists/{florist_id}", response_model=schemas.FloristPublic)
+@fastapi_app.get("/api/florists/{florist_id}", response_model=schemas.FloristPublic)
 def get_florist_details(florist_id: int, db: Session = Depends(get_db)):
     florist = db.query(models.Florist).filter(models.Florist.id == florist_id, models.Florist.status == "APPROVED").first()
     if not florist:
@@ -531,7 +526,7 @@ def get_florist_details(florist_id: int, db: Session = Depends(get_db)):
 
 # --- 認証必須API ---
 
-@app.get("/api/florists/dashboard")
+@fastapi_app.get("/api/florists/dashboard")
 def get_florist_dashboard_data(db: Session = Depends(get_db), current_florist: models.Florist = Depends(get_current_florist)):
     # 自分宛のオファーをステータスごとに取得
     offers = db.query(models.Offer).options(
@@ -545,7 +540,7 @@ def get_florist_dashboard_data(db: Session = Depends(get_db), current_florist: m
         "offers": offers
     }
 
-@app.patch("/api/florists/{florist_id}", response_model=schemas.FloristPublic)
+@fastapi_app.patch("/api/florists/{florist_id}", response_model=schemas.FloristPublic)
 def update_florist_profile(florist_id: int, florist_data: schemas.FloristUpdate, db: Session = Depends(get_db), current_florist: models.Florist = Depends(get_current_florist)):
     # URLのIDとトークンのIDが一致するか確認
     if current_florist.id != florist_id:
@@ -560,7 +555,7 @@ def update_florist_profile(florist_id: int, florist_data: schemas.FloristUpdate,
 
 # --- オファー関連API ---
 
-@app.post("/api/offers", response_model=schemas.Offer)
+@fastapi_app.post("/api/offers", response_model=schemas.Offer)
 def create_offer(offer_data: schemas.OfferCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     # ファン(user)としてログインしていることが前提
     project = db.query(models.Project).filter(models.Project.id == offer_data.projectId).first()
@@ -584,7 +579,7 @@ def create_offer(offer_data: schemas.OfferCreate, db: Session = Depends(get_db),
     db.refresh(new_offer)
     return new_offer
 
-@app.patch("/api/offers/{offer_id}", response_model=schemas.Offer)
+@fastapi_app.patch("/api/offers/{offer_id}", response_model=schemas.Offer)
 def update_offer_status(offer_id: int, status_data: schemas.OfferStatusUpdate, db: Session = Depends(get_db), current_florist: models.Florist = Depends(get_current_florist)):
     # お花屋さんとしてログインしていることが前提
     offer = db.query(models.Offer).filter(models.Offer.id == offer_id).first()
@@ -621,7 +616,7 @@ def update_offer_status(offer_id: int, status_data: schemas.OfferStatusUpdate, d
 
 # --- チャットルーム・見積書 API ---
 
-@app.get("/api/chat-rooms/{chat_room_id}")
+@fastapi_app.get("/api/chat-rooms/{chat_room_id}")
 def get_chat_room_details(chat_room_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     # ユーザーがこのチャットルームのメンバーか検証する必要がある (簡略化のため省略)
     chat_room = db.query(models.ChatRoom).options(
@@ -635,7 +630,7 @@ def get_chat_room_details(chat_room_id: int, db: Session = Depends(get_db), curr
         raise HTTPException(status_code=404, detail="Chat room not found")
     return chat_room
 
-@app.post("/api/quotations", response_model=schemas.Quotation)
+@fastapi_app.post("/api/quotations", response_model=schemas.Quotation)
 def create_quotation(quotation_data: schemas.QuotationCreate, db: Session = Depends(get_db), current_florist: models.Florist = Depends(get_current_florist)):
     total_amount = sum(item.amount for item in quotation_data.items)
     new_quotation = models.Quotation(
@@ -653,7 +648,7 @@ def create_quotation(quotation_data: schemas.QuotationCreate, db: Session = Depe
     db.refresh(new_quotation)
     return new_quotation
 
-@app.patch("/api/quotations/{quotation_id}/approve")
+@fastapi_app.patch("/api/quotations/{quotation_id}/approve")
 def approve_quotation(quotation_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     quotation = db.query(models.Quotation).options(joinedload(models.Quotation.project), joinedload(models.Quotation.florist)).filter(models.Quotation.id == quotation_id).first()
     
@@ -686,7 +681,7 @@ def approve_quotation(quotation_id: int, db: Session = Depends(get_db), current_
 
 # --- 出金関連API ---
 
-@app.get("/api/florists/{florist_id}/payouts", response_model=list[schemas.Payout])
+@fastapi_app.get("/api/florists/{florist_id}/payouts", response_model=list[schemas.Payout])
 def get_payout_history(florist_id: int, db: Session = Depends(get_db), current_florist: models.Florist = Depends(get_current_florist)):
     if current_florist.id != florist_id:
         raise HTTPException(status_code=403, detail="Not authorized.")
@@ -694,7 +689,7 @@ def get_payout_history(florist_id: int, db: Session = Depends(get_db), current_f
     payouts = db.query(models.Payout).filter(models.Payout.florist_id == current_florist.id).order_by(models.Payout.createdAt.desc()).all()
     return payouts
 
-@app.post("/api/payouts", response_model=schemas.Payout)
+@fastapi_app.post("/api/payouts", response_model=schemas.Payout)
 def request_payout(payout_data: schemas.PayoutCreate, db: Session = Depends(get_db), current_florist: models.Florist = Depends(get_current_florist)):
     MINIMUM_PAYOUT_AMOUNT = 1000
     
@@ -724,7 +719,7 @@ def request_payout(payout_data: schemas.PayoutCreate, db: Session = Depends(get_
 # === Stripe決済 API ===
 # --- ここからが新しいコード ---
 
-@app.post("/api/checkout/create-session")
+@fastapi_app.post("/api/checkout/create-session")
 def create_checkout_session(request: schemas.CheckoutRequest, current_user: models.User = Depends(get_current_user)):
     # リクエストから安全なデータを取り出す
     checkout_data = request.dict()
@@ -756,7 +751,7 @@ def create_checkout_session(request: schemas.CheckoutRequest, current_user: mode
         print(f"Stripe Error: {e}")
         raise HTTPException(status_code=400, detail=str(e))
 
-@app.post("/api/webhooks/stripe")
+@fastapi_app.post("/api/webhooks/stripe")
 async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
     payload = await request.body()
     sig_header = request.headers.get('stripe-signature')
@@ -786,11 +781,11 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
 
     return {"status": "success"}
 
-@app.get("/api/venues", response_model=list[schemas.Venue])
+@fastapi_app.get("/api/venues", response_model=list[schemas.Venue])
 def get_venues(db: Session = Depends(get_db)):
     return db.query(models.Venue).all()
 
-@app.post("/api/announcements", response_model=schemas.Announcement)
+@fastapi_app.post("/api/announcements", response_model=schemas.Announcement)
 def create_announcement(announcement_data: schemas.AnnouncementCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     # お知らせを投稿するプロジェクトを取得
     project = db.query(models.Project).filter(models.Project.id == announcement_data.projectId).first()
@@ -814,7 +809,7 @@ def create_announcement(announcement_data: schemas.AnnouncementCreate, db: Sessi
     return new_announcement
 
 # 経費を追加するAPI
-@app.post("/api/expenses", response_model=schemas.Expense)
+@fastapi_app.post("/api/expenses", response_model=schemas.Expense)
 def create_expense(expense_data: schemas.ExpenseCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     project = db.query(models.Project).filter(models.Project.id == expense_data.projectId).first()
     if not project:
@@ -831,7 +826,7 @@ def create_expense(expense_data: schemas.ExpenseCreate, db: Session = Depends(ge
     return new_expense
 
 # 経費を削除するAPI
-@app.delete("/api/expenses/{expense_id}", status_code=status.HTTP_204_NO_CONTENT)
+@fastapi_app.delete("/api/expenses/{expense_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_expense(expense_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     expense = db.query(models.Expense).options(
         joinedload(models.Expense.project) # どのプロジェクトに属しているかを知るため
@@ -849,7 +844,7 @@ def delete_expense(expense_id: int, db: Session = Depends(get_db), current_user:
     return {"message": "Expense deleted successfully"} # 204なので実際には返らない
 
 # タスクを追加するAPI
-@app.post("/api/tasks", response_model=schemas.Task)
+@fastapi_app.post("/api/tasks", response_model=schemas.Task)
 def create_task(task_data: schemas.TaskCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     project = db.query(models.Project).filter(models.Project.id == task_data.projectId).first()
     if not project:
@@ -865,7 +860,7 @@ def create_task(task_data: schemas.TaskCreate, db: Session = Depends(get_db), cu
     return new_task
 
 # タスクの完了/未完了を更新するAPI
-@app.patch("/api/tasks/{task_id}", response_model=schemas.Task)
+@fastapi_app.patch("/api/tasks/{task_id}", response_model=schemas.Task)
 def update_task(task_id: int, task_data: schemas.TaskUpdate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     task = db.query(models.Task).options(
         joinedload(models.Task.project)
@@ -883,7 +878,7 @@ def update_task(task_id: int, task_data: schemas.TaskUpdate, db: Session = Depen
     return task
 
 # タスクを削除するAPI
-@app.delete("/api/tasks/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
+@fastapi_app.delete("/api/tasks/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_task(task_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     task = db.query(models.Task).options(
         joinedload(models.Task.project)
@@ -899,7 +894,7 @@ def delete_task(task_id: int, db: Session = Depends(get_db), current_user: model
     db.commit()
     return {"message": "Task deleted successfully"}
 
-@app.post("/api/messages", response_model=schemas.Message)
+@fastapi_app.post("/api/messages", response_model=schemas.Message)
 def create_message(message_data: schemas.MessageCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     # 企画の存在確認
     project = db.query(models.Project).filter(models.Project.id == message_data.projectId).first()
@@ -937,7 +932,7 @@ def create_message(message_data: schemas.MessageCreate, db: Session = Depends(ge
     return new_message
 
 
-@app.patch("/api/projects/{project_id}/complete", response_model=schemas.Project)
+@fastapi_app.patch("/api/projects/{project_id}/complete", response_model=schemas.Project)
 def complete_project(project_id: int, completion_data: schemas.ProjectComplete, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     project = db.query(models.Project).filter(models.Project.id == project_id).first()
     if not project:
@@ -961,7 +956,7 @@ def complete_project(project_id: int, completion_data: schemas.ProjectComplete, 
     db.refresh(project)
     return project
 
-@app.patch("/api/projects/{project_id}/cancel", response_model=schemas.Project)
+@fastapi_app.patch("/api/projects/{project_id}/cancel", response_model=schemas.Project)
 def cancel_project(project_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     # joinedloadで支援者(pledges)と、その支援者の情報(user)も一度に取得
     project = db.query(models.Project).options(
@@ -992,7 +987,7 @@ def cancel_project(project_id: int, db: Session = Depends(get_db), current_user:
     
     return project
 
-@app.post("/api/upload")
+@fastapi_app.post("/api/upload")
 async def upload_image(file: UploadFile = File(...)):
     try:
         # Cloudinaryに画像をアップロード
@@ -1003,7 +998,7 @@ async def upload_image(file: UploadFile = File(...)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Image upload failed: {str(e)}")
     
-@app.post("/api/reports/project")
+@fastapi_app.post("/api/reports/project")
 def create_project_report(report_data: schemas.ReportCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     # 企画が存在するか確認
     project = db.query(models.Project).filter(models.Project.id == report_data.projectId).first()
@@ -1022,7 +1017,7 @@ def create_project_report(report_data: schemas.ReportCreate, db: Session = Depen
     return {"message": "ご報告ありがとうございます。内容を確認し、適切に対応いたします。"}
 
 # アンケート作成API
-@app.post("/api/group-chat/polls", response_model=schemas.Poll)
+@fastapi_app.post("/api/group-chat/polls", response_model=schemas.Poll)
 def create_poll(poll_data: schemas.PollCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     project = db.query(models.Project).filter(models.Project.id == poll_data.projectId).first()
     if not project or project.planner_id != current_user.id:
@@ -1044,7 +1039,7 @@ def create_poll(poll_data: schemas.PollCreate, db: Session = Depends(get_db), cu
     return new_poll
 
 # 投票API
-@app.post("/api/group-chat/polls/vote")
+@fastapi_app.post("/api/group-chat/polls/vote")
 def vote_on_poll(vote_data: schemas.PollVoteCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     poll = db.query(models.Poll).filter(models.Poll.id == vote_data.pollId).first()
     if not poll or not poll.isActive:
@@ -1072,12 +1067,12 @@ def vote_on_poll(vote_data: schemas.PollVoteCreate, db: Session = Depends(get_db
 
 # --- チャット監視API ---
 
-@app.get("/api/admin/projects", response_model=list[schemas.Project])
+@fastapi_app.get("/api/admin/projects", response_model=list[schemas.Project])
 def get_all_projects_for_admin(db: Session = Depends(get_db), admin: dict = Depends(get_current_admin_user)):
     """チャット監視用に、全てのプロジェクトを企画者情報付きで取得する"""
     return db.query(models.Project).options(joinedload(models.Project.planner)).order_by(models.Project.id.desc()).all()
 
-@app.get("/api/admin/projects/{project_id}/chats", response_model=schemas.ChatsForModeration)
+@fastapi_app.get("/api/admin/projects/{project_id}/chats", response_model=schemas.ChatsForModeration)
 def get_project_chats_for_admin(project_id: int, db: Session = Depends(get_db), admin: dict = Depends(get_current_admin_user)):
     """指定された企画の全チャット履歴を取得する"""
     group_chat = db.query(models.GroupChatMessage).options(
@@ -1095,7 +1090,7 @@ def get_project_chats_for_admin(project_id: int, db: Session = Depends(get_db), 
 
     return {"groupChat": group_chat, "floristChat": florist_chat}
 
-@app.delete("/api/admin/group-chat/{message_id}", status_code=status.HTTP_204_NO_CONTENT)
+@fastapi_app.delete("/api/admin/group-chat/{message_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_group_chat_message(message_id: int, db: Session = Depends(get_db), admin: dict = Depends(get_current_admin_user)):
     """グループチャットのメッセージを削除する"""
     message = db.query(models.GroupChatMessage).filter(models.GroupChatMessage.id == message_id).first()
@@ -1109,7 +1104,7 @@ def delete_group_chat_message(message_id: int, db: Session = Depends(get_db), ad
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
-@app.delete("/api/admin/florist-chat/{message_id}", status_code=status.HTTP_204_NO_CONTENT)
+@fastapi_app.delete("/api/admin/florist-chat/{message_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_florist_chat_message(message_id: int, db: Session = Depends(get_db), admin: dict = Depends(get_current_admin_user)):
     """企画者-お花屋さん間のプライベートチャットメッセージを削除する"""
     message = db.query(models.ChatMessage).filter(models.ChatMessage.id == message_id).first()
@@ -1142,7 +1137,7 @@ def get_current_admin_user(token: str = Depends(oauth2_scheme), db: Session = De
 class AdminLoginRequest(BaseModel):
     password: str
 
-@app.post("/api/admin/login")
+@fastapi_app.post("/api/admin/login")
 def admin_login(form_data: AdminLoginRequest):
     if not security.verify_password(form_data.password, ADMIN_PASSWORD_HASH):
         raise HTTPException(status_code=401, detail="Authentication failed")
@@ -1153,15 +1148,15 @@ def admin_login(form_data: AdminLoginRequest):
 
 # --- 各種管理API (すべて `Depends(get_current_admin_user)` で保護) ---
 
-@app.get("/api/admin/commissions")
+@fastapi_app.get("/api/admin/commissions")
 def get_commissions(db: Session = Depends(get_db), admin: dict = Depends(get_current_admin_user)):
     return db.query(models.Commission).options(joinedload(models.Commission.project)).all()
 
-@app.get("/api/admin/florists/pending")
+@fastapi_app.get("/api/admin/florists/pending")
 def get_pending_florists(db: Session = Depends(get_db), admin: dict = Depends(get_current_admin_user)):
     return db.query(models.Florist).filter(models.Florist.status == "PENDING").all()
 
-@app.patch("/api/admin/florists/{florist_id}/status")
+@fastapi_app.patch("/api/admin/florists/{florist_id}/status")
 def update_florist_status(florist_id: int, status_data: schemas.FloristStatusUpdate, db: Session = Depends(get_db), admin: dict = Depends(get_current_admin_user)):
     florist = db.query(models.Florist).filter(models.Florist.id == florist_id).first()
     if not florist: raise HTTPException(404, "Florist not found")
@@ -1170,11 +1165,11 @@ def update_florist_status(florist_id: int, status_data: schemas.FloristStatusUpd
     # ここで承認/拒否メールを送信すると良い
     return {"message": "Status updated"}
 
-@app.get("/api/admin/payouts")
+@fastapi_app.get("/api/admin/payouts")
 def get_pending_payouts(db: Session = Depends(get_db), admin: dict = Depends(get_current_admin_user)):
     return db.query(models.Payout).options(joinedload(models.Payout.florist)).filter(models.Payout.status == "PENDING").all()
 
-@app.patch("/api/admin/payouts/{payout_id}/complete")
+@fastapi_app.patch("/api/admin/payouts/{payout_id}/complete")
 def complete_payout(payout_id: int, db: Session = Depends(get_db), admin: dict = Depends(get_current_admin_user)):
     payout = db.query(models.Payout).filter(models.Payout.id == payout_id).first()
     if not payout: raise HTTPException(404, "Payout not found")
@@ -1182,11 +1177,11 @@ def complete_payout(payout_id: int, db: Session = Depends(get_db), admin: dict =
     db.commit()
     return {"message": "Payout marked as completed"}
 
-@app.get("/api/admin/reports")
+@fastapi_app.get("/api/admin/reports")
 def get_pending_reports(db: Session = Depends(get_db), admin: dict = Depends(get_current_admin_user)):
     return db.query(models.Report).options(joinedload(models.Report.project), joinedload(models.Report.reporter)).filter(models.Report.status == "PENDING").all()
 
-@app.patch("/api/admin/reports/{report_id}/review")
+@fastapi_app.patch("/api/admin/reports/{report_id}/review")
 def review_report(report_id: int, db: Session = Depends(get_db), admin: dict = Depends(get_current_admin_user)):
     report = db.query(models.Report).filter(models.Report.id == report_id).first()
     if not report: raise HTTPException(404, "Report not found")
@@ -1194,7 +1189,7 @@ def review_report(report_id: int, db: Session = Depends(get_db), admin: dict = D
     db.commit()
     return {"message": "Report marked as reviewed"}
 
-@app.patch("/api/admin/projects/{project_id}/visibility")
+@fastapi_app.patch("/api/admin/projects/{project_id}/visibility")
 def toggle_project_visibility(project_id: int, visibility_data: schemas.ProjectVisibilityUpdate, db: Session = Depends(get_db), admin: dict = Depends(get_current_admin_user)):
     project = db.query(models.Project).filter(models.Project.id == project_id).first()
     if not project: raise HTTPException(404, "Project not found")
