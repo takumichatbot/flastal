@@ -1,28 +1,28 @@
 'use client';
 
 import { useState } from 'react';
+import { useAuth } from '../contexts/AuthContext'; // ★ useAuth をインポート
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
-import { FiEye, FiEyeOff } from 'react-icons/fi'; // アイコンをインポート
+import { FiEye, FiEyeOff } from 'react-icons/fi';
 
-// 正しいバックエンドURL
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false); // パスワード表示状態
+  const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
+  const { login } = useAuth(); // ★ AuthContext から login 関数を取得
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // ★★★ ログインAPIの呼び出しを修正 ★★★
-    const promise = fetch(`${API_URL}/api/users/login`, { // 1. /api/users/login に変更
+    const promise = fetch(`${API_URL}/api/users/login`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' }, // 2. application/json に変更
-      body: JSON.stringify({ email, password }), // 3. JSON形式で送信
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
     }).then(async res => {
       if (!res.ok) {
         const errData = await res.json();
@@ -34,14 +34,11 @@ export default function LoginPage() {
     toast.promise(promise, {
       loading: 'ログイン中...',
       success: (data) => {
-        // Node.jsバックエンドはJWTトークンではなくユーザー情報を返すため、
-        // ユーザー情報をlocalStorageに保存します。
-        localStorage.setItem('flastal-user', JSON.stringify(data.user));
+        // ★★★ 修正: AuthContext の login 関数を使う ★★★
+        login(data.user); // ユーザーオブジェクトをContextに渡す
         
-        // AuthContextがこの変更を検知できないため、強制的にリロードして
-        // ヘッダーなどの状態を更新します。
-        router.push('/');
-        window.location.reload(); 
+        // ★★★ 修正: router.pushだけでOK ★★★
+        router.push('/'); // トップページ（ダッシュボード）にリダイレクト
         
         return 'ログインしました！';
       },
@@ -49,6 +46,7 @@ export default function LoginPage() {
     });
   };
 
+  // ... (以降の return (...) の部分は変更なし) ...
   return (
     <div className="bg-sky-50 min-h-screen flex items-center justify-center">
       <div className="bg-white max-w-md w-full p-8 border rounded-xl shadow-md">
@@ -64,11 +62,10 @@ export default function LoginPage() {
               className="w-full p-3 border-2 border-gray-200 rounded-lg mt-2 focus:border-sky-500 focus:ring-0 transition" 
             />
           </div>
-          {/* ★★★ パスワード入力欄 (アイコン追加) ★★★ */}
           <div className="relative">
             <label className="font-semibold text-gray-700">パスワード:</label>
             <input 
-              type={showPassword ? 'text' : 'password'} // 表示状態を切り替え
+              type={showPassword ? 'text' : 'password'} 
               value={password} 
               onChange={(e) => setPassword(e.target.value)} 
               required 
@@ -76,7 +73,7 @@ export default function LoginPage() {
             />
             <button 
               type="button" 
-              onClick={() => setShowPassword(!showPassword)} // クリックで状態を切替
+              onClick={() => setShowPassword(!showPassword)}
               className="absolute inset-y-0 right-0 top-7 pr-3 flex items-center text-gray-600"
               aria-label="パスワードを表示または非表示にする"
             >
