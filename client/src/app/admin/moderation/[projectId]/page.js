@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link'; // ← この行を追加！
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation'; // Import useRouter
 import toast from 'react-hot-toast'; // Import toast
