@@ -1410,7 +1410,7 @@ app.post('/api/forgot-password', async (req, res) => {
       // 3. Resendを使ってメールを送信
       const { data, error } = await resend.emails.send({
         // 例: 'FLASTAL <noreply@認証したドメイン.com>' のように変更
-        from: 'FLASTAL <noreply@あなたの認証したドメイン.com>',
+        from: 'FLASTAL <noreply@flastal.com>',
         to: [email],
         subject: 'FLASTAL パスワード再設定のご案内',
         html: `
