@@ -1,34 +1,32 @@
 'use client';
 
 import { useState } from 'react';
-import { useAuth } from '../contexts/AuthContext'; // ★ useAuthをインポート
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
+import { FiEye, FiEyeOff } from 'react-icons/fi'; // アイコンをインポート
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL_PYTHON || 'https://flastal-backend.onrender.com';
+// 正しいバックエンドURL
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false); // パスワード表示状態
   const router = useRouter();
-  const { login } = useAuth(); // ★ AuthContextからlogin関数を取得
 
-  // ★ 関数名は handleSubmit
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    const formData = new URLSearchParams();
-    formData.append('username', email);
-    formData.append('password', password);
 
-    const promise = fetch(`${API_URL}/api/token`, {
+    // ★★★ ログインAPIの呼び出しを修正 ★★★
+    const promise = fetch(`${API_URL}/api/users/login`, { // 1. /api/users/login に変更
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: formData.toString(),
+      headers: { 'Content-Type': 'application/json' }, // 2. application/json に変更
+      body: JSON.stringify({ email, password }), // 3. JSON形式で送信
     }).then(async res => {
       if (!res.ok) {
-        throw new Error('メールアドレスまたはパスワードが違います。');
+        const errData = await res.json();
+        throw new Error(errData.message || 'メールアドレスまたはパスワードが違います。');
       }
       return res.json();
     });
@@ -36,42 +34,61 @@ export default function LoginPage() {
     toast.promise(promise, {
       loading: 'ログイン中...',
       success: (data) => {
-        // ★★★ ここでlogin関数を呼び出し、トークンを保存 ★★★
-        login(data.access_token);
-        router.push('/'); // トップページ（ダッシュボード）にリダイレクト
+        // Node.jsバックエンドはJWTトークンではなくユーザー情報を返すため、
+        // ユーザー情報をlocalStorageに保存します。
+        localStorage.setItem('flastal-user', JSON.stringify(data.user));
+        
+        // AuthContextがこの変更を検知できないため、強制的にリロードして
+        // ヘッダーなどの状態を更新します。
+        router.push('/');
+        window.location.reload(); 
+        
         return 'ログインしました！';
       },
-      error: (err) => err.message, // エラーはtoastが表示する
+      error: (err) => err.message,
     });
   };
-
 
   return (
     <div className="bg-sky-50 min-h-screen flex items-center justify-center">
       <div className="bg-white max-w-md w-full p-8 border rounded-xl shadow-md">
         <h1 className="text-4xl font-bold text-sky-600 text-center mb-8">ログイン</h1>
-        
-        {/* ★ 修正(1): handleLogin を handleSubmit に変更 */}
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          {/* ... (入力欄は変更なし) ... */}
           <div>
             <label className="font-semibold text-gray-700">メールアドレス:</label>
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className="w-full p-3 border-2 border-gray-200 rounded-lg mt-2 focus:border-sky-500 focus:ring-0 transition" />
+            <input 
+              type="email" 
+              value={email} 
+              onChange={(e) => setEmail(e.target.value)} 
+              required 
+              className="w-full p-3 border-2 border-gray-200 rounded-lg mt-2 focus:border-sky-500 focus:ring-0 transition" 
+            />
           </div>
-          <div>
+          {/* ★★★ パスワード入力欄 (アイコン追加) ★★★ */}
+          <div className="relative">
             <label className="font-semibold text-gray-700">パスワード:</label>
-            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required className="w-full p-3 border-2 border-gray-200 rounded-lg mt-2 focus:border-sky-500 focus:ring-0 transition" />
+            <input 
+              type={showPassword ? 'text' : 'password'} // 表示状態を切り替え
+              value={password} 
+              onChange={(e) => setPassword(e.target.value)} 
+              required 
+              className="w-full p-3 border-2 border-gray-200 rounded-lg mt-2 focus:border-sky-500 focus:ring-0 transition" 
+            />
+            <button 
+              type="button" 
+              onClick={() => setShowPassword(!showPassword)} // クリックで状態を切替
+              className="absolute inset-y-0 right-0 top-7 pr-3 flex items-center text-gray-600"
+              aria-label="パスワードを表示または非表示にする"
+            >
+              {showPassword ? <FiEyeOff size={20} /> : <FiEye size={20} />}
+            </button>
           </div>
-          
-          {/* ★ 修正(2): error変数は未定義であり、toastがエラーを処理するため削除 */}
-          {/* {error && <p className="text-red-500 text-center">{error}</p>} */}
           
           <button type="submit" className="w-full p-3 bg-sky-500 text-white rounded-lg hover:bg-sky-600 transition-colors text-lg font-semibold mt-4">
             ログインする
           </button>
         </form>
         
-        {/* ★★★ ここから下を追記 ★★★ */}
         <div className="text-center mt-6 space-y-2">
           <p className="text-sm">
             <Link href="/forgot-password">
@@ -85,8 +102,6 @@ export default function LoginPage() {
             </Link>
           </p>
         </div>
-        {/* ★★★ 追記ここまで ★★★ */}
-
       </div>
     </div>
   );
