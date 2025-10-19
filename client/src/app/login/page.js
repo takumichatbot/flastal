@@ -14,6 +14,7 @@ export default function LoginPage() {
   const router = useRouter();
   const { login } = useAuth(); // ★ AuthContextからlogin関数を取得
 
+  // ★ 関数名は handleSubmit
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -40,7 +41,7 @@ export default function LoginPage() {
         router.push('/'); // トップページ（ダッシュボード）にリダイレクト
         return 'ログインしました！';
       },
-      error: (err) => err.message,
+      error: (err) => err.message, // エラーはtoastが表示する
     });
   };
 
@@ -49,7 +50,9 @@ export default function LoginPage() {
     <div className="bg-sky-50 min-h-screen flex items-center justify-center">
       <div className="bg-white max-w-md w-full p-8 border rounded-xl shadow-md">
         <h1 className="text-4xl font-bold text-sky-600 text-center mb-8">ログイン</h1>
-        <form onSubmit={handleLogin} className="flex flex-col gap-4">
+        
+        {/* ★ 修正(1): handleLogin を handleSubmit に変更 */}
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           {/* ... (入力欄は変更なし) ... */}
           <div>
             <label className="font-semibold text-gray-700">メールアドレス:</label>
@@ -59,7 +62,10 @@ export default function LoginPage() {
             <label className="font-semibold text-gray-700">パスワード:</label>
             <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required className="w-full p-3 border-2 border-gray-200 rounded-lg mt-2 focus:border-sky-500 focus:ring-0 transition" />
           </div>
-          {error && <p className="text-red-500 text-center">{error}</p>}
+          
+          {/* ★ 修正(2): error変数は未定義であり、toastがエラーを処理するため削除 */}
+          {/* {error && <p className="text-red-500 text-center">{error}</p>} */}
+          
           <button type="submit" className="w-full p-3 bg-sky-500 text-white rounded-lg hover:bg-sky-600 transition-colors text-lg font-semibold mt-4">
             ログインする
           </button>
