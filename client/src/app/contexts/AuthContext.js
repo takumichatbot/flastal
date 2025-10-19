@@ -3,59 +3,74 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { jwtDecode } from 'jwt-decode'; // トークンを解析するライブラリ
 
+// バックエンドAPIのURL（.env.localファイルで管理するのが望ましい）
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
+
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
-  const [loading, setLoading] = useState(true); // ★ 認証状態の確認中を示す
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // ★★★ アプリケーション起動時に一度だけ実行 ★★★
-    // localStorageに保存されているトークンを探し、有効なら自動ログインする
     try {
       const storedToken = localStorage.getItem('authToken');
       if (storedToken) {
-        // ここではトークンの有効期限チェックなども将来的に追加できます
-        const decodedUser = jwtDecode(storedToken); // トークンからユーザー情報を復元
-        setUser({ email: decodedUser.sub, ...decodedUser }); // ユーザー情報をセット
+        const decodedUser = jwtDecode(storedToken);
+        setUser({ email: decodedUser.sub, ...decodedUser });
         setToken(storedToken);
       }
     } catch (error) {
       console.error("Failed to initialize auth state:", error);
-      // エラーがあればクリアする
       localStorage.removeItem('authToken');
     } finally {
-      setLoading(false); // 確認完了
+      setLoading(false);
     }
   }, []);
 
-  // ★★★ ログイン時に呼び出す関数 ★★★
   const login = (newToken) => {
     try {
       const decodedUser = jwtDecode(newToken);
       setUser({ email: decodedUser.sub, ...decodedUser });
       setToken(newToken);
-      // ★★★ 最重要: トークンをlocalStorageに保存する ★★★
       localStorage.setItem('authToken', newToken);
     } catch (error) {
       console.error("Failed to process login:", error);
     }
   };
 
-  // ★★★ ログアウト時に呼び出す関数 ★★★
   const logout = () => {
     setUser(null);
     setToken(null);
-    // ★★★ 最重要: localStorageからトークンを削除する ★★★
     localStorage.removeItem('authToken');
   };
+  
+  // ★★★ ここからが追加されたregister関数です ★★★
+  const register = async (email, password, handleName) => {
+    const response = await fetch(`${API_URL}/api/users/register`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email, password, handleName }),
+    });
 
-  const authInfo = { user, token, login, logout, isAuthenticated: !!user };
+    if (!response.ok) {
+      // サーバーから返されたエラーメッセージを取得してスローする
+      const errorData = await response.json();
+      throw new Error(errorData.message || '登録に失敗しました。');
+    }
+    // 成功した場合は、レスポンスデータを返す (今回は使わないが将来のために)
+    return response.json();
+  };
+  // ★★★ 追加はここまで ★★★
 
-  // 認証状態の確認が終わるまで何も表示しない（ちらつき防止）
+  // ★ valueの中に `register` を追加
+  const authInfo = { user, token, login, logout, register, isAuthenticated: !!user };
+
   if (loading) {
-    return null; 
+    return null;
   }
 
   return (
