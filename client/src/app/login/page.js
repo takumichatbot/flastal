@@ -38,7 +38,7 @@ export default function LoginPage() {
         login(data.user); // ユーザーオブジェクトをContextに渡す
         
         // ★★★ 修正: router.pushだけでOK ★★★
-        router.push('/'); // トップページ（ダッシュボード）にリダイレクト
+        router.push('/mypage');
         
         return 'ログインしました！';
       },
