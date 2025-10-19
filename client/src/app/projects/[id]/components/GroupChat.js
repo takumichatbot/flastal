@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
-import PollCreationModal from './PollCreationModal'; // 同じフォルダ内のコンポーネントをインポート
+import PollCreationModal from './PollCreationModal';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL_PYTHON || 'https://flastal-backend.onrender.com';
+// ★ API_URLを修正
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
 export default function GroupChat({ project, user, isPlanner, isPledger, onUpdate, socket }) {
   const [templates, setTemplates] = useState([]);
@@ -70,25 +71,38 @@ export default function GroupChat({ project, user, isPlanner, isPledger, onUpdat
       toast.error('チャットサーバーに接続していません。');
       return;
     }
+    if (!user) {
+      toast.error('チャットの送信にはログインが必要です。');
+      return;
+    }
+    // ★★★ 修正: userId をペイロードに追加 ★★★
     socket.emit('sendGroupChatMessage', {
       projectId: project.id,
+      userId: user.id, // ★ ユーザーIDを追加
       templateId,
       content
     });
   };
   
   const handleVote = (optionIndex) => {
-    if (!project.activePoll) return;
-    const token = localStorage.getItem('accessToken');
+    if (!project.poll || !user) { // ★ project.activePoll -> project.poll
+      toast.error('投票するにはログインと企画への支援が必要です。');
+      return;
+    }
     
+    // ★★★ 修正: token削除, userId追加 ★★★
     const promise = fetch(`${API_URL}/api/group-chat/polls/vote`, {
       method: 'POST', 
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify({ pollId: project.activePoll.id, optionIndex }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        pollId: project.poll.id, // ★ project.activePoll -> project.poll
+        userId: user.id, // ★ ユーザーIDを追加
+        optionIndex 
+      }),
     }).then(async res => {
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.detail || '投票に失敗しました。');
+        throw new Error(data.message || '投票に失敗しました。');
       }
     });
 
@@ -99,8 +113,10 @@ export default function GroupChat({ project, user, isPlanner, isPledger, onUpdat
     });
   };
   
-  const activePoll = project.activePoll;
-  const userVote = activePoll?.votes.find(v => v.user_id === user.id);
+  // ★★★ 修正: project.activePoll -> project.poll ★★★
+  const activePoll = project.poll; 
+  // ★★★ 修正: snake_case -> camelCase ★★★
+  const userVote = activePoll?.votes.find(v => v.userId === user.id);
   const totalVotes = activePoll?.votes.length || 0;
 
   return (
@@ -111,31 +127,31 @@ export default function GroupChat({ project, user, isPlanner, isPledger, onUpdat
           <div className="bg-white border-2 border-purple-300 rounded-lg p-3 mb-4">
             <p className="font-bold text-gray-800 mb-3">💡 アンケート実施中: {activePoll.question}</p>
             <div className="space-y-2">
-              {activePoll.options.map((option, index) => {
-                const voteCount = activePoll.votes.filter(v => v.option_index === index).length;
+              {activePoll.options.map((option, index) => { // ★ option.text は
+                // ★★★ 修正: snake_case -> camelCase ★★★
+                const voteCount = activePoll.votes.filter(v => v.optionIndex === index).length;
                 const percentage = totalVotes > 0 ? (voteCount / totalVotes) * 100 : 0;
-                const didUserVoteForThis = userVote?.option_index === index;
+                const didUserVoteForThis = userVote?.optionIndex === index;
                 return (
                   <div key={index}>
                     {userVote ? (
                       <div title={`${voteCount} / ${totalVotes} 票`}>
                         <div className="flex justify-between text-sm mb-1">
-                          {/* ★★★ 変更点1 ★★★ */}
-                          <span className={`font-semibold ${didUserVoteForThis ? 'text-purple-600' : 'text-gray-700'}`}>{option.text} {didUserVoteForThis ? ' (あなたが投票)' : ''}</span>
+                          {/* ★ optionが文字列かオブジェクトか不明なため、option.textをoptionに変更 */}
+                          <span className={`font-semibold ${didUserVoteForThis ? 'text-purple-600' : 'text-gray-700'}`}>{option} {didUserVoteForThis ? ' (あなたが投票)' : ''}</span>
                           <span className="text-gray-500">{Math.round(percentage)}%</span>
                         </div>
                         <div className="w-full bg-gray-200 rounded-full h-4"><div className="bg-purple-400 h-4 rounded-full" style={{ width: `${percentage}%` }}></div></div>
                       </div>
                     ) : (
-                      /* ★★★ 変更点2 ★★★ */
-                      <button onClick={() => handleVote(index)} disabled={!isPledger} className="w-full text-left p-2 border rounded-md text-gray-800 hover:bg-purple-100 disabled:bg-gray-100 disabled:cursor-not-allowed">{option.text}</button>
+                      <button onClick={() => handleVote(index)} disabled={!isPledger} className="w-full text-left p-2 border rounded-md text-gray-800 hover:bg-purple-100 disabled:bg-gray-100 disabled:cursor-not-allowed">{option}</button>
                     )}
                   </div>
                 );
               })}
             </div>
 
-             {!userVote && !isPledger && <p className="text-xs text-red-500 mt-2">※アンケートへの投票は、この企画の支援者のみ可能です。</p>}
+            {!userVote && !isPledger && <p className="text-xs text-red-500 mt-2">※アンケートへの投票は、この企画の支援者のみ可能です。</p>}
           </div>
         )}
         <div className="h-64 overflow-y-auto bg-white rounded-lg p-3 space-y-3 mb-4 border">
@@ -190,6 +206,7 @@ export default function GroupChat({ project, user, isPlanner, isPledger, onUpdat
           </div>
         </div>
       )}
+      {/* ★ project.id を渡す (projectId={project.id}) */}
       {isPollModalOpen && <PollCreationModal projectId={project.id} onClose={() => setPollModalOpen(false)} onPollCreated={onUpdate} />}
     </>
   );

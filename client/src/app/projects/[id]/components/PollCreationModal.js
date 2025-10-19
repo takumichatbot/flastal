@@ -1,12 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import { useAuth } from '../../../contexts/AuthContext';
+import { useAuth } from '../../../contexts/AuthContext'; // ★ useAuthをインポート
 import toast from 'react-hot-toast';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL_PYTHON || 'https://flastal-backend.onrender.com';
+// ★ API_URLを修正
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
 export default function PollCreationModal({ projectId, onClose, onPollCreated }) {
+  const { user } = useAuth(); // ★ user を取得
   const [question, setQuestion] = useState('');
   const [options, setOptions] = useState(['', '']);
 
@@ -22,27 +24,31 @@ export default function PollCreationModal({ projectId, onClose, onPollCreated })
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (!user) {
+      toast.error('アンケートの作成にはログインが必要です。');
+      return;
+    }
     if (!question.trim() || options.some(o => o.trim() === '')) {
       toast.error('質問と全ての選択肢を入力してください。');
       return;
     }
-    const token = localStorage.getItem('accessToken');
-
+    
+    // ★★★ 修正: token削除, userId追加 ★★★
     const promise = fetch(`${API_URL}/api/group-chat/polls`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
       },
       body: JSON.stringify({
-        projectId: parseInt(projectId),
+        projectId: projectId, // ★ parseIntを削除
+        userId: user.id, // ★ ユーザーIDを追加
         question,
         options: options.filter(o => o.trim() !== ''),
       }),
     }).then(async res => {
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.detail || 'アンケートの作成に失敗しました。');
+        throw new Error(data.message || 'アンケートの作成に失敗しました。');
       }
       return res.json();
     });
@@ -58,6 +64,7 @@ export default function PollCreationModal({ projectId, onClose, onPollCreated })
     });
   };
 
+  // --- JSX (変更なし) ---
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
       <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-lg">

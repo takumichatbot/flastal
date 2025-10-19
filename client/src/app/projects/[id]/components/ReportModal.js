@@ -2,10 +2,13 @@
 
 import { useState } from 'react';
 import toast from 'react-hot-toast';
+import { useAuth } from '../../../contexts/AuthContext'; // ★ useAuthをインポート
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL_PYTHON || 'https://flastal-backend.onrender.com';
+// ★ API_URLを修正
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
-export default function ReportModal({ projectId, onClose }) {
+// ★ user を props で受け取る
+export default function ReportModal({ projectId, user, onClose }) {
   const [reason, setReason] = useState('');
   const [details, setDetails] = useState('');
 
@@ -18,6 +21,10 @@ export default function ReportModal({ projectId, onClose }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (!user) {
+      toast.error('報告するにはログインが必要です。');
+      return;
+    }
     if (!reason) {
       toast.error('通報理由を選択してください。');
       return;
@@ -27,15 +34,20 @@ export default function ReportModal({ projectId, onClose }) {
       return;
     }
     
-    const token = localStorage.getItem('accessToken');
+    // ★★★ 修正: token削除, reporterId追加 ★★★
     const promise = fetch(`${API_URL}/api/reports/project`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify({ projectId: parseInt(projectId), reason, details }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        projectId: projectId, // ★ parseIntを削除
+        reporterId: user.id, // ★ 'reporterId' としてユーザーIDを追加
+        reason, 
+        details 
+      }),
     }).then(async res => {
         if (!res.ok) {
             const data = await res.json();
-            throw new Error(data.detail || '通報に失敗しました。');
+            throw new Error(data.message || '通報に失敗しました。');
         }
         return res.json();
     });
@@ -50,6 +62,7 @@ export default function ReportModal({ projectId, onClose }) {
     });
   };
 
+  // --- JSX (変更なし) ---
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
       <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-lg">

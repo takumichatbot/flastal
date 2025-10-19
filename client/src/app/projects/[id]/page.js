@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
 import { useForm } from 'react-hook-form';
@@ -8,21 +8,21 @@ import { io } from 'socket.io-client';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
 
-// 外部コンポーネントとしてすべてインポート
-// 外部コンポーネントとしてすべてインポート
+// ★★★ インポートパスを修正 ★★★
 import ImageModal from '../../components/ImageModal';
 import MessageForm from '../../components/MessageForm';
-// ★★★ インポートパスが './components/...' になっていることを確認 ★★★
 import PollCreationModal from './components/PollCreationModal';
 import GroupChat from './components/GroupChat';
 import CompletionReportModal from './components/CompletionReportModal';
 import ReportModal from './components/ReportModal';
-const API_URL = process.env.NEXT_PUBLIC_API_URL_PYTHON || 'https://flastal-backend.onrender.com';
+
+// ★ API_URLを修正
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
 export default function ProjectDetailPage() {
   const params = useParams();
   const { id } = params;
-  const { user } = useAuth();
+  const { user } = useAuth(); // ★ ログインしているユーザー情報を取得
   
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -41,11 +41,11 @@ export default function ProjectDetailPage() {
   
   const [newTaskTitle, setNewTaskTitle] = useState('');
 
-  // 企画支援フォームをreact-hook-formで管理
   const { register: registerPledge, handleSubmit: handleSubmitPledge, formState: { errors: pledgeErrors }, reset: resetPledge } = useForm();
 
   // --- データ取得とWebSocket接続 ---
   const fetchProject = async () => {
+    if (!id) return;
     try {
       setLoading(true);
       const response = await fetch(`${API_URL}/api/projects/${id}`);
@@ -61,21 +61,13 @@ export default function ProjectDetailPage() {
 
   useEffect(() => {
     if (!id) return;
+    fetchProject(); // まず企画情報を取得
 
-    // 1. まず、ログイン状態に関わらず公開情報を取得
-    fetchProject();
-
-    // 2. ユーザーがログインしていることが確認できた場合のみ、WebSocket接続を開始
+    // ユーザーがログインしている場合のみWebSocket接続
     if (user) {
-      const token = localStorage.getItem('accessToken');
-      if (!token) {
-        // トークンがない場合（通常は発生しない）、何もしない
-        return;
-      }
-
-      const newSocket = io(API_URL, {
-        auth: { token: token }
-      });
+      // ★★★ 修正: WebSocketの認証方法を変更 ★★★
+      // トークン認証を削除
+      const newSocket = io(API_URL); 
       setSocket(newSocket);
       
       newSocket.emit('joinProjectRoom', id);
@@ -88,7 +80,6 @@ export default function ProjectDetailPage() {
         toast.error(errorMessage);
       });
 
-      // クリーンアップ関数: コンポーネントが非表示になる際に接続を切断
       return () => {
         newSocket.off('receiveGroupChatMessage');
         newSocket.off('messageError');
@@ -97,35 +88,38 @@ export default function ProjectDetailPage() {
     }
   }, [id, user]); // idまたはuserが変更されたら再実行
 
-  // --- ハンドラ関数 ---
+  // --- ハンドラ関数 (認証をすべて修正) ---
 
   const onPledgeSubmit = (data) => {
     if (!user) {
       toast.error('支援するにはログインが必要です。');
       return;
     }
-    const token = localStorage.getItem('accessToken');
-
+    
+    // ★★★ 修正: token削除, userId追加 ★★★
     const promise = fetch(`${API_URL}/api/pledges`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        projectId: parseInt(id),
+        projectId: id, // parseInt不要 (idが文字列のため)
+        userId: user.id, // ★ ユーザーIDを追加
         amount: parseInt(data.pledgeAmount),
         comment: data.comment,
       }),
     }).then(async res => {
       if (!res.ok) {
         const errData = await res.json();
-        throw new Error(errData.detail || '支援に失敗しました。');
+        throw new Error(errData.message || '支援に失敗しました。');
       }
+      return res.json(); // ★ 成功時のレスポンスを返す
     });
 
     toast.promise(promise, {
       loading: '処理中...',
-      success: () => {
-        resetPledge(); // フォームをリセット
+      success: (data) => {
+        resetPledge(); 
         fetchProject();
+        // ★ ユーザーのポイントも更新 (AuthContextにはまだポイント更新機能がないため、ここでは保留)
         return '支援ありがとうございます！';
       },
       error: (err) => err.message,
@@ -134,14 +128,16 @@ export default function ProjectDetailPage() {
 
   const handleAnnouncementSubmit = (e) => {
     e.preventDefault();
-    const token = localStorage.getItem('accessToken');
+    if (!user) return;
+    // ★★★ 修正: token削除, userId追加 ★★★
     const promise = fetch(`${API_URL}/api/announcements`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         title: announcementTitle,
         content: announcementContent,
-        projectId: parseInt(id),
+        projectId: id,
+        userId: user.id, // ★ ユーザーIDを追加
       }),
     }).then(res => {
       if (!res.ok) throw new Error('お知らせの投稿に失敗しました。');
@@ -162,14 +158,16 @@ export default function ProjectDetailPage() {
 
   const handleAddExpense = (e) => {
     e.preventDefault();
-    const token = localStorage.getItem('accessToken');
+    if (!user) return;
+    // ★★★ 修正: token削除, userId追加 ★★★
     const promise = fetch(`${API_URL}/api/expenses`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
             itemName: expenseName,
             amount: parseInt(expenseAmount),
-            projectId: parseInt(id),
+            projectId: id,
+            userId: user.id, // ★ ユーザーIDを追加
         }),
     }).then(res => {
         if (!res.ok) throw new Error('支出の追加に失敗しました。');
@@ -189,10 +187,11 @@ export default function ProjectDetailPage() {
 
   const handleDeleteExpense = (expenseId) => {
     if (window.confirm('この支出項目を削除しますか？')) {
-      const token = localStorage.getItem('accessToken');
+      // ★★★ 修正: token削除, userId追加 ★★★
       const promise = fetch(`${API_URL}/api/expenses/${expenseId}`, {
           method: 'DELETE',
-          headers: { 'Authorization': `Bearer ${token}` }
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: user.id }), // ★ ユーザーIDを追加
       }).then(res => { if (!res.ok) throw new Error('支出の削除に失敗しました。'); });
 
       toast.promise(promise, {
@@ -205,12 +204,16 @@ export default function ProjectDetailPage() {
 
   const handleAddTask = (e) => {
     e.preventDefault();
-    if (!newTaskTitle.trim()) return;
-    const token = localStorage.getItem('accessToken');
+    if (!newTaskTitle.trim() || !user) return;
+    // ★★★ 修正: token削除, userId追加 ★★★
     const promise = fetch(`${API_URL}/api/tasks`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ title: newTaskTitle, projectId: parseInt(id) }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          title: newTaskTitle, 
+          projectId: id,
+          userId: user.id // ★ ユーザーIDを追加
+        }),
     }).then(res => { if (!res.ok) throw new Error('タスクの追加に失敗しました。'); });
 
     toast.promise(promise, {
@@ -221,11 +224,15 @@ export default function ProjectDetailPage() {
   };
 
   const handleToggleTask = (taskId, currentStatus) => {
-    const token = localStorage.getItem('accessToken');
+    if (!user) return;
+    // ★★★ 修正: token削除, userId追加 ★★★
     const promise = fetch(`${API_URL}/api/tasks/${taskId}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ isCompleted: !currentStatus }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          isCompleted: !currentStatus,
+          userId: user.id // ★ ユーザーIDを追加
+        }),
     }).then(res => { if (!res.ok) throw new Error('タスクの更新に失敗しました。'); });
 
     toast.promise(promise, {
@@ -237,10 +244,11 @@ export default function ProjectDetailPage() {
 
   const handleDeleteTask = (taskId) => {
     if (window.confirm('このタスクを削除しますか？')) {
-      const token = localStorage.getItem('accessToken');
+      // ★★★ 修正: token削除, userId追加 ★★★
       const promise = fetch(`${API_URL}/api/tasks/${taskId}`, {
           method: 'DELETE',
-          headers: { 'Authorization': `Bearer ${token}` }
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: user.id }), // ★ ユーザーIDを追加
       }).then(res => { if (!res.ok) throw new Error('タスクの削除に失敗しました。'); });
 
       toast.promise(promise, {
@@ -252,24 +260,27 @@ export default function ProjectDetailPage() {
   };
 
   const handleCopyMessages = () => {
+    // ... (この関数は変更なし) ...
     if (!project || !project.messages || project.messages.length === 0) return;
     const textToCopy = project.messages.map(msg => `${msg.cardName}\n${msg.content}`).join('\n\n---\n\n');
     navigator.clipboard.writeText(textToCopy)
       .then(() => toast.success('全メッセージをクリップボードにコピーしました！'))
       .catch(() => toast.error('コピーに失敗しました。'));
   };
- 
+
   const handleCancelProject = () => {
+    if (!user) return;
     if (!window.confirm("本当にこの企画を中止しますか？\n集まったポイントはすべて支援者に返金され、この操作は元に戻せません。")) return;
     if (!window.confirm("最終確認です。参加者への説明は済みましたか？中止を実行します。")) return;
 
-    const token = localStorage.getItem('accessToken');
+    // ★★★ 修正: token削除, userId追加 ★★★
     const promise = fetch(`${API_URL}/api/projects/${project.id}/cancel`, {
         method: 'PATCH',
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id }), // ★ ユーザーIDを追加
     }).then(async res => {
         const data = await res.json();
-        if (!res.ok) throw new Error(data.detail || '企画の中止に失敗しました。');
+        if (!res.ok) throw new Error(data.message || '企画の中止に失敗しました。');
         return data.message;
     });
 
@@ -283,18 +294,23 @@ export default function ProjectDetailPage() {
   if (loading) return <div className="text-center mt-10">読み込み中...</div>;
   if (!project) return <div className="text-center mt-10">企画が見つかりませんでした。</div>;
 
+  // --- 変数定義 (snake_case を camelCase に修正) ---
   const deliveryDate = new Date(project.deliveryDateTime).toLocaleString('ja-JP');
-  const totalPledged = (project.pledges || []).reduce((sum, pledge) => sum + pledge.amount, 0);
-  const progressPercentage = project.targetAmount > 0 ? (totalPledged / project.targetAmount) * 100 : 0;
+  // 'totalPledged' は project.collectedAmount で代用
+  const progressPercentage = project.targetAmount > 0 ? (project.collectedAmount / project.targetAmount) * 100 : 0;
   const pageUrl = typeof window !== 'undefined' ? window.location.href : '';
   const shareText = `【${project.title}】を支援しよう！ #FLASTAL`;
   const twitterShareUrl = `https://twitter.com/intent/tweet?url=${encodeURIComponent(pageUrl)}&text=${encodeURIComponent(shareText)}`;
   const isPlanner = user && user.id === project.planner?.id;
-  const isPledger = user && (project.pledges || []).some(p => p.user_id === user.id);
+  // ★★★ 修正: p.user_id -> p.userId ★★★
+  const isPledger = user && (project.pledges || []).some(p => p.userId === user.id);
   const totalExpense = (project.expenses || []).reduce((sum, exp) => sum + exp.amount, 0);
   const balance = project.collectedAmount - totalExpense;
-  const hasPostedMessage = user && (project.messages || []).some(msg => msg.user_id === user.id);
+  // ★★★ 修正: msg.user_id -> msg.userId ★★★
+  const hasPostedMessage = user && (project.messages || []).some(msg => msg.userId === user.id);
 
+  // --- JSX (変更なし) ---
+  // (isPlanner, isPledgerなどのフラグが正しくなったため、JSXはそのまま機能するはず)
   return (
     <>
       <div className="min-h-screen bg-gray-100 p-4 sm:p-8">
@@ -447,15 +463,15 @@ export default function ProjectDetailPage() {
               <div className="border-t my-8 pt-6">
                  <h2 className="text-2xl font-semibold text-gray-800 mb-4">収支報告</h2>
                  <div className="space-y-2 text-gray-700 bg-slate-50 p-4 rounded-lg">
-                    <div className="flex justify-between"><p>収入 (集まったポイント):</p><p className="font-semibold">{project.collectedAmount.toLocaleString()} pt</p></div>
-                    <div className="flex justify-between text-red-600"><p>支出合計:</p><p className="font-semibold">- {totalExpense.toLocaleString()} pt</p></div>
-                    <div className="flex justify-between font-bold border-t pt-2 mt-2"><p>残額:</p><p>{balance.toLocaleString()} pt</p></div>
+                   <div className="flex justify-between"><p>収入 (集まったポイント):</p><p className="font-semibold">{project.collectedAmount.toLocaleString()} pt</p></div>
+                   <div className="flex justify-between text-red-600"><p>支出合計:</p><p className="font-semibold">- {totalExpense.toLocaleString()} pt</p></div>
+                   <div className="flex justify-between font-bold border-t pt-2 mt-2"><p>残額:</p><p>{balance.toLocaleString()} pt</p></div>
                  </div>
                  <div className="mt-4 space-y-2">
                   {(project.expenses || []).map(exp => (
                      <div key={exp.id} className="text-sm flex justify-between items-center bg-gray-50 p-2 rounded-md">
-                        <p className="text-gray-800">{exp.itemName}: {exp.amount.toLocaleString()} pt</p>
-                        {isPlanner && <button onClick={() => handleDeleteExpense(exp.id)} className="text-red-500 hover:text-red-700 text-xs font-semibold">削除</button>}
+                       <p className="text-gray-800">{exp.itemName}: {exp.amount.toLocaleString()} pt</p>
+                       {isPlanner && <button onClick={() => handleDeleteExpense(exp.id)} className="text-red-500 hover:text-red-700 text-xs font-semibold">削除</button>}
                      </div>
                    ))}
                  </div>
@@ -548,7 +564,8 @@ export default function ProjectDetailPage() {
             </div>
             <h2 className="text-2xl font-semibold text-gray-800 mb-4">支援状況</h2>
             <div>
-              <p className="text-3xl font-bold text-blue-600">{totalPledged.toLocaleString()} pt</p>
+              {/* ★ 修正: totalPledged -> project.collectedAmount */}
+              <p className="text-3xl font-bold text-blue-600">{project.collectedAmount.toLocaleString()} pt</p>
               <p className="text-sm text-gray-500">目標: {project.targetAmount.toLocaleString()} pt</p>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2.5 my-4">
@@ -586,7 +603,7 @@ export default function ProjectDetailPage() {
               </div>
             ) : project.status !== 'FUNDRAISING' && (
                <div className="mt-6 p-4 bg-green-100 text-green-800 rounded-lg text-center">
-                 この企画は目標を達成しました！たくさんのご支援、ありがとうございました！
+                この企画は目標を達成しました！たくさんのご支援、ありがとうございました！
                </div>
             )}
 
@@ -607,8 +624,10 @@ export default function ProjectDetailPage() {
       </div>
       
       {isImageModalOpen && <ImageModal src={project.imageUrl} onClose={() => setIsImageModalOpen(false)} />}
-      {isReportModalOpen && <ReportModal projectId={id} onClose={() => setReportModalOpen(false)} />}
-      {isCompletionModalOpen && <CompletionReportModal project={project} onClose={() => setIsCompletionModalOpen(false)} onReportSubmitted={fetchProject} />}
+      {/* ★ user={user} を ReportModal に渡す */}
+      {isReportModalOpen && <ReportModal projectId={id} user={user} onClose={() => setReportModalOpen(false)} />}
+      {/* ★ user={user} を CompletionReportModal に渡す */}
+      {isCompletionModalOpen && <CompletionReportModal project={project} user={user} onClose={() => setIsCompletionModalOpen(false)} onReportSubmitted={fetchProject} />}
     </>
   );
 }

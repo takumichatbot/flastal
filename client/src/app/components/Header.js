@@ -3,81 +3,130 @@
 import Link from 'next/link';
 import { useAuth } from '../contexts/AuthContext';
 import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react'; // Import useEffect and useState
 
 export default function Header() {
-  const { user, userType, logout } = useAuth();
+  // Main user context (primarily for 'USER' type)
+  const { user, logout } = useAuth(); 
   const router = useRouter();
+  
+  // Local state to also check for florist/venue login from localStorage
+  const [loggedInEntity, setLoggedInEntity] = useState(null);
+  const [entityType, setEntityType] = useState(null);
+
+  useEffect(() => {
+      // Check for user from AuthContext first
+      if (user) {
+          setLoggedInEntity(user);
+          setEntityType('USER'); // Assume user from AuthContext is 'USER'
+      } else {
+          // If no user from context, check localStorage for florist or venue
+          const floristInfo = localStorage.getItem('flastal-florist');
+          const venueInfo = localStorage.getItem('flastal-venue');
+          if (floristInfo) {
+              try {
+                  setLoggedInEntity(JSON.parse(floristInfo));
+                  setEntityType('FLORIST');
+              } catch (e) { localStorage.removeItem('flastal-florist'); }
+          } else if (venueInfo) {
+              try {
+                  setLoggedInEntity(JSON.parse(venueInfo));
+                  setEntityType('VENUE');
+              } catch (e) { localStorage.removeItem('flastal-venue'); }
+          } else {
+              // No one is logged in
+              setLoggedInEntity(null);
+              setEntityType(null);
+          }
+      }
+  }, [user]); // Re-check whenever the user from AuthContext changes
+
 
   const handleLogout = () => {
-    logout();
-    router.push('/');
+    // Determine which logout logic to use
+    if (entityType === 'USER') {
+      logout(); // Use the logout from AuthContext
+    } else if (entityType === 'FLORIST') {
+      localStorage.removeItem('flastal-florist');
+      setLoggedInEntity(null); // Update local state
+      setEntityType(null);
+      router.push('/florists/login'); // Redirect to florist login
+    } else if (entityType === 'VENUE') {
+      localStorage.removeItem('flastal-venue');
+       setLoggedInEntity(null); // Update local state
+       setEntityType(null);
+      router.push('/venues/login'); // Redirect to venue login
+    }
+     // Optional: Redirect non-user types to home after logout?
+     if (entityType !== 'USER') {
+        router.push('/'); 
+     }
   };
 
   const getDashboardLink = () => {
-    if (!user) return null;
-    switch (userType) {
+    if (!loggedInEntity) return null;
+    switch (entityType) {
       case 'USER': return '/mypage';
-      case 'FLORIST': return '/florists/dashboard';
-      case 'VENUE': return `/venues/dashboard/${user.id}`;
+      // ★ Florist dashboard link likely doesn't need ID
+      case 'FLORIST': return '/florists/dashboard'; 
+      case 'VENUE': return `/venues/dashboard/${loggedInEntity.id}`;
       default: return null;
     }
   };
 
   const getDashboardText = () => {
-    if (!user) return '';
-    return userType === 'USER' ? 'マイページ' : 'ダッシュボード';
+    if (!loggedInEntity) return '';
+    return entityType === 'USER' ? 'マイページ' : '管理画面'; // Changed dashboard text
+  }
+  
+  const getDisplayName = () => {
+      if (!loggedInEntity) return '';
+      return loggedInEntity.handleName || loggedInEntity.platformName || loggedInEntity.venueName || 'ゲスト';
   }
 
   return (
     <header className="bg-white/80 backdrop-blur-md shadow-sm sticky top-0 z-50 border-b border-slate-200">
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          {/* 左側：ロゴと主要リンク */}
+          {/* Left Side: Logo & Main Links */}
           <div className="flex items-center">
-            <Link href="/">
-              <span className="font-bold text-2xl text-sky-500 cursor-pointer tracking-wider">FLASTAL</span>
+            <Link href="/" className="font-bold text-2xl text-sky-500 tracking-wider">
+              FLASTAL
             </Link>
             <div className="hidden md:block ml-10 space-x-4">
-              <Link href="/projects"><span className="text-gray-600 hover:text-sky-500 px-3 py-2 rounded-md text-sm font-medium cursor-pointer transition-colors">企画一覧</span></Link>
-              <Link href="/florists"><span className="text-gray-600 hover:text-sky-500 px-3 py-2 rounded-md text-sm font-medium cursor-pointer transition-colors">お花屋さんを探す</span></Link>
+              <Link href="/projects" className="text-gray-600 hover:text-sky-500 px-3 py-2 rounded-md text-sm font-medium transition-colors">企画一覧</Link>
+              <Link href="/florists" className="text-gray-600 hover:text-sky-500 px-3 py-2 rounded-md text-sm font-medium transition-colors">お花屋さんを探す</Link>
             </div>
           </div>
 
-          {/* 右側：ログイン状態に応じたメニュー */}
+          {/* Right Side: Auth Menu */}
           <div className="hidden md:block">
             <div className="ml-4 flex items-center md:ml-6">
-              {user ? (
-                // ★★★ ログインしている時の表示 (統一デザイン版) ★★★
+              {loggedInEntity ? (
+                // Logged In View
                 <div className="flex items-center gap-4">
                   <span className="text-gray-700 text-sm">
                     ようこそ、
-                    <strong className="ml-1">{user.handleName || user.shopName || user.venueName}</strong>
+                    <strong className="ml-1">{getDisplayName()}</strong>
                     さん
                   </span>
                   
-                  {userType === 'USER' && (
+                  {/* Buttons specific to USER type */}
+                  {entityType === 'USER' && (
                     <>
-                      {/* プライマリーボタン */}
-                      <Link href="/projects/create">
-                        <span className="px-4 py-2 text-sm font-semibold text-white bg-sky-500 rounded-lg shadow-sm hover:bg-sky-600 transition-colors">
+                      <Link href="/projects/create" className="px-4 py-2 text-sm font-semibold text-white bg-sky-500 rounded-lg shadow-sm hover:bg-sky-600 transition-colors">
                           企画を作成
-                        </span>
                       </Link>
-                      {/* セカンダリーボタン */}
-                      <Link href="/points">
-                        <span className="px-4 py-2 text-sm font-semibold text-green-700 bg-green-100 rounded-lg hover:bg-green-200 transition-colors">
+                      <Link href="/points" className="px-4 py-2 text-sm font-semibold text-green-700 bg-green-100 rounded-lg hover:bg-green-200 transition-colors">
                           ポイント購入
-                        </span>
                       </Link>
                     </>
                   )}
 
-                  {/* ターシャリーボタン */}
+                  {/* Dashboard/Mypage Link */}
                   {getDashboardLink() && (
-                    <Link href={getDashboardLink()}>
-                       <span className="px-4 py-2 text-sm font-semibold text-slate-700 bg-slate-200 rounded-lg hover:bg-slate-300 transition-colors">
-                        {getDashboardText()}
-                      </span>
+                    <Link href={getDashboardLink()} className="px-4 py-2 text-sm font-semibold text-slate-700 bg-slate-200 rounded-lg hover:bg-slate-300 transition-colors">
+                       {getDashboardText()}
                     </Link>
                   )}
                   <button onClick={handleLogout} className="text-sm text-gray-600 hover:text-gray-900 hover:underline">
@@ -85,23 +134,17 @@ export default function Header() {
                   </button>
                 </div>
               ) : (
-                // ★★★ ログアウトしている時の表示 (統一デザイン版) ★★★
+                // Logged Out View
                 <div className="flex items-center gap-2">
-                  {/* プライマリーボタン */}
-                  <Link href="/login">
-                    <span className="px-4 py-2 text-sm font-medium text-white bg-sky-500 rounded-lg hover:bg-sky-600 shadow-sm cursor-pointer transition-colors">ファン ログイン</span>
-                  </Link>
-                  {/* セカンダリーボタン */}
-                  <Link href="/florists/login">
-                    <span className="px-4 py-2 text-sm font-medium text-pink-700 bg-pink-100 rounded-lg hover:bg-pink-200 cursor-pointer transition-colors">お花屋さん</span>
-                  </Link>
-                   <Link href="/venues/login">
-                    <span className="px-4 py-2 text-sm font-medium text-green-700 bg-green-100 rounded-lg hover:bg-green-200 cursor-pointer transition-colors">会場の方</span>
-                  </Link>
+                  <Link href="/login" className="px-4 py-2 text-sm font-medium text-white bg-sky-500 rounded-lg hover:bg-sky-600 shadow-sm transition-colors">ファン ログイン</Link>
+                  <Link href="/florists/login" className="px-4 py-2 text-sm font-medium text-pink-700 bg-pink-100 rounded-lg hover:bg-pink-200 transition-colors">お花屋さん</Link>
+                   <Link href="/venues/login" className="px-4 py-2 text-sm font-medium text-green-700 bg-green-100 rounded-lg hover:bg-green-200 transition-colors">会場の方</Link>
                 </div>
               )}
             </div>
           </div>
+          {/* Mobile Menu Button Placeholder (implement later if needed) */}
+          {/* <div className="-mr-2 flex md:hidden"> ... </div> */}
         </div>
       </nav>
     </header>

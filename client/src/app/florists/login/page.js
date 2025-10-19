@@ -1,74 +1,99 @@
-// app/florists/login/page.js
 'use client';
 
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '../../contexts/AuthContext'; // ★ useAuthをインポート
+import toast from 'react-hot-toast';
+import { FiEye, FiEyeOff } from 'react-icons/fi'; // Import icons
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL_PYTHON || 'https://flastal-backend.onrender.com';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
 export default function FloristLoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false); // State for password visibility
   const router = useRouter();
-  const { setAuthInfo } = useAuth(); // ★ AuthContextからsetAuthInfoを取得
+  // Removed useAuth hook - florist login is separate
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    try {
-      // ★★★ FastAPIのOAuth2PasswordRequestForm形式で送信 ★★★
-      const formData = new URLSearchParams();
-      formData.append('username', email);
-      formData.append('password', password);
-
-      const response = await fetch(`${API_URL}/api/florists/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: formData.toString(),
-      });
-
+    
+    // Use toast.promise for async feedback
+    const promise = fetch(`${API_URL}/api/florists/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }, // Send as JSON
+      body: JSON.stringify({ email, password }),      // Send as JSON
+    }).then(async (response) => {
       const data = await response.json();
-      if (!response.ok) throw new Error(data.detail || 'ログインに失敗しました');
-      
-      const florist = data.florist;
-      
-      if (florist.status === 'APPROVED') {
-        // ★★★ トークンとユーザー情報をuseAuth経由でグローバルに保存 ★★★
-        setAuthInfo({ 
-            user: florist, 
-            userType: 'FLORIST', 
-            token: data.access_token // トークンも保存
-        });
-        router.push(`/florists/dashboard`); // IDは不要
-      } else if (florist.status === 'PENDING') {
-        router.push('/florists/pending');
-      } else {
-        alert('アカウントが承認されていません。運営までお問い合わせください。');
+      if (!response.ok) {
+        throw new Error(data.message || 'ログインに失敗しました');
       }
+      return data; // Return successful data
+    });
 
-    } catch (error) {
-      alert(`ログインエラー: ${error.message}`);
-    }
+    toast.promise(promise, {
+      loading: 'ログイン中...',
+      success: (data) => {
+        const florist = data.florist;
+        
+        if (florist.status === 'APPROVED') {
+          // ★★★ Save florist info to localStorage ★★★
+          localStorage.setItem('flastal-florist', JSON.stringify(florist)); 
+          // Redirect to dashboard (ID in URL might not be necessary, depends on dashboard logic)
+          router.push(`/florists/dashboard`); 
+          return 'ログインしました！';
+        } else if (florist.status === 'PENDING') {
+          router.push('/florists/pending');
+          return 'アカウントは現在審査中です。';
+        } else {
+          // REJECTED or other status
+          throw new Error('アカウントが承認されていません。運営までお問い合わせください。');
+        }
+      },
+      error: (err) => err.message, // Display error message from fetch or status check
+    });
   };
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-pink-50">
-      <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-md">
-        <h2 className="text-2xl font-bold text-center text-gray-900">
+      <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-xl shadow-lg">
+        <h2 className="text-3xl font-bold text-center text-gray-900">
           お花屋さん ログイン
         </h2>
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-gray-700">メールアドレス</label>
-            <input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-3 py-2 mt-1 text-gray-900 border border-gray-300 rounded-md"/>
+            <input 
+              id="email" 
+              type="email" 
+              required 
+              value={email} 
+              onChange={(e) => setEmail(e.target.value)} 
+              className="w-full px-3 py-2 mt-1 text-gray-900 border-2 border-gray-200 rounded-lg focus:border-pink-500 focus:ring-0 transition"
+            />
           </div>
-          <div>
+          <div className="relative"> {/* Added relative positioning */}
             <label htmlFor="password" className="block text-sm font-medium text-gray-700">パスワード</label>
-            <input id="password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-3 py-2 mt-1 text-gray-900 border border-gray-300 rounded-md"/>
+            <input 
+              id="password" 
+              type={showPassword ? 'text' : 'password'} // Toggle type
+              required 
+              value={password} 
+              onChange={(e) => setPassword(e.target.value)} 
+              className="w-full px-3 py-2 mt-1 text-gray-900 border-2 border-gray-200 rounded-lg focus:border-pink-500 focus:ring-0 transition"
+            />
+             {/* Password visibility toggle button */}
+            <button 
+              type="button" 
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute inset-y-0 right-0 top-7 pr-3 flex items-center text-gray-600"
+              aria-label="パスワードを表示または非表示にする"
+            >
+              {showPassword ? <FiEyeOff size={20} /> : <FiEye size={20} />}
+            </button>
           </div>
           <div>
-            <button type="submit" className="w-full px-4 py-2 font-medium text-white bg-pink-500 rounded-md hover:bg-pink-600">
+            <button type="submit" className="w-full px-4 py-3 font-semibold text-white bg-pink-500 rounded-lg hover:bg-pink-600 transition-colors">
               ログイン
             </button>
           </div>

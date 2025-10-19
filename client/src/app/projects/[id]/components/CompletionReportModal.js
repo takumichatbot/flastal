@@ -3,15 +3,18 @@
 import { useState, useRef } from 'react';
 import toast from 'react-hot-toast';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL_PYTHON || 'https://flastal-backend.onrender.com';
+// ★ API_URLを修正
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
-export default function CompletionReportModal({ project, onClose, onReportSubmitted }) {
+// ★ user を props で受け取る
+export default function CompletionReportModal({ project, user, onClose, onReportSubmitted }) {
   const [imageUrls, setImageUrls] = useState([]);
   const [comment, setComment] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef(null);
 
   const handleImageUpload = async (event) => {
+    // ... (この関数は変更なし) ...
     const files = event.target.files;
     if (!files || files.length === 0) return;
     setIsUploading(true);
@@ -20,7 +23,7 @@ export default function CompletionReportModal({ project, onClose, onReportSubmit
     for (let i = 0; i < files.length; i++) {
         const file = files[i];
         const formData = new FormData();
-        formData.append('file', file);
+        formData.append('image', file); // ★ 'file' -> 'image' に変更 (バックエンドの`upload.single('image')`に合わせる)
         try {
             const res = await fetch(`${API_URL}/api/upload`, { method: 'POST', body: formData });
             if (!res.ok) throw new Error('アップロードに失敗しました');
@@ -44,13 +47,19 @@ export default function CompletionReportModal({ project, onClose, onReportSubmit
       toast.error('少なくとも1枚は写真をアップロードしてください。');
       return;
     }
-    const token = localStorage.getItem('accessToken');
+    if (!user) {
+      toast.error('ログインが必要です。');
+      return;
+    }
+
+    // ★★★ 修正: token削除, userId追加 ★★★
     const promise = fetch(`${API_URL}/api/projects/${project.id}/complete`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         completionImageUrls: imageUrls,
         completionComment: comment,
+        userId: user.id, // ★ ユーザーIDを追加
       }),
     }).then(res => {
         if (!res.ok) throw new Error('完了報告の投稿に失敗しました。');
@@ -66,6 +75,7 @@ export default function CompletionReportModal({ project, onClose, onReportSubmit
     });
   };
 
+  // --- JSX (変更なし) ---
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
       <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-2xl">

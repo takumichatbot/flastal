@@ -1,10 +1,10 @@
-// client/src/app/venues/dashboard/[id]/page.js
 'use client';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import toast from 'react-hot-toast';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL_PYTHON || 'https://flastal-backend.onrender.com';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
 export default function VenueDashboardPage({ params }) {
   const { id } = params;
@@ -15,24 +15,45 @@ export default function VenueDashboardPage({ params }) {
     regulations: '',
   });
   const [loading, setLoading] = useState(true);
+  const [venue, setVenue] = useState(null); // ログイン中の会場情報を保持
 
   useEffect(() => {
-    if (id) {
-      const fetchVenue = async () => {
-        try {
-          const res = await fetch(`${API_URL}/api/venues/${id}`);
-          if (!res.ok) throw new Error('データ読み込み失敗');
-          const data = await res.json();
-          Object.keys(data).forEach(key => {
-            if (data[key] === null) data[key] = '';
-          });
-          setFormData(data);
-        } catch (error) { alert(error.message); }
-        finally { setLoading(false); }
-      };
-      fetchVenue();
+    // ★★★ 認証チェックを修正 ★★★
+    const storedVenue = localStorage.getItem('flastal-venue');
+    if (!storedVenue) {
+      toast.error('ログインが必要です。');
+      router.push('/venues/login');
+      return;
     }
-  }, [id]);
+    
+    const venueInfo = JSON.parse(storedVenue);
+    // URLのIDとログイン中のIDが一致するか確認
+    if (venueInfo.id !== id) {
+        toast.error('アクセス権がありません。');
+        router.push('/venues/login');
+        return;
+    }
+    setVenue(venueInfo);
+
+    // データ取得
+    const fetchVenue = async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/venues/${id}`);
+        if (!res.ok) throw new Error('データ読み込みに失敗しました');
+        const data = await res.json();
+        // nullの値を空文字に変換
+        Object.keys(data).forEach(key => {
+          if (data[key] === null) data[key] = '';
+        });
+        setFormData(data);
+      } catch (error) { 
+        toast.error(error.message);
+      } finally { 
+        setLoading(false);
+      }
+    };
+    fetchVenue();
+  }, [id, router]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -41,51 +62,74 @@ export default function VenueDashboardPage({ params }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // ★★★ localStorageからトークンを取得 ★★★
-    const token = localStorage.getItem('venueToken');
-    if (!token) {
-        alert('認証情報が見つかりません。再度ログインしてください。');
-        router.push('/venues/login');
-        return;
-    }
-
-    try {
-      const res = await fetch(`${API_URL}/api/venues/${id}`, {
-        method: 'PATCH',
-        headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}` // ★★★ 認証トークンをヘッダーに追加 ★★★
-        },
-        body: JSON.stringify(formData),
-      });
+    // ★★★ 認証トークンは不要 ★★★
+    const promise = fetch(`${API_URL}/api/venues/${id}`, {
+      method: 'PATCH',
+      headers: { 
+          'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(formData),
+    }).then(res => {
       if (!res.ok) throw new Error('更新に失敗しました。');
-      alert('会場情報が更新されました！');
-    } catch (error) { alert(`エラー: ${error.message}`); }
+      return res.json();
+    });
+
+    toast.promise(promise, {
+      loading: '更新中...',
+      success: (data) => {
+        // 更新後の情報を再度フォームにセットし、localStorageも更新
+        setFormData(data);
+        localStorage.setItem('flastal-venue', JSON.stringify(data));
+        return '会場情報が更新されました！';
+      },
+      error: (err) => err.message,
+    });
   };
 
-  if (loading) return <p className="text-center mt-10">読み込み中...</p>;
+  const handleLogout = () => {
+    localStorage.removeItem('flastal-venue');
+    toast.success('ログアウトしました。');
+    router.push('/venues/login');
+  };
+
+  if (loading || !venue) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-100">
+        <p>読み込み中...</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex justify-center min-h-screen bg-gray-100 p-8">
-      <div className="w-full max-w-2xl p-8 space-y-6 bg-white rounded-lg shadow-md h-fit">
-        <h2 className="text-2xl font-bold text-center">{formData.venueName} - 管理画面</h2>
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div>
-            <label htmlFor="venueName" className="block text-sm font-medium">会場名</label>
-            <input type="text" name="venueName" id="venueName" required value={formData.venueName} onChange={handleChange} className="w-full mt-1 text-gray-900 border-gray-300 rounded-md"/>
-          </div>
-          <div>
-            <label htmlFor="address" className="block text-sm font-medium">住所</label>
-            <input type="text" name="address" id="address" value={formData.address} onChange={handleChange} className="w-full mt-1 text-gray-900 border-gray-300 rounded-md"/>
-          </div>
-          <div>
-            <label htmlFor="regulations" className="block text-sm font-medium">フラスタ規定</label>
-            <textarea name="regulations" id="regulations" rows="10" value={formData.regulations} onChange={handleChange} placeholder="サイズ制限、搬入・回収時間、注意事項などを入力してください" className="w-full mt-1 text-gray-900 border-gray-300 rounded-md"></textarea>
-          </div>
-          <button type="submit" className="w-full px-4 py-2 font-medium text-white bg-green-500 rounded-md hover:bg-green-600">
-            更新する
+    <div className="min-h-screen bg-gray-100 p-4 sm:p-8">
+      <div className="w-full max-w-3xl mx-auto">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-3xl font-bold text-gray-800">管理画面</h1>
+          <button onClick={handleLogout} className="text-sm font-medium text-gray-600 hover:text-red-500 transition-colors">
+            ログアウト
           </button>
-        </form>
+        </div>
+        <div className="p-8 space-y-6 bg-white rounded-xl shadow-lg">
+          <h2 className="text-2xl font-bold text-center text-gray-900">{formData.venueName}</h2>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div>
+              <label htmlFor="venueName" className="block text-sm font-medium text-gray-700">会場名</label>
+              <input type="text" name="venueName" id="venueName" required value={formData.venueName} onChange={handleChange} className="w-full mt-1 p-2 text-gray-900 border-2 border-gray-200 rounded-lg focus:border-green-500 focus:ring-0 transition"/>
+            </div>
+            <div>
+              <label htmlFor="address" className="block text-sm font-medium text-gray-700">住所</label>
+              <input type="text" name="address" id="address" value={formData.address} onChange={handleChange} className="w-full mt-1 p-2 text-gray-900 border-2 border-gray-200 rounded-lg focus:border-green-500 focus:ring-0 transition"/>
+            </div>
+            <div>
+              <label htmlFor="regulations" className="block text-sm font-medium text-gray-700">フラスタ規定</label>
+              <textarea name="regulations" id="regulations" rows="10" value={formData.regulations} onChange={handleChange} placeholder="サイズ制限、搬入・回収時間、注意事項などを入力してください" className="w-full mt-1 p-2 text-gray-900 border-2 border-gray-200 rounded-lg focus:border-green-500 focus:ring-0 transition"></textarea>
+              <p className="text-xs text-gray-500 mt-1">この内容は、ユーザーが企画作成時に会場を選択すると表示されます。</p>
+            </div>
+            <button type="submit" className="w-full px-4 py-3 font-semibold text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors">
+              更新する
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   );

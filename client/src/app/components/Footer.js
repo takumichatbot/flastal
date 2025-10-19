@@ -8,9 +8,9 @@ export default function Footer() {
           <div>
             <h3 className="text-sm font-semibold text-white tracking-wider uppercase">サービス</h3>
             <ul className="mt-4 space-y-2">
+              {/* Correct Link usage */}
               <li><Link href="/projects" className="hover:text-white">企画一覧</Link></li>
               <li><Link href="/florists" className="hover:text-white">お花屋さんを探す</Link></li>
-              {/* ★★★ リンクを追加 ★★★ */}
               <li><Link href="/#faq" className="hover:text-white">よくある質問</Link></li> 
               <li><Link href="/#contact" className="hover:text-white">お問い合わせ</Link></li>
             </ul>
@@ -18,6 +18,7 @@ export default function Footer() {
           <div>
             <h3 className="text-sm font-semibold text-white tracking-wider uppercase">参加する</h3>
             <ul className="mt-4 space-y-2">
+              {/* Correct Link usage */}
               <li><Link href="/register" className="hover:text-white">ファン登録</Link></li>
               <li><Link href="/florists/register" className="hover:text-white">お花屋さん登録</Link></li>
               <li><Link href="/venues/register" className="hover:text-white">会場登録</Link></li>
@@ -26,22 +27,25 @@ export default function Footer() {
           <div>
             <h3 className="text-sm font-semibold text-white tracking-wider uppercase">FLASTALについて</h3>
             <ul className="mt-4 space-y-2">
-              {/* ★★★ リンクを追加 ★★★ */}
+              {/* Correct Link usage */}
               <li><Link href="/#about" className="hover:text-white">運営会社</Link></li>
               <li><Link href="/terms" className="hover:text-white">利用規約</Link></li>
-              <Link href="/privacy"><span className="hover:underline">プライバシーポリシー</span></Link>
-              <Link href="/tokushoho"><span className="hover:underline">特定商取引法に基づく表記</span></Link>
+              {/* Ensure these pages exist */}
+              <li><Link href="/privacy" className="hover:text-white">プライバシーポリシー</Link></li>
+              <li><Link href="/tokushoho" className="hover:text-white">特定商取引法に基づく表記</Link></li>
             </ul>
           </div>
           <div>
              <h3 className="text-sm font-semibold text-white tracking-wider uppercase">SNS</h3>
              <ul className="mt-4 space-y-2">
-                <li><a href="#" className="hover:text-white">X (Twitter)</a></li>
+                {/* Add actual link when available */}
+                <li><a href="#" target="_blank" rel="noopener noreferrer" className="hover:text-white">X (Twitter)</a></li> 
              </ul>
           </div>
         </div>
         <div className="mt-12 border-t border-slate-700 pt-8 text-center">
           <p>&copy; {new Date().getFullYear()} FLASTAL. All rights reserved.</p>
+          {/* Ensure /admin page exists and has auth */}
           <Link href="/admin"><span className="text-xs text-slate-500 hover:text-white mt-2 block">Admin</span></Link>
         </div>
       </div>

@@ -1,71 +1,102 @@
 'use client';
 
 import { useState } from 'react';
+import toast from 'react-hot-toast'; // Import toast
 
-// ★ 1. APIの接続先をPythonバックエンドに変更
-const API_URL = process.env.NEXT_PUBLIC_API_URL_PYTHON || 'https://flastal-backend.onrender.com';
+// ★ API_URL corrected
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
-// ★ offerは不要になったので削除
-export default function ReviewModal({ project, user, onClose, onReviewSubmitted }) {
+// ★ user prop is needed for userId
+export default function ReviewModal({ project, user, onClose, onReviewSubmitted }) { 
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e) => {
-    e.preventDefault(); // formのsubmitイベントを受け取るように変更
+    e.preventDefault(); 
     setIsSubmitting(true);
 
-    // ★ 2. 認証情報(トークン)を取得
-    const token = localStorage.getItem('accessToken');
-    if (!token) {
-      alert('認証エラー。再度ログインしてください。');
+    // ★★★ Corrected Authentication and Payload ★★★
+    if (!user) { // Check if user is logged in
+      toast.error('レビューを投稿するにはログインが必要です。');
       setIsSubmitting(false);
       return;
     }
 
-    try {
-      const res = await fetch(`${API_URL}/api/reviews`, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}` // ★ 認証情報をヘッダーに追加
-        },
-        body: JSON.stringify({
-          rating: rating,
-          comment: comment,
-          project_id: project.id, // ★ 3. PythonのAPIに合わせてキーを修正
-          // floristIdは不要なので削除
-        }),
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.detail || 'レビュー投稿に失敗しました。');
-      }
-      alert('レビューを投稿しました！ありがとうございました。');
-      onReviewSubmitted();
-      onClose();
-    } catch (error) {
-      alert(`エラー: ${error.message}`);
-    } finally {
-      setIsSubmitting(false);
+    // Attempt to get floristId from the accepted offer within the project object
+    // This assumes mypage/page.js fetches project data including the accepted offer
+    const floristId = project?.offer?.floristId; 
+    
+    if (!floristId) {
+        toast.error('レビュー対象のお花屋さんが見つかりません。企画に担当者が割り当てられているか確認してください。');
+        setIsSubmitting(false);
+        return;
     }
+
+
+    const promise = fetch(`${API_URL}/api/reviews`, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        // Authorization header removed
+      },
+      body: JSON.stringify({
+        rating: rating,
+        comment: comment,
+        projectId: project.id, // ★ Key corrected to camelCase
+        floristId: floristId, // ★ Send derived floristId
+        userId: user.id, // ★ Add userId from user prop
+      }),
+    }).then(async (res) => { // Added async for potential error parsing
+        if (!res.ok) {
+            let errorMsg = 'レビュー投稿に失敗しました。';
+            try {
+                const data = await res.json();
+                errorMsg = data.message || errorMsg; // Use backend message if available
+            } catch(e) { /* Ignore parsing error */ }
+            // Handle specific "already reviewed" error
+            if (res.status === 409) { 
+               errorMsg = 'この企画には既にレビューを投稿済みです。';
+            }
+            throw new Error(errorMsg);
+        }
+        return res.json(); // Return success data
+    });
+
+    toast.promise(promise, {
+        loading: '投稿中...',
+        success: () => {
+            onReviewSubmitted(); // Notify parent to refresh data
+            onClose(); // Close the modal
+            return 'レビューを投稿しました！ありがとうございました。';
+        },
+        error: (err) => err.message, // Display specific error message
+        finally: () => {
+            setIsSubmitting(false);
+        }
+    });
   };
 
+  // --- JSX (Rating display logic improved) ---
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 p-4">
-      <form onSubmit={handleSubmit} className="bg-white p-8 rounded-xl shadow-2xl w-full max-w-lg">
+      <form onSubmit={handleSubmit} className="bg-white p-6 md:p-8 rounded-xl shadow-2xl w-full max-w-lg">
         <h2 className="text-2xl font-bold text-gray-800 mb-4">レビューを投稿</h2>
-        <p className="text-gray-600 mb-6">企画「{project.title}」の評価をお願いします。</p>
+        {/* Ensure project title exists */}
+        <p className="text-gray-600 mb-6">企画「{project?.title || '不明な企画'}」の評価をお願いします。</p> 
         <div className="space-y-6">
           <div>
-            <label className="block text-lg font-semibold text-gray-700 mb-2">評価 (5段階)</label>
-            <div className="flex justify-center text-4xl">
+            <label className="block text-lg font-semibold text-gray-700 mb-2 text-center">評価</label>
+            <div className="flex justify-center text-4xl cursor-pointer">
               {[1, 2, 3, 4, 5].map((star) => (
                 <button
                   key={star}
                   type="button"
                   onClick={() => setRating(star)}
-                  className={`transition-colors ${rating >= star ? 'text-yellow-400' : 'text-gray-300'}`}
+                  onMouseEnter={() => {/* Optional: Add hover effect */}}
+                  onMouseLeave={() => {/* Optional: Remove hover effect */}}
+                  className={`transition-colors duration-150 ${rating >= star ? 'text-yellow-400' : 'text-gray-300 hover:text-yellow-200'}`}
+                  aria-label={`Rate ${star} stars`}
                 >
                   ★
                 </button>

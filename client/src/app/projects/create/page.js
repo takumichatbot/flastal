@@ -3,8 +3,10 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
+import toast from 'react-hot-toast'; // ★ alertの代わりにtoastをインポート
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL_PYTHON || 'https://flastal-backend.onrender.com';
+// ★ API_URLを修正
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
 export default function CreateProjectPage() {
   const { user } = useAuth();
@@ -31,7 +33,7 @@ export default function CreateProjectPage() {
   useEffect(() => {
     if (!user) {
       router.push('/login');
-      return; // ユーザーがいない場合は以降の処理を中断
+      return; 
     }
     const fetchVenues = async () => {
       try {
@@ -40,7 +42,7 @@ export default function CreateProjectPage() {
         const data = await res.json();
         setVenues(data);
       } catch (error) {
-        alert(error.message);
+        toast.error(error.message); // ★ alertをtoastに変更
       }
     };
     fetchVenues();
@@ -52,7 +54,7 @@ export default function CreateProjectPage() {
 
   const handleVenueChange = (e) => {
     const venueId = e.target.value;
-    const venue = venues.find(v => v.id === parseInt(venueId));
+    const venue = venues.find(v => v.id === venueId); // ★ parseIntを削除 (IDが文字列の場合を考慮)
     setSelectedVenue(venue);
     setFormData(prevState => ({ ...prevState, deliveryAddress: venue ? venue.venueName : '' }));
   };
@@ -62,61 +64,70 @@ export default function CreateProjectPage() {
 
   const handleSubmit = async () => {
     if (!user) {
-      alert('ログインが必要です。');
+      toast.error('ログインが必要です。'); // ★ alertをtoastに変更
       return;
     }
     setIsSubmitting(true);
-    const token = localStorage.getItem('accessToken');
 
+    // ★★★ 修正: バックエンドの仕様に合わせる ★★★
     const projectData = {
       ...formData,
-      organizer: user.handleName,
+      plannerId: user.id, // 'organizer' の代わりに 'plannerId' を送信
     };
 
-    try {
-      const response = await fetch(`${API_URL}/api/projects`, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(projectData),
-      });
+    // ★ toast.promise を使って非同期処理
+    const promise = fetch(`${API_URL}/api/projects`, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        // 'Authorization' ヘッダーは不要
+      },
+      body: JSON.stringify(projectData),
+    }).then(async (response) => {
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.detail || '企画の作成に失敗しました。');
+        throw new Error(errorData.message || '企画の作成に失敗しました。');
       }
-      alert('企画の作成に成功しました！');
-      router.push('/projects');
-    } catch (error) {
-      alert(`エラー: ${error.message}`);
-    } finally {
-      setIsSubmitting(false);
-    }
+      return response.json();
+    });
+
+    toast.promise(promise, {
+      loading: '企画を作成中...',
+      success: (data) => {
+        router.push('/projects');
+        return '企画の作成に成功しました！';
+      },
+      error: (err) => err.message,
+      finally: () => {
+        setIsSubmitting(false);
+      }
+    });
   };
   
   if (!user) {
     return <div className="text-center p-10 bg-sky-50 min-h-screen">リダイレクト中...</div>;
   }
   
+  // --- ProgressBarコンポーネント (変更なし) ---
   const ProgressBar = () => {
-      const steps = ['基本情報', 'お届け情報', '画像設定', 'デザイン詳細', '最終確認'];
-      return (
-          <div className="w-full mb-8">
-              <div className="flex justify-between">
-                  {steps.map((name, index) => (
-                      <div key={index} className="flex-1 text-center">
-                          <div className={`mx-auto w-8 h-8 rounded-full flex items-center justify-center ${step > index ? 'bg-sky-500 text-white' : 'bg-slate-200 text-slate-500'}`}>
-                              {step > index ? '✓' : index + 1}
-                          </div>
-                          <p className={`mt-2 text-sm ${step > index ? 'text-sky-600 font-semibold' : 'text-slate-500'}`}>{name}</p>
-                      </div>
-                  ))}
-              </div>
-          </div>
-      );
+    const steps = ['基本情報', 'お届け情報', '画像設定', 'デザイン詳細', '最終確認'];
+    return (
+        <div className="w-full mb-8">
+            <div className="flex justify-between">
+                {steps.map((name, index) => (
+                    <div key={index} className="flex-1 text-center">
+                        <div className={`mx-auto w-8 h-8 rounded-full flex items-center justify-center ${step > index ? 'bg-sky-500 text-white' : 'bg-slate-200 text-slate-500'}`}>
+                            {step > index ? '✓' : index + 1}
+                        </div>
+                        <p className={`mt-2 text-sm ${step > index ? 'text-sky-600 font-semibold' : 'text-slate-500'}`}>{name}</p>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
   }
 
+  // --- JSX (変更なし) ---
   return (
     <div className="flex justify-center min-h-screen bg-gray-100 p-4 sm:p-6 lg:p-8">
       <div className="w-full max-w-2xl p-8 space-y-6 bg-white rounded-2xl shadow-xl h-fit">
