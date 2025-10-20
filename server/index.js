@@ -321,7 +321,7 @@ app.get('/api/projects/featured', async (req, res) => {
   }
 });
 
-// ★★★ 単一の企画を取得するAPI (最終完成版) ★★★
+// ★★★ 単一の企画を取得するAPI (修正版) ★★★
 app.get('/api/projects/:id', async (req, res) => {
   const { id } = req.params; 
 
@@ -330,8 +330,6 @@ app.get('/api/projects/:id', async (req, res) => {
       where: {
         id: id,
       },
-      // ★★★ ここが修正箇所です ★★★
-      // projectに紐づく、全ての関連情報を取得するようにします
       include: {
         planner: true,
         pledges: {
@@ -347,20 +345,34 @@ app.get('/api/projects/:id', async (req, res) => {
         tasks: {
           orderBy: { createdAt: 'asc' }
         },
-        poll: {
+        // ★★★ ここを修正: poll -> activePoll ★★★
+        activePoll: { 
           include: {
-            options: {
+            // options の関連名は prisma.schema を確認 (もしかしたら options ではなく pollOptions かも)
+            options: { // ★ もしエラーが出たらここも修正
               include: {
-                votes: true
+                votes: true // ★ Voteモデルとの関連名も確認
               }
             },
-            votes: {
+            votes: { // ★ Voteモデルとの関連名も確認
               select: {
                 userId: true
               }
             }
           }
-        }
+        },
+        // ★ 必要に応じて他の関連フィールドも追加・確認 ★
+        messages: { // 寄せ書きメッセージ
+           orderBy: { createdAt: 'asc' },
+           include: { user: { select: { handleName: true } } }
+        },
+        offer: { // お花屋さんへのオファー情報
+            include: { florist: { select: { id: true, platformName: true } } }
+        },
+        quotation: { // 見積もり情報
+            include: { items: true }
+        },
+        review: true, // レビュー情報 (もし Project と Review が1対1なら)
       },
     });
 
@@ -370,7 +382,7 @@ app.get('/api/projects/:id', async (req, res) => {
       res.status(404).json({ message: '企画が見つかりません。' });
     }
   } catch (error) {
-    console.error('企画取得エラー:', error);
+    console.error('企画取得エラー:', error); // エラーをコンソールに出力
     res.status(500).json({ message: '企画の取得中にエラーが発生しました。' });
   }
 });
