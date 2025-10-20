@@ -1,106 +1,113 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
-// Assuming StarRating component exists at this path
-// import StarRating from '../components/StarRating'; 
+import { useRouter } from 'next/navigation';
+import toast from 'react-hot-toast';
+import { FiEye, FiEyeOff } from 'react-icons/fi';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
-// Florist Card Component
-function FloristCard({ florist }) {
-  // Check if reviews exist and calculate rating/count if needed locally,
-  // OR rely on backend to provide aggregated data.
-  // For now, let's assume the basic data is available.
-  const reviewCount = florist.reviews?.length || 0; // Example if reviews array is included
-  const averageRating = reviewCount > 0
-    ? florist.reviews.reduce((sum, r) => sum + r.rating, 0) / reviewCount
-    : 0;
+export default function FloristRegisterPage() {
+  const [formData, setFormData] = useState({
+    shopName: '',
+    platformName: '',
+    contactName: '',
+    email: '',
+    password: '',
+  });
+  const [showPassword, setShowPassword] = useState(false);
+  const router = useRouter();
 
-  return (
-    // Use legacyBehavior for Link wrapping a custom component/div acting as <a>
-    <Link href={`/florists/${florist.id}`} legacyBehavior> 
-      <a className="bg-white rounded-2xl shadow-lg overflow-hidden h-full flex flex-col group transition-all duration-300 hover:shadow-xl hover:-translate-y-1 cursor-pointer">
-        <div className="bg-gradient-to-br from-pink-100 to-rose-200 h-32 flex items-center justify-center">
-          <span className="text-4xl">💐</span>
-        </div>
-        <div className="p-6 flex flex-col flex-grow">
-          {/* ★★★ Display platformName (public name) ★★★ */}
-          <h3 className="text-lg font-bold text-gray-800 group-hover:text-pink-600 transition-colors mb-2 truncate">{florist.platformName}</h3>
-          {/* Optionally show contact name if desired, or remove */}
-          {/* <p className="text-sm text-gray-600 mb-4">担当者: {florist.contactName}</p> */} 
-          
-          {/* Rating Display */}
-          <div className="mt-auto flex items-center gap-2">
-            {/* ★ Simplified rating display until backend provides aggregated data */}
-             {reviewCount > 0 ? (
-              <>
-                {/* <StarRating rating={averageRating} /> */}
-                 <span className="font-semibold text-yellow-500">{averageRating.toFixed(1)} ★</span>
-                <span className="text-xs text-gray-500">({reviewCount}件)</span>
-              </>
-            ) : (
-              <span className="text-xs text-gray-500">レビューはまだありません</span>
-            )}
-          </div>
-        </div>
-      </a>
-    </Link>
-  );
-}
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prevState) => ({ ...prevState, [name]: value }));
+  };
 
-// Florist List Page
-export default function FloristsPage() {
-  const [florists, setFlorists] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchFlorists = async () => {
-      setLoading(true); // Ensure loading is true at start
-      try {
-        const response = await fetch(`${API_URL}/api/florists`);
-        if (!response.ok) throw new Error('データの取得に失敗しました。');
-        const data = await response.json();
-        // Ensure data is an array before setting state
-        setFlorists(Array.isArray(data) ? data : []); 
-      } catch (error) { 
-          console.error(error); 
-          toast.error(error.message); // Show error to user
-          setFlorists([]); // Set empty array on error
-      } finally { 
-          setLoading(false); 
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    const promise = fetch(`${API_URL}/api/florists/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(formData),
+    }).then(async (response) => {
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || '登録申請に失敗しました。');
       }
-    };
-    fetchFlorists();
-  }, []);
+      return data; 
+    });
+
+    toast.promise(promise, {
+      loading: '申請を送信中...',
+      success: (data) => {
+        router.push('/'); // トップページにリダイレクト
+        return data.message || '登録申請が完了しました。承認をお待ちください。'; 
+      },
+      error: (err) => err.message,
+    });
+  };
 
   return (
-    <div className="bg-white min-h-screen">
-      <main>
-        {/* Header Section */}
-        <div className="relative w-full bg-pink-50">
-           <div className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8 text-center">
-             <h1 className="text-3xl font-bold text-gray-900">お花屋さんを探す</h1>
-             <p className="mt-2 text-gray-600">あなたの想いを形にしてくれる、素敵なお花屋さんを見つけましょう。</p>
-           </div>
+    <div className="flex items-center justify-center min-h-screen bg-pink-50 p-4">
+      <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-xl shadow-lg">
+        <h2 className="text-3xl font-bold text-center text-gray-900">
+          お花屋さん新規登録申請
+        </h2>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div>
+            <label htmlFor="shopName" className="block text-sm font-medium text-gray-700">店舗名（正式名称）</label>
+            <input id="shopName" name="shopName" type="text" required value={formData.shopName} onChange={handleChange} className="w-full px-3 py-2 mt-1 text-gray-900 border-2 border-gray-200 rounded-lg focus:border-pink-500 focus:ring-0 transition"/>
+            <p className="mt-1 text-xs text-gray-500">運営が確認するために使用します。この名前は公開されません。</p>
+          </div>
+
+          <div>
+            <label htmlFor="platformName" className="block text-sm font-medium text-gray-700">活動名（公開される名前）</label>
+            <input id="platformName" name="platformName" type="text" required value={formData.platformName} onChange={handleChange} className="w-full px-3 py-2 mt-1 text-gray-900 border-2 border-gray-200 rounded-lg focus:border-pink-500 focus:ring-0 transition"/>
+            <p className="mt-1 text-xs text-gray-500">ユーザーに表示される名前です。実際の店名とは異なる、匿名性のある名前を設定してください。</p>
+          </div>
+
+          <div>
+            <label htmlFor="contactName" className="block text-sm font-medium text-gray-700">担当者名</label>
+            <input id="contactName" name="contactName" type="text" required value={formData.contactName} onChange={handleChange} className="w-full px-3 py-2 mt-1 text-gray-900 border-2 border-gray-200 rounded-lg focus:border-pink-500 focus:ring-0 transition"/>
+          </div>
+          <div>
+            <label htmlFor="email" className="block text-sm font-medium text-gray-700">メールアドレス</label>
+            <input id="email" name="email" type="email" required value={formData.email} onChange={handleChange} className="w-full px-3 py-2 mt-1 text-gray-900 border-2 border-gray-200 rounded-lg focus:border-pink-500 focus:ring-0 transition"/>
+          </div>
+          <div className="relative">
+            <label htmlFor="password" className="block text-sm font-medium text-gray-700">パスワード</label>
+            <input 
+              id="password" 
+              name="password" 
+              type={showPassword ? 'text' : 'password'}
+              required 
+              value={formData.password} 
+              onChange={handleChange} 
+              className="w-full px-3 py-2 mt-1 text-gray-900 border-2 border-gray-200 rounded-lg focus:border-pink-500 focus:ring-0 transition"
+            />
+            <button 
+              type="button" 
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute inset-y-0 right-0 top-7 pr-3 flex items-center text-gray-600"
+              aria-label="パスワードを表示または非表示にする"
+            >
+              {showPassword ? <FiEyeOff size={20} /> : <FiEye size={20} />}
+            </button>
+          </div>
+          <div>
+            <button type="submit" className="w-full px-4 py-3 font-semibold text-white bg-pink-500 rounded-lg hover:bg-pink-600 transition-colors">
+              登録を申請する
+            </button>
+          </div>
+        </form>
+         <div className="text-sm text-center">
+          <Link href="/" className="font-medium text-blue-600 hover:text-blue-500">
+            トップページに戻る
+          </Link>
         </div>
-        
-        {/* Florist Grid Section */}
-        <div className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
-          {loading ? (
-              <p className="text-center text-gray-600">お花屋さんを読み込んでいます...</p>
-          ) : florists.length === 0 ? (
-              <p className="text-center text-gray-600">現在登録されているお花屋さんはありません。</p>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-              {florists.map((florist) => (
-                // Ensure florist object has necessary properties (id, platformName, reviews...)
-                florist && florist.id ? <FloristCard key={florist.id} florist={florist} /> : null
-              ))}
-            </div>
-          )}
-        </div>
-      </main>
+      </div>
     </div>
   );
 }
