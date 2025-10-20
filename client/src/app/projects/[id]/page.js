@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react'; // ★ useCallback をインポート
 import { useParams } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
 import { useForm } from 'react-hook-form';
@@ -8,7 +8,6 @@ import { io } from 'socket.io-client';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
 
-// ★★★ インポートパスを修正 ★★★
 import ImageModal from '../../components/ImageModal';
 import MessageForm from '../../components/MessageForm';
 import PollCreationModal from './components/PollCreationModal';
@@ -16,13 +15,12 @@ import GroupChat from './components/GroupChat';
 import CompletionReportModal from './components/CompletionReportModal';
 import ReportModal from './components/ReportModal';
 
-// ★ API_URLを修正
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
 export default function ProjectDetailPage() {
   const params = useParams();
   const { id } = params;
-  const { user } = useAuth(); // ★ ログインしているユーザー情報を取得
+  const { user } = useAuth();
   
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -43,66 +41,75 @@ export default function ProjectDetailPage() {
 
   const { register: registerPledge, handleSubmit: handleSubmitPledge, formState: { errors: pledgeErrors }, reset: resetPledge } = useForm();
 
-  // --- データ取得とWebSocket接続 ---
-  const fetchProject = async () => {
+  // ★★★ 修正点1: データ取得関数を useCallback で囲む ★★★
+  // これにより、不必要な関数の再生成を防ぎます。
+  const fetchProject = useCallback(async () => {
     if (!id) return;
     try {
       setLoading(true);
       const response = await fetch(`${API_URL}/api/projects/${id}`);
-      if (!response.ok) throw new Error('企画の読み込みに失敗しました。');
+      if (!response.ok) {
+        // 404 Not Found などのエラーをここでキャッチ
+        throw new Error('企画が見つからないか、読み込みに失敗しました。');
+      }
       const data = await response.json();
       setProject(data);
     } catch (error) {
       toast.error(error.message);
+      setProject(null); // ★ エラー時に project を null に設定
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]); // idが変更されたときのみ、この関数が再生成される
 
+  // ★★★ 修正点2: useEffect を2つに分離 ★★★
+
+  // (A) 企画データを取得するためのuseEffect。idにのみ依存。
   useEffect(() => {
-    if (!id) return;
-    fetchProject(); // まず企画情報を取得
+    fetchProject();
+  }, [fetchProject]); // fetchProjectが変更されたら実行（つまり、idが変わったら実行）
 
-    // ユーザーがログインしている場合のみWebSocket接続
-    if (user) {
-      // ★★★ 修正: WebSocketの認証方法を変更 ★★★
-      // トークン認証を削除
-      const newSocket = io(API_URL); 
-      setSocket(newSocket);
-      
-      newSocket.emit('joinProjectRoom', id);
+  // (B) WebSocket接続を管理するためのuseEffect。id と user に依存。
+  useEffect(() => {
+    // ログインしていない場合は何もしない
+    if (!user || !id) return;
 
-      newSocket.on('receiveGroupChatMessage', (newMessage) => {
-        setProject(prev => prev ? { ...prev, groupChatMessages: [...(prev.groupChatMessages || []), newMessage] } : null);
-      });
+    // トークン認証は不要
+    const newSocket = io(API_URL);
+    setSocket(newSocket);
+    
+    newSocket.emit('joinProjectRoom', id);
 
-      newSocket.on('messageError', (errorMessage) => {
-        toast.error(errorMessage);
-      });
+    newSocket.on('receiveGroupChatMessage', (newMessage) => {
+      // 既存のチャットメッセージに追加
+      setProject(prev => prev ? { ...prev, groupChatMessages: [...(prev.groupChatMessages || []), newMessage] } : null);
+    });
 
-      return () => {
-        newSocket.off('receiveGroupChatMessage');
-        newSocket.off('messageError');
-        newSocket.disconnect();
-      };
-    }
-  }, [id, user]); // idまたはuserが変更されたら再実行
+    newSocket.on('messageError', (errorMessage) => {
+      toast.error(errorMessage);
+    });
 
-  // --- ハンドラ関数 (認証をすべて修正) ---
+    // コンポーネントが非表示になる際（ページを離れる際）に接続を解除
+    return () => {
+      newSocket.off('receiveGroupChatMessage');
+      newSocket.off('messageError');
+      newSocket.disconnect();
+    };
+  }, [id, user]); // id または user が変更されたら再接続
 
+  // --- これ以降のハンドラ関数は変更ありません ---
   const onPledgeSubmit = (data) => {
     if (!user) {
       toast.error('支援するにはログインが必要です。');
       return;
     }
     
-    // ★★★ 修正: token削除, userId追加 ★★★
     const promise = fetch(`${API_URL}/api/pledges`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        projectId: id, // parseInt不要 (idが文字列のため)
-        userId: user.id, // ★ ユーザーIDを追加
+        projectId: id,
+        userId: user.id,
         amount: parseInt(data.pledgeAmount),
         comment: data.comment,
       }),
@@ -111,15 +118,14 @@ export default function ProjectDetailPage() {
         const errData = await res.json();
         throw new Error(errData.message || '支援に失敗しました。');
       }
-      return res.json(); // ★ 成功時のレスポンスを返す
+      return res.json();
     });
 
     toast.promise(promise, {
       loading: '処理中...',
-      success: (data) => {
+      success: () => {
         resetPledge(); 
         fetchProject();
-        // ★ ユーザーのポイントも更新 (AuthContextにはまだポイント更新機能がないため、ここでは保留)
         return '支援ありがとうございます！';
       },
       error: (err) => err.message,
@@ -129,7 +135,6 @@ export default function ProjectDetailPage() {
   const handleAnnouncementSubmit = (e) => {
     e.preventDefault();
     if (!user) return;
-    // ★★★ 修正: token削除, userId追加 ★★★
     const promise = fetch(`${API_URL}/api/announcements`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -137,10 +142,11 @@ export default function ProjectDetailPage() {
         title: announcementTitle,
         content: announcementContent,
         projectId: id,
-        userId: user.id, // ★ ユーザーIDを追加
+        userId: user.id,
       }),
     }).then(res => {
       if (!res.ok) throw new Error('お知らせの投稿に失敗しました。');
+      return res.json();
     });
 
     toast.promise(promise, {
@@ -159,7 +165,6 @@ export default function ProjectDetailPage() {
   const handleAddExpense = (e) => {
     e.preventDefault();
     if (!user) return;
-    // ★★★ 修正: token削除, userId追加 ★★★
     const promise = fetch(`${API_URL}/api/expenses`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -167,10 +172,11 @@ export default function ProjectDetailPage() {
             itemName: expenseName,
             amount: parseInt(expenseAmount),
             projectId: id,
-            userId: user.id, // ★ ユーザーIDを追加
+            userId: user.id,
         }),
     }).then(res => {
         if (!res.ok) throw new Error('支出の追加に失敗しました。');
+        return res.json();
     });
 
     toast.promise(promise, {
@@ -187,11 +193,10 @@ export default function ProjectDetailPage() {
 
   const handleDeleteExpense = (expenseId) => {
     if (window.confirm('この支出項目を削除しますか？')) {
-      // ★★★ 修正: token削除, userId追加 ★★★
       const promise = fetch(`${API_URL}/api/expenses/${expenseId}`, {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: user.id }), // ★ ユーザーIDを追加
+          body: JSON.stringify({ userId: user.id }),
       }).then(res => { if (!res.ok) throw new Error('支出の削除に失敗しました。'); });
 
       toast.promise(promise, {
@@ -205,14 +210,13 @@ export default function ProjectDetailPage() {
   const handleAddTask = (e) => {
     e.preventDefault();
     if (!newTaskTitle.trim() || !user) return;
-    // ★★★ 修正: token削除, userId追加 ★★★
     const promise = fetch(`${API_URL}/api/tasks`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           title: newTaskTitle, 
           projectId: id,
-          userId: user.id // ★ ユーザーIDを追加
+          userId: user.id
         }),
     }).then(res => { if (!res.ok) throw new Error('タスクの追加に失敗しました。'); });
 
@@ -225,13 +229,12 @@ export default function ProjectDetailPage() {
 
   const handleToggleTask = (taskId, currentStatus) => {
     if (!user) return;
-    // ★★★ 修正: token削除, userId追加 ★★★
     const promise = fetch(`${API_URL}/api/tasks/${taskId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           isCompleted: !currentStatus,
-          userId: user.id // ★ ユーザーIDを追加
+          userId: user.id
         }),
     }).then(res => { if (!res.ok) throw new Error('タスクの更新に失敗しました。'); });
 
@@ -244,11 +247,10 @@ export default function ProjectDetailPage() {
 
   const handleDeleteTask = (taskId) => {
     if (window.confirm('このタスクを削除しますか？')) {
-      // ★★★ 修正: token削除, userId追加 ★★★
       const promise = fetch(`${API_URL}/api/tasks/${taskId}`, {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: user.id }), // ★ ユーザーIDを追加
+          body: JSON.stringify({ userId: user.id }),
       }).then(res => { if (!res.ok) throw new Error('タスクの削除に失敗しました。'); });
 
       toast.promise(promise, {
@@ -260,7 +262,6 @@ export default function ProjectDetailPage() {
   };
 
   const handleCopyMessages = () => {
-    // ... (この関数は変更なし) ...
     if (!project || !project.messages || project.messages.length === 0) return;
     const textToCopy = project.messages.map(msg => `${msg.cardName}\n${msg.content}`).join('\n\n---\n\n');
     navigator.clipboard.writeText(textToCopy)
@@ -273,11 +274,10 @@ export default function ProjectDetailPage() {
     if (!window.confirm("本当にこの企画を中止しますか？\n集まったポイントはすべて支援者に返金され、この操作は元に戻せません。")) return;
     if (!window.confirm("最終確認です。参加者への説明は済みましたか？中止を実行します。")) return;
 
-    // ★★★ 修正: token削除, userId追加 ★★★
     const promise = fetch(`${API_URL}/api/projects/${project.id}/cancel`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.id }), // ★ ユーザーIDを追加
+        body: JSON.stringify({ userId: user.id }),
     }).then(async res => {
         const data = await res.json();
         if (!res.ok) throw new Error(data.message || '企画の中止に失敗しました。');
@@ -291,26 +291,23 @@ export default function ProjectDetailPage() {
     });
   };
 
+  // --- ローディングとエラー表示 ---
   if (loading) return <div className="text-center mt-10">読み込み中...</div>;
   if (!project) return <div className="text-center mt-10">企画が見つかりませんでした。</div>;
 
-  // --- 変数定義 (snake_case を camelCase に修正) ---
+  // --- 変数定義 ---
   const deliveryDate = new Date(project.deliveryDateTime).toLocaleString('ja-JP');
-  // 'totalPledged' は project.collectedAmount で代用
   const progressPercentage = project.targetAmount > 0 ? (project.collectedAmount / project.targetAmount) * 100 : 0;
   const pageUrl = typeof window !== 'undefined' ? window.location.href : '';
   const shareText = `【${project.title}】を支援しよう！ #FLASTAL`;
   const twitterShareUrl = `https://twitter.com/intent/tweet?url=${encodeURIComponent(pageUrl)}&text=${encodeURIComponent(shareText)}`;
   const isPlanner = user && user.id === project.planner?.id;
-  // ★★★ 修正: p.user_id -> p.userId ★★★
   const isPledger = user && (project.pledges || []).some(p => p.userId === user.id);
   const totalExpense = (project.expenses || []).reduce((sum, exp) => sum + exp.amount, 0);
   const balance = project.collectedAmount - totalExpense;
-  // ★★★ 修正: msg.user_id -> msg.userId ★★★
   const hasPostedMessage = user && (project.messages || []).some(msg => msg.userId === user.id);
 
   // --- JSX (変更なし) ---
-  // (isPlanner, isPledgerなどのフラグが正しくなったため、JSXはそのまま機能するはず)
   return (
     <>
       <div className="min-h-screen bg-gray-100 p-4 sm:p-8">
@@ -337,7 +334,7 @@ export default function ProjectDetailPage() {
               <div className="h-80 bg-gray-200 relative group cursor-pointer" onClick={() => setIsImageModalOpen(true)}>
                 <img src={project.imageUrl} alt={project.title} className="w-full h-full object-contain"/>
                 <div className="absolute inset-0 bg-transparent group-hover:bg-black/40 flex items-center justify-center transition-colors duration-300">
-                    <svg className="w-16 h-16 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                    <svg className="w-16 h-16 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
                 </div>
               </div>
             )}
