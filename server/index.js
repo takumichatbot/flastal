@@ -321,7 +321,7 @@ app.get('/api/projects/featured', async (req, res) => {
   }
 });
 
-// ★★★ 単一の企画を取得するAPI (修正版) ★★★
+// ★★★ 単一の企画を取得するAPI (最終修正版) ★★★
 app.get('/api/projects/:id', async (req, res) => {
   const { id } = req.params; 
 
@@ -345,34 +345,30 @@ app.get('/api/projects/:id', async (req, res) => {
         tasks: {
           orderBy: { createdAt: 'asc' }
         },
-        // ★★★ ここを修正: poll -> activePoll ★★★
+        // ★★★ ここを修正 ★★★
+        // activePoll の中の include から、不要な options を削除します。
+        // votes のみ include すればOKです。
         activePoll: { 
           include: {
-            // options の関連名は prisma.schema を確認 (もしかしたら options ではなく pollOptions かも)
-            options: { // ★ もしエラーが出たらここも修正
-              include: {
-                votes: true // ★ Voteモデルとの関連名も確認
-              }
-            },
-            votes: { // ★ Voteモデルとの関連名も確認
-              select: {
-                userId: true
-              }
-            }
+            votes: true // これでアンケートに紐づく全ての投票が取得できます
           }
         },
-        // ★ 必要に応じて他の関連フィールドも追加・確認 ★
-        messages: { // 寄せ書きメッセージ
+        // ★★★ 修正ここまで ★★★
+        messages: { 
            orderBy: { createdAt: 'asc' },
            include: { user: { select: { handleName: true } } }
         },
-        offer: { // お花屋さんへのオファー情報
+        offer: {
             include: { florist: { select: { id: true, platformName: true } } }
         },
-        quotation: { // 見積もり情報
+        quotation: {
             include: { items: true }
         },
-        review: true, // レビュー情報 (もし Project と Review が1対1なら)
+        review: true,
+        groupChatMessages: { // グループチャットのメッセージも取得
+            orderBy: { createdAt: 'asc' },
+            include: { user: { select: { handleName: true } } }
+        }
       },
     });
 
@@ -382,10 +378,11 @@ app.get('/api/projects/:id', async (req, res) => {
       res.status(404).json({ message: '企画が見つかりません。' });
     }
   } catch (error) {
-    console.error('企画取得エラー:', error); // エラーをコンソールに出力
+    console.error('企画取得エラー:', error);
     res.status(500).json({ message: '企画の取得中にエラーが発生しました。' });
   }
 });
+
 
 app.post('/api/pledges', async (req, res) => {
   const { projectId, userId, amount, comment } = req.body;
