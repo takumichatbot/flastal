@@ -13,10 +13,12 @@ datasource db {
 // --- Enums ---
 
 enum ProjectStatus {
-  FUNDRAISING
-  SUCCESSFUL
-  COMPLETED
-  CANCELED
+  PENDING_APPROVAL // 審査中
+  FUNDRAISING      // 募集中
+  SUCCESSFUL       // 達成
+  COMPLETED        // 完了
+  CANCELED         // 中止
+  REJECTED         // 却下
 }
 
 enum OfferStatus {
@@ -69,23 +71,26 @@ model User {
 }
 
 model Project {
-  id                  String            @id @default(cuid())
-  title               String
-  description         String            @db.Text
-  targetAmount        Int
-  collectedAmount     Int               @default(0)
-  deliveryAddress     String
-  deliveryDateTime    DateTime
-  imageUrl            String?
-  designDetails       String?           @db.Text
-  size                String?
-  flowerTypes         String?
-  status              ProjectStatus     @default(FUNDRAISING)
-  visibility          ProjectVisibility @default(PUBLIC)
+  id                String            @id @default(cuid())
+  title             String
+  description       String            @db.Text
+  targetAmount      Int
+  collectedAmount   Int               @default(0)
+  deliveryAddress   String
+  deliveryDateTime  DateTime
+  imageUrl          String?
+  designDetails     String?           @db.Text
+  size              String?
+  flowerTypes       String?
+  // ↓↓↓ この行を一時的にコメントアウトします ↓↓↓
+  status            ProjectStatus     @default(PENDING_APPROVAL)
+  visibility        ProjectVisibility @default(PUBLIC)
   completionImageUrls String[]
-  completionComment   String?           @db.Text
-  createdAt           DateTime          @default(now())
-  updatedAt           DateTime          @updatedAt
+  completionComment String?           @db.Text
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  finalBalance            Int?    // 企画完了時の最終残高（余剰金）
+  surplusUsageDescription String? @db.Text // 余剰金の使い道のメモ
 
   // Relations
   plannerId           String

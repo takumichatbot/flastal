@@ -17,6 +17,85 @@ import ReportModal from './components/ReportModal';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
+// ★★★【新規】目標金額変更モーダルのコンポーネント ★★★
+function TargetAmountModal({ project, user, onClose, onUpdate }) {
+  const [newAmount, setNewAmount] = useState(project.targetAmount);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!user) {
+        toast.error("ログインが必要です。");
+        return;
+    }
+    const parsedNewAmount = parseInt(newAmount, 10);
+     if (isNaN(parsedNewAmount)) {
+        toast.error("有効な金額を入力してください。");
+        return;
+    }
+
+    setIsSubmitting(true);
+
+    const promise = fetch(`${API_URL}/api/projects/${project.id}/target-amount`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        newTargetAmount: parsedNewAmount, // 送るのは数値
+        userId: user.id
+      }),
+    }).then(async (res) => {
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message);
+      return data;
+    });
+
+    toast.promise(promise, {
+      loading: '更新中...',
+      success: () => {
+        onUpdate(); // 親コンポーネントのデータを再読み込み
+        onClose();
+        return '目標金額を更新しました！';
+      },
+      error: (err) => err.message,
+      finally: () => setIsSubmitting(false)
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
+      <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
+        <form onSubmit={handleSubmit}>
+          <h2 className="text-xl font-bold mb-4">目標金額の変更</h2>
+          <p className="text-sm text-gray-600 mb-4">
+            お花屋さんとの相談の結果、当初の目標金額を変更する必要がある場合に利用します。
+          </p>
+          <div>
+            <label htmlFor="newTargetAmount" className="block text-sm font-medium text-gray-700">新しい目標金額 (pt)</label>
+            <input
+              id="newTargetAmount"
+              type="number"
+              value={newAmount}
+              onChange={(e) => setNewAmount(e.target.value)}
+              min={project.collectedAmount} // 集まった金額より下には設定できない
+              required
+              className="w-full mt-1 p-2 border rounded-md text-gray-900 focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              ※現在集まっている <strong className="text-sky-600">{project.collectedAmount.toLocaleString()} pt</strong> 以上の金額を設定してください。
+            </p>
+          </div>
+          <div className="mt-6 flex justify-end gap-4">
+            <button type="button" onClick={onClose} className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300">キャンセル</button>
+            <button type="submit" disabled={isSubmitting} className="px-4 py-2 font-bold text-white bg-green-500 rounded-md hover:bg-green-600 disabled:bg-slate-400">
+              {isSubmitting ? '更新中...' : '更新する'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 export default function ProjectDetailPage() {
   const params = useParams();
   const { id } = params;
@@ -313,20 +392,67 @@ export default function ProjectDetailPage() {
       <div className="min-h-screen bg-gray-100 p-4 sm:p-8">
         <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 bg-white rounded-2xl shadow-xl overflow-hidden">
-            {project.status === 'COMPLETED' && project.completionImageUrls?.length > 0 && (
-              <div className="p-8 bg-gradient-to-br from-yellow-50 to-orange-100">
-                <h2 className="text-2xl font-bold text-center text-yellow-800 mb-4">🎉 企画完了報告 🎉</h2>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  {project.completionImageUrls.map((url, index) => (
-                    <img key={index} src={url} alt={`完成写真 ${index + 1}`} className="w-full h-full object-cover rounded-lg shadow-md cursor-pointer hover:scale-105 transition-transform" />
-                  ))}
-                </div>
-                {project.completionComment && (
-                  <div className="mt-6 bg-white/70 backdrop-blur-sm p-4 rounded-lg">
-                    <p className="font-semibold text-gray-800">企画者からのメッセージ:</p>
-                    <p className="text-gray-700 whitespace-pre-wrap mt-2">{project.completionComment}</p>
+            {/* ★★★ 完了報告セクションを修正 ★★★ */}
+            {project.status === 'COMPLETED' && (
+                <div className="p-6 md:p-8 bg-gradient-to-br from-yellow-50 to-orange-100 border-b border-orange-200">
+                    <h2 className="text-2xl font-bold text-center text-yellow-800 mb-4">🎉 企画完了報告 🎉</h2>
+                    {/* 画像表示 */}
+                    {project.completionImageUrls?.length > 0 && (
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+                            {project.completionImageUrls.map((url, index) => (
+                                // 画像クリックでモーダル表示する機能を追加しても良い
+                                <img key={index} src={url} alt={`完成写真 ${index + 1}`} className="w-full h-auto object-cover rounded-lg shadow-md aspect-square" />
+                            ))}
+                          </div>
+                    )}
+                    {/* 企画者コメント */}
+                    {project.completionComment && (
+                        <div className="mb-6 bg-white/70 backdrop-blur-sm p-4 rounded-lg border border-orange-100">
+                            <p className="font-semibold text-gray-800">企画者からのメッセージ:</p>
+                            <p className="text-gray-700 whitespace-pre-wrap mt-2">{project.completionComment}</p>
+                        </div>
+                    )}
+                    {/* ★ 最終収支と使い道の表示を追加 */}
+                    <div className="bg-white/70 backdrop-blur-sm p-4 rounded-lg border border-orange-100">
+                         <h3 className="font-semibold text-gray-800 mb-2">最終収支</h3>
+                         <div className="space-y-1 text-sm">
+                            <div className="flex justify-between"><span className="text-gray-600">収入 (支援総額):</span> <span className="font-medium">{project.collectedAmount.toLocaleString()} pt</span></div>
+                            {/* project.expenses が include されている前提 */}
+                            <div className="flex justify-between text-red-600"><span className="text-gray-600">支出合計:</span> <span className="font-medium">- {(project.expenses?.reduce((s,e)=>s+e.amount,0) || 0).toLocaleString()} pt</span></div>
+                            <div className="flex justify-between font-bold border-t pt-1 mt-1"><span className="text-gray-800">最終残高 (余剰金):</span> <span>{project.finalBalance?.toLocaleString() ?? '未計算'} pt</span></div>
+                         </div>
+                         {/* 使い道の表示 */}
+                         {project.surplusUsageDescription && (
+                             <div className="mt-3 border-t pt-2">
+                                <p className="font-semibold text-gray-800 text-sm">余剰金の使い道:</p>
+                                <p className="text-gray-700 whitespace-pre-wrap mt-1 text-sm">{project.surplusUsageDescription}</p>
+                             </div>
+                         )}
+                    </div>
+                 </div>
+            )}
+            
+            {/* ★★★【追加】企画管理セクション ★★★ */}
+             {isPlanner && (
+              <div className="border-t my-8 pt-6 px-8">
+                <h2 className="text-2xl font-semibold text-gray-800 mb-4">企画管理</h2>
+                <div className="bg-slate-50 p-4 rounded-lg space-y-4 border border-slate-200">
+                  <div>
+                    <h3 className="font-semibold text-gray-700">目標金額の変更</h3>
+                    <p className="text-sm text-gray-600 mt-1 mb-3">
+                      お花屋さんとの相談で見積もり額が変わった場合などに、目標金額を更新できます。
+                    </p>
+                    <button
+                      onClick={() => setIsTargetAmountModalOpen(true)}
+                      // 募集中か達成済みの場合のみ変更可能にする (任意)
+                      // disabled={project.status !== 'FUNDRAISING' && project.status !== 'SUCCESSFUL'}
+                      className="px-4 py-2 text-sm font-semibold text-white bg-sky-500 rounded-lg hover:bg-sky-600 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+                    >
+                      目標金額を変更する
+                    </button>
                   </div>
-                )}
+                  {/* 将来的に他の管理機能（例：企画編集）もここに追加できる */}
+                </div>
               </div>
             )}
             
@@ -625,6 +751,14 @@ export default function ProjectDetailPage() {
       {isReportModalOpen && <ReportModal projectId={id} user={user} onClose={() => setReportModalOpen(false)} />}
       {/* ★ user={user} を CompletionReportModal に渡す */}
       {isCompletionModalOpen && <CompletionReportModal project={project} user={user} onClose={() => setIsCompletionModalOpen(false)} onReportSubmitted={fetchProject} />}
+      {isTargetAmountModalOpen && (
+        <TargetAmountModal
+          project={project}
+          user={user}
+          onClose={() => setIsTargetAmountModalOpen(false)}
+          onUpdate={fetchProject} // 更新成功時に企画データを再読み込み
+        />
+      )}
     </>
   );
 }

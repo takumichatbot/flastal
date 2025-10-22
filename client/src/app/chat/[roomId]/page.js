@@ -1,17 +1,17 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react'; // ★ useCallback をインポート
 import { io } from 'socket.io-client';
-import { useAuth } from '../../contexts/AuthContext'; // Using the main user context
-import { useParams, useRouter } from 'next/navigation'; // Added useRouter
+import { useAuth } from '../../contexts/AuthContext'; // 一般ユーザー用Context
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import toast from 'react-hot-toast'; // Import toast
+import toast from 'react-hot-toast';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com'; // Correct URL
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
-// --- Quotation Modal Component ---
+// --- 見積書作成モーダル ---
+// ★ floristUser を props で受け取る
 function QuotationModal({ project, floristUser, onClose, onQuotationSubmitted }) {
-  // Removed useAuth here, assume florist user is passed as prop
   const [items, setItems] = useState([{ itemName: '', amount: '' }]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -34,7 +34,8 @@ function QuotationModal({ project, floristUser, onClose, onQuotationSubmitted })
   const totalAmount = items.reduce((sum, item) => sum + (parseInt(item.amount, 10) || 0), 0);
 
   const handleSubmit = async () => {
-     if (!floristUser) {
+    // ★ floristUserが存在するかチェック
+    if (!floristUser || !floristUser.id) {
         toast.error("お花屋さん情報が見つかりません。");
         return;
     }
@@ -47,39 +48,36 @@ function QuotationModal({ project, floristUser, onClose, onQuotationSubmitted })
         return;
     }
 
-    // ★★★ Corrected API call: No token, added floristId ★★★
+    // ★★★ API呼び出し修正: トークン不要、floristId追加 ★★★
     const promise = fetch(`${API_URL}/api/quotations`, {
       method: 'POST',
-      headers: { 
-          'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        projectId: project.id, // Ensure this is the correct project ID
-        items: validItems,
-        floristId: floristUser.id, // Send florist ID
+        projectId: project.id,
+        items: validItems.map(item => ({...item, amount: parseInt(item.amount, 10)})), // amountを数値に
+        floristId: floristUser.id, // ★ お花屋さんIDを追加
       }),
-    }).then(async (res) => { // Added async
+    }).then(async (res) => {
       if (!res.ok) {
         const data = await res.json();
         throw new Error(data.message || '見積書の作成に失敗しました。');
       }
-      return res.json(); // Return data
+      return res.json();
     });
 
     toast.promise(promise, {
         loading: '見積書を送信中...',
         success: () => {
-            onQuotationSubmitted(); 
+            onQuotationSubmitted();
             onClose();
             return '見積書を送信しました。';
         },
         error: (err) => err.message,
-        finally: () => {
-            setIsSubmitting(false);
-        }
+        finally: () => setIsSubmitting(false)
     });
   };
 
+  // --- JSX (変更なし) ---
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
       <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-lg">
@@ -108,155 +106,149 @@ function QuotationModal({ project, floristUser, onClose, onQuotationSubmitted })
   );
 }
 
-
-// --- Chat Page Component ---
+// --- チャットページ本体 ---
 export default function ChatPage() {
   const params = useParams();
   const { roomId } = params;
-  const { user } = useAuth(); // Using main AuthContext for user info
-  const router = useRouter(); // Initialize router
+  const { user } = useAuth(); // 一般ユーザー情報
+  const router = useRouter();
 
   const [socket, setSocket] = useState(null);
   const [messages, setMessages] = useState([]);
   const [currentMessage, setCurrentMessage] = useState('');
   const [roomInfo, setRoomInfo] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [isModalOpen, setIsModalOpen] = useState(false); // For quotation modal
+  const [isModalOpen, setIsModalOpen] = useState(false); // 見積もりモーダル用
   const [chatError, setChatError] = useState('');
-  const [loggedInFlorist, setLoggedInFlorist] = useState(null); // State for florist login
+  const [loggedInFlorist, setLoggedInFlorist] = useState(null); // お花屋さんログイン情報用
 
   const messagesEndRef = useRef(null);
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+  const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   useEffect(scrollToBottom, [messages]);
 
-  // Determine user type based on localStorage or AuthContext
-  const getCurrentEntityType = () => {
-      if (user) return 'USER';
-      if (localStorage.getItem('flastal-florist')) return 'FLORIST';
-      return null;
-  };
-  const entityType = getCurrentEntityType();
+  // ★ 現在ログインしているエンティティ（USER or FLORIST）を特定する関数
+  const getCurrentEntity = useCallback(() => {
+    if (user) return { entity: user, type: 'USER' };
+    const storedFlorist = localStorage.getItem('flastal-florist');
+    if (storedFlorist) {
+      try {
+        return { entity: JSON.parse(storedFlorist), type: 'FLORIST' };
+      } catch (e) {
+        localStorage.removeItem('flastal-florist'); // 不正なデータは削除
+        return { entity: null, type: null };
+      }
+    }
+    return { entity: null, type: null };
+  }, [user]); // userが変わった時だけ再評価
 
-  // Function to fetch chat data
-  const fetchChatData = async () => {
+  const { entity: currentEntity, type: currentEntityType } = getCurrentEntity();
+
+  // ★ データ取得関数を useCallback でメモ化
+  const fetchChatData = useCallback(async () => {
     if (!roomId) return;
     try {
-      setLoading(true); // Ensure loading is true at the start
-      // ★★★ Corrected API call: No token needed in header ★★★
-      const res = await fetch(`${API_URL}/api/chat/${roomId}`); 
+      setLoading(true);
+      const res = await fetch(`${API_URL}/api/chat/${roomId}`); // API修正
       if (!res.ok) throw new Error('チャットルームの読み込みに失敗しました。');
       const data = await res.json();
       setRoomInfo(data);
-      setMessages(data.messages || []); // Ensure messages is an array
+      setMessages(data.messages || []);
     } catch (error) {
-      toast.error(error.message); // Use toast
-      setRoomInfo(null); // Reset room info on error
+      toast.error(error.message);
+      setRoomInfo(null);
       setMessages([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [roomId]); // roomIdが変わった時だけ再生成
 
   // Effect for fetching data and setting up WebSocket
   useEffect(() => {
     if (!roomId) return;
 
-    // Check localStorage for florist login info
-     const storedFlorist = localStorage.getItem('flastal-florist');
-     if (storedFlorist) {
-         try {
-             setLoggedInFlorist(JSON.parse(storedFlorist));
-         } catch(e) { /* ignore parse error */ }
-     }
-    
-    // Check if either a regular user or a florist is logged in
-    const currentUser = user || loggedInFlorist; 
-    if (!currentUser) {
-        // If neither is logged in after checks, redirect
-        if (!loading) { // Avoid redirect during initial loading
-             toast.error("ログインが必要です。");
-             router.push('/login'); // Redirect to general login
-        }
-        return; 
+    // ログイン状態を確認 (ページ読み込み時)
+    const { entity: initialEntity } = getCurrentEntity();
+    if (!initialEntity && !loading) { // loading完了後にもentityがなければリダイレクト
+        toast.error("ログインが必要です。");
+        router.push('/login'); // 一般ログインへリダイレクト
+        return;
     }
 
-    fetchChatData(); // Fetch initial data
+    fetchChatData(); // 初回データ取得
 
-    // ★★★ Corrected WebSocket connection: No token auth ★★★
-    const newSocket = io(API_URL);
-    setSocket(newSocket);
+    // WebSocket接続 (ログインしている場合のみ)
+    if(initialEntity) {
+        const newSocket = io(API_URL);
+        setSocket(newSocket);
+        newSocket.emit('joinRoom', roomId); // ★ イベント名修正
 
-    newSocket.emit('joinRoom', roomId); // Use the correct event name 'joinRoom'
+        newSocket.on('receiveMessage', (newMessage) => { // ★ イベント名修正
+          setMessages((prevMessages) => [...prevMessages, newMessage]);
+        });
+        newSocket.on('messageError', (errorMessage) => {
+          setChatError(errorMessage);
+          setTimeout(() => setChatError(''), 5000);
+        });
+        newSocket.on('floristMessageDeleted', ({ messageId }) => {
+          setMessages(prevMessages => prevMessages.filter(m => m.id !== messageId));
+        });
 
-    newSocket.on('receiveMessage', (newMessage) => { // Use correct event 'receiveMessage'
-      setMessages((prevMessages) => [...prevMessages, newMessage]);
-    });
-
-    newSocket.on('messageError', (errorMessage) => {
-      setChatError(errorMessage); 
-      setTimeout(() => setChatError(''), 5000);
-    });
-
-    newSocket.on('floristMessageDeleted', ({ messageId }) => { // Assuming event name is correct
-      setMessages(prevMessages => prevMessages.filter(m => m.id !== messageId));
-    });
-
-    return () => {
-      newSocket.off('receiveMessage');
-      newSocket.off('messageError');
-      newSocket.off('floristMessageDeleted');
-      newSocket.disconnect();
-    };
-  }, [roomId, user, loading, router]); // Add loading and router to dependencies
+        // クリーンアップ
+        return () => {
+          newSocket.off('receiveMessage');
+          newSocket.off('messageError');
+          newSocket.off('floristMessageDeleted');
+          newSocket.disconnect();
+        };
+    }
+  // ★ 依存関係を getCurrentEntity に変更
+  }, [roomId, getCurrentEntity, fetchChatData, router, loading]);
 
   const handleSendMessage = (e) => {
     e.preventDefault();
-    const currentUser = user || loggedInFlorist; // Get the currently logged in entity
-    const currentEntityType = user ? 'USER' : (loggedInFlorist ? 'FLORIST' : null);
+    // 送信時にも再度ログイン状態を確認
+    const { entity: currentEntity, type: currentEntityType } = getCurrentEntity();
 
-    if (currentMessage.trim() && currentUser && currentEntityType && socket) {
+    if (currentMessage.trim() && currentEntity && currentEntityType && socket) {
       setChatError('');
-      // ★★★ Corrected 'sendMessage' payload ★★★
+      // ★★★ sendMessage イベント名とペイロード修正 ★★★
       socket.emit('sendMessage', {
         roomId: roomId,
         content: currentMessage,
-        senderType: currentEntityType, // 'USER' or 'FLORIST'
-        userId: currentEntityType === 'USER' ? currentUser.id : null,
-        floristId: currentEntityType === 'FLORIST' ? currentUser.id : null,
+        senderType: currentEntityType,
+        userId: currentEntityType === 'USER' ? currentEntity.id : null,
+        floristId: currentEntityType === 'FLORIST' ? currentEntity.id : null,
       });
       setCurrentMessage('');
-    } else if (!currentUser || !currentEntityType) {
+    } else if (!currentEntity || !currentEntityType) {
         toast.error("メッセージ送信にはログインが必要です。");
     }
   };
 
   const handleApproveQuotation = async (quotationId) => {
-    if (!user) { // Only regular users (planners) can approve
+    // 承認は一般ユーザーのみ
+    const { entity: currentEntity, type: currentEntityType } = getCurrentEntity();
+    if (currentEntityType !== 'USER' || !currentEntity) {
         toast.error("見積書の承認には企画者としてログインが必要です。");
         return;
     }
     if (window.confirm("この見積書の内容で支払いを確定します。集まったポイントから合計額が引き落とされます。よろしいですか？")) {
-      // ★★★ Corrected API call: No token, added userId ★★★
       const promise = fetch(`${API_URL}/api/quotations/${quotationId}/approve`, {
         method: 'PATCH',
-        headers: { 
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ userId: user.id }) // Send userId in body
-      }).then(async (res) => { // Added async
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: currentEntity.id }) // userIdを送信
+      }).then(async (res) => {
         if (!res.ok) {
           const data = await res.json();
-          throw new Error(data.message);
+          throw new Error(data.message || '承認処理に失敗しました。'); // エラーメッセージ改善
         }
-        return res.json(); // Return data
+        return res.json();
       });
 
       toast.promise(promise, {
           loading: '処理中...',
           success: () => {
-              fetchChatData(); // Refresh data
+              fetchChatData();
               return '見積書を承認し、支払いが完了しました！';
           },
           error: (err) => err.message,
@@ -264,9 +256,7 @@ export default function ChatPage() {
     }
   };
 
-  // Determine current user/entity type again for rendering logic
-  const currentEntityTypeRender = user ? 'USER' : (loggedInFlorist ? 'FLORIST' : null);
-
+  // --- ローディング・エラー表示 ---
   if (loading) {
       return (
           <div className="flex items-center justify-center min-h-screen">
@@ -274,9 +264,8 @@ export default function ChatPage() {
           </div>
       );
   }
-
-   // If loading is finished but still no user/florist AND no roomInfo, show login prompt
-   if (!user && !loggedInFlorist && !roomInfo) {
+  // loading完了後にも entity がなく roomInfo もない場合 (ログイン促し)
+   if (!currentEntity && !roomInfo && !loading) {
        return (
          <div className="text-center p-10 flex flex-col items-center justify-center min-h-screen">
            <p className="mb-4">このページにアクセスするにはログインが必要です。</p>
@@ -287,36 +276,38 @@ export default function ChatPage() {
          </div>
        );
    }
-
-  if (!roomInfo || !roomInfo.offer || !roomInfo.offer.project) {
-    return <p className="text-center p-10 text-red-600">チャットルーム情報が見つかりません。</p>;
+  // roomInfo が取得できなかった場合のエラー表示
+  if (!roomInfo || !roomInfo.offer || !roomInfo.offer.project || !roomInfo.offer.florist || !roomInfo.offer.project.planner) {
+    return <p className="text-center p-10 text-red-600">チャットルーム情報の読み込みに失敗しました。</p>;
   }
+
 
   const project = roomInfo.offer.project;
   const florist = roomInfo.offer.florist;
   const planner = project.planner;
-  
-  // Determine chat partner name based on current user type
-  const chatPartnerName = currentEntityTypeRender === 'USER' 
-      ? florist?.platformName || 'お花屋さん' 
+
+  // ★ チャット相手の名前を確実に取得
+  const chatPartnerName = currentEntityType === 'USER'
+      ? florist?.platformName || 'お花屋さん'
       : planner?.handleName || '企画者';
-      
-  const isPlanner = currentEntityTypeRender === 'USER' && user?.id === planner?.id;
-  const quotation = project.quotation; // Assuming quotation is directly on project
+
+  const isPlanner = currentEntityType === 'USER' && currentEntity?.id === planner?.id;
+  const quotation = project.quotation;
+  const hasEnoughPoints = quotation ? project.collectedAmount >= quotation.totalAmount : false;
 
   return (
     <>
       <div className="flex flex-col h-screen bg-gray-100">
         <header className="bg-white shadow-sm p-4 text-center sticky top-0 z-10 border-b">
-          <p className="text-sm text-gray-500">企画名: 
+          <p className="text-sm text-gray-500">企画名:
             <Link href={`/projects/${project.id}`} className="text-sky-600 hover:underline ml-1">
                 {project.title || '不明な企画'}
             </Link>
           </p>
           <h1 className="text-xl font-bold text-gray-800">{chatPartnerName}さんとのチャット</h1>
         </header>
-        
-        <main className="flex-1 overflow-y-auto p-4 space-y-4" ref={messagesEndRef}>
+
+        <main className="flex-1 overflow-y-auto p-4 space-y-4">
           {quotation && (
             <div className="p-4 bg-yellow-100 border border-yellow-300 rounded-lg my-4 text-gray-800 shadow">
               <h3 className="font-bold text-yellow-800 text-center text-lg">見積書</h3>
@@ -324,33 +315,42 @@ export default function ChatPage() {
                 {(quotation.items || []).map(item => <li key={item.id}>{item.itemName}: {item.amount?.toLocaleString() || 0} pt</li>)}
               </ul>
               <p className="font-bold text-right border-t border-yellow-300 pt-2 text-lg">合計: {quotation.totalAmount?.toLocaleString() || 0} pt</p>
+
               {isPlanner && !quotation.isApproved && (
                 <div className="mt-4 text-center">
-                  <p className="text-sm text-yellow-800 mb-2">集まったポイント ({project.collectedAmount?.toLocaleString() || 0} pt) から上記合計額が支払われます。</p>
-                  <button 
-                    onClick={() => handleApproveQuotation(quotation.id)} 
-                    disabled={project.collectedAmount < quotation.totalAmount}
+                  <p className="text-sm text-yellow-800 mb-2">現在の支援総額: {project.collectedAmount?.toLocaleString() || 0} pt</p>
+
+                  <button
+                    onClick={() => handleApproveQuotation(quotation.id)}
+                    disabled={!hasEnoughPoints} // ポイント不足で disabled
                     className="px-6 py-2 bg-green-500 text-white font-bold rounded-lg hover:bg-green-600 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
                   >
-                    {project.collectedAmount < quotation.totalAmount ? 'ポイント不足' : '承認・支払い確定'}
+                    {hasEnoughPoints ? '承認・支払い確定' : 'ポイントが不足しています'}
                   </button>
+                  {!hasEnoughPoints && (
+                    <p className="text-xs text-red-600 mt-2">
+                      目標金額を変更して、追加の支援を募ってください。
+                    </p>
+                  )}
                 </div>
               )}
+
               {quotation.isApproved && <p className="text-center font-bold text-green-600 mt-4 text-lg">✓ 承認済み</p>}
             </div>
           )}
 
           {messages.map((msg) => (
-            <div key={msg.id} className={`flex ${msg.senderType === currentEntityTypeRender ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg shadow ${msg.senderType === currentEntityTypeRender ? 'bg-sky-500 text-white' : 'bg-white text-gray-800'}`}>
-                {msg.isAutoResponse && <p className="text-xs font-bold mb-1 opacity-80">🤖 AIからの自動応答</p>}
-                <p className="whitespace-pre-wrap">{msg.content}</p>
-                 <p className="text-xs mt-1 text-right opacity-70">{new Date(msg.createdAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}</p>
-              </div>
-            </div>
+             msg && msg.id ? ( // メッセージデータの存在確認
+                <div key={msg.id} className={`flex ${msg.senderType === currentEntityType ? 'justify-end' : 'justify-start'}`}>
+                <div className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg shadow ${msg.senderType === currentEntityType ? 'bg-sky-500 text-white' : 'bg-white text-gray-800'}`}>
+                    {msg.isAutoResponse && <p className="text-xs font-bold mb-1 opacity-80">🤖 AIからの自動応答</p>}
+                    <p className="whitespace-pre-wrap">{msg.content}</p>
+                    <p className="text-xs mt-1 text-right opacity-70">{new Date(msg.createdAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}</p>
+                </div>
+                </div>
+              ) : null
           ))}
-          {/* Dummy div to scroll to */}
-          <div ref={messagesEndRef} style={{ height: '1px' }}></div> 
+          <div ref={messagesEndRef} style={{ height: '1px' }}></div>
         </main>
 
         <footer className="bg-white p-4 border-t flex flex-col gap-2 sticky bottom-0">
@@ -360,25 +360,25 @@ export default function ChatPage() {
             </div>
           )}
           <div className="flex items-center gap-2 w-full">
-            {/* Show quotation button only if logged in as florist AND no quotation exists/is approved */}
-            {currentEntityTypeRender === 'FLORIST' && (!quotation || !quotation.isApproved) && ( 
+            {/* 見積もりボタンの表示条件を修正 */}
+            {currentEntityType === 'FLORIST' && (!quotation || !quotation.isApproved) && (
               <button onClick={() => setIsModalOpen(true)} title="見積書を作成" className="p-3 bg-yellow-400 text-white rounded-full hover:bg-yellow-500 transition-colors flex-shrink-0">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
               </button>
             )}
             <form onSubmit={handleSendMessage} className="flex-grow flex gap-2">
-              <input 
-                type="text" 
-                value={currentMessage} 
-                onChange={(e) => setCurrentMessage(e.target.value)} 
-                placeholder="メッセージを入力..." 
+              <input
+                type="text"
+                value={currentMessage}
+                onChange={(e) => setCurrentMessage(e.target.value)}
+                placeholder="メッセージを入力..."
                 className="flex-1 px-4 py-2 border-2 border-gray-200 rounded-full text-gray-900 focus:border-sky-500 focus:ring-0 transition"
-                disabled={!socket || (!user && !loggedInFlorist)} // Disable if not connected or logged in
+                disabled={!socket || !currentEntity} // 未接続・未ログイン時は無効
               />
-              <button 
-                type="submit" 
+              <button
+                type="submit"
                 className="px-6 py-2 bg-sky-500 text-white font-semibold rounded-full hover:bg-sky-600 transition-colors disabled:bg-gray-400"
-                disabled={!socket || !currentMessage.trim() || (!user && !loggedInFlorist)} // Also disable if no message
+                disabled={!socket || !currentMessage.trim() || !currentEntity} // 未接続・未入力・未ログイン時は無効
               >
                 送信
               </button>
@@ -386,8 +386,8 @@ export default function ChatPage() {
           </div>
         </footer>
       </div>
-      {/* Pass loggedInFlorist to the modal */}
-      {isModalOpen && <QuotationModal project={project} floristUser={loggedInFlorist} onClose={() => setIsModalOpen(false)} onQuotationSubmitted={fetchChatData} />} 
+      {/* ★ floristUser として currentEntity を渡す */}
+      {isModalOpen && currentEntityType === 'FLORIST' && <QuotationModal project={project} floristUser={currentEntity} onClose={() => setIsModalOpen(false)} onQuotationSubmitted={fetchChatData} />}
     </>
   );
 }

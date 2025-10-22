@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
@@ -270,45 +271,45 @@ app.post('/api/projects', async (req, res) => {
         size,
         flowerTypes,
         visibility,
+        // ★ status は自動で 'PENDING_APPROVAL' に設定（schema.prismaでデフォルト設定）
       },
     });
-    res.status(201).json(newProject);
+    // ★ 成功メッセージを具体的する
+    res.status(201).json({ project: newProject, message: '企画の作成申請が完了しました。運営による審査をお待ちください。' });
   } catch (error) {
     console.error('企画作成エラー:', error);
     res.status(500).json({ message: '企画の作成中にエラーが発生しました。' });
   }
 });
 
-// ★★★ 全ての企画を取得するAPI (修正版) ★★★
+// ★★★ 全ての企画を取得するAPI (最終修正版) ★★★
 app.get('/api/projects', async (req, res) => {
   try {
     const projects = await prisma.project.findMany({
       where: {
-        visibility: 'PUBLIC', // isVisible: true, は削除
+        visibility: 'PUBLIC',
+        status: 'FUNDRAISING', // ★ '募集中' の企画のみ
+        NOT: { status: 'CANCELED' },
       },
       include: {
         planner: true,
-        pledges: {
-          orderBy: { createdAt: 'desc' },
-          include: { user: true }
-        }
       },
       orderBy: { createdAt: 'desc' }
     });
     res.status(200).json(projects);
   } catch (error) {
-    console.error('企画取得エラー:', error);
+    console.error('企画一覧取得エラー:', error);
     res.status(500).json({ message: '企画の取得中にエラーが発生しました。' });
   }
 });
 
-// ★★★ 最新の企画をいくつか取得するAPI (修正版) ★★★
+// こちらも 'FUNDRAISING' (募集中) の企画のみを取得
 app.get('/api/projects/featured', async (req, res) => {
   try {
     const projects = await prisma.project.findMany({
       where: { 
-        status: 'FUNDRAISING',
-        visibility: 'PUBLIC', // isVisible: true, は削除
+        status: 'FUNDRAISING', // ★ '募集中' の企画のみ
+        visibility: 'PUBLIC',
       },
       take: 4,
       orderBy: { createdAt: 'desc' },
@@ -321,7 +322,8 @@ app.get('/api/projects/featured', async (req, res) => {
   }
 });
 
-// ★★★ 単一の企画を取得するAPI (最終修正版) ★★★
+
+// ★★★ 単一の企画を取得するAPI (最終修正版 v2) ★★★
 app.get('/api/projects/:id', async (req, res) => {
   const { id } = req.params; 
 
@@ -331,10 +333,10 @@ app.get('/api/projects/:id', async (req, res) => {
         id: id,
       },
       include: {
-        planner: true,
+        planner: true, // select でパスワード除外推奨
         pledges: {
           orderBy: { createdAt: 'desc' },
-          include: { user: true }
+          include: { user: { select: { id: true, handleName: true } } } // user情報も限定
         },
         announcements: {
           orderBy: { createdAt: 'desc' }
@@ -346,40 +348,88 @@ app.get('/api/projects/:id', async (req, res) => {
           orderBy: { createdAt: 'asc' }
         },
         // ★★★ ここを修正 ★★★
-        // activePoll の中の include から、不要な options を削除します。
-        // votes のみ include すればOKです。
+        // activePoll の include から options を削除。
+        // votes の select も、よりシンプルに votes: true でも良い。
         activePoll: { 
           include: {
-            votes: true // これでアンケートに紐づく全ての投票が取得できます
+            votes: { // ActivePollに直接紐づくvotesを取得
+              select: { // 必要な情報だけ選択 (userId と optionIndex)
+                userId: true,
+                optionIndex: true 
+              }
+            } 
           }
         },
         // ★★★ 修正ここまで ★★★
         messages: { 
            orderBy: { createdAt: 'asc' },
-           include: { user: { select: { handleName: true } } }
+           include: { user: { select: { id: true, handleName: true } } }
         },
-        offer: {
+        offer: { 
             include: { florist: { select: { id: true, platformName: true } } }
         },
-        quotation: {
+        quotation: { 
             include: { items: true }
         },
-        review: true,
-        groupChatMessages: { // グループチャットのメッセージも取得
+        review: { // レビューもユーザー情報など含めるなら include を使う
+          include: { user: { select: { id: true, handleName: true } } }
+        },
+        groupChatMessages: { 
             orderBy: { createdAt: 'asc' },
-            include: { user: { select: { handleName: true } } }
+            include: { user: { select: { id: true, handleName: true } } }
         }
+        // 他に commission, reports など必要に応じて追加
       },
     });
 
     if (project) {
       res.status(200).json(project);
     } else {
+      // 企画が見つからなかった場合は 404 を返す
       res.status(404).json({ message: '企画が見つかりません。' });
     }
   } catch (error) {
     console.error('企画取得エラー:', error);
+    // エラーの種類に応じて適切なステータスコードを返すことも検討
     res.status(500).json({ message: '企画の取得中にエラーが発生しました。' });
+  }
+});
+
+  // ★★★【新規】管理者向けAPI(1): 審査待ちの企画一覧を取得 ★★★
+app.get('/api/admin/projects/pending', async (req, res) => {
+  // ここに管理者認証のロジックを追加するのが望ましい
+  try {
+    const pendingProjects = await prisma.project.findMany({
+      where: { status: 'PENDING_APPROVAL' },
+      include: { planner: { select: { handleName: true } } },
+      orderBy: { createdAt: 'asc' },
+    });
+    res.status(200).json(pendingProjects);
+  } catch (error) {
+    console.error("審査待ち企画の取得エラー:", error);
+    res.status(500).json({ message: '審査待ち企画の取得中にエラーが発生しました。' });
+  }
+});
+
+// ★★★【新規】管理者向けAPI(2): 企画のステータスを更新 (承認/却下) ★★★
+app.patch('/api/admin/projects/:projectId/status', async (req, res) => {
+  const { projectId } = req.params;
+  const { status } = req.body; // 'FUNDRAISING' (承認) or 'REJECTED' (却下)
+
+  // ステータスが正しいか検証
+  if (status !== 'FUNDRAISING' && status !== 'REJECTED') {
+    return res.status(400).json({ message: '無効なステータスです。' });
+  }
+  
+  try {
+    const updatedProject = await prisma.project.update({
+      where: { id: projectId },
+      data: { status: status },
+    });
+    res.status(200).json(updatedProject);
+  } catch (error) {
+    console.error("企画ステータスの更新エラー:", error);
+    res.status(500).json({ message: 'ステータスの更新に失敗しました。' });
   }
 });
 
@@ -672,6 +722,69 @@ app.post('/api/offers', async (req, res) => {
       return res.status(409).json({ message: 'この企画は既にオファーに出されています。' });
     }
     res.status(500).json({ message: 'オファーの作成中にエラーが発生しました。' });
+  }
+});
+
+// ★★★【新規】オファー可能な企画を取得するAPI ★★★
+app.get('/api/users/:userId/offerable-projects', async (req, res) => {
+  const { userId } = req.params;
+  try {
+    const projects = await prisma.project.findMany({
+      where: {
+        plannerId: userId,
+        // 募集中、または目標達成済み
+        OR: [
+          { status: 'FUNDRAISING' },
+          { status: 'SUCCESSFUL' },
+        ],
+        // まだオファーが作成されていない
+        offer: null,
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+    res.status(200).json(projects);
+  } catch (error) {
+    console.error("オファー可能企画の取得エラー:", error);
+    res.status(500).json({ message: '企画の取得中にエラーが発生しました。' });
+  }
+});
+
+// ★★★【新規】目標金額を変更するAPI ★★★
+app.patch('/api/projects/:projectId/target-amount', async (req, res) => {
+  const { projectId } = req.params;
+  const { newTargetAmount, userId } = req.body;
+
+  try {
+    const project = await prisma.project.findUnique({
+      where: { id: projectId },
+    });
+
+    if (!project) {
+      return res.status(404).json({ message: '企画が見つかりません。' });
+    }
+    // 企画者本人でなければ変更できない
+    if (project.plannerId !== userId) {
+      return res.status(403).json({ message: '権限がありません。' });
+    }
+    // 新しい目標金額が、既に集まった金額より少ない場合はエラー
+    const parsedNewAmount = parseInt(newTargetAmount, 10); // ★ 数値に変換
+    if (isNaN(parsedNewAmount) || parsedNewAmount < project.collectedAmount) { // ★ NaNチェック追加
+      return res.status(400).json({ message: `新しい目標金額は、現在集まっている金額（${project.collectedAmount.toLocaleString()} pt）以上に設定する必要があります。` });
+    }
+
+    const updatedProject = await prisma.project.update({
+      where: { id: projectId },
+      data: {
+        targetAmount: parsedNewAmount, // ★ 変換した数値を使用
+        // 目標金額が下がって達成済みになった場合、ステータスも更新
+        status: (project.collectedAmount >= parsedNewAmount) ? 'SUCCESSFUL' : project.status,
+      },
+    });
+
+    res.status(200).json(updatedProject);
+  } catch (error) {
+    console.error("目標金額の更新エラー:", error);
+    res.status(500).json({ message: '目標金額の更新中にエラーが発生しました。' });
   }
 });
 
@@ -1333,26 +1446,64 @@ app.patch('/api/admin/projects/:projectId/visibility', async (req, res) => {
 
 app.patch('/api/projects/:projectId/complete', async (req, res) => {
   const { projectId } = req.params;
-  const { userId, completionImageUrls, completionComment } = req.body;
+  // ★ リクエストボディから surplusUsageDescription を受け取るように変更
+  const { userId, completionImageUrls, completionComment, surplusUsageDescription } = req.body; 
+
   try {
+    // プロジェクト情報と、紐づく支出情報を一緒に取得
     const project = await prisma.project.findUnique({
       where: { id: projectId },
+      include: { expenses: true }, // ★ 支出情報も取得して残高計算に使用
     });
-    if (!project || project.plannerId !== userId) {
-      return res.status(403).json({ message: '権限がありません。' });
+
+    // --- 事前チェック ---
+    if (!project) {
+        return res.status(404).json({ message: '企画が見つかりません。' });
     }
+    // 企画者本人かチェック
+    if (project.plannerId !== userId) {
+      return res.status(403).json({ message: '権限がありません。あなたはこの企画の主催者ではありません。' });
+    }
+    // 既に完了/中止済みの企画でないかチェック
+    if (project.status === 'COMPLETED' || project.status === 'CANCELED') {
+        return res.status(400).json({ message: 'この企画は既に完了または中止されています。' });
+    }
+    // 目標達成前に完了報告させない (任意：コメントアウトしてもOK)
+    // if (project.status !== 'SUCCESSFUL') {
+    //     return res.status(400).json({ message: '目標達成後に完了報告を行ってください。' });
+    // }
+    // 画像URLが配列であるかチェック (任意：より厳密にする場合)
+    if (!Array.isArray(completionImageUrls)) {
+        return res.status(400).json({ message: '画像URLの形式が正しくありません。' });
+    }
+
+    // ★★★ 最終残高 (余剰金) を計算 ★★★
+    const totalExpense = project.expenses.reduce((sum, exp) => sum + exp.amount, 0);
+    const finalBalance = project.collectedAmount - totalExpense;
+
+    // ★★★ データベースを更新 ★★★
     const completedProject = await prisma.project.update({
       where: { id: projectId },
       data: {
-        status: 'COMPLETED',
-        completionImageUrls: completionImageUrls,
-        completionComment: completionComment,
+        status: 'COMPLETED', // ステータスを「完了」に
+        completionImageUrls: completionImageUrls, // 画像URLを保存
+        completionComment: completionComment, // 参加者へのコメントを保存
+        finalBalance: finalBalance, // ★ 計算した最終残高を保存
+        surplusUsageDescription: surplusUsageDescription, // ★ 余剰金の使い道メモを保存
       },
+      // 更新後のプロジェクト情報を返す (任意：includeで必要な情報を追加)
+      include: {
+          expenses: true, // 更新後の収支確認のため
+          planner: { select: { handleName: true } } // 例
+      }
     });
+
+    // 成功レスポンス
     res.status(200).json(completedProject);
+
   } catch (error) {
     console.error("完了報告の投稿エラー:", error);
-    res.status(500).json({ message: '完了報告の投稿中にエラーが発生しました。' });
+    res.status(500).json({ message: '完了報告の投稿処理中にエラーが発生しました。' });
   }
 });
 

@@ -94,8 +94,10 @@ export default function CreateProjectPage() {
     toast.promise(promise, {
       loading: '企画を作成中...',
       success: (data) => {
-        router.push('/projects');
-        return '企画の作成に成功しました！';
+        // 企画作成後はマイページに移動させる（審査状況を確認できるように）
+        router.push('/mypage?tab=created');
+        // バックエンドからの成功メッセージを表示する
+        return data.message || '企画の作成申請が完了しました。審査をお待ちください。';
       },
       error: (err) => err.message,
       finally: () => {
