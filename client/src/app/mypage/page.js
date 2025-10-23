@@ -1,6 +1,7 @@
 "use client";
 export const dynamic = 'force-dynamic';
 
+
 import { useEffect, useState, useCallback } from 'react'; // ★ useCallback をインポート
 import { useAuth } from '../contexts/AuthContext';
 import { useRouter, useSearchParams } from 'next/navigation'; // ★ useSearchParams をインポート
