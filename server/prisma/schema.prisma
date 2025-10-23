@@ -43,6 +43,11 @@ enum ProjectVisibility {
   UNLISTED
 }
 
+enum UserRole {
+  USER
+  ADMIN
+}
+
 // --- Models ---
 
 model User {
@@ -51,6 +56,7 @@ model User {
   handleName           String
   password             String
   points               Int                @default(0)
+  role             UserRole @default(USER)
   referralCode         String             @unique @default(cuid())
   referredById         String?
   hasMadeFirstPurchase Boolean            @default(false)
