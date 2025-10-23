@@ -900,13 +900,27 @@ app.post('/api/upload', upload.single('image'), async (req, res) => {
 
 app.patch('/api/florists/:id', async (req, res) => {
   const { id } = req.params;
-  const { shopName, contactName, address, phoneNumber, website, portfolio, laruBotApiKey } = req.body;
+  // ★★★ 受け取るデータを追加 ★★★
+  const { 
+    shopName, platformName, contactName, address, 
+    phoneNumber, website, portfolio, laruBotApiKey,
+    portfolioImages, businessHours // ← 追加
+  } = req.body;
+
   try {
     const updatedFlorist = await prisma.florist.update({
       where: { id: id },
       data: {
-        shopName, contactName, address, phoneNumber, website, portfolio,
+        shopName,
+        platformName, // ★ platformNameも更新できるように
+        contactName,
+        address,
+        phoneNumber,
+        website,
+        portfolio,
         laruBotApiKey,
+        portfolioImages, // ★ 追加
+        businessHours,   // ★ 追加
       },
     });
     const { password, ...floristWithoutPassword } = updatedFlorist;

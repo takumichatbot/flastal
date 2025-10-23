@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import Link from 'next/link';
-import toast from 'react-hot-toast';
+import toast from 'react-hot-toast'; // toast をインポート
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -26,14 +26,17 @@ function OfferModal({ floristId, onClose }) {
           if (!res.ok) throw new Error('オファー可能な企画の取得に失敗しました。');
           const data = await res.json();
 
-          setProjects(data);
+          // データが配列であることを確認
+          const validProjects = Array.isArray(data) ? data : [];
+          setProjects(validProjects);
 
-          if (data.length === 0) {
+          if (validProjects.length === 0) {
             // alertの代わりにtoastを使う
             toast.error('現在オファーに出せる企画がありません。');
           }
         } catch (error) {
           toast.error(error.message);
+          setProjects([]); // エラー時は空にする
         } finally {
           setLoadingProjects(false);
         }
@@ -92,7 +95,8 @@ function OfferModal({ floristId, onClose }) {
                 required
               >
                 <option value="">-- 企画を選択 --</option>
-                {projects.map(p => <option key={p.id} value={p.id}>{p.title} ({p.status === 'FUNDRAISING' ? '募集中' : '達成済'})</option>)}
+                {/* projectデータが存在することを確認 */}
+                {projects.map(p => p && p.id && p.title ? <option key={p.id} value={p.id}>{p.title} ({p.status === 'FUNDRAISING' ? '募集中' : '達成済'})</option> : null)}
               </select>
             </div>
           )}
@@ -131,7 +135,12 @@ export default function FloristDetailPage({ params }) {
           const data = await response.json();
            // Convert nulls to empty strings for display
           Object.keys(data).forEach(key => {
-            if (data[key] === null) data[key] = '';
+            // portfolioImages は配列なので null -> [] にする
+            if (key === 'portfolioImages' && data[key] === null) {
+                data[key] = [];
+            } else if (data[key] === null) {
+                 data[key] = '';
+            }
           });
           setFlorist(data);
         } catch (error) {
@@ -142,6 +151,10 @@ export default function FloristDetailPage({ params }) {
         }
       };
       fetchFlorist();
+    } else {
+        // id がない場合はローディングを終了し、エラー表示
+        setLoading(false);
+        toast.error("お花屋さんのIDが見つかりません。");
     }
   }, [id]);
 
@@ -189,24 +202,41 @@ export default function FloristDetailPage({ params }) {
             )}
           </div>
 
+          {/* ★★★【新規】ポートフォリオ画像ギャラリー ★★★ */}
+          {florist.portfolioImages && florist.portfolioImages.length > 0 && (
+            <div className="mb-8">
+                <h2 className="text-xl font-semibold text-gray-700 mb-4">制作事例</h2>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    {florist.portfolioImages.map((url, index) => (
+                        <div key={index}>
+                            {/* 画像クリックで拡大表示する機能を追加しても良い */}
+                            <img src={url} alt={`制作事例 ${index+1}`} className="w-full h-48 object-cover rounded-lg shadow-md aspect-square" />
+                        </div>
+                    ))}
+                </div>
+            </div>
+          )}
+
           <div className="border-t pt-6 mb-6">
              <h2 className="text-xl font-semibold text-gray-700 mb-4">店舗情報</h2>
              <div className="space-y-3 text-gray-800">
-                {florist.address && <p><span className="font-semibold w-20 inline-block">住所:</span> {florist.address}</p>}
-                {florist.phoneNumber && <p><span className="font-semibold w-20 inline-block">電話番号:</span> {florist.phoneNumber}</p>}
+                {florist.address && <p><span className="font-semibold w-24 inline-block">住所:</span> {florist.address}</p>}
+                {florist.phoneNumber && <p><span className="font-semibold w-24 inline-block">電話番号:</span> {florist.phoneNumber}</p>}
                 {florist.website &&
-                    <p><span className="font-semibold w-20 inline-block">Webサイト:</span>
-                        <a href={florist.website.startsWith('http') ? florist.website : `https://${florist.website}`} target="_blank" rel="noopener noreferrer" className="text-sky-600 hover:underline ml-2">
+                    <p><span className="font-semibold w-24 inline-block">Webサイト:</span>
+                        <a href={florist.website.startsWith('http') ? florist.website : `https://${florist.website}`} target="_blank" rel="noopener noreferrer" className="text-sky-600 hover:underline ml-2 break-all">
                             {florist.website}
                         </a>
                     </p>
                 }
+                 {/* ★★★【新規】営業時間 ★★★ */}
+                {florist.businessHours && <p><span className="font-semibold w-24 inline-block align-top">営業時間:</span> <span className="whitespace-pre-wrap inline-block ml-2">{florist.businessHours}</span></p>}
              </div>
           </div>
 
           {florist.portfolio && (
             <div className="border-t pt-6 mb-8">
-                <h2 className="text-xl font-semibold text-gray-700 mb-4">ポートフォリオ・自己紹介</h2>
+                <h2 className="text-xl font-semibold text-gray-700 mb-4">自己紹介・メッセージ</h2>
                 <p className="text-gray-800 whitespace-pre-wrap bg-gray-50 p-4 rounded-lg">{florist.portfolio}</p>
             </div>
           )}
@@ -237,10 +267,9 @@ export default function FloristDetailPage({ params }) {
                 <div className="space-y-6">
                     {reviews.map(review => (
                         review && review.id && review.user && review.project ? ( // Add checks
-                            <div key={review.id} className="border-b pb-4">
+                            <div key={review.id} className="border-b pb-4 last:border-b-0">
                                 <div className="flex items-center justify-between mb-1">
                                     <span className="font-semibold text-gray-700">{review.user.handleName || '匿名'}</span>
-                                    {/* <StarRating rating={review.rating} /> */}
                                     <span className="font-semibold text-yellow-500">{review.rating} ★</span>
                                 </div>
                                 <p className="text-sm text-gray-500 mb-2">

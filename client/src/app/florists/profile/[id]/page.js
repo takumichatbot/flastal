@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect, useRef } from 'react';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation'; // Import useRouter
@@ -19,10 +20,12 @@ export default function EditFloristProfilePage({ params }) {
     website: '',
     portfolio: '',
     laruBotApiKey: '', 
+    portfolioImages: [], 
+    businessHours: '',
   });
   const [loading, setLoading] = useState(true);
-  const [florist, setFlorist] = useState(null); // Store logged-in florist
-
+  const [isUploading, setIsUploading] = useState(false); // ★ 画像アップロード中フラグ
+  const fileInputRef = useRef(null); // ★ ファイル選択ダイアログ用
   // Authentication and Data Fetching
   useEffect(() => {
     const storedFlorist = localStorage.getItem('flastal-florist');
@@ -78,6 +81,45 @@ export default function EditFloristProfilePage({ params }) {
     setFormData(prevState => ({ ...prevState, [name]: value }));
   };
 
+  // ★★★【新規】画像アップロード処理 ★★★
+  const handleImageUpload = async (event) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+    if (formData.portfolioImages.length + files.length > 3) {
+      return toast.error('写真は3枚までアップロードできます。');
+    }
+    setIsUploading(true);
+    const toastId = toast.loading(`画像をアップロード中...`);
+    
+    const uploadedUrls = [];
+    for (const file of files) {
+        const uploadFormData = new FormData();
+        uploadFormData.append('image', file);
+        try {
+            const res = await fetch(`${API_URL}/api/upload`, { method: 'POST', body: uploadFormData });
+            if (!res.ok) throw new Error('アップロードに失敗');
+            const data = await res.json();
+            uploadedUrls.push(data.url);
+        } catch (error) {
+            toast.error('アップロードに失敗しました。', { id: toastId });
+            setIsUploading(false);
+            return;
+        }
+    }
+    
+    setFormData(prev => ({ ...prev, portfolioImages: [...prev.portfolioImages, ...uploadedUrls] }));
+    toast.success('アップロード完了！', { id: toastId });
+    setIsUploading(false);
+  };
+  
+  // ★★★【新規】画像削除処理 ★★★
+  const handleRemoveImage = (index) => {
+      setFormData(prev => ({
+          ...prev,
+          portfolioImages: prev.portfolioImages.filter((_, i) => i !== index)
+      }));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!florist) return; // Should not happen if auth check passes
@@ -124,6 +166,33 @@ export default function EditFloristProfilePage({ params }) {
       <div className="w-full max-w-2xl mx-auto p-8 space-y-6 bg-white rounded-xl shadow-lg h-fit">
         <h2 className="text-3xl font-bold text-center text-gray-900">プロフィール編集</h2>
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* ★★★【新規】ポートフォリオ画像アップロード ★★★ */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700">ポートフォリオ写真 (3枚まで)</label>
+            <div className="mt-2 p-4 border-2 border-dashed rounded-lg">
+                <div className="flex flex-wrap gap-4">
+                    {formData.portfolioImages.map((url, index) => (
+                        <div key={index} className="relative h-24 w-24">
+                            <img src={url} className="h-full w-full object-cover rounded-md" alt={`Portfolio ${index + 1}`} />
+                            <button type="button" onClick={() => handleRemoveImage(index)} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">&times;</button>
+                        </div>
+                    ))}
+                    {isUploading && <div className="h-24 w-24 flex items-center justify-center bg-gray-100 rounded-md">...</div>}
+                </div>
+                {formData.portfolioImages.length < 3 && (
+                    <button type="button" onClick={() => fileInputRef.current.click()} disabled={isUploading} className="mt-4 px-4 py-2 text-sm bg-sky-100 text-sky-700 rounded-md hover:bg-sky-200 disabled:bg-slate-200">
+                    {isUploading ? 'アップロード中...' : '画像を選択'}
+                    </button>
+                )}
+                <input type="file" multiple accept="image/*" ref={fileInputRef} onChange={handleImageUpload} className="hidden" />
+            </div>
+          </div>
+
+          {/* ★★★【新規】営業時間 ★★★ */}
+          <div>
+            <label htmlFor="businessHours" className="block text-sm font-medium text-gray-700">営業時間・定休日など</label>
+            <textarea name="businessHours" id="businessHours" rows="3" value={formData.businessHours} onChange={handleChange} className="w-full mt-1 p-2 text-gray-900 border-2 border-gray-200 rounded-lg focus:border-pink-500 focus:ring-0 transition" placeholder="例：10:00〜19:00 (火曜定休)"></textarea>
+          </div>
           {/* Form fields */}
           <div>
             <label htmlFor="shopName" className="block text-sm font-medium text-gray-700">店舗名（正式名称・非公開）</label>
