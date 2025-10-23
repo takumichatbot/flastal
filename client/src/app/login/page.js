@@ -35,9 +35,8 @@ export default function LoginPage() {
       loading: 'ログイン中...',
       success: (data) => {
         // ★★★ 修正: AuthContext の login 関数を使う ★★★
-        login(data.user); // ユーザーオブジェクトをContextに渡す
+        login(data.token); // APIから返された「token」をContextに渡す
         
-        // ★★★ 修正: router.pushだけでOK ★★★
         router.push('/mypage');
         
         return 'ログインしました！';

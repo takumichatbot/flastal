@@ -1,39 +1,40 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect } from 'react';
+import { jwtDecode } from 'jwt-decode'; // トークンを解析するライブラリ
 
-// jwt-decodeはNode.jsバックエンドでは不要
-// import { jwtDecode } from 'jwt-decode'; 
-
+// バックエンドAPIのURL（.env.localファイルで管理するのが望ましい）
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
+
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
+  const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // ★★★ 修正: 'authToken'(JWT) ではなく 'flastal-user'(ユーザー情報) を読む
     try {
-      const storedUser = localStorage.getItem('flastal-user');
-      if (storedUser) {
-        const userObject = JSON.parse(storedUser);
-        setUser(userObject); // ユーザー情報をセット
+      const storedToken = localStorage.getItem('authToken');
+      if (storedToken) {
+        const decodedUser = jwtDecode(storedToken);
+        setUser({ email: decodedUser.sub, ...decodedUser });
+        setToken(storedToken);
       }
     } catch (error) {
       console.error("Failed to initialize auth state:", error);
-      localStorage.removeItem('flastal-user'); // エラーがあればクリア
+      localStorage.removeItem('authToken');
     } finally {
       setLoading(false);
     }
   }, []);
 
-  // ★★★ 修正: 'token' ではなく 'userObject' を受け取る ★★★
-  const login = (userObject) => {
+  const login = (newToken) => {
     try {
-      setUser(userObject); // 1. ReactのStateを更新
-      // 2. localStorageに 'flastal-user' として保存
-      localStorage.setItem('flastal-user', JSON.stringify(userObject));
+      const decodedUser = jwtDecode(newToken);
+      setUser({ email: decodedUser.sub, ...decodedUser });
+      setToken(newToken);
+      localStorage.setItem('authToken', newToken);
     } catch (error) {
       console.error("Failed to process login:", error);
     }
@@ -41,13 +42,11 @@ export function AuthProvider({ children }) {
 
   const logout = () => {
     setUser(null);
-    // ★★★ 修正: 'authToken' ではなく 'flastal-user' を削除 ★★★
-    localStorage.removeItem('flastal-user');
-    // ログアウト時にログインページへリダイレクト
-    window.location.href = '/login';
+    setToken(null);
+    localStorage.removeItem('authToken');
   };
-
-  // ★ (前回追加した) register関数はそのまま
+  
+  // ★★★ ここからが追加されたregister関数です ★★★
   const register = async (email, password, handleName) => {
     const response = await fetch(`${API_URL}/api/users/register`, {
       method: 'POST',
@@ -58,17 +57,20 @@ export function AuthProvider({ children }) {
     });
 
     if (!response.ok) {
+      // サーバーから返されたエラーメッセージを取得してスローする
       const errorData = await response.json();
       throw new Error(errorData.message || '登録に失敗しました。');
     }
+    // 成功した場合は、レスポンスデータを返す (今回は使わないが将来のために)
     return response.json();
   };
-  
-  // ★ 渡すvalueを修正 (tokenを削除)
-  const authInfo = { user, login, logout, register, isAuthenticated: !!user };
+  // ★★★ 追加はここまで ★★★
+
+  // ★ valueの中に `register` を追加
+  const authInfo = { user, token, login, logout, register, isAuthenticated: !!user };
 
   if (loading) {
-    return null; 
+    return null;
   }
 
   return (
