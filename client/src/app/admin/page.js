@@ -96,4 +96,15 @@ export default function AdminPage() {
             c && c.id && c.project ? (
               <div key={c.id} className="p-4 border rounded-lg flex justify-between items-center bg-gray-50">
                 <div>
-                  <p className="font-semibold
+                  <p className="font-semibold text-gray-800">企画: {c.project.title || '不明な企画'}</p>
+                  <p className="text-sm text-gray-500">発生日時: {c.createdAt ? new Date(c.createdAt).toLocaleString('ja-JP') : '不明'}</p>
+                </div>
+                <p className="font-bold text-lg text-green-600">+{c.amount?.toLocaleString() || 0} pt</p>
+              </div>
+            ) : null
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
