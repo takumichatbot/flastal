@@ -83,7 +83,7 @@ model Project {
   size              String?
   flowerTypes       String?
   // ↓↓↓ この行を一時的にコメントアウトします ↓↓↓
-  status            ProjectStatus     @default(PENDING_APPROVAL)
+  status ProjectStatus @default(PENDING_APPROVAL)
   visibility        ProjectVisibility @default(PUBLIC)
   completionImageUrls String[]
   completionComment String?           @db.Text
