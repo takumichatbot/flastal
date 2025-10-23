@@ -159,10 +159,28 @@ app.post('/api/users/login', async (req, res) => {
     if (!isPasswordValid) {
       return res.status(401).json({ message: 'パスワードが間違っています。' })
     }
-    const { password: _, ...userWithoutPassword } = user;
+    // 1. トークンに含める情報（ペイロード）を定義
+    // ★★★ role を含める ★★★
+    const tokenPayload = {
+      id: user.id,
+      email: user.email,
+      handleName: user.handleName,
+      role: user.role, // <-- これがADMINになる
+      sub: user.id // 'sub' (subject) はJWTの標準的なフィールド
+    };
+
+    // 2. JWTを生成 (有効期限を 1d = 1日 に設定)
+    //    必ず .env ファイルに JWT_SECRET を設定してください
+    const token = jwt.sign(
+      tokenPayload,
+      process.env.JWT_SECRET, // .env に設定した秘密鍵
+      { expiresIn: '1d' }
+    );
+
+    // 3. トークンをレスポンスとして返す
     res.status(200).json({
       message: 'ログインに成功しました。',
-      user: userWithoutPassword,
+      token: token // ★ user オブジェクトの代わりに token を返す
     });
   } catch (error) {
     console.error(error)
