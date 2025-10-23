@@ -69,9 +69,6 @@ export function AuthProvider({ children }) {
   // ★ valueの中に `register` を追加
   const authInfo = { user, token, login, logout, register, isAuthenticated: !!user, loading };
 
-  if (loading) {
-    return null;
-  }
 
   return (
     <AuthContext.Provider value={authInfo}>
