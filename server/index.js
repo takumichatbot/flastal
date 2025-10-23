@@ -165,8 +165,9 @@ app.post('/api/users/login', async (req, res) => {
       id: user.id,
       email: user.email,
       handleName: user.handleName,
-      role: user.role, // <-- これがADMINになる
-      sub: user.id // 'sub' (subject) はJWTの標準的なフィールド
+      role: user.role, 
+      referralCode: user.referralCode, // ★ これを追加
+      sub: user.id
     };
 
     // 2. JWTを生成 (有効期限を 1d = 1日 に設定)
@@ -677,7 +678,7 @@ app.get('/api/florists', async (req, res) => {
       },
       orderBy: { createdAt: 'desc' },
     });
-    res.status(200).json(floristsWithRatings);
+    res.status(200).json(florists);
   } catch (error) {
     console.error("お花屋さんリスト取得エラー:", error);
     res.status(500).json({ message: 'お花屋さんの取得中にエラーが発生しました。' });
