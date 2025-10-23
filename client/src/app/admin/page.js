@@ -10,36 +10,37 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onre
 
 export default function AdminPage() {
   
-  // ★ 2. AuthContext からユーザー情報、認証状態、ログアウト関数を取得
-  const { user, isAuthenticated, logout } = useAuth();
+  // ★ 2. 'loading' を AuthContext から取得
+  const { user, isAuthenticated, logout, loading } = useAuth();
   const router = useRouter();
 
-  // ★ 3. このページ独自のログイン関連 state (password, isAuthenticated など) はすべて不要
   const [commissions, setCommissions] = useState([]);
   const [loadingData, setLoadingData] = useState(true); // データ取得用ローディング
 
   useEffect(() => {
-    // AuthContext がユーザー情報を読み込むのを待つ
+    // ★ 3. AuthContext が読み込み中なら、何もせずに待機
+    if (loading) {
+      return; // まだ user 情報が確定していないので、ここで処理を中断
+    }
+
+    // ★ 4. 読み込み完了後、非認証（未ログイン）の場合
     if (!isAuthenticated) {
-      // 読み込みが完了しても非認証（未ログイン）の場合
       toast.error('ログインが必要です。');
-      router.push('/login'); // メインのログインページにリダイレクト
+      router.push('/login'); 
       return;
     }
 
-    // ★ 4. ログインはしているが、ADMINではない場合
-    if (user.role !== 'ADMIN') {
+    // ★ 5. ログインはしているが、ADMINではない場合
+    if (!user || user.role !== 'ADMIN') { // userがnullの場合もチェック
       toast.error('管理者権限がありません。');
       router.push('/mypage'); // マイページにリダイレクト
       return;
     }
 
-    // ★ 5. 認証OK (ADMIN) だったので、データを取得
+    // ★ 6. 認証OK (ADMIN) だったので、データを取得
     const fetchCommissions = async () => {
       setLoadingData(true);
       try {
-        // (index.js の /api/admin/commissions には認証がないため、
-        //  このまま fetch できます)
         const res = await fetch(`${API_URL}/api/admin/commissions`);
         if (!res.ok) throw new Error('手数料履歴の取得に失敗しました');
         const data = await res.json();
@@ -54,11 +55,10 @@ export default function AdminPage() {
 
     fetchCommissions();
 
-  }, [isAuthenticated, user, router]); // 依存配列に user と isAuthenticated を追加
+  }, [isAuthenticated, user, router, loading]); // ★ 依存配列に `loading` を追加
 
-  // ★ 6. 権限がない場合の表示
-  // (AuthContextが読み込み中か、ADMINでない場合は何も表示しないか、ローディングを出す)
-  if (!isAuthenticated || !user || user.role !== 'ADMIN') {
+  // ★ 7. AuthContextの読み込み中、または権限がない場合の表示
+  if (loading || !isAuthenticated || !user || user.role !== 'ADMIN') {
     return (
       <div className="flex justify-center items-center min-h-screen bg-gray-100">
         <p className="text-gray-700">管理者権限を確認中...</p>
@@ -66,8 +66,7 @@ export default function AdminPage() {
     );
   }
   
-  // ★ 7. ログインフォームは削除し、ダッシュボードを直接表示
-  
+  // ★ 8. ダッシュボードを直接表示
   const totalCommission = commissions.reduce((sum, c) => sum + (c.amount || 0), 0);
 
   return (
@@ -76,10 +75,9 @@ export default function AdminPage() {
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold text-gray-900">管理者ダッシュボード</h1>
           
-          {/* ★ AuthContext の logout 関数を使う */}
           <button onClick={() => {
-              logout(); // AuthContextからログアウト
-              router.push('/login'); // メインのログインページに戻る
+              logout(); 
+              router.push('/login'); 
             }} className="text-sm font-medium text-gray-600 hover:text-red-500 transition-colors">
               ログアウト
           </button>

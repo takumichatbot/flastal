@@ -67,7 +67,7 @@ export function AuthProvider({ children }) {
   // ★★★ 追加はここまで ★★★
 
   // ★ valueの中に `register` を追加
-  const authInfo = { user, token, login, logout, register, isAuthenticated: !!user };
+  const authInfo = { user, token, login, logout, register, isAuthenticated: !!user, loading };
 
   if (loading) {
     return null;
