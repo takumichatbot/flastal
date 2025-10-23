@@ -18,7 +18,12 @@ export default function Header() {
       // Check for user from AuthContext first
       if (user) {
           setLoggedInEntity(user);
-          setEntityType('USER'); // Assume user from AuthContext is 'USER'
+          // ★ 修正: user.role を見て ADMIN か USER かを判断する
+          if (user.role === 'ADMIN') {
+              setEntityType('ADMIN');
+          } else {
+              setEntityType('USER');
+          }
       } else {
           // If no user from context, check localStorage for florist or venue
           const floristInfo = localStorage.getItem('flastal-florist');
@@ -64,19 +69,25 @@ export default function Header() {
   };
 
   const getDashboardLink = () => {
-    if (!loggedInEntity) return null;
-    switch (entityType) {
-      case 'USER': return '/mypage';
-      // ★ Florist dashboard link likely doesn't need ID
-      case 'FLORIST': return '/florists/dashboard'; 
-      case 'VENUE': return `/venues/dashboard/${loggedInEntity.id}`;
-      default: return null;
-    }
-  };
+      if (!loggedInEntity) return null;
+      switch (entityType) {
+        case 'ADMIN': return '/admin'; // ★ 追加: 管理者画面のパス (例: /admin)
+        case 'USER': return '/mypage';
+        case 'FLORIST': return '/florists/dashboard'; 
+        case 'VENUE': return `/venues/dashboard/${loggedInEntity.id}`;
+        default: return null;
+      }
+    };
 
   const getDashboardText = () => {
     if (!loggedInEntity) return '';
-    return entityType === 'USER' ? 'マイページ' : '管理画面'; // Changed dashboard text
+    switch (entityType) {
+        case 'USER': return 'マイページ';
+        case 'ADMIN': return '管理者画面'; // ★ ADMINを明示
+        case 'FLORIST': return '管理画面';
+        case 'VENUE': return '管理画面';
+        default: return '';
+    }
   }
   
   const getDisplayName = () => {
