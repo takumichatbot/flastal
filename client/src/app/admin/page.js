@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link'; // ★ Link コンポーネントをインポート
 
 // ★ 1. AuthContext から useAuth をインポート
 import { useAuth } from '../contexts/AuthContext'; 
@@ -82,7 +83,31 @@ export default function AdminPage() {
               ログアウト
           </button>
         </div>
-        
+
+        {/* ★★★ ここにナビゲーションリンクを追加 ★★★ */}
+        <nav className="mb-6 flex gap-3 sm:gap-4 flex-wrap">
+          <Link 
+            href="/admin" 
+            className="px-4 py-2 text-sm font-semibold text-white bg-sky-500 rounded-lg shadow-sm hover:bg-sky-600 transition-colors"
+          >
+            ダッシュボード (収益)
+          </Link>
+          <Link 
+            href="/admin/payouts" 
+            className="px-4 py-2 text-sm font-semibold text-slate-700 bg-slate-200 rounded-lg hover:bg-slate-300 transition-colors"
+          >
+            出金管理
+          </Link>
+          <Link 
+            href="/admin/moderation" // ( moderation の一覧ページ )
+            className="px-4 py-2 text-sm font-semibold text-slate-700 bg-slate-200 rounded-lg hover:bg-slate-300 transition-colors"
+          >
+            プロジェクト審査
+          </Link>
+          {/* 他の管理ページがあればここに追加 */}
+        </nav>
+        {/* ★★★ 追加はここまで ★★★ */}
+
         <div className="p-6 bg-green-100 text-green-800 rounded-lg mb-8 shadow">
           <p className="font-bold text-xl">総手数料収益: {totalCommission.toLocaleString()} pt</p>
         </div>
