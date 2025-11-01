@@ -810,15 +810,22 @@ app.patch('/api/projects/:projectId/target-amount', async (req, res) => {
 app.post('/api/florists/login', async (req, res) => {
   try {
     const { email, password } = req.body;
-    const florist = await prisma.florist.findUnique({
-      where: { email },
-    });
+    const florist = await prisma.florist.findUnique({ where: { email } });
 
-    if (!florist) { /* ... */ }
+    // ★★★ 最初に null チェックを追加 ★★★
+    if (!florist) {
+      // メールアドレスが見つからない場合は 401 (認証エラー) などを返す
+      return res.status(401).json({ message: 'メールアドレスまたはパスワードが違います。' });
+    }
 
+    // florist が見つかった場合のみ、パスワードを比較する
     const isPasswordValid = await bcrypt.compare(password, florist.password);
 
-    if (!isPasswordValid) { /* ... */ }
+    if (isPasswordValid) {
+       // ... ログイン成功処理
+    } else {
+      return res.status(401).json({ message: 'メールアドレスまたはパスワードが違います。' });
+    }
 
     // ★ レスポンスにステータスが含まれていることを確認
     const { password: _, ...floristWithoutPassword } = florist;
