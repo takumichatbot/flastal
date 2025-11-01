@@ -47,31 +47,37 @@ export default function Header() {
   }, [user]); // Re-check whenever the user from AuthContext changes
 
 
+  // ★★★ ログアウト処理を修正 ★★★
   const handleLogout = () => {
-    // Determine which logout logic to use
-    if (entityType === 'USER') {
-      logout(); // Use the logout from AuthContext
+    // ADMIN と USER は AuthContext の logout を使う
+    if (entityType === 'USER' || entityType === 'ADMIN') {
+      logout(); // AuthContext の logout を呼び出す
+      router.push('/'); // ホームにリダイレクト
     } else if (entityType === 'FLORIST') {
       localStorage.removeItem('flastal-florist');
-      setLoggedInEntity(null); // Update local state
+      setLoggedInEntity(null);
       setEntityType(null);
-      router.push('/florists/login'); // Redirect to florist login
+      router.push('/'); // ホームにリダイレクト
     } else if (entityType === 'VENUE') {
       localStorage.removeItem('flastal-venue');
-       setLoggedInEntity(null); // Update local state
+       setLoggedInEntity(null); 
        setEntityType(null);
-      router.push('/venues/login'); // Redirect to venue login
+      router.push('/'); // ホームにリダイレクト
+    } else {
+      // 万が一のフォールバック
+      logout(); // AuthContext もクリア
+      localStorage.removeItem('flastal-florist');
+      localStorage.removeItem('flastal-venue');
+      setLoggedInEntity(null);
+      setEntityType(null);
+      router.push('/');
     }
-     // Optional: Redirect non-user types to home after logout?
-     if (entityType !== 'USER') {
-        router.push('/'); 
-     }
   };
 
   const getDashboardLink = () => {
       if (!loggedInEntity) return null;
       switch (entityType) {
-        case 'ADMIN': return '/admin'; // ★ 追加: 管理者画面のパス (例: /admin)
+        case 'ADMIN': return '/admin'; // ★ 修正済み
         case 'USER': return '/mypage';
         case 'FLORIST': return '/florists/dashboard'; 
         case 'VENUE': return `/venues/dashboard/${loggedInEntity.id}`;
@@ -83,7 +89,7 @@ export default function Header() {
     if (!loggedInEntity) return '';
     switch (entityType) {
         case 'USER': return 'マイページ';
-        case 'ADMIN': return '管理者画面'; // ★ ADMINを明示
+        case 'ADMIN': return '管理者画面'; // ★ 修正済み
         case 'FLORIST': return '管理画面';
         case 'VENUE': return '管理画面';
         default: return '';
@@ -122,7 +128,7 @@ export default function Header() {
                     さん
                   </span>
                   
-                  {/* Buttons specific to USER type */}
+                  {/* Buttons specific to USER type (ADMIN には表示しない) */}
                   {entityType === 'USER' && (
                     <>
                       <Link href="/projects/create" className="px-4 py-2 text-sm font-semibold text-white bg-sky-500 rounded-lg shadow-sm hover:bg-sky-600 transition-colors">
