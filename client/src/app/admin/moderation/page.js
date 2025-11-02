@@ -82,22 +82,19 @@ export default function ModerationProjectListPage() {
 
         {/* ★ ナビゲーションリンクを追加 */}
         <nav className="mb-6 flex gap-3 sm:gap-4 flex-wrap">
-          <Link 
-            href="/admin" 
-            className="px-4 py-2 text-sm font-semibold text-slate-700 bg-slate-200 rounded-lg hover:bg-slate-300 transition-colors"
-          >
+          <Link href="/admin" className="...">
             ダッシュボード (収益)
           </Link>
-          <Link 
-            href="/admin/payouts" 
-            className="px-4 py-2 text-sm font-semibold text-slate-700 bg-slate-200 rounded-lg hover:bg-slate-300 transition-colors"
-          >
+          <Link href="/admin/payouts" className="...">
             出金管理
           </Link>
-          <Link 
-            href="/admin/moderation"
-            className="px-4 py-2 text-sm font-semibold text-white bg-sky-500 rounded-lg shadow-sm hover:bg-sky-600 transition-colors"
-          >
+          <Link href="/admin/moderation" className="...">
+            チャット監視 {/* ← 名前を変更 */}
+          </Link>
+          <Link href="/admin/florist-approval" className="...">
+            お花屋さん審査
+          </Link>
+          <Link href="/admin/project-approval" className="..."> {/* ★ この行を追加 */}
             プロジェクト審査
           </Link>
         </nav>
