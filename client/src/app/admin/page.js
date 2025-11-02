@@ -99,12 +99,18 @@ export default function AdminPage() {
             出金管理
           </Link>
           <Link 
-            href="/admin/moderation" // ( moderation の一覧ページ )
+            href="/admin/moderation"
             className="px-4 py-2 text-sm font-semibold text-slate-700 bg-slate-200 rounded-lg hover:bg-slate-300 transition-colors"
           >
             プロジェクト審査
           </Link>
-          {/* 他の管理ページがあればここに追加 */}
+          {/* ★↓↓↓ このリンクを追加 ↓↓↓★ */}
+          <Link 
+            href="/admin/florist-approval"
+            className="px-4 py-2 text-sm font-semibold text-slate-700 bg-slate-200 rounded-lg hover:bg-slate-300 transition-colors"
+          >
+            お花屋さん審査
+          </Link>
         </nav>
         {/* ★★★ 追加はここまで ★★★ */}
 
