@@ -116,19 +116,34 @@ export default function AdminFloristApprovalsPage() {
 
         {/* ★ ナビゲーションリンクを追加 */}
         <nav className="mb-6 flex gap-3 sm:gap-4 flex-wrap">
-          <Link href="/admin" className="...">
+          <Link 
+            href="/admin" 
+            className="px-4 py-2 text-sm font-semibold text-slate-700 bg-slate-200 rounded-lg hover:bg-slate-300 transition-colors"
+          >
             ダッシュボード (収益)
           </Link>
-          <Link href="/admin/payouts" className="...">
+          <Link 
+            href="/admin/payouts" 
+            className="px-4 py-2 text-sm font-semibold text-slate-700 bg-slate-200 rounded-lg hover:bg-slate-300 transition-colors"
+          >
             出金管理
           </Link>
-          <Link href="/admin/moderation" className="...">
-            チャット監視 {/* ← 名前を変更 */}
+          <Link 
+            href="/admin/moderation"
+            className="px-4 py-2 text-sm font-semibold text-slate-700 bg-slate-200 rounded-lg hover:bg-slate-300 transition-colors"
+          >
+            チャット監視
           </Link>
-          <Link href="/admin/florist-approval" className="...">
+          <Link 
+            href="/admin/florist-approval"
+            className="px-4 py-2 text-sm font-semibold text-slate-700 bg-slate-200 rounded-lg hover:bg-slate-300 transition-colors"
+          >
             お花屋さん審査
           </Link>
-          <Link href="/admin/project-approval" className="..."> {/* ★ この行を追加 */}
+          <Link 
+            href="/admin/project-approval"
+            className="px-4 py-2 text-sm font-semibold text-white bg-sky-500 rounded-lg shadow-sm hover:bg-sky-600 transition-colors"
+          >
             プロジェクト審査
           </Link>
         </nav>
