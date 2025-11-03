@@ -149,17 +149,26 @@ export default function ProjectDetailPage() {
   }, [fetchProject]); // fetchProjectが変更されたら実行（つまり、idが変わったら実行）
 
   // (B) WebSocket接続を管理するためのuseEffect。id と user に依存。
-  useEffect(() => {
-    // ログインしていない場合は何もしない
-    if (!user || !id) return;
+    useEffect(() => {
+      // ログインしていない場合は何もしない
+      if (!user || !id) return;
 
-    // トークン認証は不要
-    const newSocket = io(API_URL);
-    setSocket(newSocket);
+      // トークン認証は不要
+      // ★★★ 修正: WebSocketを無効にし、Pollingを強制する ★★★
+      const newSocket = io(API_URL, {
+        transports: ['polling'] 
+      });
+      setSocket(newSocket);
     
-    newSocket.emit('joinProjectRoom', id);
+      newSocket.emit('joinProjectRoom', id);
 
-    newSocket.on('receiveGroupChatMessage', (newMessage) => {
+      // ★ 念のため、接続エラーのリスナーを追加
+      newSocket.on('connect_error', (err) => {
+        console.error('Socket connection error:', err.message);
+        toast.error('チャットサーバーへの接続に失敗しました。');
+      });
+    
+      newSocket.on('receiveGroupChatMessage', (newMessage) => {
       // 既存のチャットメッセージに追加
       setProject(prev => prev ? { ...prev, groupChatMessages: [...(prev.groupChatMessages || []), newMessage] } : null);
     });
