@@ -109,6 +109,9 @@ export default function ProjectDetailPage() {
   const [isReportModalOpen, setReportModalOpen] = useState(false);
   const [isCompletionModalOpen, setIsCompletionModalOpen] = useState(false);
   
+  // ★★★ この行が抜けていました ★★★
+  const [isTargetAmountModalOpen, setIsTargetAmountModalOpen] = useState(false);
+
   const [showAnnouncementForm, setShowAnnouncementForm] = useState(false);
   const [announcementTitle, setAnnouncementTitle] = useState('');
   const [announcementContent, setAnnouncementContent] = useState('');
@@ -120,56 +123,48 @@ export default function ProjectDetailPage() {
 
   const { register: registerPledge, handleSubmit: handleSubmitPledge, formState: { errors: pledgeErrors }, reset: resetPledge } = useForm();
 
-  // ★★★ 修正点1: データ取得関数を useCallback で囲む ★★★
-  // これにより、不必要な関数の再生成を防ぎます。
+  // (A) 企画データを取得するためのuseEffect
   const fetchProject = useCallback(async () => {
     if (!id) return;
     try {
       setLoading(true);
       const response = await fetch(`${API_URL}/api/projects/${id}`);
       if (!response.ok) {
-        // 404 Not Found などのエラーをここでキャッチ
         throw new Error('企画が見つからないか、読み込みに失敗しました。');
       }
       const data = await response.json();
       setProject(data);
     } catch (error) {
       toast.error(error.message);
-      setProject(null); // ★ エラー時に project を null に設定
+      setProject(null); 
     } finally {
       setLoading(false);
     }
-  }, [id]); // idが変更されたときのみ、この関数が再生成される
+  }, [id]); 
 
-  // ★★★ 修正点2: useEffect を2つに分離 ★★★
-
-  // (A) 企画データを取得するためのuseEffect。idにのみ依存。
   useEffect(() => {
     fetchProject();
-  }, [fetchProject]); // fetchProjectが変更されたら実行（つまり、idが変わったら実行）
+  }, [fetchProject]);
 
-  // (B) WebSocket接続を管理するためのuseEffect。id と user に依存。
-    useEffect(() => {
-      // ログインしていない場合は何もしない
-      if (!user || !id) return;
+  // (B) WebSocket接続を管理するためのuseEffect
+  useEffect(() => {
+    if (!user || !id) return;
 
-      // トークン認証は不要
-      // ★★★ 修正: WebSocketを無効にし、Pollingを強制する ★★★
-      const newSocket = io(API_URL, {
-        transports: ['polling'] 
-      });
-      setSocket(newSocket);
+    // ★ 修正: WebSocketを無効にし、Pollingを強制する
+    const newSocket = io(API_URL, {
+      transports: ['polling'] 
+    });
+    setSocket(newSocket);
     
-      newSocket.emit('joinProjectRoom', id);
-
-      // ★ 念のため、接続エラーのリスナーを追加
-      newSocket.on('connect_error', (err) => {
-        console.error('Socket connection error:', err.message);
-        toast.error('チャットサーバーへの接続に失敗しました。');
-      });
+    newSocket.emit('joinProjectRoom', id);
     
-      newSocket.on('receiveGroupChatMessage', (newMessage) => {
-      // 既存のチャットメッセージに追加
+    // ★ 念のため、接続エラーのリスナーを追加
+    newSocket.on('connect_error', (err) => {
+      console.error('Socket connection error:', err.message);
+      toast.error('チャットサーバーへの接続に失敗しました。');
+    });
+
+    newSocket.on('receiveGroupChatMessage', (newMessage) => {
       setProject(prev => prev ? { ...prev, groupChatMessages: [...(prev.groupChatMessages || []), newMessage] } : null);
     });
 
@@ -177,15 +172,16 @@ export default function ProjectDetailPage() {
       toast.error(errorMessage);
     });
 
-    // コンポーネントが非表示になる際（ページを離れる際）に接続を解除
     return () => {
+      newSocket.off('connect_error');
       newSocket.off('receiveGroupChatMessage');
       newSocket.off('messageError');
       newSocket.disconnect();
     };
-  }, [id, user]); // id または user が変更されたら再接続
+  }, [id, user]); 
 
-  // --- これ以降のハンドラ関数は変更ありません ---
+  // --- (これ以降のハンドラ関数、ローディング/エラー表示、JSXは前回のものと同一です) ---
+  
   const onPledgeSubmit = (data) => {
     if (!user) {
       toast.error('支援するにはログインが必要です。');
