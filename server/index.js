@@ -55,7 +55,8 @@ const corsOptions = {
 };
 
 const io = new Server(httpServer, {
-  cors: corsOptions
+  cors: corsOptions,
+  allowEIO3: true // ★ この行を追加
 });
 
 const prisma = new PrismaClient();
