@@ -87,7 +87,7 @@ export default function LoginPage() {
         
         <div className="text-center mt-6 space-y-2">
           <p className="text-sm">
-            <Link href="/forgot-password">
+            <Link href="/forgot-password?userType=USER">
               <span className="text-sky-600 hover:underline">パスワードを忘れた方はこちら</span>
             </Link>
           </p>

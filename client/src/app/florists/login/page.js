@@ -99,10 +99,8 @@ export default function FloristLoginPage() {
           </div>
         </form>
         <div className="text-sm text-center text-gray-600">
-          <Link href="/forgot-password">
-            <span className="font-medium text-sky-600 hover:underline">
-              パスワードを忘れた方はこちら
-            </span>
+          <Link href="/forgot-password?userType=FLORIST">
+            <span className="...">パスワードを忘れた方はこちら</span>
           </Link>
         </div>
         <p className="text-sm text-center text-gray-600">

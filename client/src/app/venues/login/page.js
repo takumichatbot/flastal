@@ -79,7 +79,7 @@ export default function VenueLoginPage() {
           </div>
         </form>
         <div className="text-sm text-center text-gray-600">
-          <Link href="/forgot-password">
+          <Link href="/forgot-password?userType=VENUE">
             <span className="font-medium text-sky-600 hover:underline">
               パスワードを忘れた方はこちら
             </span>
