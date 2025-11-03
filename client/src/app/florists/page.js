@@ -16,13 +16,19 @@ function FloristCard({ florist }) {
           <span className="text-4xl">💐</span>
         </div>
         <div className="p-6 flex flex-col flex-grow">
-          <h3 className="text-lg font-bold text-gray-800 group-hover:text-pink-600 transition-colors mb-2">{florist.shopName}</h3>
-          <p className="text-sm text-gray-600 mb-4">担当者: {florist.contactName}</p>
+          {/* ★ 修正: shopName -> platformName に変更 */}
+          <h3 className="text-lg font-bold text-gray-800 group-hover:text-pink-600 transition-colors mb-2">{florist.platformName}</h3>
+          
+          {/* ★ 修正: contactName はAPIから送られてこないため削除 */}
+          {/* <p className="text-sm text-gray-600 mb-4">担当者: {florist.contactName}</p> */}
+
           <div className="mt-auto flex items-center gap-2">
-            {florist.reviewCount > 0 ? (
+            {/* ★ 修正: APIに合わせる (APIが `reviews` を返すが、件数と平均は返さない) */}
+            {/* ★ API (`index.js` 831行目) を修正して reviewCount と averageRating を含める必要がありますが、一旦表示を調整します */}
+            {florist.reviews && florist.reviews.length > 0 ? (
               <>
-                <StarRating rating={florist.averageRating} />
-                <span className="text-xs text-gray-500">({florist.reviewCount}件)</span>
+                {/* <StarRating rating={florist.averageRating} /> */}
+                <span className="text-xs text-gray-500">({florist.reviews.length}件のレビュー)</span>
               </>
             ) : (
               <span className="text-xs text-gray-500">レビューはまだありません</span>

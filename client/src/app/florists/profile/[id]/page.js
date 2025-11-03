@@ -10,9 +10,11 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onre
 export default function EditFloristProfilePage({ params }) {
   const { id } = params;
   const router = useRouter(); // Initialize router
+  
+  // ★ フォームデータの初期構造
   const [formData, setFormData] = useState({
     shopName: '',
-    platformName: '', // Add platformName
+    platformName: '',
     contactName: '',
     address: '',
     phoneNumber: '',
@@ -22,65 +24,86 @@ export default function EditFloristProfilePage({ params }) {
     portfolioImages: [], 
     businessHours: '',
   });
+
   const [loading, setLoading] = useState(true);
-  const [isUploading, setIsUploading] = useState(false); // ★ 画像アップロード中フラグ
-  const fileInputRef = useRef(null); // ★ ファイル選択ダイアログ用
-  // Authentication and Data Fetching
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef(null);
+
+  // ★★★ 修正: この state が抜けていたため、エラーになっていました ★★★
+  const [florist, setFlorist] = useState(null); 
+
+  // ★★★ 修正: 認証チェックとデータ取得のロジックを修正 ★★★
   useEffect(() => {
+    
+    // 1. 認証チェックを先に実行
     const storedFlorist = localStorage.getItem('flastal-florist');
     if (!storedFlorist) {
       toast.error("ログインが必要です。");
       router.push('/florists/login');
       return;
     }
+
+    let floristInfo;
     try {
-      const floristInfo = JSON.parse(storedFlorist);
-      // Check if the logged-in florist matches the profile ID being edited
-      if (floristInfo.id !== id) {
-        toast.error("アクセス権がありません。");
-        router.push('/florists/dashboard'); // Redirect to their own dashboard
-        return;
-      }
-      setFlorist(floristInfo); // Store logged-in florist
-
-      // Fetch current profile data to populate the form
-      const fetchFloristData = async () => {
-        try {
-          const res = await fetch(`${API_URL}/api/florists/${id}`);
-          if (!res.ok) throw new Error('プロフィール情報の読み込みに失敗しました');
-          const data = await res.json();
-          // Convert null values to empty strings for form fields
-          Object.keys(formData).forEach(key => {
-            if (data[key] === null) {
-              data[key] = '';
-            }
-          });
-           // Explicitly set platformName if it exists in data, otherwise default from formData
-          setFormData({
-            ...formData, // Start with default structure
-            ...data,     // Overwrite with fetched data
-            platformName: data.platformName || '', // Ensure platformName is handled
-          });
-        } catch (error) {
-          toast.error(error.message);
-        } finally {
-          setLoading(false);
-        }
-      };
-      fetchFloristData();
-
+      floristInfo = JSON.parse(storedFlorist);
     } catch (e) {
+      // JSONパース失敗時もログアウト
       localStorage.removeItem('flastal-florist');
       router.push('/florists/login');
+      return;
     }
-  }, [id, router]); // Add router to dependency array
+
+    // 2. IDの不一致をチェック
+    if (floristInfo.id !== id) {
+      toast.error("アクセス権がありません。");
+      router.push('/florists/dashboard'); // 自分のダッシュボードに戻す
+      return;
+    }
+
+    // 3. 認証OK。stateに保存 (★ この行がエラーの原因だった)
+    setFlorist(floristInfo); 
+
+    // 4. 認証が通ったので、フォーム用のデータをAPIから取得
+    const fetchFloristData = async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/florists/${id}`);
+        if (!res.ok) throw new Error('プロフィール情報の読み込みに失敗しました');
+        const data = await res.json();
+        
+        // フォームデータ用の新しいオブジェクトを作成 (nullを空文字に変換)
+        const newFormData = {
+          shopName: data.shopName || '',
+          platformName: data.platformName || '',
+          contactName: data.contactName || '',
+          address: data.address || '',
+          phoneNumber: data.phoneNumber || '',
+          website: data.website || '',
+          portfolio: data.portfolio || '',
+          laruBotApiKey: data.laruBotApiKey || '', 
+          portfolioImages: data.portfolioImages || [], 
+          businessHours: data.businessHours || '',
+        };
+        
+        setFormData(newFormData);
+
+      } catch (error) {
+        toast.error(error.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFloristData();
+
+  }, [id, router]); // ★ 依存配列は [id, router] のままでOK
+
+  // --- (これ以降の関数は変更なし) ---
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prevState => ({ ...prevState, [name]: value }));
   };
 
-  // ★★★【新規】画像アップロード処理 ★★★
   const handleImageUpload = async (event) => {
     const files = event.target.files;
     if (!files || files.length === 0) return;
@@ -111,7 +134,6 @@ export default function EditFloristProfilePage({ params }) {
     setIsUploading(false);
   };
   
-  // ★★★【新規】画像削除処理 ★★★
   const handleRemoveImage = (index) => {
       setFormData(prev => ({
           ...prev,
@@ -121,16 +143,13 @@ export default function EditFloristProfilePage({ params }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!florist) return; // Should not happen if auth check passes
+    if (!florist) return; 
 
-    // Use toast.promise
     const promise = fetch(`${API_URL}/api/florists/${id}`, {
       method: 'PATCH',
       headers: { 
           'Content-Type': 'application/json',
-          // No Authorization header needed as per backend update logic
       },
-      // Ensure platformName is included in the sent data
       body: JSON.stringify(formData), 
     }).then(async (res) => {
       if (!res.ok) {
@@ -143,15 +162,33 @@ export default function EditFloristProfilePage({ params }) {
     toast.promise(promise, {
       loading: '更新中...',
       success: (updatedFlorist) => {
-        // Update form data and localStorage with the response
-        setFormData(updatedFlorist);
+        
+        // ★ フォームデータだけでなく、localStorageの元データも更新
+        // （更新後のデータで "flastal-florist" を上書き）
         localStorage.setItem('flastal-florist', JSON.stringify(updatedFlorist));
+        
+        // フォームデータも最新化 (APIが返した値で)
+        const newFormData = {
+          shopName: updatedFlorist.shopName || '',
+          platformName: updatedFlorist.platformName || '',
+          contactName: updatedFlorist.contactName || '',
+          address: updatedFlorist.address || '',
+          phoneNumber: updatedFlorist.phoneNumber || '',
+          website: updatedFlorist.website || '',
+          portfolio: updatedFlorist.portfolio || '',
+          laruBotApiKey: updatedFlorist.laruBotApiKey || '', 
+          portfolioImages: updatedFlorist.portfolioImages || [], 
+          businessHours: updatedFlorist.businessHours || '',
+        };
+        setFormData(newFormData);
+
         return 'プロフィールが更新されました！';
       },
       error: (err) => err.message,
     });
   };
 
+  // ★ 修正: !florist のチェックを追加
   if (loading || !florist) {
     return (
         <div className="flex items-center justify-center min-h-screen bg-gray-100">
@@ -160,12 +197,13 @@ export default function EditFloristProfilePage({ params }) {
     );
   }
 
+  // --- (これ以降のJSX <return> ... は変更なし) ---
   return (
     <div className="min-h-screen bg-gray-100 p-4 sm:p-8">
       <div className="w-full max-w-2xl mx-auto p-8 space-y-6 bg-white rounded-xl shadow-lg h-fit">
         <h2 className="text-3xl font-bold text-center text-gray-900">プロフィール編集</h2>
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* ★★★【新規】ポートフォリオ画像アップロード ★★★ */}
+          {/* ポートフォリオ画像アップロード */}
           <div>
             <label className="block text-sm font-medium text-gray-700">ポートフォリオ写真 (3枚まで)</label>
             <div className="mt-2 p-4 border-2 border-dashed rounded-lg">
@@ -187,7 +225,7 @@ export default function EditFloristProfilePage({ params }) {
             </div>
           </div>
 
-          {/* ★★★【新規】営業時間 ★★★ */}
+          {/* 営業時間 */}
           <div>
             <label htmlFor="businessHours" className="block text-sm font-medium text-gray-700">営業時間・定休日など</label>
             <textarea name="businessHours" id="businessHours" rows="3" value={formData.businessHours} onChange={handleChange} className="w-full mt-1 p-2 text-gray-900 border-2 border-gray-200 rounded-lg focus:border-pink-500 focus:ring-0 transition" placeholder="例：10:00〜19:00 (火曜定休)"></textarea>
