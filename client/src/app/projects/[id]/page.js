@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react'; // ★ useCallback をインポート
+import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
 import { useForm } from 'react-hook-form';
@@ -109,7 +109,7 @@ export default function ProjectDetailPage() {
   const [isReportModalOpen, setReportModalOpen] = useState(false);
   const [isCompletionModalOpen, setIsCompletionModalOpen] = useState(false);
   
-  // ★★★ この行が抜けていました ★★★
+  // ★ 修正: isTargetAmountModalOpen の useState を追加
   const [isTargetAmountModalOpen, setIsTargetAmountModalOpen] = useState(false);
 
   const [showAnnouncementForm, setShowAnnouncementForm] = useState(false);
@@ -180,7 +180,7 @@ export default function ProjectDetailPage() {
     };
   }, [id, user]); 
 
-  // --- (これ以降のハンドラ関数、ローディング/エラー表示、JSXは前回のものと同一です) ---
+  // --- (これ以降のハンドラ関数は変更ありません) ---
   
   const onPledgeSubmit = (data) => {
     if (!user) {
@@ -390,6 +390,9 @@ export default function ProjectDetailPage() {
   const totalExpense = (project.expenses || []).reduce((sum, exp) => sum + exp.amount, 0);
   const balance = project.collectedAmount - totalExpense;
   const hasPostedMessage = user && (project.messages || []).some(msg => msg.userId === user.id);
+  
+  // ★ オファー機能のための新しい変数
+  const canMakeOffer = isPlanner && (project.status === 'FUNDRAISING' || project.status === 'SUCCESSFUL');
 
   // --- JSX (変更なし) ---
   return (
@@ -397,36 +400,30 @@ export default function ProjectDetailPage() {
       <div className="min-h-screen bg-gray-100 p-4 sm:p-8">
         <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 bg-white rounded-2xl shadow-xl overflow-hidden">
-            {/* ★★★ 完了報告セクションを修正 ★★★ */}
+            {/* 完了報告セクション */}
             {project.status === 'COMPLETED' && (
                 <div className="p-6 md:p-8 bg-gradient-to-br from-yellow-50 to-orange-100 border-b border-orange-200">
                     <h2 className="text-2xl font-bold text-center text-yellow-800 mb-4">🎉 企画完了報告 🎉</h2>
-                    {/* 画像表示 */}
                     {project.completionImageUrls?.length > 0 && (
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
                             {project.completionImageUrls.map((url, index) => (
-                                // 画像クリックでモーダル表示する機能を追加しても良い
                                 <img key={index} src={url} alt={`完成写真 ${index + 1}`} className="w-full h-auto object-cover rounded-lg shadow-md aspect-square" />
                             ))}
                           </div>
                     )}
-                    {/* 企画者コメント */}
                     {project.completionComment && (
                         <div className="mb-6 bg-white/70 backdrop-blur-sm p-4 rounded-lg border border-orange-100">
                             <p className="font-semibold text-gray-800">企画者からのメッセージ:</p>
                             <p className="text-gray-700 whitespace-pre-wrap mt-2">{project.completionComment}</p>
                         </div>
                     )}
-                    {/* ★ 最終収支と使い道の表示を追加 */}
                     <div className="bg-white/70 backdrop-blur-sm p-4 rounded-lg border border-orange-100">
                          <h3 className="font-semibold text-gray-800 mb-2">最終収支</h3>
                          <div className="space-y-1 text-sm">
                             <div className="flex justify-between"><span className="text-gray-600">収入 (支援総額):</span> <span className="font-medium">{project.collectedAmount.toLocaleString()} pt</span></div>
-                            {/* project.expenses が include されている前提 */}
                             <div className="flex justify-between text-red-600"><span className="text-gray-600">支出合計:</span> <span className="font-medium">- {(project.expenses?.reduce((s,e)=>s+e.amount,0) || 0).toLocaleString()} pt</span></div>
                             <div className="flex justify-between font-bold border-t pt-1 mt-1"><span className="text-gray-800">最終残高 (余剰金):</span> <span>{project.finalBalance?.toLocaleString() ?? '未計算'} pt</span></div>
                          </div>
-                         {/* 使い道の表示 */}
                          {project.surplusUsageDescription && (
                              <div className="mt-3 border-t pt-2">
                                 <p className="font-semibold text-gray-800 text-sm">余剰金の使い道:</p>
@@ -437,11 +434,13 @@ export default function ProjectDetailPage() {
                  </div>
             )}
             
-            {/* ★★★【追加】企画管理セクション ★★★ */}
+            {/* ★★★【修正】企画管理セクション (オファー機能追加) ★★★ */}
              {isPlanner && (
               <div className="border-t my-8 pt-6 px-8">
                 <h2 className="text-2xl font-semibold text-gray-800 mb-4">企画管理</h2>
-                <div className="bg-slate-50 p-4 rounded-lg space-y-4 border border-slate-200">
+                <div className="bg-slate-50 p-4 rounded-lg space-y-6 border border-slate-200">
+                  
+                  {/* 1. 目標金額の変更 */}
                   <div>
                     <h3 className="font-semibold text-gray-700">目標金額の変更</h3>
                     <p className="text-sm text-gray-600 mt-1 mb-3">
@@ -449,14 +448,56 @@ export default function ProjectDetailPage() {
                     </p>
                     <button
                       onClick={() => setIsTargetAmountModalOpen(true)}
-                      // 募集中か達成済みの場合のみ変更可能にする (任意)
-                      // disabled={project.status !== 'FUNDRAISING' && project.status !== 'SUCCESSFUL'}
+                      disabled={project.status === 'COMPLETED' || project.status === 'CANCELED'}
                       className="px-4 py-2 text-sm font-semibold text-white bg-sky-500 rounded-lg hover:bg-sky-600 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
                     >
                       目標金額を変更する
                     </button>
                   </div>
-                  {/* 将来的に他の管理機能（例：企画編集）もここに追加できる */}
+
+                  {/* ★★★ 2. お花屋さんへのオファー (ここから追加) ★★★ */}
+                  <div className="border-t pt-6">
+                    <h3 className="font-semibold text-gray-700">お花屋さんへオファー</h3>
+                    {canMakeOffer ? (
+                      project.offer ? (
+                        // オファー済みの場合
+                        <div className="mt-2">
+                          <p className="text-sm text-gray-600">
+                            この企画は <strong>{project.offer.florist.platformName}</strong> さんにオファー済みです。
+                          </p>
+                          <p className="text-sm text-gray-500 mt-1">
+                            ステータス: {
+                              {
+                                'PENDING': 'お花屋さんの返信待ち',
+                                'ACCEPTED': '承認されました',
+                                'REJECTED': '辞退されました'
+                              }[project.offer.status]
+                            }
+                          </p>
+                        </div>
+                      ) : (
+                        // まだオファーしていない場合
+                        <>
+                          <p className="text-sm text-gray-600 mt-1 mb-3">
+                            この企画を実現してくれるお花屋さんを探し、オファーを送信しましょう。
+                          </p>
+                          <Link 
+                            href={`/florists?projectId=${project.id}`} 
+                            className="px-4 py-2 text-sm font-semibold text-white bg-pink-500 rounded-lg hover:bg-pink-600 transition-colors"
+                          >
+                            お花屋さんを探す
+                          </Link>
+                        </>
+                      )
+                    ) : (
+                      // オファーできない状態の場合
+                      <p className="text-sm text-gray-600 mt-1 mb-3">
+                        {project.status === 'PENDING_APPROVAL' && '企画が承認されると、お花屋さんにオファーできます。'}
+                        {(project.status === 'COMPLETED' || project.status === 'CANCELED') && 'この企画は完了または中止されたため、オファーできません。'}
+                      </p>
+                    )}
+                  </div>
+                  {/* ★★★ (ここまで追加) ★★★ */}
                 </div>
               </div>
             )}
@@ -692,7 +733,6 @@ export default function ProjectDetailPage() {
             </div>
             <h2 className="text-2xl font-semibold text-gray-800 mb-4">支援状況</h2>
             <div>
-              {/* ★ 修正: totalPledged -> project.collectedAmount */}
               <p className="text-3xl font-bold text-blue-600">{project.collectedAmount.toLocaleString()} pt</p>
               <p className="text-sm text-gray-500">目標: {project.targetAmount.toLocaleString()} pt</p>
             </div>
@@ -752,9 +792,7 @@ export default function ProjectDetailPage() {
       </div>
       
       {isImageModalOpen && <ImageModal src={project.imageUrl} onClose={() => setIsImageModalOpen(false)} />}
-      {/* ★ user={user} を ReportModal に渡す */}
       {isReportModalOpen && <ReportModal projectId={id} user={user} onClose={() => setReportModalOpen(false)} />}
-      {/* ★ user={user} を CompletionReportModal に渡す */}
       {isCompletionModalOpen && <CompletionReportModal project={project} user={user} onClose={() => setIsCompletionModalOpen(false)} onReportSubmitted={fetchProject} />}
       {isTargetAmountModalOpen && (
         <TargetAmountModal

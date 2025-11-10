@@ -305,12 +305,30 @@ app.post('/api/projects', async (req, res) => {
 // ★★★ 全ての企画を取得するAPI (最終修正版) ★★★
 app.get('/api/projects', async (req, res) => {
   try {
+    const { keyword, prefecture } = req.query; // URLから検索語を取得
+
+    // 検索条件のベース
+    const whereClause = {
+      visibility: 'PUBLIC',
+      status: 'FUNDRAISING', // '募集中' の企画のみ
+      NOT: { status: 'CANCELED' },
+    };
+
+    // もしキーワードがあれば、タイトルか説明文に含まれるものを検索
+    if (keyword && keyword.trim() !== '') {
+      whereClause.OR = [
+        { title: { contains: keyword, mode: 'insensitive' } }, // mode: 'insensitive' で大文字小文字を区別しない
+        { description: { contains: keyword, mode: 'insensitive' } },
+      ];
+    }
+    
+    // もし都道府県があれば、お届け先住所に含まれるものを検索
+    if (prefecture && prefecture.trim() !== '') {
+      whereClause.deliveryAddress = { contains: prefecture };
+    }
+
     const projects = await prisma.project.findMany({
-      where: {
-        visibility: 'PUBLIC',
-        status: 'FUNDRAISING', // ★ '募集中' の企画のみ
-        NOT: { status: 'CANCELED' },
-      },
+      where: whereClause, // 構築した検索条件を使用
       include: {
         planner: true,
       },
@@ -322,7 +340,6 @@ app.get('/api/projects', async (req, res) => {
     res.status(500).json({ message: '企画の取得中にエラーが発生しました。' });
   }
 });
-
 // こちらも 'FUNDRAISING' (募集中) の企画のみを取得
 app.get('/api/projects/featured', async (req, res) => {
   try {
