@@ -682,17 +682,37 @@ app.post('/api/florists/register', async (req, res) => {
   }
 });
 
+// ★★★ お花屋さん一覧取得API (検索機能付き) ★★★
 app.get('/api/florists', async (req, res) => {
   try {
+    const { keyword, prefecture } = req.query; // URLから検索語を取得
+
+    // 検索条件のベース
+    const whereClause = {
+      status: 'APPROVED', // 承認済みの花屋のみ
+    };
+
+    // もしキーワードがあれば、活動名(platformName)か自己紹介(portfolio)に含まれるものを検索
+    if (keyword && keyword.trim() !== '') {
+      whereClause.OR = [
+        { platformName: { contains: keyword, mode: 'insensitive' } },
+        { portfolio: { contains: keyword, mode: 'insensitive' } },
+      ];
+    }
+    
+    // もし都道府県があれば、住所(address)に含まれるものを検索
+    if (prefecture && prefecture.trim() !== '') {
+      whereClause.address = { contains: prefecture };
+    }
+
     const florists = await prisma.florist.findMany({
-      where: {
-        status: 'APPROVED' // ★ 承認済みの花屋のみ
-      },
-      select: { // ★ 公開して良い情報だけを選択
+      where: whereClause, // 構築した検索条件を使用
+      select: { // 公開して良い情報だけを選択
         id: true,
         platformName: true,
         portfolio: true,
         reviews: true,
+        address: true, // ★ 絞り込み確認用に住所も返す
       },
       orderBy: { createdAt: 'desc' },
     });

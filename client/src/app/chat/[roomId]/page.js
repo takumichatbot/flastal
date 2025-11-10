@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react'; // ★ useCallback をインポート
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { io } from 'socket.io-client';
 import { useAuth } from '../../contexts/AuthContext'; // 一般ユーザー用Context
 import { useParams, useRouter } from 'next/navigation';
@@ -10,7 +10,6 @@ import toast from 'react-hot-toast';
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
 // --- 見積書作成モーダル ---
-// ★ floristUser を props で受け取る
 function QuotationModal({ project, floristUser, onClose, onQuotationSubmitted }) {
   const [items, setItems] = useState([{ itemName: '', amount: '' }]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -34,7 +33,6 @@ function QuotationModal({ project, floristUser, onClose, onQuotationSubmitted })
   const totalAmount = items.reduce((sum, item) => sum + (parseInt(item.amount, 10) || 0), 0);
 
   const handleSubmit = async () => {
-    // ★ floristUserが存在するかチェック
     if (!floristUser || !floristUser.id) {
         toast.error("お花屋さん情報が見つかりません。");
         return;
@@ -48,14 +46,13 @@ function QuotationModal({ project, floristUser, onClose, onQuotationSubmitted })
         return;
     }
 
-    // ★★★ API呼び出し修正: トークン不要、floristId追加 ★★★
     const promise = fetch(`${API_URL}/api/quotations`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         projectId: project.id,
-        items: validItems.map(item => ({...item, amount: parseInt(item.amount, 10)})), // amountを数値に
-        floristId: floristUser.id, // ★ お花屋さんIDを追加
+        items: validItems.map(item => ({...item, amount: parseInt(item.amount, 10)})), 
+        floristId: floristUser.id, 
       }),
     }).then(async (res) => {
       if (!res.ok) {
@@ -77,7 +74,6 @@ function QuotationModal({ project, floristUser, onClose, onQuotationSubmitted })
     });
   };
 
-  // --- JSX (変更なし) ---
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
       <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-lg">
@@ -178,11 +174,18 @@ export default function ChatPage() {
 
     // WebSocket接続 (ログインしている場合のみ)
     if(initialEntity) {
-        const newSocket = io(API_URL);
-        setSocket(newSocket);
-        newSocket.emit('joinRoom', roomId); // ★ イベント名修正
+        
+        // ★★★ ここを修正 ★★★
+        // WebSocketを無効にし、Pollingを強制する
+        const newSocket = io(API_URL, {
+          transports: ['polling'] 
+        });
+        // ★★★ 修正ここまで ★★★
 
-        newSocket.on('receiveMessage', (newMessage) => { // ★ イベント名修正
+        setSocket(newSocket);
+        newSocket.emit('joinRoom', roomId); 
+
+        newSocket.on('receiveMessage', (newMessage) => { 
           setMessages((prevMessages) => [...prevMessages, newMessage]);
         });
         newSocket.on('messageError', (errorMessage) => {
@@ -201,7 +204,6 @@ export default function ChatPage() {
           newSocket.disconnect();
         };
     }
-  // ★ 依存関係を getCurrentEntity に変更
   }, [roomId, getCurrentEntity, fetchChatData, router, loading]);
 
   const handleSendMessage = (e) => {
@@ -211,7 +213,6 @@ export default function ChatPage() {
 
     if (currentMessage.trim() && currentEntity && currentEntityType && socket) {
       setChatError('');
-      // ★★★ sendMessage イベント名とペイロード修正 ★★★
       socket.emit('sendMessage', {
         roomId: roomId,
         content: currentMessage,
@@ -286,7 +287,6 @@ export default function ChatPage() {
   const florist = roomInfo.offer.florist;
   const planner = project.planner;
 
-  // ★ チャット相手の名前を確実に取得
   const chatPartnerName = currentEntityType === 'USER'
       ? florist?.platformName || 'お花屋さん'
       : planner?.handleName || '企画者';
@@ -363,7 +363,7 @@ export default function ChatPage() {
             {/* 見積もりボタンの表示条件を修正 */}
             {currentEntityType === 'FLORIST' && (!quotation || !quotation.isApproved) && (
               <button onClick={() => setIsModalOpen(true)} title="見積書を作成" className="p-3 bg-yellow-400 text-white rounded-full hover:bg-yellow-500 transition-colors flex-shrink-0">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
               </button>
             )}
             <form onSubmit={handleSendMessage} className="flex-grow flex gap-2">
