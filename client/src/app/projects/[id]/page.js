@@ -455,6 +455,19 @@ export default function ProjectDetailPage() {
                     </button>
                   </div>
 
+                  <div className="border-t pt-6">
+                    <h3 className="font-semibold text-gray-700">企画内容の編集</h3>
+                    <p className="text-sm text-gray-600 mt-1 mb-3">
+                      企画のタイトル、説明文、メイン画像、デザイン詳細などを編集します。
+                    </p>
+                    <Link 
+                      href={`/projects/edit/${project.id}`}
+                      className="px-4 py-2 text-sm font-semibold text-white bg-indigo-500 rounded-lg hover:bg-indigo-600 transition-colors"
+                    >
+                      企画内容を編集する
+                    </Link>
+                  </div>
+
                   {/* ★★★ 2. お花屋さんへのオファー (ここから追加) ★★★ */}
                   <div className="border-t pt-6">
                     <h3 className="font-semibold text-gray-700">お花屋さんへオファー</h3>

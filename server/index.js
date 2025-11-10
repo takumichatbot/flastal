@@ -56,7 +56,8 @@ const corsOptions = {
 
 const io = new Server(httpServer, {
   cors: corsOptions,
-  allowEIO3: true // ★ この行を追加
+  allowEIO3: true,        // ★追加
+  transports: ['polling'] // ★追加
 });
 
 const prisma = new PrismaClient();
@@ -720,6 +721,54 @@ app.get('/api/florists', async (req, res) => {
   } catch (error) {
     console.error("お花屋さんリスト取得エラー:", error);
     res.status(500).json({ message: 'お花屋さんの取得中にエラーが発生しました。' });
+  }
+});
+
+// ★★★【新規】企画を編集するAPI (主催者のみ) ★★★
+app.patch('/api/projects/:id', async (req, res) => {
+  const { id } = req.params;
+  const { 
+    userId, // 編集者が本人か確認するために使用
+    title, 
+    description, 
+    imageUrl, 
+    designDetails, 
+    size, 
+    flowerTypes 
+  } = req.body;
+
+  try {
+    // 1. 企画を検索
+    const project = await prisma.project.findUnique({
+      where: { id: id },
+    });
+
+    if (!project) {
+      return res.status(404).json({ message: '企画が見つかりません。' });
+    }
+
+    // 2. 企画者本人でなければ編集できない
+    if (project.plannerId !== userId) {
+      return res.status(403).json({ message: '権限がありません。' });
+    }
+
+    // 3. データを更新
+    const updatedProject = await prisma.project.update({
+      where: { id: id },
+      data: {
+        title: title,
+        description: description,
+        imageUrl: imageUrl,
+        designDetails: designDetails,
+        size: size,
+        flowerTypes: flowerTypes,
+      },
+    });
+
+    res.status(200).json(updatedProject);
+  } catch (error) {
+    console.error("企画の編集エラー:", error);
+    res.status(500).json({ message: '企画の更新中にエラーが発生しました。' });
   }
 });
 

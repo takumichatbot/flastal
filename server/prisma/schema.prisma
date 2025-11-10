@@ -97,8 +97,6 @@ model Project {
   updatedAt         DateTime          @updatedAt
   finalBalance            Int?    // 企画完了時の最終残高（余剰金）
   surplusUsageDescription String? @db.Text // 余剰金の使い道のメモ
-  portfolioImages String[]      // ポートフォリオ画像URLのリスト (3枚まで)
-  businessHours   String?       @db.Text // 営業時間 (テキスト形式で自由入力)
   
   // Relations
   plannerId           String
@@ -135,10 +133,12 @@ model Florist {
   email         String          @unique
   password      String
   contactName   String
+  portfolioImages String[]
   address       String?
   phoneNumber   String?
   website       String?
   portfolio     String?         @db.Text
+  businessHours   String?       @db.Text
   balance       Int             @default(0)
   laruBotApiKey String?
   createdAt     DateTime        @default(now())
