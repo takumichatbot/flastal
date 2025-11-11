@@ -111,10 +111,8 @@ export default function ChatPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [chatError, setChatError] = useState('');
   
-  // ★★★ ファイルアップロード用の state を追加 ★★★
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef(null);
-  // ★★★ ここまで ★★★
 
   const messagesEndRef = useRef(null);
   const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -167,14 +165,18 @@ export default function ChatPage() {
     fetchChatData();
 
     if(initialEntity) {
-        // ★ 修正: WebSocketを無効にし、Pollingを強制する
+        
+        // ★★★ ここを修正 ★★★
+        // WebSocketを無効にし、Pollingを強制する
         const newSocket = io(API_URL, {
           transports: ['polling'] 
         });
-        setSocket(newSocket);
-        newSocket.emit('joinRoom', roomId);
+        // ★★★ 修正ここまで ★★★
 
-        newSocket.on('receiveMessage', (newMessage) => {
+        setSocket(newSocket);
+        newSocket.emit('joinRoom', roomId); 
+
+        newSocket.on('receiveMessage', (newMessage) => { 
           setMessages((prevMessages) => [...prevMessages, newMessage]);
         });
         newSocket.on('messageError', (errorMessage) => {
@@ -195,17 +197,15 @@ export default function ChatPage() {
     }
   }, [roomId, getCurrentEntity, fetchChatData, router, loading]);
 
-  // ★★★ テキストメッセージ送信関数 ★★★
   const handleSendMessage = (e) => {
     e.preventDefault();
     const { entity: currentEntity, type: currentEntityType } = getCurrentEntity();
 
     if (currentMessage.trim() && currentEntity && currentEntityType && socket) {
       setChatError('');
-      // ★ messageType: 'TEXT' を明記
       socket.emit('sendMessage', {
         roomId: roomId,
-        messageType: 'TEXT', // ★ 追加
+        messageType: 'TEXT',
         content: currentMessage,
         senderType: currentEntityType,
         userId: currentEntityType === 'USER' ? currentEntity.id : null,
@@ -217,50 +217,37 @@ export default function ChatPage() {
     }
   };
   
-  // ★★★【新規】ファイルアップロード＆送信関数 ★★★
   const handleFileUpload = async (event) => {
     const file = event.target.files[0];
     if (!file) return;
-
     const { entity: currentEntity, type: currentEntityType } = getCurrentEntity();
     if (!currentEntity || !socket) {
       return toast.error('ログインが必要です。');
     }
-
     setIsUploading(true);
     const toastId = toast.loading('ファイルをアップロード中...');
-    
     const uploadFormData = new FormData();
-    uploadFormData.append('image', file); // APIは 'image' というキーを期待
-
+    uploadFormData.append('image', file);
     try {
-      // 1. Cloudinaryにアップロード
       const res = await fetch(`${API_URL}/api/upload`, { method: 'POST', body: uploadFormData });
       if (!res.ok) throw new Error('アップロードに失敗');
       const data = await res.json();
-      
-      // 2. メッセージタイプを決定 (画像かどうか)
       const messageType = file.type.startsWith('image/') ? 'IMAGE' : 'FILE';
-
-      // 3. Socket.io でチャットに送信
       socket.emit('sendMessage', {
         roomId: roomId,
         messageType: messageType,
-        fileUrl: data.url,      // CloudinaryのURL
-        fileName: file.name,    // 元のファイル名
-        content: null,          // テキストは null
+        fileUrl: data.url,
+        fileName: file.name,
+        content: null,
         senderType: currentEntityType,
         userId: currentEntityType === 'USER' ? currentEntity.id : null,
         floristId: currentEntityType === 'FLORIST' ? currentEntity.id : null,
       });
-
       toast.success('ファイルを送信しました！', { id: toastId });
-
     } catch (error) {
         toast.error(`送信に失敗しました: ${error.message}`, { id: toastId });
     } finally {
         setIsUploading(false);
-        // 同じファイルを連続でアップロードできるように input の値をリセット
         if (fileInputRef.current) {
           fileInputRef.current.value = "";
         }
@@ -268,7 +255,6 @@ export default function ChatPage() {
   };
 
   const handleApproveQuotation = async (quotationId) => {
-    // ... (変更なし)
     const { entity: currentEntity, type: currentEntityType } = getCurrentEntity();
     if (currentEntityType !== 'USER' || !currentEntity) {
         toast.error("見積書の承認には企画者としてログインが必要です。");
@@ -297,7 +283,6 @@ export default function ChatPage() {
     }
   };
 
-  // --- ローディング・エラー表示 (変更なし) ---
   if (loading) {
       return (
           <div className="flex items-center justify-center min-h-screen">
@@ -343,25 +328,46 @@ export default function ChatPage() {
           <h1 className="text-xl font-bold text-gray-800">{chatPartnerName}さんとのチャット</h1>
         </header>
 
-        {/* ★★★ メッセージ表示欄を修正 ★★★ */}
         <main className="flex-1 overflow-y-auto p-4 space-y-4">
           {quotation && (
             <div className="p-4 bg-yellow-100 border border-yellow-300 rounded-lg my-4 text-gray-800 shadow">
-              {/* (見積書コンポーネント - 変更なし) */}
+              <h3 className="font-bold text-yellow-800 text-center text-lg">見積書</h3>
+              <ul className="list-disc list-inside my-3 text-yellow-900 pl-4 space-y-1">
+                {(quotation.items || []).map(item => <li key={item.id}>{item.itemName}: {item.amount?.toLocaleString() || 0} pt</li>)}
+              </ul>
+              <p className="font-bold text-right border-t border-yellow-300 pt-2 text-lg">合計: {quotation.totalAmount?.toLocaleString() || 0} pt</p>
+
+              {isPlanner && !quotation.isApproved && (
+                <div className="mt-4 text-center">
+                  <p className="text-sm text-yellow-800 mb-2">現在の支援総額: {project.collectedAmount?.toLocaleString() || 0} pt</p>
+
+                  <button
+                    onClick={() => handleApproveQuotation(quotation.id)}
+                    disabled={!hasEnoughPoints} 
+                    className="px-6 py-2 bg-green-500 text-white font-bold rounded-lg hover:bg-green-600 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {hasEnoughPoints ? '承認・支払い確定' : 'ポイントが不足しています'}
+                  </button>
+                  {!hasEnoughPoints && (
+                    <p className="text-xs text-red-600 mt-2">
+                      目標金額を変更して、追加の支援を募ってください。
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {quotation.isApproved && <p className="text-center font-bold text-green-600 mt-4 text-lg">✓ 承認済み</p>}
             </div>
           )}
 
           {messages.map((msg) => {
-            if (!msg || !msg.id) return null; // データ破損時はスキップ
-            
+            if (!msg || !msg.id) return null;
             const isMyMessage = msg.senderType === currentEntityType;
-            
             return (
               <div key={msg.id} className={`flex ${isMyMessage ? 'justify-end' : 'justify-start'}`}>
                 <div className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg shadow ${isMyMessage ? 'bg-sky-500 text-white' : 'bg-white text-gray-800'}`}>
                   {msg.isAutoResponse && <p className="text-xs font-bold mb-1 opacity-80">🤖 AIからの自動応答</p>}
                   
-                  {/* ★★★ メッセージタイプに応じて表示を変更 ★★★ */}
                   {msg.messageType === 'IMAGE' ? (
                     <img src={msg.fileUrl} alt={msg.fileName || '送信された画像'} className="w-full h-auto rounded-md" />
                   ) : msg.messageType === 'FILE' ? (
@@ -376,7 +382,6 @@ export default function ChatPage() {
                   ) : (
                     <p className="whitespace-pre-wrap">{msg.content}</p>
                   )}
-                  {/* ★★★ ここまで ★★★ */}
 
                   <p className="text-xs mt-1 text-right opacity-70">{new Date(msg.createdAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}</p>
                 </div>
@@ -386,7 +391,6 @@ export default function ChatPage() {
           <div ref={messagesEndRef} style={{ height: '1px' }}></div>
         </main>
 
-        {/* ★★★ フッター（入力欄）を修正 ★★★ */}
         <footer className="bg-white p-4 border-t flex flex-col gap-2 sticky bottom-0">
           {chatError && (
             <div className="w-full p-2 text-sm text-red-700 bg-red-100 rounded-lg text-center animate-pulse">
@@ -394,15 +398,12 @@ export default function ChatPage() {
             </div>
           )}
           <div className="flex items-center gap-2 w-full">
-            
-            {/* 見積もりボタン */}
             {currentEntityType === 'FLORIST' && (!quotation || !quotation.isApproved) && (
               <button onClick={() => setIsModalOpen(true)} title="見積書を作成" className="p-3 bg-yellow-400 text-white rounded-full hover:bg-yellow-500 transition-colors flex-shrink-0">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
               </button>
             )}
 
-            {/* ★【新規】ファイル添付ボタン */}
             <button 
               type="button" 
               onClick={() => fileInputRef.current.click()} 
@@ -420,7 +421,6 @@ export default function ChatPage() {
               disabled={isUploading}
             />
 
-            {/* テキスト入力フォーム */}
             <form onSubmit={handleSendMessage} className="flex-grow flex gap-2">
               <input
                 type="text"
