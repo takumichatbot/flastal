@@ -13,7 +13,6 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onre
 function QuotationModal({ project, floristUser, onClose, onQuotationSubmitted }) {
   const [items, setItems] = useState([{ itemName: '', amount: '' }]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
   const handleItemChange = (index, event) => {
     const values = [...items];
     values[index][event.target.name] = event.target.value;
@@ -100,14 +99,14 @@ function QuotationModal({ project, floristUser, onClose, onQuotationSubmitted })
 export default function ChatPage() {
   const params = useParams();
   const { roomId } = params;
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth(); // ★ AuthContextのloadingを取得
   const router = useRouter();
 
   const [socket, setSocket] = useState(null);
   const [messages, setMessages] = useState([]);
   const [currentMessage, setCurrentMessage] = useState('');
   const [roomInfo, setRoomInfo] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loadingData, setLoadingData] = useState(true); // ★ ローカルのデータ読み込み用state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [chatError, setChatError] = useState('');
   
@@ -137,7 +136,7 @@ export default function ChatPage() {
   const fetchChatData = useCallback(async () => {
     if (!roomId) return;
     try {
-      setLoading(true);
+      setLoadingData(true); // ★ローカルのローディング開始
       const res = await fetch(`${API_URL}/api/chat/${roomId}`);
       if (!res.ok) throw new Error('チャットルームの読み込みに失敗しました。');
       const data = await res.json();
@@ -148,59 +147,65 @@ export default function ChatPage() {
       setRoomInfo(null);
       setMessages([]);
     } finally {
-      setLoading(false);
+      setLoadingData(false); // ★ローカルのローディング完了
     }
   }, [roomId]);
 
+  // ★★★ useEffectを2つに分割して無限ループを解消 ★★★
+
+  // 1. 認証とデータ取得用useEffect
   useEffect(() => {
-    if (!roomId) return;
+    if (authLoading) return; // AuthContextの読み込みを待つ
 
     const { entity: initialEntity } = getCurrentEntity();
-    if (!initialEntity && !loading) {
+    if (!initialEntity) {
         toast.error("ログインが必要です。");
         router.push('/login');
         return;
     }
 
-    fetchChatData();
-
-    if(initialEntity) {
-        
-        // ★★★ ここを修正 ★★★
-        // WebSocketを無効にし、Pollingを強制する
-        const newSocket = io(API_URL, {
-          transports: ['polling'] 
-        });
-        // ★★★ 修正ここまで ★★★
-
-        setSocket(newSocket);
-        newSocket.emit('joinRoom', roomId); 
-
-        newSocket.on('receiveMessage', (newMessage) => { 
-          setMessages((prevMessages) => [...prevMessages, newMessage]);
-        });
-        newSocket.on('messageError', (errorMessage) => {
-          setChatError(errorMessage);
-          setTimeout(() => setChatError(''), 5000);
-        });
-        newSocket.on('floristMessageDeleted', ({ messageId }) => {
-          setMessages(prevMessages => prevMessages.filter(m => m.id !== messageId));
-        });
-
-        // クリーンアップ
-        return () => {
-          newSocket.off('receiveMessage');
-          newSocket.off('messageError');
-          newSocket.off('floristMessageDeleted');
-          newSocket.disconnect();
-        };
+    if (roomId) {
+      fetchChatData();
     }
-  }, [roomId, getCurrentEntity, fetchChatData, router, loading]);
+  }, [roomId, getCurrentEntity, fetchChatData, router, authLoading]); // ★ authLoading を依存配列に追加
+
+  // 2. WebSocket接続用useEffect
+  useEffect(() => {
+    // 認証が完了し、ユーザーが特定されてからSocket接続
+    if (!roomId || !currentEntity) {
+      return;
+    }
+    
+    const newSocket = io(API_URL, {
+      transports: ['polling'] // Pollingを強制
+    });
+    setSocket(newSocket);
+    newSocket.emit('joinRoom', roomId);
+
+    newSocket.on('receiveMessage', (newMessage) => {
+      setMessages((prevMessages) => [...prevMessages, newMessage]);
+    });
+    newSocket.on('messageError', (errorMessage) => {
+      setChatError(errorMessage);
+      setTimeout(() => setChatError(''), 5000);
+    });
+    newSocket.on('floristMessageDeleted', ({ messageId }) => {
+      setMessages(prevMessages => prevMessages.filter(m => m.id !== messageId));
+    });
+
+    // クリーンアップ
+    return () => {
+      newSocket.off('receiveMessage');
+      newSocket.off('messageError');
+      newSocket.off('floristMessageDeleted');
+      newSocket.disconnect();
+      setSocket(null);
+    };
+  }, [roomId, currentEntity]); // ★ 依存配列を currentEntity に変更
+  // ★★★ 修正ここまで ★★★
 
   const handleSendMessage = (e) => {
     e.preventDefault();
-    const { entity: currentEntity, type: currentEntityType } = getCurrentEntity();
-
     if (currentMessage.trim() && currentEntity && currentEntityType && socket) {
       setChatError('');
       socket.emit('sendMessage', {
@@ -220,7 +225,6 @@ export default function ChatPage() {
   const handleFileUpload = async (event) => {
     const file = event.target.files[0];
     if (!file) return;
-    const { entity: currentEntity, type: currentEntityType } = getCurrentEntity();
     if (!currentEntity || !socket) {
       return toast.error('ログインが必要です。');
     }
@@ -255,7 +259,6 @@ export default function ChatPage() {
   };
 
   const handleApproveQuotation = async (quotationId) => {
-    const { entity: currentEntity, type: currentEntityType } = getCurrentEntity();
     if (currentEntityType !== 'USER' || !currentEntity) {
         toast.error("見積書の承認には企画者としてログインが必要です。");
         return;
@@ -283,14 +286,14 @@ export default function ChatPage() {
     }
   };
 
-  if (loading) {
+  if (authLoading || loadingData) { // ★ 認証とデータの両方を待つ
       return (
           <div className="flex items-center justify-center min-h-screen">
               <p>チャットを読み込んでいます...</p>
           </div>
       );
   }
-   if (!currentEntity && !roomInfo && !loading) {
+   if (!currentEntity && !roomInfo && !authLoading) { // ★ authLoading をチェック
        return (
          <div className="text-center p-10 flex flex-col items-center justify-center min-h-screen">
            <p className="mb-4">このページにアクセスするにはログインが必要です。</p>
@@ -320,12 +323,30 @@ export default function ChatPage() {
     <>
       <div className="flex flex-col h-screen bg-gray-100">
         <header className="bg-white shadow-sm p-4 text-center sticky top-0 z-10 border-b">
-          <p className="text-sm text-gray-500">企画名:
-            <Link href={`/projects/${project.id}`} className="text-sky-600 hover:underline ml-1">
-                {project.title || '不明な企画'}
-            </Link>
-          </p>
-          <h1 className="text-xl font-bold text-gray-800">{chatPartnerName}さんとのチャット</h1>
+          {/* ★★★ ヘッダーにアイコンを追加 ★★★ */}
+          <div className="flex items-center justify-center relative">
+            {/* アイコン */}
+            <div className="absolute left-4 top-1/2 -translate-y-1/2">
+              {currentEntityType === 'USER' ? (
+                // 自分がファン -> 相手(花屋)のアイコン
+                 florist.iconUrl ? <img src={florist.iconUrl} alt="icon" className="h-10 w-10 rounded-full object-cover"/> : <div className="h-10 w-10 rounded-full bg-pink-100"></div>
+              ) : (
+                // 自分が花屋 -> 相手(ファン)のアイコン
+                planner.iconUrl ? <img src={planner.iconUrl} alt="icon" className="h-10 w-10 rounded-full object-cover"/> : <div className="h-10 w-10 rounded-full bg-gray-200"></div>
+              )}
+            </div>
+            
+            {/* 中央のテキスト */}
+            <div className="flex flex-col items-center">
+              <h1 className="text-xl font-bold text-gray-800">{chatPartnerName}さんとのチャット</h1>
+              <p className="text-sm text-gray-500">
+                <Link href={`/projects/${project.id}`} className="text-sky-600 hover:underline">
+                    {project.title || '不明な企画'}
+                </Link>
+              </p>
+            </div>
+          </div>
+          {/* ★★★ ヘッダー修正ここまで ★★★ */}
         </header>
 
         <main className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -336,11 +357,9 @@ export default function ChatPage() {
                 {(quotation.items || []).map(item => <li key={item.id}>{item.itemName}: {item.amount?.toLocaleString() || 0} pt</li>)}
               </ul>
               <p className="font-bold text-right border-t border-yellow-300 pt-2 text-lg">合計: {quotation.totalAmount?.toLocaleString() || 0} pt</p>
-
               {isPlanner && !quotation.isApproved && (
                 <div className="mt-4 text-center">
                   <p className="text-sm text-yellow-800 mb-2">現在の支援総額: {project.collectedAmount?.toLocaleString() || 0} pt</p>
-
                   <button
                     onClick={() => handleApproveQuotation(quotation.id)}
                     disabled={!hasEnoughPoints} 
@@ -355,7 +374,6 @@ export default function ChatPage() {
                   )}
                 </div>
               )}
-
               {quotation.isApproved && <p className="text-center font-bold text-green-600 mt-4 text-lg">✓ 承認済み</p>}
             </div>
           )}
@@ -400,7 +418,7 @@ export default function ChatPage() {
           <div className="flex items-center gap-2 w-full">
             {currentEntityType === 'FLORIST' && (!quotation || !quotation.isApproved) && (
               <button onClick={() => setIsModalOpen(true)} title="見積書を作成" className="p-3 bg-yellow-400 text-white rounded-full hover:bg-yellow-500 transition-colors flex-shrink-0">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
               </button>
             )}
 
@@ -411,7 +429,7 @@ export default function ChatPage() {
               title="ファイル/画像を添付" 
               className="p-3 bg-gray-200 text-gray-700 rounded-full hover:bg-gray-300 transition-colors flex-shrink-0 disabled:bg-gray-100 disabled:text-gray-400"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
             </button>
             <input 
               type="file" 

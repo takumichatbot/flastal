@@ -301,35 +301,38 @@ app.post('/api/projects', async (req, res) => {
   }
 });
 
-// ★★★ 全ての企画を取得するAPI (最終修正版) ★★★
+// ★★★ 全ての企画を取得するAPI (検索機能・セキュリティ修正付き) ★★★
 app.get('/api/projects', async (req, res) => {
   try {
-    const { keyword, prefecture } = req.query; // URLから検索語を取得
+    const { keyword, prefecture } = req.query; 
 
-    // 検索条件のベース
     const whereClause = {
       visibility: 'PUBLIC',
-      status: 'FUNDRAISING', // '募集中' の企画のみ
+      status: 'FUNDRAISING', 
       NOT: { status: 'CANCELED' },
     };
 
-    // もしキーワードがあれば、タイトルか説明文に含まれるものを検索
     if (keyword && keyword.trim() !== '') {
       whereClause.OR = [
-        { title: { contains: keyword, mode: 'insensitive' } }, // mode: 'insensitive' で大文字小文字を区別しない
+        { title: { contains: keyword, mode: 'insensitive' } },
         { description: { contains: keyword, mode: 'insensitive' } },
       ];
     }
     
-    // もし都道府県があれば、お届け先住所に含まれるものを検索
     if (prefecture && prefecture.trim() !== '') {
       whereClause.deliveryAddress = { contains: prefecture };
     }
 
     const projects = await prisma.project.findMany({
-      where: whereClause, // 構築した検索条件を使用
+      where: whereClause, 
       include: {
-        planner: true,
+        // ★ 修正: planner: true (全情報) ではなく、必要な情報だけを select する
+        planner: {
+          select: {
+            handleName: true,
+            iconUrl: true // ★ アイコンURLを追加
+          }
+        }
       },
       orderBy: { createdAt: 'desc' }
     });
@@ -339,6 +342,7 @@ app.get('/api/projects', async (req, res) => {
     res.status(500).json({ message: '企画の取得中にエラーが発生しました。' });
   }
 });
+
 // こちらも 'FUNDRAISING' (募集中) の企画のみを取得
 app.get('/api/projects/featured', async (req, res) => {
   try {

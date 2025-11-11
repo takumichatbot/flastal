@@ -21,7 +21,7 @@ const getStatusBadge = (status) => {
   }
 };
 
-export default function MyPageContent() { // ★ 関数名を MyPageContent に修正 (MyPage ではない)
+export default function MyPageContent() {
   const { user, loading: authLoading, logout } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams(); 
@@ -85,7 +85,11 @@ export default function MyPageContent() { // ★ 関数名を MyPageContent に�
 
   // ★★★ タブの内容を描画する関数 (profile ケースを修正) ★★★
   const renderTabContent = () => {
-    if (loadingData) return <p className="text-gray-600 text-center py-4">企画データを読み込み中...</p>;
+    // データ取得中のローディング表示
+    // (profileタブ以外は、データ取得中も表示を分ける)
+    if (loadingData && activeTab !== 'profile') {
+        return <p className="text-gray-600 text-center py-4">企画データを読み込み中...</p>;
+    }
 
     switch (activeTab) {
       case 'created':
