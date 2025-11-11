@@ -21,13 +21,13 @@ export default function EditFloristProfilePage({ params }) {
     laruBotApiKey: '', 
     portfolioImages: [], 
     businessHours: '',
-    iconUrl: '', // ★ アイコンURL用の state を追加
+    iconUrl: '', // アイコンURL用の state を追加
   });
   const [loading, setLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false); // ポートフォリオ画像用
-  const [isIconUploading, setIsIconUploading] = useState(false); // ★ アイコン画像用
+  const [isIconUploading, setIsIconUploading] = useState(false); // アイコン画像用
   const portfolioFileInputRef = useRef(null); // ポートフォリオ用
-  const iconFileInputRef = useRef(null); // ★ アイコン用
+  const iconFileInputRef = useRef(null); // アイコン用
   
   const [florist, setFlorist] = useState(null); 
 
@@ -79,7 +79,7 @@ export default function EditFloristProfilePage({ params }) {
           laruBotApiKey: data.laruBotApiKey || '', 
           portfolioImages: data.portfolioImages || [], 
           businessHours: data.businessHours || '',
-          iconUrl: data.iconUrl || '', // ★ アイコンURLもセット
+          iconUrl: data.iconUrl || '', // アイコンURLもセット
         };
         
         setFormData(newFormData);
@@ -100,7 +100,7 @@ export default function EditFloristProfilePage({ params }) {
     setFormData(prevState => ({ ...prevState, [name]: value }));
   };
 
-  // ★★★ アイコン画像アップロード処理 ★★★
+  // アイコン画像アップロード処理
   const handleIconUpload = async (event) => {
     const file = event.target.files[0];
     if (!file) return;
@@ -115,7 +115,6 @@ export default function EditFloristProfilePage({ params }) {
         if (!res.ok) throw new Error('アップロードに失敗');
         const data = await res.json();
         
-        // フォームの iconUrl を更新
         setFormData(prev => ({ ...prev, iconUrl: data.url }));
         toast.success('アイコンをアップロードしました！', { id: toastId });
 
@@ -126,7 +125,7 @@ export default function EditFloristProfilePage({ params }) {
     }
   };
 
-  // ★★★ ポートフォリオ画像アップロード処理 ★★★
+  // ポートフォリオ画像アップロード処理
   const handlePortfolioImageUpload = async (event) => {
     const files = event.target.files;
     if (!files || files.length === 0) return;
@@ -164,15 +163,16 @@ export default function EditFloristProfilePage({ params }) {
       }));
   };
 
-  // ★★★ フォーム送信処理 ★★★
+  // フォーム送信処理
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!florist) return; 
 
-    // formData には iconUrl も含まれている
     const promise = fetch(`${API_URL}/api/florists/${id}`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+          'Content-Type': 'application/json',
+      },
       body: JSON.stringify(formData), 
     }).then(async (res) => {
       if (!res.ok) {
@@ -185,10 +185,8 @@ export default function EditFloristProfilePage({ params }) {
     toast.promise(promise, {
       loading: '更新中...',
       success: (updatedFlorist) => {
-        // localStorage を更新
         localStorage.setItem('flastal-florist', JSON.stringify(updatedFlorist));
         
-        // フォームデータもAPIからの返り値で最新化
         const newFormData = {
           shopName: updatedFlorist.shopName || '',
           platformName: updatedFlorist.platformName || '',
@@ -200,7 +198,7 @@ export default function EditFloristProfilePage({ params }) {
           laruBotApiKey: updatedFlorist.laruBotApiKey || '', 
           portfolioImages: updatedFlorist.portfolioImages || [], 
           businessHours: updatedFlorist.businessHours || '',
-          iconUrl: updatedFlorist.iconUrl || '', // ★ iconUrl も更新
+          iconUrl: updatedFlorist.iconUrl || '',
         };
         setFormData(newFormData);
 
@@ -225,11 +223,10 @@ export default function EditFloristProfilePage({ params }) {
         <h2 className="text-3xl font-bold text-center text-gray-900">プロフィール編集</h2>
         <form onSubmit={handleSubmit} className="space-y-6">
 
-          {/* ★★★【新規】アイコンアップロードUI ★★★ */}
+          {/* アイコンアップロードUI */}
           <div>
             <label className="block text-sm font-medium text-gray-700">プロフィールアイコン</label>
             <div className="mt-2 flex items-center gap-4">
-              {/* 画像プレビュー */}
               {formData.iconUrl ? (
                 <img src={formData.iconUrl} alt="Icon preview" className="h-20 w-20 rounded-full object-cover" />
               ) : (
@@ -237,7 +234,6 @@ export default function EditFloristProfilePage({ params }) {
                   <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4m0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4"/></svg>
                 </div>
               )}
-              {/* アップロードボタン */}
               <button type="button" onClick={() => iconFileInputRef.current.click()} disabled={isIconUploading} className="px-4 py-2 text-sm bg-sky-100 text-sky-700 rounded-md hover:bg-sky-200 disabled:bg-slate-200">
                 {isIconUploading ? 'アップロード中...' : '画像を選択'}
               </button>
@@ -279,7 +275,8 @@ export default function EditFloristProfilePage({ params }) {
           </div>
            {/* Add platformName field */}
            <div>
-            <label htmlFor="platformName" className="block text-sm font-medium text-gray-700">活動名（公開）</Lgabel>
+            {/* ★★★ ここがタイプミスでした ★★★ */}
+            <label htmlFor="platformName" className="block text-sm font-medium text-gray-700">活動名（公開）</label>
             <input type="text" name="platformName" id="platformName" required value={formData.platformName} onChange={handleChange} className="w-full mt-1 p-2 text-gray-900 border-2 border-gray-200 rounded-lg focus:border-pink-500 focus:ring-0 transition"/>
           </div>
           <div>
@@ -312,7 +309,6 @@ export default function EditFloristProfilePage({ params }) {
             <input type="text" name="laruBotApiKey" id="laruBotApiKey" value={formData.laruBotApiKey} onChange={handleChange} className="w-full mt-1 p-2 text-gray-900 border-2 border-gray-200 rounded-lg focus:border-pink-500 focus:ring-0 transition"/>
           </div>
           <div className="flex flex-col sm:flex-row gap-4 pt-4">
-             {/* Use Link component for navigation */}
              <Link href={`/florists/dashboard`} className="w-full">
               <span className="block text-center w-full px-4 py-3 font-semibold text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors">
                 ダッシュボードに戻る
