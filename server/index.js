@@ -161,29 +161,27 @@ app.post('/api/users/login', async (req, res) => {
     if (!isPasswordValid) {
       return res.status(401).json({ message: 'パスワードが間違っています。' })
     }
-    // 1. トークンに含める情報（ペイロード）を定義
-    // ★★★ role を含める ★★★
+    
+    // ★ トークンに iconUrl を含める
     const tokenPayload = {
       id: user.id,
       email: user.email,
       handleName: user.handleName,
       role: user.role, 
-      referralCode: user.referralCode, // ★ これを追加
+      iconUrl: user.iconUrl, // ★ この行を追加
+      referralCode: user.referralCode,
       sub: user.id
     };
 
-    // 2. JWTを生成 (有効期限を 1d = 1日 に設定)
-    //    必ず .env ファイルに JWT_SECRET を設定してください
     const token = jwt.sign(
       tokenPayload,
-      process.env.JWT_SECRET, // .env に設定した秘密鍵
+      process.env.JWT_SECRET,
       { expiresIn: '1d' }
     );
 
-    // 3. トークンをレスポンスとして返す
     res.status(200).json({
       message: 'ログインに成功しました。',
-      token: token // ★ user オブジェクトの代わりに token を返す
+      token: token 
     });
   } catch (error) {
     console.error(error)
@@ -446,6 +444,57 @@ app.get('/api/admin/projects/pending', async (req, res) => {
   } catch (error) {
     console.error("審査待ち企画の取得エラー:", error);
     res.status(500).json({ message: '審査待ち企画の取得中にエラーが発生しました。' });
+  }
+});
+
+// ★★★【新規】ファンのプロフィール更新API ★★★
+app.patch('/api/users/profile', async (req, res) => {
+  // ★ 本来はJWTトークンからユーザーIDを取得すべきですが、
+  // ★ 他のAPIに合わせて一旦リクエストボディから受け取ります
+  const { userId, handleName, iconUrl } = req.body;
+
+  if (!userId) {
+    return res.status(400).json({ message: 'ユーザーIDが必要です。' });
+  }
+
+  try {
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        handleName: handleName,
+        iconUrl: iconUrl,
+      },
+    });
+
+    // パスワードなど機密情報を除外
+    const { password, ...userWithoutPassword } = updatedUser;
+
+    // ★ 更新されたユーザー情報で新しいトークンを発行する
+    const tokenPayload = {
+      id: userWithoutPassword.id,
+      email: userWithoutPassword.email,
+      handleName: userWithoutPassword.handleName,
+      role: userWithoutPassword.role, 
+      iconUrl: userWithoutPassword.iconUrl, // ★ 更新された iconUrl
+      referralCode: userWithoutPassword.referralCode,
+      sub: userWithoutPassword.id
+    };
+
+    const token = jwt.sign(
+      tokenPayload,
+      process.env.JWT_SECRET,
+      { expiresIn: '1d' }
+    );
+
+    // ★ 新しいトークンを返す
+    res.status(200).json({ 
+      message: 'プロフィールを更新しました。',
+      token: token // 新しいトークンを渡す
+    });
+
+  } catch (error) {
+    console.error("ユーザープロフィール更新エラー:", error);
+    res.status(500).json({ message: 'プロフィールの更新に失敗しました。' });
   }
 });
 
@@ -1011,13 +1060,16 @@ app.post('/api/upload', upload.single('image'), async (req, res) => {
   }
 });
 
+// ★★★ お花屋さんプロフィール更新API (962行目あたり) ★★★
 app.patch('/api/florists/:id', async (req, res) => {
   const { id } = req.params;
-  // ★★★ 受け取るデータを追加 ★★★
+  
+  // ★ iconUrl を受け取るように追加
   const { 
     shopName, platformName, contactName, address, 
     phoneNumber, website, portfolio, laruBotApiKey,
-    portfolioImages, businessHours // ← 追加
+    portfolioImages, businessHours,
+    iconUrl // ★ 追加
   } = req.body;
 
   try {
@@ -1025,15 +1077,16 @@ app.patch('/api/florists/:id', async (req, res) => {
       where: { id: id },
       data: {
         shopName,
-        platformName, // ★ platformNameも更新できるように
+        platformName,
         contactName,
         address,
         phoneNumber,
         website,
         portfolio,
         laruBotApiKey,
-        portfolioImages, // ★ 追加
-        businessHours,   // ★ 追加
+        portfolioImages, 
+        businessHours,
+        iconUrl, // ★ 追加
       },
     });
     const { password, ...floristWithoutPassword } = updatedFlorist;
@@ -1818,17 +1871,31 @@ io.on('connection', (socket) => {
     console.log(`Socket ${socket.id} joined project room ${projectId}`);
   });
 
-  socket.on('sendMessage', async ({ roomId, content, senderType, userId, floristId }) => {
+  socket.on('sendMessage', async ({ roomId, content, senderType, userId, floristId, messageType, fileUrl, fileName }) => { // ★ 引数を追加
     try {
-      if (senderType === 'USER' || senderType === 'FLORIST') {
-        const containsNGWord = NG_WORDS.some(word => content.toLowerCase().includes(word.toLowerCase()));
-        if (containsNGWord) {
-          socket.emit('messageError', '送信できない単語が含まれています。内容を修正してください。');
-          return; 
+      // ★ NGワードチェックは TEXT の場合のみ
+      if (messageType === 'TEXT' && content) {
+        if (senderType === 'USER' || senderType === 'FLORIST') {
+          const containsNGWord = NG_WORDS.some(word => content.toLowerCase().includes(word.toLowerCase()));
+          if (containsNGWord) {
+            socket.emit('messageError', '送信できない単語が含まれています。内容を修正してください。');
+            return; 
+          }
         }
       }
+
+      // ★ データベースに保存するデータを修正
       const newMessage = await prisma.chatMessage.create({
-        data: { content, senderType, userId, floristId, chatRoomId: roomId }
+        data: { 
+          chatRoomId: roomId,
+          senderType, 
+          userId, 
+          floristId,
+          messageType: messageType || 'TEXT', // ★ 追加
+          content: content || null,          // ★ 修正
+          fileUrl: fileUrl || null,        // ★ 追加
+          fileName: fileName || null,      // ★ 追加
+        }
       });
       io.to(roomId).emit('receiveMessage', newMessage);
 
@@ -1870,40 +1937,43 @@ io.on('connection', (socket) => {
       socket.emit('messageError', 'メッセージの送信中にエラーが発生しました。');
     }
   });
-  
-  socket.on('sendGroupChatMessage', async ({ projectId, userId, templateId, content }) => {
+
+  socket.on('sendGroupChatMessage', async ({ projectId, userId, templateId, content, messageType, fileUrl, fileName }) => { // ★ 引数を追加
     try {
       const project = await prisma.project.findUnique({ where: { id: projectId } });
       if (!project) return;
       const pledge = await prisma.pledge.findFirst({ where: { projectId, userId } });
       const isPlanner = project.plannerId === userId;
-      if (!pledge && !isPlanner) return;
+      if (!pledge && !isPlanner) return; // 支援者か企画者のみ
 
-      let template = null;
-      if (templateId) {
-        template = CHAT_TEMPLATES.find(t => t.id === templateId);
-        if (!template) return;
-      }
-      if (content && content.trim() !== '') {
+      // ★ NGワードチェックは TEXT の場合のみ
+      if (messageType === 'TEXT' && content && content.trim() !== '') {
         const containsNGWord = NG_WORDS.some(word => content.toLowerCase().includes(word.toLowerCase()));
         if (containsNGWord) {
           socket.emit('messageError', '送信できない単語が含まれています。');
           return;
         }
-      } else if (template && template.hasCustomInput) {
-        return;
-      } else if (!templateId && (!content || content.trim() === '')) {
-        return;
       }
 
+      // ★ テンプレート送信のロジックはそのまま
+      if (templateId) {
+        const template = CHAT_TEMPLATES.find(t => t.id === templateId);
+        if (!template) return;
+        if (template.hasCustomInput && (!content || content.trim() === '')) return;
+      }
+      
+      // ★ データベースに保存するデータを修正
       const newMessage = await prisma.groupChatMessage.create({
         data: {
           projectId,
           userId,
           templateId: templateId || null,
-          content: content || null,
+          messageType: messageType || 'TEXT', // ★ 追加
+          content: content || null,          // ★ 修正
+          fileUrl: fileUrl || null,        // ★ 追加
+          fileName: fileName || null,      // ★ 追加
         },
-        include: { user: { select: { handleName: true } } }
+        include: { user: { select: { handleName: true, iconUrl: true } } } // ★ アイコンも取得
       });
 
       io.to(projectId).emit('receiveGroupChatMessage', newMessage);

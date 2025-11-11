@@ -2,16 +2,14 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation'; // Import useRouter
-import toast from 'react-hot-toast'; // Import toast
+import { useRouter } from 'next/navigation';
+import toast from 'react-hot-toast';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
 export default function EditFloristProfilePage({ params }) {
   const { id } = params;
-  const router = useRouter(); // Initialize router
-  
-  // ★ フォームデータの初期構造
+  const router = useRouter(); 
   const [formData, setFormData] = useState({
     shopName: '',
     platformName: '',
@@ -23,16 +21,16 @@ export default function EditFloristProfilePage({ params }) {
     laruBotApiKey: '', 
     portfolioImages: [], 
     businessHours: '',
+    iconUrl: '', // ★ アイコンURL用の state を追加
   });
-
   const [loading, setLoading] = useState(true);
-  const [isUploading, setIsUploading] = useState(false);
-  const fileInputRef = useRef(null);
-
-  // ★★★ 修正: この state が抜けていたため、エラーになっていました ★★★
+  const [isUploading, setIsUploading] = useState(false); // ポートフォリオ画像用
+  const [isIconUploading, setIsIconUploading] = useState(false); // ★ アイコン画像用
+  const portfolioFileInputRef = useRef(null); // ポートフォリオ用
+  const iconFileInputRef = useRef(null); // ★ アイコン用
+  
   const [florist, setFlorist] = useState(null); 
 
-  // ★★★ 修正: 認証チェックとデータ取得のロジックを修正 ★★★
   useEffect(() => {
     
     // 1. 認証チェックを先に実行
@@ -47,7 +45,6 @@ export default function EditFloristProfilePage({ params }) {
     try {
       floristInfo = JSON.parse(storedFlorist);
     } catch (e) {
-      // JSONパース失敗時もログアウト
       localStorage.removeItem('flastal-florist');
       router.push('/florists/login');
       return;
@@ -56,11 +53,11 @@ export default function EditFloristProfilePage({ params }) {
     // 2. IDの不一致をチェック
     if (floristInfo.id !== id) {
       toast.error("アクセス権がありません。");
-      router.push('/florists/dashboard'); // 自分のダッシュボードに戻す
+      router.push('/florists/dashboard');
       return;
     }
 
-    // 3. 認証OK。stateに保存 (★ この行がエラーの原因だった)
+    // 3. 認証OK。stateに保存
     setFlorist(floristInfo); 
 
     // 4. 認証が通ったので、フォーム用のデータをAPIから取得
@@ -82,6 +79,7 @@ export default function EditFloristProfilePage({ params }) {
           laruBotApiKey: data.laruBotApiKey || '', 
           portfolioImages: data.portfolioImages || [], 
           businessHours: data.businessHours || '',
+          iconUrl: data.iconUrl || '', // ★ アイコンURLもセット
         };
         
         setFormData(newFormData);
@@ -95,16 +93,41 @@ export default function EditFloristProfilePage({ params }) {
 
     fetchFloristData();
 
-  }, [id, router]); // ★ 依存配列は [id, router] のままでOK
-
-  // --- (これ以降の関数は変更なし) ---
+  }, [id, router]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prevState => ({ ...prevState, [name]: value }));
   };
 
-  const handleImageUpload = async (event) => {
+  // ★★★ アイコン画像アップロード処理 ★★★
+  const handleIconUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    setIsIconUploading(true);
+    const toastId = toast.loading('アイコンをアップロード中...');
+    
+    const uploadFormData = new FormData();
+    uploadFormData.append('image', file);
+    try {
+        const res = await fetch(`${API_URL}/api/upload`, { method: 'POST', body: uploadFormData });
+        if (!res.ok) throw new Error('アップロードに失敗');
+        const data = await res.json();
+        
+        // フォームの iconUrl を更新
+        setFormData(prev => ({ ...prev, iconUrl: data.url }));
+        toast.success('アイコンをアップロードしました！', { id: toastId });
+
+    } catch (error) {
+        toast.error('アップロードに失敗しました。', { id: toastId });
+    } finally {
+        setIsIconUploading(false);
+    }
+  };
+
+  // ★★★ ポートフォリオ画像アップロード処理 ★★★
+  const handlePortfolioImageUpload = async (event) => {
     const files = event.target.files;
     if (!files || files.length === 0) return;
     if (formData.portfolioImages.length + files.length > 3) {
@@ -134,22 +157,22 @@ export default function EditFloristProfilePage({ params }) {
     setIsUploading(false);
   };
   
-  const handleRemoveImage = (index) => {
+  const handleRemovePortfolioImage = (index) => {
       setFormData(prev => ({
           ...prev,
           portfolioImages: prev.portfolioImages.filter((_, i) => i !== index)
       }));
   };
 
+  // ★★★ フォーム送信処理 ★★★
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!florist) return; 
 
+    // formData には iconUrl も含まれている
     const promise = fetch(`${API_URL}/api/florists/${id}`, {
       method: 'PATCH',
-      headers: { 
-          'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(formData), 
     }).then(async (res) => {
       if (!res.ok) {
@@ -162,12 +185,10 @@ export default function EditFloristProfilePage({ params }) {
     toast.promise(promise, {
       loading: '更新中...',
       success: (updatedFlorist) => {
-        
-        // ★ フォームデータだけでなく、localStorageの元データも更新
-        // （更新後のデータで "flastal-florist" を上書き）
+        // localStorage を更新
         localStorage.setItem('flastal-florist', JSON.stringify(updatedFlorist));
         
-        // フォームデータも最新化 (APIが返した値で)
+        // フォームデータもAPIからの返り値で最新化
         const newFormData = {
           shopName: updatedFlorist.shopName || '',
           platformName: updatedFlorist.platformName || '',
@@ -179,6 +200,7 @@ export default function EditFloristProfilePage({ params }) {
           laruBotApiKey: updatedFlorist.laruBotApiKey || '', 
           portfolioImages: updatedFlorist.portfolioImages || [], 
           businessHours: updatedFlorist.businessHours || '',
+          iconUrl: updatedFlorist.iconUrl || '', // ★ iconUrl も更新
         };
         setFormData(newFormData);
 
@@ -188,7 +210,6 @@ export default function EditFloristProfilePage({ params }) {
     });
   };
 
-  // ★ 修正: !florist のチェックを追加
   if (loading || !florist) {
     return (
         <div className="flex items-center justify-center min-h-screen bg-gray-100">
@@ -197,12 +218,33 @@ export default function EditFloristProfilePage({ params }) {
     );
   }
 
-  // --- (これ以降のJSX <return> ... は変更なし) ---
+  // --- JSX (フォームのUI) ---
   return (
     <div className="min-h-screen bg-gray-100 p-4 sm:p-8">
       <div className="w-full max-w-2xl mx-auto p-8 space-y-6 bg-white rounded-xl shadow-lg h-fit">
         <h2 className="text-3xl font-bold text-center text-gray-900">プロフィール編集</h2>
         <form onSubmit={handleSubmit} className="space-y-6">
+
+          {/* ★★★【新規】アイコンアップロードUI ★★★ */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700">プロフィールアイコン</label>
+            <div className="mt-2 flex items-center gap-4">
+              {/* 画像プレビュー */}
+              {formData.iconUrl ? (
+                <img src={formData.iconUrl} alt="Icon preview" className="h-20 w-20 rounded-full object-cover" />
+              ) : (
+                <div className="h-20 w-20 rounded-full bg-gray-200 flex items-center justify-center text-gray-500">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4m0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4"/></svg>
+                </div>
+              )}
+              {/* アップロードボタン */}
+              <button type="button" onClick={() => iconFileInputRef.current.click()} disabled={isIconUploading} className="px-4 py-2 text-sm bg-sky-100 text-sky-700 rounded-md hover:bg-sky-200 disabled:bg-slate-200">
+                {isIconUploading ? 'アップロード中...' : '画像を選択'}
+              </button>
+              <input type="file" accept="image/*" ref={iconFileInputRef} onChange={handleIconUpload} className="hidden" />
+            </div>
+          </div>
+
           {/* ポートフォリオ画像アップロード */}
           <div>
             <label className="block text-sm font-medium text-gray-700">ポートフォリオ写真 (3枚まで)</label>
@@ -211,17 +253,17 @@ export default function EditFloristProfilePage({ params }) {
                     {formData.portfolioImages.map((url, index) => (
                         <div key={index} className="relative h-24 w-24">
                             <img src={url} className="h-full w-full object-cover rounded-md" alt={`Portfolio ${index + 1}`} />
-                            <button type="button" onClick={() => handleRemoveImage(index)} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">&times;</button>
+                            <button type="button" onClick={() => handleRemovePortfolioImage(index)} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">&times;</button>
                         </div>
                     ))}
                     {isUploading && <div className="h-24 w-24 flex items-center justify-center bg-gray-100 rounded-md">...</div>}
                 </div>
                 {formData.portfolioImages.length < 3 && (
-                    <button type="button" onClick={() => fileInputRef.current.click()} disabled={isUploading} className="mt-4 px-4 py-2 text-sm bg-sky-100 text-sky-700 rounded-md hover:bg-sky-200 disabled:bg-slate-200">
+                    <button type="button" onClick={() => portfolioFileInputRef.current.click()} disabled={isUploading} className="mt-4 px-4 py-2 text-sm bg-sky-100 text-sky-700 rounded-md hover:bg-sky-200 disabled:bg-slate-200">
                     {isUploading ? 'アップロード中...' : '画像を選択'}
                     </button>
                 )}
-                <input type="file" multiple accept="image/*" ref={fileInputRef} onChange={handleImageUpload} className="hidden" />
+                <input type="file" multiple accept="image/*" ref={portfolioFileInputRef} onChange={handlePortfolioImageUpload} className="hidden" />
             </div>
           </div>
 
@@ -237,7 +279,7 @@ export default function EditFloristProfilePage({ params }) {
           </div>
            {/* Add platformName field */}
            <div>
-            <label htmlFor="platformName" className="block text-sm font-medium text-gray-700">活動名（公開）</label>
+            <label htmlFor="platformName" className="block text-sm font-medium text-gray-700">活動名（公開）</Lgabel>
             <input type="text" name="platformName" id="platformName" required value={formData.platformName} onChange={handleChange} className="w-full mt-1 p-2 text-gray-900 border-2 border-gray-200 rounded-lg focus:border-pink-500 focus:ring-0 transition"/>
           </div>
           <div>
@@ -276,8 +318,8 @@ export default function EditFloristProfilePage({ params }) {
                 ダッシュボードに戻る
               </span>
             </Link>
-            <button type="submit" className="w-full px-4 py-3 font-semibold text-white bg-pink-500 rounded-lg hover:bg-pink-600 transition-colors">
-              更新する
+            <button type="submit" disabled={isSubmitting || isUploading || isIconUploading} className="w-full px-4 py-3 font-semibold text-white bg-pink-500 rounded-lg hover:bg-pink-600 transition-colors disabled:bg-gray-400">
+              {isSubmitting ? '更新中...' : '更新する'}
             </button>
           </div>
         </form>

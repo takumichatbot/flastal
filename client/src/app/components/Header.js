@@ -3,34 +3,57 @@
 import Link from 'next/link';
 import { useAuth } from '../contexts/AuthContext';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react'; // Import useEffect and useState
+import { useEffect, useState } from 'react';
+
+// ★ アイコン表示用のヘルパーコンポーネント
+function UserIcon({ entity, entityType }) {
+  let iconUrl = null;
+
+  if (entityType === 'USER' || entityType === 'ADMIN') {
+    iconUrl = entity?.iconUrl; // User または Admin の iconUrl を使用
+  } else if (entityType === 'FLORIST') {
+    iconUrl = entity?.iconUrl; // Florist の iconUrl を使用
+  }
+
+  if (iconUrl) {
+    return <img src={iconUrl} alt="icon" className="h-8 w-8 rounded-full object-cover" />;
+  }
+
+  // デフォルトアイコン (entityType に応じて色を変えても良い)
+  let defaultIconColor = "bg-gray-200 text-gray-500";
+  if (entityType === 'FLORIST') defaultIconColor = "bg-pink-100 text-pink-500";
+  if (entityType === 'VENUE') defaultIconColor = "bg-green-100 text-green-500";
+
+  return (
+    <div className={`h-8 w-8 rounded-full ${defaultIconColor} flex items-center justify-center`}>
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4m0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4"/></svg>
+    </div>
+  );
+}
+
 
 export default function Header() {
-  // Main user context (primarily for 'USER' type)
   const { user, logout } = useAuth(); 
   const router = useRouter();
   
-  // Local state to also check for florist/venue login from localStorage
   const [loggedInEntity, setLoggedInEntity] = useState(null);
   const [entityType, setEntityType] = useState(null);
 
   useEffect(() => {
-      // Check for user from AuthContext first
       if (user) {
           setLoggedInEntity(user);
-          // ★ 修正: user.role を見て ADMIN か USER かを判断する
           if (user.role === 'ADMIN') {
               setEntityType('ADMIN');
           } else {
               setEntityType('USER');
           }
       } else {
-          // If no user from context, check localStorage for florist or venue
           const floristInfo = localStorage.getItem('flastal-florist');
           const venueInfo = localStorage.getItem('flastal-venue');
           if (floristInfo) {
               try {
-                  setLoggedInEntity(JSON.parse(floristInfo));
+                  const floristData = JSON.parse(floristInfo);
+                  setLoggedInEntity(floristData);
                   setEntityType('FLORIST');
               } catch (e) { localStorage.removeItem('flastal-florist'); }
           } else if (venueInfo) {
@@ -39,33 +62,29 @@ export default function Header() {
                   setEntityType('VENUE');
               } catch (e) { localStorage.removeItem('flastal-venue'); }
           } else {
-              // No one is logged in
               setLoggedInEntity(null);
               setEntityType(null);
           }
       }
-  }, [user]); // Re-check whenever the user from AuthContext changes
+  }, [user]); 
 
 
-  // ★★★ ログアウト処理を修正 ★★★
   const handleLogout = () => {
-    // ADMIN と USER は AuthContext の logout を使う
     if (entityType === 'USER' || entityType === 'ADMIN') {
-      logout(); // AuthContext の logout を呼び出す
-      router.push('/'); // ホームにリダイレクト
+      logout(); 
+      router.push('/');
     } else if (entityType === 'FLORIST') {
       localStorage.removeItem('flastal-florist');
       setLoggedInEntity(null);
       setEntityType(null);
-      router.push('/'); // ホームにリダイレクト
+      router.push('/');
     } else if (entityType === 'VENUE') {
       localStorage.removeItem('flastal-venue');
        setLoggedInEntity(null); 
        setEntityType(null);
-      router.push('/'); // ホームにリダイレクト
+      router.push('/');
     } else {
-      // 万が一のフォールバック
-      logout(); // AuthContext もクリア
+      logout(); 
       localStorage.removeItem('flastal-florist');
       localStorage.removeItem('flastal-venue');
       setLoggedInEntity(null);
@@ -77,7 +96,7 @@ export default function Header() {
   const getDashboardLink = () => {
       if (!loggedInEntity) return null;
       switch (entityType) {
-        case 'ADMIN': return '/admin'; // ★ 修正済み
+        case 'ADMIN': return '/admin'; 
         case 'USER': return '/mypage';
         case 'FLORIST': return '/florists/dashboard'; 
         case 'VENUE': return `/venues/dashboard/${loggedInEntity.id}`;
@@ -89,7 +108,7 @@ export default function Header() {
     if (!loggedInEntity) return '';
     switch (entityType) {
         case 'USER': return 'マイページ';
-        case 'ADMIN': return '管理者画面'; // ★ 修正済み
+        case 'ADMIN': return '管理者画面';
         case 'FLORIST': return '管理画面';
         case 'VENUE': return '管理画面';
         default: return '';
@@ -98,7 +117,12 @@ export default function Header() {
   
   const getDisplayName = () => {
       if (!loggedInEntity) return '';
-      return loggedInEntity.handleName || loggedInEntity.platformName || loggedInEntity.venueName || 'ゲスト';
+      // ★ USER/ADMIN の場合は AuthContext の handleName を優先
+      if (entityType === 'USER' || entityType === 'ADMIN') {
+        return loggedInEntity.handleName || 'ゲスト';
+      }
+      // お花屋さん・会場
+      return loggedInEntity.platformName || loggedInEntity.venueName || 'ゲスト';
   }
 
   return (
@@ -122,14 +146,16 @@ export default function Header() {
               {loggedInEntity ? (
                 // Logged In View
                 <div className="flex items-center gap-4">
+                  
+                  {/* ★ アイコンを表示 */}
+                  <UserIcon entity={loggedInEntity} entityType={entityType} />
+
                   <span className="text-gray-700 text-sm">
-                    ようこそ、
-                    <strong className="ml-1">{getDisplayName()}</strong>
-                    さん
+                    {getDisplayName()}
+                    <span className="ml-1">さん</span>
                   </span>
                   
-                  {/* Buttons specific to USER type (ADMIN には表示しない) */}
-                  {entityType === 'USER' && (
+                  {(entityType === 'USER' || entityType === 'ADMIN') && (
                     <>
                       <Link href="/projects/create" className="px-4 py-2 text-sm font-semibold text-white bg-sky-500 rounded-lg shadow-sm hover:bg-sky-600 transition-colors">
                           企画を作成
@@ -140,7 +166,6 @@ export default function Header() {
                     </>
                   )}
 
-                  {/* Dashboard/Mypage Link */}
                   {getDashboardLink() && (
                     <Link href={getDashboardLink()} className="px-4 py-2 text-sm font-semibold text-slate-700 bg-slate-200 rounded-lg hover:bg-slate-300 transition-colors">
                        {getDashboardText()}
@@ -160,8 +185,6 @@ export default function Header() {
               )}
             </div>
           </div>
-          {/* Mobile Menu Button Placeholder (implement later if needed) */}
-          {/* <div className="-mr-2 flex md:hidden"> ... </div> */}
         </div>
       </nav>
     </header>

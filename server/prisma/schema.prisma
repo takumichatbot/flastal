@@ -38,6 +38,12 @@ enum MessageSenderType {
   FLORIST
 }
 
+enum MessageType {
+  TEXT
+  IMAGE
+  FILE
+}
+
 enum ProjectVisibility {
   PUBLIC
   UNLISTED
@@ -57,6 +63,7 @@ model User {
   password             String
   points               Int                @default(0)
   role             UserRole @default(USER)
+  iconUrl         String?
   referralCode         String             @unique @default(cuid())
   referredById         String?
   hasMadeFirstPurchase Boolean            @default(false)
@@ -141,6 +148,7 @@ model Florist {
   businessHours   String?       @db.Text
   balance       Int             @default(0)
   laruBotApiKey String?
+  iconUrl         String?
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
   shopName      String          // 実店舗名（運営確認用）
@@ -180,20 +188,29 @@ model ChatRoom {
 }
 
 model ChatMessage {
-  id             String            @id @default(cuid())
-  content        String            @db.Text
-  senderType     MessageSenderType
-  isAutoResponse Boolean           @default(false)
-  createdAt      DateTime          @default(now())
+  id               String            @id @default(cuid())
+  
+  // ★ 新しいフィールド
+  messageType      MessageType       @default(TEXT)
+  fileUrl          String?
+  fileName         String?
+  
+  // ★ 修正: content を任意(?) に変更
+  content          String?           @db.Text 
+  
+  senderType       MessageSenderType
+  isAutoResponse   Boolean           @default(false)
+  createdAt        DateTime          @default(now())
 
   // Relations
-  chatRoomId String
-  chatRoom   ChatRoom @relation(fields: [chatRoomId], references: [id])
-  userId     String?
-  user       User?    @relation("UserChatMessages", fields: [userId], references: [id])
-  floristId  String?
-  florist    Florist? @relation("FloristChatMessages", fields: [floristId], references: [id])
+  chatRoomId       String
+  chatRoom         ChatRoom          @relation(fields: [chatRoomId], references: [id])
+  userId           String?
+  user             User?             @relation("UserChatMessages", fields: [userId], references: [id])
+  floristId        String?
+  florist          Florist?          @relation("FloristChatMessages", fields: [floristId], references: [id])
 }
+
 
 model Venue {
   id          String    @id @default(cuid())
@@ -317,16 +334,23 @@ model Message {
 }
 
 model GroupChatMessage {
-  id         String   @id @default(cuid())
-  templateId String?
-  content    String?
-  createdAt  DateTime @default(now())
+  id            String      @id @default(cuid())
+  
+  // ★ 新しいフィールド
+  messageType   MessageType @default(TEXT)
+  fileUrl       String?
+  fileName      String?
+  
+  // ★ 既存のフィールド (content はすでに String? だったので変更なし)
+  templateId    String?
+  content       String?
+  createdAt     DateTime    @default(now())
 
   // Relations
-  projectId String
-  project   Project  @relation(fields: [projectId], references: [id])
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
+  projectId     String
+  project       Project     @relation(fields: [projectId], references: [id])
+  userId        String
+  user          User        @relation(fields: [userId], references: [id])
 }
 
 model ActivePoll {
