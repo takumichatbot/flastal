@@ -67,8 +67,9 @@ export default function ProjectsPage() {
           </Link>
         </div>
 
-        {/* 検索フォーム (変更なし) */}
+        {/* 検索フォーム */}
         <form onSubmit={handleSearchSubmit} className="bg-white p-4 sm:p-6 rounded-lg shadow-md mb-8 grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* (検索フォームの中身は変更なし) */}
           <div className="md:col-span-1">
             <label htmlFor="keyword" className="block text-sm font-medium text-gray-700">
               キーワード
@@ -110,26 +111,38 @@ export default function ProjectsPage() {
           projects.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
               {projects.map((project) => (
-                <Link key={project.id} href={`/projects/${project.id}`}>
-                  <div className="bg-white rounded-lg shadow-md p-6 cursor-pointer hover:shadow-lg transition-shadow h-full flex flex-col">
-                    {/* タイトル */}
-                    <h2 className="text-lg font-bold text-sky-600 truncate mb-2">{project.title}</h2>
-                    {/* お届け先 */}
-                    <p className="text-sm text-gray-500 mt-1 truncate">お届け先: {project.deliveryAddress}</p>
+                <Link key={project.id} href={`/projects/${project.id}`} className="block h-full">
+                  <div className="bg-white rounded-lg shadow-md cursor-pointer hover:shadow-lg transition-shadow h-full flex flex-col overflow-hidden">
                     
-                    {/* スペーサー */}
-                    <div className="flex-grow"></div> 
-
-                    {/* 企画者情報 (下揃え) */}
-                    <div className="flex items-center gap-2 mt-4 pt-4 border-t">
-                      {project.planner?.iconUrl ? (
-                        <img src={project.planner.iconUrl} alt="icon" className="h-8 w-8 rounded-full object-cover" />
+                    {/* ★ サムネイル画像エリアを追加 ★ */}
+                    <div className="h-48 bg-gray-200 flex items-center justify-center">
+                      {project.imageUrl ? (
+                        <img src={project.imageUrl} alt={project.title} className="w-full h-full object-cover" />
                       ) : (
-                        <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-500">
-                          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4m0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4"/></svg>
-                        </div>
+                        <svg className="w-16 h-16 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l-1.586-1.586a2 2 0 00-2.828 0L6 16m6 6H6a2 2 0 01-2-2V6a2 2 0 012-2h12a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                        </svg>
                       )}
-                      <span className="text-sm text-gray-700">{project.planner?.handleName || '不明'}</span>
+                    </div>
+                    {/* ★ ここまで ★ */}
+
+                    <div className="p-6 flex flex-col flex-grow">
+                      <h2 className="text-lg font-bold text-sky-600 truncate mb-2">{project.title}</h2>
+                      <p className="text-sm text-gray-500 mt-1 truncate">お届け先: {project.deliveryAddress}</p>
+                      
+                      <div className="flex-grow"></div> 
+
+                      {/* 企画者情報 (下揃え) */}
+                      <div className="flex items-center gap-2 mt-4 pt-4 border-t">
+                        {project.planner?.iconUrl ? (
+                          <img src={project.planner.iconUrl} alt="icon" className="h-8 w-8 rounded-full object-cover" />
+                        ) : (
+                          <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-500">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4m0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4"/></svg>
+                          </div>
+                        )}
+                        <span className="text-sm text-gray-700">{project.planner?.handleName || '不明'}</span>
+                      </div>
                     </div>
                   </div>
                 </Link>

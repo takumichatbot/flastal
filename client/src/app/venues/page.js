@@ -3,40 +3,46 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
+import { useAuth } from '../contexts/AuthContext'; // ★ 認証情報を取得
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
-// ★ 会場カードのコンポーネント
 function VenueCard({ venue }) {
-  // 会場の詳細ページへのリンクは将来的に実装
   return (
-    <div className="bg-white rounded-2xl shadow-lg overflow-hidden h-full flex flex-col group transition-all duration-300 hover:shadow-xl hover:-translate-y-1 border border-gray-100">
+    <div className="bg-white rounded-2xl shadow-lg overflow-hidden h-full flex flex-col group transition-all duration-300 hover:shadow-xl hover:-translate-y-1 border border-gray-100 relative">
+      {/* ★ 公式バッジ */}
+      {venue.isOfficial && (
+        <div className="absolute top-2 right-2 bg-green-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow z-10">
+          公式
+        </div>
+      )}
+      
       <div className="bg-gradient-to-br from-green-100 to-emerald-200 h-32 flex items-center justify-center">
-        {/* 会場アイコンやイメージ */}
         <span className="text-4xl">🏢</span>
       </div>
       <div className="p-6 flex flex-col flex-grow">
         <h3 className="text-lg font-bold text-gray-800 group-hover:text-green-600 transition-colors mb-2">{venue.venueName}</h3>
-        {/* 将来的に住所などを表示しても良い */}
-        {/* <p className="text-sm text-gray-500">{venue.address || '住所未登録'}</p> */}
-         {/* 規定表示へのリンク (モーダル表示など) */}
-         {venue.regulations && (
+        <p className="text-sm text-gray-500 mb-2 truncate">{venue.address || '住所情報なし'}</p>
+        
+         {venue.regulations ? (
             <button
-                onClick={() => toast(venue.regulations, { duration: 10000 })} // toastで規定を表示（簡易的）
+                onClick={() => toast(venue.regulations, { duration: 6000, icon: '📝' })} 
                 className="mt-auto text-sm text-sky-600 hover:underline pt-2 text-left"
             >
                 フラスタ規定を見る
             </button>
+         ) : (
+            <p className="mt-auto text-xs text-gray-400 pt-2">規定情報なし</p>
          )}
       </div>
     </div>
   );
 }
 
-// ★ 会場一覧ページの本体
 export default function VenuesPage() {
   const [venues, setVenues] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { user } = useAuth(); // ★ ログインユーザー確認用
 
   useEffect(() => {
     const fetchVenues = async () => {
@@ -48,7 +54,7 @@ export default function VenuesPage() {
         setVenues(Array.isArray(data) ? data : []);
       } catch (error) {
         console.error(error);
-        toast.error(error.message);
+        // toast.error(error.message); // 初回読み込みエラーはうるさいのでコンソールのみでも可
         setVenues([]);
       } finally {
         setLoading(false);
@@ -60,18 +66,40 @@ export default function VenuesPage() {
   return (
     <div className="bg-white min-h-screen">
       <main>
-        {/* ヘッダーセクション */}
         <div className="relative w-full bg-green-50">
            <div className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8 text-center">
              <h1 className="text-3xl font-bold text-gray-900">会場一覧</h1>
-             <p className="mt-2 text-gray-600">フラワースタンドの搬入規定などを確認できます。</p>
+             <p className="mt-2 text-gray-600">みんなで共有する、フラワースタンドの搬入規定データベース。</p>
+             
+             {/* ★ 登録ボタンを追加 */}
+             <div className="mt-6">
+               {user ? (
+                 <Link href="/venues/add">
+                   <span className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-full shadow-sm text-white bg-green-600 hover:bg-green-700 transition-colors cursor-pointer">
+                     ➕ 新しい会場を登録する
+                   </span>
+                 </Link>
+               ) : (
+                 <p className="text-sm text-gray-500 mt-4">
+                   会場情報を登録するには <Link href="/login" className="text-green-600 hover:underline">ログイン</Link> してください。
+                 </p>
+               )}
+             </div>
+
            </div>
         </div>
-        {/* 会場グリッドセクション */}
+
         <div className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
           {loading ? <p className="text-center text-gray-600">会場を読み込んでいます...</p> : (
             venues.length === 0 ? (
-                <p className="text-center text-gray-600">現在登録されている会場はありません。</p>
+                <div className="text-center py-10">
+                    <p className="text-gray-500 mb-4">現在登録されている会場はありません。</p>
+                    {user && (
+                        <Link href="/venues/add" className="text-green-600 hover:underline">
+                            最初の会場を登録してみませんか？
+                        </Link>
+                    )}
+                </div>
             ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
                 {venues.map((venue) => (

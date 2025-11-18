@@ -736,17 +736,34 @@ app.post('/api/florists/register', async (req, res) => {
   }
 });
 
-// ★★★ お花屋さん一覧取得API (検索機能付き) ★★★
+// ★★★【新規】会場一覧API ★★★
+app.get('/api/venues', async (req, res) => {
+  try {
+    const venues = await prisma.venue.findMany({
+      select: { // 公開情報のみ
+        id: true,
+        venueName: true,
+        address: true,
+        regulations: true,
+      },
+      orderBy: { venueName: 'asc' },
+    });
+    res.status(200).json(venues);
+  } catch (error) {
+    console.error("会場一覧取得エラー:", error);
+    res.status(500).json({ message: '会場一覧の取得中にエラーが発生しました。' });
+  }
+});
+
+// ★★★ お花屋さん一覧取得API ★★★
 app.get('/api/florists', async (req, res) => {
   try {
-    const { keyword, prefecture } = req.query; // URLから検索語を取得
+    const { keyword, prefecture } = req.query; 
 
-    // 検索条件のベース
     const whereClause = {
-      status: 'APPROVED', // 承認済みの花屋のみ
+      status: 'APPROVED', 
     };
 
-    // もしキーワードがあれば、活動名(platformName)か自己紹介(portfolio)に含まれるものを検索
     if (keyword && keyword.trim() !== '') {
       whereClause.OR = [
         { platformName: { contains: keyword, mode: 'insensitive' } },
@@ -754,19 +771,20 @@ app.get('/api/florists', async (req, res) => {
       ];
     }
     
-    // もし都道府県があれば、住所(address)に含まれるものを検索
     if (prefecture && prefecture.trim() !== '') {
       whereClause.address = { contains: prefecture };
     }
 
     const florists = await prisma.florist.findMany({
-      where: whereClause, // 構築した検索条件を使用
-      select: { // 公開して良い情報だけを選択
+      where: whereClause, 
+      select: { 
         id: true,
         platformName: true,
         portfolio: true,
         reviews: true,
-        address: true, // ★ 絞り込み確認用に住所も返す
+        address: true,
+        iconUrl: true, // ★ アイコンURLも追加
+        portfolioImages: true // ★ ポートフォリオ画像(サムネイル用)も追加
       },
       orderBy: { createdAt: 'desc' },
     });

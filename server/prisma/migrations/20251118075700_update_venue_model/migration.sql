@@ -1,0 +1,8 @@
+-- AlterTable
+ALTER TABLE "Venue" ADD COLUMN     "addedById" TEXT,
+ADD COLUMN     "isOfficial" BOOLEAN NOT NULL DEFAULT false,
+ALTER COLUMN "email" DROP NOT NULL,
+ALTER COLUMN "password" DROP NOT NULL;
+
+-- AddForeignKey
+ALTER TABLE "Venue" ADD CONSTRAINT "Venue_addedById_fkey" FOREIGN KEY ("addedById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
