@@ -7,18 +7,16 @@ import toast from 'react-hot-toast';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
-// ★★★【新規】会場選択・登録モーダル ★★★
+// --- 会場選択・登録モーダル ---
 function VenueSelectionModal({ onClose, onSelect }) {
   const [venues, setVenues] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [mode, setMode] = useState('select'); // 'select' or 'create'
+  const [mode, setMode] = useState('select');
   const { user } = useAuth();
 
-  // 新規会場登録用データ
   const [newVenue, setNewVenue] = useState({ venueName: '', address: '', regulations: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // 会場一覧を取得
   useEffect(() => {
     const fetchVenues = async () => {
       try {
@@ -37,7 +35,6 @@ function VenueSelectionModal({ onClose, onSelect }) {
     fetchVenues();
   }, []);
 
-  // 新規会場を登録する
   const handleCreateVenue = async (e) => {
     e.preventDefault();
     if (!user) return;
@@ -57,7 +54,6 @@ function VenueSelectionModal({ onClose, onSelect }) {
 
       const createdVenue = await res.json();
       toast.success('会場を登録しました！');
-      // 登録した会場を選択してモーダルを閉じる
       onSelect(`${createdVenue.venueName} (${createdVenue.address || ''})`);
       onClose();
 
@@ -71,7 +67,6 @@ function VenueSelectionModal({ onClose, onSelect }) {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
-        {/* ヘッダー */}
         <div className="p-4 border-b flex justify-between items-center">
           <h3 className="text-lg font-bold text-gray-800">
             {mode === 'select' ? '会場を選択' : '新しい会場を登録'}
@@ -79,7 +74,6 @@ function VenueSelectionModal({ onClose, onSelect }) {
           <button onClick={onClose} className="text-gray-500 hover:text-gray-700 text-xl">×</button>
         </div>
 
-        {/* コンテンツ */}
         <div className="p-4 overflow-y-auto flex-grow">
           {mode === 'select' ? (
             <>
@@ -105,7 +99,6 @@ function VenueSelectionModal({ onClose, onSelect }) {
                     <button
                       key={venue.id}
                       onClick={() => {
-                        // 選択時の処理: 名前と住所を結合して返す
                         onSelect(`${venue.venueName} (${venue.address || ''})`);
                         onClose();
                       }}
@@ -120,7 +113,6 @@ function VenueSelectionModal({ onClose, onSelect }) {
               )}
             </>
           ) : (
-            // 新規登録フォーム
             <form onSubmit={handleCreateVenue} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700">会場名 <span className="text-red-500">*</span></label>
@@ -166,19 +158,18 @@ function VenueSelectionModal({ onClose, onSelect }) {
   );
 }
 
-
 export default function CreateProjectPage() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  const [isVenueModalOpen, setIsVenueModalOpen] = useState(false); // ★ モーダル状態
+  const [isVenueModalOpen, setIsVenueModalOpen] = useState(false);
 
   const [formData, setFormData] = useState({
     title: '',
     description: '',
     targetAmount: '',
-    deliveryAddress: '', // 会場名・住所
+    deliveryAddress: '',
     deliveryDateTime: '',
     imageUrl: '',
     designDetails: '',
@@ -187,7 +178,6 @@ export default function CreateProjectPage() {
     visibility: 'PUBLIC',
   });
 
-  // ログインチェック
   useEffect(() => {
     if (!authLoading && !user) {
       toast.error('企画を作成するにはログインが必要です。');
@@ -278,7 +268,6 @@ export default function CreateProjectPage() {
           <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
              <div className="flex justify-between items-end mb-1">
                 <label htmlFor="deliveryAddress" className="block text-sm font-medium text-gray-700">お届け先 (会場名・住所) <span className="text-red-500">*</span></label>
-                {/* ★ 会場選択ボタン */}
                 <button 
                   type="button" 
                   onClick={() => setIsVenueModalOpen(true)}
@@ -301,8 +290,15 @@ export default function CreateProjectPage() {
           <div>
             <label htmlFor="targetAmount" className="block text-sm font-medium text-gray-700">目標金額 (pt) <span className="text-red-500">*</span></label>
             <div className="relative mt-1">
-                <input type="number" name="targetAmount" id="targetAmount" required value={formData.targetAmount} onChange={handleChange} className="input-field pl-8" placeholder="30000"/>
-                <span className="absolute left-3 top-3 text-gray-400">¥</span>
+                {/* ★★★ 修正箇所: !pl-10 を追加し、左パディングを強制 ★★★ */}
+                <input 
+                  type="number" name="targetAmount" id="targetAmount" required 
+                  value={formData.targetAmount} onChange={handleChange} 
+                  className="input-field !pl-10" 
+                  placeholder="30000"
+                />
+                {/* ★★★ 修正箇所: 円マークを上下中央揃えに変更 ★★★ */}
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">¥</span>
             </div>
           </div>
 
@@ -344,7 +340,6 @@ export default function CreateProjectPage() {
         </form>
       </div>
 
-      {/* ★ 会場選択モーダル */}
       {isVenueModalOpen && (
         <VenueSelectionModal 
             onClose={() => setIsVenueModalOpen(false)} 
