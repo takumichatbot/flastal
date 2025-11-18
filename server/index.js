@@ -755,7 +755,7 @@ app.get('/api/venues', async (req, res) => {
   }
 });
 
-// ★★★ お花屋さん一覧取得API ★★★
+// ★★★ お花屋さん一覧取得API (829行目あたり) ★★★
 app.get('/api/florists', async (req, res) => {
   try {
     const { keyword, prefecture } = req.query; 
@@ -783,8 +783,8 @@ app.get('/api/florists', async (req, res) => {
         portfolio: true,
         reviews: true,
         address: true,
-        iconUrl: true, // ★ アイコンURLも追加
-        portfolioImages: true // ★ ポートフォリオ画像(サムネイル用)も追加
+        iconUrl: true,         // ★ 追加: アイコンURL
+        portfolioImages: true  // ★ 追加: サムネイル用のポートフォリオ画像
       },
       orderBy: { createdAt: 'desc' },
     });

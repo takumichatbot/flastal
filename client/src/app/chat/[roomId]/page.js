@@ -99,44 +99,51 @@ function QuotationModal({ project, floristUser, onClose, onQuotationSubmitted })
 export default function ChatPage() {
   const params = useParams();
   const { roomId } = params;
-  const { user, loading: authLoading } = useAuth(); // ★ AuthContextのloadingを取得
+  const { user, loading: authLoading } = useAuth();
   const router = useRouter();
 
   const [socket, setSocket] = useState(null);
   const [messages, setMessages] = useState([]);
   const [currentMessage, setCurrentMessage] = useState('');
   const [roomInfo, setRoomInfo] = useState(null);
-  const [loadingData, setLoadingData] = useState(true); // ★ ローカルのデータ読み込み用state
+  const [loadingData, setLoadingData] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [chatError, setChatError] = useState('');
-  
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef(null);
+
+  // ★ currentEntity を state で管理し、初期値を null にする
+  const [currentEntityData, setCurrentEntityData] = useState({ entity: null, type: null });
 
   const messagesEndRef = useRef(null);
   const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   useEffect(scrollToBottom, [messages]);
 
-  const getCurrentEntity = useCallback(() => {
-    if (user) return { entity: user, type: 'USER' };
-    const storedFlorist = localStorage.getItem('flastal-florist');
-    if (storedFlorist) {
-      try {
-        return { entity: JSON.parse(storedFlorist), type: 'FLORIST' };
-      } catch (e) {
-        localStorage.removeItem('flastal-florist');
-        return { entity: null, type: null };
+  // ★ クライアントサイドでのみ currentEntity を決定する
+  useEffect(() => {
+    if (user) {
+      setCurrentEntityData({ entity: user, type: 'USER' });
+    } else if (typeof window !== 'undefined') {
+      const storedFlorist = localStorage.getItem('flastal-florist');
+      if (storedFlorist) {
+        try {
+          setCurrentEntityData({ entity: JSON.parse(storedFlorist), type: 'FLORIST' });
+        } catch (e) {
+          localStorage.removeItem('flastal-florist');
+          setCurrentEntityData({ entity: null, type: null });
+        }
+      } else {
+        setCurrentEntityData({ entity: null, type: null });
       }
     }
-    return { entity: null, type: null };
-  }, [user]);
+  }, [user]); // userが変わった時だけ実行
 
-  const { entity: currentEntity, type: currentEntityType } = getCurrentEntity();
+  const { entity: currentEntity, type: currentEntityType } = currentEntityData;
 
   const fetchChatData = useCallback(async () => {
     if (!roomId) return;
     try {
-      setLoadingData(true); // ★ローカルのローディング開始
+      setLoadingData(true);
       const res = await fetch(`${API_URL}/api/chat/${roomId}`);
       if (!res.ok) throw new Error('チャットルームの読み込みに失敗しました。');
       const data = await res.json();
@@ -147,37 +154,37 @@ export default function ChatPage() {
       setRoomInfo(null);
       setMessages([]);
     } finally {
-      setLoadingData(false); // ★ローカルのローディング完了
+      setLoadingData(false);
     }
   }, [roomId]);
 
-  // ★★★ useEffectを2つに分割して無限ループを解消 ★★★
-
-  // 1. 認証とデータ取得用useEffect
+  // 1. 認証チェックとデータ取得
   useEffect(() => {
-    if (authLoading) return; // AuthContextの読み込みを待つ
+    if (authLoading) return;
 
-    const { entity: initialEntity } = getCurrentEntity();
-    if (!initialEntity) {
-        toast.error("ログインが必要です。");
-        router.push('/login');
-        return;
+    // クライアントサイドでのみチェック
+    if (typeof window !== 'undefined') {
+        const isFloristLoggedIn = !!localStorage.getItem('flastal-florist');
+        if (!user && !isFloristLoggedIn) {
+            toast.error("ログインが必要です。");
+            router.push('/login');
+            return;
+        }
     }
 
     if (roomId) {
       fetchChatData();
     }
-  }, [roomId, getCurrentEntity, fetchChatData, router, authLoading]); // ★ authLoading を依存配列に追加
+  }, [roomId, fetchChatData, router, authLoading, user]);
 
-  // 2. WebSocket接続用useEffect
+  // 2. WebSocket接続
   useEffect(() => {
-    // 認証が完了し、ユーザーが特定されてからSocket接続
     if (!roomId || !currentEntity) {
       return;
     }
     
     const newSocket = io(API_URL, {
-      transports: ['polling'] // Pollingを強制
+      transports: ['polling'] 
     });
     setSocket(newSocket);
     newSocket.emit('joinRoom', roomId);
@@ -193,7 +200,6 @@ export default function ChatPage() {
       setMessages(prevMessages => prevMessages.filter(m => m.id !== messageId));
     });
 
-    // クリーンアップ
     return () => {
       newSocket.off('receiveMessage');
       newSocket.off('messageError');
@@ -201,8 +207,7 @@ export default function ChatPage() {
       newSocket.disconnect();
       setSocket(null);
     };
-  }, [roomId, currentEntity]); // ★ 依存配列を currentEntity に変更
-  // ★★★ 修正ここまで ★★★
+  }, [roomId, currentEntity]);
 
   const handleSendMessage = (e) => {
     e.preventDefault();
@@ -286,35 +291,27 @@ export default function ChatPage() {
     }
   };
 
-  if (authLoading || loadingData) { // ★ 認証とデータの両方を待つ
+  if (authLoading || loadingData) {
       return (
           <div className="flex items-center justify-center min-h-screen">
               <p>チャットを読み込んでいます...</p>
           </div>
       );
   }
-   if (!currentEntity && !roomInfo && !authLoading) { // ★ authLoading をチェック
-       return (
-         <div className="text-center p-10 flex flex-col items-center justify-center min-h-screen">
-           <p className="mb-4">このページにアクセスするにはログインが必要です。</p>
-           <div className="flex gap-4">
-             <Link href="/login"><span className="text-sky-500 hover:underline bg-sky-100 px-4 py-2 rounded">ファンとしてログイン</span></Link>
-             <Link href="/florists/login"><span className="text-pink-500 hover:underline bg-pink-100 px-4 py-2 rounded">お花屋さんとしてログイン</span></Link>
-           </div>
-         </div>
-       );
-   }
+  
+  // roomInfoがない場合のエラーハンドリング
   if (!roomInfo || !roomInfo.offer || !roomInfo.offer.project || !roomInfo.offer.florist || !roomInfo.offer.project.planner) {
     return <p className="text-center p-10 text-red-600">チャットルーム情報の読み込みに失敗しました。</p>;
   }
 
-
   const project = roomInfo.offer.project;
   const florist = roomInfo.offer.florist;
   const planner = project.planner;
+  
   const chatPartnerName = currentEntityType === 'USER'
       ? florist?.platformName || 'お花屋さん'
       : planner?.handleName || '企画者';
+      
   const isPlanner = currentEntityType === 'USER' && currentEntity?.id === planner?.id;
   const quotation = project.quotation;
   const hasEnoughPoints = quotation ? project.collectedAmount >= quotation.totalAmount : false;
@@ -323,20 +320,15 @@ export default function ChatPage() {
     <>
       <div className="flex flex-col h-screen bg-gray-100">
         <header className="bg-white shadow-sm p-4 text-center sticky top-0 z-10 border-b">
-          {/* ★★★ ヘッダーにアイコンを追加 ★★★ */}
           <div className="flex items-center justify-center relative">
-            {/* アイコン */}
             <div className="absolute left-4 top-1/2 -translate-y-1/2">
               {currentEntityType === 'USER' ? (
-                // 自分がファン -> 相手(花屋)のアイコン
-                 florist.iconUrl ? <img src={florist.iconUrl} alt="icon" className="h-10 w-10 rounded-full object-cover"/> : <div className="h-10 w-10 rounded-full bg-pink-100"></div>
+                 florist.iconUrl ? <img src={florist.iconUrl} alt="icon" className="h-10 w-10 rounded-full object-cover"/> : <div className="h-10 w-10 rounded-full bg-pink-100 flex items-center justify-center">💐</div>
               ) : (
-                // 自分が花屋 -> 相手(ファン)のアイコン
-                planner.iconUrl ? <img src={planner.iconUrl} alt="icon" className="h-10 w-10 rounded-full object-cover"/> : <div className="h-10 w-10 rounded-full bg-gray-200"></div>
+                planner.iconUrl ? <img src={planner.iconUrl} alt="icon" className="h-10 w-10 rounded-full object-cover"/> : <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">👤</div>
               )}
             </div>
             
-            {/* 中央のテキスト */}
             <div className="flex flex-col items-center">
               <h1 className="text-xl font-bold text-gray-800">{chatPartnerName}さんとのチャット</h1>
               <p className="text-sm text-gray-500">
@@ -346,7 +338,6 @@ export default function ChatPage() {
               </p>
             </div>
           </div>
-          {/* ★★★ ヘッダー修正ここまで ★★★ */}
         </header>
 
         <main className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -418,7 +409,7 @@ export default function ChatPage() {
           <div className="flex items-center gap-2 w-full">
             {currentEntityType === 'FLORIST' && (!quotation || !quotation.isApproved) && (
               <button onClick={() => setIsModalOpen(true)} title="見積書を作成" className="p-3 bg-yellow-400 text-white rounded-full hover:bg-yellow-500 transition-colors flex-shrink-0">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
               </button>
             )}
 
@@ -429,7 +420,7 @@ export default function ChatPage() {
               title="ファイル/画像を添付" 
               className="p-3 bg-gray-200 text-gray-700 rounded-full hover:bg-gray-300 transition-colors flex-shrink-0 disabled:bg-gray-100 disabled:text-gray-400"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
             </button>
             <input 
               type="file" 
