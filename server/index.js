@@ -680,6 +680,48 @@ app.get('/api/reviews/featured', async (req, res) => {
   }
 });
 
+// ★★★【新規】いいねの追加/削除API ★★★
+app.post('/api/reviews/:reviewId/like', async (req, res) => {
+  // ★ userId はフロントから送られてくるものとする
+  const { reviewId } = req.params;
+  const { userId } = req.body; 
+
+  if (!userId) {
+    return res.status(401).json({ message: 'ログインユーザーが必要です。' });
+  }
+
+  try {
+    const existingLike = await prisma.reviewLike.findUnique({
+      where: {
+        reviewId_userId: {
+          reviewId: reviewId,
+          userId: userId,
+        },
+      },
+    });
+
+    if (existingLike) {
+      // 既にあれば、いいねを削除 (いいね解除)
+      await prisma.reviewLike.delete({
+        where: { id: existingLike.id },
+      });
+      return res.status(200).json({ liked: false, message: 'いいねを解除しました。' });
+    } else {
+      // なければ、いいねを作成 (いいねON)
+      const newLike = await prisma.reviewLike.create({
+        data: {
+          reviewId: reviewId,
+          userId: userId,
+        },
+      });
+      return res.status(201).json({ liked: true, message: 'いいねしました！' });
+    }
+  } catch (error) {
+    console.error("いいね処理エラー:", error);
+    res.status(500).json({ message: 'いいねの処理中にエラーが発生しました。' });
+  }
+});
+
 app.post('/api/admin/login', (req, res) => {
   const { password } = req.body;
   if (password === process.env.ADMIN_PASSWORD) {
@@ -1217,11 +1259,12 @@ app.get('/api/venues', async (req, res) => {
 });
 
 app.post('/api/reviews', async (req, res) => {
-  const { rating, comment, projectId, floristId, userId } = req.body;
+  // ★ rating を受け取らない
+  const { comment, projectId, floristId, userId } = req.body; 
   try {
     const newReview = await prisma.review.create({
       data: {
-        rating: parseInt(rating, 10),
+        // ★ rating は保存しない
         comment,
         projectId,
         floristId,
