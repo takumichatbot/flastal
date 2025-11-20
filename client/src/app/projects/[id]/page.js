@@ -400,6 +400,16 @@ export default function ProjectDetailPage() {
       <div className="min-h-screen bg-gray-100 p-4 sm:p-8">
         <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 bg-white rounded-2xl shadow-xl overflow-hidden">
+            {/* ★★★ サムネイル表示エリア (ここを追加) ★★★ */}
+            {project.status !== 'COMPLETED' && project.imageUrl && (
+              <div className="h-96 bg-gray-200 relative group cursor-pointer" onClick={() => setIsImageModalOpen(true)}>
+                <img src={project.imageUrl} alt={project.title} className="w-full h-full object-cover"/>
+                <div className="absolute inset-0 bg-transparent group-hover:bg-black/40 flex items-center justify-center transition-colors duration-300">
+                    <svg className="w-16 h-16 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                </div>
+              </div>
+            )}
+            {/* ★★★ ここまで追加 ★★★ */}
             {/* 完了報告セクション */}
             {project.status === 'COMPLETED' && (
                 <div className="p-6 md:p-8 bg-gradient-to-br from-yellow-50 to-orange-100 border-b border-orange-200">

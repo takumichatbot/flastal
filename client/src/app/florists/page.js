@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense, useRef } from 'react'; // ★ useRef を追加
+import { useState, useEffect, useCallback, Suspense } from 'react'; // ★ useCallback と Suspense を追加
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
@@ -8,7 +8,6 @@ import StarRating from '../components/StarRating';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
-// 都道府県リスト (企画一覧と同じ)
 const prefectures = [
   '北海道', '青森県', '岩手県', '宮城県', '秋田県', '山形県', '福島県',
   '茨城県', '栃木県', '群馬県', '埼玉県', '千葉県', '東京都', '神奈川県',
@@ -22,7 +21,7 @@ const prefectures = [
 // ★★★ お花屋さんカード ★★★
 function FloristCard({ florist, projectId, onOffer, isOffering }) {
   
-  // ★ サムネイルURLを決定 (ポートフォリオ画像の1枚目、なければアイコン)
+  // サムネイルURLを決定 (ポートフォリオ画像の1枚目、なければアイコン)
   const thumbnailUrl = florist.portfolioImages?.[0] || florist.iconUrl;
 
   const cardContent = (
@@ -72,10 +71,10 @@ function FloristCard({ florist, projectId, onOffer, isOffering }) {
   );
 
   if (projectId) {
-    return <div className="h-full">{cardContent}</div>;
+    return <div className="h-full cursor-pointer">{cardContent}</div>;
   }
   return (
-    <Link href={`/florists/${florist.id}`} className="block h-full">
+    <Link href={`/florists/${florist.id}`} className="block h-full cursor-pointer">
       {cardContent}
     </Link>
   );
@@ -87,7 +86,6 @@ function FloristsListContent() {
   const [loading, setLoading] = useState(true);
   const [isOffering, setIsOffering] = useState(false);
   
-  // 検索フォーム用の state
   const [keyword, setKeyword] = useState('');
   const [prefecture, setPrefecture] = useState('');
 
@@ -95,7 +93,6 @@ function FloristsListContent() {
   const projectId = searchParams.get('projectId');
   const router = useRouter();
 
-  // ★ 検索機能付きの fetch
   const fetchFlorists = useCallback(async (searchKeyword, searchPrefecture) => {
     setLoading(true);
     try {
@@ -121,14 +118,12 @@ function FloristsListContent() {
     } finally {
       setLoading(false);
     }
-  }, []); // useCallbackの依存配列は空
+  }, []);
 
-  // ★ ページ読み込み時に全件取得
   useEffect(() => {
     fetchFlorists(null, null);
   }, [fetchFlorists]);
 
-  // ★ 検索フォーム送信
   const handleSearchSubmit = (e) => {
     e.preventDefault();
     fetchFlorists(keyword, prefecture);
@@ -177,7 +172,7 @@ function FloristsListContent() {
       
       <div className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
         
-        {/* ★★★ 検索フォーム (企画一覧と同じ) ★★★ */}
+        {/* ★★★ 検索フォーム ★★★ */}
         <form onSubmit={handleSearchSubmit} className="bg-gray-50 p-4 sm:p-6 rounded-lg shadow-sm mb-8 grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="md:col-span-1">
             <label htmlFor="keyword" className="block text-sm font-medium text-gray-700">
