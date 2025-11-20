@@ -14,11 +14,11 @@ datasource db {
 
 enum ProjectStatus {
   PENDING_APPROVAL // 審査中
-  FUNDRAISING      // 募集中
-  SUCCESSFUL       // 達成
-  COMPLETED        // 完了
-  CANCELED         // 中止
-  REJECTED         // 却下
+  FUNDRAISING // 募集中
+  SUCCESSFUL // 達成
+  COMPLETED // 完了
+  CANCELED // 中止
+  REJECTED // 却下
 }
 
 enum OfferStatus {
@@ -28,9 +28,9 @@ enum OfferStatus {
 }
 
 enum FloristStatus {
-  PENDING   // 審査待ち
-  APPROVED  // 承認済み
-  REJECTED  // 拒否
+  PENDING // 審査待ち
+  APPROVED // 承認済み
+  REJECTED // 拒否
 }
 
 enum MessageSenderType {
@@ -57,70 +57,71 @@ enum UserRole {
 // --- Models ---
 
 model User {
-  id                   String             @id @default(cuid())
-  email                String             @unique
+  id                   String       @id @default(cuid())
+  email                String       @unique
   handleName           String
   password             String
-  points               Int                @default(0)
-  role             UserRole @default(USER)
-  iconUrl         String?
-  referralCode         String             @unique @default(cuid())
+  points               Int          @default(0)
+  reviewLikes          ReviewLike[]
+  role                 UserRole     @default(USER)
+  iconUrl              String?
+  referralCode         String       @unique @default(cuid())
   referredById         String?
-  hasMadeFirstPurchase Boolean            @default(false)
-  createdAt            DateTime           @default(now())
-  updatedAt            DateTime           @updatedAt
+  hasMadeFirstPurchase Boolean      @default(false)
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
 
   // Relations
-  referrer             User?              @relation("Referrals", fields: [referredById], references: [id])
-  referredUsers        User[]             @relation("Referrals")
-  createdProjects      Project[]          @relation("PlannerProjects")
-  pledges              Pledge[]
-  reviews              Review[]
-  messages             Message[]
-  groupChatMessages    GroupChatMessage[]
-  pollVotes            PollVote[]
-  reports              ProjectReport[]    @relation("UserReports")
-  sentChatMessages     ChatMessage[]      @relation("UserChatMessages")
-  addedVenues Venue[] @relation("UserAddedVenues")
+  referrer          User?              @relation("Referrals", fields: [referredById], references: [id])
+  referredUsers     User[]             @relation("Referrals")
+  createdProjects   Project[]          @relation("PlannerProjects")
+  pledges           Pledge[]
+  reviews           Review[]
+  messages          Message[]
+  groupChatMessages GroupChatMessage[]
+  pollVotes         PollVote[]
+  reports           ProjectReport[]    @relation("UserReports")
+  sentChatMessages  ChatMessage[]      @relation("UserChatMessages")
+  addedVenues       Venue[]            @relation("UserAddedVenues")
 }
 
 model Project {
-  id                String            @id @default(cuid())
-  title             String
-  description       String            @db.Text
-  targetAmount      Int
-  collectedAmount   Int               @default(0)
-  deliveryAddress   String
-  deliveryDateTime  DateTime
-  imageUrl          String?
-  designDetails     String?           @db.Text
-  size              String?
-  flowerTypes       String?
+  id                      String            @id @default(cuid())
+  title                   String
+  description             String            @db.Text
+  targetAmount            Int
+  collectedAmount         Int               @default(0)
+  deliveryAddress         String
+  deliveryDateTime        DateTime
+  imageUrl                String?
+  designDetails           String?           @db.Text
+  size                    String?
+  flowerTypes             String?
   // ↓↓↓ この行を一時的にコメントアウトします ↓↓↓
-  status ProjectStatus @default(PENDING_APPROVAL)
-  visibility        ProjectVisibility @default(PUBLIC)
-  completionImageUrls String[]
-  completionComment String?           @db.Text
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
-  finalBalance            Int?    // 企画完了時の最終残高（余剰金）
-  surplusUsageDescription String? @db.Text // 余剰金の使い道のメモ
-  
+  status                  ProjectStatus     @default(PENDING_APPROVAL)
+  visibility              ProjectVisibility @default(PUBLIC)
+  completionImageUrls     String[]
+  completionComment       String?           @db.Text
+  createdAt               DateTime          @default(now())
+  updatedAt               DateTime          @updatedAt
+  finalBalance            Int? // 企画完了時の最終残高（余剰金）
+  surplusUsageDescription String?           @db.Text // 余剰金の使い道のメモ
+
   // Relations
-  plannerId           String
-  planner             User              @relation("PlannerProjects", fields: [plannerId], references: [id])
-  pledges             Pledge[]
-  offer               Offer?
-  review              Review?
-  announcements       Announcement[]
-  expenses            Expense[]
-  commission          Commission?
-  quotation           Quotation?
-  messages            Message[]
-  tasks               Task[]
-  groupChatMessages   GroupChatMessage[]
-  activePoll          ActivePoll?
-  reports             ProjectReport[]
+  plannerId         String
+  planner           User               @relation("PlannerProjects", fields: [plannerId], references: [id])
+  pledges           Pledge[]
+  offer             Offer?
+  review            Review?
+  announcements     Announcement[]
+  expenses          Expense[]
+  commission        Commission?
+  quotation         Quotation?
+  messages          Message[]
+  tasks             Task[]
+  groupChatMessages GroupChatMessage[]
+  activePoll        ActivePoll?
+  reports           ProjectReport[]
 }
 
 model Pledge {
@@ -131,31 +132,30 @@ model Pledge {
 
   // Relations
   projectId String
-  project   Project  @relation(fields: [projectId], references: [id])
+  project   Project @relation(fields: [projectId], references: [id])
   userId    String
-  user      User     @relation(fields: [userId], references: [id])
+  user      User    @relation(fields: [userId], references: [id])
 }
 
 model Florist {
-  id            String          @id @default(cuid())
-  email         String          @unique
-  password      String
-  contactName   String
+  id              String        @id @default(cuid())
+  email           String        @unique
+  password        String
+  contactName     String
   portfolioImages String[]
-  address       String?
-  phoneNumber   String?
-  website       String?
-  portfolio     String?         @db.Text
-  businessHours   String?       @db.Text
-  balance       Int             @default(0)
-  laruBotApiKey String?
+  address         String?
+  phoneNumber     String?
+  website         String?
+  portfolio       String?       @db.Text
+  businessHours   String?       @db.Text
+  balance         Int           @default(0)
+  laruBotApiKey   String?
   iconUrl         String?
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
-  shopName      String          // 実店舗名（運営確認用）
-  platformName  String          @unique // プラットフォーム上の活動名（公開用）
-  status        FloristStatus   @default(PENDING) // 審査ステータス
-
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  shopName        String // 実店舗名（運営確認用）
+  platformName    String        @unique // プラットフォーム上の活動名（公開用）
+  status          FloristStatus @default(PENDING) // 審査ステータス
 
   // Relations
   offers           Offer[]
@@ -179,8 +179,8 @@ model Offer {
 }
 
 model ChatRoom {
-  id        String        @id @default(cuid())
-  createdAt DateTime      @default(now())
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
 
   // Relations
   offerId  String        @unique
@@ -189,38 +189,37 @@ model ChatRoom {
 }
 
 model ChatMessage {
-  id               String            @id @default(cuid())
-  
+  id String @id @default(cuid())
+
   // ★ 新しいフィールド
-  messageType      MessageType       @default(TEXT)
-  fileUrl          String?
-  fileName         String?
-  
+  messageType MessageType @default(TEXT)
+  fileUrl     String?
+  fileName    String?
+
   // ★ 修正: content を任意(?) に変更
-  content          String?           @db.Text 
-  
-  senderType       MessageSenderType
-  isAutoResponse   Boolean           @default(false)
-  createdAt        DateTime          @default(now())
+  content String? @db.Text
+
+  senderType     MessageSenderType
+  isAutoResponse Boolean           @default(false)
+  createdAt      DateTime          @default(now())
 
   // Relations
-  chatRoomId       String
-  chatRoom         ChatRoom          @relation(fields: [chatRoomId], references: [id])
-  userId           String?
-  user             User?             @relation("UserChatMessages", fields: [userId], references: [id])
-  floristId        String?
-  florist          Florist?          @relation("FloristChatMessages", fields: [floristId], references: [id])
+  chatRoomId String
+  chatRoom   ChatRoom @relation(fields: [chatRoomId], references: [id])
+  userId     String?
+  user       User?    @relation("UserChatMessages", fields: [userId], references: [id])
+  floristId  String?
+  florist    Florist? @relation("FloristChatMessages", fields: [floristId], references: [id])
 }
-
 
 model Venue {
   id          String   @id @default(cuid())
-  email       String?  @unique 
+  email       String?  @unique
   password    String?
   venueName   String
   address     String?
   regulations String?  @db.Text
-  isOfficial  Boolean  @default(false) 
+  isOfficial  Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   addedById   String?
@@ -229,7 +228,7 @@ model Venue {
 
 model Review {
   id        String   @id @default(cuid())
-  rating    Int
+  // rating Int  <- この行を削除します！
   comment   String?  @db.Text
   createdAt DateTime @default(now())
 
@@ -240,6 +239,20 @@ model Review {
   florist   Florist @relation(fields: [floristId], references: [id])
   userId    String
   user      User    @relation(fields: [userId], references: [id])
+
+  likes ReviewLike[] // ★ 追加: このレビューに対するいいね
+}
+
+model ReviewLike {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  reviewId String
+  review   Review @relation(fields: [reviewId], references: [id])
+  userId   String
+  user     User   @relation(fields: [userId], references: [id])
+
+  @@unique([reviewId, userId])
 }
 
 model Commission {
@@ -260,7 +273,7 @@ model Announcement {
 
   // Relations
   projectId String
-  project   Project  @relation(fields: [projectId], references: [id])
+  project   Project @relation(fields: [projectId], references: [id])
 }
 
 model PayoutRequest {
@@ -273,7 +286,7 @@ model PayoutRequest {
 
   // Relations
   floristId String
-  florist   Florist  @relation(fields: [floristId], references: [id])
+  florist   Florist @relation(fields: [floristId], references: [id])
 }
 
 model Expense {
@@ -284,14 +297,14 @@ model Expense {
 
   // Relations
   projectId String
-  project   Project  @relation(fields: [projectId], references: [id])
+  project   Project @relation(fields: [projectId], references: [id])
 }
 
 model Quotation {
-  id          String          @id @default(cuid())
+  id          String   @id @default(cuid())
   totalAmount Int
-  isApproved  Boolean         @default(false)
-  createdAt   DateTime        @default(now())
+  isApproved  Boolean  @default(false)
+  createdAt   DateTime @default(now())
 
   // Relations
   projectId String          @unique
@@ -300,9 +313,9 @@ model Quotation {
 }
 
 model QuotationItem {
-  id          String    @id @default(cuid())
-  itemName    String
-  amount      Int
+  id       String @id @default(cuid())
+  itemName String
+  amount   Int
 
   // Relations
   quotationId String
@@ -318,7 +331,7 @@ model Task {
 
   // Relations
   projectId String
-  project   Project   @relation(fields: [projectId], references: [id])
+  project   Project @relation(fields: [projectId], references: [id])
 }
 
 model Message {
@@ -330,38 +343,38 @@ model Message {
 
   // Relations
   projectId String
-  project   Project  @relation(fields: [projectId], references: [id])
+  project   Project @relation(fields: [projectId], references: [id])
   userId    String
-  user      User     @relation(fields: [userId], references: [id])
+  user      User    @relation(fields: [userId], references: [id])
 
   @@unique([projectId, userId])
 }
 
 model GroupChatMessage {
-  id            String      @id @default(cuid())
-  
+  id String @id @default(cuid())
+
   // ★ 新しいフィールド
-  messageType   MessageType @default(TEXT)
-  fileUrl       String?
-  fileName      String?
-  
+  messageType MessageType @default(TEXT)
+  fileUrl     String?
+  fileName    String?
+
   // ★ 既存のフィールド (content はすでに String? だったので変更なし)
-  templateId    String?
-  content       String?
-  createdAt     DateTime    @default(now())
+  templateId String?
+  content    String?
+  createdAt  DateTime @default(now())
 
   // Relations
-  projectId     String
-  project       Project     @relation(fields: [projectId], references: [id])
-  userId        String
-  user          User        @relation(fields: [userId], references: [id])
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id])
+  userId    String
+  user      User    @relation(fields: [userId], references: [id])
 }
 
 model ActivePoll {
-  id        String     @id @default(cuid())
+  id        String   @id @default(cuid())
   question  String
   options   String[]
-  createdAt DateTime   @default(now())
+  createdAt DateTime @default(now())
 
   // Relations
   projectId String     @unique
@@ -370,7 +383,7 @@ model ActivePoll {
 }
 
 model PollVote {
-  id          String     @id @default(cuid())
+  id          String @id @default(cuid())
   optionIndex Int
 
   // Relations
@@ -383,18 +396,18 @@ model PollVote {
 }
 
 model ProjectReport {
-  id         String   @id @default(cuid())
-  reason     String
-  details    String?  @db.Text
-  status     String   @default("SUBMITTED")
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id        String   @id @default(cuid())
+  reason    String
+  details   String?  @db.Text
+  status    String   @default("SUBMITTED")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations
   projectId  String
-  project    Project  @relation(fields: [projectId], references: [id])
+  project    Project @relation(fields: [projectId], references: [id])
   reporterId String
-  reporter   User     @relation("UserReports", fields: [reporterId], references: [id])
+  reporter   User    @relation("UserReports", fields: [reporterId], references: [id])
 
   @@unique([projectId, reporterId])
 }
