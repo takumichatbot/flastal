@@ -998,6 +998,31 @@ app.post('/api/florists/login', async (req, res) => {
   }
 });
 
+// ★★★ 会場ログインAPI (新しい位置) ★★★
+app.post('/api/venues/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    const venue = await prisma.venue.findUnique({
+      where: { email },
+    });
+    if (!venue) {
+      return res.status(404).json({ message: '会場が見つかりません。' });
+    }
+    const isPasswordValid = await bcrypt.compare(password, venue.password);
+    if (!isPasswordValid) {
+      return res.status(401).json({ message: 'パスワードが間違っています。' });
+    }
+    const { password: _, ...venueWithoutPassword } = venue;
+    res.status(200).json({
+      message: 'ログインに成功しました。',
+      venue: venueWithoutPassword,
+    });
+  } catch (error) {
+    console.error('会場ログインエラー:', error);
+    res.status(500).json({ message: 'サーバーエラーが発生しました。' });
+  }
+});
+
 app.get('/api/florists/:floristId/dashboard', async (req, res) => {
   const { floristId } = req.params;
   try {
@@ -1140,30 +1165,6 @@ app.post('/api/venues/register', async (req, res) => {
       return res.status(409).json({ message: 'このメールアドレスは既に使用されています。' });
     }
     console.error('会場登録エラー:', error);
-    res.status(500).json({ message: 'サーバーエラーが発生しました。' });
-  }
-});
-
-app.post('/api/venues/login', async (req, res) => {
-  try {
-    const { email, password } = req.body;
-    const venue = await prisma.venue.findUnique({
-      where: { email },
-    });
-    if (!venue) {
-      return res.status(404).json({ message: '会場が見つかりません。' });
-    }
-    const isPasswordValid = await bcrypt.compare(password, venue.password);
-    if (!isPasswordValid) {
-      return res.status(401).json({ message: 'パスワードが間違っています。' });
-    }
-    const { password: _, ...venueWithoutPassword } = venue;
-    res.status(200).json({
-      message: 'ログインに成功しました。',
-      venue: venueWithoutPassword,
-    });
-  } catch (error) {
-    console.error('会場ログインエラー:', error);
     res.status(500).json({ message: 'サーバーエラーが発生しました。' });
   }
 });
