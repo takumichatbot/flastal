@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import toast from 'react-hot-toast';
-import ReportModal from '../../components/ReportModal';
+// 以前ここにあった不必要な自己インポート行 (import ReportModal from '../../components/ReportModal';) は削除しました。
 
 // ★ API_URLを修正
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
