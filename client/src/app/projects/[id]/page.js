@@ -16,7 +16,8 @@ import MessageForm from '../../components/MessageForm';
 import PollCreationModal from './components/PollCreationModal';
 import GroupChat from './components/GroupChat';
 import CompletionReportModal from './components/CompletionReportModal';
-import ReportModal from '../../../components/ReportModal';
+// 💡 【ここを修正！】正しい相対パスに変更します
+import ReportModal from './components/ReportModal'; // ★★★ 修正後の正しいパス ★★★
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
