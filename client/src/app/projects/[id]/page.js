@@ -16,7 +16,7 @@ import MessageForm from '../../components/MessageForm';
 import PollCreationModal from './components/PollCreationModal';
 import GroupChat from './components/GroupChat';
 import CompletionReportModal from './components/CompletionReportModal';
-import ReportModal from '../../../components/ReportModal'; // ★ ../ が3つ必要
+import ReportModal from '../../../components/ReportModal';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 

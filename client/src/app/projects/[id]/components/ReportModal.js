@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import toast from 'react-hot-toast';
-import { useAuth } from '../../../contexts/AuthContext'; // ★ useAuthをインポート
+import ReportModal from '../../components/ReportModal';
 
 // ★ API_URLを修正
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
