@@ -2,12 +2,12 @@
 
 import { useState } from 'react';
 import toast from 'react-hot-toast';
-// 以前ここにあった不必要な自己インポート行 (import ReportModal from '../../components/ReportModal';) は削除しました。
+// 以前存在した、不必要な自己インポートの行は削除されています。
 
-// ★ API_URLを修正
+// API_URLを設定
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
-// ★ user を props で受け取る
+// propsでprojectId、user、onCloseを受け取る
 export default function ReportModal({ projectId, user, onClose }) {
   const [reason, setReason] = useState('');
   const [details, setDetails] = useState('');
@@ -33,14 +33,13 @@ export default function ReportModal({ projectId, user, onClose }) {
       toast.error('「その他」を選択した場合は、詳細を記入してください。');
       return;
     }
-    
-    // ★★★ 修正: token削除, reporterId追加 ★★★
+
     const promise = fetch(`${API_URL}/api/reports/project`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
-        projectId: projectId, // ★ parseIntを削除
-        reporterId: user.id, // ★ 'reporterId' としてユーザーIDを追加
+        projectId: projectId, 
+        reporterId: user.id, // 報告者のユーザーID
         reason, 
         details 
       }),
@@ -62,7 +61,6 @@ export default function ReportModal({ projectId, user, onClose }) {
     });
   };
 
-  // --- JSX (変更なし) ---
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
       <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-lg">
