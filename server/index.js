@@ -64,6 +64,73 @@ const prisma = new PrismaClient();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const resend = new Resend(process.env.RESEND_API_KEY);
 
+// ★★★ JWT認証ミドルウェア ★★★
+const authenticateToken = (req, res, next, requiredRole = null) => {
+  // 1. ヘッダーからトークンを取得
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : null;
+
+  if (!token) {
+    // トークンがない場合
+    return res.status(401).json({ message: '認証トークンが必要です。' });
+  }
+
+  // 2. トークンを検証
+  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+    if (err) {
+      // トークンが無効（期限切れなど）の場合
+      return res.status(403).json({ message: 'トークンが無効または期限切れです。' });
+    }
+
+    // 3. ユーザー情報をリクエストオブジェクトに格納
+    // user.id, user.role, user.handleName などがデコードされた情報
+    req.user = user; 
+
+    // 4. 権限チェック (requiredRoleが設定されている場合)
+    if (requiredRole && user.role !== requiredRole) {
+      return res.status(403).json({ message: 'この操作を実行する権限がありません。' });
+    }
+
+    // 次の処理へ
+    next();
+  });
+};
+
+// ★ 企画者かどうかを確認するヘルパーミドルウェア (企画作成者/Planner専用APIで使用)
+const isPlanner = (req, res, next) => {
+  // req.project が既に設定されていることを前提とする
+  if (!req.project) {
+    return res.status(404).json({ message: '企画が見つかりません。' });
+  }
+  if (req.user.id !== req.project.plannerId) {
+    return res.status(403).json({ message: '権限がありません。あなたは企画者ではありません。' });
+  }
+  next();
+};
+
+// ★★★ 通知作成ヘルパー関数 ★★★
+async function createNotification(recipientId, type, message, projectId = null, linkUrl = null) {
+  if (!recipientId) return; // 受信者がいない場合はスキップ
+
+  try {
+    const newNotification = await prisma.notification.create({
+      data: {
+        recipientId,
+        type,
+        message,
+        projectId,
+        linkUrl,
+        // isReadはデフォルトでfalse
+      },
+    });
+    // ★ Socket.IOでリアルタイム通知をブロードキャスト (実装は後ほど)
+    // io.to(recipientId).emit('newNotification', newNotification);
+    return newNotification;
+  } catch (error) {
+    console.error(`Failed to create notification for user ${recipientId}:`, error);
+  }
+}
+
 // --- Expressミドルウェア設定 ---
 app.post('/api/webhooks/stripe', express.raw({type: 'application/json'}), async (req, res) => {
   const sig = req.headers['stripe-signature'];
@@ -363,7 +430,7 @@ app.get('/api/projects/featured', async (req, res) => {
 });
 
 
-// ★★★ 単一の企画を取得するAPI (最終修正版 v2) ★★★
+// ★★★ 単一の企画を取得するAPI (最終修正版 v3: 支援コースとタスク担当者対応) ★★★
 app.get('/api/projects/:id', async (req, res) => {
   const { id } = req.params; 
 
@@ -373,10 +440,31 @@ app.get('/api/projects/:id', async (req, res) => {
         id: id,
       },
       include: {
-        planner: true, // select でパスワード除外推奨
+        // ★ パスワードなど機密情報を除外するため select を使用
+        planner: {
+          select: {
+            id: true,
+            handleName: true,
+            iconUrl: true
+          }
+        },
+        // ↓↓↓ 【新規追加】支援コースを取得
+        pledgeTiers: {
+          orderBy: { amount: 'asc' }
+        },
+        // ↑↑↑ 新規追加 ↑↑↑
         pledges: {
           orderBy: { createdAt: 'desc' },
-          include: { user: { select: { id: true, handleName: true } } } // user情報も限定
+          // 支援者の情報を限定して取得
+          include: { 
+            user: { 
+              select: { 
+                id: true, 
+                handleName: true, 
+                iconUrl: true // ★ アイコンURLも取得
+              } 
+            } 
+          } 
         },
         announcements: {
           orderBy: { createdAt: 'desc' }
@@ -385,22 +473,28 @@ app.get('/api/projects/:id', async (req, res) => {
           orderBy: { createdAt: 'asc' }
         },
         tasks: {
-          orderBy: { createdAt: 'asc' }
+          orderBy: { createdAt: 'asc' },
+          // ↓↓↓ 【新規追加】タスク担当者を取得
+          include: {
+            assignedUser: {
+              select: {
+                id: true,
+                handleName: true
+              }
+            }
+          }
+          // ↑↑↑ 新規追加 ↑↑↑
         },
-        // ★★★ ここを修正 ★★★
-        // activePoll の include から options を削除。
-        // votes の select も、よりシンプルに votes: true でも良い。
         activePoll: { 
           include: {
-            votes: { // ActivePollに直接紐づくvotesを取得
-              select: { // 必要な情報だけ選択 (userId と optionIndex)
+            votes: { 
+              select: { 
                 userId: true,
                 optionIndex: true 
               }
             } 
           }
         },
-        // ★★★ 修正ここまで ★★★
         messages: { 
            orderBy: { createdAt: 'asc' },
            include: { user: { select: { id: true, handleName: true } } }
@@ -411,26 +505,33 @@ app.get('/api/projects/:id', async (req, res) => {
         quotation: { 
             include: { items: true }
         },
-        review: { // レビューもユーザー情報など含めるなら include を使う
-          include: { user: { select: { id: true, handleName: true } } }
+        review: { 
+          // レビュー投稿者の情報を限定して取得
+          include: { 
+            user: { 
+              select: { 
+                id: true, 
+                handleName: true, 
+                iconUrl: true 
+              } 
+            },
+            likes: true // いいね情報も取得
+          }
         },
         groupChatMessages: { 
             orderBy: { createdAt: 'asc' },
             include: { user: { select: { id: true, handleName: true } } }
         }
-        // 他に commission, reports など必要に応じて追加
       },
     });
 
     if (project) {
       res.status(200).json(project);
     } else {
-      // 企画が見つからなかった場合は 404 を返す
       res.status(404).json({ message: '企画が見つかりません。' });
     }
   } catch (error) {
     console.error('企画取得エラー:', error);
-    // エラーの種類に応じて適切なステータスコードを返すことも検討
     res.status(500).json({ message: '企画の取得中にエラーが発生しました。' });
   }
 });
@@ -452,13 +553,13 @@ app.get('/api/admin/projects/pending', async (req, res) => {
 });
 
 // ★★★【新規】ファンのプロフィール更新API ★★★
-app.patch('/api/users/profile', async (req, res) => {
-  // ★ 本来はJWTトークンからユーザーIDを取得すべきですが、
-  // ★ 他のAPIに合わせて一旦リクエストボディから受け取ります
-  const { userId, handleName, iconUrl } = req.body;
+app.patch('/api/users/profile', authenticateToken, async (req, res) => { // ★ authenticateToken を追加
+  // const { userId, handleName, iconUrl } = req.body; // ❌ userId は削除
+  const { handleName, iconUrl } = req.body;
+  const userId = req.user.id; // ✅ トークンから userId を取得
 
   if (!userId) {
-    return res.status(400).json({ message: 'ユーザーIDが必要です。' });
+    return res.status(400).json({ message: 'ユーザーIDが必要です。' }); // (ここは保険として残す)
   }
 
   try {
@@ -502,6 +603,52 @@ app.patch('/api/users/profile', async (req, res) => {
   }
 });
 
+// ★★★【新規】通知一覧を取得するAPI ★★★
+app.get('/api/notifications', authenticateToken, async (req, res) => {
+  const userId = req.user.id;
+  try {
+    const notifications = await prisma.notification.findMany({
+      where: { recipientId: userId },
+      orderBy: { createdAt: 'desc' },
+      take: 20, // 最新20件のみ取得
+      include: {
+        project: { select: { title: true } } // 企画名を表示用として取得
+      }
+    });
+    res.status(200).json(notifications);
+  } catch (error) {
+    console.error("通知一覧取得エラー:", error);
+    res.status(500).json({ message: '通知の取得中にエラーが発生しました。' });
+  }
+});
+
+// ★★★【新規】通知を既読にするAPI ★★★
+app.patch('/api/notifications/:notificationId/read', authenticateToken, async (req, res) => {
+  const { notificationId } = req.params;
+  const userId = req.user.id;
+  try {
+    const updatedNotification = await prisma.notification.updateMany({
+      where: { 
+        id: notificationId,
+        recipientId: userId, // 自分の通知のみ更新可能
+        isRead: false
+      },
+      data: { isRead: true }
+    });
+    
+    // 更新されたレコード数が 1 であれば成功
+    if (updatedNotification.count === 1) {
+      res.status(200).json({ message: '通知を既読にしました。' });
+    } else {
+      // 既読フラグが立っているか、通知が存在しない
+      res.status(200).json({ message: '通知は既に既読です。' }); 
+    }
+  } catch (error) {
+    console.error("通知既読更新エラー:", error);
+    res.status(500).json({ message: '既読状態の更新中にエラーが発生しました。' });
+  }
+});
+
 // ★★★【新規】管理者向けAPI(2): 企画のステータスを更新 (承認/却下) ★★★
 app.patch('/api/admin/projects/:projectId/status', async (req, res) => {
   const { projectId } = req.params;
@@ -524,38 +671,71 @@ app.patch('/api/admin/projects/:projectId/status', async (req, res) => {
   }
 });
 
+// ★★★ 支援API (通知機能とJWT認証を組み込み) ★★★
+app.post('/api/pledges', authenticateToken, async (req, res) => {
+  // 以前はリクエストボディから取得していた userId を、JWTトークンから取得
+  const userId = req.user.id; 
+  // リクエストボディから取得するデータ
+  const { projectId, amount, comment, tierId } = req.body; 
 
-app.post('/api/pledges', async (req, res) => {
-  const { projectId, userId, amount, comment } = req.body;
-  const pledgeAmount = parseInt(amount, 10);
+  let pledgeAmount = parseInt(amount, 10);
+
+  // 1. 支援コースIDが指定されていれば、その金額を使用
+  if (tierId) {
+    const tier = await prisma.pledgeTier.findUnique({ where: { id: tierId } });
+    if (!tier) return res.status(404).json({ message: '支援コースが見つかりません。' });
+    pledgeAmount = tier.amount;
+  }
+  
   if (isNaN(pledgeAmount) || pledgeAmount <= 0) {
     return res.status(400).json({ message: '支援額は正の数で入力してください。' });
   }
+
   try {
     const result = await prisma.$transaction(async (tx) => {
+      // 事前チェック
       const user = await tx.user.findUnique({ where: { id: userId } });
       const project = await tx.project.findUnique({ where: { id: projectId } });
       if (!user) throw new Error('ユーザーが見つかりません。');
       if (!project) throw new Error('企画が見つかりません。');
       if (project.status !== 'FUNDRAISING') throw new Error('この企画は現在募集中ではありません。');
       if (user.points < pledgeAmount) throw new Error('ポイントが不足しています。');
+      
+      // ユーザーポイント減算
       await tx.user.update({
         where: { id: userId },
         data: { points: { decrement: pledgeAmount } },
       });
+      
+      // 支援作成
       const newPledge = await tx.pledge.create({
         data: { 
           amount: pledgeAmount, 
           projectId, 
           userId, 
-          comment 
+          comment,
+          pledgeTierId: tierId || null,
         },
       });
+      
+      // 企画ポイント加算
       const updatedProject = await tx.project.update({
         where: { id: projectId },
         data: { collectedAmount: { increment: pledgeAmount } },
       });
-      if (updatedProject.collectedAmount >= updatedProject.targetAmount) {
+      
+      // ↓↓↓ 【通知追加】企画者に新しい支援があったことを通知 ↓↓↓
+      await createNotification(
+        updatedProject.plannerId,
+        'NEW_PLEDGE',
+        `${req.user.handleName}さんから${pledgeAmount.toLocaleString()}ptの支援がありました！`,
+        projectId,
+        `/projects/${projectId}` 
+      );
+      // ↑↑↑ 通知追加 ↑↑↑
+
+      // 目標達成チェック
+      if (updatedProject.collectedAmount >= updatedProject.targetAmount && updatedProject.status !== 'SUCCESSFUL') {
         await tx.project.update({
           where: { id: projectId },
           data: { status: 'SUCCESSFUL' },
@@ -570,6 +750,51 @@ app.post('/api/pledges', async (req, res) => {
     res.status(400).json({ message: error.message || '支援処理中にエラーが発生しました。' });
   }
 });
+
+
+// ★★★ JWT認証ミドルウェア ★★★
+const authenticateToken = (req, res, next, requiredRole = null) => {
+  // 1. ヘッダーからトークンを取得
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : null;
+
+  if (!token) {
+    // トークンがない場合
+    return res.status(401).json({ message: '認証トークンが必要です。' });
+  }
+
+  // 2. トークンを検証
+  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+    if (err) {
+      // トークンが無効（期限切れなど）の場合
+      return res.status(403).json({ message: 'トークンが無効または期限切れです。' });
+    }
+
+    // 3. ユーザー情報をリクエストオブジェクトに格納
+    // user.id, user.role, user.handleName などがデコードされた情報
+    req.user = user; 
+
+    // 4. 権限チェック (requiredRoleが設定されている場合)
+    if (requiredRole && user.role !== requiredRole) {
+      return res.status(403).json({ message: 'この操作を実行する権限がありません。' });
+    }
+
+    // 次の処理へ
+    next();
+  });
+};
+
+// ★ 企画者かどうかを確認するヘルパーミドルウェア (企画作成者/Planner専用APIで使用)
+const isPlanner = (req, res, next) => {
+  // req.project が既に設定されていることを前提とする
+  if (!req.project) {
+    return res.status(404).json({ message: '企画が見つかりません。' });
+  }
+  if (req.user.id !== req.project.plannerId) {
+    return res.status(403).json({ message: '権限がありません。あなたは企画者ではありません。' });
+  }
+  next();
+};
 
 app.post('/api/quotations', async (req, res) => {
   const { projectId, items, floristId } = req.body;
@@ -601,24 +826,30 @@ app.post('/api/quotations', async (req, res) => {
   }
 });
 
-app.patch('/api/quotations/:id/approve', async (req, res) => {
+app.patch('/api/quotations/:id/approve', authenticateToken, async (req, res) => { // ★ authenticateToken を追加
   const { id } = req.params;
-  const { userId } = req.body;
+  const userId = req.user.id; // トークンから userId を取得
+
   try {
     const result = await prisma.$transaction(async (tx) => {
-      const quotation = await tx.quotation.findUnique({ where: { id }, include: { project: true } });
+      const quotation = await tx.quotation.findUnique({ where: { id }, include: { project: { select: { plannerId: true } } } });
       if (!quotation) throw new Error('見積書が見つかりません。');
       if (quotation.project.plannerId !== userId) throw new Error('権限がありません。');
       if (quotation.isApproved) throw new Error('この見積書は既に承認済みです。');
-      const project = quotation.project;
+      
+      // プロジェクト情報を再取得して必要な情報（collectedAmountなど）を取得
+      const project = await tx.project.findUnique({ where: { id: quotation.projectId } });
       const totalAmount = quotation.totalAmount;
       if (project.collectedAmount < totalAmount) {
         throw new Error('集まったポイントが見積もり金額に足りません。');
       }
       const offer = await tx.offer.findUnique({ where: { projectId: project.id } });
       if (!offer || !offer.floristId) throw new Error('担当のお花屋さんが見つかりません。');
+      
       const commissionAmount = totalAmount - Math.floor(totalAmount * 0.80);
       const netPayout = totalAmount - commissionAmount;
+      
+      // 売上残高の更新とコミッションの作成
       await tx.florist.update({
         where: { id: offer.floristId },
         data: { balance: { increment: netPayout } },
@@ -626,11 +857,23 @@ app.patch('/api/quotations/:id/approve', async (req, res) => {
       await tx.commission.create({
         data: { amount: commissionAmount, projectId: project.id }
       });
+      
+      // 見積もりステータスの更新
       const approvedQuotation = await tx.quotation.update({
         where: { id },
         data: { isApproved: true },
       });
-      console.log(`Quotation ${id} approved. Payout of ${netPayout}pt to florist ${offer.floristId}. Commission of ${commissionAmount}pt earned.`);
+      
+      // ↓↓↓ 【通知追加】お花屋さんに通知 ↓↓↓
+      await createNotification(
+        offer.floristId,
+        'QUOTATION_APPROVED',
+        `企画「${project.title}」の見積もりが承認されました。制作を開始してください。`,
+        project.id,
+        `/florist/offers/${offer.id}` // お花屋さんダッシュボードのオファー詳細ページへ
+      );
+      // ↑↑↑ 通知追加 ↑↑↑
+
       return approvedQuotation;
     });
     res.status(200).json(result);
@@ -838,10 +1081,10 @@ app.get('/api/florists', async (req, res) => {
 });
 
 // ★★★【新規】企画を編集するAPI (主催者のみ) ★★★
-app.patch('/api/projects/:id', async (req, res) => {
+app.patch('/api/projects/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
   const { 
-    userId, // 編集者が本人か確認するために使用
+    // userId, // ❌ userId 削除
     title, 
     description, 
     imageUrl, 
@@ -849,6 +1092,7 @@ app.patch('/api/projects/:id', async (req, res) => {
     size, 
     flowerTypes 
   } = req.body;
+  const userId = req.user.id; // ✅ トークンから取得
 
   try {
     // 1. 企画を検索
@@ -969,9 +1213,10 @@ app.get('/api/users/:userId/offerable-projects', async (req, res) => {
 });
 
 // ★★★【新規】目標金額を変更するAPI ★★★
-app.patch('/api/projects/:projectId/target-amount', async (req, res) => {
+app.patch('/api/projects/:projectId/target-amount', authenticateToken, async (req, res) => {
   const { projectId } = req.params;
-  const { newTargetAmount, userId } = req.body;
+  const { newTargetAmount } = req.body; // ❌ userId 削除
+  const userId = req.user.id; // ✅ トークンから取得
 
   try {
     const project = await prisma.project.findUnique({
@@ -981,24 +1226,40 @@ app.patch('/api/projects/:projectId/target-amount', async (req, res) => {
     if (!project) {
       return res.status(404).json({ message: '企画が見つかりません。' });
     }
-    // 企画者本人でなければ変更できない
+    // 企画者本人かチェック
     if (project.plannerId !== userId) {
       return res.status(403).json({ message: '権限がありません。' });
     }
-    // 新しい目標金額が、既に集まった金額より少ない場合はエラー
-    const parsedNewAmount = parseInt(newTargetAmount, 10); // ★ 数値に変換
-    if (isNaN(parsedNewAmount) || parsedNewAmount < project.collectedAmount) { // ★ NaNチェック追加
+    // 新しい目標金額の検証
+    const parsedNewAmount = parseInt(newTargetAmount, 10);
+    if (isNaN(parsedNewAmount) || parsedNewAmount < project.collectedAmount) {
       return res.status(400).json({ message: `新しい目標金額は、現在集まっている金額（${project.collectedAmount.toLocaleString()} pt）以上に設定する必要があります。` });
     }
 
     const updatedProject = await prisma.project.update({
       where: { id: projectId },
       data: {
-        targetAmount: parsedNewAmount, // ★ 変換した数値を使用
-        // 目標金額が下がって達成済みになった場合、ステータスも更新
+        targetAmount: parsedNewAmount,
         status: (project.collectedAmount >= parsedNewAmount) ? 'SUCCESSFUL' : project.status,
       },
     });
+
+    // ↓↓↓ 【通知追加】全ての支援者に目標金額変更を通知 ↓↓↓
+    const pledges = await prisma.pledge.findMany({ where: { projectId }, select: { userId: true } });
+    const uniqueUserIds = [...new Set(pledges.map(p => p.userId))];
+
+    for (const id of uniqueUserIds) {
+      if (id !== userId) { // 企画者自身には通知しない
+        await createNotification(
+          id,
+          'PROJECT_STATUS_UPDATE',
+          `企画「${project.title}」の目標金額が${parsedNewAmount.toLocaleString()}ptに変更されました。`,
+          projectId,
+          `/projects/${projectId}`
+        );
+      }
+    }
+    // ↑↑↑ 通知追加 ↑↑↑
 
     res.status(200).json(updatedProject);
   } catch (error) {
@@ -1281,18 +1542,21 @@ app.post('/api/reviews', async (req, res) => {
   }
 });
 
-app.post('/api/announcements', async (req, res) => {
-  const { title, content, projectId, userId } = req.body;
+app.post('/api/announcements', authenticateToken, async (req, res) => { // ★ authenticateToken を追加
+  // const { title, content, projectId, userId } = req.body; // ❌ userId は削除
+  const { title, content, projectId } = req.body;
+  const userId = req.user.id; // トークンから userId を取得
+
   try {
-    const project = await prisma.project.findUnique({
-      where: { id: projectId },
-    });
+    const project = await prisma.project.findUnique({ where: { id: projectId } });
     if (!project) {
       return res.status(404).json({ message: '企画が見つかりません。' });
     }
     if (project.plannerId !== userId) {
       return res.status(403).json({ message: '権限がありません。あなたはこの企画の主催者ではありません。' });
     }
+    
+    // お知らせの作成
     const newAnnouncement = await prisma.announcement.create({
       data: {
         title,
@@ -1300,6 +1564,29 @@ app.post('/api/announcements', async (req, res) => {
         projectId,
       },
     });
+
+    // ↓↓↓ 【通知追加】全ての支援者に通知 ↓↓↓
+    const pledges = await prisma.pledge.findMany({ 
+      where: { projectId }, 
+      select: { userId: true } 
+    });
+    
+    // 重複を排除した支援者IDリストを取得
+    const uniqueUserIds = [...new Set(pledges.map(p => p.userId))];
+
+    for (const userIdToNotify of uniqueUserIds) {
+      if (userIdToNotify !== userId) { // 投稿者自身への通知はスキップ
+        await createNotification(
+          userIdToNotify,
+          'NEW_ANNOUNCEMENT',
+          `企画「${project.title}」から新しいお知らせが届きました: ${title}`,
+          projectId,
+          `/projects/${projectId}`
+        );
+      }
+    }
+    // ↑↑↑ 通知追加 ↑↑↑
+
     res.status(201).json(newAnnouncement);
   } catch (error) {
     console.error("お知らせ投稿APIでエラー:", error);
@@ -1352,8 +1639,11 @@ app.get('/api/florists/:floristId/payouts', async (req, res) => {
   }
 });
 
-app.post('/api/expenses', async (req, res) => {
-  const { itemName, amount, projectId, userId } = req.body;
+app.post('/api/expenses', authenticateToken, async (req, res) => {
+  // const { itemName, amount, projectId, userId } = req.body; // ❌ userId 削除
+  const { itemName, amount, projectId } = req.body;
+  const userId = req.user.id; // ✅ トークンから取得
+
   try {
     const project = await prisma.project.findUnique({
       where: { id: projectId },
@@ -1375,9 +1665,11 @@ app.post('/api/expenses', async (req, res) => {
   }
 });
 
-app.delete('/api/expenses/:expenseId', async (req, res) => {
+app.delete('/api/expenses/:expenseId', authenticateToken, async (req, res) => {
   const { expenseId } = req.params;
-  const { userId } = req.body;
+  // const { userId } = req.body; // ❌ userId 削除
+  const userId = req.user.id; // ✅ トークンから取得
+
   try {
     const expense = await prisma.expense.findUnique({
       where: { id: expenseId },
@@ -1399,25 +1691,48 @@ app.delete('/api/expenses/:expenseId', async (req, res) => {
   }
 });
 
-app.post('/api/tasks', async (req, res) => {
-  const { title, projectId, userId } = req.body;
+app.post('/api/tasks', authenticateToken, async (req, res) => {
+  // const { title, projectId, userId, assignedUserId } = req.body; // ❌ userId 削除
+  const { title, projectId, assignedUserId } = req.body;
+  const userId = req.user.id; // ✅ トークンから取得
+
   try {
     const project = await prisma.project.findUnique({ where: { id: projectId } });
     if (!project || project.plannerId !== userId) {
       return res.status(403).json({ message: '権限がありません。' });
     }
+    
     const newTask = await prisma.task.create({
-      data: { title, projectId },
+      data: { 
+        title, 
+        projectId,
+        assignedUserId: assignedUserId || null,
+      },
     });
+    
+    // ↓↓↓ 【通知追加】タスクが割り当てられたユーザーに通知 ↓↓↓
+    if (assignedUserId && assignedUserId !== userId) {
+      await createNotification(
+        assignedUserId,
+        'TASK_ASSIGNED',
+        `企画「${project.title}」でタスク「${title}」があなたに割り当てられました。`,
+        projectId,
+        `/projects/${projectId}` 
+      );
+    }
+    // ↑↑↑ 通知追加 ↑↑↑
+    
     res.status(201).json(newTask);
   } catch (error) {
     res.status(500).json({ message: 'タスクの追加中にエラーが発生しました。' });
   }
 });
 
-app.patch('/api/tasks/:taskId', async (req, res) => {
+app.patch('/api/tasks/:taskId', authenticateToken, async (req, res) => {
   const { taskId } = req.params;
-  const { isCompleted, userId } = req.body;
+  const { isCompleted, assignedUserId } = req.body; // ❌ userId 削除
+  const userId = req.user.id; // ✅ トークンから取得
+  
   try {
     const task = await prisma.task.findUnique({
       where: { id: taskId },
@@ -1428,7 +1743,10 @@ app.patch('/api/tasks/:taskId', async (req, res) => {
     }
     const updatedTask = await prisma.task.update({
       where: { id: taskId },
-      data: { isCompleted },
+      data: { 
+        isCompleted,
+        assignedUserId: assignedUserId, // ★ assignedUserId を更新
+      },
     });
     res.status(200).json(updatedTask);
   } catch (error) {
@@ -1436,9 +1754,51 @@ app.patch('/api/tasks/:taskId', async (req, res) => {
   }
 });
 
-app.delete('/api/tasks/:taskId', async (req, res) => {
+// ★★★【新規】企画の支援コース (リターン) 設定API ★★★
+app.post('/api/projects/:projectId/tiers', authenticateToken, async (req, res) => {
+  const { projectId } = req.params;
+  const { tiers } = req.body; // ❌ userId 削除
+  const userId = req.user.id; // ✅ トークンから取得
+
+  try {
+    const project = await prisma.project.findUnique({ where: { id: projectId } });
+    if (!project || project.plannerId !== userId) {
+      return res.status(403).json({ message: '権限がありません。' });
+    }
+
+    if (!Array.isArray(tiers) || tiers.length === 0) {
+      return res.status(400).json({ message: '有効な支援コースが設定されていません。' });
+    }
+
+    await prisma.$transaction(async (tx) => {
+      // 既存のコースを一旦削除 (シンプル化のため)
+      await tx.pledgeTier.deleteMany({ where: { projectId } });
+
+      // 新しいコースを作成
+      const newTiers = await Promise.all(tiers.map(tier => 
+        tx.pledgeTier.create({
+          data: {
+            projectId,
+            amount: parseInt(tier.amount, 10),
+            title: tier.title,
+            description: tier.description,
+          }
+        })
+      ));
+      res.status(201).json(newTiers);
+    });
+
+  } catch (error) {
+    console.error("支援コース設定エラー:", error);
+    res.status(500).json({ message: '支援コースの設定中にエラーが発生しました。' });
+  }
+});
+
+app.delete('/api/tasks/:taskId', authenticateToken, async (req, res) => {
   const { taskId } = req.params;
-  const { userId } = req.body;
+  // const { userId } = req.body; // ❌ userId 削除
+  const userId = req.user.id; // ✅ トークンから取得
+
   try {
     const task = await prisma.task.findUnique({
       where: { id: taskId },
@@ -1753,9 +2113,11 @@ app.patch('/api/projects/:projectId/complete', async (req, res) => {
   }
 });
 
-app.patch('/api/projects/:projectId/cancel', async (req, res) => {
+app.patch('/api/projects/:projectId/cancel', authenticateToken, async (req, res) => {
   const { projectId } = req.params;
-  const { userId } = req.body;
+  // const { userId } = req.body; // ❌ userId 削除
+  const userId = req.user.id; // ✅ トークンから取得
+
   try {
     const result = await prisma.$transaction(async (tx) => {
       const project = await tx.project.findUnique({
@@ -1767,16 +2129,37 @@ app.patch('/api/projects/:projectId/cancel', async (req, res) => {
       if (project.status === 'COMPLETED' || project.status === 'CANCELED') {
         throw new Error('この企画は既に完了または中止されているため、中止できません。');
       }
+      
+      const uniquePledgerIds = new Set(); // 通知対象の支援者IDを格納
+
       for (const pledge of project.pledges) {
+        // ポイント返還処理
         await tx.user.update({
           where: { id: pledge.userId },
           data: { points: { increment: pledge.amount } }
         });
+        uniquePledgerIds.add(pledge.userId);
       }
+      
       const canceledProject = await tx.project.update({
         where: { id: projectId },
         data: { status: 'CANCELED' },
       });
+
+      // ↓↓↓ 【通知追加】全ての支援者に中止を通知 ↓↓↓
+      for (const id of uniquePledgerIds) {
+        if (id !== userId) {
+          await createNotification(
+            id,
+            'PROJECT_STATUS_UPDATE',
+            `企画「${project.title}」は中止され、支援額${project.collectedAmount.toLocaleString()}ptが返金されました。`,
+            projectId,
+            `/projects/${projectId}`
+          );
+        }
+      }
+      // ↑↑↑ 通知追加 ↑↑↑
+
       return canceledProject;
     });
     res.status(200).json({ message: '企画を中止し、すべての支援者にポイントが返金されました。', project: result });
@@ -1850,6 +2233,82 @@ app.post('/api/forgot-password', async (req, res) => {
   } catch (error) {
     console.error("パスワード再設定リクエストAPIで予期せぬエラー:", error);
     res.status(500).json({ message: '処理中にエラーが発生しました。' });
+  }
+});
+
+// ★★★【新規】お花屋さんによる見積書の最終確定API ★★★
+app.patch('/api/quotations/:id/finalize', async (req, res) => {
+  const { id } = req.params;
+  const { floristId } = req.body; // 最終確定者がお花屋さん本人か確認
+
+  try {
+    const quotation = await prisma.quotation.findUnique({ 
+      where: { id }, 
+      include: { project: { include: { offer: true } } } 
+    });
+
+    if (!quotation) {
+      return res.status(404).json({ message: '見積書が見つかりません。' });
+    }
+
+    // 権限チェック: 見積書が紐づくオファーの担当お花屋さんか？
+    if (quotation.project.offer?.floristId !== floristId) {
+      return res.status(403).json({ message: '権限がありません。' });
+    }
+
+    // 既に確定済みのチェック (任意だが推奨)
+    if (quotation.isFinalized) {
+      return res.status(400).json({ message: 'この見積書は既に最終確定されています。' });
+    }
+
+    const finalizedQuotation = await prisma.quotation.update({
+      where: { id },
+      data: { isFinalized: true, finalizedAt: new Date() },
+    });
+
+    // 企画者チャットルームに通知を送信 (任意)
+    // io.to(quotation.project.id).emit('quotationFinalized', finalizedQuotation);
+
+    res.status(200).json(finalizedQuotation);
+  } catch (error) {
+    console.error("見積書最終確定エラー:", error);
+    res.status(500).json({ message: '見積書の最終確定中にエラーが発生しました。' });
+  }
+});
+
+// ★★★【新規】お花屋さんによる企画ステータス更新API (制作フェーズ) ★★★
+// 企画ステータスに 'PROCESSING', 'READY_FOR_DELIVERY' などを追加する必要があります
+app.patch('/api/projects/:projectId/production-status', async (req, res) => {
+  const { projectId } = req.params;
+  const { floristId, status } = req.body; // status: 'PROCESSING', 'READY_FOR_DELIVERY'
+
+  // ステータスの検証（Prismaのスキーマにこれらのステータスを追加してください）
+  if (!['PROCESSING', 'READY_FOR_DELIVERY', 'DELIVERED'].includes(status)) {
+    return res.status(400).json({ message: '無効なステータスです。' });
+  }
+
+  try {
+    const project = await prisma.project.findUnique({
+      where: { id: projectId },
+      include: { offer: true }
+    });
+
+    if (!project || project.offer?.floristId !== floristId) {
+      return res.status(403).json({ message: '権限がありません。' });
+    }
+
+    const updatedProject = await prisma.project.update({
+      where: { id: projectId },
+      data: { status: status },
+    });
+    
+    // 企画者チャットルームに通知
+    // io.to(projectId).emit('productionStatusUpdated', { status: status });
+
+    res.status(200).json(updatedProject);
+  } catch (error) {
+    console.error("制作ステータス更新エラー:", error);
+    res.status(500).json({ message: '制作ステータスの更新中にエラーが発生しました。' });
   }
 });
 

@@ -12,13 +12,26 @@ datasource db {
 
 // --- Enums ---
 
+// ↓↓↓ 【新規追加】通知の種類を定義
+enum NotificationType {
+  NEW_PLEDGE // 支援がありました
+  NEW_CHAT_MESSAGE // 新しいチャットメッセージ
+  NEW_ANNOUNCEMENT // 新しいお知らせ
+  OFFER_STATUS_UPDATE // オファーのステータスが更新されました
+  QUOTATION_APPROVED // 見積もりが承認されました
+  TASK_ASSIGNED // タスクが割り当てられました
+  PROJECT_STATUS_UPDATE // 企画ステータスが更新されました
+}
+
 enum ProjectStatus {
-  PENDING_APPROVAL // 審査中
+  PENDING_APPROVAL // 審査中 (運営)
   FUNDRAISING // 募集中
   SUCCESSFUL // 達成
+  PROCESSING // 制作中（資材発注、制作開始など）
+  READY_FOR_DELIVERY // 納品準備完了
   COMPLETED // 完了
   CANCELED // 中止
-  REJECTED // 却下
+  REJECTED // 却下 (運営)
 }
 
 enum OfferStatus {
@@ -83,6 +96,8 @@ model User {
   reports           ProjectReport[]    @relation("UserReports")
   sentChatMessages  ChatMessage[]      @relation("UserChatMessages")
   addedVenues       Venue[]            @relation("UserAddedVenues")
+  assignedTasks     Task[]             @relation("AssignedTasks")
+  notifications     Notification[]     @relation("UserNotifications") // ↓↓↓ 【新規追加】通知とのリレーション
 }
 
 model Project {
@@ -97,7 +112,6 @@ model Project {
   designDetails           String?           @db.Text
   size                    String?
   flowerTypes             String?
-  // ↓↓↓ この行を一時的にコメントアウトします ↓↓↓
   status                  ProjectStatus     @default(PENDING_APPROVAL)
   visibility              ProjectVisibility @default(PUBLIC)
   completionImageUrls     String[]
@@ -122,6 +136,38 @@ model Project {
   groupChatMessages GroupChatMessage[]
   activePoll        ActivePoll?
   reports           ProjectReport[]
+  pledgeTiers       PledgeTier[]
+  notifications     Notification[]     @relation("ProjectNotifications") // ↓↓↓ 【新規追加】通知とのリレーション
+}
+
+// ↓↓↓ 【新規追加】通知モデル
+model Notification {
+  id        String          @id @default(cuid())
+  recipientId String // 受信者 (User)
+  type      NotificationType
+  isRead    Boolean         @default(false)
+  message   String          @db.Text // 通知メッセージ本体
+  linkUrl   String?         // クリック時の遷移先URL
+  createdAt DateTime        @default(now())
+
+  // Relations
+  recipient   User?     @relation("UserNotifications", fields: [recipientId], references: [id])
+  projectId   String?
+  project     Project?  @relation("ProjectNotifications", fields: [projectId], references: [id])
+}
+// ↑↑↑ 新規追加 ↑↑↑
+
+model PledgeTier {
+  id          String   @id @default(cuid())
+  amount      Int      // 支援額
+  title       String   // コース名（例: リボンに名前掲載）
+  description String   @db.Text // 詳細
+  createdAt   DateTime @default(now())
+
+  // Relations
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id])
+  pledges   Pledge[]
 }
 
 model Pledge {
@@ -135,6 +181,8 @@ model Pledge {
   project   Project @relation(fields: [projectId], references: [id])
   userId    String
   user      User    @relation(fields: [userId], references: [id])
+  pledgeTierId String?
+  pledgeTier   PledgeTier? @relation(fields: [pledgeTierId], references: [id])
 }
 
 model Florist {
@@ -191,12 +239,10 @@ model ChatRoom {
 model ChatMessage {
   id String @id @default(cuid())
 
-  // ★ 新しいフィールド
   messageType MessageType @default(TEXT)
   fileUrl     String?
   fileName    String?
 
-  // ★ 修正: content を任意(?) に変更
   content String? @db.Text
 
   senderType     MessageSenderType
@@ -228,7 +274,6 @@ model Venue {
 
 model Review {
   id        String   @id @default(cuid())
-  // rating Int  <- この行を削除します！
   comment   String?  @db.Text
   createdAt DateTime @default(now())
 
@@ -240,7 +285,7 @@ model Review {
   userId    String
   user      User    @relation(fields: [userId], references: [id])
 
-  likes ReviewLike[] // ★ 追加: このレビューに対するいいね
+  likes ReviewLike[]
 }
 
 model ReviewLike {
@@ -303,7 +348,9 @@ model Expense {
 model Quotation {
   id          String   @id @default(cuid())
   totalAmount Int
-  isApproved  Boolean  @default(false)
+  isApproved  Boolean  @default(false) // 企画者による承認
+  isFinalized Boolean  @default(false) // お花屋さんによる最終確定
+  finalizedAt DateTime? // 最終確定日時
   createdAt   DateTime @default(now())
 
   // Relations
@@ -332,6 +379,8 @@ model Task {
   // Relations
   projectId String
   project   Project @relation(fields: [projectId], references: [id])
+  assignedUserId String?
+  assignedUser   User?   @relation("AssignedTasks", fields: [assignedUserId], references: [id])
 }
 
 model Message {
@@ -353,12 +402,10 @@ model Message {
 model GroupChatMessage {
   id String @id @default(cuid())
 
-  // ★ 新しいフィールド
   messageType MessageType @default(TEXT)
   fileUrl     String?
   fileName    String?
 
-  // ★ 既存のフィールド (content はすでに String? だったので変更なし)
   templateId String?
   content    String?
   createdAt  DateTime @default(now())
