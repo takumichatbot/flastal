@@ -227,7 +227,7 @@ export default function Header() {
           {/* ナビゲーション (簡易版) */}
           <nav className="hidden sm:flex space-x-4">
             <Link href="/projects" className="text-gray-600 hover:text-pink-600 transition-colors font-medium">企画一覧</Link>
-            <Link href="/florists" className="text-gray-600 hover:text-pink-600 transition-colors font-medium">お花屋さん</Link>
+            <Link href="/florists" className="text-gray-600 hover:text-pink-600 transition-colors font-medium">お花屋さん一覧</Link>
             {user && <Link href="/mypage" className="text-gray-600 hover:text-pink-600 transition-colors font-medium">マイページ</Link>}
           </nav>
           
