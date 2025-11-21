@@ -785,49 +785,6 @@ app.post('/api/pledges', authenticateToken, async (req, res) => {
 });
 
 
-// ★★★ JWT認証ミドルウェア ★★★
-const authenticateToken = (req, res, next, requiredRole = null) => {
-  // 1. ヘッダーからトークンを取得
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : null;
-
-  if (!token) {
-    // トークンがない場合
-    return res.status(401).json({ message: '認証トークンが必要です。' });
-  }
-
-  // 2. トークンを検証
-  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
-    if (err) {
-      // トークンが無効（期限切れなど）の場合
-      return res.status(403).json({ message: 'トークンが無効または期限切れです。' });
-    }
-
-    // 3. ユーザー情報をリクエストオブジェクトに格納
-    // user.id, user.role, user.handleName などがデコードされた情報
-    req.user = user; 
-
-    // 4. 権限チェック (requiredRoleが設定されている場合)
-    if (requiredRole && user.role !== requiredRole) {
-      return res.status(403).json({ message: 'この操作を実行する権限がありません。' });
-    }
-
-    // 次の処理へ
-    next();
-  });
-};
-
-// ★ 企画者かどうかを確認するヘルパーミドルウェア (企画作成者/Planner専用APIで使用)
-const isPlanner = (req, res, next) => {
-  // req.project が既に設定されていることを前提とする
-  if (!req.project) {
-    return res.status(404).json({ message: '企画が見つかりません。' });
-  }
-  if (req.user.id !== req.project.plannerId) {
-    return res.status(403).json({ message: '権限がありません。あなたは企画者ではありません。' });
-  }
-  next();
-};
 
 // ★★★ 見積書作成API (JWT対応: 担当のお花屋さんのみ) ★★★
 app.post('/api/quotations', authenticateToken, async (req, res) => { // ★ authenticateToken 追加
