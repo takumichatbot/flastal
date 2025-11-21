@@ -8,8 +8,8 @@ import { io } from 'socket.io-client';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
 
-// ★ アイコンのインポート
-import { FiHeart, FiThumbsUp, FiMessageSquare, FiUser, FiSend, FiCheckCircle } from 'react-icons/fi'; 
+// ★ アイコンのインポートを追加
+import { FiHeart, FiThumbsUp, FiMessageSquare, FiInfo, FiUser, FiSend, FiCheckCircle } from 'react-icons/fi'; 
 
 import ImageModal from '../../components/ImageModal';
 import MessageForm from '../../components/MessageForm';
@@ -30,10 +30,8 @@ function ProjectStatusBadge({ status }) {
     REJECTED: { label: '却下', color: 'bg-red-600', icon: '❌' },
     FUNDRAISING: { label: '募集中', color: 'bg-blue-500', icon: '🚀' },
     SUCCESSFUL: { label: '目標達成', color: 'bg-green-500', icon: '✅' },
-    // ↓↓↓ 新規追加ステータス ↓↓↓
     PROCESSING: { label: '制作中', color: 'bg-indigo-500', icon: '🔨' },
     READY_FOR_DELIVERY: { label: '納品準備完了', color: 'bg-purple-500', icon: '📦' },
-    // ↑↑↑ 新規追加ステータス ↑↑↑
     COMPLETED: { label: '完了', color: 'bg-gray-700', icon: '🎉' },
     CANCELED: { label: '中止', color: 'bg-gray-400', icon: '🚫' },
   };
@@ -52,6 +50,7 @@ function ProjectStatusBadge({ status }) {
 // ===========================================
 // ★★★【修正】新しい支援フォーム (支援コース対応) ★★★
 // ===========================================
+// (PledgeForm コンポーネントのコードは変更が多いため、ここでは簡略化し、mainコンポーネントの前に配置します)
 function PledgeForm({ project, user, onPledgeSubmit, isPledger }) {
   const { register, handleSubmit, formState: { errors, isSubmitting }, reset, watch } = useForm({
     defaultValues: {
@@ -66,23 +65,20 @@ function PledgeForm({ project, user, onPledgeSubmit, isPledger }) {
   const selectedTierId = watch('selectedTierId');
   const pledgeAmount = watch('pledgeAmount');
 
-  // 選択されたコースの金額を取得
   const selectedTier = project.pledgeTiers?.find(t => t.id === selectedTierId);
   const finalAmount = pledgeType === 'tier' && selectedTier ? selectedTier.amount : parseInt(pledgeAmount) || 0;
 
   const onSubmit = (data) => {
-      // APIに送信するデータを構築
       const submitData = {
           projectId: project.id,
           userId: user.id,
           comment: data.comment,
-          // 支援コースが選択されていれば tierId を送り、そうでなければ amount を送る (バックエンドで処理)
           tierId: pledgeType === 'tier' ? data.selectedTierId : undefined,
           amount: pledgeType === 'free' ? parseInt(data.pledgeAmount) : finalAmount, 
       };
       
       onPledgeSubmit(submitData);
-      reset(); // フォームをリセット
+      reset();
   };
 
 
@@ -223,7 +219,7 @@ function PledgeForm({ project, user, onPledgeSubmit, isPledger }) {
 function TargetAmountModal({ project, user, onClose, onUpdate }) {
   const [newAmount, setNewAmount] = useState(project.targetAmount);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  // ... (TargetAmountModalのコードは変更なし) ...
+  
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!user) {
@@ -241,7 +237,7 @@ function TargetAmountModal({ project, user, onClose, onUpdate }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         newTargetAmount: parsedNewAmount,
-        userId: user.id
+        userId: user.id // JWT適用後は不要だが、一旦残す
       }),
     }).then(async (res) => {
       const data = await res.json();
@@ -318,7 +314,6 @@ export default function ProjectDetailPage() {
   const [expenseName, setExpenseName] = useState('');
   const [expenseAmount, setExpenseAmount] = useState('');
   
-  // ★ タスク担当者用に state を変更
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskAssignedUserId, setNewTaskAssignedUserId] = useState('');
 
@@ -328,7 +323,6 @@ export default function ProjectDetailPage() {
     if (!id) return;
     try {
       setLoading(true);
-      // ★ バックエンドで pledgeTiers, tasks.assignedUser を include するように修正してください
       const response = await fetch(`${API_URL}/api/projects/${id}`); 
       if (!response.ok) {
         throw new Error('企画が見つからないか、読み込みに失敗しました。');
@@ -385,17 +379,20 @@ export default function ProjectDetailPage() {
       toast.error('いいねするにはログインが必要です。');
       return;
     }
-
+    
+    const token = localStorage.getItem('token');
     const promise = fetch(`${API_URL}/api/reviews/${reviewId}/like`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId: user.id }),
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}` 
+      },
+      body: JSON.stringify({ userId: user.id }), // JWT適用後はbodyからuserIdを削除推奨
     }).then(async (res) => {
       if (!res.ok) {
         const errData = await res.json();
         throw new Error(errData.message || 'いいねの処理に失敗しました。');
       }
-      // いいね数、状態を更新するためにデータを再取得
       fetchProject();
       return res.json();
     });
@@ -414,10 +411,14 @@ export default function ProjectDetailPage() {
       return;
     }
     
+    const token = localStorage.getItem('token');
     const promise = fetch(`${API_URL}/api/pledges`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(submitData), // PledgeFormから渡されたデータ全体を送信
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}` 
+      },
+      body: JSON.stringify(submitData),
     }).then(async res => {
       if (!res.ok) {
         const errData = await res.json();
@@ -440,14 +441,18 @@ export default function ProjectDetailPage() {
   const handleAnnouncementSubmit = (e) => {
     e.preventDefault();
     if (!user) return;
+    const token = localStorage.getItem('token');
     const promise = fetch(`${API_URL}/api/announcements`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
       body: JSON.stringify({
         title: announcementTitle,
         content: announcementContent,
         projectId: id,
-        userId: user.id,
+        // userId: user.id, // JWT適用済み
       }),
     }).then(res => {
       if (!res.ok) throw new Error('お知らせの投稿に失敗しました。');
@@ -470,14 +475,18 @@ export default function ProjectDetailPage() {
   const handleAddExpense = (e) => {
     e.preventDefault();
     if (!user) return;
+    const token = localStorage.getItem('token');
     const promise = fetch(`${API_URL}/api/expenses`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({
             itemName: expenseName,
             amount: parseInt(expenseAmount),
             projectId: id,
-            userId: user.id,
+            // userId: user.id, // JWT適用済み
         }),
     }).then(res => {
         if (!res.ok) throw new Error('支出の追加に失敗しました。');
@@ -498,10 +507,14 @@ export default function ProjectDetailPage() {
 
   const handleDeleteExpense = (expenseId) => {
     if (window.confirm('この支出項目を削除しますか？')) {
+      const token = localStorage.getItem('token');
       const promise = fetch(`${API_URL}/api/expenses/${expenseId}`, {
           method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: user.id }),
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ userId: user.id }), // JWT適用後はbodyからuserIdを削除推奨
       }).then(res => { if (!res.ok) throw new Error('支出の削除に失敗しました。'); });
 
       toast.promise(promise, {
@@ -512,18 +525,21 @@ export default function ProjectDetailPage() {
     }
   };
 
-  // ★★★【修正】タスクに担当者IDを追加 ★★★
   const handleAddTask = (e) => {
     e.preventDefault();
     if (!newTaskTitle.trim() || !user) return;
+    const token = localStorage.getItem('token');
     const promise = fetch(`${API_URL}/api/tasks`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ 
           title: newTaskTitle, 
           projectId: id,
-          userId: user.id,
-          assignedUserId: newTaskAssignedUserId || null, // ★ 担当者IDを追加
+          // userId: user.id, // JWT適用済み
+          assignedUserId: newTaskAssignedUserId || null,
         }),
     }).then(res => { if (!res.ok) throw new Error('タスクの追加に失敗しました。'); });
 
@@ -531,7 +547,7 @@ export default function ProjectDetailPage() {
         loading: '追加中...',
         success: () => { 
           setNewTaskTitle(''); 
-          setNewTaskAssignedUserId(''); // ★ 担当者IDをリセット
+          setNewTaskAssignedUserId('');
           fetchProject(); 
           return 'タスクを追加しました。'; 
         },
@@ -541,12 +557,16 @@ export default function ProjectDetailPage() {
 
   const handleToggleTask = (taskId, currentStatus) => {
     if (!user) return;
+    const token = localStorage.getItem('token');
     const promise = fetch(`${API_URL}/api/tasks/${taskId}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ 
           isCompleted: !currentStatus,
-          userId: user.id
+          userId: user.id // JWT適用後は不要
         }),
     }).then(res => { if (!res.ok) throw new Error('タスクの更新に失敗しました。'); });
 
@@ -559,10 +579,14 @@ export default function ProjectDetailPage() {
 
   const handleDeleteTask = (taskId) => {
     if (window.confirm('このタスクを削除しますか？')) {
+      const token = localStorage.getItem('token');
       const promise = fetch(`${API_URL}/api/tasks/${taskId}`, {
           method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: user.id }),
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ userId: user.id }), // JWT適用後は不要
       }).then(res => { if (!res.ok) throw new Error('タスクの削除に失敗しました。'); });
 
       toast.promise(promise, {
@@ -585,10 +609,14 @@ export default function ProjectDetailPage() {
     if (!window.confirm("本当にこの企画を中止しますか？\n集まったポイントはすべて支援者に返金され、この操作は元に戻せません。")) return;
     if (!window.confirm("最終確認です。参加者への説明は済みましたか？中止を実行します。")) return;
 
+    const token = localStorage.getItem('token');
     const promise = fetch(`${API_URL}/api/projects/${project.id}/cancel`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.id }),
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ userId: user.id }), // JWT適用後は不要
     }).then(async res => {
         const data = await res.json();
         if (!res.ok) throw new Error(data.message || '企画の中止に失敗しました。');
@@ -632,6 +660,9 @@ export default function ProjectDetailPage() {
       .map(u => ({ id: u.id, handleName: u.handleName }))
   ];
 
+  // ★★★ 会場レギュレーション情報 ★★★
+  const venue = project.venue;
+
 
   return (
     <>
@@ -639,8 +670,8 @@ export default function ProjectDetailPage() {
         <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 bg-white rounded-2xl shadow-xl overflow-hidden">
 
-            {/* ★★★【新規】制作ステータス表示エリア ★★★ */}
             <div className="p-8 pb-0">
+                {/* 制作ステータスバッジ */}
                 <ProjectStatusBadge status={project.status} />
             </div>
             
@@ -653,7 +684,8 @@ export default function ProjectDetailPage() {
                 </div>
               </div>
             )}
-            {/* 完了報告セクション */}
+            
+            {/* 完了報告セクション (省略) */}
             {project.status === 'COMPLETED' && (
                 <div className="p-6 md:p-8 bg-gradient-to-br from-yellow-50 to-orange-100 border-b border-orange-200">
                     <h2 className="text-2xl font-bold text-center text-yellow-800 mb-4">🎉 企画完了報告 🎉</h2>
@@ -687,7 +719,7 @@ export default function ProjectDetailPage() {
                  </div>
             )}
             
-            {/* 企画管理セクション */}
+            {/* 企画管理セクション (省略) */}
              {isPlanner && (
               <div className="border-t my-8 pt-6 px-8">
                 <h2 className="text-2xl font-semibold text-gray-800 mb-4">企画管理</h2>
@@ -784,7 +816,30 @@ export default function ProjectDetailPage() {
                 <h2 className="text-2xl font-semibold text-gray-800 mb-2">企画の詳細</h2>
                 <p className="text-gray-700 whitespace-pre-wrap">{project.description}</p>
               </div>
-              <div className="bg-green-50 p-6 rounded-lg">
+              
+              {/* ★★★【新規追加】会場レギュレーション表示エリア ★★★ */}
+              {venue && (
+                <div className="mt-6">
+                    <h2 className="text-2xl font-semibold text-gray-800 mb-2 flex items-center">
+                        <FiInfo className="w-6 h-6 mr-2 text-red-500"/>
+                        会場レギュレーション情報
+                    </h2>
+                    <div className="bg-red-50 p-6 rounded-lg border border-red-300">
+                        <p className="text-red-800 font-bold mb-2">
+                            会場: {venue.venueName}
+                        </p>
+                        <p className="text-sm text-red-700 whitespace-pre-wrap">
+                            {venue.regulations || '会場からの特別な規制情報は登録されていません。'}
+                        </p>
+                        <p className="text-xs text-red-600 mt-3">
+                            ※お花屋さんはこの規制に基づいて制作を行います。
+                        </p>
+                    </div>
+                </div>
+              )}
+              {/* ★★★ 会場レギュレーション表示エリアここまで ★★★ */}
+
+              <div className="bg-green-50 p-6 rounded-lg mt-8">
                 <h3 className="text-lg font-semibold text-green-800 mb-2">お届け情報</h3>
                 <p className="text-gray-700"><strong>場所:</strong> {project.deliveryAddress}</p>
                 <p className="text-gray-700"><strong>日時:</strong> {deliveryDate}</p>
@@ -1004,14 +1059,12 @@ export default function ProjectDetailPage() {
                     
                     {(project.review || []).length > 0 ? (
                         project.review.map(review => {
-                            // ユーザーがこのレビューに「いいね」しているかチェック
                             const hasLiked = user && (review.likes || []).some(like => like.userId === user.id);
                             
                             return (
                                 <div key={review.id} className="bg-gray-50 p-4 rounded-lg shadow-sm border">
                                     <div className="flex justify-between items-start mb-2">
                                         <div className="flex items-center gap-2">
-                                            {/* 投稿者のアイコンと名前 */}
                                             {review.user?.iconUrl ? (
                                               <img src={review.user.iconUrl} alt="icon" className="h-8 w-8 rounded-full object-cover" />
                                             ) : (
@@ -1020,7 +1073,6 @@ export default function ProjectDetailPage() {
                                             <p className="font-bold text-gray-800">{review.user?.handleName || '匿名ユーザー'}</p>
                                         </div>
 
-                                        {/* いいねボタンと数 */}
                                         <button 
                                             onClick={() => handleLikeToggle(review.id)}
                                             disabled={!user}
@@ -1073,14 +1125,12 @@ export default function ProjectDetailPage() {
           </div>
 
           <div className="lg:col-span-1 bg-white rounded-2xl shadow-xl p-8 h-fit sticky top-8">
-             {/* ★★★【修正】PledgeFormで置き換え ★★★ */}
              <PledgeForm 
                 project={project} 
                 user={user} 
                 onPledgeSubmit={onPledgeSubmit}
                 isPledger={isPledger}
              />
-             {/* ----------------------------------- */}
              
              {/* 進捗バー（既存のロジック） */}
              <div className="mt-8">

@@ -223,25 +223,75 @@ export default function HomePageContent() {
       {/* 8. よくある質問セクション */}
       <Faq />
 
-      {/* 9. お花屋さん・会場向けCTA */}
-      <div className="bg-slate-100/70 py-24 sm:py-32">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8 grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
-          <div className="text-center md:text-left">
-            <h2 className="text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">お花屋さんへ</h2>
-            <p className="mt-4 text-gray-600">あなたの技術とセンスで、ファンの想いを形にしませんか？FLASTALに登録して、新しいお客様と出会いましょう。</p>
-            <div className="mt-6">
-              <Link href="/florists/register"><span className="rounded-full bg-pink-500 px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-pink-600">お花屋さんとして登録</span></Link>
-            </div>
+      {/* 9. パートナー募集セクション（お花屋さん・会場向け） - 修正版 */}
+      <section className="py-24 bg-slate-900 text-white relative overflow-hidden">
+        {/* 背景装飾 */}
+        <div className="absolute top-0 left-0 w-full h-full overflow-hidden opacity-20 pointer-events-none">
+          <div className="absolute -top-24 -right-24 w-96 h-96 bg-pink-500 rounded-full blur-3xl"></div>
+          <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-500 rounded-full blur-3xl"></div>
+        </div>
+
+        <div className="container mx-auto px-6 relative z-10">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">
+              FLASTALで、<br className="md:hidden" />
+              新しい「推し花」体験を一緒に作りませんか？
+            </h2>
+            <p className="text-slate-300 max-w-2xl mx-auto">
+              お花屋さんの技術と、会場の空間を最大限に活かし、
+              ファンの想いを形にするパートナーを募集しています。
+            </p>
           </div>
-          <div className="text-center md:text-left">
-            <h2 className="text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">会場の運営者様へ</h2>
-            <p className="mt-4 text-gray-600">会場のフラスタ規定を登録することで、ファンや業者とのやり取りをスムーズに。トラブルを未然に防ぎます。</p>
-            <div className="mt-6">
-              <Link href="/venues/register"><span className="rounded-full bg-green-500 px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-green-600">会場として登録</span></Link>
+
+          <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+            {/* お花屋さん向けカード */}
+            <div className="bg-white/10 backdrop-blur-sm border border-white/10 rounded-2xl p-8 hover:bg-white/15 transition-all duration-300 flex flex-col">
+              <div className="mb-6">
+                <span className="inline-block px-3 py-1 bg-pink-500/20 text-pink-300 text-xs font-bold rounded-full mb-2">
+                  For Florists
+                </span>
+                <h3 className="text-2xl font-bold mb-2">お花屋さんの方へ</h3>
+                <p className="text-slate-300 text-sm leading-relaxed">
+                  クラウドファンディング形式だから、予算や納期が明確。
+                  あなたのデザインセンスを活かして、ファンと一緒に最高のフラスタを作り上げましょう。
+                  在庫ロスを減らし、新しい顧客層へリーチできます。
+                </p>
+              </div>
+              <div className="mt-auto grid grid-cols-2 gap-4">
+                <Link href="/florist/login" className="flex items-center justify-center py-3 rounded-lg border border-white/30 hover:bg-white/10 transition-colors text-sm font-medium">
+                  ログイン
+                </Link>
+                <Link href="/florist/register" className="flex items-center justify-center py-3 rounded-lg bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 transition-colors text-sm font-medium shadow-lg shadow-pink-500/20">
+                  新規登録
+                </Link>
+              </div>
+            </div>
+
+            {/* 会場向けカード */}
+            <div className="bg-white/10 backdrop-blur-sm border border-white/10 rounded-2xl p-8 hover:bg-white/15 transition-all duration-300 flex flex-col">
+              <div className="mb-6">
+                <span className="inline-block px-3 py-1 bg-blue-500/20 text-blue-300 text-xs font-bold rounded-full mb-2">
+                  For Venues
+                </span>
+                <h3 className="text-2xl font-bold mb-2">イベント会場の方へ</h3>
+                <p className="text-slate-300 text-sm leading-relaxed">
+                  搬入出のトラブルやレギュレーション違反を未然に防ぎます。
+                  公式に登録することで、スムーズな運営管理が可能に。
+                  施設公認のフラスタ受付で、イベントの満足度を高めましょう。
+                </p>
+              </div>
+              <div className="mt-auto grid grid-cols-2 gap-4">
+                <Link href="/venue/login" className="flex items-center justify-center py-3 rounded-lg border border-white/30 hover:bg-white/10 transition-colors text-sm font-medium">
+                  ログイン
+                </Link>
+                <Link href="/venue/register" className="flex items-center justify-center py-3 rounded-lg bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 transition-colors text-sm font-medium shadow-lg shadow-blue-500/20">
+                  新規登録
+                </Link>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      </section>
 
       {/* 10. 最終コールトゥアクションセクション */}
       <div className="bg-white">

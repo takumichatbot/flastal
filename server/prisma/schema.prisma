@@ -12,26 +12,27 @@ datasource db {
 
 // --- Enums ---
 
-// ↓↓↓ 【新規追加】通知の種類を定義
+// ↓↓↓ 【NotificationType Enum】
 enum NotificationType {
-  NEW_PLEDGE // 支援がありました
-  NEW_CHAT_MESSAGE // 新しいチャットメッセージ
-  NEW_ANNOUNCEMENT // 新しいお知らせ
-  OFFER_STATUS_UPDATE // オファーのステータスが更新されました
-  QUOTATION_APPROVED // 見積もりが承認されました
-  TASK_ASSIGNED // タスクが割り当てられました
-  PROJECT_STATUS_UPDATE // 企画ステータスが更新されました
+  NEW_PLEDGE
+  NEW_CHAT_MESSAGE
+  NEW_ANNOUNCEMENT
+  OFFER_STATUS_UPDATE
+  QUOTATION_APPROVED
+  TASK_ASSIGNED
+  PROJECT_STATUS_UPDATE
 }
+// ↑↑↑ NotificationType Enum ↑↑↑
 
 enum ProjectStatus {
-  PENDING_APPROVAL // 審査中 (運営)
-  FUNDRAISING // 募集中
-  SUCCESSFUL // 達成
-  PROCESSING // 制作中（資材発注、制作開始など）
-  READY_FOR_DELIVERY // 納品準備完了
-  COMPLETED // 完了
-  CANCELED // 中止
-  REJECTED // 却下 (運営)
+  PENDING_APPROVAL
+  FUNDRAISING
+  SUCCESSFUL
+  PROCESSING
+  READY_FOR_DELIVERY
+  COMPLETED
+  CANCELED
+  REJECTED
 }
 
 enum OfferStatus {
@@ -41,9 +42,9 @@ enum OfferStatus {
 }
 
 enum FloristStatus {
-  PENDING // 審査待ち
-  APPROVED // 承認済み
-  REJECTED // 拒否
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 enum MessageSenderType {
@@ -68,6 +69,24 @@ enum UserRole {
 }
 
 // --- Models ---
+
+// ↓↓↓ 【Notification Model】: User/Projectモデルの前に定義
+model Notification {
+  id          String          @id @default(cuid())
+  recipientId String // 受信者 (User)
+  type        NotificationType
+  isRead      Boolean         @default(false)
+  message     String          @db.Text // 通知メッセージ本体
+  linkUrl     String?         // クリック時の遷移先URL
+  createdAt   DateTime        @default(now())
+
+  // Relations
+  recipient   User?     @relation("UserNotifications", fields: [recipientId], references: [id])
+  projectId   String?
+  project     Project?  @relation("ProjectNotifications", fields: [projectId], references: [id])
+}
+// ↑↑↑ Notification Model ↑↑↑
+
 
 model User {
   id                   String       @id @default(cuid())
@@ -97,7 +116,8 @@ model User {
   sentChatMessages  ChatMessage[]      @relation("UserChatMessages")
   addedVenues       Venue[]            @relation("UserAddedVenues")
   assignedTasks     Task[]             @relation("AssignedTasks")
-  notifications     Notification[]     @relation("UserNotifications") // ↓↓↓ 【新規追加】通知とのリレーション
+  notifications     Notification[]     @relation("UserNotifications") // 参照OK
+  chatReactions     GroupChatMessageReaction[]
 }
 
 model Project {
@@ -118,8 +138,10 @@ model Project {
   completionComment       String?           @db.Text
   createdAt               DateTime          @default(now())
   updatedAt               DateTime          @updatedAt
-  finalBalance            Int? // 企画完了時の最終残高（余剰金）
-  surplusUsageDescription String?           @db.Text // 余剰金の使い道のメモ
+  finalBalance            Int?
+  surplusUsageDescription String?           @db.Text
+  venueId                 String?
+  venue                   Venue?            @relation(fields: [venueId], references: [id])
 
   // Relations
   plannerId         String
@@ -137,31 +159,14 @@ model Project {
   activePoll        ActivePoll?
   reports           ProjectReport[]
   pledgeTiers       PledgeTier[]
-  notifications     Notification[]     @relation("ProjectNotifications") // ↓↓↓ 【新規追加】通知とのリレーション
+  notifications     Notification[]     @relation("ProjectNotifications") // 参照OK
 }
-
-// ↓↓↓ 【新規追加】通知モデル
-model Notification {
-  id        String          @id @default(cuid())
-  recipientId String // 受信者 (User)
-  type      NotificationType
-  isRead    Boolean         @default(false)
-  message   String          @db.Text // 通知メッセージ本体
-  linkUrl   String?         // クリック時の遷移先URL
-  createdAt DateTime        @default(now())
-
-  // Relations
-  recipient   User?     @relation("UserNotifications", fields: [recipientId], references: [id])
-  projectId   String?
-  project     Project?  @relation("ProjectNotifications", fields: [projectId], references: [id])
-}
-// ↑↑↑ 新規追加 ↑↑↑
 
 model PledgeTier {
   id          String   @id @default(cuid())
-  amount      Int      // 支援額
-  title       String   // コース名（例: リボンに名前掲載）
-  description String   @db.Text // 詳細
+  amount      Int
+  title       String
+  description String   @db.Text
   createdAt   DateTime @default(now())
 
   // Relations
@@ -201,9 +206,9 @@ model Florist {
   iconUrl         String?
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
-  shopName        String // 実店舗名（運営確認用）
-  platformName    String        @unique // プラットフォーム上の活動名（公開用）
-  status          FloristStatus @default(PENDING) // 審査ステータス
+  shopName        String
+  platformName    String        @unique
+  status          FloristStatus @default(PENDING)
 
   // Relations
   offers           Offer[]
@@ -270,6 +275,7 @@ model Venue {
   updatedAt   DateTime @updatedAt
   addedById   String?
   addedBy     User?    @relation("UserAddedVenues", fields: [addedById], references: [id])
+  projects    Project[]
 }
 
 model Review {
@@ -348,9 +354,9 @@ model Expense {
 model Quotation {
   id          String   @id @default(cuid())
   totalAmount Int
-  isApproved  Boolean  @default(false) // 企画者による承認
-  isFinalized Boolean  @default(false) // お花屋さんによる最終確定
-  finalizedAt DateTime? // 最終確定日時
+  isApproved  Boolean  @default(false)
+  isFinalized Boolean  @default(false)
+  finalizedAt DateTime?
   createdAt   DateTime @default(now())
 
   // Relations
@@ -415,6 +421,21 @@ model GroupChatMessage {
   project   Project @relation(fields: [projectId], references: [id])
   userId    String
   user      User    @relation(fields: [userId], references: [id])
+  reactions GroupChatMessageReaction[]
+}
+
+model GroupChatMessageReaction {
+  id        String   @id @default(cuid())
+  emoji     String
+  createdAt DateTime @default(now())
+
+  // Relations
+  messageId String
+  message   GroupChatMessage @relation(fields: [messageId], references: [id])
+  userId    String
+  user      User             @relation(fields: [userId], references: [id])
+
+  @@unique([messageId, userId, emoji])
 }
 
 model ActivePoll {
