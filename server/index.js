@@ -95,9 +95,8 @@ const authenticateToken = (req, res, next, requiredRole = null) => {
     next();
   });
 };
-// ★★★ 管理者権限チェック用ミドルウェア (定義追加) ★★★
+// ★★★ 管理者権限チェック用ミドルウェア ★★★
 const requireAdmin = (req, res, next) => {
-  // authenticateTokenを呼び出し、第4引数に 'ADMIN' を渡す
   authenticateToken(req, res, next, 'ADMIN');
 };
 
