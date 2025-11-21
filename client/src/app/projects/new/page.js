@@ -2,11 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '../../../contexts/AuthContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import { FiCheckCircle, FiDownload, FiInfo, FiLayers } from 'react-icons/fi';
-import SuccessTemplateModal from '../../../components/SuccessTemplateModal'; // ★ インポート
+import SuccessTemplateModal from '../../components/SuccessTemplateModal';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
