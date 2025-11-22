@@ -258,10 +258,10 @@ export default function HomePageContent() {
                 </p>
               </div>
               <div className="mt-auto grid grid-cols-2 gap-4">
-                <Link href="/florist/login" className="flex items-center justify-center py-3 rounded-lg border border-white/30 hover:bg-white/10 transition-colors text-sm font-medium">
+                <Link href="/florists/login" className="flex items-center justify-center py-3 rounded-lg border border-white/30 hover:bg-white/10 transition-colors text-sm font-medium">
                   ログイン
                 </Link>
-                <Link href="/florist/register" className="flex items-center justify-center py-3 rounded-lg bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 transition-colors text-sm font-medium shadow-lg shadow-pink-500/20">
+                <Link href="/florists/register" className="flex items-center justify-center py-3 rounded-lg bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 transition-colors text-sm font-medium shadow-lg shadow-pink-500/20">
                   新規登録
                 </Link>
               </div>
