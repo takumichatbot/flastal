@@ -882,7 +882,7 @@ app.patch('/api/quotations/:id/approve', authenticateToken, async (req, res) => 
         'QUOTATION_APPROVED',
         `企画「${project.title}」の見積もりが承認されました。制作を開始してください。`,
         project.id,
-        `/florist/offers/${offer.id}` // お花屋さんダッシュボードのオファー詳細ページへ
+        `/florists/offers/${offer.id}` // お花屋さんダッシュボードのオファー詳細ページへ
       );
       // ↑↑↑ 通知追加 ↑↑↑
 
