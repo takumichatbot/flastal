@@ -281,10 +281,10 @@ export default function HomePageContent() {
                 </p>
               </div>
               <div className="mt-auto grid grid-cols-2 gap-4">
-                <Link href="/venue/login" className="flex items-center justify-center py-3 rounded-lg border border-white/30 hover:bg-white/10 transition-colors text-sm font-medium">
+                <Link href="/venues/login" className="flex items-center justify-center py-3 rounded-lg border border-white/30 hover:bg-white/10 transition-colors text-sm font-medium">
                   ログイン
                 </Link>
-                <Link href="/venue/register" className="flex items-center justify-center py-3 rounded-lg bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 transition-colors text-sm font-medium shadow-lg shadow-blue-500/20">
+                <Link href="/venues/register" className="flex items-center justify-center py-3 rounded-lg bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 transition-colors text-sm font-medium shadow-lg shadow-blue-500/20">
                   新規登録
                 </Link>
               </div>
