@@ -2,14 +2,16 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import toast from 'react-hot-toast'; // Import toast
+import toast from 'react-hot-toast';
+import { useAuth } from '../../../contexts/AuthContext'; // AuthContextを利用
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
-// StatCard Component (no changes needed, seems fine)
+// StatCard Component
 const StatCard = ({ title, value, icon }) => (
-  <div className="bg-white p-6 rounded-2xl shadow-lg">
+  <div className="bg-white p-6 rounded-2xl shadow-lg border border-slate-100">
     <div className="flex items-center gap-4">
       <div className="bg-sky-100 p-3 rounded-full">
         {icon}
@@ -23,104 +25,123 @@ const StatCard = ({ title, value, icon }) => (
 );
 
 export default function FloristDashboardPage() {
+  const { user, token, logout } = useAuth(); // useAuthから情報を取得
   const router = useRouter();
-  const [florist, setFlorist] = useState(null); // Store logged-in florist info
+  
+  const [floristData, setFloristData] = useState(null);
   const [offers, setOffers] = useState([]);
+  const [payouts, setPayouts] = useState([]);
+  
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('pending');
-  const [payouts, setPayouts] = useState([]);
+  
   const [payoutAmount, setPayoutAmount] = useState('');
   const [accountInfo, setAccountInfo] = useState('');
 
   const MINIMUM_PAYOUT_AMOUNT = 1000;
 
-  // Function to fetch all dashboard data
-  const fetchData = async (currentFlorist) => {
-    if (!currentFlorist) return;
+  // データ取得関数 (トークンを使用)
+  const fetchData = async () => {
+    if (!token) return;
     setLoading(true);
+    
     try {
-      // Use the florist ID from the logged-in florist object
+      // ダッシュボード情報と出金履歴を並行取得
+      // ★ URLからIDを削除し、Headersにトークンを追加
       const [dashboardRes, payoutsRes] = await Promise.all([
-        fetch(`${API_URL}/api/florists/${currentFlorist.id}/dashboard`),
-        fetch(`${API_URL}/api/florists/${currentFlorist.id}/payouts`),
+        fetch(`${API_URL}/api/florists/dashboard`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }),
+        fetch(`${API_URL}/api/florists/payouts`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }),
       ]);
-      if (!dashboardRes.ok || !payoutsRes.ok) throw new Error('データ取得に失敗しました');
+
+      if (dashboardRes.status === 401 || dashboardRes.status === 403) {
+        throw new Error('認証エラー: 再ログインしてください');
+      }
+
+      if (!dashboardRes.ok || !payoutsRes.ok) {
+        throw new Error('データの取得に失敗しました');
+      }
       
       const dashboardData = await dashboardRes.json();
       const payoutsData = await payoutsRes.json();
 
-      // Update florist data in state and localStorage (in case balance changed etc.)
-      setFlorist(dashboardData.florist); 
-      localStorage.setItem('flastal-florist', JSON.stringify(dashboardData.florist));
-      
-      setOffers(dashboardData.offers);
-      setPayouts(payoutsData);
+      setFloristData(dashboardData.florist);
+      setOffers(dashboardData.offers || []);
+      setPayouts(payoutsData || []);
+
     } catch (error) {
-      toast.error(error.message); // Use toast for errors
+      console.error(error);
+      toast.error(error.message);
+      if (error.message.includes('認証エラー')) {
+        logout();
+        router.push('/florists/login');
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  // Check login status on component mount
+  // 初回読み込み
   useEffect(() => {
-    const storedFlorist = localStorage.getItem('flastal-florist');
-    if (!storedFlorist) {
-      toast.error("ログインが必要です。");
-      router.push('/florists/login');
-      return;
+    // user情報がロードされるのを待つ
+    if (!user && !loading) {
+        // 未ログインならリダイレクト
+        // router.push('/florists/login'); 
+        // (AuthContextのロード待ちかもしれないのでここでは何もしないか、ローディング表示)
     }
-    try {
-      const floristInfo = JSON.parse(storedFlorist);
-      if (floristInfo.status !== 'APPROVED') {
-          // Redirect if not approved (though login should prevent this)
-          router.push(floristInfo.status === 'PENDING' ? '/florists/pending' : '/florists/login');
-          return;
-      }
-      setFlorist(floristInfo);
-      fetchData(floristInfo); // Pass floristInfo to fetchData
-    } catch (e) {
-      // If parsing fails, clear storage and redirect
-      localStorage.removeItem('flastal-florist');
-      router.push('/florists/login');
+    
+    if (user && user.role === 'FLORIST' && token) {
+        fetchData();
+    } else if (user && user.role !== 'FLORIST') {
+        toast.error('権限がありません');
+        router.push('/');
     }
-  }, [router]); // Only run once on mount (dependency on router is stable)
+  }, [user, token]); // tokenが変わったら再実行
 
-  // Update offer status
+  // オファー状態更新
   const handleUpdateOfferStatus = async (offerId, newStatus) => {
     const promise = fetch(`${API_URL}/api/offers/${offerId}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}` // ★トークン必須
+        },
         body: JSON.stringify({ status: newStatus }),
     }).then(async (response) => {
         if (!response.ok) {
-            throw new Error('オファーの更新に失敗しました。');
+            const err = await response.json();
+            throw new Error(err.message || '更新に失敗しました');
         }
-        return response.json(); // Return data for potential use
+        return response.json();
     });
 
     toast.promise(promise, {
         loading: '更新中...',
         success: () => {
-          fetchData(florist); // Pass current florist state
+          fetchData(); // データ再取得
           return `オファーを「${newStatus === 'ACCEPTED' ? '承認' : '辞退'}」しました。`;
         },
         error: (err) => err.message,
     });
   };
 
-  // Handle payout request
+  // 出金申請
   const handlePayoutSubmit = async (e) => {
     e.preventDefault();
-    if (!florist) return; // Ensure florist is loaded
     if (window.confirm(`${payoutAmount}ptを出金申請します。よろしいですか？`)) {
       const promise = fetch(`${API_URL}/api/payouts`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}` // ★トークン必須
+        },
         body: JSON.stringify({
-          floristId: florist.id, // Use ID from state
-          amount: parseInt(payoutAmount), // Ensure it's a number
+          amount: parseInt(payoutAmount),
           accountInfo: accountInfo,
+          // floristId はトークンから取るので不要
         }),
       }).then(async (res) => {
         if (!res.ok) {
@@ -135,132 +156,163 @@ export default function FloristDashboardPage() {
         success: () => {
           setPayoutAmount('');
           setAccountInfo('');
-          fetchData(florist); // Pass current florist state
-          return '出金申請を受け付けました。運営からの連絡をお待ちください。';
+          fetchData(); // データ再取得
+          return '出金申請を受け付けました。';
         },
         error: (err) => err.message,
       });
     }
   };
 
-  // Logout handler
+  // ログアウト
   const handleLogout = () => {
-      localStorage.removeItem('flastal-florist');
+      logout();
       toast.success('ログアウトしました。');
       router.push('/florists/login');
   };
       
-  // Display loading state until florist data is available
-  if (loading || !florist) {
+  // ローディング表示
+  if (loading || !floristData) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-slate-50">
-          <p>読み込み中...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-pink-500"></div>
       </div>
     );
   }
   
   const pendingOffers = offers.filter(o => o.status === 'PENDING');
   const acceptedOffers = offers.filter(o => o.status === 'ACCEPTED');
-  const isPayoutDisabled = !payoutAmount || !accountInfo || Number(payoutAmount) < MINIMUM_PAYOUT_AMOUNT || Number(payoutAmount) > (florist.balance || 0);
+  const isPayoutDisabled = !payoutAmount || !accountInfo || Number(payoutAmount) < MINIMUM_PAYOUT_AMOUNT || Number(payoutAmount) > (floristData.balance || 0);
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <header className="bg-white shadow-sm sticky top-0 z-40"> {/* Removed md:top-0 if header is always below main nav */}
+      <header className="bg-white shadow-sm sticky top-0 z-40">
         <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
           <div>
             <h1 className="text-2xl font-bold text-pink-600">お花屋さんダッシュボード</h1>
-            {/* Display platformName, not shopName */}
-            <p className="text-sm text-gray-500">ようこそ、{florist.platformName}さん</p> 
+            <p className="text-sm text-gray-500">ようこそ、{floristData.platformName}さん</p> 
           </div>
-          {/* Logout button in header */}
           <button onClick={handleLogout} className="text-sm font-medium text-gray-600 hover:text-red-500 transition-colors">
               ログアウト
           </button>
         </div>
       </header>
       
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        {/* Removed loading check here as it's handled above */}
-        <>
+      <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+          {/* ステータスカード */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <StatCard title="現在の売上残高" value={`${florist.balance.toLocaleString() || 0} pt`} icon={<svg className="w-6 h-6 text-sky-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M21 12a2.25 2.25 0 00-2.25-2.25H15a3 3 0 11-6 0H5.25A2.25 2.25 0 003 12m18 0v6a2.25 2.25 0 01-2.25-2.25H5.25A2.25 2.25 0 013 18v-6m18 0V9M3 12V9m18 3a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 12m15 3H6" /></svg>} />
-            <StatCard title="対応中の企画数" value={`${acceptedOffers.length} 件`} icon={<svg className="w-6 h-6 text-sky-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M9.53 16.122a3 3 0 00-5.78 1.128 2.25 2.25 0 01-2.4 2.245 4.5 4.5 0 008.4-2.245c0-.399-.078-.78-.22-1.128zm0 0a15.998 15.998 0 003.388-1.62m-5.043-.025a15.998 15.998 0 011.622-3.385m5.043.025a15.998 15.998 0 001.622-3.385m3.388 1.62a15.998 15.998 0 00-1.622-3.385m-5.043-.025a15.998 15.998 0 01-3.388-1.621m-1.622 3.385a15.998 15.998 0 01-3.388 1.621m6.732 3.385a15.998 15.998 0 003.388 1.622m-7.497-1.622a15.998 15.998 0 01-1.622 3.385" /></svg>} />
-            <div className="bg-white p-6 rounded-2xl shadow-lg flex flex-col justify-center items-center">
-               {/* Link to profile edit using florist ID from state */}
-               <Link href={`/florists/profile/${florist.id}`}> 
-                  <span className="px-6 py-3 font-semibold text-white bg-pink-500 rounded-lg hover:bg-pink-600 transition-colors">
+            <StatCard 
+                title="現在の売上残高" 
+                value={`${floristData.balance?.toLocaleString() || 0} pt`} 
+                icon={<svg className="w-6 h-6 text-sky-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>} 
+            />
+            <StatCard 
+                title="対応中の企画数" 
+                value={`${acceptedOffers.length} 件`} 
+                icon={<svg className="w-6 h-6 text-sky-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>} 
+            />
+            <div className="bg-white p-6 rounded-2xl shadow-lg flex flex-col justify-center items-center border border-slate-100">
+               <Link href="/florists/profile/edit" className="w-full"> 
+                  <span className="block w-full text-center px-6 py-3 font-semibold text-white bg-pink-500 rounded-lg hover:bg-pink-600 transition-colors shadow-md">
                     プロフィールを編集
                   </span>
                 </Link>
             </div>
           </div>
 
-          <div className="bg-white shadow-lg rounded-2xl p-6">
+          {/* メインタブエリア */}
+          <div className="bg-white shadow-lg rounded-2xl p-6 border border-slate-100">
             <div className="border-b border-gray-200">
-              <nav className="-mb-px flex space-x-8">
-                <button onClick={() => setActiveTab('pending')} className={`py-4 px-1 border-b-2 font-medium ${activeTab === 'pending' ? 'border-pink-500 text-pink-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>新着オファー ({pendingOffers.length})</button>
-                <button onClick={() => setActiveTab('accepted')} className={`py-4 px-1 border-b-2 font-medium ${activeTab === 'accepted' ? 'border-pink-500 text-pink-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>対応中の企画 ({acceptedOffers.length})</button>
-                <button onClick={() => setActiveTab('payout')} className={`py-4 px-1 border-b-2 font-medium ${activeTab === 'payout' ? 'border-pink-500 text-pink-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>売上管理</button>
+              <nav className="-mb-px flex space-x-8 overflow-x-auto">
+                <button onClick={() => setActiveTab('pending')} className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium transition-colors ${activeTab === 'pending' ? 'border-pink-500 text-pink-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>新着オファー ({pendingOffers.length})</button>
+                <button onClick={() => setActiveTab('accepted')} className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium transition-colors ${activeTab === 'accepted' ? 'border-pink-500 text-pink-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>対応中の企画 ({acceptedOffers.length})</button>
+                <button onClick={() => setActiveTab('payout')} className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium transition-colors ${activeTab === 'payout' ? 'border-pink-500 text-pink-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>売上・出金管理</button>
               </nav>
             </div>
+
             <div className="py-6">
+              {/* 1. 新着オファー */}
               {activeTab === 'pending' && (
                 <div className="space-y-4">
                   {pendingOffers.length > 0 ? pendingOffers.map(offer => (
-                    <div key={offer.id} className="border rounded-lg p-4 flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+                    <div key={offer.id} className="border border-slate-200 rounded-xl p-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:bg-slate-50 transition-colors">
                       <div>
+                        <div className="flex items-center gap-2 mb-1">
+                            <span className="bg-yellow-100 text-yellow-800 text-xs px-2 py-0.5 rounded-full font-bold">依頼中</span>
+                            <p className="text-xs text-gray-400">{new Date(offer.createdAt).toLocaleString('ja-JP')}</p>
+                        </div>
                         <p className="font-bold text-lg text-gray-900">{offer.project.title}</p>
-                        <p className="text-sm text-gray-600">企画者: {offer.project.planner.handleName}</p>
-                        <p className="text-xs text-gray-400 mt-1">受信日時: {new Date(offer.createdAt).toLocaleString('ja-JP')}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                            {offer.project.planner?.iconUrl && <img src={offer.project.planner.iconUrl} alt="" className="w-5 h-5 rounded-full" />}
+                            <p className="text-sm text-gray-600">企画者: {offer.project.planner?.handleName || '不明'}</p>
+                        </div>
                       </div>
-                      <div className="flex gap-2 flex-shrink-0">
-                        <button onClick={() => handleUpdateOfferStatus(offer.id, 'ACCEPTED')} className="px-3 py-1 text-sm text-white bg-green-500 rounded-md hover:bg-green-600">承認</button>
-                        <button onClick={() => handleUpdateOfferStatus(offer.id, 'REJECTED')} className="px-3 py-1 text-sm text-white bg-red-500 rounded-md hover:bg-red-600">辞退</button>
-                         {/* Link to project details */}
-                        <Link href={`/projects/${offer.project.id}`} target="_blank">
-                           <span className="px-3 py-1 text-sm text-sky-700 bg-sky-100 rounded-md hover:bg-sky-200">詳細</span>
+                      <div className="flex gap-3 w-full md:w-auto">
+                        <Link href={`/projects/${offer.project.id}`} target="_blank" className="flex-1 md:flex-none text-center px-4 py-2 text-sm text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50">
+                           詳細確認
                         </Link>
+                        <button onClick={() => handleUpdateOfferStatus(offer.id, 'ACCEPTED')} className="flex-1 md:flex-none px-4 py-2 text-sm font-bold text-white bg-green-500 rounded-lg hover:bg-green-600 shadow-sm">承認</button>
+                        <button onClick={() => handleUpdateOfferStatus(offer.id, 'REJECTED')} className="flex-1 md:flex-none px-4 py-2 text-sm text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200">辞退</button>
                       </div>
                     </div>
-                  )) : <p className="text-gray-500 text-center">現在、新しいオファーはありません。</p>}
+                  )) : (
+                    <div className="text-center py-12 bg-slate-50 rounded-xl border border-dashed border-slate-300">
+                        <p className="text-gray-500">現在、新しいオファーはありません。</p>
+                    </div>
+                  )}
                 </div>
               )}
+
+              {/* 2. 対応中の企画 */}
               {activeTab === 'accepted' && (
                 <div className="space-y-4">
                   {acceptedOffers.length > 0 ? acceptedOffers.map(offer => (
-                    <div key={offer.id} className="border rounded-lg p-4 flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+                    <div key={offer.id} className="border border-slate-200 rounded-xl p-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:shadow-md transition-shadow">
                       <div>
+                        <div className="flex items-center gap-2 mb-1">
+                            <span className="bg-green-100 text-green-800 text-xs px-2 py-0.5 rounded-full font-bold">進行中</span>
+                            <p className="text-xs text-gray-400">承認日: {new Date(offer.updatedAt).toLocaleDateString('ja-JP')}</p> 
+                        </div>
                         <p className="font-bold text-lg text-gray-900">{offer.project.title}</p>
-                        <p className="text-sm text-gray-600">企画者: {offer.project.planner.handleName}</p>
-                        <p className="text-xs text-gray-400 mt-1">承認日時: {new Date(offer.updatedAt).toLocaleString('ja-JP')}</p> 
+                        <p className="text-sm text-gray-600 mt-1">企画者: {offer.project.planner?.handleName}</p>
                       </div>
-                      <div className="flex gap-2 flex-shrink-0">
+                      <div className="flex gap-3 w-full md:w-auto">
+                        <Link href={`/projects/${offer.project.id}`} target="_blank" className="flex-1 md:flex-none text-center px-4 py-2 text-sm text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50">
+                           詳細
+                        </Link>
                         {offer.chatRoom ? (
-                          <Link href={`/chat/${offer.chatRoom.id}`}>
-                             <span className="px-3 py-1 text-sm text-white bg-blue-500 rounded-md hover:bg-blue-600">チャット</span>
+                          <Link href={`/chat/${offer.chatRoom.id}`} className="flex-1 md:flex-none text-center px-4 py-2 text-sm font-bold text-white bg-blue-500 rounded-lg hover:bg-blue-600 shadow-sm flex items-center justify-center gap-2">
+                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" /></svg>
+                             チャット
                           </Link>
                         ) : (
-                          <span className="px-3 py-1 text-sm text-gray-500 bg-gray-200 rounded-md cursor-not-allowed" title="チャットルーム作成中">
+                          <span className="px-4 py-2 text-sm text-gray-400 bg-gray-100 rounded-lg cursor-not-allowed">
                             準備中...
                           </span>
                         )}
-                         {/* Link to project details */}
-                         <Link href={`/projects/${offer.project.id}`} target="_blank">
-                           <span className="px-3 py-1 text-sm text-sky-700 bg-sky-100 rounded-md hover:bg-sky-200">詳細</span>
-                        </Link>
                       </div>
                     </div>
-                  )) : <p className="text-gray-500 text-center">現在、対応中の企画はありません。</p>}
+                  )) : (
+                    <div className="text-center py-12 bg-slate-50 rounded-xl border border-dashed border-slate-300">
+                        <p className="text-gray-500">現在、対応中の企画はありません。</p>
+                    </div>
+                  )}
                 </div>
               )}
+
+              {/* 3. 売上・出金管理 */}
                {activeTab === 'payout' && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <div className="space-y-4">
-                     <h3 className="text-lg font-semibold text-gray-900">出金申請</h3>
-                     <p className="text-sm text-gray-600">現在の売上残高: <span className="font-bold text-lg text-sky-600">{florist.balance.toLocaleString() || 0} pt</span></p>
-                     <form onSubmit={handlePayoutSubmit} className="space-y-4 pt-4 border-t">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  {/* 出金申請フォーム */}
+                  <div className="bg-slate-50 p-6 rounded-xl border border-slate-200">
+                     <h3 className="text-lg font-bold text-gray-900 mb-4 border-b pb-2">出金申請</h3>
+                     <div className="mb-4">
+                        <p className="text-sm text-gray-600">出金可能額</p>
+                        <p className="text-2xl font-bold text-sky-600">{floristData.balance?.toLocaleString() || 0} <span className="text-sm text-gray-500">pt</span></p>
+                     </div>
+                     <form onSubmit={handlePayoutSubmit} className="space-y-4">
                         <div>
-                          <label htmlFor="payoutAmount" className="block text-sm font-medium text-gray-700">出金額 (pt)</label>
+                          <label htmlFor="payoutAmount" className="block text-sm font-medium text-gray-700">出金希望額 (pt)</label>
                           <input 
                             id="payoutAmount"
                             type="number" 
@@ -268,10 +320,11 @@ export default function FloristDashboardPage() {
                             onChange={(e) => setPayoutAmount(e.target.value)} 
                             required 
                             min={MINIMUM_PAYOUT_AMOUNT}
-                            max={florist.balance || 0}
-                            className="w-full mt-1 p-2 border-2 border-gray-200 rounded-lg text-gray-900 focus:border-green-500 focus:ring-0" 
+                            max={floristData.balance || 0}
+                            placeholder="例: 10000"
+                            className="w-full mt-1 p-3 border border-gray-300 rounded-lg focus:border-green-500 focus:ring-1 focus:ring-green-500 transition-colors" 
                           />
-                          <p className="text-xs text-gray-500 mt-1">※最低出金額は {MINIMUM_PAYOUT_AMOUNT.toLocaleString()} ptです。</p>
+                          <p className="text-xs text-gray-500 mt-1">※ 最低出金額: {MINIMUM_PAYOUT_AMOUNT.toLocaleString()} pt</p>
                         </div>
                         <div>
                           <label htmlFor="accountInfo" className="block text-sm font-medium text-gray-700">振込先情報</label>
@@ -282,35 +335,45 @@ export default function FloristDashboardPage() {
                             required 
                             rows="4" 
                             placeholder="銀行名、支店名、口座種別、口座番号、口座名義（カナ）を正確に入力してください。" 
-                            className="w-full mt-1 p-2 border-2 border-gray-200 rounded-lg text-gray-900 focus:border-green-500 focus:ring-0"
+                            className="w-full mt-1 p-3 border border-gray-300 rounded-lg focus:border-green-500 focus:ring-1 focus:ring-green-500 transition-colors"
                           ></textarea>
                         </div>
-                        <button type="submit" disabled={isPayoutDisabled} className="w-full px-4 py-3 font-semibold text-white bg-green-500 rounded-lg hover:bg-green-600 disabled:bg-slate-400 disabled:cursor-not-allowed">
-                          この内容で申請する
+                        <button 
+                            type="submit" 
+                            disabled={isPayoutDisabled} 
+                            className="w-full px-4 py-3 font-bold text-white bg-green-500 rounded-lg hover:bg-green-600 disabled:bg-slate-300 disabled:text-slate-500 disabled:cursor-not-allowed shadow-sm transition-all"
+                        >
+                          申請する
                         </button>
                      </form>
                   </div>
-                  <div className="space-y-4">
-                     <h3 className="text-lg font-semibold text-gray-900">出金履歴</h3>
-                     <div className="space-y-2 pt-4 border-t max-h-96 overflow-y-auto">
+
+                  {/* 出金履歴 */}
+                  <div>
+                     <h3 className="text-lg font-bold text-gray-900 mb-4 border-b pb-2">出金履歴</h3>
+                     <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
                        {payouts.length > 0 ? payouts.map(p => (
-                          <div key={p.id} className="p-3 border rounded-md bg-gray-50 text-sm text-gray-800">
-                            <p>{new Date(p.createdAt).toLocaleString('ja-JP')}: <span className="font-bold text-sky-700">{p.amount.toLocaleString()} pt</span></p>
-                            <p className="text-xs text-gray-500 mt-1">状態: 
-                              <span className={`ml-1 font-medium ${p.status === 'COMPLETED' ? 'text-green-600' : p.status === 'PENDING' ? 'text-yellow-600' : 'text-red-600'}`}>
+                          <div key={p.id} className="p-4 border border-slate-200 rounded-xl bg-white flex justify-between items-center">
+                            <div>
+                                <p className="text-xs text-gray-400">{new Date(p.createdAt).toLocaleString('ja-JP')}</p>
+                                <p className="font-bold text-gray-800 text-lg mt-1">{p.amount.toLocaleString()} <span className="text-sm font-normal">pt</span></p>
+                            </div>
+                            <span className={`px-3 py-1 text-xs font-bold rounded-full ${
+                                p.status === 'COMPLETED' ? 'bg-green-100 text-green-700' : 
+                                p.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'
+                            }`}>
                                 {p.status === 'COMPLETED' ? '完了' : p.status === 'PENDING' ? '処理中' : '失敗'}
-                              </span>
-                            </p>
+                            </span>
                           </div>
-                       )) : <p className="text-sm text-gray-500 text-center pt-4">まだ出金履歴はありません。</p>}
+                       )) : (
+                           <div className="text-center py-8 text-gray-400 bg-slate-50 rounded-lg border border-dashed">履歴はありません</div>
+                       )}
                      </div>
                   </div>
                 </div>
               )}
             </div>
           </div>
-        </>
-        {/* )} */} {/* Removed closing parenthesis for loading check */}
       </main>
     </div>
   );
