@@ -5,7 +5,8 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
-import { useAuth } from '../../../contexts/AuthContext'; // AuthContextを利用
+// ▼▼▼ 修正箇所: パスを修正しました (../を1つ減らしました) ▼▼▼
+import { useAuth } from '../../contexts/AuthContext'; 
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -47,7 +48,6 @@ export default function FloristDashboardPage() {
     
     try {
       // ダッシュボード情報と出金履歴を並行取得
-      // ★ URLからIDを削除し、Headersにトークンを追加
       const [dashboardRes, payoutsRes] = await Promise.all([
         fetch(`${API_URL}/api/florists/dashboard`, {
           headers: { 'Authorization': `Bearer ${token}` }
@@ -88,18 +88,17 @@ export default function FloristDashboardPage() {
   useEffect(() => {
     // user情報がロードされるのを待つ
     if (!user && !loading) {
-        // 未ログインならリダイレクト
-        // router.push('/florists/login'); 
-        // (AuthContextのロード待ちかもしれないのでここでは何もしないか、ローディング表示)
+        // 未ログイン時の処理が必要であれば記述
     }
     
     if (user && user.role === 'FLORIST' && token) {
         fetchData();
     } else if (user && user.role !== 'FLORIST') {
-        toast.error('権限がありません');
-        router.push('/');
+        // お花屋さん以外がアクセスした場合
+        // toast.error('権限がありません'); // 必要に応じてコメントアウト解除
+        // router.push('/');
     }
-  }, [user, token]); // tokenが変わったら再実行
+  }, [user, token]); 
 
   // オファー状態更新
   const handleUpdateOfferStatus = async (offerId, newStatus) => {
@@ -107,7 +106,7 @@ export default function FloristDashboardPage() {
         method: 'PATCH',
         headers: { 
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}` // ★トークン必須
+            'Authorization': `Bearer ${token}` 
         },
         body: JSON.stringify({ status: newStatus }),
     }).then(async (response) => {
@@ -136,12 +135,11 @@ export default function FloristDashboardPage() {
         method: 'POST',
         headers: { 
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}` // ★トークン必須
+            'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
           amount: parseInt(payoutAmount),
           accountInfo: accountInfo,
-          // floristId はトークンから取るので不要
         }),
       }).then(async (res) => {
         if (!res.ok) {
@@ -156,7 +154,7 @@ export default function FloristDashboardPage() {
         success: () => {
           setPayoutAmount('');
           setAccountInfo('');
-          fetchData(); // データ再取得
+          fetchData(); 
           return '出金申請を受け付けました。';
         },
         error: (err) => err.message,
