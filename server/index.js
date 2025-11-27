@@ -1178,6 +1178,25 @@ app.get('/api/florists/dashboard', authenticateToken, async (req, res) => { // �
   }
 });
 
+// ★★★ 出金申請履歴の取得API (JWT対応) ★★★
+app.get('/api/florists/payouts', authenticateToken, async (req, res) => { // URLから :floristId を削除
+    const floristId = req.user.id; // ✅ トークンから取得
+    
+    if (req.user.role !== 'FLORIST') {
+        return res.status(403).json({ message: '権限がありません。' });
+    }
+  
+    try {
+      const payoutRequests = await prisma.payoutRequest.findMany({
+        where: { floristId },
+        orderBy: { createdAt: 'desc' },
+      });
+      res.status(200).json(payoutRequests);
+    } catch (error) {
+      res.status(500).json({ message: '出金履歴の取得中にエラーが発生しました。' });
+    }
+  });
+
 app.get('/api/florists/:id', async (req, res) => {
   const { id } = req.params;
   try {
@@ -1959,24 +1978,6 @@ app.post('/api/payouts', authenticateToken, async (req, res) => { // ★ authent
   }
 });
 
-// ★★★ 出金申請履歴の取得API (JWT対応) ★★★
-app.get('/api/florists/payouts', authenticateToken, async (req, res) => { // URLから :floristId を削除
-    const floristId = req.user.id; // ✅ トークンから取得
-    
-    if (req.user.role !== 'FLORIST') {
-        return res.status(403).json({ message: '権限がありません。' });
-    }
-  
-    try {
-      const payoutRequests = await prisma.payoutRequest.findMany({
-        where: { floristId },
-        orderBy: { createdAt: 'desc' },
-      });
-      res.status(200).json(payoutRequests);
-    } catch (error) {
-      res.status(500).json({ message: '出金履歴の取得中にエラーが発生しました。' });
-    }
-  });
 
 app.get('/api/florists/:floristId/payouts', async (req, res) => {
   const { floristId } = req.params;
