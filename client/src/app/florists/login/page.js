@@ -1,116 +1,123 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import toast from 'react-hot-toast';
-import { FiEye, FiEyeOff } from 'react-icons/fi'; // Import icons
+import { useAuth } from '../../contexts/AuthContext'; // パスは環境に合わせて調整
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
 export default function FloristLoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false); // State for password visibility
+  const [isLoading, setIsLoading] = useState(false);
+  
   const router = useRouter();
-  // Removed useAuth hook - florist login is separate
+  const { login } = useAuth(); // AuthContextからlogin関数を取得
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // Use toast.promise for async feedback
-    const promise = fetch(`${API_URL}/api/florists/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' }, // Send as JSON
-      body: JSON.stringify({ email, password }),      // Send as JSON
-    }).then(async (response) => {
-      const data = await response.json();
-      if (!response.ok) {
+    setIsLoading(true);
+
+    try {
+      const res = await fetch(`${API_URL}/api/florists/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
         throw new Error(data.message || 'ログインに失敗しました');
       }
-      return data; // Return successful data
-    });
 
-    toast.promise(promise, {
-      loading: 'ログイン中...',
-      success: (data) => {
-        const florist = data.florist;
-        
-        if (florist.status === 'APPROVED') {
-          // ★★★ Save florist info to localStorage ★★★
-          localStorage.setItem('flastal-florist', JSON.stringify(florist)); 
-          // Redirect to dashboard (ID in URL might not be necessary, depends on dashboard logic)
-          router.push(`/florists/dashboard`); 
-          return 'ログインしました！';
-        } else if (florist.status === 'PENDING') {
-          router.push('/florists/pending');
-          return 'アカウントは現在審査中です。';
-        } else {
-          // REJECTED or other status
-          throw new Error('アカウントが承認されていません。運営までお問い合わせください。');
-        }
-      },
-      error: (err) => err.message, // Display error message from fetch or status check
-    });
+      // ★ここが重要：サーバーは { florist: ... } を返すが、
+      // AuthContext は統一的に扱いたいため、role を明示して渡す
+      const userData = {
+        ...data.florist,
+        role: 'FLORIST' // フロントエンド側で識別するためにroleを付与
+      };
+
+      // AuthContextのログイン処理を実行
+      // (ここでlocalStorageへの保存とstate更新が行われるはずです)
+      await login(data.token, userData);
+
+      toast.success('ログインしました！');
+      
+      // ダッシュボードへ遷移
+      router.push('/florists/dashboard');
+
+    } catch (error) {
+      console.error(error);
+      toast.error(error.message);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-pink-50">
-      <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-xl shadow-lg">
-        <h2 className="text-3xl font-bold text-center text-gray-900">
-          お花屋さん ログイン
-        </h2>
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4">
+      <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8 border border-slate-100">
+        <div className="text-center mb-8">
+          <h1 className="text-2xl font-bold text-slate-800">お花屋さんログイン</h1>
+          <p className="text-sm text-slate-500 mt-2">
+            FLASTALパートナーアカウントへようこそ
+          </p>
+        </div>
+
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700">メールアドレス</label>
-            <input 
-              id="email" 
-              type="email" 
-              required 
-              value={email} 
-              onChange={(e) => setEmail(e.target.value)} 
-              className="w-full px-3 py-2 mt-1 text-gray-900 border-2 border-gray-200 rounded-lg focus:border-pink-500 focus:ring-0 transition"
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              メールアドレス
+            </label>
+            <input
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent outline-none transition"
+              placeholder="example@flower-shop.com"
             />
           </div>
-          <div className="relative"> {/* Added relative positioning */}
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700">パスワード</label>
-            <input 
-              id="password" 
-              type={showPassword ? 'text' : 'password'} // Toggle type
-              required 
-              value={password} 
-              onChange={(e) => setPassword(e.target.value)} 
-              className="w-full px-3 py-2 mt-1 text-gray-900 border-2 border-gray-200 rounded-lg focus:border-pink-500 focus:ring-0 transition"
-            />
-             {/* Password visibility toggle button */}
-            <button 
-              type="button" 
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute inset-y-0 right-0 top-7 pr-3 flex items-center text-gray-600"
-              aria-label="パスワードを表示または非表示にする"
-            >
-              {showPassword ? <FiEyeOff size={20} /> : <FiEye size={20} />}
-            </button>
-          </div>
+
           <div>
-            <button type="submit" className="w-full px-4 py-3 font-semibold text-white bg-pink-500 rounded-lg hover:bg-pink-600 transition-colors">
-              ログイン
-            </button>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              パスワード
+            </label>
+            <input
+              type="password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent outline-none transition"
+              placeholder="••••••••"
+            />
           </div>
+
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="w-full bg-pink-500 text-white font-bold py-3 rounded-lg hover:bg-pink-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-md"
+          >
+            {isLoading ? 'ログイン中...' : 'ログインする'}
+          </button>
         </form>
-        <div className="text-sm text-center text-gray-600">
-          <Link href="/forgot-password?userType=FLORIST">
-            <span className="...">パスワードを忘れた方はこちら</span>
-          </Link>
+
+        <div className="mt-6 text-center space-y-2">
+          <p className="text-sm text-slate-600">
+            アカウントをお持ちでないですか？{' '}
+            <Link href="/florists/register" className="text-pink-500 hover:underline font-medium">
+              新規登録はこちら
+            </Link>
+          </p>
+          <p className="text-xs text-slate-400">
+            <Link href="/forgot-password" className="hover:underline">
+              パスワードを忘れた場合
+            </Link>
+          </p>
         </div>
-        <p className="text-sm text-center text-gray-600">
-          アカウントをお持ちでないですか？{' '}
-          <Link href="/florists/register">
-            <span className="font-medium text-sky-600 hover:underline">
-              新規登録申請
-            </span>
-          </Link>
-        </p>
       </div>
     </div>
   );
