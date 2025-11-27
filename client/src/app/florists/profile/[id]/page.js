@@ -5,7 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
-import { useAuth } from '../../../../contexts/AuthContext'; // パス階層を調整
+import { useAuth } from '../../../contexts/AuthContext';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 

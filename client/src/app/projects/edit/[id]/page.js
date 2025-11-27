@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { useAuth } from '../../../../contexts/AuthContext'; // パス階層を調整
+import { useAuth } from '../../../contexts/AuthContext';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
 import Image from 'next/image';
