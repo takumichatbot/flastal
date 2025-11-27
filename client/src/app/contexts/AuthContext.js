@@ -1,7 +1,8 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect } from 'react';
-import { jwtDecode } from 'jwt-decode'; // トークンを解析するライブラリ
+import { jwtDecode } from 'jwt-decode';
+import { useRouter } from 'next/navigation';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -11,62 +12,80 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
-  // ★ ユーザー情報をセットする共通関数
+  // ★ ユーザー情報をセットする共通関数 (改良版)
   const setupUser = (newToken) => {
     try {
-      const decodedUser = jwtDecode(newToken);
-      // ★ iconUrl も user ステートに含める
+      const decoded = jwtDecode(newToken);
+      
+      // ★ 役割に応じて「表示名」を統一的に handleName にセットする
+      let displayName = decoded.handleName;
+      if (decoded.role === 'FLORIST') displayName = decoded.shopName;
+      if (decoded.role === 'VENUE') displayName = decoded.venueName;
+
       setUser({ 
-        id: decodedUser.id,
-        email: decodedUser.email,
-        handleName: decodedUser.handleName,
-        role: decodedUser.role,
-        iconUrl: decodedUser.iconUrl, // ★ 追加
-        referralCode: decodedUser.referralCode,
-        sub: decodedUser.sub 
+        id: decoded.id,
+        email: decoded.email,
+        role: decoded.role,
+        handleName: displayName, // フロントエンドの表示用
+        iconUrl: decoded.iconUrl,
+        referralCode: decoded.referralCode,
+        // 元のフィールドも保持しておく
+        shopName: decoded.shopName,
+        venueName: decoded.venueName,
+        sub: decoded.sub 
       });
+      
       setToken(newToken);
       localStorage.setItem('authToken', newToken);
+      return true;
     } catch (error) {
       console.error("Failed to decode token:", error);
-      // トークンデコード失敗時はログアウト
-      setUser(null);
-      setToken(null);
-      localStorage.removeItem('authToken');
+      logout(); // 失敗したらクリーンアップ
+      return false;
     }
   };
 
   useEffect(() => {
-    try {
-      const storedToken = localStorage.getItem('authToken');
-      if (storedToken) {
-        setupUser(storedToken); // ★ 共通関数でセットアップ
+    const initAuth = () => {
+      try {
+        const storedToken = localStorage.getItem('authToken');
+        if (storedToken) {
+          setupUser(storedToken);
+        }
+      } catch (error) {
+        console.error("Auth init failed:", error);
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      console.error("Failed to initialize auth state:", error);
-    } finally {
-      setLoading(false);
-    }
+    };
+    initAuth();
   }, []);
 
-  const login = (newToken) => {
-    setupUser(newToken); // ★ 共通関数でセットアップ
+  // ★ login関数を改良: 第2引数(userData)を受け取れるようにするが、基本はtokenから復元
+  const login = async (newToken, userData = null) => {
+    const success = setupUser(newToken);
+    if (success && userData) {
+      // 必要であればuserDataをstateにマージする処理をここに書けますが、
+      // 基本的には setupUser(token) で十分な情報が取れる設計にしています。
+    }
   };
 
   const logout = () => {
     setUser(null);
     setToken(null);
     localStorage.removeItem('authToken');
+    // 古いキーの掃除
+    localStorage.removeItem('flastal-florist');
+    
+    router.push('/login');
   };
   
   const register = async (email, password, handleName) => {
-    // ... (変更なし)
     const response = await fetch(`${API_URL}/api/users/register`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password, handleName }),
     });
 
@@ -77,9 +96,7 @@ export function AuthProvider({ children }) {
     return response.json();
   };
 
-  // ★ valueの中に `login` を含める（プロフ更新時に新しいトークンをセットするため）
   const authInfo = { user, token, login, logout, register, isAuthenticated: !!user, loading };
-
 
   return (
     <AuthContext.Provider value={authInfo}>
