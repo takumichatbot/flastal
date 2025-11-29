@@ -20,6 +20,13 @@ import ReportModal from './components/ReportModal';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
+// ★★★【最重要】トークン取得用のヘルパー関数 ★★★
+// ここでキー名 'authToken' を使い、余計な " を削除します
+const getAuthToken = () => {
+  if (typeof window === 'undefined') return null;
+  const rawToken = localStorage.getItem('authToken'); // ★ 正しいキー名
+  return rawToken ? rawToken.replace(/^"|"$/g, '') : null; // ★ 余計な " を削除
+};
 
 // ===========================================
 // ★★★【新規】制作ステータス表示コンポーネント ★★★
@@ -50,7 +57,6 @@ function ProjectStatusBadge({ status }) {
 // ===========================================
 // ★★★【修正】新しい支援フォーム (支援コース対応) ★★★
 // ===========================================
-// (PledgeForm コンポーネントのコードは変更が多いため、ここでは簡略化し、mainコンポーネントの前に配置します)
 function PledgeForm({ project, user, onPledgeSubmit, isPledger }) {
   const { register, handleSubmit, formState: { errors, isSubmitting }, reset, watch } = useForm({
     defaultValues: {
@@ -215,7 +221,7 @@ function PledgeForm({ project, user, onPledgeSubmit, isPledger }) {
 }
 
 
-// ★★★ 目標金額変更モーダル (そのまま) ★★★
+// ★★★ 目標金額変更モーダル (トークン修正) ★★★
 function TargetAmountModal({ project, user, onClose, onUpdate }) {
   const [newAmount, setNewAmount] = useState(project.targetAmount);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -232,12 +238,18 @@ function TargetAmountModal({ project, user, onClose, onUpdate }) {
         return;
     }
     setIsSubmitting(true);
+    
+    const token = getAuthToken(); // ★ 修正済み関数を使用
+
     const promise = fetch(`${API_URL}/api/projects/${project.id}/target-amount`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}` 
+      },
       body: JSON.stringify({
         newTargetAmount: parsedNewAmount,
-        userId: user.id // JWT適用後は不要だが、一旦残す
+        userId: user.id 
       }),
     }).then(async (res) => {
       const data = await res.json();
@@ -345,8 +357,12 @@ export default function ProjectDetailPage() {
   useEffect(() => {
     if (!user || !id) return;
 
+    // ★ Socket認証用トークン修正
+    const token = getAuthToken();
+
     const newSocket = io(API_URL, {
-      transports: ['polling'] 
+      transports: ['polling'],
+      auth: { token: `Bearer ${token}` } 
     });
     setSocket(newSocket);
     
@@ -354,7 +370,6 @@ export default function ProjectDetailPage() {
     
     newSocket.on('connect_error', (err) => {
       console.error('Socket connection error:', err.message);
-      toast.error('チャットサーバーへの接続に失敗しました。');
     });
 
     newSocket.on('receiveGroupChatMessage', (newMessage) => {
@@ -373,21 +388,21 @@ export default function ProjectDetailPage() {
     };
   }, [id, user]); 
 
-  // ★★★【新規】いいねトグル処理 ★★★
+  // ★★★【新規】いいねトグル処理 (トークン修正) ★★★
   const handleLikeToggle = async (reviewId) => {
     if (!user) {
       toast.error('いいねするにはログインが必要です。');
       return;
     }
     
-    const token = localStorage.getItem('token');
+    const token = getAuthToken(); // ★ 修正
     const promise = fetch(`${API_URL}/api/reviews/${reviewId}/like`, {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}` 
       },
-      body: JSON.stringify({ userId: user.id }), // JWT適用後はbodyからuserIdを削除推奨
+      body: JSON.stringify({ userId: user.id }), 
     }).then(async (res) => {
       if (!res.ok) {
         const errData = await res.json();
@@ -404,14 +419,14 @@ export default function ProjectDetailPage() {
     });
   };
 
-  // ★★★【修正】支援コース対応のための onPledgeSubmit の修正 ★★★
+  // ★★★【修正】支援コース対応のための onPledgeSubmit の修正 (トークン修正) ★★★
   const onPledgeSubmit = (submitData) => {
     if (!user) {
       toast.error('支援するにはログインが必要です。');
       return;
     }
     
-    const token = localStorage.getItem('token');
+    const token = getAuthToken(); // ★ 修正
     const promise = fetch(`${API_URL}/api/pledges`, {
       method: 'POST',
       headers: { 
@@ -441,7 +456,7 @@ export default function ProjectDetailPage() {
   const handleAnnouncementSubmit = (e) => {
     e.preventDefault();
     if (!user) return;
-    const token = localStorage.getItem('token');
+    const token = getAuthToken(); // ★ 修正
     const promise = fetch(`${API_URL}/api/announcements`, {
       method: 'POST',
       headers: { 
@@ -475,7 +490,7 @@ export default function ProjectDetailPage() {
   const handleAddExpense = (e) => {
     e.preventDefault();
     if (!user) return;
-    const token = localStorage.getItem('token');
+    const token = getAuthToken(); // ★ 修正
     const promise = fetch(`${API_URL}/api/expenses`, {
         method: 'POST',
         headers: { 
@@ -507,14 +522,14 @@ export default function ProjectDetailPage() {
 
   const handleDeleteExpense = (expenseId) => {
     if (window.confirm('この支出項目を削除しますか？')) {
-      const token = localStorage.getItem('token');
+      const token = getAuthToken(); // ★ 修正
       const promise = fetch(`${API_URL}/api/expenses/${expenseId}`, {
           method: 'DELETE',
           headers: { 
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
           },
-          body: JSON.stringify({ userId: user.id }), // JWT適用後はbodyからuserIdを削除推奨
+          body: JSON.stringify({ userId: user.id }), 
       }).then(res => { if (!res.ok) throw new Error('支出の削除に失敗しました。'); });
 
       toast.promise(promise, {
@@ -528,7 +543,7 @@ export default function ProjectDetailPage() {
   const handleAddTask = (e) => {
     e.preventDefault();
     if (!newTaskTitle.trim() || !user) return;
-    const token = localStorage.getItem('token');
+    const token = getAuthToken(); // ★ 修正
     const promise = fetch(`${API_URL}/api/tasks`, {
         method: 'POST',
         headers: { 
@@ -538,7 +553,6 @@ export default function ProjectDetailPage() {
         body: JSON.stringify({ 
           title: newTaskTitle, 
           projectId: id,
-          // userId: user.id, // JWT適用済み
           assignedUserId: newTaskAssignedUserId || null,
         }),
     }).then(res => { if (!res.ok) throw new Error('タスクの追加に失敗しました。'); });
@@ -557,7 +571,7 @@ export default function ProjectDetailPage() {
 
   const handleToggleTask = (taskId, currentStatus) => {
     if (!user) return;
-    const token = localStorage.getItem('token');
+    const token = getAuthToken(); // ★ 修正
     const promise = fetch(`${API_URL}/api/tasks/${taskId}`, {
         method: 'PATCH',
         headers: { 
@@ -566,7 +580,7 @@ export default function ProjectDetailPage() {
         },
         body: JSON.stringify({ 
           isCompleted: !currentStatus,
-          userId: user.id // JWT適用後は不要
+          userId: user.id 
         }),
     }).then(res => { if (!res.ok) throw new Error('タスクの更新に失敗しました。'); });
 
@@ -579,14 +593,14 @@ export default function ProjectDetailPage() {
 
   const handleDeleteTask = (taskId) => {
     if (window.confirm('このタスクを削除しますか？')) {
-      const token = localStorage.getItem('token');
+      const token = getAuthToken(); // ★ 修正
       const promise = fetch(`${API_URL}/api/tasks/${taskId}`, {
           method: 'DELETE',
           headers: { 
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
           },
-          body: JSON.stringify({ userId: user.id }), // JWT適用後は不要
+          body: JSON.stringify({ userId: user.id }), 
       }).then(res => { if (!res.ok) throw new Error('タスクの削除に失敗しました。'); });
 
       toast.promise(promise, {
@@ -609,14 +623,21 @@ export default function ProjectDetailPage() {
     if (!window.confirm("本当にこの企画を中止しますか？\n集まったポイントはすべて支援者に返金され、この操作は元に戻せません。")) return;
     if (!window.confirm("最終確認です。参加者への説明は済みましたか？中止を実行します。")) return;
 
-    const token = localStorage.getItem('token');
+    // ★★★ 修正箇所: トークン取得方法を修正 ★★★
+    const token = getAuthToken(); 
+    
+    if (!token) {
+        toast.error("ログイン情報が無効です。再ログインしてください。");
+        return;
+    }
+
     const promise = fetch(`${API_URL}/api/projects/${project.id}/cancel`, {
         method: 'PATCH',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}` // ★正しいトークンを使用
         },
-        body: JSON.stringify({ userId: user.id }), // JWT適用後は不要
+        body: JSON.stringify({ userId: user.id }), 
     }).then(async res => {
         const data = await res.json();
         if (!res.ok) throw new Error(data.message || '企画の中止に失敗しました。');
