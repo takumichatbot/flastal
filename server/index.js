@@ -64,37 +64,51 @@ const prisma = new PrismaClient();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-// ★★★ JWT認証ミドルウェア ★★★
+// ★★★ JWT認証ミドルウェア (デバッグ強化版) ★★★
 const authenticateToken = (req, res, next, requiredRole = null) => {
-  // 1. ヘッダーからトークンを取得
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : null;
+  // 1. ヘッダーからトークンを取得
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : null;
 
-  if (!token) {
-    // トークンがない場合
-    return res.status(401).json({ message: '認証トークンが必要です。' });
-  }
+  // ★デバッグログ: トークンが届いているか確認
+  if (req.method === 'PATCH' && req.url.includes('/cancel')) {
+      console.log(`[AuthDebug] Header: ${authHeader ? 'Exists' : 'Missing'}`);
+      console.log(`[AuthDebug] Token extracted: ${token ? 'Yes' : 'No'}`);
+  }
 
-  // 2. トークンを検証
-  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
-    if (err) {
-      // トークンが無効（期限切れなど）の場合
-      return res.status(403).json({ message: 'トークンが無効または期限切れです。' });
-    }
+  if (!token) {
+    // トークンがない場合
+    console.log(`[AuthDebug] No token provided.`);
+    return res.status(401).json({ message: '認証トークンが必要です。' });
+  }
 
-    // 3. ユーザー情報をリクエストオブジェクトに格納
-    // user.id, user.role, user.handleName などがデコードされた情報
-    req.user = user; 
+  // 2. トークンを検証
+  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+    if (err) {
+      // トークンが無効（期限切れなど）の場合
+      console.log(`[AuthDebug] Token verification failed: ${err.message}`);
+      return res.status(403).json({ message: 'トークンが無効または期限切れです。' });
+    }
 
-    // 4. 権限チェック (requiredRoleが設定されている場合)
-    if (requiredRole && user.role !== requiredRole) {
-      return res.status(403).json({ message: 'この操作を実行する権限がありません。' });
-    }
+    // 3. ユーザー情報をリクエストオブジェクトに格納
+    req.user = user; 
 
-    // 次の処理へ
-    next();
-  });
+    // ★デバッグログ: ユーザー情報確認
+    if (req.method === 'PATCH' && req.url.includes('/cancel')) {
+        console.log(`[AuthDebug] User authenticated: ${user.id} (Role: ${user.role})`);
+    }
+
+    // 4. 権限チェック (requiredRoleが設定されている場合)
+    if (requiredRole && user.role !== requiredRole) {
+      console.log(`[AuthDebug] Role mismatch. Required: ${requiredRole}, Got: ${user.role}`);
+      return res.status(403).json({ message: 'この操作を実行する権限がありません。' });
+    }
+
+    // 次の処理へ
+    next();
+  });
 };
+
 // ★★★ 管理者権限チェック用ミドルウェア ★★★
 const requireAdmin = (req, res, next) => {
   authenticateToken(req, res, next, 'ADMIN');
