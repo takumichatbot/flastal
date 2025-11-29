@@ -83,10 +83,8 @@ export default function MyPageContent() {
     );
   }
 
-  // ★★★ タブの内容を描画する関数 (profile ケースを修正) ★★★
+  // タブの内容を描画する関数
   const renderTabContent = () => {
-    // データ取得中のローディング表示
-    // (profileタブ以外は、データ取得中も表示を分ける)
     if (loadingData && activeTab !== 'profile') {
         return <p className="text-gray-600 text-center py-4">企画データを読み込み中...</p>;
     }
@@ -149,10 +147,8 @@ export default function MyPageContent() {
         );
       case 'profile':
       default:
-        // ★★★ プロフィールタブのUIを修正 ★★★
         return (
           <div>
-            {/* ヘッダーと編集ボタン */}
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-2xl font-bold text-gray-800">プロフィール情報</h2>
               <Link href="/mypage/edit">
@@ -162,7 +158,6 @@ export default function MyPageContent() {
               </Link>
             </div>
 
-            {/* アイコンとハンドルネーム */}
             <div className="flex flex-col items-center mb-8 border-b pb-6">
               {user.iconUrl ? (
                 <img src={user.iconUrl} alt="icon" className="h-24 w-24 rounded-full object-cover mb-4" />
@@ -174,7 +169,6 @@ export default function MyPageContent() {
               <span className="font-semibold text-2xl text-gray-900">{user.handleName}</span>
             </div>
             
-            {/* ポイントとメールアドレス */}
             <div className="space-y-5">
               <div className="flex flex-col sm:flex-row justify-between sm:items-center border-b pb-4">
                 <span className="text-gray-600 mb-1 sm:mb-0">保有ポイント:</span>
@@ -186,7 +180,6 @@ export default function MyPageContent() {
               </div>
             </div>
 
-            {/* 紹介コード */}
             <div className="mt-10 p-6 bg-sky-50 rounded-lg shadow-inner">
               <h3 className="text-xl font-semibold text-gray-800 mb-4">あなたの紹介コード</h3>
               <p className="text-sm text-gray-600 mb-4">
@@ -213,7 +206,6 @@ export default function MyPageContent() {
               </div>
             </div>
           </div>
-          // ★★★ 修正ここまで ★★★
         );
     }
   };
@@ -222,6 +214,33 @@ export default function MyPageContent() {
     <>
       <div className="min-h-screen bg-sky-50 p-4 md:p-8">
         <div className="max-w-4xl mx-auto">
+          
+          {/* ▼▼▼ 追加: 管理者専用メニューブロック ▼▼▼ */}
+          {user && user.role === 'ADMIN' && (
+            <div className="mb-8 p-6 bg-slate-800 rounded-xl text-white shadow-lg border border-slate-700">
+              <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-xl font-bold flex items-center gap-2 text-yellow-400">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
+                      <path fillRule="evenodd" d="M12.516 2.17a.75.75 0 00-1.032 0 11.209 11.209 0 01-7.877 3.08.75.75 0 00-.722.515A12.74 12.74 0 002.25 9.75c0 5.942 4.064 10.933 9.563 12.348a.749.749 0 00.374 0c5.499-1.415 9.563-6.406 9.563-12.348 0-1.39-.223-2.73-.635-3.985a.75.75 0 00-.722-.516l-.143.001c-2.996 0-5.717-1.17-7.734-3.08zm3.094 8.016a.75.75 0 10-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 00-1.06 1.06l2.25 2.25a.75.75 0 001.14-.094l3.75-5.25z" clipRule="evenodd" />
+                    </svg>
+                    管理者メニュー
+                  </h2>
+                  <p className="text-slate-300 text-sm mt-1">
+                    企画の承認審査、手数料の確認、ユーザー管理はこちらから行えます。
+                  </p>
+                </div>
+                <Link 
+                  href="/admin" 
+                  className="w-full md:w-auto px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg transition-colors shadow-md text-center inline-block"
+                >
+                  管理画面へ移動する
+                </Link>
+              </div>
+            </div>
+          )}
+          {/* ▲▲▲ 追加ここまで ▲▲▲ */}
+
           <h1 className="text-3xl font-bold text-gray-900 mb-8">マイページ</h1>
 
           <div className="mb-6 border-b border-gray-300">
