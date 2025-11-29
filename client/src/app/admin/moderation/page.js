@@ -3,42 +3,42 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '../../contexts/AuthContext'; // ★ ../../ に修正
+import { useAuth } from '../../contexts/AuthContext'; 
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
 export default function ModerationProjectListPage() {
   const [projects, setProjects] = useState([]);
-  const [loadingData, setLoadingData] = useState(true); // ★ データ取得用ローディング
+  const [loadingData, setLoadingData] = useState(true); 
   const router = useRouter();
   
-  // ★ AuthContext から正しい認証情報を取得
   const { user, isAuthenticated, loading, logout } = useAuth();
 
   useEffect(() => {
-    // ★ 1. AuthContext が読み込み中なら待機
-    if (loading) {
-      return;
-    }
-    // ★ 2. 未ログインの場合
+    if (loading) return;
+
     if (!isAuthenticated) {
       toast.error('ログインが必要です。');
       router.push('/login');
       return;
     }
-    // ★ 3. ADMINではない場合
+
     if (!user || user.role !== 'ADMIN') {
       toast.error('管理者権限がありません。');
       router.push('/mypage');
       return;
     }
 
-    // ★ 4. 認証OK (ADMIN) だったので、データを取得
     const fetchProjects = async () => {
-      setLoadingData(true); // ★ データ取得ローディング開始
+      setLoadingData(true); 
       try {
-        // ★ トークンロジックを削除
-        const res = await fetch(`${API_URL}/api/admin/projects`);
+        // ★★★ 修正箇所: トークン取得キーを 'authToken' に、ヘッダーを追加 ★★★
+        const token = localStorage.getItem('authToken');
+        
+        const res = await fetch(`${API_URL}/api/admin/projects`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
         if (!res.ok) throw new Error('プロジェクト一覧の取得に失敗しました。');
 
         const data = await res.json();
@@ -48,14 +48,13 @@ export default function ModerationProjectListPage() {
         toast.error(error.message);
         setProjects([]);
       } finally {
-        setLoadingData(false); // ★ データ取得ローディング完了
+        setLoadingData(false); 
       }
     };
     fetchProjects();
     
-  }, [isAuthenticated, user, router, loading]); // ★ 依存配列を AuthContext に合わせる
+  }, [isAuthenticated, user, router, loading]); 
 
-  // ★ 7. AuthContextの読み込み中、または権限がない場合の表示
   if (loading || !isAuthenticated || !user || user.role !== 'ADMIN') {
     return (
       <div className="flex justify-center items-center min-h-screen bg-gray-100">
@@ -64,12 +63,10 @@ export default function ModerationProjectListPage() {
     );
   }
 
-  // ★ 8. 認証済みの場合のページ表示
   return (
     <div className="min-h-screen bg-gray-100 p-4 sm:p-8">
       <div className="max-w-4xl mx-auto">
         
-        {/* ★ ヘッダーとログアウトを追加 */}
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold text-gray-900">プロジェクト審査</h1>
           <button onClick={() => {
@@ -80,7 +77,6 @@ export default function ModerationProjectListPage() {
           </button>
         </div>
 
-        {/* ★ ナビゲーションリンクを追加 */}
         <nav className="mb-6 flex gap-3 sm:gap-4 flex-wrap">
           <Link 
             href="/admin" 
@@ -95,8 +91,8 @@ export default function ModerationProjectListPage() {
             出金管理
           </Link>
           <Link 
-            href="/admin/moderation"
-            className="px-4 py-2 text-sm font-semibold text-slate-700 bg-slate-200 rounded-lg hover:bg-slate-300 transition-colors"
+            href="/admin/moderation" 
+            className="px-4 py-2 text-sm font-semibold text-white bg-sky-500 rounded-lg shadow-sm hover:bg-sky-600 transition-colors"
           >
             チャット監視
           </Link>
@@ -108,13 +104,12 @@ export default function ModerationProjectListPage() {
           </Link>
           <Link 
             href="/admin/project-approval"
-            className="px-4 py-2 text-sm font-semibold text-white bg-sky-500 rounded-lg shadow-sm hover:bg-sky-600 transition-colors"
+            className="px-4 py-2 text-sm font-semibold text-slate-700 bg-slate-200 rounded-lg hover:bg-slate-300 transition-colors"
           >
             プロジェクト審査
           </Link>
         </nav>
 
-        {/* ★ 以下、元のコンテンツ */}
         <div className="bg-white rounded-lg shadow-md p-6">
           <p className="text-gray-600 mb-4">チャットを監視したいプロジェクトを選択してください。</p>
           {loadingData ? (
