@@ -2663,59 +2663,51 @@ app.patch('/api/admin/projects/:projectId/visibility', requireAdmin, async (req,
 });
 
 app.patch('/api/projects/:projectId/complete', async (req, res) => {
-  const { projectId } = req.params;
-  // ★ リクエストボディから surplusUsageDescription を受け取るように変更
-  const { userId, completionImageUrls, completionComment, surplusUsageDescription } = req.body; 
+  const { projectId } = req.params;
+  const { userId, completionImageUrls, completionComment, surplusUsageDescription } = req.body; 
 
-  try {
-    // プロジェクト情報と、紐づく支出情報を一緒に取得
-    const project = await prisma.project.findUnique({
-      where: { id: projectId },
-      include: { expenses: true }, // ★ 支出情報も取得して残高計算に使用
-    });
+  try {
+    // プロジェクト情報と、紐づく支出情報を一緒に取得
+    const project = await prisma.project.findUnique({
+      where: { id: projectId },
+      include: { expenses: true }, 
+    });
 
-    // --- 事前チェック ---
-    if (!project) {
-        return res.status(404).json({ message: '企画が見つかりません。' });
-    }
-    // 企画者本人かチェック
-    if (project.plannerId !== userId) {
-      return res.status(403).json({ message: '権限がありません。あなたはこの企画の主催者ではありません。' });
-    }
-    // 既に完了/中止済みの企画でないかチェック
-    if (project.status === 'COMPLETED' || project.status === 'CANCELED') {
-        return res.status(400).json({ message: 'この企画は既に完了または中止されています。' });
-    }
-    // 目標達成前に完了報告させない (任意：コメントアウトしてもOK)
-    // if (project.status !== 'SUCCESSFUL') {
-    //     return res.status(400).json({ message: '目標達成後に完了報告を行ってください。' });
-    // }
-    // 画像URLが配列であるかチェック (任意：より厳密にする場合)
-    if (!Array.isArray(completionImageUrls)) {
-        return res.status(400).json({ message: '画像URLの形式が正しくありません。' });
-    }
+    if (!project) {
+        return res.status(404).json({ message: '企画が見つかりません。' });
+    }
+    if (project.plannerId !== userId) {
+      return res.status(403).json({ message: '権限がありません。あなたはこの企画の主催者ではありません。' });
+    }
+    if (project.status === 'COMPLETED' || project.status === 'CANCELED') {
+        return res.status(400).json({ message: 'この企画は既に完了または中止されています。' });
+    }
+    if (!Array.isArray(completionImageUrls)) {
+        return res.status(400).json({ message: '画像URLの形式が正しくありません。' });
+    }
 
-    // ★★★ 最終残高 (余剰金) を計算 ★★★
-    const totalExpense = project.expenses.reduce((sum, exp) => sum + exp.amount, 0);
-    const finalBalance = project.collectedAmount - totalExpense;
+    // 最終残高 (余剰金) を計算
+    const totalExpense = project.expenses.reduce((sum, exp) => sum + exp.amount, 0);
+    const finalBalance = project.collectedAmount - totalExpense;
 
-    // ★★★ データベースを更新 ★★★
-    const completedProject = await prisma.project.update({
-      where: { id: projectId },
-      data: {
-        status: 'COMPLETED', // ステータスを「完了」に
-        completionImageUrls: completionImageUrls, // 画像URLを保存
-        completionComment: completionComment, // 参加者へのコメントを保存
-        finalBalance: finalBalance, // ★ 計算した最終残高を保存
-        surplusUsageDescription: surplusUsageDescription, // ★ 余剰金の使い道メモを保存
-      },
-      // 更新後のプロジェクト情報を返す (任意：includeで必要な情報を追加)
-      include: {
-          expenses: true, // 更新後の収支確認のため
-          planner: { select: { handleName: true } } // 例
-      }
-    });
+    // データベースを更新
+    const completedProject = await prisma.project.update({
+      where: { id: projectId },
+      data: {
+        status: 'COMPLETED',
+        completionImageUrls: completionImageUrls,
+        completionComment: completionComment,
+        finalBalance: finalBalance,
+        surplusUsageDescription: surplusUsageDescription,
+      },
+      include: {
+          expenses: true,
+          planner: { select: { handleName: true } }
+      }
+    });
+
     // ★★★ 【追加】全支援者に完了報告メール ★★★
+    // 支援者情報を取得（重複なし）
     const pledges = await prisma.pledge.findMany({ 
       where: { projectId }, 
       include: { user: true },
@@ -2729,83 +2721,84 @@ app.patch('/api/projects/:projectId/complete', async (req, res) => {
          <p><strong>企画者コメント:</strong><br/>${completionComment}</p>
          <p><a href="${process.env.FRONTEND_URL}/projects/${projectId}">完了報告ページを見る</a></p>
        `;
+       // エラーハンドリングなしで送信（非同期）
        sendEmail(pledge.user.email, '【FLASTAL】企画完了のご報告', emailContent);
     }
 
-    // 成功レスポンス
-    res.status(200).json(completedProject);
+    res.status(200).json(completedProject);
 
-  } catch (error) {
-    console.error("完了報告の投稿エラー:", error);
-    res.status(500).json({ message: '完了報告の投稿処理中にエラーが発生しました。' });
-  }
+  } catch (error) {
+    console.error("完了報告の投稿エラー:", error);
+    res.status(500).json({ message: '完了報告の投稿処理中にエラーが発生しました。' });
+  }
 });
 
 app.patch('/api/projects/:projectId/cancel', authenticateToken, async (req, res) => {
-  const { projectId } = req.params;
-  // const { userId } = req.body; // ❌ userId 削除
-  const userId = req.user.id; // ✅ トークンから取得
+  const { projectId } = req.params;
+  const userId = req.user.id; 
 
-  try {
-    const result = await prisma.$transaction(async (tx) => {
-      const project = await tx.project.findUnique({
-        where: { id: projectId },
-        include: { pledges: true }
-      });
-      if (!project) throw new Error('企画が見つかりません。');
-      if (project.plannerId !== userId) throw new Error('権限がありません。');
-      if (project.status === 'COMPLETED' || project.status === 'CANCELED') {
-        throw new Error('この企画は既に完了または中止されているため、中止できません。');
-      }
-      
-      const uniquePledgerIds = new Set(); // 通知対象の支援者IDを格納
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      const project = await tx.project.findUnique({
+        where: { id: projectId },
+        include: { pledges: true }
+      });
+      if (!project) throw new Error('企画が見つかりません。');
+      if (project.plannerId !== userId) throw new Error('権限がありません。');
+      if (project.status === 'COMPLETED' || project.status === 'CANCELED') {
+        throw new Error('この企画は既に完了または中止されているため、中止できません。');
+      }
+      
+      const uniquePledgerIds = new Set(); // 通知対象の支援者IDを格納
 
-      for (const pledge of project.pledges) {
-        // ポイント返還処理
-        await tx.user.update({
-          where: { id: pledge.userId },
-          data: { points: { increment: pledge.amount } }
-        });
-        uniquePledgerIds.add(pledge.userId);
-      }
-      
-      const canceledProject = await tx.project.update({
-        where: { id: projectId },
-        data: { status: 'CANCELED' },
-      });
-      const pledges = await prisma.pledge.findMany({
-          where: { projectId },
-          include: { user: true },
-          distinct: ['userId']
+      for (const pledge of project.pledges) {
+        // ポイント返還処理
+        await tx.user.update({
+          where: { id: pledge.userId },
+          data: { points: { increment: pledge.amount } }
+        });
+        uniquePledgerIds.add(pledge.userId);
+      }
+      
+      const canceledProject = await tx.project.update({
+        where: { id: projectId },
+        data: { status: 'CANCELED' },
       });
 
-      // ↓↓↓ 【通知追加】全ての支援者に中止を通知 ↓↓↓
-      for (const id of uniquePledgerIds) {
-        if (id !== userId) {
-          await createNotification(
-            id,
-            'PROJECT_STATUS_UPDATE',
-            `企画「${project.title}」は中止され、支援額${project.collectedAmount.toLocaleString()}ptが返金されました。`,
-            projectId,
-            `/projects/${projectId}`
-          );
-          const emailContent = `
-             <p>誠に残念ながら、企画「${project.title}」は中止されました。</p>
-             <p>これに伴い、支援いただいたポイントは全額返金（ポイント返還）いたしました。</p>
-             <p>現在のポイント残高はマイページよりご確認ください。</p>
-           `;
-           sendEmail(pledge.user.email, '【重要】企画中止と返金のお知らせ', emailContent);
-        }
-      }
-      // ↑↑↑ 通知追加 ↑↑↑
+      // ★★★ 【追加】全ての支援者に中止を通知 & メール ★★★
+      for (const id of uniquePledgerIds) {
+        if (id !== userId) {
+          // サイト内通知
+          await createNotification(
+            id,
+            'PROJECT_STATUS_UPDATE',
+            `企画「${project.title}」は中止され、支援額${project.collectedAmount.toLocaleString()}ptが返金されました。`,
+            projectId,
+            `/projects/${projectId}`
+          );
 
-      return canceledProject;
-    });
-    res.status(200).json({ message: '企画を中止し、すべての支援者にポイントが返金されました。', project: result });
-  } catch (error) {
-    console.error("企画の中止処理エラー:", error);
-    res.status(400).json({ message: error.message || '企画の中止処理中にエラーが発生しました。' });
-  }
+          // メール送信のためにユーザー情報を取得
+          const userToNotify = await tx.user.findUnique({ where: { id } });
+          if (userToNotify) {
+             const emailContent = `
+               <p>誠に残念ながら、企画「${project.title}」は中止されました。</p>
+               <p>これに伴い、支援いただいたポイントは全額返金（ポイント返還）いたしました。</p>
+               <p>現在のポイント残高はマイページよりご確認ください。</p>
+             `;
+             sendEmail(userToNotify.email, '【重要】企画中止と返金のお知らせ', emailContent);
+          }
+        }
+      }
+
+      return canceledProject;
+    }); // ★ ここでトランザクションを閉じる
+
+    res.status(200).json({ message: '企画を中止し、すべての支援者にポイントが返金されました。', project: result });
+
+  } catch (error) { // ★ ここで try を閉じる
+    console.error("企画の中止処理エラー:", error);
+    res.status(400).json({ message: error.message || '企画の中止処理中にエラーが発生しました。' });
+  }
 });
 
 // ★★★ パスワード再設定リクエストAPI (本物のメール送信機能付き) ★★★
