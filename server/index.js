@@ -203,38 +203,36 @@ app.get('/', (req, res) => {
   res.send('FLASTAL APIサーバーへようこそ！');
 });
 
-// ★★★ ユーザー登録API (メール重複チェック機能付き) ★★★
+// ★★★ ユーザー登録API (メール重複チェック機能・ウェルカムメール付き) ★★★
 app.post('/api/users/register', async (req, res) => {
-  try {
-    const { email, password, handleName, referralCode } = req.body;
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const userData = {
-      email,
-      handleName,
-      password: hashedPassword,
-    };
-    if (referralCode && referralCode.trim() !== '') {
-      const referrer = await prisma.user.findUnique({
-        where: { referralCode: referralCode.trim() },
-      });
-      if (referrer) {
-        userData.referredById = referrer.id;
-      }
-    }
-    const newUser = await prisma.user.create({
-      data: userData,
-    });
-    // ★ パスワード情報は返さないようにする
-    const { password: _, ...userWithoutPassword } = newUser;
-    res.status(201).json({ message: 'ユーザー登録が完了しました。', user: userWithoutPassword });
-  } catch (error) {
-    // ★★★ ここからが修正箇所です ★★★
-    // もし、エラーが「重複エラー(P2002)」だったら...
-    if (error.code === 'P2002') {
-      // 親切なメッセージを返す
-      return res.status(409).json({ message: 'このメールアドレスは既に使用されています。' });
-    }
-    const emailContent = `
+  try {
+    const { email, password, handleName, referralCode } = req.body;
+    const hashedPassword = await bcrypt.hash(password, 10);
+    
+    const userData = {
+      email,
+      handleName,
+      password: hashedPassword,
+    };
+
+    if (referralCode && referralCode.trim() !== '') {
+      const referrer = await prisma.user.findUnique({
+        where: { referralCode: referralCode.trim() },
+      });
+      if (referrer) {
+        userData.referredById = referrer.id;
+      }
+    }
+
+    const newUser = await prisma.user.create({
+      data: userData,
+    });
+
+    // ★ パスワード情報は返さないようにする
+    const { password: _, ...userWithoutPassword } = newUser;
+
+    // ★★★ 【追加】ウェルカムメール送信 ★★★
+    const emailContent = `
       <div style="font-family: sans-serif; color: #333;">
         <h2>FLASTALへようこそ！</h2>
         <p>${handleName} 様</p>
@@ -242,11 +240,18 @@ app.post('/api/users/register', async (req, res) => {
         <p><a href="${process.env.FRONTEND_URL}/login">ログインはこちら</a></p>
       </div>
     `;
+    // エラーが出ても登録自体は成功させるため、awaitのエラーハンドリングは内部で行うか、ここでのエラーは無視して進める
     await sendEmail(email, '【FLASTAL】会員登録完了のお知らせ', emailContent);
 
     res.status(201).json({ message: 'ユーザー登録が完了しました。', user: userWithoutPassword });
-  } catch (error) {
-    if (error.code === 'P2002') return res.status(409).json({ message: 'このメールアドレスは既に使用されています。' });
+
+  } catch (error) { // ★ ここでエラーが出ていました。直前の } が必要です
+    // もし、エラーが「重複エラー(P2002)」だったら...
+    if (error.code === 'P2002') {
+      // 親切なメッセージを返す
+      return res.status(409).json({ message: 'このメールアドレスは既に使用されています。' });
+    }
+    // その他の予期せぬエラー
     console.error('ユーザー登録エラー:', error);
     res.status(500).json({ message: 'サーバーエラーが発生しました。' });
   }
