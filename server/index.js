@@ -2743,6 +2743,7 @@ app.patch('/api/projects/:projectId/cancel', authenticateToken, async (req, res)
         where: { id: projectId },
         include: { pledges: true }
       });
+      
       if (!project) throw new Error('企画が見つかりません。');
       if (project.plannerId !== userId) throw new Error('権限がありません。');
       if (project.status === 'COMPLETED' || project.status === 'CANCELED') {
@@ -2791,11 +2792,11 @@ app.patch('/api/projects/:projectId/cancel', authenticateToken, async (req, res)
       }
 
       return canceledProject;
-    }); // ★ ここでトランザクションを閉じる
+    }); // ★ ここでトランザクション終了
 
     res.status(200).json({ message: '企画を中止し、すべての支援者にポイントが返金されました。', project: result });
 
-  } catch (error) { // ★ ここで try を閉じる
+  } catch (error) { // ★ ここで try 終了。この直前の } が重要です
     console.error("企画の中止処理エラー:", error);
     res.status(400).json({ message: error.message || '企画の中止処理中にエラーが発生しました。' });
   }
