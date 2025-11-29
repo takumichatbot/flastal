@@ -40,8 +40,11 @@ export default function AdminPayoutsPage() {
     const fetchPayouts = async () => {
       setLoadingData(true);
       try {
-        // ★ トークンロジックを削除 (認証はCookieで自動的に行われる)
-        const res = await fetch(`${API_URL}/api/admin/payouts`);
+        
+        const token = localStorage.getItem('authToken');
+        const res = await fetch(`${API_URL}/api/admin/payouts`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
         
         if (!res.ok) {
           throw new Error('出金申請の読み込みに失敗しました。');
@@ -65,11 +68,13 @@ export default function AdminPayoutsPage() {
       return;
     }
 
-    // ★ トークンチェックをすべて削除 (認証は useEffect が担保)
       
+    const token = localStorage.getItem('authToken');
     const promise = fetch(`${API_URL}/api/admin/payouts/${payoutId}/complete`, {
       method: 'PATCH',
-      // ★ ヘッダーも不要
+      headers: { 
+          'Authorization': `Bearer ${token}` // PATCHでbodyがない場合も認証は必要
+      },
     }).then(async (res) => { 
         if (!res.ok) {
            let errorMsg = '処理の更新に失敗しました。';

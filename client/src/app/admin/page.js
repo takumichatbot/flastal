@@ -42,7 +42,15 @@ export default function AdminPage() {
     const fetchCommissions = async () => {
       setLoadingData(true);
       try {
-        const res = await fetch(`${API_URL}/api/admin/commissions`);
+        // ▼▼▼ 修正箇所 ▼▼▼
+        const token = localStorage.getItem('authToken'); // トークンを取得
+        if (!token) throw new Error('認証トークンが見つかりません');
+
+        const res = await fetch(`${API_URL}/api/admin/commissions`, {
+          headers: {
+            'Authorization': `Bearer ${token}` // ヘッダーを追加
+          }
+        });
         if (!res.ok) throw new Error('手数料履歴の取得に失敗しました');
         const data = await res.json();
         setCommissions(Array.isArray(data) ? data : []);

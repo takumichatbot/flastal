@@ -19,8 +19,10 @@ export default function AdminFloristApprovalsPage() {
   const fetchPendingFlorists = async () => {
     setLoadingData(true); // ★ データ取得ローディング
     try {
-      // ★ トークンロジックを削除
-      const res = await fetch(`${API_URL}/api/admin/florists/pending`);
+      const token = localStorage.getItem('authToken');
+      const res = await fetch(`${API_URL}/api/admin/florists/pending`, {
+         headers: { 'Authorization': `Bearer ${token}` }
+      });
       if (res.status === 401) throw new Error('管理者権限がありません。');
       if (!res.ok) throw new Error('審査待ちリストの取得に失敗しました。');
       const data = await res.json();
@@ -59,12 +61,15 @@ export default function AdminFloristApprovalsPage() {
   const handleUpdateStatus = async (floristId, status) => {
     const actionText = status === 'APPROVED' ? '承認' : '拒否';
     if (!window.confirm(`この申請を「${actionText}」しますか？`)) return;
-
-    // ★ トークンロジックを削除
     
+    const token = localStorage.getItem('authToken'); // トークン取得
+
     const promise = fetch(`${API_URL}/api/admin/florists/${floristId}/status`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' }, // ★ 認証ヘッダーは不要
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}` // ★ここを追加
+      },
       body: JSON.stringify({ status }),
     }).then(async res => {
       if (res.status === 401) throw new Error('管理者権限がありません。');

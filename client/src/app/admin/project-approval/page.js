@@ -19,7 +19,10 @@ export default function AdminProjectApprovalsPage() {
   const fetchPendingProjects = async () => {
     setLoadingData(true);
     try {
-      const res = await fetch(`${API_URL}/api/admin/projects/pending`); // ★ APIパスを変更
+      const token = localStorage.getItem('authToken');
+      const res = await fetch(`${API_URL}/api/admin/projects/pending`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
       if (res.status === 401) throw new Error('管理者権限がありません。');
       if (!res.ok) throw new Error('審査待ち企画リストの取得に失敗しました。');
       const data = await res.json();
@@ -55,10 +58,15 @@ export default function AdminProjectApprovalsPage() {
     const actionText = status === 'FUNDRAISING' ? '承認' : '拒否';
     if (!window.confirm(`この企画を「${actionText}」しますか？`)) return;
 
-    const promise = fetch(`${API_URL}/api/admin/projects/${projectId}/status`, { // ★ APIパスを変更
+    const token = localStorage.getItem('authToken'); // ★追加
+
+    const promise = fetch(`${API_URL}/api/admin/projects/${projectId}/status`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status }), // ★ status: 'FUNDRAISING' or 'REJECTED'
+      headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}` // ★追加
+      },
+      body: JSON.stringify({ status }),
     }).then(async res => {
       if (res.status === 401) throw new Error('管理者権限がありません。');
       if (!res.ok) {
