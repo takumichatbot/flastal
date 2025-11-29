@@ -1257,47 +1257,6 @@ app.patch('/api/projects/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// ★★★ お花屋さんダッシュボードAPI (JWT対応・本人限定) ★★★
-// URLの :floristId は無視し、トークンのIDを使用するか、一致を確認する
-app.get('/api/florists/dashboard', authenticateToken, async (req, res) => { // ★ authenticateToken 追加
-  // const { floristId } = req.params; // ❌ パラメータへの依存を削除（または検証に使用）
-  const floristId = req.user.id; // ✅ トークンからIDを取得
-
-  // 役割チェック
-  if (req.user.role !== 'FLORIST') {
-      return res.status(403).json({ message: '権限がありません。お花屋さんアカウントでログインしてください。' });
-  }
-
-  try {
-    const florist = await prisma.florist.findUnique({
-      where: { id: floristId },
-    });
-    if (!florist) {
-      return res.status(404).json({ message: 'お花屋さんが見つかりません。' });
-    }
-    
-    // 自分へのオファーを取得
-    const offers = await prisma.offer.findMany({
-      where: { floristId: floristId },
-      include: {
-        project: {
-          include: {
-            planner: { select: { id: true, handleName: true, iconUrl: true } }, // 必要な情報のみ
-          },
-        },
-        chatRoom: true,
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-
-    const { password, ...floristData } = florist;
-    res.status(200).json({ florist: floristData, offers });
-  } catch (error) {
-    console.error('ダッシュボードデータ取得エラー:', error);
-    res.status(500).json({ message: 'データの取得中にエラーが発生しました。' });
-  }
-});
-
 // ★★★ 出金申請履歴の取得API (JWT対応) ★★★
 app.get('/api/florists/payouts', authenticateToken, async (req, res) => { // URLから :floristId を削除
     const floristId = req.user.id; // ✅ トークンから取得
@@ -2007,30 +1966,32 @@ app.post('/api/checkout/create-session', authenticateToken, async (req, res) => 
     }
 });
 
-app.post('/api/announcements', authenticateToken, async (req, res) => { // ★ authenticateToken を追加
-  // const { title, content, projectId, userId } = req.body; // ❌ userId は削除
-  const { title, content, projectId } = req.body;
-  const userId = req.user.id; // トークンから userId を取得
+// ★★★ 活動報告（お知らせ）投稿API (修正版) ★★★
+app.post('/api/announcements', authenticateToken, async (req, res) => {
+  const { title, content, projectId } = req.body;
+  const userId = req.user.id;
 
-  try {
-    const project = await prisma.project.findUnique({ where: { id: projectId } });
-    if (!project) {
-      return res.status(404).json({ message: '企画が見つかりません。' });
-    }
-    if (project.plannerId !== userId) {
-      return res.status(403).json({ message: '権限がありません。あなたはこの企画の主催者ではありません。' });
-    }
-    
-    // お知らせの作成
-    const newAnnouncement = await prisma.announcement.create({
-      data: {
-        title,
-        content,
-        projectId,
-      },
-    });
+  try {
+    const project = await prisma.project.findUnique({ where: { id: projectId } });
+    if (!project) {
+      return res.status(404).json({ message: '企画が見つかりません。' });
+    }
+    if (project.plannerId !== userId) {
+      return res.status(403).json({ message: '権限がありません。あなたはこの企画の主催者ではありません。' });
+    }
+    
+    // お知らせの作成
+    const newAnnouncement = await prisma.announcement.create({
+      data: {
+        title,
+        content,
+        projectId,
+      },
+    });
 
-    const pledges = await prisma.pledge.findMany({ 
+    // ★★★ 【修正】全支援者にメール＆通知送信 ★★★
+    // distinctを使って、重複のないユーザーリストを取得
+    const pledges = await prisma.pledge.findMany({ 
       where: { projectId }, 
       include: { user: true },
       distinct: ['userId'] 
@@ -2038,20 +1999,16 @@ app.post('/api/announcements', authenticateToken, async (req, res) => { // ★ a
 
     for (const pledge of pledges) {
       if (pledge.userId !== userId) {
-    
-    // 重複を排除した支援者IDリストを取得
-    const uniqueUserIds = [...new Set(pledges.map(p => p.userId))];
-
-    for (const userIdToNotify of uniqueUserIds) {
-      if (userIdToNotify !== userId) { // 投稿者自身への通知はスキップ
-        await createNotification(
-          userIdToNotify,
-          'NEW_ANNOUNCEMENT',
-          `企画「${project.title}」から新しいお知らせが届きました: ${title}`,
-          projectId,
-          `/projects/${projectId}`
-        );
-        // メール送信
+        // 1. サイト内通知
+        await createNotification(
+          pledge.userId,
+          'NEW_ANNOUNCEMENT',
+          `企画「${project.title}」から新しいお知らせが届きました: ${title}`,
+          projectId,
+          `/projects/${projectId}`
+        );
+        
+        // 2. メール送信
         const emailContent = `
           <p>支援した企画「${project.title}」から新しいお知らせがあります。</p>
           <hr />
@@ -2060,16 +2017,17 @@ app.post('/api/announcements', authenticateToken, async (req, res) => { // ★ a
           <hr />
           <a href="${process.env.FRONTEND_URL}/projects/${projectId}">詳細を見る</a>
         `;
+        // 非同期で送信（awaitをつけると人数が多い時に遅くなるため、あえて外しています）
         sendEmail(pledge.user.email, `【FLASTAL】新着のお知らせ: ${title}`, emailContent);
-      }
-    }
-    // ↑↑↑ 通知追加 ↑↑↑
+      }
+    }
 
-    res.status(201).json(newAnnouncement);
-  } catch (error) {
-    console.error("お知らせ投稿APIでエラー:", error);
-    res.status(500).json({ message: 'お知らせの投稿中にエラーが発生しました。' });
-  }
+    res.status(201).json(newAnnouncement);
+
+  } catch (error) {
+    console.error("お知らせ投稿APIでエラー:", error);
+    res.status(500).json({ message: 'お知らせの投稿中にエラーが発生しました。' });
+  }
 });
 
 // ★★★ 出金申請API (JWT対応: お花屋さん本人) ★★★
