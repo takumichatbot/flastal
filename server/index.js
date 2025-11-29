@@ -112,6 +112,27 @@ const isPlanner = (req, res, next) => {
   next();
 };
 
+// ★★★ メール送信ヘルパー関数 ★★★
+async function sendEmail(to, subject, htmlContent) {
+  if (!to) return;
+  try {
+    const { data, error } = await resend.emails.send({
+      // ★ 本番環境では認証済みドメイン（例: noreply@flastal.com）に変更してください
+      from: 'FLASTAL <onboarding@resend.dev>', 
+      to: [to],
+      subject: subject,
+      html: htmlContent,
+    });
+    if (error) {
+      console.error('Email send error:', error);
+    } else {
+      console.log(`Email sent to ${to}: ${subject}`);
+    }
+  } catch (err) {
+    console.error('Email send exception:', err);
+  }
+}
+
 // ★★★ 通知作成ヘルパー関数 ★★★
 async function createNotification(recipientId, type, message, projectId = null, linkUrl = null) {
   if (!recipientId) return; // 受信者がいない場合はスキップ
@@ -213,10 +234,22 @@ app.post('/api/users/register', async (req, res) => {
       // 親切なメッセージを返す
       return res.status(409).json({ message: 'このメールアドレスは既に使用されています。' });
     }
-    // その他の予期せぬエラー
-    console.error('ユーザー登録エラー:', error);
-    res.status(500).json({ message: 'サーバーエラーが発生しました。' });
-  }
+    const emailContent = `
+      <div style="font-family: sans-serif; color: #333;">
+        <h2>FLASTALへようこそ！</h2>
+        <p>${handleName} 様</p>
+        <p>会員登録ありがとうございます。これからFLASTALで素敵な推し活ライフをお楽しみください！</p>
+        <p><a href="${process.env.FRONTEND_URL}/login">ログインはこちら</a></p>
+      </div>
+    `;
+    await sendEmail(email, '【FLASTAL】会員登録完了のお知らせ', emailContent);
+
+    res.status(201).json({ message: 'ユーザー登録が完了しました。', user: userWithoutPassword });
+  } catch (error) {
+    if (error.code === 'P2002') return res.status(409).json({ message: 'このメールアドレスは既に使用されています。' });
+    console.error('ユーザー登録エラー:', error);
+    res.status(500).json({ message: 'サーバーエラーが発生しました。' });
+  }
 });
 
 app.post('/api/users/login', async (req, res) => {
@@ -384,6 +417,17 @@ app.post('/api/projects', authenticateToken, async (req, res) => { // ★ authen
       },
     });
     
+    // ★★★ 【追加】申請受付メール送信 ★★★
+    const emailContent = `
+      <p>${req.user.handleName} 様</p>
+      <p>企画「${title}」の申請を受け付けました。</p>
+      <p>運営事務局にて内容を確認いたします。審査結果が出るまで今しばらくお待ちください。</p>
+    `;
+    await sendEmail(req.user.email, '【FLASTAL】企画申請を受け付けました', emailContent);
+    
+    // ★ 管理者にも通知メールを送ると便利です
+    // await sendEmail('admin@flastal.com', '【管理】新規企画申請あり', `新しい企画「${title}」が申請されました。`);
+
     res.status(201).json({ project: newProject, message: '企画の作成申請が完了しました。運営による審査をお待ちください。' });
   } catch (error) {
     console.error('企画作成エラー:', error);
@@ -681,26 +725,68 @@ app.patch('/api/notifications/:notificationId/read', authenticateToken, async (r
   }
 });
 
-// ★★★【新規】管理者向けAPI(2): 企画のステータスを更新 (承認/却下) ★★★
 app.patch('/api/admin/projects/:projectId/status', requireAdmin, async (req, res) => {
-  const { projectId } = req.params;
-  const { status } = req.body; // 'FUNDRAISING' (承認) or 'REJECTED' (却下)
+  const { projectId } = req.params;
+  const { status } = req.body;
 
-  // ステータスが正しいか検証
-  if (status !== 'FUNDRAISING' && status !== 'REJECTED') {
-    return res.status(400).json({ message: '無効なステータスです。' });
-  }
-  
-  try {
-    const updatedProject = await prisma.project.update({
-      where: { id: projectId },
-      data: { status: status },
-    });
-    res.status(200).json(updatedProject);
-  } catch (error) {
-    console.error("企画ステータスの更新エラー:", error);
-    res.status(500).json({ message: 'ステータスの更新に失敗しました。' });
-  }
+  if (status !== 'FUNDRAISING' && status !== 'REJECTED') {
+    return res.status(400).json({ message: '無効なステータスです。' });
+  }
+  
+  try {
+    // 企画者情報を一緒に取得する
+    const project = await prisma.project.findUnique({ 
+      where: { id: projectId },
+      include: { planner: true } 
+    });
+
+    const updatedProject = await prisma.project.update({
+      where: { id: projectId },
+      data: { status: status },
+    });
+
+    // ★★★ 【追加】審査結果メール送信 ★★★
+    if (status === 'FUNDRAISING') {
+      // 承認時
+      await createNotification(
+        project.plannerId,
+        'PROJECT_APPROVED',
+        '企画が承認され、公開されました！',
+        projectId,
+        `/projects/${projectId}`
+      );
+      
+      const emailContent = `
+        <p>${project.planner.handleName} 様</p>
+        <p>おめでとうございます！企画「${project.title}」が承認され、公開されました。</p>
+        <p>以下のURLをシェアして、支援を募りましょう！</p>
+        <p><a href="${process.env.FRONTEND_URL}/projects/${projectId}">${process.env.FRONTEND_URL}/projects/${projectId}</a></p>
+      `;
+      await sendEmail(project.planner.email, '【FLASTAL】企画が公開されました！', emailContent);
+
+    } else if (status === 'REJECTED') {
+      // 却下時
+      await createNotification(
+        project.plannerId,
+        'PROJECT_REJECTED',
+        '企画が承認されませんでした。詳細をご確認ください。',
+        projectId,
+        `/mypage`
+      );
+
+      const emailContent = `
+        <p>${project.planner.handleName} 様</p>
+        <p>残念ながら、企画「${project.title}」は承認されませんでした。</p>
+        <p>企画内容を見直し、再度申請をご検討ください。</p>
+      `;
+      await sendEmail(project.planner.email, '【FLASTAL】企画審査結果のお知らせ', emailContent);
+    }
+
+    res.status(200).json(updatedProject);
+  } catch (error) {
+    console.error("企画ステータスの更新エラー:", error);
+    res.status(500).json({ message: 'ステータスの更新に失敗しました。' });
+  }
 });
 
 // ★★★ 支援API (通知機能とJWT認証を組み込み) ★★★
@@ -755,6 +841,17 @@ app.post('/api/pledges', authenticateToken, async (req, res) => {
         where: { id: projectId },
         data: { collectedAmount: { increment: pledgeAmount } },
       });
+
+      // ★★★ 【追加】1. 支援者へのお礼メール（決済控え） ★★★
+      const supporterEmailContent = `
+        <p>${user.handleName} 様</p>
+        <p>企画「${project.title}」への支援ありがとうございます。</p>
+        <p><strong>支援額: ${pledgeAmount.toLocaleString()} pt</strong></p>
+        <p>企画の成功を楽しみにお待ちください！</p>
+      `;
+      // トランザクション内なのでawaitしない方がパフォーマンスが良いが、簡略化のためここで呼ぶ
+      // (本来はイベントキューに入れるのがベスト)
+      sendEmail(user.email, '【FLASTAL】支援受付完了のお知らせ', supporterEmailContent);
       
       // ↓↓↓ 【通知追加】企画者に新しい支援があったことを通知 ↓↓↓
       await createNotification(
@@ -767,13 +864,34 @@ app.post('/api/pledges', authenticateToken, async (req, res) => {
       // ↑↑↑ 通知追加 ↑↑↑
 
       // 目標達成チェック
-      if (updatedProject.collectedAmount >= updatedProject.targetAmount && updatedProject.status !== 'SUCCESSFUL') {
-        await tx.project.update({
-          where: { id: projectId },
-          data: { status: 'SUCCESSFUL' },
-        });
-        console.log(`Project ${projectId} has successfully reached its funding goal!`);
-      }
+      if (updatedProject.collectedAmount >= updatedProject.targetAmount && project.status !== 'SUCCESSFUL') {
+        // ステータスをSUCCESSFULに更新
+        await tx.project.update({
+          where: { id: projectId },
+          data: { status: 'SUCCESSFUL' },
+        });
+
+        // A. 企画者へのお祝いメール
+        const successEmailPlanner = `
+          <p>${project.planner.handleName} 様</p>
+          <p>おめでとうございます！企画「${project.title}」が目標金額を達成しました！</p>
+          <p>現在のご支援総額: ${updatedProject.collectedAmount.toLocaleString()} pt</p>
+        `;
+        sendEmail(project.planner.email, '【FLASTAL】目標金額達成のお祝い', successEmailPlanner);
+        
+        // B. 支援者全員への通知（※人数が多い場合はバックグラウンド処理にすべき箇所）
+        // ここでは簡易的に全支援者を取得してループ送信する例
+        const allPledges = await tx.pledge.findMany({ 
+            where: { projectId }, 
+            include: { user: true },
+            distinct: ['userId'] // 重複ユーザーを除外
+        });
+        
+        for (const p of allPledges) {
+            sendEmail(p.user.email, `【FLASTAL】支援した企画が目標を達成しました！`, 
+                `<p>あなたが支援した「${project.title}」が目標金額を達成しました！開催決定です！</p>`);
+        }
+      }
       return { newPledge };
     });
     res.status(201).json(result);
@@ -1910,11 +2028,14 @@ app.post('/api/announcements', authenticateToken, async (req, res) => { // ★ a
       },
     });
 
-    // ↓↓↓ 【通知追加】全ての支援者に通知 ↓↓↓
-    const pledges = await prisma.pledge.findMany({ 
-      where: { projectId }, 
-      select: { userId: true } 
-    });
+    const pledges = await prisma.pledge.findMany({ 
+      where: { projectId }, 
+      include: { user: true },
+      distinct: ['userId'] 
+    });
+
+    for (const pledge of pledges) {
+      if (pledge.userId !== userId) {
     
     // 重複を排除した支援者IDリストを取得
     const uniqueUserIds = [...new Set(pledges.map(p => p.userId))];
@@ -1928,6 +2049,16 @@ app.post('/api/announcements', authenticateToken, async (req, res) => { // ★ a
           projectId,
           `/projects/${projectId}`
         );
+        // メール送信
+        const emailContent = `
+          <p>支援した企画「${project.title}」から新しいお知らせがあります。</p>
+          <hr />
+          <h3>${title}</h3>
+          <p>${content.substring(0, 100)}...</p>
+          <hr />
+          <a href="${process.env.FRONTEND_URL}/projects/${projectId}">詳細を見る</a>
+        `;
+        sendEmail(pledge.user.email, `【FLASTAL】新着のお知らせ: ${title}`, emailContent);
       }
     }
     // ↑↑↑ 通知追加 ↑↑↑
@@ -2582,6 +2713,22 @@ app.patch('/api/projects/:projectId/complete', async (req, res) => {
           planner: { select: { handleName: true } } // 例
       }
     });
+    // ★★★ 【追加】全支援者に完了報告メール ★★★
+    const pledges = await prisma.pledge.findMany({ 
+      where: { projectId }, 
+      include: { user: true },
+      distinct: ['userId'] 
+    });
+
+    for (const pledge of pledges) {
+       const emailContent = `
+         <p>企画「${project.title}」が完了しました！</p>
+         <p>企画者より完了報告と収支報告が投稿されています。</p>
+         <p><strong>企画者コメント:</strong><br/>${completionComment}</p>
+         <p><a href="${process.env.FRONTEND_URL}/projects/${projectId}">完了報告ページを見る</a></p>
+       `;
+       sendEmail(pledge.user.email, '【FLASTAL】企画完了のご報告', emailContent);
+    }
 
     // 成功レスポンス
     res.status(200).json(completedProject);
@@ -2624,6 +2771,11 @@ app.patch('/api/projects/:projectId/cancel', authenticateToken, async (req, res)
         where: { id: projectId },
         data: { status: 'CANCELED' },
       });
+      const pledges = await prisma.pledge.findMany({
+          where: { projectId },
+          include: { user: true },
+          distinct: ['userId']
+      });
 
       // ↓↓↓ 【通知追加】全ての支援者に中止を通知 ↓↓↓
       for (const id of uniquePledgerIds) {
@@ -2635,6 +2787,12 @@ app.patch('/api/projects/:projectId/cancel', authenticateToken, async (req, res)
             projectId,
             `/projects/${projectId}`
           );
+          const emailContent = `
+             <p>誠に残念ながら、企画「${project.title}」は中止されました。</p>
+             <p>これに伴い、支援いただいたポイントは全額返金（ポイント返還）いたしました。</p>
+             <p>現在のポイント残高はマイページよりご確認ください。</p>
+           `;
+           sendEmail(pledge.user.email, '【重要】企画中止と返金のお知らせ', emailContent);
         }
       }
       // ↑↑↑ 通知追加 ↑↑↑
