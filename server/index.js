@@ -1436,33 +1436,41 @@ app.post('/api/venues/login', async (req, res) => {
 });
 
 
-app.get('/api/florists/:floristId/dashboard', async (req, res) => {
-  const { floristId } = req.params;
-  try {
-    const florist = await prisma.florist.findUnique({
-      where: { id: floristId },
-    });
-    if (!florist) {
-      return res.status(404).json({ message: 'お花屋さんが見つかりません。' });
-    }
-    const offers = await prisma.offer.findMany({
-      where: { floristId: floristId },
-      include: {
-        project: {
-          include: {
-            planner: true,
-          },
-        },
-        chatRoom: true,
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-    const { password, ...floristData } = florist;
-    res.status(200).json({ florist: floristData, offers });
-  } catch (error) {
-    console.error('ダッシュボードデータ取得エラー:', error);
-    res.status(500).json({ message: 'データの取得中にエラーが発生しました。' });
-  }
+// ★★★ お花屋さんダッシュボードAPI (修正版) ★★★
+app.get('/api/florists/dashboard', authenticateToken, async (req, res) => { // :floristId を削除、authenticateTokenを追加
+  const floristId = req.user.id; // URLパラメータではなく、トークンから自分のIDを取得
+
+  if (req.user.role !== 'FLORIST') {
+      return res.status(403).json({ message: '権限がありません。お花屋さんアカウントでログインしてください。' });
+  }
+
+  try {
+    const florist = await prisma.florist.findUnique({
+      where: { id: floristId },
+    });
+    if (!florist) {
+      return res.status(404).json({ message: 'お花屋さんが見つかりません。' });
+    }
+    
+    const offers = await prisma.offer.findMany({
+      where: { floristId: floristId },
+      include: {
+        project: {
+          include: {
+            planner: { select: { id: true, handleName: true, iconUrl: true } }, 
+          },
+        },
+        chatRoom: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const { password, ...floristData } = florist;
+    res.status(200).json({ florist: floristData, offers });
+  } catch (error) {
+    console.error('ダッシュボードデータ取得エラー:', error);
+    res.status(500).json({ message: 'データの取得中にエラーが発生しました。' });
+  }
 });
 
 // ★★★ オファーへの回答 (承諾/拒否) API (JWT対応: お花屋さんのみ実行可能) ★★★
