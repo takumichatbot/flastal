@@ -2695,6 +2695,11 @@ app.patch('/api/projects/:projectId/cancel', authenticateToken, async (req, res)
   const { projectId } = req.params;
   const userId = req.user.id; 
 
+  // ★★★ デバッグ用ログ出力 (ここがログに出るか確認してください) ★★★
+  console.log(`▼▼▼ Cancel Request Debug ▼▼▼`);
+  console.log(`Logged in User ID: ${userId}`);
+  console.log(`Target Project ID: ${projectId}`);
+
   try {
     const result = await prisma.$transaction(async (tx) => {
       const project = await tx.project.findUnique({
@@ -2702,16 +2707,28 @@ app.patch('/api/projects/:projectId/cancel', authenticateToken, async (req, res)
         include: { pledges: true }
       });
       
-      if (!project) throw new Error('企画が見つかりません。');
-      if (project.plannerId !== userId) throw new Error('権限がありません。');
+      if (!project) {
+        console.log(`Error: Project not found.`);
+        throw new Error('企画が見つかりません。');
+      }
+
+      // ★★★ 企画者のIDと比較 ★★★
+      console.log(`Project Planner ID : ${project.plannerId}`);
+      if (project.plannerId !== userId) {
+        console.log(`❌ MISMATCH: Logged in user is NOT the planner.`);
+        // ここであえて 403 を返すように明示します
+        throw new Error('FORBIDDEN_ACCESS'); 
+      } else {
+        console.log(`✅ MATCH: User is the planner.`);
+      }
+
       if (project.status === 'COMPLETED' || project.status === 'CANCELED') {
         throw new Error('この企画は既に完了または中止されているため、中止できません。');
       }
       
-      const uniquePledgerIds = new Set(); // 通知対象の支援者IDを格納
+      const uniquePledgerIds = new Set(); 
 
       for (const pledge of project.pledges) {
-        // ポイント返還処理
         await tx.user.update({
           where: { id: pledge.userId },
           data: { points: { increment: pledge.amount } }
@@ -2724,10 +2741,8 @@ app.patch('/api/projects/:projectId/cancel', authenticateToken, async (req, res)
         data: { status: 'CANCELED' },
       });
 
-      // ★★★ 【追加】全ての支援者に中止を通知 & メール ★★★
       for (const id of uniquePledgerIds) {
         if (id !== userId) {
-          // サイト内通知
           await createNotification(
             id,
             'PROJECT_STATUS_UPDATE',
@@ -2736,7 +2751,6 @@ app.patch('/api/projects/:projectId/cancel', authenticateToken, async (req, res)
             `/projects/${projectId}`
           );
 
-          // メール送信のためにユーザー情報を取得
           const userToNotify = await tx.user.findUnique({ where: { id } });
           if (userToNotify) {
              const emailContent = `
@@ -2744,18 +2758,25 @@ app.patch('/api/projects/:projectId/cancel', authenticateToken, async (req, res)
                <p>これに伴い、支援いただいたポイントは全額返金（ポイント返還）いたしました。</p>
                <p>現在のポイント残高はマイページよりご確認ください。</p>
              `;
-             sendEmail(userToNotify.email, '【重要】企画中止と返金のお知らせ', emailContent);
+             // エラー無視で送信
+             sendEmail(userToNotify.email, '【重要】企画中止と返金のお知らせ', emailContent).catch(e => console.error(e));
           }
         }
       }
 
       return canceledProject;
-    }); // ★ ここでトランザクション終了
+    }); 
 
     res.status(200).json({ message: '企画を中止し、すべての支援者にポイントが返金されました。', project: result });
 
-  } catch (error) { // ★ ここで try 終了。この直前の } が重要です
-    console.error("企画の中止処理エラー:", error);
+  } catch (error) { 
+    console.error("企画の中止処理エラー:", error.message);
+    
+    // 権限エラーの場合は 403 を返す
+    if (error.message === 'FORBIDDEN_ACCESS') {
+        return res.status(403).json({ message: '権限がありません。企画者本人ではありません。' });
+    }
+    
     res.status(400).json({ message: error.message || '企画の中止処理中にエラーが発生しました。' });
   }
 });
