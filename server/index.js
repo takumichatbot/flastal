@@ -364,19 +364,18 @@ app.get('/api/chat/:roomId', async (req, res) => {
   }
 });
 
-// ★★★ 企画作成API (JWT対応) ★★★
-app.post('/api/projects', authenticateToken, async (req, res) => { // ★ authenticateToken を追加
+// ★★★ 企画作成API (JWT対応・メール通知付き) ★★★
+app.post('/api/projects', authenticateToken, async (req, res) => {
   try {
     const { 
       title, description, targetAmount, 
       deliveryAddress, deliveryDateTime, 
-      // plannerId, // ❌ 削除: ボディからは受け取らない（なりすまし防止）
       imageUrl, designDetails, size, flowerTypes,
       visibility, 
       venueId 
     } = req.body;
 
-    const plannerId = req.user.id; // ✅ トークンからユーザーIDを取得
+    const plannerId = req.user.id;
 
     const deliveryDate = new Date(deliveryDateTime);
     if (isNaN(deliveryDate.getTime())) {
@@ -424,12 +423,10 @@ app.post('/api/projects', authenticateToken, async (req, res) => { // ★ authen
       <p>運営事務局にて内容を確認いたします。審査結果が出るまで今しばらくお待ちください。</p>
     `;
     await sendEmail(req.user.email, '【FLASTAL】企画申請を受け付けました', emailContent);
-    
-    // ★ 管理者にも通知メールを送ると便利です
-    // await sendEmail('admin@flastal.com', '【管理】新規企画申請あり', `新しい企画「${title}」が申請されました。`);
 
     res.status(201).json({ project: newProject, message: '企画の作成申請が完了しました。運営による審査をお待ちください。' });
-  } catch (error) {
+
+  } catch (error) { // ★ ここでエラーが出ていました。直前の } が必要です
     console.error('企画作成エラー:', error);
     res.status(500).json({ message: '企画の作成中にエラーが発生しました。' });
   }
