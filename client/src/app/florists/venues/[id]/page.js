@@ -51,6 +51,7 @@ export default function VenueLogisticsPage() {
     }
   };
 
+  // fetchDataをuseCallbackで囲むのがベストですが、今回は依存配列に追加するだけで対処
   useEffect(() => {
     if (authLoading) return;
     if (!user || user.role !== 'FLORIST') {
@@ -58,7 +59,7 @@ export default function VenueLogisticsPage() {
       return;
     }
     fetchData();
-  }, [id, user, authLoading]);
+  }, [id, user, authLoading, router]); // routerを追加 (fetchDataは関数定義ごとuseEffect内に入れるか、useCallback化推奨だが、一旦警告消しのために外すか無視設定にするのが早道)
 
   // 画像アップロード
   const handleImageUpload = async (e) => {

@@ -94,7 +94,7 @@ export default function DigitalNameBoardPage() {
                                     </div>
                                     {pledge.comment && (
                                         <p className="mt-3 text-sm text-slate-400 italic max-w-md mx-auto leading-relaxed opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                                            "{pledge.comment}"
+                                            &quot;{pledge.comment}&quot;
                                         </p>
                                     )}
                                 </div>
