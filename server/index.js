@@ -1371,6 +1371,88 @@ app.get('/api/florists/payouts', authenticateToken, async (req, res) => { // URL
     }
   });
 
+
+// ★★★ お花屋さんダッシュボードAPI (修正版) ★★★
+app.get('/api/florists/dashboard', authenticateToken, async (req, res) => { // :floristId を削除、authenticateTokenを追加
+  const floristId = req.user.id; // URLパラメータではなく、トークンから自分のIDを取得
+
+  if (req.user.role !== 'FLORIST') {
+      return res.status(403).json({ message: '権限がありません。お花屋さんアカウントでログインしてください。' });
+  }
+
+  try {
+    const florist = await prisma.florist.findUnique({
+      where: { id: floristId },
+    });
+    if (!florist) {
+      return res.status(404).json({ message: 'お花屋さんが見つかりません。' });
+    }
+    
+    const offers = await prisma.offer.findMany({
+      where: { floristId: floristId },
+      include: {
+        project: {
+          include: {
+            planner: { select: { id: true, handleName: true, iconUrl: true } }, 
+          },
+        },
+        chatRoom: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const { password, ...floristData } = florist;
+    res.status(200).json({ florist: floristData, offers });
+  } catch (error) {
+    console.error('ダッシュボードデータ取得エラー:', error);
+    res.status(500).json({ message: 'データの取得中にエラーが発生しました。' });
+  }
+});
+
+// ★★★【新規】お花屋さん用スケジュール取得API ★★★
+app.get('/api/florists/schedule', authenticateToken, async (req, res) => {
+  const floristId = req.user.id; // user.id が floristId と一致する前提
+
+  try {
+    // 承諾済み(ACCEPTED)のオファーに紐づく企画を取得
+    const offers = await prisma.offer.findMany({
+      where: {
+        floristId: floristId,
+        status: 'ACCEPTED'
+      },
+      include: {
+        project: {
+          select: {
+            id: true,
+            title: true,
+            deliveryDateTime: true, // 納品日時
+            deliveryAddress: true,
+            venue: { select: { venueName: true } },
+            productionStatus: true
+          }
+        }
+      },
+      orderBy: {
+        project: { deliveryDateTime: 'asc' }
+      }
+    });
+
+    // カレンダー表示用にデータを整形
+    const events = offers.map(offer => ({
+      id: offer.project.id,
+      title: offer.project.title,
+      date: offer.project.deliveryDateTime,
+      location: offer.project.venue?.venueName || offer.project.deliveryAddress,
+      status: offer.project.productionStatus
+    }));
+
+    res.json(events);
+  } catch (error) {
+    console.error("スケジュール取得エラー:", error);
+    res.status(500).json({ message: 'スケジュールの取得に失敗しました' });
+  }
+});
+
 app.get('/api/florists/:id', async (req, res) => {
   const { id } = req.params;
   try {
@@ -1606,45 +1688,6 @@ app.post('/api/venues/login', async (req, res) => {
   } catch (error) {
     console.error('会場ログインエラー:', error);
     res.status(500).json({ message: 'サーバーエラーが発生しました。' });
-  }
-});
-
-
-// ★★★ お花屋さんダッシュボードAPI (修正版) ★★★
-// ※ :floristId は不要です。トークンからIDを取ります。
-app.get('/api/florists/dashboard', authenticateToken, async (req, res) => {
-  const floristId = req.user.id; 
-
-  if (req.user.role !== 'FLORIST') {
-      return res.status(403).json({ message: '権限がありません。' });
-  }
-
-  try {
-    const florist = await prisma.florist.findUnique({
-      where: { id: floristId },
-    });
-    if (!florist) {
-      return res.status(404).json({ message: 'お花屋さんが見つかりません。' });
-    }
-    
-    const offers = await prisma.offer.findMany({
-      where: { floristId: floristId },
-      include: {
-        project: {
-          include: {
-            planner: { select: { id: true, handleName: true, iconUrl: true } }, 
-          },
-        },
-        chatRoom: true,
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-
-    const { password, ...floristData } = florist;
-    res.status(200).json({ florist: floristData, offers });
-  } catch (error) {
-    console.error('ダッシュボードデータ取得エラー:', error);
-    res.status(500).json({ message: 'データの取得中にエラーが発生しました。' });
   }
 });
 
@@ -3654,50 +3697,6 @@ async function sendPushNotification(userId, title, body, url = '/') {
 app.post('/api/push/test', authenticateToken, async (req, res) => {
   await sendPushNotification(req.user.id, 'テスト通知', 'これはFLASTALからのテスト通知です！', '/mypage');
   res.json({ message: '送信しました' });
-});
-
-// ★★★【新規】お花屋さん用スケジュール取得API ★★★
-app.get('/api/florists/schedule', authenticateToken, async (req, res) => {
-  const floristId = req.user.id; // user.id が floristId と一致する前提
-
-  try {
-    // 承諾済み(ACCEPTED)のオファーに紐づく企画を取得
-    const offers = await prisma.offer.findMany({
-      where: {
-        floristId: floristId,
-        status: 'ACCEPTED'
-      },
-      include: {
-        project: {
-          select: {
-            id: true,
-            title: true,
-            deliveryDateTime: true, // 納品日時
-            deliveryAddress: true,
-            venue: { select: { venueName: true } },
-            productionStatus: true
-          }
-        }
-      },
-      orderBy: {
-        project: { deliveryDateTime: 'asc' }
-      }
-    });
-
-    // カレンダー表示用にデータを整形
-    const events = offers.map(offer => ({
-      id: offer.project.id,
-      title: offer.project.title,
-      date: offer.project.deliveryDateTime,
-      location: offer.project.venue?.venueName || offer.project.deliveryAddress,
-      status: offer.project.productionStatus
-    }));
-
-    res.json(events);
-  } catch (error) {
-    console.error("スケジュール取得エラー:", error);
-    res.status(500).json({ message: 'スケジュールの取得に失敗しました' });
-  }
 });
 
 
