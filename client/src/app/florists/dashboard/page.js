@@ -191,7 +191,11 @@ export default function FloristDashboardPage() {
 
   // データ取得関数
   const fetchData = async () => {
-    if (!token) return;
+    // ★★★ 修正: トークンが無い、または "null" の場合は中断する ★★★
+    if (!token || token === 'null' || token === 'undefined') {
+        return;
+    }
+    
     setLoading(true);
     
     try {

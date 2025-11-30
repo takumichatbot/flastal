@@ -1611,11 +1611,12 @@ app.post('/api/venues/login', async (req, res) => {
 
 
 // ★★★ お花屋さんダッシュボードAPI (修正版) ★★★
-app.get('/api/florists/dashboard', authenticateToken, async (req, res) => { // :floristId を削除、authenticateTokenを追加
-  const floristId = req.user.id; // URLパラメータではなく、トークンから自分のIDを取得
+// ※ :floristId は不要です。トークンからIDを取ります。
+app.get('/api/florists/dashboard', authenticateToken, async (req, res) => {
+  const floristId = req.user.id; 
 
   if (req.user.role !== 'FLORIST') {
-      return res.status(403).json({ message: '権限がありません。お花屋さんアカウントでログインしてください。' });
+      return res.status(403).json({ message: '権限がありません。' });
   }
 
   try {
