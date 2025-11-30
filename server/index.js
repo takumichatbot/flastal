@@ -617,7 +617,10 @@ app.get('/api/projects/:id', async (req, res) => {
            include: { user: { select: { id: true, handleName: true } } }
         },
         offer: { 
-            include: { florist: { select: { id: true, platformName: true } } }
+            include: { 
+               florist: { select: { id: true, platformName: true } },
+               chatRoom: true // ★★★ ここを追加！これがないとチャットIDが取れません ★★★
+             }
         },
         quotation: { 
             include: { items: true }
