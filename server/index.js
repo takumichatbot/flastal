@@ -319,18 +319,24 @@ app.post('/api/users/login', async (req, res) => {
 });
 
 app.get('/api/users/:userId/created-projects', async (req, res) => {
-  const { userId } = req.params;
-  try {
-    const projects = await prisma.project.findMany({
-      where: { plannerId: userId },
-      orderBy: { createdAt: 'desc' },
-      include: {
-        offer: true,
-        review: true,
-      }
-    });
-    res.status(200).json(projects);
-  } catch (error) {
+  const { userId } = req.params;
+  try {
+    const projects = await prisma.project.findMany({
+      where: { plannerId: userId },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        // ★★★ ここを変更：offerの中にある chatRoom と florist を取得する
+        offer: {
+          include: {
+            chatRoom: true, // ★ これが必要です
+            florist: true
+          }
+        },
+        review: true,
+      }
+    });
+    res.status(200).json(projects);
+  } catch (error) {
     console.error('「作成した企画」の取得でエラーが発生しました:', error);
     res.status(500).json({ message: '作成した企画の取得中にエラーが発生しました。' });
   }
@@ -1485,12 +1491,15 @@ app.get('/api/users/:userId/projects', async (req, res) => {
   const { userId } = req.params;
   try {
     const projects = await prisma.project.findMany({
-      where: { 
-        plannerId: userId,
-        offer: null,
-      },
-      orderBy: { createdAt: 'desc' }
-    });
+      orderBy: { createdAt: 'desc' },
+      include: { 
+        planner: { select: { handleName: true } },
+        // ★★★ 管理者もチャットへ飛べるように情報を追加
+        offer: {
+            include: { chatRoom: true }
+        }
+      }
+    });
     res.status(200).json(projects);
   } catch (error) {
     res.status(500).json({ message: '企画の取得中にエラーが発生しました。' });
