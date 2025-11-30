@@ -57,9 +57,9 @@ const httpServer = createServer(app);
 // CORS設定
 const allowedOrigins = [
   'http://localhost:3000',
-  process.env.FRONTEND_URL,      // Renderの環境変数で設定している場合
-  'https://www.flastal.com',     // ★★★ これを追加してください！ ★★★
-  'https://flastal.com'          // (念のためこれも入れておくと安心です)
+  process.env.FRONTEND_URL,
+  'https://www.flastal.com',
+  'https://flastal.com', // ★★★ これを追加して両方許可してください ★★★
 ].filter(Boolean);
 
 const corsOptions = {
