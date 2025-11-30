@@ -2,10 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import VenueRegulationCard from '../../components/VenueRegulationCard'; // ★ 追加済み
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
-// ▼▼▼ 修正箇所: パスを修正しました (../を1つ減らしました) ▼▼▼
 import { useAuth } from '../../contexts/AuthContext'; 
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
@@ -234,18 +234,27 @@ export default function FloristDashboardPage() {
                 <div className="space-y-4">
                   {pendingOffers.length > 0 ? pendingOffers.map(offer => (
                     <div key={offer.id} className="border border-slate-200 rounded-xl p-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:bg-slate-50 transition-colors">
-                      <div>
+                      <div className="flex-grow">
                         <div className="flex items-center gap-2 mb-1">
                             <span className="bg-yellow-100 text-yellow-800 text-xs px-2 py-0.5 rounded-full font-bold">依頼中</span>
                             <p className="text-xs text-gray-400">{new Date(offer.createdAt).toLocaleString('ja-JP')}</p>
                         </div>
                         <p className="font-bold text-lg text-gray-900">{offer.project.title}</p>
-                        <div className="flex items-center gap-2 mt-1">
+                        <div className="flex items-center gap-2 mt-1 mb-2">
                             {offer.project.planner?.iconUrl && <img src={offer.project.planner.iconUrl} alt="" className="w-5 h-5 rounded-full" />}
                             <p className="text-sm text-gray-600">企画者: {offer.project.planner?.handleName || '不明'}</p>
                         </div>
+                        
+                        {/* ▼▼▼ 追加: 会場レギュレーション情報を表示 ▼▼▼ */}
+                        {offer.project.venue && (
+                          <div className="mt-2 text-sm bg-white border border-slate-200 rounded p-3 max-w-xl">
+                             <VenueRegulationCard venue={offer.project.venue} />
+                          </div>
+                        )}
+                        {/* ▲▲▲ 追加ここまで ▲▲▲ */}
+
                       </div>
-                      <div className="flex gap-3 w-full md:w-auto">
+                      <div className="flex gap-3 w-full md:w-auto self-start md:self-center">
                         <Link href={`/projects/${offer.project.id}`} target="_blank" className="flex-1 md:flex-none text-center px-4 py-2 text-sm text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50">
                            詳細確認
                         </Link>

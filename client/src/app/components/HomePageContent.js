@@ -84,7 +84,7 @@ export default function HomePageContent() {
           </p>
           <div className="mt-10 flex items-center justify-center gap-x-6">
             <Link href="/projects">
-              <span className="rounded-full bg-sky-500 px-8 py-3 text-lg font-semibold text-white shadow-lg transition-all transform hover:scale-105 hover:shadow-sky-400 hover:shadow-[0_0_30px_theme(colors.sky.400)]">
+              <span className="rounded-full bg-sky-500 px-8 py-3 text-lg font-semibold text-white shadow-lg transition-all transform hover:scale-105 hover:shadow-sky-400 hover:shadow-[0_0_30px_theme(colors.sky.400)] cursor-pointer">
                 輝いている企画を探す
               </span>
             </Link>
@@ -300,9 +300,9 @@ export default function HomePageContent() {
             <span className="block">さあ、あなたの想いを形にしよう。</span>
           </h2>
           <div className="mt-8 flex justify-center">
-            <Link href="/projects/create">
-              <span className="inline-flex rounded-full shadow-lg">
-                <span className="inline-flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium text-white bg-sky-500 hover:bg-sky-600">
+            <Link href="/create">
+              <span className="inline-flex rounded-full shadow-lg cursor-pointer">
+                <span className="inline-flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium text-white bg-sky-500 hover:bg-sky-600 rounded-full transition-colors">
                   無料で企画を立てる
                 </span>
               </span>

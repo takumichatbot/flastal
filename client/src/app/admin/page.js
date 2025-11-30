@@ -65,9 +65,7 @@ export default function AdminPage() {
   // --- データ集計ロジック ---
   const totalCommission = commissions.reduce((sum, c) => sum + (c.amount || 0), 0);
   const transactionCount = commissions.length;
-  // 日付でソート（最新順）
   const sortedCommissions = [...commissions].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-  // 直近の履歴（表示用）
   const recentCommissions = sortedCommissions;
 
   return (
@@ -125,6 +123,14 @@ export default function AdminPage() {
           >
             プロジェクト審査
           </Link>
+          
+          {/* ★★★ 追加: 会場データベースへのリンク ★★★ */}
+          <Link 
+            href="/admin/venues"
+            className="px-4 py-2 text-sm font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors shadow-sm flex items-center"
+          >
+            🏢 会場DB管理
+          </Link>
         </nav>
 
         {/* --- KPIカードエリア (4カラム構成) --- */}
@@ -160,7 +166,7 @@ export default function AdminPage() {
             </div>
         </div>
 
-        {/* --- メインコンテンツエリア (2カラム: 左広め・右狭め) --- */}
+        {/* --- メインコンテンツエリア --- */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             
             {/* 左側カラム (2/3幅): 手数料履歴リスト */}
@@ -224,6 +230,15 @@ export default function AdminPage() {
                             <div>
                                 <h4 className="font-semibold text-slate-700 text-sm">プロジェクト審査</h4>
                                 <p className="text-xs text-slate-500">企画内容の確認</p>
+                            </div>
+                         </Link>
+                         
+                         {/* ★★★ 追加: こちらにもリンクを追加 ★★★ */}
+                         <Link href="/admin/venues" className="flex items-center p-3 rounded-lg bg-slate-50 hover:bg-slate-100 transition-colors">
+                            <span className="text-2xl mr-3">🏢</span>
+                            <div>
+                                <h4 className="font-semibold text-slate-700 text-sm">会場データベース</h4>
+                                <p className="text-xs text-slate-500">レギュレーション情報の管理</p>
                             </div>
                          </Link>
                     </div>

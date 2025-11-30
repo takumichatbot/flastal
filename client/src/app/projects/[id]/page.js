@@ -7,6 +7,7 @@ import { useForm } from 'react-hook-form';
 import { io } from 'socket.io-client';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
+import VenueRegulationCard from '../../components/VenueRegulationCard';
 
 // ★ アイコンのインポートを追加
 import { FiHeart, FiThumbsUp, FiMessageSquare, FiInfo, FiUser, FiSend, FiCheckCircle } from 'react-icons/fi'; 
@@ -837,6 +838,14 @@ export default function ProjectDetailPage() {
                 <h2 className="text-2xl font-semibold text-gray-800 mb-2">企画の詳細</h2>
                 <p className="text-gray-700 whitespace-pre-wrap">{project.description}</p>
               </div>
+
+              {/* ▼▼▼ 修正箇所：新しいコンポーネントを配置 ▼▼▼ */}
+              {project.venue && (
+                <div className="mt-8">
+                   <VenueRegulationCard venue={project.venue} />
+                </div>
+              )}
+              {/* ▲▲▲ 修正箇所ここまで ▲▲▲ */}
               
               {/* ★★★【新規追加】会場レギュレーション表示エリア ★★★ */}
               {venue && (
