@@ -14,18 +14,20 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  // ★ ユーザー情報をセットする共通関数 (さらに改良版)
+  // ★ ユーザー情報をセットする共通関数
   const setupUser = (newToken) => {
     if (!newToken) return false;
 
-    // ★★★ 修正ポイント: トークンのクリーニング ★★★
-    // 余計なダブルクォーテーションを取り除く
-    const rawToken = newToken.replace(/^"|"$/g, '');
+    // ★★★ 修正: "null" や "undefined" という文字列を除外する ★★★
+    let rawToken = newToken.replace(/^"|"$/g, '');
+    if (rawToken === 'null' || rawToken === 'undefined' || rawToken === '') {
+      logout(); // 無効なトークンならログアウト処理へ
+      return false;
+    }
 
     try {
       const decoded = jwtDecode(rawToken);
       
-      // 役割に応じて「表示名」を統一的に handleName にセットする
       let displayName = decoded.handleName;
       if (decoded.role === 'FLORIST') displayName = decoded.shopName;
       if (decoded.role === 'VENUE') displayName = decoded.venueName;
@@ -34,10 +36,9 @@ export function AuthProvider({ children }) {
         id: decoded.id,
         email: decoded.email,
         role: decoded.role,
-        handleName: displayName, // フロントエンドの表示用
+        handleName: displayName,
         iconUrl: decoded.iconUrl,
         referralCode: decoded.referralCode,
-        // 元のフィールドも保持しておく
         shopName: decoded.shopName,
         venueName: decoded.venueName,
         sub: decoded.sub 
@@ -48,10 +49,7 @@ export function AuthProvider({ children }) {
       return true;
     } catch (error) {
       console.error("Failed to decode token:", error);
-      // トークンが無効なら強制ログアウト（無限ループ防止のため、ここではrouter.pushしない）
-      setUser(null);
-      setToken(null);
-      localStorage.removeItem('authToken');
+      logout();
       return false;
     }
   };
@@ -83,8 +81,8 @@ export function AuthProvider({ children }) {
     setUser(null);
     setToken(null);
     localStorage.removeItem('authToken');
-    localStorage.removeItem('flastal-florist'); // 古いキーの掃除
-    router.push('/login');
+    localStorage.removeItem('flastal-florist');
+    router.push('/florists/login'); // ログインページへ強制移動
   };
   
   const register = async (email, password, handleName) => {
