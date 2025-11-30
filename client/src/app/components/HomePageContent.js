@@ -37,7 +37,6 @@ export default function HomePageContent() {
     backgroundColor: '#ffffff',
   };
   
-  // ★★★ ご利用フローのデータを5ステップに更新 ★★★
   const usageSteps = [
     {
       step: '01',
@@ -111,7 +110,6 @@ export default function HomePageContent() {
             <dl className="grid max-w-xl grid-cols-1 gap-x-8 gap-y-10 lg:max-w-none lg:grid-cols-3 lg:gap-y-16">
               <div className="relative pl-16">
                 <dt className="text-base font-semibold leading-7 text-gray-900"><div className="absolute left-0 top-0 flex h-10 w-10 items-center justify-center rounded-lg bg-sky-500"><span className="text-white text-xl">💎</span></div>お金の管理</dt>
-                {/* ★★★ 返金についての文言を追加 ★★★ */}
                 <dd className="mt-2 text-base leading-7 text-gray-600">ポイント決済で集金も支払いも安全・簡単。万が一企画が中止になってもポイントは全額返金。収支報告機能で、お金の流れはいつでもクリスタルのように透明です。</dd>
               </div>
               <div className="relative pl-16">
@@ -149,7 +147,6 @@ export default function HomePageContent() {
             </p>
           </div>
           <div className="mx-auto mt-16 max-w-2xl sm:mt-20 lg:mt-24 lg:max-w-none">
-            {/* ★★★ 5ステップ表示に対応 ★★★ */}
             <dl className="grid grid-cols-1 gap-y-16 md:grid-cols-3 lg:grid-cols-5 md:gap-x-8">
               {usageSteps.map((step) => (
                 <div key={step.title} className="flex flex-col items-center md:items-start text-center md:text-left">
@@ -183,7 +180,6 @@ export default function HomePageContent() {
             <div className="text-center">
               <FeatureIcon><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="m12 2 4.25 4.25-1.5 1.5-2.75-2.75-2.75 2.75-1.5-1.5L12 2zM2 12l4.25 4.25 1.5-1.5L5 12l2.75-2.75-1.5-1.5L2 12zm20 0-4.25-4.25-1.5 1.5L19 12l-2.75 2.75 1.5 1.5L22 12zM12 22l-4.25-4.25 1.5-1.5 2.75 2.75 2.75-2.75 1.5 1.5L12 22z"/></svg></FeatureIcon>
               <h3 className="mt-6 text-xl font-semibold leading-7 text-gray-900">企画のスムーズな進行</h3>
-              {/* ★★★ 中止・返金機能を追加 ★★★ */}
               <ul className="mt-4 space-y-2 text-base leading-7 text-gray-600"><li className="flex gap-x-3"><CheckIcon /><span>企画作成＆支援募集</span></li><li className="flex gap-x-3"><CheckIcon /><span>ToDoリストによる進捗管理</span></li><li className="flex gap-x-3"><CheckIcon /><span>透明性の高い収支報告</span></li><li className="flex gap-x-3"><CheckIcon /><span>安全な中止＆返金機能</span></li></ul>
             </div>
             <div className="text-center">
@@ -194,7 +190,6 @@ export default function HomePageContent() {
             <div className="text-center">
               <FeatureIcon><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M11 20A7 7 0 0 1 4 13v0a7 7 0 0 1 7-7v0a7 7 0 0 1 7 7v0a7 7 0 0 1-7 7z"/><path d="M11 20v2M11 4V2M4 13H2M20 13h-2"/></svg></FeatureIcon>
               <h3 className="mt-6 text-xl font-semibold leading-7 text-gray-900">輝くコミュニティ機能</h3>
-              {/* ★★★ 完成報告機能を追加 ★★★ */}
               <ul className="mt-4 space-y-2 text-base leading-7 text-gray-600"><li className="flex gap-x-3"><CheckIcon /><span>リアルタイム・グループチャット</span></li><li className="flex gap-x-3"><CheckIcon /><span>企画をまとめるアンケート</span></li><li className="flex gap-x-3"><CheckIcon /><span>想いを集める寄せ書き機能</span></li><li className="flex gap-x-3"><CheckIcon /><span>完成写真の共有ギャラリー</span></li></ul>
             </div>
           </div>
@@ -223,12 +218,13 @@ export default function HomePageContent() {
       {/* 8. よくある質問セクション */}
       <Faq />
 
-      {/* 9. パートナー募集セクション（お花屋さん・会場向け） - 修正版 */}
+      {/* 9. パートナー募集セクション（3者向けに更新） */}
       <section className="py-24 bg-slate-900 text-white relative overflow-hidden">
         {/* 背景装飾 */}
         <div className="absolute top-0 left-0 w-full h-full overflow-hidden opacity-20 pointer-events-none">
           <div className="absolute -top-24 -right-24 w-96 h-96 bg-pink-500 rounded-full blur-3xl"></div>
           <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-500 rounded-full blur-3xl"></div>
+          <div className="absolute top-1/2 left-1/2 w-80 h-80 bg-indigo-500 rounded-full blur-3xl transform -translate-x-1/2"></div>
         </div>
 
         <div className="container mx-auto px-6 relative z-10">
@@ -238,12 +234,14 @@ export default function HomePageContent() {
               新しい「推し花」体験を一緒に作りませんか？
             </h2>
             <p className="text-slate-300 max-w-2xl mx-auto">
-              お花屋さんの技術と、会場の空間を最大限に活かし、
-              ファンの想いを形にするパートナーを募集しています。
+              お花屋さんの技術、会場の空間、そして公式のイベント情報。<br/>
+              それぞれをつなぎ、ファンの想いを形にするパートナーを募集しています。
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+          {/* ★★★ 3カラムに変更 ★★★ */}
+          <div className="grid md:grid-cols-3 gap-6 max-w-7xl mx-auto">
+            
             {/* お花屋さん向けカード */}
             <div className="bg-white/10 backdrop-blur-sm border border-white/10 rounded-2xl p-8 hover:bg-white/15 transition-all duration-300 flex flex-col">
               <div className="mb-6">
@@ -252,9 +250,8 @@ export default function HomePageContent() {
                 </span>
                 <h3 className="text-2xl font-bold mb-2">お花屋さんの方へ</h3>
                 <p className="text-slate-300 text-sm leading-relaxed">
-                  クラウドファンディング形式だから、予算や納期が明確。
+                  予算や納期が明確なクラウドファンディング形式。
                   あなたのデザインセンスを活かして、ファンと一緒に最高のフラスタを作り上げましょう。
-                  在庫ロスを減らし、新しい顧客層へリーチできます。
                 </p>
               </div>
               <div className="mt-auto grid grid-cols-2 gap-4">
@@ -276,8 +273,7 @@ export default function HomePageContent() {
                 <h3 className="text-2xl font-bold mb-2">イベント会場の方へ</h3>
                 <p className="text-slate-300 text-sm leading-relaxed">
                   搬入出のトラブルやレギュレーション違反を未然に防ぎます。
-                  公式に登録することで、スムーズな運営管理が可能に。
-                  施設公認のフラスタ受付で、イベントの満足度を高めましょう。
+                  施設公認のフラスタ受付で、スムーズな運営管理とイベント満足度の向上を実現します。
                 </p>
               </div>
               <div className="mt-auto grid grid-cols-2 gap-4">
@@ -289,6 +285,29 @@ export default function HomePageContent() {
                 </Link>
               </div>
             </div>
+
+            {/* ★★★ 主催者向けカード（新規追加） ★★★ */}
+            <div className="bg-white/10 backdrop-blur-sm border border-white/10 rounded-2xl p-8 hover:bg-white/15 transition-all duration-300 flex flex-col">
+              <div className="mb-6">
+                <span className="inline-block px-3 py-1 bg-indigo-500/20 text-indigo-300 text-xs font-bold rounded-full mb-2">
+                  For Organizers
+                </span>
+                <h3 className="text-2xl font-bold mb-2">イベント主催者の方へ</h3>
+                <p className="text-slate-300 text-sm leading-relaxed">
+                  公式イベント情報を掲載し、ファンの応援企画を安全にサポート。
+                  レギュレーションの周知や、公認企画の把握が一元管理できます。
+                </p>
+              </div>
+              <div className="mt-auto grid grid-cols-2 gap-4">
+                <Link href="/organizers/login" className="flex items-center justify-center py-3 rounded-lg border border-white/30 hover:bg-white/10 transition-colors text-sm font-medium">
+                  ログイン
+                </Link>
+                <Link href="/organizers/register" className="flex items-center justify-center py-3 rounded-lg bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 transition-colors text-sm font-medium shadow-lg shadow-indigo-500/20">
+                  新規登録
+                </Link>
+              </div>
+            </div>
+
           </div>
         </div>
       </section>

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
 import toast from 'react-hot-toast';
-import { FiInfo, FiAlertTriangle, FiCalendar, FiMapPin, FiUsers, FiLock, FiUser } from 'react-icons/fi';
+import { FiInfo, FiAlertTriangle, FiCalendar, FiMapPin, FiX, FiImage, FiCpu, FiLoader } from 'react-icons/fi';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -14,11 +14,104 @@ const getAuthToken = () => {
   return rawToken ? rawToken.replace(/^"|"$/g, '') : null;
 };
 
-// ... (VenueSelectionModal, EventSelectionModal は変更なしなのでそのまま使用) ...
-// ※ 長くなるため、Modalコンポーネント部分は前回のコードと同じものを使ってください。
-// ※ 以下、Main Componentのみ記載します。
+// ==========================================
+// ★★★【新規】AI画像生成モーダル ★★★
+// ==========================================
+function AIGenerationModal({ onClose, onGenerate }) {
+  const [prompt, setPrompt] = useState('');
+  const [isGenerating, setIsGenerating] = useState(false);
 
-// --- 以前のModalコンポーネントをここに貼り付け ---
+  const handleGenerate = async () => {
+    if (!prompt.trim()) return toast.error('キーワードを入力してください');
+    
+    setIsGenerating(true);
+    const token = getAuthToken();
+
+    try {
+      const res = await fetch(`${API_URL}/api/ai/generate-image`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ prompt }),
+      });
+
+      if (!res.ok) throw new Error('生成に失敗しました');
+      
+      const data = await res.json();
+      onGenerate(data.url);
+      onClose();
+      toast.success('イメージ画像を生成しました！');
+    } catch (error) {
+      console.error(error);
+      toast.error('画像の生成に失敗しました。しばらく待ってからお試しください。');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden">
+        <div className="bg-gradient-to-r from-purple-600 to-indigo-600 p-4 flex justify-between items-center">
+          <h3 className="text-lg font-bold text-white flex items-center">
+            <FiCpu className="mr-2"/> AI ラフ画生成
+          </h3>
+          <button onClick={onClose} disabled={isGenerating} className="text-white/80 hover:text-white text-xl">×</button>
+        </div>
+        
+        <div className="p-6">
+          <p className="text-sm text-gray-600 mb-4">
+            作りたいフラスタのイメージを言葉で入力してください。<br/>
+            AIが数秒でデザイン画を生成します。
+          </p>
+          
+          <textarea
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            placeholder="例: 全体的にピンク色、大きなリボン、天使の羽、キラキラした装飾、かわいらしい雰囲気"
+            rows="4"
+            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none text-gray-900"
+            disabled={isGenerating}
+          ></textarea>
+
+          <div className="mt-6 flex justify-end gap-3">
+            <button 
+              onClick={onClose} 
+              disabled={isGenerating}
+              className="px-4 py-2 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium"
+            >
+              キャンセル
+            </button>
+            <button 
+              onClick={handleGenerate}
+              disabled={isGenerating || !prompt.trim()}
+              className="px-6 py-2 bg-purple-600 text-white font-bold rounded-lg hover:bg-purple-700 disabled:bg-gray-400 flex items-center shadow-md transition-all"
+            >
+              {isGenerating ? (
+                <>
+                  <FiLoader className="animate-spin mr-2"/> 生成中...
+                </>
+              ) : (
+                <>
+                  <FiCpu className="mr-2"/> 生成する
+                </>
+              )}
+            </button>
+          </div>
+          {isGenerating && (
+            <p className="text-xs text-center text-purple-600 mt-3 animate-pulse">
+              AIが絵を描いています... (約10〜20秒かかります)
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// --- EventSelectionModal (既存) ---
 function EventSelectionModal({ onClose, onSelect }) {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -114,6 +207,7 @@ function EventSelectionModal({ onClose, onSelect }) {
   );
 }
 
+// --- VenueSelectionModal (既存) ---
 function VenueSelectionModal({ onClose, onSelect }) {
   const [venues, setVenues] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -176,14 +270,15 @@ export default function CreateProjectPage() {
   const { user, loading: authLoading } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [isDesignUploading, setIsDesignUploading] = useState(false);
   
   const [isVenueModalOpen, setIsVenueModalOpen] = useState(false);
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
+  const [isAIModalOpen, setIsAIModalOpen] = useState(false); // ★ AIモーダル
 
   const [selectedVenue, setSelectedVenue] = useState(null);
   const [selectedEvent, setSelectedEvent] = useState(null);
 
-  // ★★★ 状態に projectType と password を追加 ★★★
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -193,11 +288,12 @@ export default function CreateProjectPage() {
     eventId: '',
     deliveryDateTime: '',
     imageUrl: '',
+    designImageUrls: [], 
     designDetails: '',
     size: '',
     flowerTypes: '',
-    projectType: 'PUBLIC', // PUBLIC, PRIVATE, SOLO
-    password: '',          // PRIVATE用の合言葉
+    projectType: 'PUBLIC',
+    password: '',
   });
 
   useEffect(() => {
@@ -251,21 +347,19 @@ export default function CreateProjectPage() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  // ★★★ プロジェクトタイプの変更ハンドラ ★★★
   const handleTypeChange = (type) => {
     setFormData(prev => ({ ...prev, projectType: type }));
   };
 
+  // メイン画像
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-
     setIsUploading(true);
-    const toastId = toast.loading('画像をアップロード中...');
+    const toastId = toast.loading('メイン画像をアップロード中...');
     const uploadFormData = new FormData();
     uploadFormData.append('image', file);
     const token = getAuthToken(); 
-
     try {
       const res = await fetch(`${API_URL}/api/upload`, {
         method: 'POST',
@@ -275,12 +369,58 @@ export default function CreateProjectPage() {
       if (!res.ok) throw new Error('アップロードに失敗しました');
       const data = await res.json();
       setFormData(prev => ({ ...prev, imageUrl: data.url }));
-      toast.success('画像をアップロードしました！', { id: toastId });
+      toast.success('メイン画像をアップロードしました！', { id: toastId });
     } catch (error) {
       toast.error(error.message, { id: toastId });
     } finally {
       setIsUploading(false);
     }
+  };
+
+  // デザイン画像 (複数)
+  const handleDesignImagesUpload = async (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+    setIsDesignUploading(true);
+    const toastId = toast.loading(`${files.length}枚の画像をアップロード中...`);
+    const token = getAuthToken();
+    const uploadedUrls = [];
+    try {
+        for (const file of files) {
+            const uploadFormData = new FormData();
+            uploadFormData.append('image', file);
+            const res = await fetch(`${API_URL}/api/upload`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` },
+                body: uploadFormData,
+            });
+            if (!res.ok) throw new Error('一部の画像のアップロードに失敗しました');
+            const data = await res.json();
+            uploadedUrls.push(data.url);
+        }
+        setFormData(prev => ({ ...prev, designImageUrls: [...prev.designImageUrls, ...uploadedUrls] }));
+        toast.success('デザイン画像をアップロードしました！', { id: toastId });
+    } catch (error) {
+        toast.error(error.message, { id: toastId });
+    } finally {
+        setIsDesignUploading(false);
+        e.target.value = '';
+    }
+  };
+
+  // ★★★ AI画像生成完了時の処理 ★★★
+  const handleAIGenerated = (url) => {
+      setFormData(prev => ({ 
+          ...prev, 
+          designImageUrls: [...prev.designImageUrls, url] 
+      }));
+  };
+
+  const removeDesignImage = (index) => {
+      setFormData(prev => ({
+          ...prev,
+          designImageUrls: prev.designImageUrls.filter((_, i) => i !== index)
+      }));
   };
 
   const handleSubmit = async (e) => {
@@ -292,7 +432,6 @@ export default function CreateProjectPage() {
         return;
     }
 
-    // ★ PRIVATEの場合、パスワード必須チェック
     if (formData.projectType === 'PRIVATE' && !formData.password.trim()) {
         toast.error('限定公開にする場合は、合言葉を設定してください');
         return;
@@ -383,64 +522,33 @@ export default function CreateProjectPage() {
               </div>
           )}
 
-          {/* ★★★ 公開設定セクション (新規追加) ★★★ */}
+          {/* 公開設定セクション */}
           <section className="bg-slate-50 p-4 rounded-lg border border-slate-200">
             <h2 className="text-lg font-bold text-gray-800 mb-3">公開設定</h2>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                {/* 1. みんなで (PUBLIC) */}
-                <button
-                    type="button"
-                    onClick={() => handleTypeChange('PUBLIC')}
-                    className={`p-3 rounded-lg border-2 text-center transition-all ${formData.projectType === 'PUBLIC' ? 'border-sky-500 bg-white shadow-md' : 'border-transparent hover:bg-slate-200'}`}
-                >
+                <button type="button" onClick={() => handleTypeChange('PUBLIC')} className={`p-3 rounded-lg border-2 text-center transition-all ${formData.projectType === 'PUBLIC' ? 'border-sky-500 bg-white shadow-md' : 'border-transparent hover:bg-slate-200'}`}>
                     <div className="flex justify-center mb-1 text-2xl">🌍</div>
                     <div className="font-bold text-gray-800 text-sm">みんなで</div>
                     <div className="text-xs text-gray-500">サイト全体に公開</div>
                 </button>
-
-                {/* 2. 限定公開 (PRIVATE) */}
-                <button
-                    type="button"
-                    onClick={() => handleTypeChange('PRIVATE')}
-                    className={`p-3 rounded-lg border-2 text-center transition-all ${formData.projectType === 'PRIVATE' ? 'border-purple-500 bg-white shadow-md' : 'border-transparent hover:bg-slate-200'}`}
-                >
+                <button type="button" onClick={() => handleTypeChange('PRIVATE')} className={`p-3 rounded-lg border-2 text-center transition-all ${formData.projectType === 'PRIVATE' ? 'border-purple-500 bg-white shadow-md' : 'border-transparent hover:bg-slate-200'}`}>
                     <div className="flex justify-center mb-1 text-2xl">🔒</div>
                     <div className="font-bold text-gray-800 text-sm">仲間と</div>
                     <div className="text-xs text-gray-500">合言葉で限定公開</div>
                 </button>
-
-                {/* 3. ひとり (SOLO) */}
-                <button
-                    type="button"
-                    onClick={() => handleTypeChange('SOLO')}
-                    className={`p-3 rounded-lg border-2 text-center transition-all ${formData.projectType === 'SOLO' ? 'border-green-500 bg-white shadow-md' : 'border-transparent hover:bg-slate-200'}`}
-                >
+                <button type="button" onClick={() => handleTypeChange('SOLO')} className={`p-3 rounded-lg border-2 text-center transition-all ${formData.projectType === 'SOLO' ? 'border-green-500 bg-white shadow-md' : 'border-transparent hover:bg-slate-200'}`}>
                     <div className="flex justify-center mb-1 text-2xl">👤</div>
                     <div className="font-bold text-gray-800 text-sm">ひとりで</div>
                     <div className="text-xs text-gray-500">自分専用の依頼</div>
                 </button>
             </div>
-
-            {/* 合言葉入力欄 (PRIVATEの場合のみ表示) */}
             {formData.projectType === 'PRIVATE' && (
                 <div className="mt-4">
                     <label className="block text-sm font-medium text-gray-700">合言葉 (参加者に共有してください)</label>
-                    <input 
-                        type="text" 
-                        name="password"
-                        value={formData.password}
-                        onChange={handleChange}
-                        placeholder="例: miku2025"
-                        className="mt-1 w-full p-2 border border-purple-300 rounded-md focus:ring-purple-500 focus:border-purple-500"
-                    />
+                    <input type="text" name="password" value={formData.password} onChange={handleChange} placeholder="例: miku2025" className="mt-1 w-full p-2 border border-purple-300 rounded-md focus:ring-purple-500 focus:border-purple-500"/>
                 </div>
             )}
-            
-            {formData.projectType === 'SOLO' && (
-                <p className="mt-3 text-xs text-green-700 bg-green-100 p-2 rounded">
-                    ※「ひとりで」を選択すると、企画一覧には表示されず、あなた専用の管理ページが作成されます。
-                </p>
-            )}
+            {formData.projectType === 'SOLO' && <p className="mt-3 text-xs text-green-700 bg-green-100 p-2 rounded">※「ひとりで」を選択すると、企画一覧には表示されず、あなた専用の管理ページが作成されます。</p>}
           </section>
 
           {/* 基本情報 */}
@@ -458,15 +566,10 @@ export default function CreateProjectPage() {
           <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
              <div className="flex justify-between items-end mb-1">
                 <label className="block text-sm font-medium text-gray-700">お届け先 (会場) <span className="text-red-500">*</span></label>
-                <button 
-                  type="button" 
-                  onClick={() => setIsVenueModalOpen(true)}
-                  className="text-xs bg-green-600 text-white px-3 py-1.5 rounded-full hover:bg-green-700 font-semibold transition-colors shadow-sm"
-                >
+                <button type="button" onClick={() => setIsVenueModalOpen(true)} className="text-xs bg-green-600 text-white px-3 py-1.5 rounded-full hover:bg-green-700 font-semibold transition-colors shadow-sm">
                   🏢 会場リストから選択
                 </button>
              </div>
-             
              {selectedVenue ? (
                  <div className="mb-3">
                      <div className="p-3 bg-white border border-green-300 rounded-lg flex justify-between items-center">
@@ -474,36 +577,19 @@ export default function CreateProjectPage() {
                              <p className="font-bold text-green-800">{selectedVenue.venueName}</p>
                              <p className="text-xs text-gray-500">{selectedVenue.address}</p>
                          </div>
-                         <button 
-                            type="button"
-                            onClick={() => handleVenueSelect(null)} 
-                            className="text-xs text-gray-400 hover:text-red-500 underline"
-                         >
-                            変更
-                         </button>
+                         <button type="button" onClick={() => handleVenueSelect(null)} className="text-xs text-gray-400 hover:text-red-500 underline">変更</button>
                      </div>
                      {(selectedVenue.isStandAllowed === false || selectedVenue.standRegulation) && (
                          <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-md text-sm">
-                             <div className="flex items-center font-bold text-yellow-800 mb-1">
-                                 <FiInfo className="mr-1"/> この会場の注意事項
-                             </div>
-                             {selectedVenue.isStandAllowed === false && (
-                                 <p className="text-red-600 font-bold mb-1"><FiAlertTriangle className="inline"/> スタンド花（フラスタ）の受け入れ不可</p>
-                             )}
-                             {selectedVenue.standRegulation && (
-                                 <p className="text-yellow-800 whitespace-pre-wrap">{selectedVenue.standRegulation}</p>
-                             )}
+                             <div className="flex items-center font-bold text-yellow-800 mb-1"><FiInfo className="mr-1"/> この会場の注意事項</div>
+                             {selectedVenue.isStandAllowed === false && <p className="text-red-600 font-bold mb-1"><FiAlertTriangle className="inline"/> スタンド花（フラスタ）の受け入れ不可</p>}
+                             {selectedVenue.standRegulation && <p className="text-yellow-800 whitespace-pre-wrap">{selectedVenue.standRegulation}</p>}
                          </div>
                      )}
                  </div>
              ) : (
-                 <input 
-                   type="text" name="deliveryAddress" required 
-                   value={formData.deliveryAddress} onChange={handleChange} 
-                   className="input-field mb-3" placeholder="会場名と住所を入力してください"
-                 />
+                 <input type="text" name="deliveryAddress" required value={formData.deliveryAddress} onChange={handleChange} className="input-field mb-3" placeholder="会場名と住所を入力してください" />
              )}
-             
              <label htmlFor="deliveryDateTime" className="block text-sm font-medium text-gray-700">納品希望日時 <span className="text-red-500">*</span></label>
              <input type="datetime-local" name="deliveryDateTime" id="deliveryDateTime" required value={formData.deliveryDateTime} onChange={handleChange} className="input-field" />
           </div>
@@ -512,28 +598,60 @@ export default function CreateProjectPage() {
           <div>
             <label htmlFor="targetAmount" className="block text-sm font-medium text-gray-700">目標金額 (pt) <span className="text-red-500">*</span></label>
             <div className="relative mt-1">
-                <input 
-                  type="number" name="targetAmount" id="targetAmount" required 
-                  value={formData.targetAmount} onChange={handleChange} 
-                  className="input-field !pl-8" 
-                  placeholder="30000"
-                />
+                <input type="number" name="targetAmount" id="targetAmount" required value={formData.targetAmount} onChange={handleChange} className="input-field !pl-8" placeholder="30000" />
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">¥</span>
             </div>
           </div>
 
-          {/* 画像 */}
+          {/* メイン画像 */}
           <div>
-            <label className="block text-sm font-medium text-gray-700">メイン画像 (イメージ)</label>
+            <label className="block text-sm font-medium text-gray-700">メイン画像 (一覧に表示されます)</label>
             {formData.imageUrl && <img src={formData.imageUrl} alt="プレビュー" className="w-full h-48 object-cover rounded-md my-2" />}
             <input type="file" accept="image/*" onChange={handleImageUpload} disabled={isUploading} className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-sky-100 file:text-sky-700 hover:file:bg-sky-200"/>
             {isUploading && <p className="text-sm text-blue-500 mt-1">アップロード中...</p>}
           </div>
 
-          {/* デザイン詳細 */}
+          {/* ★★★ デザイン詳細（AI生成ボタン追加） ★★★ */}
           <div className="border-t pt-6">
              <h3 className="text-lg font-medium text-gray-900 mb-4">デザイン・お花の希望 (任意)</h3>
              <div className="space-y-4">
+                {/* デザイン画のアップロードエリア */}
+                <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                    <div className="flex justify-between items-center mb-2">
+                        <label className="block text-sm font-medium text-gray-700">デザイン画・参考画像 (複数可)</label>
+                        
+                        {/* ★ AI生成ボタン ★ */}
+                        <button 
+                            type="button" 
+                            onClick={() => setIsAIModalOpen(true)}
+                            className="text-xs bg-purple-600 text-white px-3 py-1.5 rounded-full hover:bg-purple-700 font-bold shadow-sm flex items-center"
+                        >
+                            <FiCpu className="mr-1"/> AIでイメージを生成
+                        </button>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2 mb-2">
+                        {formData.designImageUrls.map((url, index) => (
+                            <div key={index} className="relative w-20 h-20 group">
+                                <img src={url} alt={`デザイン ${index}`} className="w-full h-full object-cover rounded border border-gray-300" />
+                                <button
+                                    type="button"
+                                    onClick={() => removeDesignImage(index)}
+                                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                                >
+                                    <FiX />
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                    <label className="cursor-pointer inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                        <FiImage className="mr-2" />
+                        画像を追加
+                        <input type="file" multiple accept="image/*" onChange={handleDesignImagesUpload} disabled={isDesignUploading} className="hidden" />
+                    </label>
+                    {isDesignUploading && <span className="ml-3 text-sm text-blue-500">アップロード中...</span>}
+                </div>
+
                 <div>
                     <label htmlFor="designDetails" className="block text-sm font-medium text-gray-700">デザインの雰囲気</label>
                     <textarea name="designDetails" id="designDetails" value={formData.designDetails} onChange={handleChange} rows="2" className="input-field" placeholder="例：青色をベースに、クールな感じで"></textarea>
@@ -551,28 +669,17 @@ export default function CreateProjectPage() {
              </div>
           </div>
           
-          {/* 送信ボタン */}
           <div className="pt-6">
-            <button type="submit" disabled={isSubmitting || isUploading} className="w-full px-4 py-3 font-bold text-white bg-sky-500 rounded-lg hover:bg-sky-600 shadow-lg transition-all transform hover:scale-[1.01] disabled:bg-gray-400 disabled:transform-none">
+            <button type="submit" disabled={isSubmitting || isUploading || isDesignUploading} className="w-full px-4 py-3 font-bold text-white bg-sky-500 rounded-lg hover:bg-sky-600 shadow-lg transition-all transform hover:scale-[1.01] disabled:bg-gray-400 disabled:transform-none">
               {isSubmitting ? '作成中...' : '企画を作成して審査へ'}
             </button>
           </div>
         </form>
       </div>
 
-      {isVenueModalOpen && (
-        <VenueSelectionModal 
-            onClose={() => setIsVenueModalOpen(false)} 
-            onSelect={handleVenueSelect}
-        />
-      )}
-
-      {isEventModalOpen && (
-        <EventSelectionModal
-            onClose={() => setIsEventModalOpen(false)}
-            onSelect={handleEventSelect}
-        />
-      )}
+      {isVenueModalOpen && <VenueSelectionModal onClose={() => setIsVenueModalOpen(false)} onSelect={handleVenueSelect} />}
+      {isEventModalOpen && <EventSelectionModal onClose={() => setIsEventModalOpen(false)} onSelect={handleEventSelect} />}
+      {isAIModalOpen && <AIGenerationModal onClose={() => setIsAIModalOpen(false)} onGenerate={handleAIGenerated} />}
 
       <style jsx>{`
         .input-field {

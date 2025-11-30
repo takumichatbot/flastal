@@ -10,6 +10,23 @@ import multer from 'multer';
 import cloudinary from './config/cloudinary.js';
 import jwt from 'jsonwebtoken';
 import { Resend } from 'resend';
+import OpenAI from 'openai';
+import webpush from 'web-push';
+
+// ★ VAPIDキーの設定 (ステップ1で生成したキーを .env から読み込む想定)
+// ※ 開発中は直接文字列を貼っても動きますが、本番では必ず環境変数にしてください
+const vapidKeys = {
+  publicKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY, 
+  privateKey: process.env.VAPID_PRIVATE_KEY
+};
+
+if (vapidKeys.publicKey && vapidKeys.privateKey) {
+  webpush.setVapidDetails(
+    'mailto:info@flastal.com', // 管理者のメアド（ダミーでOK）
+    vapidKeys.publicKey,
+    vapidKeys.privateKey
+  );
+}
 
 // --- 定数定義 ---
 const CHAT_TEMPLATES = [
@@ -389,11 +406,13 @@ app.post('/api/projects', authenticateToken, async (req, res) => {
     const { 
       title, description, targetAmount, 
       deliveryAddress, deliveryDateTime, 
-      imageUrl, designDetails, size, flowerTypes,
-      visibility, // ← これは既存のフラグですが、projectTypeに統合しても良いです
+      imageUrl, 
+      // ★★★ 追加: 複数画像を受け取る
+      designImageUrls,
+      designDetails, size, flowerTypes,
+      visibility, 
       venueId,
       eventId,
-      // ★★★ 追加: タイプとパスワード
       projectType, 
       password
     } = req.body;
@@ -430,14 +449,15 @@ app.post('/api/projects', authenticateToken, async (req, res) => {
         deliveryDateTime: deliveryDate,
         plannerId,
         imageUrl,
+        // ★★★ 追加: データベースに保存 (配列がない場合は空配列)
+        designImageUrls: designImageUrls || [],
+        
         designDetails,
         size,
         flowerTypes,
-        // ★★★ 修正: projectTypeとpasswordを保存
         projectType: projectType || 'PUBLIC',
         password: password || null,
-        
-        visibility: visibility || 'PUBLIC', // 互換性のため残す
+        visibility: visibility || 'PUBLIC',
         venueId: venueId || null,
         eventId: eventId || null,
       },
@@ -1256,56 +1276,59 @@ app.get('/api/venues', async (req, res) => {
 
 // ★★★ お花屋さん一覧取得API (829行目あたり) ★★★
 app.get('/api/florists', async (req, res) => {
-  try {
-    const { keyword, prefecture } = req.query; 
+  try {
+    const { keyword, prefecture, rush } = req.query; // ★ rushを追加
 
-    const whereClause = {
-      status: 'APPROVED', 
-    };
+    const whereClause = {
+      status: 'APPROVED',
+    };
 
-    if (keyword && keyword.trim() !== '') {
-      whereClause.OR = [
-        { platformName: { contains: keyword, mode: 'insensitive' } },
-        { portfolio: { contains: keyword, mode: 'insensitive' } },
-      ];
-    }
-    
-    if (prefecture && prefecture.trim() !== '') {
-      whereClause.address = { contains: prefecture };
-    }
+    if (keyword && keyword.trim() !== '') {
+      whereClause.OR = [
+        { platformName: { contains: keyword, mode: 'insensitive' } },
+        { portfolio: { contains: keyword, mode: 'insensitive' } },
+      ];
+    }
+    
+    if (prefecture && prefecture.trim() !== '') {
+      whereClause.address = { contains: prefecture };
+    }
 
-    const florists = await prisma.florist.findMany({
-      where: whereClause, 
-      select: { 
-        id: true,
-        platformName: true,
-        portfolio: true,
-        reviews: true,
-        address: true,
-        iconUrl: true,         // ★ 追加: アイコンURL
-        portfolioImages: true  // ★ 追加: サムネイル用のポートフォリオ画像
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-    res.status(200).json(florists);
-  } catch (error) {
-    console.error("お花屋さんリスト取得エラー:", error);
-    res.status(500).json({ message: 'お花屋さんの取得中にエラーが発生しました。' });
-  }
+    // ★★★ 追加: お急ぎ便フィルター ★★★
+    if (rush === 'true') {
+      whereClause.acceptsRushOrders = true;
+    }
+
+    const florists = await prisma.florist.findMany({
+      where: whereClause,
+      select: {
+        id: true,
+        platformName: true,
+        portfolio: true,
+        reviews: true,
+        address: true,
+        iconUrl: true,
+        portfolioImages: true,
+        specialties: true,       // (前回追加済み)
+        acceptsRushOrders: true, // ★ 追加
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.status(200).json(florists);
+  } catch (error) {
+    console.error("お花屋さんリスト取得エラー:", error);
+    res.status(500).json({ message: 'お花屋さんの取得中にエラーが発生しました。' });
+  }
 });
 
 // ★★★【新規】企画を編集するAPI (主催者のみ) ★★★
 app.patch('/api/projects/:id', authenticateToken, async (req, res) => {
-  const { id } = req.params;
-  const { 
-    // userId, // ❌ userId 削除
-    title, 
-    description, 
-    imageUrl, 
-    designDetails, 
-    size, 
-    flowerTypes 
-  } = req.body;
+  const { id } = req.params;
+  const { 
+    title, description, imageUrl, 
+    designImageUrls, // ★ 追加
+    designDetails, size, flowerTypes 
+  } = req.body;
   const userId = req.user.id; // ✅ トークンから取得
 
   try {
@@ -1325,16 +1348,13 @@ app.patch('/api/projects/:id', authenticateToken, async (req, res) => {
 
     // 3. データを更新
     const updatedProject = await prisma.project.update({
-      where: { id: id },
-      data: {
-        title: title,
-        description: description,
-        imageUrl: imageUrl,
-        designDetails: designDetails,
-        size: size,
-        flowerTypes: flowerTypes,
-      },
-    });
+    where: { id: id },
+    data: {
+      title, description, imageUrl,
+      designImageUrls, // ★ 追加
+      designDetails, size, flowerTypes,
+    },
+  });
 
     res.status(200).json(updatedProject);
   } catch (error) {
@@ -1733,9 +1753,8 @@ app.post('/api/upload', authenticateToken, upload.single('image'), async (req, r
 });
 
 // ★★★ お花屋さんプロフィール更新API (JWT対応) ★★★
-app.patch('/api/florists/profile', authenticateToken, async (req, res) => { // ★ :id を profile に変更し、トークン使用
-  // const { id } = req.params; // ❌ URLパラメータ廃止
-  const id = req.user.id; // ✅ トークンからIDを取得
+app.patch('/api/florists/profile', authenticateToken, async (req, res) => {
+  const id = req.user.id;
   
   if (req.user.role !== 'FLORIST') {
      return res.status(403).json({ message: '権限がありません。' });
@@ -1745,7 +1764,9 @@ app.patch('/api/florists/profile', authenticateToken, async (req, res) => { // �
     shopName, platformName, contactName, address, 
     phoneNumber, website, portfolio, laruBotApiKey,
     portfolioImages, businessHours,
-    iconUrl 
+    iconUrl,
+    specialties,       // (前回追加済み)
+    acceptsRushOrders  // ★ 追加
   } = req.body;
 
   try {
@@ -1763,12 +1784,11 @@ app.patch('/api/florists/profile', authenticateToken, async (req, res) => { // �
         portfolioImages, 
         businessHours,
         iconUrl,
+        specialties,
+        acceptsRushOrders // ★ 追加
       },
     });
 
-    // ★ プロフィール更新後はトークン情報(iconUrlなど)が変わる可能性があるため、新しいトークンを発行して返すと親切
-    // (ここではシンプルにデータのみ返しますが、必要ならLogin同様にトークン再発行を追加してください)
-    
     const { password, ...floristWithoutPassword } = updatedFlorist;
     res.status(200).json(floristWithoutPassword);
   } catch (error) {
@@ -3322,6 +3342,799 @@ app.get('/api/events/:id', async (req, res) => {
   }
 });
 
+
+// ==========================================
+// ★★★【新規】制作進行管理・指示書API ★★★
+// ==========================================
+
+// 1. 制作ステータスの更新 & 画像保存 (企画者・花屋共通)
+app.patch('/api/projects/:projectId/production', authenticateToken, async (req, res) => {
+  const { projectId } = req.params;
+  const userId = req.user.id;
+  const { 
+    productionStatus, 
+    illustrationPanelUrls, messagePanelUrls, sponsorPanelUrls, 
+    preEventPhotoUrls 
+  } = req.body;
+
+  try {
+    const project = await prisma.project.findUnique({
+      where: { id: projectId },
+      include: { offer: true }
+    });
+
+    if (!project) return res.status(404).json({ message: '企画が見つかりません' });
+
+    // 権限チェック: 企画者 または 担当花屋 のみ操作可能
+    const isPlanner = project.plannerId === userId;
+    const isFlorist = project.offer?.floristId === userId;
+
+    if (!isPlanner && !isFlorist) {
+      return res.status(403).json({ message: '権限がありません' });
+    }
+
+    // データ更新
+    const updatedProject = await prisma.project.update({
+      where: { id: projectId },
+      data: {
+        // 送られてきた値があれば更新する (undefinedなら更新しない)
+        productionStatus: productionStatus || undefined,
+        illustrationPanelUrls: illustrationPanelUrls || undefined,
+        messagePanelUrls: messagePanelUrls || undefined,
+        sponsorPanelUrls: sponsorPanelUrls || undefined,
+        preEventPhotoUrls: preEventPhotoUrls || undefined,
+      }
+    });
+
+    // 通知ロジック (相手に通知)
+    const targetUserId = isPlanner ? project.offer?.floristId : project.plannerId;
+    if (targetUserId) {
+        let msg = '制作状況が更新されました';
+        if (illustrationPanelUrls) msg = 'パネルデータがアップロードされました';
+        if (preEventPhotoUrls) msg = 'お花の前日写真が届きました！';
+        
+        await createNotification(
+            targetUserId,
+            'PROJECT_STATUS_UPDATE',
+            msg,
+            projectId,
+            `/projects/${projectId}`
+        );
+    }
+
+    res.status(200).json(updatedProject);
+  } catch (error) {
+    console.error("制作状況更新エラー:", error);
+    res.status(500).json({ message: '更新に失敗しました' });
+  }
+});
+
+// 2. 指示書データ生成API (花屋用)
+// AIを使わずとも、テンプレートリテラルで正確に整形する方が確実で高速です
+app.get('/api/projects/:projectId/instruction-sheet', authenticateToken, async (req, res) => {
+  const { projectId } = req.params;
+  
+  try {
+    const project = await prisma.project.findUnique({
+      where: { id: projectId },
+      include: { 
+        venue: true, 
+        planner: true 
+      }
+    });
+
+    if (!project) return res.status(404).json({ message: '企画なし' });
+
+    // データの整形 (nullの場合は空文字にする)
+    const d = {
+      name: project.planner.handleName || '',
+      amount: project.collectedAmount ? `${project.collectedAmount.toLocaleString()}円` : '',
+      date: new Date(project.deliveryDateTime).toLocaleString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }),
+      place: project.venue ? project.venue.venueName : project.deliveryAddress,
+      retrieval: project.venue?.retrievalRequired ? '必須 (時間は会場確認)' : '要確認',
+      color: project.flowerTypes || '', // 色味の情報がない場合flowerTypesを充てる
+      flowers: project.flowerTypes || '',
+      ribbon: 'おまかせ', // 必要ならDBにカラム追加
+      tag: 'パネル参照',
+      balloon: 'おまかせ',
+      decoration: project.designDetails || '',
+      size: project.size || (project.venue?.standRegulation || '規定内'),
+      design: project.designDetails || '',
+    };
+
+    // 指定されたフォーマットでテキスト生成
+    const text = `
+★名前：${d.name}
+★金額：${d.amount}
+★日時：${d.date}
+★場所：${d.place}
+★回収時間：${d.retrieval}
+★お花のカラー：${d.color}
+★お花の本数・種類など：${d.flowers}
+★リボン：${d.ribbon}
+★札：${d.tag}
+★バルーン：${d.balloon}
+★装飾：${d.decoration}
+★サイズ規定：${d.size}
+★デザイン：${d.design}
+`.trim(); // プロント送る はボタンなどのUI側で表現
+
+    res.status(200).json({ text });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: '指示書作成エラー' });
+  }
+});
+
+
+// ★ OpenAI設定 (APIキーがない場合はダミーモードになります)
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY || 'dummy-key', 
+});
+
+// ★★★【新規】AI画像生成API ★★★
+app.post('/api/ai/generate-image', authenticateToken, async (req, res) => {
+  const { prompt } = req.body;
+  
+  if (!prompt) {
+    return res.status(400).json({ message: 'プロンプト（キーワード）が必要です。' });
+  }
+
+  try {
+    let imageUrl = '';
+
+    // APIキーが設定されている場合のみ、本当に生成する
+    if (process.env.OPENAI_API_KEY) {
+      console.log(`Generating image for: ${prompt}`);
+      
+      const response = await openai.images.generate({
+        model: "dall-e-3",
+        prompt: `フラワースタンド（スタンド花）のデザイン画。アニメやアイドルのライブイベントに贈るもの。背景は白。詳細: ${prompt}`,
+        n: 1,
+        size: "1024x1024",
+        quality: "standard",
+      });
+      
+      const tempUrl = response.data[0].url;
+
+      // DALL-EのURLは一時的なので、Cloudinaryにアップロードして永続化する
+      const uploadResult = await cloudinary.uploader.upload(tempUrl, {
+        folder: 'flastal_ai_generated',
+      });
+      
+      imageUrl = uploadResult.secure_url;
+
+    } else {
+      // ダミーモード (APIキーがない場合)
+      console.log('OpenAI API Key not found. Using dummy image.');
+      // ランダムな花の画像を返す
+      imageUrl = `https://source.unsplash.com/featured/?flower,arrangement&${Date.now()}`;
+      // または固定画像
+      // imageUrl = "https://placehold.co/600x400?text=AI+Generated+Image"; 
+    }
+
+    res.status(200).json({ url: imageUrl });
+
+  } catch (error) {
+    console.error("AI画像生成エラー:", error);
+    res.status(500).json({ message: '画像の生成に失敗しました。時間を置いて再度お試しください。' });
+  }
+});
+
+// ★★★【新規】AIマッチング (お花屋さんレコメンド) API ★★★
+app.post('/api/ai/match-florists', authenticateToken, async (req, res) => {
+  const { designDetails, flowerTypes } = req.body;
+  
+  // 入力が少なすぎる場合は検索できないので全件返すなどの処理でも良いが、今回は空で返す
+  if (!designDetails && !flowerTypes) {
+    return res.json({ recommendedFlorists: [] });
+  }
+
+  // 1. 定義されたタグリスト (フロントエンドと同じもの)
+  const STYLE_TAGS = [
+    'かわいい/キュート', 'クール/かっこいい', 'おしゃれ/モダン', '和風/和モダン',
+    'ゴージャス/豪華', 'パステルカラー', 'ビビッドカラー', 'ニュアンスカラー',
+    'バルーン装飾', 'ペーパーフラワー', '布・リボン装飾', 'キャラクター/モチーフ',
+    '大型/連結', '卓上/楽屋花'
+  ];
+
+  try {
+    let targetTags = [];
+
+    // 2. AIを使ってテキストからタグを抽出
+    if (process.env.OPENAI_API_KEY) {
+      const prompt = `
+        以下のフラワースタンドの要望文から、最も適切なスタイルタグを最大3つ選んでください。
+        
+        要望: "${designDetails} ${flowerTypes}"
+        
+        選択肢: ${STYLE_TAGS.join(', ')}
+        
+        出力形式: タグ1, タグ2, タグ3 (カンマ区切り、余計な文字なし)
+      `;
+
+      const completion = await openai.chat.completions.create({
+        model: "gpt-3.5-turbo", // 安価なモデルで十分
+        messages: [{ role: "user", content: prompt }],
+      });
+      
+      const aiResult = completion.choices[0].message.content;
+      targetTags = aiResult.split(',').map(t => t.trim());
+      console.log('AI Extracted Tags:', targetTags);
+    } else {
+      // APIキーがない場合のダミーロジック (単純なキーワードマッチ)
+      targetTags = STYLE_TAGS.filter(tag => 
+        (designDetails + flowerTypes).includes(tag.split('/')[0])
+      );
+    }
+
+    // 3. データベースからタグが一致するお花屋さんを検索
+    // (PostgreSQLの配列カラムに対するフィルタリング)
+    const florists = await prisma.florist.findMany({
+      where: {
+        status: 'APPROVED',
+        specialties: {
+          hasSome: targetTags // どれか1つでもヒットすればOK
+        }
+      },
+      select: {
+        id: true,
+        platformName: true,
+        iconUrl: true,
+        portfolioImages: true,
+        specialties: true
+      },
+      take: 4 // 4件まで提案
+    });
+
+    res.json({ 
+      tags: targetTags,
+      recommendedFlorists: florists 
+    });
+
+  } catch (error) {
+    console.error("マッチングエラー:", error);
+    res.status(500).json({ message: 'マッチング処理に失敗しました' });
+  }
+});
+
+
+// ==========================================
+// ★★★【新規】プッシュ通知関連API ★★★
+// ==========================================
+
+// 1. 通知の購読登録 (フロントエンドから呼ばれる)
+app.post('/api/push/subscribe', authenticateToken, async (req, res) => {
+  const { subscription } = req.body;
+  const userId = req.user.id;
+
+  try {
+    // 既存の登録があれば更新、なければ作成
+    await prisma.pushSubscription.upsert({
+      where: { endpoint: subscription.endpoint },
+      update: {
+        userId,
+        p256dh: subscription.keys.p256dh,
+        auth: subscription.keys.auth
+      },
+      create: {
+        userId,
+        endpoint: subscription.endpoint,
+        p256dh: subscription.keys.p256dh,
+        auth: subscription.keys.auth
+      }
+    });
+    res.status(201).json({ message: '通知をオンにしました' });
+  } catch (error) {
+    console.error('Subscription error:', error);
+    res.status(500).json({ message: '登録に失敗しました' });
+  }
+});
+
+// 2. 通知送信関数 (他のAPIから呼び出すためのヘルパー)
+// ※ これはAPIエンドポイントではなく、内部関数として定義します
+async function sendPushNotification(userId, title, body, url = '/') {
+  try {
+    const subscriptions = await prisma.pushSubscription.findMany({
+      where: { userId }
+    });
+
+    const payload = JSON.stringify({ title, body, url });
+
+    const promises = subscriptions.map(sub => {
+      const pushConfig = {
+        endpoint: sub.endpoint,
+        keys: { p256dh: sub.p256dh, auth: sub.auth }
+      };
+      return webpush.sendNotification(pushConfig, payload).catch(err => {
+        if (err.statusCode === 410) {
+          // 無効になった宛先は削除
+          prisma.pushSubscription.delete({ where: { id: sub.id } }).catch(()=>{});
+        }
+      });
+    });
+
+    await Promise.all(promises);
+  } catch (error) {
+    console.error('Push send error:', error);
+  }
+}
+
+// ★ テスト用: 自分に通知を送るAPI
+app.post('/api/push/test', authenticateToken, async (req, res) => {
+  await sendPushNotification(req.user.id, 'テスト通知', 'これはFLASTALからのテスト通知です！', '/mypage');
+  res.json({ message: '送信しました' });
+});
+
+// ★★★【新規】お花屋さん用スケジュール取得API ★★★
+app.get('/api/florists/schedule', authenticateToken, async (req, res) => {
+  const floristId = req.user.id; // user.id が floristId と一致する前提
+
+  try {
+    // 承諾済み(ACCEPTED)のオファーに紐づく企画を取得
+    const offers = await prisma.offer.findMany({
+      where: {
+        floristId: floristId,
+        status: 'ACCEPTED'
+      },
+      include: {
+        project: {
+          select: {
+            id: true,
+            title: true,
+            deliveryDateTime: true, // 納品日時
+            deliveryAddress: true,
+            venue: { select: { venueName: true } },
+            productionStatus: true
+          }
+        }
+      },
+      orderBy: {
+        project: { deliveryDateTime: 'asc' }
+      }
+    });
+
+    // カレンダー表示用にデータを整形
+    const events = offers.map(offer => ({
+      id: offer.project.id,
+      title: offer.project.title,
+      date: offer.project.deliveryDateTime,
+      location: offer.project.venue?.venueName || offer.project.deliveryAddress,
+      status: offer.project.productionStatus
+    }));
+
+    res.json(events);
+  } catch (error) {
+    console.error("スケジュール取得エラー:", error);
+    res.status(500).json({ message: 'スケジュールの取得に失敗しました' });
+  }
+});
+
+
+// ★★★【新規】デジタルネームボード用 支援者リスト取得API (公開) ★★★
+app.get('/api/projects/:id/board', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const project = await prisma.project.findUnique({
+      where: { id },
+      select: {
+        title: true,
+        imageUrl: true,
+        planner: { select: { handleName: true } },
+        // 支援者リストを取得
+        pledges: {
+          select: {
+            id: true,
+            amount: true,
+            comment: true,
+            user: {
+              select: {
+                handleName: true,
+                iconUrl: true
+              }
+            }
+          },
+          orderBy: { amount: 'desc' } // 金額が高い順に表示
+        },
+        // メッセージカードの投稿も取得
+        messages: {
+          select: {
+            id: true,
+            cardName: true,
+            content: true
+          }
+        }
+      }
+    });
+
+    if (!project) return res.status(404).json({ message: '企画が見つかりません' });
+
+    res.json(project);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'ボードデータの取得に失敗しました' });
+  }
+});
+
+// ★★★【新規】チャット自動翻訳API ★★★
+app.post('/api/translate', authenticateToken, async (req, res) => {
+  const { text, targetLang } = req.body;
+
+  if (!text) return res.status(400).json({ message: 'テキストが必要です' });
+
+  try {
+    let translatedText = '';
+
+    if (process.env.OPENAI_API_KEY) {
+      // 言語判定と翻訳をAIに依頼
+      // targetLangが指定されていない場合は、「日本語なら英語、それ以外なら日本語」にする
+      const systemPrompt = targetLang 
+        ? `Translate the following text to ${targetLang}. Only output the translated text.`
+        : `Detect the language of the following text. If it is Japanese, translate it to English. If it is not Japanese, translate it to Japanese. Only output the translated text.`;
+
+      const completion = await openai.chat.completions.create({
+        model: "gpt-3.5-turbo",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: text }
+        ],
+      });
+
+      translatedText = completion.choices[0].message.content.trim();
+    } else {
+      // ダミーモード (APIキーがない場合)
+      translatedText = "[翻訳] " + text + " (AI Translation Demo)";
+    }
+
+    res.json({ translatedText });
+
+  } catch (error) {
+    console.error("翻訳エラー:", error);
+    res.status(500).json({ message: '翻訳に失敗しました' });
+  }
+});
+
+
+// ★★★【新規】ユーザープロフィール更新API ★★★
+app.patch('/api/users/profile', authenticateToken, async (req, res) => {
+  const userId = req.user.id;
+  const { handleName, bio, favoriteGenres, twitterUrl, instagramUrl, isProfilePublic } = req.body;
+
+  try {
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        handleName,
+        bio,
+        favoriteGenres,
+        twitterUrl,
+        instagramUrl,
+        isProfilePublic
+      }
+    });
+    res.json(updatedUser);
+  } catch (error) {
+    console.error("プロフィール更新エラー:", error);
+    res.status(500).json({ message: 'プロフィールの更新に失敗しました' });
+  }
+});
+
+// ★★★【新規】公開プロフィール取得API (誰でもアクセス可) ★★★
+app.get('/api/users/:id/profile', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        handleName: true,
+        iconUrl: true,
+        bio: true,
+        favoriteGenres: true,
+        twitterUrl: true,
+        instagramUrl: true,
+        isProfilePublic: true,
+        // 参加した企画 (公開されているもの、かつ完了or成功したもの)
+        pledges: {
+          where: {
+            project: {
+              status: { in: ['SUCCESSFUL', 'COMPLETED'] },
+              visibility: 'PUBLIC'
+            }
+          },
+          include: {
+            project: {
+              select: {
+                id: true,
+                title: true,
+                imageUrl: true,
+                status: true
+              }
+            }
+          },
+          orderBy: { createdAt: 'desc' }
+        },
+        // 作成した企画
+        createdProjects: {
+          where: {
+            status: { in: ['SUCCESSFUL', 'COMPLETED', 'FUNDRAISING'] },
+            visibility: 'PUBLIC'
+          },
+          select: {
+            id: true,
+            title: true,
+            imageUrl: true,
+            status: true
+          },
+          orderBy: { createdAt: 'desc' }
+        }
+      }
+    });
+
+    if (!user) return res.status(404).json({ message: 'ユーザーが見つかりません' });
+    if (!user.isProfilePublic) return res.status(403).json({ message: 'このプロフィールは非公開です' });
+
+    res.json(user);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'プロフィールの取得に失敗しました' });
+  }
+});
+
+
+// ==========================================
+// ★★★【新規】ゲスト支援機能 ★★★
+// ==========================================
+
+// ゲスト支援API (認証不要)
+app.post('/api/guest/pledges', async (req, res) => {
+  const { projectId, amount, comment, tierId, guestName, guestEmail, paymentMethodId } = req.body;
+
+  // バリデーション
+  if (!guestName || !guestEmail) {
+    return res.status(400).json({ message: 'お名前とメールアドレスは必須です。' });
+  }
+  
+  // ※ 本来はここでStripe決済を実行するロジックが入ります。
+  // 今回は「ポイント機能」を使わず、直接支援レコードを作成する簡易フローとします。
+  // (実運用では、ゲスト支援はStripe Checkoutへリダイレクトさせるのが一般的です)
+
+  let pledgeAmount = parseInt(amount, 10);
+
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      // 1. 企画の存在確認
+      const project = await tx.project.findUnique({ 
+        where: { id: projectId },
+        include: { planner: true }
+      });
+      if (!project) throw new Error('企画が見つかりません。');
+      if (project.status !== 'FUNDRAISING') throw new Error('この企画は現在募集中ではありません。');
+
+      // コース確認
+      if (tierId) {
+        const tier = await tx.pledgeTier.findUnique({ where: { id: tierId } });
+        if (!tier) throw new Error('支援コースが見つかりません。');
+        pledgeAmount = tier.amount;
+      }
+
+      if (isNaN(pledgeAmount) || pledgeAmount <= 0) throw new Error('有効な金額ではありません。');
+
+      // 2. 支援レコード作成 (userIdはnull)
+      const newPledge = await tx.pledge.create({
+        data: {
+          amount: pledgeAmount,
+          projectId,
+          userId: null, // ゲストなのでnull
+          guestName,
+          guestEmail,
+          comment,
+          pledgeTierId: tierId || null,
+        },
+      });
+
+      // 3. 企画の集計金額更新
+      const updatedProject = await tx.project.update({
+        where: { id: projectId },
+        data: { collectedAmount: { increment: pledgeAmount } },
+      });
+
+      // 4. 通知とメール送信
+      
+      // ゲスト本人へのお礼メール
+      const guestEmailContent = `
+        <p>${guestName} 様</p>
+        <p>FLASTALをご利用いただきありがとうございます。</p>
+        <p>以下の企画へのゲスト支援が完了しました。</p>
+        <hr>
+        <p><strong>企画:</strong> ${project.title}</p>
+        <p><strong>支援額:</strong> ${pledgeAmount.toLocaleString()} 円</p>
+        <hr>
+        <p>企画の進捗は、以下のページからいつでもご確認いただけます。</p>
+        <p><a href="${process.env.FRONTEND_URL}/projects/${projectId}">${process.env.FRONTEND_URL}/projects/${projectId}</a></p>
+      `;
+      sendEmail(guestEmail, '【FLASTAL】ゲスト支援完了のお知らせ', guestEmailContent);
+
+      // 企画者への通知
+      await createNotification(
+        project.plannerId,
+        'NEW_PLEDGE',
+        `ゲストの ${guestName} さんから ${pledgeAmount.toLocaleString()}円 の支援がありました！`,
+        projectId,
+        `/projects/${projectId}`
+      );
+
+      // 目標達成チェック (既存ロジックと同様)
+      if (updatedProject.collectedAmount >= updatedProject.targetAmount && project.status !== 'SUCCESSFUL') {
+        await tx.project.update({ where: { id: projectId }, data: { status: 'SUCCESSFUL' } });
+        // (簡易化のため達成メール通知ロジックは省略しますが、必要ならここに追加)
+      }
+
+      return newPledge;
+    });
+
+    res.status(201).json({ message: 'ゲスト支援が完了しました！', pledge: result });
+
+  } catch (error) {
+    console.error('ゲスト支援エラー:', error);
+    res.status(400).json({ message: error.message || '支援処理中にエラーが発生しました。' });
+  }
+});
+
+// ==========================================
+// ★★★【新規】会場搬入Wiki機能 API ★★★
+// ==========================================
+
+// 1. 搬入情報の投稿 (お花屋さんのみ)
+app.post('/api/venues/:venueId/logistics', authenticateToken, async (req, res) => {
+  const { venueId } = req.params;
+  const { title, description, imageUrls } = req.body;
+  const floristId = req.user.id;
+
+  if (req.user.role !== 'FLORIST') {
+    return res.status(403).json({ message: '情報の投稿はお花屋さんのみ可能です。' });
+  }
+
+  try {
+    const info = await prisma.venueLogisticsInfo.create({
+      data: {
+        venueId,
+        contributorId: floristId,
+        title,
+        description,
+        imageUrls: imageUrls || []
+      }
+    });
+    res.status(201).json(info);
+  } catch (error) {
+    console.error("搬入情報投稿エラー:", error);
+    res.status(500).json({ message: '投稿に失敗しました。' });
+  }
+});
+
+// 2. 搬入情報の取得 (お花屋さん・会場・管理者のみ)
+app.get('/api/venues/:venueId/logistics', authenticateToken, async (req, res) => {
+  const { venueId } = req.params;
+  
+  // 一般ユーザーには見せない (セキュリティ/業務用情報のため)
+  if (req.user.role === 'USER') {
+    return res.status(403).json({ message: '権限がありません。' });
+  }
+
+  try {
+    const infos = await prisma.venueLogisticsInfo.findMany({
+      where: { venueId },
+      include: {
+        contributor: { select: { platformName: true, iconUrl: true } }
+      },
+      orderBy: [
+        { isOfficial: 'desc' }, // 公式情報を先に
+        { helpfulCount: 'desc' }, // 役に立った順
+        { createdAt: 'desc' }
+      ]
+    });
+    res.json(infos);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: '情報の取得に失敗しました。' });
+  }
+});
+
+// 3. 「役に立った」ボタン
+app.patch('/api/logistics/:infoId/helpful', authenticateToken, async (req, res) => {
+  const { infoId } = req.params;
+  
+  if (req.user.role !== 'FLORIST') return res.status(403).send();
+
+  try {
+    const updated = await prisma.venueLogisticsInfo.update({
+      where: { id: infoId },
+      data: { helpfulCount: { increment: 1 } }
+    });
+    res.json(updated);
+  } catch (error) {
+    res.status(500).json({ message: 'エラーが発生しました' });
+  }
+});
+
+
+// ==========================================
+// ★★★【新規】画像からお花屋さん検索 (GPT-4o Vision) ★★★
+// ==========================================
+app.post('/api/ai/search-florist-by-image', upload.single('image'), async (req, res) => {
+  // 画像がない場合
+  if (!req.file) return res.status(400).json({ message: '画像が必要です' });
+
+  // 定義済みのタグリスト (フロントエンドと共通)
+  const STYLE_TAGS = [
+    'かわいい/キュート', 'クール/かっこいい', 'おしゃれ/モダン', '和風/和モダン',
+    'ゴージャス/豪華', 'パステルカラー', 'ビビッドカラー', 'ニュアンスカラー',
+    'バルーン装飾', 'ペーパーフラワー', '布・リボン装飾', 'キャラクター/モチーフ',
+    '大型/連結', '卓上/楽屋花'
+  ];
+
+  try {
+    let targetTags = [];
+
+    if (process.env.OPENAI_API_KEY) {
+      // 1. 画像をBase64に変換
+      const base64Image = req.file.buffer.toString('base64');
+      const dataUrl = `data:${req.file.mimetype};base64,${base64Image}`;
+
+      // 2. GPT-4o に画像を送ってタグを選んでもらう
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o", // Vision対応モデル
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: `このフラワースタンド（スタンド花）の画像を見て、以下のタグリストから最も当てはまる特徴を3つ選んでください。出力はタグのみをカンマ区切りで行ってください。\n\nタグリスト: ${STYLE_TAGS.join(', ')}` },
+              { type: "image_url", image_url: { url: dataUrl } },
+            ],
+          },
+        ],
+      });
+
+      const aiResult = response.choices[0].message.content;
+      console.log('AI Image Analysis Result:', aiResult);
+      
+      // 結果を配列に変換
+      targetTags = aiResult.split(',').map(t => t.trim());
+    } else {
+      // ダミーモード
+      targetTags = ['かわいい/キュート', 'パステルカラー'];
+    }
+
+    // 3. タグにマッチするお花屋さんを検索
+    const florists = await prisma.florist.findMany({
+      where: {
+        status: 'APPROVED',
+        specialties: {
+          hasSome: targetTags // どれか1つでもヒットすればOK
+        }
+      },
+      select: {
+        id: true,
+        platformName: true,
+        iconUrl: true,
+        portfolioImages: true,
+        specialties: true,
+        address: true
+      },
+      take: 6
+    });
+
+    res.json({ 
+      analyzedTags: targetTags,
+      florists 
+    });
+
+  } catch (error) {
+    console.error("画像検索エラー:", error);
+    res.status(500).json({ message: '画像の解析に失敗しました' });
+  }
+});
 
 // ===================================
 // ★★★★★   Socket.IOの処理   ★★★★★

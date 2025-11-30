@@ -1,29 +1,38 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import Link from 'next/link';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
+import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
+import Link from 'next/link';
+import { FiSave, FiCamera, FiArrowLeft, FiTwitter, FiInstagram } from 'react-icons/fi';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
-export default function EditUserProfilePage() {
+const GENRE_OPTIONS = [
+  'アイドル', 'Vtuber', 'アニメ/声優', 'K-POP', '舞台/俳優', 'Youtuber/配信者', 'アーティスト', 'その他'
+];
+
+// トークン取得ヘルパー
+const getAuthToken = () => {
+  if (typeof window === 'undefined') return null;
+  const rawToken = localStorage.getItem('authToken');
+  return rawToken ? rawToken.replace(/^"|"$/g, '') : null;
+};
+
+export default function ProfileEditPage() {
+  const { user, login, loading: authLoading } = useAuth(); 
   const router = useRouter();
-  const { user, login, loading: authLoading } = useAuth(); // ★ login 関数も取得
+  const { register, handleSubmit, setValue, watch, formState: { isSubmitting } } = useForm();
+  
+  const [selectedGenres, setSelectedGenres] = useState([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const [previewIcon, setPreviewIcon] = useState('');
 
-  const [formData, setFormData] = useState({
-    handleName: '',
-    iconUrl: '',
-  });
-  const [loading, setLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isIconUploading, setIsIconUploading] = useState(false);
-  const iconFileInputRef = useRef(null);
-
-  // 1. ユーザー情報をフォームにセット
+  // 1. 初期値をフォームにセット
   useEffect(() => {
-    if (authLoading) return; // AuthContextの読み込み待ち
+    if (authLoading) return;
     
     if (!user) {
       toast.error('ログインが必要です。');
@@ -31,137 +40,198 @@ export default function EditUserProfilePage() {
       return;
     }
 
-    setFormData({
-      handleName: user.handleName || '',
-      iconUrl: user.iconUrl || '',
-    });
-    setLoading(false);
-
-  }, [user, authLoading, router]);
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prevState => ({ ...prevState, [name]: value }));
-  };
-
-  // 2. アイコンアップロード処理
-  const handleIconUpload = async (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    setIsIconUploading(true);
-    const toastId = toast.loading('アイコンをアップロード中...');
+    setValue('handleName', user.handleName);
+    setValue('bio', user.bio || '');
+    setValue('twitterUrl', user.twitterUrl || '');
+    setValue('instagramUrl', user.instagramUrl || '');
+    // 公開設定: デフォルトは true (undefinedの場合もtrue扱い)
+    setValue('isProfilePublic', user.isProfilePublic !== false);
     
-    const uploadFormData = new FormData();
-    uploadFormData.append('image', file);
-    try {
-        const res = await fetch(`${API_URL}/api/upload`, { method: 'POST', body: uploadFormData });
-        if (!res.ok) throw new Error('アップロードに失敗');
-        const data = await res.json();
-        
-        setFormData(prev => ({ ...prev, iconUrl: data.url }));
-        toast.success('アイコンをアップロードしました！', { id: toastId });
+    setSelectedGenres(user.favoriteGenres || []);
+    setPreviewIcon(user.iconUrl || '');
 
-    } catch (error) {
-        toast.error('アップロードに失敗しました。', { id: toastId });
-    } finally {
-        setIsIconUploading(false);
+  }, [user, authLoading, router, setValue]);
+
+  // 2. ジャンル選択トグル
+  const toggleGenre = (genre) => {
+    if (selectedGenres.includes(genre)) {
+      setSelectedGenres(prev => prev.filter(g => g !== genre));
+    } else {
+      setSelectedGenres(prev => [...prev, genre]);
     }
   };
 
-  // 3. フォーム送信処理 (PATCH /api/users/profile)
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!user) return; 
+  // 3. アイコンアップロード
+  const handleIconUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    setIsUploading(true);
+    const toastId = toast.loading('アイコンをアップロード中...');
+    const token = getAuthToken();
+    const formData = new FormData();
+    formData.append('image', file);
 
-    setIsSubmitting(true);
-    const promise = fetch(`${API_URL}/api/users/profile`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        userId: user.id, // ★ APIが要求する userId を送信
-        handleName: formData.handleName,
-        iconUrl: formData.iconUrl,
-      }),
-    }).then(async (res) => {
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.message || '更新に失敗しました。');
-      }
-      return res.json(); // ★ APIは新しいトークンを返す
-    });
-
-    toast.promise(promise, {
-      loading: '更新中...',
-      success: (data) => {
-        // ★ APIから返された「新しいトークン」で AuthContext を更新する
-        login(data.token);
-        
-        router.push('/mypage'); // マイページに戻る
-        return 'プロフィールが更新されました！';
-      },
-      error: (err) => err.message,
-      finally: () => setIsSubmitting(false),
-    });
+    try {
+      // 画像アップロード
+      const uploadRes = await fetch(`${API_URL}/api/upload`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData
+      });
+      if (!uploadRes.ok) throw new Error('アップロード失敗');
+      const { url } = await uploadRes.json();
+      
+      // アイコンURLだけ先に更新
+      setPreviewIcon(url);
+      
+      // ユーザー情報も更新しておく（保存ボタン忘れ対策）
+      await fetch(`${API_URL}/api/users/profile`, {
+        method: 'PATCH',
+        headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ ...user, iconUrl: url })
+      });
+      
+      toast.success('アイコンを更新しました', { id: toastId });
+      
+    } catch (error) {
+      toast.error('アイコンの更新に失敗しました', { id: toastId });
+    } finally {
+      setIsUploading(false);
+    }
   };
 
-  if (loading || authLoading) {
-    return (
-        <div className="flex items-center justify-center min-h-screen bg-gray-100">
-            <p>読み込み中...</p>
-        </div>
-    );
-  }
+  // 4. 保存処理
+  const onSubmit = async (data) => {
+    const token = getAuthToken();
+    try {
+      const res = await fetch(`${API_URL}/api/users/profile`, {
+        method: 'PATCH',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          ...data,
+          iconUrl: previewIcon, // アイコンURLも含める
+          favoriteGenres: selectedGenres
+        }),
+      });
+
+      if (!res.ok) throw new Error('更新に失敗しました');
+      
+      // 更新されたユーザー情報を取得（もしトークン再発行が必要な仕様ならここで処理）
+      const updatedUser = await res.json();
+      
+      toast.success('プロフィールを更新しました！');
+      router.push('/mypage?tab=profile');
+      
+    } catch (error) {
+      toast.error(error.message);
+    }
+  };
+
+  if (authLoading || !user) return <div className="p-10 text-center">読み込み中...</div>;
 
   return (
-    <div className="min-h-screen bg-gray-100 p-4 sm:p-8">
-      <div className="w-full max-w-lg mx-auto p-8 space-y-6 bg-white rounded-xl shadow-lg h-fit">
-        <h2 className="text-3xl font-bold text-center text-gray-900">プロフィール編集</h2>
-        <form onSubmit={handleSubmit} className="space-y-6">
-
-          {/* アイコンアップロードUI */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700">プロフィールアイコン</label>
-            <div className="mt-2 flex items-center gap-4">
-              {formData.iconUrl ? (
-                <img src={formData.iconUrl} alt="Icon preview" className="h-20 w-20 rounded-full object-cover" />
-              ) : (
-                <div className="h-20 w-20 rounded-full bg-gray-200 flex items-center justify-center text-gray-500">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4m0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4"/></svg>
-                </div>
-              )}
-              <button type="button" onClick={() => iconFileInputRef.current.click()} disabled={isIconUploading} className="px-4 py-2 text-sm bg-sky-100 text-sky-700 rounded-md hover:bg-sky-200 disabled:bg-slate-200">
-                {isIconUploading ? 'アップロード中...' : '画像を選択'}
-              </button>
-              <input type="file" accept="image/*" ref={iconFileInputRef} onChange={handleIconUpload} className="hidden" />
-            </div>
-          </div>
-
-          {/* ハンドルネーム編集 */}
-          <div>
-            <label htmlFor="handleName" className="block text-sm font-medium text-gray-700">ハンドルネーム（公開）</label>
-            <input 
-              type="text" 
-              name="handleName" 
-              id="handleName" 
-              required 
-              value={formData.handleName} 
-              onChange={handleChange} 
-              className="w-full mt-1 p-2 text-gray-900 border-2 border-gray-200 rounded-lg focus:border-sky-500 focus:ring-0 transition"
-            />
-          </div>
-          
-          <div className="flex flex-col sm:flex-row gap-4 pt-4">
-             <Link href="/mypage" className="w-full">
-              <span className="block text-center w-full px-4 py-3 font-semibold text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors">
-                マイページに戻る
-              </span>
+    <div className="min-h-screen bg-sky-50 py-12 px-4 sm:px-6">
+      <div className="max-w-2xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden">
+        <div className="p-8">
+          <div className="flex items-center justify-between mb-8">
+            <h1 className="text-2xl font-bold text-gray-900">プロフィール編集</h1>
+            <Link href="/mypage?tab=profile" className="text-sm text-gray-500 hover:text-sky-600 flex items-center">
+              <FiArrowLeft className="mr-1"/> マイページへ戻る
             </Link>
-            <button type="submit" disabled={isSubmitting || isIconUploading} className="w-full px-4 py-3 font-semibold text-white bg-green-500 rounded-lg hover:bg-green-600 transition-colors disabled:bg-gray-400">
-              {isSubmitting ? '更新中...' : '更新する'}
-            </button>
           </div>
-        </form>
+
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+            
+            {/* アイコン設定 */}
+            <div className="flex flex-col items-center">
+                <div className="relative group">
+                    {previewIcon ? (
+                        <img src={previewIcon} className="w-24 h-24 rounded-full object-cover border-4 border-sky-100 shadow-sm"/>
+                    ) : (
+                        <div className="w-24 h-24 rounded-full bg-gray-200 flex items-center justify-center text-gray-400">No Image</div>
+                    )}
+                    <label className="absolute bottom-0 right-0 bg-sky-500 text-white p-2 rounded-full cursor-pointer hover:bg-sky-600 transition-colors shadow-md">
+                        <FiCamera/>
+                        <input type="file" accept="image/*" className="hidden" onChange={handleIconUpload} disabled={isUploading}/>
+                    </label>
+                </div>
+                <p className="text-xs text-gray-500 mt-2">{isUploading ? 'アップロード中...' : 'アイコンを変更'}</p>
+            </div>
+
+            {/* 基本情報 */}
+            <div className="space-y-4">
+                <div>
+                    <label className="block text-sm font-medium text-gray-700">ニックネーム <span className="text-red-500">*</span></label>
+                    <input type="text" {...register('handleName', {required: true})} className="mt-1 w-full p-3 border rounded-lg focus:ring-2 focus:ring-sky-200 outline-none" />
+                </div>
+                
+                <div>
+                    <label className="block text-sm font-medium text-gray-700">自己紹介 (推しへの愛などを自由に！)</label>
+                    <textarea {...register('bio')} rows="4" className="mt-1 w-full p-3 border rounded-lg focus:ring-2 focus:ring-sky-200 outline-none" placeholder="例: 〇〇ちゃん推しです！フラスタ企画初心者ですがよろしくお願いします。"></textarea>
+                </div>
+            </div>
+
+            {/* 推しジャンル */}
+            <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">推しジャンル (複数選択可)</label>
+                <div className="flex flex-wrap gap-2">
+                    {GENRE_OPTIONS.map(genre => (
+                        <button
+                            key={genre}
+                            type="button"
+                            onClick={() => toggleGenre(genre)}
+                            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
+                                selectedGenres.includes(genre) 
+                                    ? 'bg-pink-500 text-white shadow-md transform scale-105' 
+                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            }`}
+                        >
+                            {genre}
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            {/* SNSリンク */}
+            <div className="space-y-4 pt-4 border-t">
+                <h3 className="text-sm font-bold text-gray-500">SNS連携 (任意)</h3>
+                <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400"><FiTwitter/></div>
+                    <input type="url" {...register('twitterUrl')} placeholder="X (Twitter) プロフィールURL" className="pl-10 w-full p-3 border rounded-lg focus:ring-2 focus:ring-sky-200 outline-none" />
+                </div>
+                <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400"><FiInstagram/></div>
+                    <input type="url" {...register('instagramUrl')} placeholder="Instagram プロフィールURL" className="pl-10 w-full p-3 border rounded-lg focus:ring-2 focus:ring-sky-200 outline-none" />
+                </div>
+            </div>
+
+            {/* 公開設定 */}
+            <div className="flex items-center bg-gray-50 p-4 rounded-lg">
+                <input type="checkbox" id="isProfilePublic" {...register('isProfilePublic')} className="h-5 w-5 text-sky-600 rounded" />
+                <label htmlFor="isProfilePublic" className="ml-2 block text-sm text-gray-700 cursor-pointer">
+                    プロフィールを一般公開する (参加した企画がギャラリーとして表示されます)
+                </label>
+            </div>
+
+            <div className="pt-4">
+              <button 
+                type="submit" 
+                disabled={isSubmitting}
+                className="w-full py-3 bg-gradient-to-r from-sky-500 to-indigo-500 text-white font-bold rounded-xl hover:shadow-lg transition-transform hover:-translate-y-0.5 disabled:opacity-50"
+              >
+                {isSubmitting ? '保存中...' : 'プロフィールを更新する'}
+              </button>
+            </div>
+
+          </form>
+        </div>
       </div>
     </div>
   );

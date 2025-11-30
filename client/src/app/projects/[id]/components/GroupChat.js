@@ -1,20 +1,28 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useAuth } from '../../../contexts/AuthContext'; // パスを確認してください
 import toast from 'react-hot-toast';
 import PollCreationModal from './PollCreationModal';
+import { FiGlobe, FiLoader, FiUser } from 'react-icons/fi';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 const AVAILABLE_EMOJIS = ['👍', '❤️', '🙌', '😂', '🔥', '🤔'];
 
+// トークン取得ヘルパー
+const getAuthToken = () => {
+  if (typeof window === 'undefined') return null;
+  const rawToken = localStorage.getItem('authToken');
+  return rawToken ? rawToken.replace(/^"|"$/g, '') : null;
+};
+
 // ===============================================
-// ★★★ ヘルパーコンポーネント: リアクションピッカー ★★★
+// ★★★ ヘルパー: リアクションピッカー ★★★
 // ===============================================
 const ReactionPicker = ({ onSelect, isEnabled }) => {
     const [isOpen, setIsOpen] = useState(false);
     const pickerRef = useRef(null);
 
-    // モーダルの外側をクリックしたら閉じる
     useEffect(() => {
         const handleClickOutside = (event) => {
             if (pickerRef.current && !pickerRef.current.contains(event.target)) {
@@ -25,31 +33,26 @@ const ReactionPicker = ({ onSelect, isEnabled }) => {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    const handleEmojiClick = (emoji) => {
-        onSelect(emoji);
-        setIsOpen(false);
-    };
-
     return (
-        <div className="relative" ref={pickerRef}>
+        <div className="relative inline-block" ref={pickerRef}>
             <button 
                 type="button" 
                 onClick={() => setIsOpen(!isOpen)} 
                 disabled={!isEnabled}
-                className={`ml-2 text-gray-400 transition-colors p-1 rounded-full ${isEnabled ? 'hover:text-gray-600' : 'cursor-not-allowed'}`}
+                className={`ml-2 text-gray-400 transition-colors p-1 rounded-full ${isEnabled ? 'hover:text-gray-600' : 'cursor-not-allowed opacity-50'}`}
                 title="リアクションを追加"
             >
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 8v4"></path><path d="M11 16h2"></path></svg>
             </button>
             
             {isOpen && (
-                <div className="absolute top-0 right-8 bg-white border border-gray-300 rounded-lg shadow-xl p-2 z-10 whitespace-nowrap">
+                <div className="absolute bottom-full right-0 mb-2 bg-white border border-gray-300 rounded-lg shadow-xl p-2 z-50 whitespace-nowrap">
                     <div className="flex gap-1">
                         {AVAILABLE_EMOJIS.map(emoji => (
                             <button 
                                 key={emoji} 
                                 type="button" 
-                                onClick={() => handleEmojiClick(emoji)}
+                                onClick={() => { onSelect(emoji); setIsOpen(false); }}
                                 className="text-xl p-1 rounded-md hover:bg-gray-100 transition-colors"
                             >
                                 {emoji}
@@ -63,58 +66,153 @@ const ReactionPicker = ({ onSelect, isEnabled }) => {
 };
 
 // ===============================================
-// ★★★ ヘルパーコンポーネント: リアクション表示 ★★★
+// ★★★ コンポーネント: 個別メッセージ (翻訳＆リアクション統合版) ★★★
 // ===============================================
-const ReactionDisplay = ({ msg, user, handleReaction, isPledger }) => {
-    // リアクションの集計
+const ChatMessage = ({ msg, user, isPlanner, isPledger, onReaction, templates }) => {
+    const [translatedText, setTranslatedText] = useState(null);
+    const [isTranslating, setIsTranslating] = useState(false);
+
+    const isOwn = user && msg.userId === user.id;
+
+    // テンプレートメッセージのフォーマット
+    const getMessageContent = () => {
+        if (!msg.templateId) return msg.content;
+        const template = templates.find(t => t.id === msg.templateId);
+        if (!template) return msg.content || '不明なメッセージ';
+        if (template.hasCustomInput && msg.content) return template.text.replace('...', `"${msg.content}"`);
+        return template.text;
+    };
+
+    const contentText = getMessageContent();
+
+    // 翻訳ハンドラ
+    const handleTranslate = async () => {
+        if (translatedText) {
+            setTranslatedText(null);
+            return;
+        }
+        if (!contentText) return;
+
+        setIsTranslating(true);
+        const token = getAuthToken();
+        try {
+            const res = await fetch(`${API_URL}/api/translate`, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ text: contentText }) // 表示されているテキストを翻訳
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setTranslatedText(data.translatedText);
+            } else {
+                toast.error('翻訳に失敗しました');
+            }
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setIsTranslating(false);
+        }
+    };
+
+    // リアクション集計
     const groupedReactions = (msg.reactions || []).reduce((acc, reaction) => {
         const emoji = reaction.emoji;
         acc[emoji] = acc[emoji] || { count: 0, users: [], isReactedByMe: false };
         acc[emoji].count += 1;
-        // ユーザー名が取得できていれば追加（Socketから来るデータには user が含まれているはず）
-        if (reaction.user?.handleName) {
-             acc[emoji].users.push(reaction.user.handleName);
-        } else if (reaction.userId === user?.id) {
-             // 自分のリアクションの場合は自分の名前を fallback として表示 (稀なケース)
-             acc[emoji].users.push(user.handleName || 'あなた');
-        }
-        
-        if (reaction.userId === user?.id) {
-            acc[emoji].isReactedByMe = true;
-        }
+        if (reaction.user?.handleName) acc[emoji].users.push(reaction.user.handleName);
+        if (reaction.userId === user?.id) acc[emoji].isReactedByMe = true;
         return acc;
     }, {});
-
     const hasReactions = Object.keys(groupedReactions).length > 0;
 
     return (
-        <>
-            {/* 既存リアクションの表示エリア (メッセージの右下) */}
-            {hasReactions && (
-                <div className="absolute -bottom-3 right-0 flex items-center bg-white border border-gray-300 rounded-full pl-1 pr-1 py-0.5 shadow-md z-10">
-                    {Object.entries(groupedReactions).map(([emoji, data]) => (
-                        <div 
-                            key={emoji} 
-                            // titleはユーザー名のリスト
-                            title={`${data.users.length > 0 ? data.users.join(', ') : '複数人'}が${emoji}をつけました`}
-                            onClick={() => isPledger && handleReaction(msg.id, emoji)} // 支援者のみクリックでトグル可能
-                            className={`flex items-center text-xs p-1 rounded-full transition-colors ${data.isReactedByMe ? 'bg-blue-100 border border-blue-300' : 'hover:bg-gray-100'} ${isPledger ? 'cursor-pointer' : 'cursor-default'}`}
-                        >
-                            <span className="mr-1">{emoji}</span>
-                            <span className="font-semibold">{data.count}</span>
-                        </div>
-                    ))}
-                </div>
-            )}
-
-            {/* リアクション追加ボタン（メッセージの右上） */}
-            <div className="absolute -top-1 right-0 transform translate-x-full">
-                <ReactionPicker 
-                    onSelect={(emoji) => handleReaction(msg.id, emoji)}
-                    isEnabled={isPledger && !!user} // 支援者かつログイン済みなら有効
-                />
+        <div className={`flex items-start gap-3 mb-4 group ${isOwn ? 'flex-row-reverse' : ''}`}>
+            {/* アイコン */}
+            <div className="flex-shrink-0">
+                {msg.user?.iconUrl ? (
+                    <img src={msg.user.iconUrl} alt={msg.user.handleName} className="h-10 w-10 rounded-full object-cover border border-gray-200" />
+                ) : (
+                    <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-500">
+                        <FiUser />
+                    </div>
+                )}
             </div>
-        </>
+
+            {/* メッセージ本文エリア */}
+            <div className={`flex flex-col max-w-[75%] ${isOwn ? 'items-end' : 'items-start'}`}>
+                <div className="flex items-center gap-2 mb-1">
+                    <span className="text-xs text-gray-600 font-bold">{msg.user.handleName}</span>
+                    <span className="text-[10px] text-gray-400">{new Date(msg.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                </div>
+
+                <div className="relative">
+                    {/* 吹き出し */}
+                    <div className={`px-4 py-2 rounded-2xl relative ${isOwn ? 'bg-sky-500 text-white rounded-tr-none' : 'bg-white border border-gray-200 text-gray-800 rounded-tl-none'}`}>
+                        
+                        {/* コンテンツ表示 */}
+                        {msg.messageType === 'IMAGE' ? (
+                            <img src={msg.fileUrl} alt="画像" className="max-w-full h-auto rounded-lg my-1 cursor-pointer hover:opacity-90"/>
+                        ) : msg.messageType === 'FILE' ? (
+                            <a href={msg.fileUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sky-600 font-semibold hover:underline bg-white/80 p-2 rounded">
+                                📎 {msg.fileName || 'ファイルを表示'}
+                            </a>
+                        ) : (
+                            <p className="text-sm whitespace-pre-wrap leading-relaxed">{contentText}</p>
+                        )}
+
+                        {/* 翻訳結果 */}
+                        {translatedText && (
+                            <div className={`mt-2 pt-2 border-t text-sm italic flex items-start gap-1 ${isOwn ? 'border-white/30 text-sky-100' : 'border-gray-200 text-gray-600'}`}>
+                                <FiGlobe className="mt-1 shrink-0"/>
+                                <span>{translatedText}</span>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* アクションボタン (翻訳 & リアクション追加) */}
+                    <div className={`absolute top-0 flex items-center ${isOwn ? 'right-full mr-2' : 'left-full ml-2'} opacity-0 group-hover:opacity-100 transition-opacity`}>
+                        {/* 翻訳ボタン (テキストのみ) */}
+                        {!translatedText && (msg.messageType === 'TEXT' || msg.templateId) && (
+                            <button 
+                                onClick={handleTranslate}
+                                disabled={isTranslating}
+                                className="text-gray-400 hover:text-sky-500 p-1"
+                                title="翻訳する"
+                            >
+                                {isTranslating ? <FiLoader className="animate-spin"/> : <FiGlobe/>}
+                            </button>
+                        )}
+                        {/* リアクションピッカー */}
+                        <ReactionPicker 
+                            onSelect={(emoji) => onReaction(msg.id, emoji)}
+                            isEnabled={isPledger && !!user} 
+                        />
+                    </div>
+
+                    {/* リアクション表示バッジ (吹き出しの下) */}
+                    {hasReactions && (
+                        <div className={`absolute -bottom-3 flex gap-1 ${isOwn ? 'right-0' : 'left-0'} z-10`}>
+                            <div className="flex items-center bg-white border border-gray-200 rounded-full px-1.5 py-0.5 shadow-sm">
+                                {Object.entries(groupedReactions).map(([emoji, data]) => (
+                                    <button 
+                                        key={emoji}
+                                        onClick={() => isPledger && onReaction(msg.id, emoji)}
+                                        title={`${data.users.join(', ')}`}
+                                        className={`flex items-center text-xs px-1 rounded-full hover:bg-gray-100 ${data.isReactedByMe ? 'bg-blue-100' : ''}`}
+                                    >
+                                        <span className="mr-0.5">{emoji}</span>
+                                        <span className="font-bold text-gray-600">{data.count}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
     );
 };
 
@@ -127,46 +225,38 @@ export default function GroupChat({ project, user, isPlanner, isPledger, onUpdat
   const [templates, setTemplates] = useState([]);
   const [isPollModalOpen, setPollModalOpen] = useState(false);
   
-  // ★ 1. ローカルメッセージ State の導入と同期
+  // ローカルメッセージ State
   const [messages, setMessages] = useState(project.groupChatMessages || []);
   const chatBottomRef = useRef(null); 
   
   useEffect(() => {
-    // project.groupChatMessages が親から更新されたらローカル State を同期
     setMessages(project.groupChatMessages || []);
   }, [project.groupChatMessages]);
   
-  // ★ 2. Socket.IO リスナーの追加 (リアルタイムリアクション対応)
+  // Socket.IO リスナー
   useEffect(() => {
     if (!socket) return;
     
-    // a. 新規メッセージ受信 (既存処理の再実装)
     const handleReceiveMessage = (newMessage) => {
         setMessages(prevMessages => [...prevMessages, newMessage]);
     };
 
-    // b. リアクション追加
     const handleReactionAdded = (newReaction) => {
         setMessages(prevMessages => prevMessages.map(msg => {
             if (msg.id === newReaction.messageId) {
-                // 既に自分のリアクションがあるかチェック（万が一重複ブロードキャストした場合のため）
                 const existingReaction = (msg.reactions || []).find(
                     r => r.userId === newReaction.userId && r.emoji === newReaction.emoji
                 );
                 if (existingReaction) return msg;
-
-                const updatedReactions = [...(msg.reactions || []), newReaction];
-                return { ...msg, reactions: updatedReactions };
+                return { ...msg, reactions: [...(msg.reactions || []), newReaction] };
             }
             return msg;
         }));
     };
 
-    // c. リアクション削除
     const handleReactionRemoved = ({ messageId, userId, emoji }) => {
         setMessages(prevMessages => prevMessages.map(msg => {
             if (msg.id === messageId) {
-                // 削除対象を除外してリアクション配列を更新
                 const updatedReactions = (msg.reactions || []).filter(
                     r => !(r.userId === userId && r.emoji === emoji)
                 );
@@ -187,7 +277,7 @@ export default function GroupChat({ project, user, isPlanner, isPledger, onUpdat
     };
   }, [socket]);
   
-  // ★ 3. メッセージが追加されたらスクロール
+  // オートスクロール
   useEffect(() => {
     chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
@@ -199,7 +289,6 @@ export default function GroupChat({ project, user, isPlanner, isPledger, onUpdat
     text: '',
   });
   const [freeText, setFreeText] = useState('');
-
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef(null);
 
@@ -214,22 +303,14 @@ export default function GroupChat({ project, user, isPlanner, isPledger, onUpdat
     fetchTemplates();
   }, []);
 
-  const formatTemplateMessage = (msg) => {
-    if (!msg.templateId) return msg.content;
-    const template = templates.find(t => t.id === msg.templateId);
-    if (!template) return '不明なメッセージ';
-    if (template.hasCustomInput && msg.content) return template.text.replace('...', `"${msg.content}"`);
-    return template.text;
-  };
-
   const templatesByCategory = templates.reduce((acc, t) => {
     acc[t.category] = [...(acc[t.category] || []), t];
     return acc;
   }, {});
   
   const handleTemplateClick = (template) => {
-    if (!isPledger && !isPlanner) {
-      toast.error('このチャットは支援者と企画者のみ参加できます。');
+    if (!isPledger && !isPlanner && !(user && project.offer?.floristId === user.id)) {
+      toast.error('権限がありません。');
       return;
     }
     if (template.hasCustomInput) {
@@ -259,52 +340,41 @@ export default function GroupChat({ project, user, isPlanner, isPledger, onUpdat
     const file = event.target.files[0];
     if (!file) return;
 
-    if (!user || !socket || (!isPledger && !isPlanner)) {
-      return toast.error('チャットに参加する権限がありません。');
-    }
+    if (!user || !socket) return toast.error('権限がありません。');
 
     setIsUploading(true);
     const toastId = toast.loading('ファイルをアップロード中...');
     
     const uploadFormData = new FormData();
-    uploadFormData.append('image', file); // APIは 'image' というキーを期待
+    uploadFormData.append('image', file);
 
     try {
-      const res = await fetch(`${API_URL}/api/upload`, { method: 'POST', body: uploadFormData });
+      const token = getAuthToken(); // APIルートによってはTokenが必要な場合があるため
+      const res = await fetch(`${API_URL}/api/upload`, { 
+          method: 'POST', 
+          headers: { 'Authorization': `Bearer ${token}` },
+          body: uploadFormData 
+      });
       if (!res.ok) throw new Error('アップロードに失敗');
       const data = await res.json();
       
       const messageType = file.type.startsWith('image/') ? 'IMAGE' : 'FILE';
-
       handleSendMessage(null, null, messageType, data.url, file.name);
-
       toast.success('ファイルを送信しました！', { id: toastId });
 
     } catch (error) {
         toast.error(`送信に失敗しました: ${error.message}`, { id: toastId });
     } finally {
         setIsUploading(false);
-        if (fileInputRef.current) {
-          fileInputRef.current.value = "";
-        }
+        if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
-
   const handleSendMessage = (templateId, content, messageType, fileUrl, fileName) => {
-    if (!socket) {
-      toast.error('チャットサーバーに接続していません。');
+    if (!socket || !user) {
+      toast.error('接続エラー');
       return;
     }
-    if (!user) {
-      toast.error('チャットの送信にはログインが必要です。');
-      return;
-    }
-    if (!isPledger && !isPlanner) {
-      toast.error('チャットの送信には企画への支援が必要です。');
-      return;
-    }
-    
     socket.emit('sendGroupChatMessage', {
       projectId: project.id,
       userId: user.id,
@@ -316,17 +386,12 @@ export default function GroupChat({ project, user, isPlanner, isPledger, onUpdat
     });
   };
   
-  // ★★★【新規】リアクション操作関数 ★★★
-  const handleReaction = (messageId, emoji) => {
-    if (!isPledger) {
-      toast.error('リアクションは支援者のみ可能です。');
+  // リアクション送信
+  const onReaction = (messageId, emoji) => {
+    if (!isPledger && !isPlanner && !(user && project.offer?.floristId === user.id)) {
+      toast.error('リアクションできる権限がありません。');
       return;
     }
-    if (!socket || !user) {
-        toast.error('リアクションの操作にはログインと接続が必要です。');
-        return;
-    }
-
     socket.emit('handleReaction', {
         messageId: messageId,
         emoji: emoji,
@@ -334,14 +399,19 @@ export default function GroupChat({ project, user, isPlanner, isPledger, onUpdat
     });
   };
   
+  // 投票
   const handleVote = (optionIndex) => {
     if (!project.activePoll || !user || !isPledger) {
       toast.error('投票するにはこの企画の支援者である必要があります。');
       return;
     }
+    const token = getAuthToken();
     const promise = fetch(`${API_URL}/api/group-chat/polls/vote`, {
       method: 'POST', 
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+      },
       body: JSON.stringify({ 
         pollId: project.activePoll.id,
         userId: user.id,
@@ -368,9 +438,10 @@ export default function GroupChat({ project, user, isPlanner, isPledger, onUpdat
     <>
       <div className="bg-orange-50 p-4 rounded-lg">
         <h3 className="text-lg font-bold text-orange-800 mb-2">参加者グループチャット</h3>
+        
+        {/* アンケートエリア */}
         {activePoll && (
           <div className="bg-white border-2 border-purple-300 rounded-lg p-3 mb-4">
-            {/* ... (アンケート表示ロジックは変更なし) ... */}
             <p className="font-bold text-gray-800 mb-3">💡 アンケート実施中: {activePoll.question}</p>
             <div className="space-y-2">
               {activePoll.options.map((option, index) => {
@@ -394,63 +465,33 @@ export default function GroupChat({ project, user, isPlanner, isPledger, onUpdat
                 );
               })}
             </div>
-
             {!userVote && !isPledger && <p className="text-xs text-red-500 mt-2">※アンケートへの投票は、この企画の支援者のみ可能です。</p>}
           </div>
         )}
         
-        {/* ★★★ メッセージ表示欄を修正 (messages Stateを使用) ★★★ */}
-        <div className="h-64 overflow-y-auto bg-white rounded-lg p-3 space-y-3 mb-4 border">
+        {/* チャットメッセージ一覧 */}
+        <div className="h-80 overflow-y-auto bg-white rounded-lg p-4 mb-4 border border-gray-200 shadow-inner">
           {messages.length > 0 ? (
             messages.map(msg => (
-              <div key={msg.id} className="flex items-start gap-2">
-                {/* アイコン */}
-                {msg.user.iconUrl ? (
-                  <img src={msg.user.iconUrl} alt={msg.user.handleName} className="h-8 w-8 rounded-full object-cover flex-shrink-0" />
-                ) : (
-                  <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 flex-shrink-0">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4m0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4"/></svg>
-                  </div>
-                )}
-                {/* 名前とメッセージ本体 */}
-                <div>
-                  <p className="text-xs text-gray-500">{msg.user.handleName}</p>
-                  
-                  {/* ★★★ リアクション表示のための relative ラッパー ★★★ */}
-                  <div className="relative inline-block"> 
-                    <div className={`inline-block rounded-lg px-3 py-1 mt-1 ${!msg.templateId ? 'bg-green-100' : 'bg-orange-100'}`}>
-                      
-                      {msg.messageType === 'IMAGE' ? (
-                        <img src={msg.fileUrl} alt={msg.fileName || '送信された画像'} className="max-w-xs h-auto rounded-md"/>
-                      ) : msg.messageType === 'FILE' ? (
-                        <a 
-                          href={msg.fileUrl} 
-                          target="_blank" 
-                          rel="noopener noreferrer" 
-                          className="font-semibold text-sky-600 hover:underline"
-                        >
-                          📎 {msg.fileName || 'ファイルを表示'}
-                        </a>
-                      ) : (
-                        <p className="text-sm text-gray-800 whitespace-pre-wrap">{formatTemplateMessage(msg)}</p>
-                      )}
-
-                    </div>
-                    {/* ★★★ リアクション表示コンポーネントの配置 ★★★ */}
-                    <ReactionDisplay msg={msg} user={user} handleReaction={handleReaction} isPledger={isPledger} />
-                  </div>
-                  {/* ★★★ リアクション表示の終了 ★★★ */}
-
-                </div>
-              </div>
+                <ChatMessage 
+                    key={msg.id} 
+                    msg={msg} 
+                    user={user}
+                    isPlanner={isPlanner}
+                    isPledger={isPledger}
+                    onReaction={onReaction}
+                    templates={templates}
+                />
             ))
           ) : (
-            <p className="text-sm text-gray-500 text-center pt-4">まだメッセージはありません。</p>
+            <div className="h-full flex flex-col items-center justify-center text-gray-400 text-sm">
+                <p>まだメッセージはありません。<br/>挨拶してみましょう！</p>
+            </div>
           )}
           <div ref={chatBottomRef} />
         </div>
-        {/* ★★★ メッセージ表示欄の修正ここまで ★★★ */}
 
+        {/* テンプレート・入力エリア */}
         <div>
           {Object.entries(templatesByCategory).map(([category, templates]) => (
             <div key={category} className="mb-2">
@@ -466,27 +507,19 @@ export default function GroupChat({ project, user, isPlanner, isPledger, onUpdat
           <div className="border-t mt-4 pt-3">
              <p className="text-xs font-semibold text-gray-600 mb-1">その他 (自由記述・ファイル添付)</p>
              <form onSubmit={handleFreeTextSubmit} className="flex gap-2">
-               {/* ファイル添付ボタン */}
                <button 
                   type="button" 
                   onClick={() => fileInputRef.current.click()} 
-                  disabled={isUploading || !socket || !user || (!isPledger && !isPlanner)}
+                  disabled={isUploading || !socket || !user}
                   title="ファイル/画像を添付" 
                   className="p-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors flex-shrink-0 disabled:bg-gray-100 disabled:text-gray-400"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
                 </button>
-                <input 
-                  type="file" 
-                  ref={fileInputRef} 
-                  onChange={handleFileUpload} 
-                  className="hidden" 
-                  disabled={isUploading}
-                />
+                <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" disabled={isUploading} />
                
-               {/* テキスト入力 */}
-               <input type="text" value={freeText} onChange={(e) => setFreeText(e.target.value)} placeholder={isUploading ? "アップロード中..." : "メッセージを入力..."} required={!isUploading} disabled={isUploading || (!isPledger && !isPlanner)} className="p-2 border rounded-md text-gray-900 flex-grow" />
-               <button type="submit" disabled={isUploading || !freeText.trim() || (!isPledger && !isPlanner)} className="p-2 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600 disabled:bg-gray-400">送信</button>
+               <input type="text" value={freeText} onChange={(e) => setFreeText(e.target.value)} placeholder={isUploading ? "アップロード中..." : "メッセージを入力..."} required={!isUploading} disabled={isUploading} className="p-2 border rounded-md text-gray-900 flex-grow" />
+               <button type="submit" disabled={isUploading || !freeText.trim()} className="p-2 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600 disabled:bg-gray-400">送信</button>
              </form>
           </div>
 
