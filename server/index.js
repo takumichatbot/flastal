@@ -390,8 +390,12 @@ app.post('/api/projects', authenticateToken, async (req, res) => {
       title, description, targetAmount, 
       deliveryAddress, deliveryDateTime, 
       imageUrl, designDetails, size, flowerTypes,
-      visibility, 
-      venueId 
+      visibility, // ← これは既存のフラグですが、projectTypeに統合しても良いです
+      venueId,
+      eventId,
+      // ★★★ 追加: タイプとパスワード
+      projectType, 
+      password
     } = req.body;
 
     const plannerId = req.user.id;
@@ -424,14 +428,18 @@ app.post('/api/projects', authenticateToken, async (req, res) => {
         targetAmount: amount,
         deliveryAddress: finalDeliveryAddress,
         deliveryDateTime: deliveryDate,
-        plannerId, // ✅ トークンから取得したIDを使用
+        plannerId,
         imageUrl,
         designDetails,
         size,
         flowerTypes,
-        visibility,
+        // ★★★ 修正: projectTypeとpasswordを保存
+        projectType: projectType || 'PUBLIC',
+        password: password || null,
+        
+        visibility: visibility || 'PUBLIC', // 互換性のため残す
         venueId: venueId || null,
-        // status は自動で 'PENDING_APPROVAL' に設定
+        eventId: eventId || null,
       },
     });
     
@@ -453,14 +461,15 @@ app.post('/api/projects', authenticateToken, async (req, res) => {
 
 // ★★★ 全ての企画を取得するAPI (検索機能・セキュリティ修正付き) ★★★
 app.get('/api/projects', async (req, res) => {
-  try {
-    const { keyword, prefecture } = req.query; 
+  try {
+    const { keyword, prefecture } = req.query; 
 
-    const whereClause = {
-      visibility: 'PUBLIC',
-      status: 'FUNDRAISING', 
-      NOT: { status: 'CANCELED' },
-    };
+    const whereClause = {
+      status: 'FUNDRAISING', 
+      NOT: { status: 'CANCELED' },
+      // ★★★ 追加: 公開設定が PUBLIC のものだけを表示
+      projectType: 'PUBLIC',
+    };
 
     if (keyword && keyword.trim() !== '') {
       whereClause.OR = [
@@ -474,23 +483,22 @@ app.get('/api/projects', async (req, res) => {
     }
 
     const projects = await prisma.project.findMany({
-      where: whereClause, 
-      include: {
-        // ★ 修正: planner: true (全情報) ではなく、必要な情報だけを select する
-        planner: {
-          select: {
-            handleName: true,
-            iconUrl: true // ★ アイコンURLを追加
-          }
-        }
-      },
-      orderBy: { createdAt: 'desc' }
-    });
-    res.status(200).json(projects);
-  } catch (error) {
-    console.error('企画一覧取得エラー:', error);
-    res.status(500).json({ message: '企画の取得中にエラーが発生しました。' });
-  }
+      where: whereClause, 
+      include: {
+        planner: {
+          select: {
+            handleName: true,
+            iconUrl: true
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+    res.status(200).json(projects);
+  } catch (error) {
+    console.error('企画一覧取得エラー:', error);
+    res.status(500).json({ message: '企画の取得中にエラーが発生しました。' });
+  }
 });
 
 // こちらも 'FUNDRAISING' (募集中) の企画のみを取得
@@ -531,14 +539,22 @@ app.get('/api/projects/:id', async (req, res) => {
             iconUrl: true
           }
         },
-        venue: { 
-          select: { 
-            id: true, 
-            venueName: true, 
-            address: true, 
-            regulations: true 
-          } 
-        },
+        venue: { 
+          select: { 
+            id: true, 
+            venueName: true, 
+            address: true, 
+            // regulations: true, // ← 古いフィールド（もし不要なら削除でもOK）
+            
+            // ★ 新しいフィールドを追加
+            isStandAllowed: true,
+            standRegulation: true,
+            isBowlAllowed: true,
+            bowlRegulation: true,
+            retrievalRequired: true,
+            accessInfo: true
+          } 
+        },
         // ↓↓↓ 【新規追加】支援コースを取得
         pledgeTiers: {
           orderBy: { amount: 'asc' }
@@ -917,7 +933,53 @@ app.post('/api/pledges', authenticateToken, async (req, res) => {
   }
 });
 
+// ★★★【新規】ユーザーによる会場簡易登録API ★★★
+app.post('/api/venues/add', authenticateToken, async (req, res) => {
+  try {
+    const { venueName, address, regulations } = req.body;
 
+    // バリデーション
+    if (!venueName) {
+      return res.status(400).json({ message: '会場名は必須です。' });
+    }
+
+    // 重複チェック (同じ名前の会場がないか簡易チェック)
+    const existingVenue = await prisma.venue.findFirst({
+      where: { venueName: venueName }
+    });
+    if (existingVenue) {
+      return res.status(409).json({ message: 'その会場名は既に登録されています。リストから選択してください。' });
+    }
+
+    // ダミーデータの生成 (ユーザー登録の場合は管理用メアドなどがないため)
+    // ※本来は「申請中」ステータスにするのが理想ですが、今回は即時登録します
+    const randomId = Math.random().toString(36).slice(-8);
+    
+    const newVenue = await prisma.venue.create({
+      data: {
+        venueName,
+        address,
+        // 簡易登録ではレギュレーションをテキストフィールドにまとめて保存
+        // (管理者が後で詳細な isStandAllowed などを整備する運用想定)
+        accessInfo: regulations, 
+        
+        // 必須フィールドのダミー埋め
+        email: `temp_${randomId}@flastal.user-submitted`,
+        password: await bcrypt.hash('temp_password', 10),
+        
+        // デフォルトは「確認中」の意味を込めて全てTrue（またはFalse）にしておく
+        isStandAllowed: true, 
+        isBowlAllowed: true,
+        retrievalRequired: true
+      }
+    });
+
+    res.status(201).json(newVenue);
+  } catch (error) {
+    console.error("会場簡易登録エラー:", error);
+    res.status(500).json({ message: '会場の登録中にエラーが発生しました。' });
+  }
+});
 
 // ★★★ 見積書作成API (JWT対応: 担当のお花屋さんのみ) ★★★
 app.post('/api/quotations', authenticateToken, async (req, res) => { // ★ authenticateToken 追加
@@ -1163,23 +1225,33 @@ app.post('/api/florists/register', async (req, res) => {
   }
 });
 
-// ★★★ 会場一覧API (レギュレーション情報を含めるように修正) ★★★
+// ★★★ 会場一覧API (公開用: 企画作成フォームなどで使用) ★★★
 app.get('/api/venues', async (req, res) => {
-  try {
-    const venues = await prisma.venue.findMany({
-      select: { // 公開情報とレギュレーション情報を含める
-        id: true,
-        venueName: true,
-        address: true,
-        regulations: true, // ★★★ regulations を追加 ★★★
-      },
-      orderBy: { venueName: 'asc' },
-    });
-    res.status(200).json(venues);
-  } catch (error) {
-    console.error("会場一覧取得エラー:", error);
-    res.status(500).json({ message: '会場一覧の取得中にエラーが発生しました。' });
-  }
+  try {
+    const venues = await prisma.venue.findMany({
+      select: {
+        id: true,
+        venueName: true,
+        address: true,
+        // regulations: true, // ← 古いフィールド（互換性のため残してもOK）
+        
+        // ★ 新しい詳細フィールドを追加
+        isStandAllowed: true,
+        standRegulation: true,
+        isBowlAllowed: true,
+        bowlRegulation: true,
+        retrievalRequired: true,
+        accessInfo: true
+      },
+      orderBy: {
+        venueName: 'asc',
+      }
+    });
+    res.status(200).json(venues);
+  } catch (error) {
+    console.error("会場一覧取得エラー:", error);
+    res.status(500).json({ message: '会場リストの取得中にエラーが発生しました。' });
+  }
 });
 
 // ★★★ お花屋さん一覧取得API (829行目あたり) ★★★
@@ -3004,6 +3076,251 @@ app.patch('/api/admin/florists/:floristId/status', requireAdmin, async (req, res
   }
 });
 
+// ===================================
+// ★★★【新規】管理者用 会場管理API ★★★
+// ===================================
+
+// 1. 会場一覧取得 (管理者用: 全フィールド取得)
+app.get('/api/admin/venues', requireAdmin, async (req, res) => {
+  try {
+    const venues = await prisma.venue.findMany({
+      orderBy: { venueName: 'asc' },
+    });
+    res.status(200).json(venues);
+  } catch (error) {
+    res.status(500).json({ message: '会場データの取得に失敗しました。' });
+  }
+});
+
+// 2. 会場新規登録 (管理者用)
+app.post('/api/admin/venues', requireAdmin, async (req, res) => {
+  try {
+    const { 
+      venueName, address, email, password, 
+      isStandAllowed, standRegulation,
+      isBowlAllowed, bowlRegulation,
+      retrievalRequired, accessInfo
+    } = req.body;
+
+    // パスワードのハッシュ化 (未入力ならデフォルトを設定)
+    const hash = await bcrypt.hash(password || 'flastal1234', 10);
+
+    const newVenue = await prisma.venue.create({
+      data: {
+        venueName,
+        address,
+        email, // ※必須項目（ダミーでもOK）
+        password: hash,
+        isStandAllowed: isStandAllowed ?? true,
+        standRegulation,
+        isBowlAllowed: isBowlAllowed ?? true,
+        bowlRegulation,
+        retrievalRequired: retrievalRequired ?? true,
+        accessInfo
+      }
+    });
+    res.status(201).json(newVenue);
+  } catch (error) {
+    if (error.code === 'P2002') {
+      return res.status(409).json({ message: 'このメールアドレスは既に使用されています。' });
+    }
+    console.error("会場登録エラー:", error);
+    res.status(500).json({ message: '会場の登録に失敗しました。' });
+  }
+});
+
+// 3. 会場編集 (管理者用)
+app.patch('/api/admin/venues/:id', requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  // 必要なフィールドだけ取り出す
+  const { 
+    venueName, address, email,
+    isStandAllowed, standRegulation,
+    isBowlAllowed, bowlRegulation,
+    retrievalRequired, accessInfo
+  } = req.body;
+
+  try {
+    const updatedVenue = await prisma.venue.update({
+      where: { id },
+      data: {
+        venueName,
+        address,
+        email,
+        isStandAllowed,
+        standRegulation,
+        isBowlAllowed,
+        bowlRegulation,
+        retrievalRequired,
+        accessInfo
+      }
+    });
+    res.status(200).json(updatedVenue);
+  } catch (error) {
+    console.error("会場更新エラー:", error);
+    res.status(500).json({ message: '会場情報の更新に失敗しました。' });
+  }
+});
+
+// 4. 会場削除 (管理者用)
+app.delete('/api/admin/venues/:id', requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  try {
+    await prisma.venue.delete({ where: { id } });
+    res.status(204).send();
+  } catch (error) {
+    // 既に紐づくプロジェクトがある場合などはエラーになる (外部キー制約)
+    console.error("会場削除エラー:", error);
+    res.status(500).json({ message: '削除できませんでした。紐づく企画が存在する可能性があります。' });
+  }
+});
+
+
+// ===================================
+// ★★★【新規】イベント主催者 (Organizer) 用 API ★★★
+// ===================================
+
+// 1. 主催者登録
+app.post('/api/organizers/register', async (req, res) => {
+  try {
+    const { email, password, name, website } = req.body;
+    if (!email || !password || !name) {
+      return res.status(400).json({ message: '必須項目が不足しています。' });
+    }
+    const hashedPassword = await bcrypt.hash(password, 10);
+    
+    const newOrganizer = await prisma.organizer.create({
+      data: { email, password: hashedPassword, name, website }
+    });
+    
+    const { password: _, ...organizerWithoutPassword } = newOrganizer;
+    res.status(201).json({ message: '主催者登録が完了しました。', organizer: organizerWithoutPassword });
+  } catch (error) {
+    if (error.code === 'P2002') return res.status(409).json({ message: 'このメールアドレスは既に使用されています。' });
+    console.error("主催者登録エラー:", error);
+    res.status(500).json({ message: '登録処理中にエラーが発生しました。' });
+  }
+});
+
+// 2. 主催者ログイン
+app.post('/api/organizers/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    const organizer = await prisma.organizer.findUnique({ where: { email } });
+    if (!organizer) return res.status(401).json({ message: 'メールアドレスまたはパスワードが違います。' });
+
+    const isValid = await bcrypt.compare(password, organizer.password);
+    if (!isValid) return res.status(401).json({ message: 'パスワードが違います。' });
+
+    // トークン発行 (Role: ORGANIZER)
+    const token = jwt.sign(
+      { 
+        id: organizer.id, 
+        email: organizer.email, 
+        role: 'ORGANIZER', 
+        name: organizer.name, // handleNameの代わりにnameを使用
+        handleName: organizer.name, // フロントエンド互換用
+        sub: organizer.id 
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: '1d' }
+    );
+
+    res.status(200).json({ message: 'ログイン成功', token });
+  } catch (error) {
+    res.status(500).json({ message: 'ログイン処理中にエラーが発生しました。' });
+  }
+});
+
+// 3. イベント作成 (主催者のみ)
+app.post('/api/events', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'ORGANIZER') return res.status(403).json({ message: '権限がありません。' });
+  
+  const { title, description, eventDate, venueId, isStandAllowed, regulationNote } = req.body;
+  
+  try {
+    const newEvent = await prisma.event.create({
+      data: {
+        title,
+        description,
+        eventDate: new Date(eventDate),
+        venueId: venueId || null,
+        organizerId: req.user.id,
+        isStandAllowed: isStandAllowed ?? true,
+        regulationNote
+      }
+    });
+    res.status(201).json(newEvent);
+  } catch (error) {
+    console.error("イベント作成エラー:", error);
+    res.status(500).json({ message: 'イベントの作成に失敗しました。' });
+  }
+});
+
+// 4. 主催者のマイイベント一覧取得
+app.get('/api/organizers/events', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'ORGANIZER') return res.status(403).json({ message: '権限がありません。' });
+  
+  try {
+    const events = await prisma.event.findMany({
+      where: { organizerId: req.user.id },
+      include: { 
+        venue: true,
+        _count: { select: { projects: true } } // 紐づいている企画数も取得
+      },
+      orderBy: { eventDate: 'desc' }
+    });
+    res.status(200).json(events);
+  } catch (error) {
+    res.status(500).json({ message: 'イベント一覧の取得に失敗しました。' });
+  }
+});
+
+// 5. 公開中のイベント一覧取得 (ユーザーが企画作成時に選択するため)
+app.get('/api/events', async (req, res) => {
+  try {
+    // 開催日が今日以降のイベントを取得
+    const events = await prisma.event.findMany({
+      where: { eventDate: { gte: new Date() } },
+      include: { venue: true, organizer: { select: { name: true } } },
+      orderBy: { eventDate: 'asc' }
+    });
+    res.status(200).json(events);
+  } catch (error) {
+    res.status(500).json({ message: 'イベントリストの取得に失敗しました。' });
+  }
+});
+
+
+// ★★★ イベント詳細取得API (公開用: 紐づく企画一覧も取得) ★★★
+app.get('/api/events/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const event = await prisma.event.findUnique({
+      where: { id },
+      include: {
+        venue: true,
+        organizer: { select: { name: true, website: true } },
+        projects: {
+          where: { visibility: 'PUBLIC', status: { not: 'CANCELED' } }, // キャンセル以外の公開企画を表示
+          include: {
+            planner: { select: { handleName: true, iconUrl: true } }
+          },
+          orderBy: { createdAt: 'desc' }
+        }
+      }
+    });
+
+    if (!event) {
+      return res.status(404).json({ message: 'イベントが見つかりません。' });
+    }
+
+    res.status(200).json(event);
+  } catch (error) {
+    console.error("イベント詳細取得エラー:", error);
+    res.status(500).json({ message: 'イベント情報の取得に失敗しました。' });
+  }
+});
 
 
 // ===================================
