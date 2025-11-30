@@ -83,45 +83,34 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 
 // ★★★ JWT認証ミドルウェア (デバッグ強化版) ★★★
 const authenticateToken = (req, res, next, requiredRole = null) => {
-  // 1. ヘッダーからトークンを取得
   const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : null;
-
-  // ★デバッグログ: トークンが届いているか確認
-  if (req.method === 'PATCH' && req.url.includes('/cancel')) {
-      console.log(`[AuthDebug] Header: ${authHeader ? 'Exists' : 'Missing'}`);
-      console.log(`[AuthDebug] Token extracted: ${token ? 'Yes' : 'No'}`);
-  }
+  
+  // ★ "Bearer " の後ろを取り出す処理を厳密にする
+  const token = authHeader && authHeader.split(' ')[1];
 
   if (!token) {
-    // トークンがない場合
-    console.log(`[AuthDebug] No token provided.`);
+    console.log(`[AuthDebug] No token provided. Header: ${authHeader}`);
     return res.status(401).json({ message: '認証トークンが必要です。' });
   }
 
-  // 2. トークンを検証
+  // ★ トークンが "null" や "undefined" という文字列になっていないかチェック
+  if (token === 'null' || token === 'undefined') {
+    console.log(`[AuthDebug] Invalid token string: ${token}`);
+    return res.status(401).json({ message: '無効なトークンです。再ログインしてください。' });
+  }
+
   jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
     if (err) {
-      // トークンが無効（期限切れなど）の場合
-      console.log(`[AuthDebug] Token verification failed: ${err.message}`);
+      console.log(`[AuthDebug] Verification failed: ${err.message}. Token: ${token.substring(0, 10)}...`);
       return res.status(403).json({ message: 'トークンが無効または期限切れです。' });
     }
 
-    // 3. ユーザー情報をリクエストオブジェクトに格納
-    req.user = user; 
+    req.user = user;
 
-    // ★デバッグログ: ユーザー情報確認
-    if (req.method === 'PATCH' && req.url.includes('/cancel')) {
-        console.log(`[AuthDebug] User authenticated: ${user.id} (Role: ${user.role})`);
-    }
-
-    // 4. 権限チェック (requiredRoleが設定されている場合)
     if (requiredRole && user.role !== requiredRole) {
-      console.log(`[AuthDebug] Role mismatch. Required: ${requiredRole}, Got: ${user.role}`);
       return res.status(403).json({ message: 'この操作を実行する権限がありません。' });
     }
 
-    // 次の処理へ
     next();
   });
 };

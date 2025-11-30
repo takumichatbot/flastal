@@ -14,12 +14,18 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  // ★ ユーザー情報をセットする共通関数 (改良版)
+  // ★ ユーザー情報をセットする共通関数 (さらに改良版)
   const setupUser = (newToken) => {
+    if (!newToken) return false;
+
+    // ★★★ 修正ポイント: トークンのクリーニング ★★★
+    // 余計なダブルクォーテーションを取り除く
+    const rawToken = newToken.replace(/^"|"$/g, '');
+
     try {
-      const decoded = jwtDecode(newToken);
+      const decoded = jwtDecode(rawToken);
       
-      // ★ 役割に応じて「表示名」を統一的に handleName にセットする
+      // 役割に応じて「表示名」を統一的に handleName にセットする
       let displayName = decoded.handleName;
       if (decoded.role === 'FLORIST') displayName = decoded.shopName;
       if (decoded.role === 'VENUE') displayName = decoded.venueName;
@@ -37,12 +43,15 @@ export function AuthProvider({ children }) {
         sub: decoded.sub 
       });
       
-      setToken(newToken);
-      localStorage.setItem('authToken', newToken);
+      setToken(rawToken);
+      localStorage.setItem('authToken', rawToken); // ★ きれいなトークンを保存
       return true;
     } catch (error) {
       console.error("Failed to decode token:", error);
-      logout(); // 失敗したらクリーンアップ
+      // トークンが無効なら強制ログアウト（無限ループ防止のため、ここではrouter.pushしない）
+      setUser(null);
+      setToken(null);
+      localStorage.removeItem('authToken');
       return false;
     }
   };
@@ -63,12 +72,10 @@ export function AuthProvider({ children }) {
     initAuth();
   }, []);
 
-  // ★ login関数を改良: 第2引数(userData)を受け取れるようにするが、基本はtokenから復元
   const login = async (newToken, userData = null) => {
     const success = setupUser(newToken);
     if (success && userData) {
-      // 必要であればuserDataをstateにマージする処理をここに書けますが、
-      // 基本的には setupUser(token) で十分な情報が取れる設計にしています。
+      // 必要ならuserDataをマージ
     }
   };
 
@@ -76,9 +83,7 @@ export function AuthProvider({ children }) {
     setUser(null);
     setToken(null);
     localStorage.removeItem('authToken');
-    // 古いキーの掃除
-    localStorage.removeItem('flastal-florist');
-    
+    localStorage.removeItem('flastal-florist'); // 古いキーの掃除
     router.push('/login');
   };
   
