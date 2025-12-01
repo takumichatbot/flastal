@@ -1,10 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react'; // ★ useCallbackを追加
 import { useParams, useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
-import { useAuth } from '../../../contexts/AuthContext'; // ★ ../../../ に修正
+import { useAuth } from '../../../contexts/AuthContext'; 
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -12,19 +12,32 @@ export default function ChatModerationPage() {
   const params = useParams(); 
   const { projectId } = params;
   const [chats, setChats] = useState({ groupChat: [], floristChat: [] });
-  const [loadingData, setLoadingData] = useState(true); // ★ データ取得用ローディング
+  const [loadingData, setLoadingData] = useState(true); 
   const router = useRouter();
 
-  // ★ AuthContext から正しい認証情報を取得
   const { user, isAuthenticated, loading, logout } = useAuth();
 
-  const fetchChats = async () => {
+  // ★ fetchChatsをuseCallbackでラップし、トークン送信処理を復活
+  const fetchChats = useCallback(async () => {
      if (!projectId) return;
-     setLoadingData(true); // ★ データ取得ローディング
+     setLoadingData(true);
     try {
-      // ★ トークンロジックを削除
-      const res = await fetch(`${API_URL}/api/admin/projects/${projectId}/chats`);
-      if (!res.ok) throw new Error('チャット履歴の取得に失敗しました。');
+      // ★ 1. トークンを取得
+      const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+      if (!token) throw new Error('認証トークンがありません。');
+
+      // ★ 2. ヘッダーに Authorization を追加 (必須！)
+      const res = await fetch(`${API_URL}/api/admin/projects/${projectId}/chats`, {
+        headers: {
+          'Authorization': `Bearer ${token}` 
+        }
+      });
+
+      if (!res.ok) {
+        if(res.status === 401) throw new Error('認証に失敗しました。');
+        if(res.status === 403) throw new Error('権限がありません。');
+        throw new Error('チャット履歴の取得に失敗しました。');
+      }
       
       const data = await res.json();
       setChats({
@@ -36,32 +49,29 @@ export default function ChatModerationPage() {
       toast.error(error.message);
       setChats({ groupChat: [], floristChat: [] });
     } finally {
-      setLoadingData(false); // ★ データ取得ローディング
+      setLoadingData(false);
     }
-  };
+  }, [projectId]); 
 
   useEffect(() => {
-    // ★ 1. AuthContext が読み込み中なら待機
-    if (loading) {
-      return;
-    }
-    // ★ 2. 未ログインの場合
+    if (loading) return;
+
     if (!isAuthenticated) {
       toast.error('ログインが必要です。');
       router.push('/login');
       return;
     }
-    // ★ 3. ADMINではない場合
+    
+    // userが存在することを確認してからroleをチェック
     if (!user || user.role !== 'ADMIN') {
       toast.error('管理者権限がありません。');
       router.push('/mypage');
       return;
     }
 
-    // ★ 4. 認証OK (ADMIN) だったので、データを取得
     fetchChats();
 
-  }, [projectId, isAuthenticated, user, router, loading]); // ★ 依存配列を AuthContext に合わせる
+  }, [isAuthenticated, user, router, loading, fetchChats]); 
 
   const handleDelete = async (messageId, type) => {
     if (!window.confirm("このメッセージを完全に削除します。よろしいですか？")) return;
@@ -70,11 +80,14 @@ export default function ChatModerationPage() {
       ? `${API_URL}/api/admin/group-chat/${messageId}`
       : `${API_URL}/api/admin/florist-chat/${messageId}`;
       
-    // ★ トークンロジックを削除
-    
+    // ★ 削除API呼び出し時もトークンが必要
+    const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+
     const promise = fetch(url, {
       method: 'DELETE',
-      // ★ ヘッダーも削除
+      headers: {
+        'Authorization': `Bearer ${token}` // ★ ヘッダーを追加
+      }
     }).then(async (res) => {
         if (!res.ok) {
            let errorMsg = '削除に失敗しました';
@@ -100,7 +113,6 @@ export default function ChatModerationPage() {
     });
   };
 
-  // ★ 7. AuthContextの読み込み中、または権限がない場合の表示
   if (loading || !isAuthenticated || !user || user.role !== 'ADMIN') {
     return (
       <div className="flex justify-center items-center min-h-screen bg-gray-100">
@@ -109,12 +121,10 @@ export default function ChatModerationPage() {
     );
   }
 
-  // ★ 8. 認証済みの場合のページ表示
   return (
     <div className="min-h-screen bg-gray-100 p-4 sm:p-8">
       <div className="max-w-6xl mx-auto">
         
-        {/* ★ ヘッダーを修正 (ログアウトボタン追加) */}
         <div className="flex justify-between items-center mb-6">
             <div>
               <Link href="/admin/moderation" className="text-sky-600 hover:underline text-sm">
@@ -130,7 +140,6 @@ export default function ChatModerationPage() {
             </button>
         </div>
        
-        {/* ★ 以下、元のコンテンツ */}
         {loadingData ? (
           <p className="p-8 text-center">チャット履歴を読み込み中...</p>
         ) : (
