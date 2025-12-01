@@ -5,11 +5,12 @@ import { useAuth } from '../contexts/AuthContext';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
-import { FiUser, FiList, FiHeart, FiBell, FiSettings, FiPlus, FiMessageSquare, FiActivity, FiCheckCircle, FiAlertCircle } from 'react-icons/fi';
+// ★ アイコンを追加 (FiShoppingCart, FiSearch)
+import { FiUser, FiList, FiHeart, FiBell, FiSettings, FiPlus, FiMessageSquare, FiActivity, FiCheckCircle, FiAlertCircle, FiShoppingCart, FiSearch } from 'react-icons/fi';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
-// ★ ステータスバッジ（デザイン強化版）
+// ★ ステータスバッジ（変更なし）
 const getStatusBadge = (status) => {
   const styles = {
     'PENDING_APPROVAL': { label: '審査中', color: 'bg-yellow-100 text-yellow-800 border-yellow-200', icon: '⏳' },
@@ -33,15 +34,14 @@ export default function MyPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams(); 
 
-  const initialTab = searchParams.get('tab') || 'dashboard'; // デフォルトをダッシュボードに変更
+  const initialTab = searchParams.get('tab') || 'dashboard';
   const [activeTab, setActiveTab] = useState(initialTab);
 
   const [createdProjects, setCreatedProjects] = useState([]);
   const [pledgedProjects, setPledgedProjects] = useState([]);
-  const [notifications, setNotifications] = useState([]); // ★ 通知用
+  const [notifications, setNotifications] = useState([]);
   const [loadingData, setLoadingData] = useState(true); 
 
-  // ★ データ取得ロジック（通知も取得）
   const fetchMyData = useCallback(async () => {
     if (!user || !user.id) return; 
     setLoadingData(true);
@@ -52,7 +52,7 @@ export default function MyPageContent() {
       const [createdRes, pledgedRes, notifRes] = await Promise.all([
         fetch(`${API_URL}/api/users/${user.id}/created-projects`),
         fetch(`${API_URL}/api/users/${user.id}/pledged-projects`),
-        fetch(`${API_URL}/api/notifications`, { headers }) // 通知取得
+        fetch(`${API_URL}/api/notifications`, { headers })
       ]);
 
       if (createdRes.ok) setCreatedProjects(await createdRes.json());
@@ -73,7 +73,6 @@ export default function MyPageContent() {
     fetchMyData(); 
   }, [user, authLoading, router, fetchMyData]); 
 
-  // ★ 通知を既読にする処理
   const markAsRead = async (notifId) => {
     try {
         const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
@@ -81,14 +80,12 @@ export default function MyPageContent() {
             method: 'PATCH',
             headers: { 'Authorization': `Bearer ${token}` }
         });
-        // ローカルの未読状態を更新
         setNotifications(prev => prev.map(n => n.id === notifId ? { ...n, isRead: true } : n));
     } catch (e) { console.error(e); }
   };
 
   if (authLoading || !user) return <div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-sky-500"></div></div>;
 
-  // 未読通知数
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
   return (
@@ -104,7 +101,13 @@ export default function MyPageContent() {
             )}
             <div className="overflow-hidden">
                 <p className="font-bold text-gray-800 truncate">{user.handleName}</p>
-                <p className="text-xs text-sky-600 font-bold">{(user.points || 0).toLocaleString()} pt</p>
+                <div className="flex items-center gap-2 mt-1">
+                    <p className="text-xs text-sky-600 font-bold">{(user.points || 0).toLocaleString()} pt</p>
+                    {/* ★★★ ポイント購入ボタンを追加 ★★★ */}
+                    <Link href="/points" className="flex items-center gap-1 bg-sky-100 hover:bg-sky-200 text-sky-700 text-[10px] px-2 py-0.5 rounded-full font-bold transition-colors">
+                        <FiShoppingCart size={10} /> 購入
+                    </Link>
+                </div>
             </div>
         </div>
         <nav className="p-4 space-y-1">
@@ -143,9 +146,7 @@ export default function MyPageContent() {
             <div className="space-y-8 animate-fadeIn">
                 <header className="flex justify-between items-center mb-6">
                     <h1 className="text-2xl font-bold text-gray-800">ダッシュボード</h1>
-                    <Link href="/create" className="flex items-center gap-2 bg-pink-500 hover:bg-pink-600 text-white px-5 py-2.5 rounded-full font-bold shadow-lg transition-transform hover:-translate-y-0.5">
-                        <FiPlus/> 新しい企画を立てる
-                    </Link>
+                    {/* ★ ここにあった「作成ボタン」は削除しました */}
                 </header>
 
                 {/* 未読通知がある場合のアラート */}
@@ -189,8 +190,15 @@ export default function MyPageContent() {
                         ))}
                     </div>
                 ) : (
-                    <p className="text-gray-500">企画はまだありません。</p>
+                    <p className="text-gray-500 mb-6">企画はまだありません。</p>
                 )}
+
+                {/* ★★★ 企画を作成するボタン (リストの下に配置) ★★★ */}
+                <div className="mt-8 flex justify-center">
+                    <Link href="/projects/create" className="flex items-center gap-2 bg-pink-500 hover:bg-pink-600 text-white px-8 py-3 rounded-full font-bold shadow-lg transition-transform hover:-translate-y-0.5">
+                        <FiPlus size={20}/> 新しい企画を作成する
+                    </Link>
+                </div>
             </div>
         )}
 
@@ -216,8 +224,15 @@ export default function MyPageContent() {
                         ))}
                     </div>
                 ) : (
-                    <p className="text-gray-500">まだ支援した企画はありません。</p>
+                    <p className="text-gray-500 mb-6">まだ支援した企画はありません。</p>
                 )}
+
+                {/* ★★★ 企画を探すボタン (リストの下に配置) ★★★ */}
+                <div className="mt-8 flex justify-center">
+                    <Link href="/projects" className="flex items-center gap-2 bg-indigo-500 hover:bg-indigo-600 text-white px-8 py-3 rounded-full font-bold shadow-lg transition-transform hover:-translate-y-0.5">
+                        <FiSearch size={20}/> 他の企画を探しに行く
+                    </Link>
+                </div>
             </div>
         )}
 

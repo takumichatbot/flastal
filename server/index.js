@@ -57,20 +57,17 @@ const httpServer = createServer(app);
 // CORS設定
 const allowedOrigins = [
   'http://localhost:3000',
-  process.env.FRONTEND_URL,
+  process.env.FRONTEND_URL, // 環境変数が空だとここが undefined になるので注意
   'https://www.flastal.com',
-  'https://flastal.com', // ★★★ これを追加して両方許可してください ★★★
+  'https://flastal.com',
+  'https://flastal-frontend.onrender.com' // ★念のためこれも追加しておくと安全です
 ].filter(Boolean);
 
 const corsOptions = {
-  origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  methods: ["GET", "POST", "PATCH", "DELETE"],
+  // 配列を直接渡すことで、corsライブラリが自動的に判定してくれます
+  origin: allowedOrigins, 
+  credentials: true, // クッキーや認証ヘッダーを通すために必要
+  methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"], // OPTIONSも明示
 };
 
 const io = new Server(httpServer, {
