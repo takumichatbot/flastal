@@ -1,13 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react'; // ★ Suspenseを追加
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
-import AiPlanGenerator from '@/app/components/AiPlanGenerator';
 import toast from 'react-hot-toast';
 import { FiInfo, FiAlertTriangle, FiCalendar, FiMapPin, FiX, FiImage, FiCpu, FiLoader } from 'react-icons/fi';
-import FloristDealManager from '@/app/components/FloristDealManager'; // ※もし花屋ダッシュボードならこれ
-import DealMatcher from '@/app/components/DealMatcher'; // ★ これを追加
+import AiPlanGenerator from '@/app/components/AiPlanGenerator';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -17,9 +15,15 @@ const getAuthToken = () => {
   return rawToken ? rawToken.replace(/^"|"$/g, '') : null;
 };
 
-// ==========================================
-// ★★★【新規】AI画像生成モーダル ★★★
-// ==========================================
+// ... (AIGenerationModal, EventSelectionModal, VenueSelectionModal は変更なし。そのまま維持してください) ...
+// ※ 長くなるので省略しますが、以前のコードと同じものをここに配置してください。
+// ↓↓↓ 以下のコードブロック内に、以前のコンポーネント定義が含まれているとして進めます ↓↓↓
+
+// ===========================================
+// ★★★ 省略されたコンポーネント定義のプレースホルダー ★★★
+// 実際にはここに AIGenerationModal, EventSelectionModal, VenueSelectionModal の定義が入ります
+// (直前の回答のコードと同じ内容を使用してください)
+// ===========================================
 function AIGenerationModal({ onClose, onGenerate }) {
   const [prompt, setPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -114,7 +118,6 @@ function AIGenerationModal({ onClose, onGenerate }) {
   );
 }
 
-// --- EventSelectionModal (既存) ---
 function EventSelectionModal({ onClose, onSelect }) {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -210,7 +213,6 @@ function EventSelectionModal({ onClose, onSelect }) {
   );
 }
 
-// --- VenueSelectionModal (既存) ---
 function VenueSelectionModal({ onClose, onSelect }) {
   const [venues, setVenues] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -268,10 +270,12 @@ function VenueSelectionModal({ onClose, onSelect }) {
   );
 }
 
-export default function CreateProjectPage() {
+// ★★★ フォーム部分を別コンポーネントとして切り出し ★★★
+function CreateProjectForm() {
   const router = useRouter();
-  const searchParams = useSearchParams(); // ★ 追加
-  const venueIdFromUrl = searchParams.get('venueId'); // ★ 追加
+  const searchParams = useSearchParams(); // ★ ここで使用
+  const venueIdFromUrl = searchParams.get('venueId');
+
   const { user, loading: authLoading } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -279,8 +283,8 @@ export default function CreateProjectPage() {
   
   const [isVenueModalOpen, setIsVenueModalOpen] = useState(false);
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
-  const [isAIModalOpen, setIsAIModalOpen] = useState(false); // ★ AIモーダル
-  const [isAiPlanModalOpen, setIsAiPlanModalOpen] = useState(false);
+  const [isAIModalOpen, setIsAIModalOpen] = useState(false); 
+  const [isAiPlanModalOpen, setIsAiPlanModalOpen] = useState(false); // ★ AI文章生成用
 
   const [selectedVenue, setSelectedVenue] = useState(null);
   const [selectedEvent, setSelectedEvent] = useState(null);
@@ -309,13 +313,13 @@ export default function CreateProjectPage() {
     }
   }, [user, authLoading, router]);
 
+  // ★ URLから会場IDが渡された場合の処理
   useEffect(() => {
     if (venueIdFromUrl) {
-      // APIから会場情報を取得してセットする処理
       fetch(`${API_URL}/api/venues/${venueIdFromUrl}`)
         .then(res => res.json())
         .then(venue => {
-          if(venue) handleVenueSelect(venue); // 既存の選択ロジックを再利用
+          if(venue) handleVenueSelect(venue);
         });
     }
   }, [venueIdFromUrl]);
@@ -368,7 +372,6 @@ export default function CreateProjectPage() {
     setFormData(prev => ({ ...prev, projectType: type }));
   };
 
-  // メイン画像
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -394,7 +397,6 @@ export default function CreateProjectPage() {
     }
   };
 
-  // デザイン画像 (複数)
   const handleDesignImagesUpload = async (e) => {
     const files = Array.from(e.target.files);
     if (files.length === 0) return;
@@ -425,7 +427,6 @@ export default function CreateProjectPage() {
     }
   };
 
-  // ★★★ AI画像生成完了時の処理 ★★★
   const handleAIGenerated = (url) => {
       setFormData(prev => ({ 
           ...prev, 
@@ -568,6 +569,7 @@ export default function CreateProjectPage() {
             {formData.projectType === 'SOLO' && <p className="mt-3 text-xs text-green-700 bg-green-100 p-2 rounded">※「ひとりで」を選択すると、企画一覧には表示されず、あなた専用の管理ページが作成されます。</p>}
           </section>
 
+          {/* ★★★ AI文章生成ボタン ★★★ */}
           <div className="flex justify-end mb-2">
             <button
               type="button"
@@ -639,7 +641,7 @@ export default function CreateProjectPage() {
             {isUploading && <p className="text-sm text-blue-500 mt-1">アップロード中...</p>}
           </div>
 
-          {/* ★★★ デザイン詳細（AI生成ボタン追加） ★★★ */}
+          {/* デザイン詳細 */}
           <div className="border-t pt-6">
              <h3 className="text-lg font-medium text-gray-900 mb-4">デザイン・お花の希望 (任意)</h3>
              <div className="space-y-4">
@@ -648,7 +650,7 @@ export default function CreateProjectPage() {
                     <div className="flex justify-between items-center mb-2">
                         <label className="block text-sm font-medium text-gray-700">デザイン画・参考画像 (複数可)</label>
                         
-                        {/* ★ AI生成ボタン ★ */}
+                        {/* ★ AI画像生成ボタン ★ */}
                         <button 
                             type="button" 
                             onClick={() => setIsAIModalOpen(true)}
@@ -692,9 +694,7 @@ export default function CreateProjectPage() {
                     <div>
                         <label htmlFor="flowerTypes" className="block text-sm font-medium text-gray-700">使いたいお花</label>
                         <input type="text" name="flowerTypes" id="flowerTypes" value={formData.flowerTypes} onChange={handleChange} className="input-field" placeholder="例：青いバラ、ユリ"/>
-                        <DealMatcher keywords={formData.flowerTypes + ' ' + formData.designDetails} />
                     </div>
-
                 </div>
              </div>
           </div>
@@ -710,7 +710,8 @@ export default function CreateProjectPage() {
       {isVenueModalOpen && <VenueSelectionModal onClose={() => setIsVenueModalOpen(false)} onSelect={handleVenueSelect} />}
       {isEventModalOpen && <EventSelectionModal onClose={() => setIsEventModalOpen(false)} onSelect={handleEventSelect} />}
       {isAIModalOpen && <AIGenerationModal onClose={() => setIsAIModalOpen(false)} onGenerate={handleAIGenerated} />}
-
+      
+      {/* ★★★ AI文章生成モーダル ★★★ */}
       {isAiPlanModalOpen && (
         <AiPlanGenerator 
           onClose={() => setIsAiPlanModalOpen(false)}
@@ -740,5 +741,16 @@ export default function CreateProjectPage() {
         }
       `}</style>
     </div>
+  );
+}
+
+// ===========================================
+// ★★★ デフォルトエクスポートするページコンポーネント (Suspenseでラップ) ★★★
+// ===========================================
+export default function CreateProjectPage() {
+  return (
+    <Suspense fallback={<div className="text-center py-20 text-gray-500">読み込み中...</div>}>
+      <CreateProjectForm />
+    </Suspense>
   );
 }
