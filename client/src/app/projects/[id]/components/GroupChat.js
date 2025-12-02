@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useAuth } from '../../../contexts/AuthContext'; // パスを確認してください
+import { useAuth } from '../../../contexts/AuthContext';
 import toast from 'react-hot-toast';
 import PollCreationModal from './PollCreationModal';
-import { FiGlobe, FiLoader, FiUser } from 'react-icons/fi';
+// ★ アイコンを追加
+import { FiGlobe, FiLoader, FiUser, FiSend, FiImage, FiSmile } from 'react-icons/fi';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 const AVAILABLE_EMOJIS = ['👍', '❤️', '🙌', '😂', '🔥', '🤔'];
@@ -42,7 +43,7 @@ const ReactionPicker = ({ onSelect, isEnabled }) => {
                 className={`ml-2 text-gray-400 transition-colors p-1 rounded-full ${isEnabled ? 'hover:text-gray-600' : 'cursor-not-allowed opacity-50'}`}
                 title="リアクションを追加"
             >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 8v4"></path><path d="M11 16h2"></path></svg>
+                <FiSmile size={16} />
             </button>
             
             {isOpen && (
@@ -85,8 +86,9 @@ const ChatMessage = ({ msg, user, isPlanner, isPledger, onReaction, templates })
 
     const contentText = getMessageContent();
 
-    // 翻訳ハンドラ
+    // ★★★ 翻訳ハンドラ ★★★
     const handleTranslate = async () => {
+        // すでに翻訳済みならトグルで消す
         if (translatedText) {
             setTranslatedText(null);
             return;
@@ -102,7 +104,7 @@ const ChatMessage = ({ msg, user, isPlanner, isPledger, onReaction, templates })
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
                 },
-                body: JSON.stringify({ text: contentText }) // 表示されているテキストを翻訳
+                body: JSON.stringify({ text: contentText }) // AIが言語を自動判定
             });
             if (res.ok) {
                 const data = await res.json();
@@ -112,6 +114,7 @@ const ChatMessage = ({ msg, user, isPlanner, isPledger, onReaction, templates })
             }
         } catch (e) {
             console.error(e);
+            toast.error('翻訳エラー');
         } finally {
             setIsTranslating(false);
         }
@@ -135,8 +138,8 @@ const ChatMessage = ({ msg, user, isPlanner, isPledger, onReaction, templates })
                 {msg.user?.iconUrl ? (
                     <img src={msg.user.iconUrl} alt={msg.user.handleName} className="h-10 w-10 rounded-full object-cover border border-gray-200" />
                 ) : (
-                    <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-500">
-                        <FiUser />
+                    <div className="h-10 w-10 rounded-full bg-indigo-100 text-indigo-500 flex items-center justify-center font-bold">
+                        {msg.user?.handleName?.[0]}
                     </div>
                 )}
             </div>
@@ -144,13 +147,13 @@ const ChatMessage = ({ msg, user, isPlanner, isPledger, onReaction, templates })
             {/* メッセージ本文エリア */}
             <div className={`flex flex-col max-w-[75%] ${isOwn ? 'items-end' : 'items-start'}`}>
                 <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xs text-gray-600 font-bold">{msg.user.handleName}</span>
+                    <span className="text-xs text-gray-600 font-bold">{msg.user?.handleName}</span>
                     <span className="text-[10px] text-gray-400">{new Date(msg.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                 </div>
 
                 <div className="relative">
                     {/* 吹き出し */}
-                    <div className={`px-4 py-2 rounded-2xl relative ${isOwn ? 'bg-sky-500 text-white rounded-tr-none' : 'bg-white border border-gray-200 text-gray-800 rounded-tl-none'}`}>
+                    <div className={`px-4 py-2 rounded-2xl relative shadow-sm ${isOwn ? 'bg-sky-500 text-white rounded-tr-none' : 'bg-white border border-gray-200 text-gray-800 rounded-tl-none'}`}>
                         
                         {/* コンテンツ表示 */}
                         {msg.messageType === 'IMAGE' ? (
@@ -163,28 +166,31 @@ const ChatMessage = ({ msg, user, isPlanner, isPledger, onReaction, templates })
                             <p className="text-sm whitespace-pre-wrap leading-relaxed">{contentText}</p>
                         )}
 
-                        {/* 翻訳結果 */}
+                        {/* ★★★ 翻訳結果表示 ★★★ */}
                         {translatedText && (
-                            <div className={`mt-2 pt-2 border-t text-sm italic flex items-start gap-1 ${isOwn ? 'border-white/30 text-sky-100' : 'border-gray-200 text-gray-600'}`}>
-                                <FiGlobe className="mt-1 shrink-0"/>
+                            <div className={`mt-2 pt-2 border-t text-xs italic flex items-start gap-1 animate-fadeIn ${isOwn ? 'border-white/30 text-sky-100' : 'border-gray-200 text-gray-500'}`}>
+                                <FiGlobe className="mt-0.5 shrink-0"/>
                                 <span>{translatedText}</span>
                             </div>
                         )}
                     </div>
 
                     {/* アクションボタン (翻訳 & リアクション追加) */}
-                    <div className={`absolute top-0 flex items-center ${isOwn ? 'right-full mr-2' : 'left-full ml-2'} opacity-0 group-hover:opacity-100 transition-opacity`}>
-                        {/* 翻訳ボタン (テキストのみ) */}
-                        {!translatedText && (msg.messageType === 'TEXT' || msg.templateId) && (
+                    {/* 自分以外のメッセージ、かつテキストがある場合に表示 */}
+                    <div className={`absolute top-0 flex items-center gap-1 ${isOwn ? 'right-full mr-2' : 'left-full ml-2'} opacity-0 group-hover:opacity-100 transition-opacity`}>
+                        
+                        {/* 翻訳ボタン */}
+                        {!isOwn && (msg.messageType === 'TEXT' || msg.templateId) && (
                             <button 
                                 onClick={handleTranslate}
                                 disabled={isTranslating}
-                                className="text-gray-400 hover:text-sky-500 p-1"
-                                title="翻訳する"
+                                className="text-gray-400 hover:text-indigo-500 p-1 transition-colors"
+                                title={translatedText ? "原文に戻す" : "翻訳する"}
                             >
                                 {isTranslating ? <FiLoader className="animate-spin"/> : <FiGlobe/>}
                             </button>
                         )}
+
                         {/* リアクションピッカー */}
                         <ReactionPicker 
                             onSelect={(emoji) => onReaction(msg.id, emoji)}
@@ -201,7 +207,7 @@ const ChatMessage = ({ msg, user, isPlanner, isPledger, onReaction, templates })
                                         key={emoji}
                                         onClick={() => isPledger && onReaction(msg.id, emoji)}
                                         title={`${data.users.join(', ')}`}
-                                        className={`flex items-center text-xs px-1 rounded-full hover:bg-gray-100 ${data.isReactedByMe ? 'bg-blue-100' : ''}`}
+                                        className={`flex items-center text-xs px-1 rounded-full hover:bg-gray-100 transition-colors ${data.isReactedByMe ? 'bg-blue-100' : ''}`}
                                     >
                                         <span className="mr-0.5">{emoji}</span>
                                         <span className="font-bold text-gray-600">{data.count}</span>
@@ -244,6 +250,7 @@ export default function GroupChat({ project, user, isPlanner, isPledger, onUpdat
     const handleReactionAdded = (newReaction) => {
         setMessages(prevMessages => prevMessages.map(msg => {
             if (msg.id === newReaction.messageId) {
+                // 重複チェック
                 const existingReaction = (msg.reactions || []).find(
                     r => r.userId === newReaction.userId && r.emoji === newReaction.emoji
                 );
@@ -349,7 +356,7 @@ export default function GroupChat({ project, user, isPlanner, isPledger, onUpdat
     uploadFormData.append('image', file);
 
     try {
-      const token = getAuthToken(); // APIルートによってはTokenが必要な場合があるため
+      const token = getAuthToken();
       const res = await fetch(`${API_URL}/api/upload`, { 
           method: 'POST', 
           headers: { 'Authorization': `Bearer ${token}` },
@@ -436,41 +443,53 @@ export default function GroupChat({ project, user, isPlanner, isPledger, onUpdat
 
   return (
     <>
-      <div className="bg-orange-50 p-4 rounded-lg">
-        <h3 className="text-lg font-bold text-orange-800 mb-2">参加者グループチャット</h3>
-        
-        {/* アンケートエリア */}
-        {activePoll && (
-          <div className="bg-white border-2 border-purple-300 rounded-lg p-3 mb-4">
-            <p className="font-bold text-gray-800 mb-3">💡 アンケート実施中: {activePoll.question}</p>
-            <div className="space-y-2">
-              {activePoll.options.map((option, index) => {
-                const voteCount = activePoll.votes.filter(v => v.optionIndex === index).length;
-                const percentage = totalVotes > 0 ? (voteCount / totalVotes) * 100 : 0;
-                const didUserVoteForThis = userVote?.optionIndex === index;
-                return (
-                  <div key={index}>
-                    {userVote ? (
-                      <div title={`${voteCount} / ${totalVotes} 票`}>
-                        <div className="flex justify-between text-sm mb-1">
-                          <span className={`font-semibold ${didUserVoteForThis ? 'text-purple-600' : 'text-gray-700'}`}>{option} {didUserVoteForThis ? ' (あなたが投票)' : ''}</span>
-                          <span className="text-gray-500">{Math.round(percentage)}%</span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-4"><div className="bg-purple-400 h-4 rounded-full" style={{ width: `${percentage}%` }}></div></div>
-                      </div>
-                    ) : (
-                      <button onClick={() => handleVote(index)} disabled={!isPledger} className="w-full text-left p-2 border rounded-md text-gray-800 hover:bg-purple-100 disabled:bg-gray-100 disabled:cursor-not-allowed">{option}</button>
-                    )}
-                  </div>
-                );
-              })}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col h-[600px]">
+        {/* ヘッダー */}
+        <div className="p-4 border-b bg-gray-50 flex justify-between items-center">
+            <div>
+            <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                <FiSmile className="text-pink-500" /> 参加者グループチャット
+            </h3>
+            <p className="text-xs text-gray-500">企画者と支援者のみが見れます</p>
             </div>
-            {!userVote && !isPledger && <p className="text-xs text-red-500 mt-2">※アンケートへの投票は、この企画の支援者のみ可能です。</p>}
-          </div>
-        )}
-        
+            <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
+            {messages.length} コメント
+            </span>
+        </div>
+
         {/* チャットメッセージ一覧 */}
-        <div className="h-80 overflow-y-auto bg-white rounded-lg p-4 mb-4 border border-gray-200 shadow-inner">
+        <div className="flex-grow overflow-y-auto p-4 space-y-4 bg-slate-50">
+          
+          {/* アンケートエリア (スクロール内に配置) */}
+          {activePoll && (
+            <div className="bg-white border-2 border-purple-300 rounded-lg p-3 mb-4 shadow-sm">
+              <p className="font-bold text-gray-800 mb-3">💡 アンケート実施中: {activePoll.question}</p>
+              <div className="space-y-2">
+                {activePoll.options.map((option, index) => {
+                  const voteCount = activePoll.votes.filter(v => v.optionIndex === index).length;
+                  const percentage = totalVotes > 0 ? (voteCount / totalVotes) * 100 : 0;
+                  const didUserVoteForThis = userVote?.optionIndex === index;
+                  return (
+                    <div key={index}>
+                      {userVote ? (
+                        <div title={`${voteCount} / ${totalVotes} 票`}>
+                          <div className="flex justify-between text-sm mb-1">
+                            <span className={`font-semibold ${didUserVoteForThis ? 'text-purple-600' : 'text-gray-700'}`}>{option} {didUserVoteForThis ? ' (あなたが投票)' : ''}</span>
+                            <span className="text-gray-500">{Math.round(percentage)}%</span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-4"><div className="bg-purple-400 h-4 rounded-full" style={{ width: `${percentage}%` }}></div></div>
+                        </div>
+                      ) : (
+                        <button onClick={() => handleVote(index)} disabled={!isPledger} className="w-full text-left p-2 border rounded-md text-gray-800 hover:bg-purple-100 disabled:bg-gray-100 disabled:cursor-not-allowed transition-colors">{option}</button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              {!userVote && !isPledger && <p className="text-xs text-red-500 mt-2">※アンケートへの投票は、この企画の支援者のみ可能です。</p>}
+            </div>
+          )}
+
           {messages.length > 0 ? (
             messages.map(msg => (
                 <ChatMessage 
@@ -492,50 +511,83 @@ export default function GroupChat({ project, user, isPlanner, isPledger, onUpdat
         </div>
 
         {/* テンプレート・入力エリア */}
-        <div>
-          {Object.entries(templatesByCategory).map(([category, templates]) => (
-            <div key={category} className="mb-2">
-              <p className="text-xs font-semibold text-gray-600 mb-1">{category}</p>
-              <div className="flex flex-wrap gap-2">
+        <div className="p-3 bg-white border-t">
+          {/* テンプレートボタン */}
+          {Object.entries(templatesByCategory).length > 0 && (
+             <div className="mb-3 flex overflow-x-auto gap-2 pb-2 scrollbar-thin">
                 {templates.map(template => (
-                  <button key={template.id} onClick={() => handleTemplateClick(template)} disabled={!isPledger && !isPlanner} className="px-3 py-1 text-sm bg-white border text-gray-800 rounded-full hover:bg-orange-200 transition-colors disabled:bg-gray-200 disabled:cursor-not-allowed">{template.text}</button>
+                  <button 
+                    key={template.id} 
+                    onClick={() => handleTemplateClick(template)} 
+                    disabled={!isPledger && !isPlanner} 
+                    className="whitespace-nowrap px-3 py-1 text-xs bg-gray-50 border text-gray-700 rounded-full hover:bg-orange-100 transition-colors disabled:opacity-50"
+                  >
+                    {template.text}
+                  </button>
                 ))}
-              </div>
-            </div>
-          ))}
+             </div>
+          )}
 
-          <div className="border-t mt-4 pt-3">
-             <p className="text-xs font-semibold text-gray-600 mb-1">その他 (自由記述・ファイル添付)</p>
-             <form onSubmit={handleFreeTextSubmit} className="flex gap-2">
-               <button 
-                  type="button" 
-                  onClick={() => fileInputRef.current.click()} 
-                  disabled={isUploading || !socket || !user}
-                  title="ファイル/画像を添付" 
-                  className="p-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors flex-shrink-0 disabled:bg-gray-100 disabled:text-gray-400"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
-                </button>
-                <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" disabled={isUploading} />
-               
-               <input type="text" value={freeText} onChange={(e) => setFreeText(e.target.value)} placeholder={isUploading ? "アップロード中..." : "メッセージを入力..."} required={!isUploading} disabled={isUploading} className="p-2 border rounded-md text-gray-900 flex-grow" />
-               <button type="submit" disabled={isUploading || !freeText.trim()} className="p-2 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600 disabled:bg-gray-400">送信</button>
-             </form>
+          <div className="flex gap-2 items-end">
+             {/* 画像アップロードボタン */}
+             <button 
+                type="button" 
+                onClick={() => fileInputRef.current.click()} 
+                disabled={isUploading || !socket || !user}
+                className="p-3 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors flex-shrink-0"
+              >
+                <FiImage size={20} />
+              </button>
+              <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" disabled={isUploading} />
+             
+             {/* テキスト入力 */}
+             <div className="flex-grow">
+               <textarea
+                 value={freeText}
+                 onChange={(e) => setFreeText(e.target.value)}
+                 onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleFreeTextSubmit(e);
+                    }
+                 }}
+                 placeholder={isUploading ? "アップロード中..." : "メッセージを入力..."} 
+                 disabled={isUploading} 
+                 rows="1"
+                 className="w-full bg-gray-100 border-0 rounded-2xl px-4 py-3 focus:ring-2 focus:ring-sky-500 focus:bg-white transition-all resize-none text-sm max-h-32"
+                 style={{ minHeight: '44px' }}
+               />
+             </div>
+
+             {/* 送信ボタン */}
+             <button 
+               onClick={handleFreeTextSubmit}
+               disabled={isUploading || !freeText.trim()} 
+               className={`p-3 rounded-full text-white shadow-md transition-all ${
+                 !freeText.trim() || isUploading 
+                   ? 'bg-gray-300 cursor-not-allowed' 
+                   : 'bg-sky-500 hover:bg-sky-600 active:scale-95'
+               }`}
+             >
+               <FiSend size={20} />
+             </button>
           </div>
 
           {isPlanner && (
-            <button onClick={() => setPollModalOpen(true)} className="w-full mt-4 p-2 text-sm font-semibold bg-purple-500 text-white rounded-lg hover:bg-purple-600">💡 新しいアンケートを作成する</button>
+            <button onClick={() => setPollModalOpen(true)} className="w-full mt-2 p-2 text-xs font-semibold text-purple-500 hover:bg-purple-50 rounded transition-colors text-center">
+                📊 アンケートを作成する
+            </button>
           )}
         </div>
       </div>
 
       {customInputModal.isOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
-          <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-lg">
+          <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-lg animate-fadeIn">
             <form onSubmit={handleCustomSubmit}>
               <p className="text-sm text-gray-600">テンプレート:</p>
               <p className="mb-4 font-semibold text-lg">{customInputModal.template.text.replace('...', `「${customInputModal.text || '...'}」`)}</p>
-              <input type="text" value={customInputModal.text} onChange={(e) => setCustomInputModal({ ...customInputModal, text: e.target.value })} placeholder={customInputModal.template.placeholder} required autoFocus className="w-full mt-1 p-2 border rounded-md text-gray-900"/>
+              <input type="text" value={customInputModal.text} onChange={(e) => setCustomInputModal({ ...customInputModal, text: e.target.value })} placeholder={customInputModal.template.placeholder} required autoFocus className="w-full mt-1 p-2 border rounded-md text-gray-900 focus:ring-2 focus:ring-orange-500"/>
               <div className="mt-6 flex justify-end gap-4">
                 <button type="button" onClick={() => setCustomInputModal({ isOpen: false, template: null, text: '' })} className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300">閉じる</button>
                 <button type="submit" className="px-4 py-2 font-bold text-white bg-orange-500 rounded-md hover:bg-orange-600">送信する</button>

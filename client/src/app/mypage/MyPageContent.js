@@ -100,9 +100,10 @@ export default function MyPageContent() {
             )}
             <div className="overflow-hidden">
                 <p className="font-bold text-gray-800 truncate">{user.handleName}</p>
+                
+                {/* ★★★ ポイント表示と購入ボタン ★★★ */}
                 <div className="flex items-center gap-2 mt-1">
                     <p className="text-xs text-sky-600 font-bold">{(user.points || 0).toLocaleString()} pt</p>
-                    {/* ポイント購入ボタン */}
                     <Link href="/points" className="flex items-center gap-1 bg-sky-100 hover:bg-sky-200 text-sky-700 text-[10px] px-2 py-0.5 rounded-full font-bold transition-colors">
                         <FiShoppingCart size={10} /> 購入
                     </Link>
@@ -188,7 +189,7 @@ export default function MyPageContent() {
                     ) : (
                         <div className="bg-white p-8 rounded-xl border border-dashed border-gray-300 text-center">
                             <p className="text-gray-500 mb-2">現在進行中の企画はありません。</p>
-                            <Link href="/create" className="text-sky-600 font-bold hover:underline">企画を立ち上げてみましょう！</Link>
+                            <Link href="/projects/create" className="text-sky-600 font-bold hover:underline">企画を立ち上げてみましょう！</Link>
                         </div>
                     )}
                 </section>
@@ -208,6 +209,13 @@ export default function MyPageContent() {
                 ) : (
                     <p className="text-gray-500 mb-6">企画はまだありません。</p>
                 )}
+
+                {/* ★★★ 企画を作成するボタン (リストの下に配置) ★★★ */}
+                <div className="mt-8 flex justify-center">
+                    <Link href="/projects/create" className="flex items-center gap-2 bg-pink-500 hover:bg-pink-600 text-white px-8 py-3 rounded-full font-bold shadow-lg transition-transform hover:-translate-y-0.5">
+                        <FiPlus size={20}/> 新しい企画を作成する
+                    </Link>
+                </div>
             </div>
         )}
 
@@ -235,6 +243,13 @@ export default function MyPageContent() {
                 ) : (
                     <p className="text-gray-500 mb-6">まだ支援した企画はありません。</p>
                 )}
+
+                {/* ★★★ 企画を探すボタン (リストの下に配置) ★★★ */}
+                <div className="mt-8 flex justify-center">
+                    <Link href="/projects" className="flex items-center gap-2 bg-indigo-500 hover:bg-indigo-600 text-white px-8 py-3 rounded-full font-bold shadow-lg transition-transform hover:-translate-y-0.5">
+                        <FiSearch size={20}/> 他の企画を探しに行く
+                    </Link>
+                </div>
             </div>
         )}
 

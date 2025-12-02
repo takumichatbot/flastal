@@ -4,9 +4,20 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
 import { useForm } from 'react-hook-form';
+import { FiBox } from 'react-icons/fi';
 import { io } from 'socket.io-client';
+import VirtualStage from '@/app/components/VirtualStage'; // ★ 追加
 import toast from 'react-hot-toast';
+import { useRef } from 'react';
+import MoodBoard from '@/app/components/MoodBoard'; // ★ 追加
+import OfficialBadge from '@/app/components/OfficialBadge';
 import Link from 'next/link';
+import UpsellAlert from '@/app/components/UpsellAlert'; // ★ 追加
+import FlowerScrollIndicator from '@/app/components/FlowerScrollIndicator'; // ★ 追加
+import { useReactToPrint } from 'react-to-print'; // ★ 追加
+import { BalanceSheet } from '@/app/components/BalanceSheet';
+import PanelPreviewer from '@/app/components/PanelPreviewer'; // ★ 追加
+import GuestPledgeForm from '@/app/components/GuestPledgeForm';
 // ★ ARコンポーネントを動的インポート (SSR回避)
 import dynamic from 'next/dynamic';
 const ArViewer = dynamic(() => import('../../components/ArViewer'), { ssr: false });
@@ -19,6 +30,9 @@ import GroupChat from './components/GroupChat';
 import CompletionReportModal from './components/CompletionReportModal';
 import ReportModal from './components/ReportModal'; 
 import VenueRegulationCard from '../../components/VenueRegulationCard';
+import DeliveryTracker from '@/app/components/DeliveryTracker';
+import FloristDeliveryControl from '@/app/components/FloristDeliveryControl';
+
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -320,7 +334,13 @@ function TargetAmountModal({ project, user, onClose, onUpdate }) {
 export default function ProjectDetailPage() {
   const params = useParams();
   const { id } = params;
-  const { user } = useAuth();
+  const [showGuestPledgeModal, setShowGuestPledgeModal] = useState(false); // ★ 追加
+  const { user, isAuthenticated } = useAuth(); // isAuthenticatedも使う
+  const componentRef = useRef();
+  const handlePrint = useReactToPrint({
+    content: () => componentRef.current,
+    documentTitle: `収支報告書_${project?.title}`,
+  });
   
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -439,6 +459,21 @@ export default function ProjectDetailPage() {
     } finally {
         setLoadingRecommendations(false);
     }
+  };
+
+  // 表示用ステータスの決定 (productionStatusがあればそれを優先、なければstatus)
+  const currentStatus = project.productionStatus || project.status || 'ACCEPTED';
+
+  // ログインユーザーが、この企画を担当しているお花屋さんかどうか判定
+  const isAssignedFlorist = user && user.role === 'FLORIST' && project.offer?.floristId === user.id;
+
+  // ステータス更新時に画面を即時反映させる関数
+  const handleStatusChange = (newStatus) => {
+    setProject(prev => ({ 
+      ...prev, 
+      productionStatus: newStatus, 
+      status: newStatus // 必要に応じて同期
+    }));
   };
 
   const handleStatusUpdate = async (newStatus) => {
@@ -560,11 +595,18 @@ export default function ProjectDetailPage() {
             )}
 
             <div className="p-8">
+
+              <div className="mb-2">
+                  <OfficialBadge projectId={project.id} isPlanner={isPlanner} />
+              </div>
               <h1 className="text-3xl font-bold text-gray-900 mb-2">{project.title}</h1>
+
               <p className="text-gray-600 mb-6">企画者: {project.planner?.handleName}</p>
               
               {/* 会場情報 */}
               {project.venue && <div className="mb-8"><VenueRegulationCard venue={project.venue} /></div>}
+
+              <UpsellAlert target={project.targetAmount} collected={project.collectedAmount} />
 
               {/* ★★★ デジタルネームボードへのリンクボタン (ここに追加) ★★★ */}
               <div className="mb-8">
@@ -636,12 +678,36 @@ export default function ProjectDetailPage() {
                 </div>
               )}
 
+              {/* ▼ 配送トラッカー (全員に表示) ▼ */}
+              <div className="mb-8">
+                <DeliveryTracker status={currentStatus} />
+              </div>
+
+              {/* ▼ お花屋さん専用操作パネル (担当花屋のみ表示) ▼ */}
+              {isAssignedFlorist && (
+                <div className="mb-8">
+                  <FloristDeliveryControl 
+                    projectId={project.id} 
+                    currentStatus={currentStatus} 
+                    onStatusChange={handleStatusChange} 
+                  />
+                </div>
+              )}
+
               {/* 2. パネルデータ管理 */}
               {(isPlanner || isFlorist) && (
                 <div className="bg-white p-6 rounded-xl shadow-sm border border-pink-100 mb-8">
                     <h2 className="font-bold text-lg text-gray-800 mb-4 flex items-center">
                         <FiImage className="mr-2 text-pink-500"/> パネル・装飾データ提出
                     </h2>
+                    <div className="mb-8">
+                        <PanelPreviewer onImageSelected={(file) => {
+                            // ここでファイルアップロード処理を呼ぶ
+                            // ダミーイベントオブジェクトを作って既存のhandleUploadを再利用
+                            const dummyEvent = { target: { files: [file] } };
+                            handleUpload(dummyEvent, 'illustration'); // 'illustration' としてアップロード
+                        }} />
+                    </div>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         {/* イラストパネル */}
                         <div>
@@ -747,6 +813,15 @@ export default function ProjectDetailPage() {
                 </div>
               )}
 
+              {(isPlanner || isPledger || isFlorist) && (
+                <div className="mt-8 mb-8">
+                   <MoodBoard projectId={project.id} user={user} />
+                </div>
+              )}
+              <div className="mt-12 mb-8">
+                <VirtualStage projectId={project.id} />
+              </div>
+
               {/* ToDo */}
               {isPlanner && (
                 <div className="border-t my-8 pt-6">
@@ -773,7 +848,16 @@ export default function ProjectDetailPage() {
 
               {/* 収支報告 */}
               <div className="border-t my-8 pt-6">
-                 <h2 className="text-xl font-semibold mb-4">収支報告</h2>
+                 <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-xl font-semibold">収支報告</h2>
+                    {/* ★★★ PDF発行ボタン (企画者または支援者に見せる) ★★★ */}
+                    <button 
+                        onClick={handlePrint}
+                        className="flex items-center gap-2 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded transition-colors"
+                    >
+                        <FiPrinter /> 報告書をPDF発行
+                    </button>
+                 </div>
                  <div className="bg-slate-50 p-4 rounded-lg text-sm space-y-2">
                    <div className="flex justify-between"><span>収入:</span><span>{project.collectedAmount.toLocaleString()} pt</span></div>
                    <div className="flex justify-between text-red-600"><span>支出:</span><span>- {totalExpense.toLocaleString()} pt</span></div>
@@ -794,6 +878,15 @@ export default function ProjectDetailPage() {
                         </div>
                     ))}
                  </div>
+                 {/* ★★★ 印刷用コンポーネント (画面には表示しない) ★★★ */}
+                 <div style={{ display: "none" }}>
+                    <BalanceSheet 
+                        ref={componentRef} 
+                        project={project} 
+                        totalExpense={totalExpense} 
+                        balance={balance} 
+                    />
+                  </div>
               </div>
 
               {/* お知らせ */}
@@ -842,7 +935,37 @@ export default function ProjectDetailPage() {
           {/* 右カラム (サイドバー) */}
           <div className="lg:col-span-1 space-y-6">
              <div className="bg-white rounded-2xl shadow-xl p-6 sticky top-24">
-                <PledgeForm project={project} user={user} onPledgeSubmit={onPledgeSubmit} isPledger={isPledger} />
+                {/* ★ 2. ここを修正: ログイン状態によって表示を変える */}
+                {user ? (
+                    // ログイン済みなら、通常の支援フォームを表示
+                    <PledgeForm project={project} user={user} onPledgeSubmit={onPledgeSubmit} isPledger={isPledger} />
+                ) : (
+                    // 未ログインなら、「ログインして支援」または「ゲストとして支援」を選ばせるボタンを表示
+                    <div className="text-center">
+                        <h3 className="text-xl font-bold mb-4 text-gray-800">この企画を支援する</h3>
+                        <p className="text-sm text-gray-500 mb-6">ログインするとポイントが貯まります。</p>
+                        
+                        <button 
+                            onClick={() => window.location.href = `/login?redirect=/projects/${id}`}
+                            className="w-full bg-sky-500 text-white font-bold py-3 rounded-xl hover:bg-sky-600 mb-3 transition-colors shadow-md"
+                        >
+                            ログインして支援する
+                        </button>
+                        
+                        <div className="relative my-4">
+                            <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-gray-300"></span></div>
+                            <div className="relative flex justify-center text-xs uppercase"><span className="bg-white px-2 text-gray-500">or</span></div>
+                        </div>
+
+                        <button 
+                            onClick={() => setShowGuestPledgeModal(true)} 
+                            className="w-full bg-pink-500 text-white font-bold py-3 rounded-xl hover:bg-pink-600 transition-colors shadow-md flex items-center justify-center gap-2"
+                        >
+                            <FiUser /> ゲストとして支援する
+                        </button>
+                        <p className="text-xs text-gray-400 mt-2">※会員登録なしで支援できます</p>
+                    </div>
+                )}
                 
                 {/* 企画管理メニュー (企画者) */}
                 {isPlanner && (
@@ -922,6 +1045,42 @@ export default function ProjectDetailPage() {
           </div>
         </div>
       )}
+      
+      {/* ★ 3. ゲスト支援モーダルを追加 (JSXの最後の方、</>の直前) */}
+      {showGuestPledgeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-white rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl relative">
+            
+            {/* モーダルヘッダー */}
+            <div className="p-4 border-b flex justify-between items-center bg-gray-50">
+              <h3 className="font-bold text-lg text-gray-800">ゲスト支援</h3>
+              <button onClick={() => setShowGuestPledgeModal(false)} className="text-gray-400 hover:text-gray-600 w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-200 transition-colors">
+                ✕
+              </button>
+            </div>
+            
+            {/* モーダルコンテンツ (スクロール可能) */}
+            <div className="p-6 max-h-[80vh] overflow-y-auto">
+              <GuestPledgeForm 
+                projectId={project.id}
+                projectTitle={project.title}
+                onCancel={() => setShowGuestPledgeModal(false)}
+                onSuccess={() => {
+                  setShowGuestPledgeModal(false);
+                  fetchProject(); // 支援完了後にデータを再取得して表示を更新
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ★★★ ここに追加: スクロール追従プログレスバー ★★★ */}
+      <FlowerScrollIndicator 
+          collected={project.collectedAmount} 
+          target={project.targetAmount} 
+      />
+
     </>
   );
 }

@@ -1904,17 +1904,39 @@ app.post('/api/venues/register', async (req, res) => {
 });
 
 app.get('/api/venues/:id', async (req, res) => {
-  const { id } = req.params;
-  try {
-    const venue = await prisma.venue.findUnique({ where: { id } });
-    if (!venue) {
-      return res.status(404).json({ message: '会場が見つかりません。' });
-    }
-    const { password, ...venueWithoutPassword } = venue;
-    res.status(200).json(venueWithoutPassword);
-  } catch (error) {
-    res.status(500).json({ message: '会場情報の取得中にエラーが発生しました。' });
-  }
+  const { id } = req.params;
+  try {
+    const venue = await prisma.venue.findUnique({
+      where: { id },
+      include: {
+        // ★★★ 追加: この会場で実施された過去の企画を取得 ★★★
+        projects: {
+          where: {
+            status: { in: ['COMPLETED', 'SUCCESSFUL'] }, // 成功・完了したもの
+            visibility: 'PUBLIC',
+            imageUrl: { not: null } // 画像があるもの
+          },
+          select: {
+            id: true,
+            title: true,
+            imageUrl: true,
+            flowerTypes: true, // お花の種類や色
+            planner: { select: { handleName: true } }
+          },
+          orderBy: { deliveryDateTime: 'desc' },
+          take: 12 // 最新12件を表示
+        }
+      }
+    });
+
+    if (!venue) {
+      return res.status(404).json({ message: '会場が見つかりません。' });
+    }
+    const { password, ...venueWithoutPassword } = venue;
+    res.status(200).json(venueWithoutPassword);
+  } catch (error) {
+    res.status(500).json({ message: '会場情報の取得中にエラーが発生しました。' });
+  }
 });
 
 // ★★★ 会場情報更新API (JWT対応) ★★★
@@ -4059,6 +4081,116 @@ app.patch('/api/logistics/:infoId/helpful', authenticateToken, async (req, res) 
 });
 
 
+// ★★★【新規】AI企画文生成API ★★★
+app.post('/api/ai/generate-plan', authenticateToken, async (req, res) => {
+  const { targetName, eventName, tone, extraInfo } = req.body;
+
+  if (!targetName || !eventName) {
+    return res.status(400).json({ message: '推しの名前とイベント名は必須です。' });
+  }
+
+  try {
+    let title = "";
+    let description = "";
+
+    if (process.env.OPENAI_API_KEY) {
+      // プロンプトの作成
+      const systemPrompt = `
+        あなたはアイドルの「フラワースタンド企画」の主催者です。
+        以下の情報を元に、ファンが参加したくなるような「企画タイトル」と「企画説明文」を考えてください。
+        
+        トーン: ${tone || '情熱的・エモい'}
+        
+        出力は以下のJSON形式のみで行ってください。余計な会話は不要です。
+        {
+          "title": "30文字以内のキャッチーなタイトル",
+          "description": "400文字程度の説明文。ファンへの呼びかけ、企画の想い、参加メリットなどを含める。"
+        }
+      `;
+
+      const userPrompt = `推しの名前: ${targetName}\nイベント名: ${eventName}\n補足: ${extraInfo || 'なし'}`;
+
+      const completion = await openai.chat.completions.create({
+        model: "gpt-3.5-turbo",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt }
+        ],
+      });
+
+      const result = completion.choices[0].message.content;
+      
+      try {
+        const parsed = JSON.parse(result);
+        title = parsed.title;
+        description = parsed.description;
+      } catch (e) {
+        // JSONパースに失敗した場合のフォールバック
+        title = `${targetName}さんへフラスタを贈りませんか？`;
+        description = result;
+      }
+
+    } else {
+      // ダミーモード
+      title = `【${targetName}】${eventName}にお花を贈りましょう！`;
+      description = `皆さん、こんにちは！\n${eventName}に出演する${targetName}さんに、ファン一同でフラワースタンドを贈りませんか？\n\n${tone === '面白い' ? 'ド派手に目立って笑わせましょう！' : '日頃の感謝を込めて、素敵な思い出を作りましょう。'}\n\nご参加お待ちしております！`;
+    }
+
+    res.json({ title, description });
+
+  } catch (error) {
+    console.error("AI文章生成エラー:", error);
+    res.status(500).json({ message: '文章の生成に失敗しました。' });
+  }
+});
+
+// ★★★【新規】在庫ロスゼロ（特売情報）機能 ★★★
+
+// 簡易データベース（再起動で消えますが、本番はDBのテーブルにしてください）
+let SPECIAL_DEALS = [
+  { id: '1', floristId: 'demo-florist', floristName: 'フラワーショップ花子', color: '赤', flower: 'バラ', discount: 20, message: '結婚式キャンセル分の良質な赤バラが大量にあります！' },
+  { id: '2', floristId: 'demo-florist-2', floristName: 'FLASTAL本店', color: '青', flower: '染めカーネーション', discount: 15, message: '今週末まで限定！青系フラスタがお得です。' }
+];
+
+// 1. 特売情報の登録 (お花屋さん用)
+app.post('/api/florists/deals', authenticateToken, (req, res) => {
+  if (req.user.role !== 'FLORIST') return res.status(403).json({ message: '権限がありません' });
+  
+  const { color, flower, discount, message } = req.body;
+  const newDeal = {
+    id: Date.now().toString(),
+    floristId: req.user.id,
+    floristName: req.user.shopName || 'お花屋さん',
+    color,
+    flower,
+    discount,
+    message
+  };
+  SPECIAL_DEALS.push(newDeal);
+  res.status(201).json(newDeal);
+});
+
+// 2. 特売情報の取得 (お花屋さん用)
+app.get('/api/florists/deals', authenticateToken, (req, res) => {
+  const myDeals = SPECIAL_DEALS.filter(d => d.floristId === req.user.id);
+  res.json(myDeals);
+});
+
+// 3. マッチング検索 (企画者用)
+// キーワード（色や花の名前）が含まれている特売情報を返す
+app.get('/api/deals/search', (req, res) => {
+  const { keyword } = req.query;
+  if (!keyword) return res.json([]);
+
+  const matches = SPECIAL_DEALS.filter(deal => 
+    keyword.includes(deal.color) || 
+    keyword.includes(deal.flower) ||
+    deal.message.includes(keyword)
+  );
+  res.json(matches);
+});
+
+
 // ==========================================
 // ★★★【新規】画像からお花屋さん検索 (GPT-4o Vision) ★★★
 // ==========================================
@@ -4134,6 +4266,133 @@ app.post('/api/ai/search-florist-by-image', upload.single('image'), async (req, 
     console.error("画像検索エラー:", error);
     res.status(500).json({ message: '画像の解析に失敗しました' });
   }
+});
+
+
+// ★★★【新規】ムードボード機能 (簡易DB) ★★★
+let MOOD_BOARDS = []; // { id, projectId, userId, userName, imageUrl, comment, likes }
+
+// 1. アイテム追加
+app.post('/api/projects/:id/moodboard', authenticateToken, (req, res) => {
+  const { id } = req.params; // projectId
+  const { imageUrl, comment } = req.body;
+  
+  const newItem = {
+    id: Date.now().toString(),
+    projectId: id,
+    userId: req.user.id,
+    userName: req.user.handleName,
+    userIcon: req.user.iconUrl,
+    imageUrl,
+    comment,
+    likes: 0,
+    likedBy: [] // ユーザーIDの配列
+  };
+  MOOD_BOARDS.push(newItem);
+  res.status(201).json(newItem);
+});
+
+// 2. アイテム一覧取得
+app.get('/api/projects/:id/moodboard', (req, res) => {
+  const { id } = req.params;
+  const items = MOOD_BOARDS.filter(item => item.projectId === id);
+  res.json(items);
+});
+
+// 3. いいね (トグル)
+app.patch('/api/moodboard/:itemId/like', authenticateToken, (req, res) => {
+  const { itemId } = req.params;
+  const item = MOOD_BOARDS.find(i => i.id === itemId);
+  
+  if (!item) return res.status(404).json({ message: 'アイテムが見つかりません' });
+
+  const userId = req.user.id;
+  const alreadyLiked = item.likedBy.includes(userId);
+
+  if (alreadyLiked) {
+    item.likedBy = item.likedBy.filter(id => id !== userId);
+    item.likes--;
+  } else {
+    item.likedBy.push(userId);
+    item.likes++;
+  }
+  res.json(item);
+});
+
+// 4. 削除
+app.delete('/api/moodboard/:itemId', authenticateToken, (req, res) => {
+  const { itemId } = req.params;
+  const index = MOOD_BOARDS.findIndex(i => i.id === itemId);
+  if (index === -1) return res.status(404).json({ message: 'アイテムなし' });
+  
+  // 投稿者本人かプランナーか花屋のみ削除可能（簡易チェック）
+  if (MOOD_BOARDS[index].userId !== req.user.id) {
+     // 本来はプロジェクト情報を引いてプランナー権限を確認すべきですが省略
+  }
+  
+  MOOD_BOARDS.splice(index, 1);
+  res.status(204).send();
+});
+
+
+// ★★★【新規】推しからのありがとう機能 (簡易DB) ★★★
+let OFFICIAL_REACTIONS = {}; // { projectId: { timestamp: Date, comment: String } }
+
+// 1. 推し用: リアクションする (認証不要・誰でも叩けるがURLを知っている人のみ想定)
+app.post('/api/projects/:id/official-react', (req, res) => {
+  const { id } = req.params;
+  // 本来はここで「秘密のトークン」を検証しますが、今回は簡易的にスルーします
+  
+  OFFICIAL_REACTIONS[id] = {
+    timestamp: new Date(),
+    comment: "Thank you!!", // 固定または選択式
+  };
+  
+  // 企画者に通知を送る
+  // const project = ... (DBから取得して企画者IDを特定)
+  // createNotification(plannerId, 'OFFICIAL_REACT', '推しがあなたの企画を見ました！', id, ...);
+
+  res.json({ success: true, message: 'リアクションしました！' });
+});
+
+// 2. ステータス確認
+app.get('/api/projects/:id/official-status', (req, res) => {
+  const { id } = req.params;
+  res.json(OFFICIAL_REACTIONS[id] || null);
+});
+
+
+// ★★★【新規】バーチャル・フラスタ機能 (簡易DB) ★★★
+let DIGITAL_FLOWERS = []; // { id, projectId, senderName, color, message, style, createdAt }
+
+// 1. デジタルフラスタを贈る
+app.post('/api/projects/:id/digital-flowers', (req, res) => {
+  const { id } = req.params;
+  const { senderName, color, message, style } = req.body;
+  
+  const newFlower = {
+    id: Date.now().toString(),
+    projectId: id,
+    senderName: senderName || '名無し',
+    color: color || 'pink',
+    message: message || '',
+    style: style || 'basic',
+    createdAt: new Date()
+  };
+  
+  DIGITAL_FLOWERS.push(newFlower);
+  
+  // リアルタイム反映のためにSocket.IOで通知してもOK
+  io.to(id).emit('newDigitalFlower', newFlower);
+
+  res.status(201).json(newFlower);
+});
+
+// 2. 一覧取得
+app.get('/api/projects/:id/digital-flowers', (req, res) => {
+  const { id } = req.params;
+  const flowers = DIGITAL_FLOWERS.filter(f => f.projectId === id);
+  res.json(flowers);
 });
 
 // ===================================

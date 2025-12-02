@@ -1,10 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
+import AiPlanGenerator from '@/app/components/AiPlanGenerator';
 import toast from 'react-hot-toast';
 import { FiInfo, FiAlertTriangle, FiCalendar, FiMapPin, FiX, FiImage, FiCpu, FiLoader } from 'react-icons/fi';
+import FloristDealManager from '@/app/components/FloristDealManager'; // ※もし花屋ダッシュボードならこれ
+import DealMatcher from '@/app/components/DealMatcher'; // ★ これを追加
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -267,6 +270,8 @@ function VenueSelectionModal({ onClose, onSelect }) {
 
 export default function CreateProjectPage() {
   const router = useRouter();
+  const searchParams = useSearchParams(); // ★ 追加
+  const venueIdFromUrl = searchParams.get('venueId'); // ★ 追加
   const { user, loading: authLoading } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -275,6 +280,7 @@ export default function CreateProjectPage() {
   const [isVenueModalOpen, setIsVenueModalOpen] = useState(false);
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
   const [isAIModalOpen, setIsAIModalOpen] = useState(false); // ★ AIモーダル
+  const [isAiPlanModalOpen, setIsAiPlanModalOpen] = useState(false);
 
   const [selectedVenue, setSelectedVenue] = useState(null);
   const [selectedEvent, setSelectedEvent] = useState(null);
@@ -302,6 +308,17 @@ export default function CreateProjectPage() {
       router.push('/login');
     }
   }, [user, authLoading, router]);
+
+  useEffect(() => {
+    if (venueIdFromUrl) {
+      // APIから会場情報を取得してセットする処理
+      fetch(`${API_URL}/api/venues/${venueIdFromUrl}`)
+        .then(res => res.json())
+        .then(venue => {
+          if(venue) handleVenueSelect(venue); // 既存の選択ロジックを再利用
+        });
+    }
+  }, [venueIdFromUrl]);
 
   const handleEventSelect = (event) => {
     if (!event) return;
@@ -551,6 +568,17 @@ export default function CreateProjectPage() {
             {formData.projectType === 'SOLO' && <p className="mt-3 text-xs text-green-700 bg-green-100 p-2 rounded">※「ひとりで」を選択すると、企画一覧には表示されず、あなた専用の管理ページが作成されます。</p>}
           </section>
 
+          <div className="flex justify-end mb-2">
+            <button
+              type="button"
+              onClick={() => setIsAiPlanModalOpen(true)}
+              className="flex items-center gap-2 text-xs bg-gradient-to-r from-pink-500 to-rose-500 text-white px-4 py-2 rounded-full font-bold shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all"
+            >
+              <FiCpu className="text-lg" /> 
+              <span>AIにタイトルと説明文を書いてもらう</span>
+            </button>
+          </div>
+
           {/* 基本情報 */}
           <div>
             <label htmlFor="title" className="block text-sm font-medium text-gray-700">企画タイトル <span className="text-red-500">*</span></label>
@@ -664,7 +692,9 @@ export default function CreateProjectPage() {
                     <div>
                         <label htmlFor="flowerTypes" className="block text-sm font-medium text-gray-700">使いたいお花</label>
                         <input type="text" name="flowerTypes" id="flowerTypes" value={formData.flowerTypes} onChange={handleChange} className="input-field" placeholder="例：青いバラ、ユリ"/>
+                        <DealMatcher keywords={formData.flowerTypes + ' ' + formData.designDetails} />
                     </div>
+
                 </div>
              </div>
           </div>
@@ -680,6 +710,16 @@ export default function CreateProjectPage() {
       {isVenueModalOpen && <VenueSelectionModal onClose={() => setIsVenueModalOpen(false)} onSelect={handleVenueSelect} />}
       {isEventModalOpen && <EventSelectionModal onClose={() => setIsEventModalOpen(false)} onSelect={handleEventSelect} />}
       {isAIModalOpen && <AIGenerationModal onClose={() => setIsAIModalOpen(false)} onGenerate={handleAIGenerated} />}
+
+      {isAiPlanModalOpen && (
+        <AiPlanGenerator 
+          onClose={() => setIsAiPlanModalOpen(false)}
+          onGenerated={(title, description) => {
+            // 生成されたテキストをフォームに反映
+            setFormData(prev => ({ ...prev, title, description }));
+          }}
+        />
+      )}
 
       <style jsx>{`
         .input-field {
