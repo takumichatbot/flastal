@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
 import { useForm } from 'react-hook-form';
-import { FiBox } from 'react-icons/fi';
 import { io } from 'socket.io-client';
 import VirtualStage from '@/app/components/VirtualStage'; // ★ 追加
 import toast from 'react-hot-toast';
