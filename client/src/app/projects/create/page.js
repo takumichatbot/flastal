@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react'; // ★ Suspenseを追加
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
 import toast from 'react-hot-toast';
+// ★★★ インポートを整理（FiCpuの重複を削除） ★★★
 import { FiInfo, FiAlertTriangle, FiCalendar, FiMapPin, FiX, FiImage, FiCpu, FiLoader } from 'react-icons/fi';
 import AiPlanGenerator from '@/app/components/AiPlanGenerator';
 
@@ -15,15 +16,10 @@ const getAuthToken = () => {
   return rawToken ? rawToken.replace(/^"|"$/g, '') : null;
 };
 
-// ... (AIGenerationModal, EventSelectionModal, VenueSelectionModal は変更なし。そのまま維持してください) ...
-// ※ 長くなるので省略しますが、以前のコードと同じものをここに配置してください。
-// ↓↓↓ 以下のコードブロック内に、以前のコンポーネント定義が含まれているとして進めます ↓↓↓
+// ===========================================
+// ★★★ コンポーネント定義 (AIGenerationModal, EventSelectionModal, VenueSelectionModal) ★★★
+// ===========================================
 
-// ===========================================
-// ★★★ 省略されたコンポーネント定義のプレースホルダー ★★★
-// 実際にはここに AIGenerationModal, EventSelectionModal, VenueSelectionModal の定義が入ります
-// (直前の回答のコードと同じ内容を使用してください)
-// ===========================================
 function AIGenerationModal({ onClose, onGenerate }) {
   const [prompt, setPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -270,10 +266,13 @@ function VenueSelectionModal({ onClose, onSelect }) {
   );
 }
 
-// ★★★ フォーム部分を別コンポーネントとして切り出し ★★★
+// ===========================================
+// ★★★ メインフォーム (CreateProjectForm) ★★★
+// ===========================================
+
 function CreateProjectForm() {
   const router = useRouter();
-  const searchParams = useSearchParams(); // ★ ここで使用
+  const searchParams = useSearchParams(); 
   const venueIdFromUrl = searchParams.get('venueId');
 
   const { user, loading: authLoading } = useAuth();
@@ -313,7 +312,6 @@ function CreateProjectForm() {
     }
   }, [user, authLoading, router]);
 
-  // ★ URLから会場IDが渡された場合の処理
   useEffect(() => {
     if (venueIdFromUrl) {
       fetch(`${API_URL}/api/venues/${venueIdFromUrl}`)

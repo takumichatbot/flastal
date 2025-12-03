@@ -6,13 +6,12 @@ import { useAuth } from '../contexts/AuthContext';
 // アイコンを追加
 import { FiBell, FiChevronDown, FiUser, FiLogOut, FiHeart, FiCheckCircle, FiMenu, FiX, FiCalendar, FiMapPin, FiLogIn, FiUserPlus } from 'react-icons/fi';
 import toast from 'react-hot-toast';
-import OshiColorPicker from './OshiColorPicker'; // 推し色ピッカー（前回の実装があれば）
+import OshiColorPicker from './OshiColorPicker'; // 推し色ピッカー
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
 // ... (NotificationDropdown コンポーネントは変更なし。そのまま維持してください) ...
 function NotificationDropdown({ user, notifications, fetchNotifications, unreadCount }) {
-    // ... (前回と同じ内容) ...
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef(null);
   
@@ -107,7 +106,7 @@ function NotificationDropdown({ user, notifications, fetchNotifications, unreadC
         {isOpen && (
           <div className="absolute right-0 mt-3 w-80 bg-white border border-gray-100 rounded-2xl shadow-2xl z-50 overflow-hidden animate-fadeIn">
             <div className="flex justify-between items-center p-4 border-b bg-gray-50/50">
-              <h3 className="font-bold text-gray-800">通知 ({unreadCount}件)</h3>
+              <h3 className="font-bold text-lg text-gray-800">通知 ({unreadCount}件)</h3>
               <button 
                 onClick={handleMarkAllAsRead} 
                 disabled={unreadCount === 0}
@@ -217,22 +216,24 @@ export default function Header() {
           {/* 1. ロゴエリア */}
           <div className="flex items-center gap-8">
             <Link href="/" className="flex items-center gap-2 group">
-              {/* ロゴアイコン（あれば画像に差し替え） */}
-              <div className="w-8 h-8 bg-gradient-to-tr from-pink-500 to-rose-400 rounded-lg flex items-center justify-center text-white font-bold text-lg shadow-md group-hover:scale-105 transition-transform">
+              {/* ロゴアイコン */}
+              <div className="w-10 h-10 bg-gradient-to-tr from-pink-500 to-rose-400 rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-md group-hover:scale-105 transition-transform">
                 F
               </div>
-              <span className="text-2xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-gray-800 to-gray-600 oshi-theme-text group-hover:opacity-80 transition-opacity">
+              {/* ★ 文字サイズを大きく text-3xl に変更 */}
+              <span className="text-3xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-gray-800 to-gray-600 oshi-theme-text group-hover:opacity-80 transition-opacity">
                 FLASTAL
               </span>
             </Link>
 
             {/* 2. デスクトップナビゲーション */}
-            <nav className="hidden md:flex space-x-1">
+            <nav className="hidden lg:flex space-x-2">
               {navLinks.map((link) => (
                 <Link 
                   key={link.href} 
                   href={link.href}
-                  className="px-4 py-2 rounded-full text-sm font-bold text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition-all flex items-center gap-2"
+                  // ★ 文字サイズを text-base に変更
+                  className="px-4 py-2 rounded-full text-base font-bold text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition-all flex items-center gap-2"
                 >
                   {link.label}
                 </Link>
@@ -243,7 +244,7 @@ export default function Header() {
           {/* 3. ユーザーアクションエリア */}
           <div className="flex items-center space-x-3 md:space-x-4">
             
-            {/* 推し色ピッカー (スマホでは非表示にするなど調整可) */}
+            {/* 推し色ピッカー */}
             <div className="hidden md:block">
                 <OshiColorPicker />
             </div>
@@ -262,35 +263,37 @@ export default function Header() {
                 <div className="relative" ref={userMenuRef}>
                   <button 
                     onClick={() => setIsUserMenuOpen(!isUserMenuOpen)} 
-                    className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-full border border-gray-200 hover:shadow-md transition-all bg-white"
+                    className="flex items-center gap-2 pl-1 pr-3 py-1.5 rounded-full border border-gray-200 hover:shadow-md transition-all bg-white"
                   >
                     {user.iconUrl ? (
-                      <img src={user.iconUrl} alt="User" className="h-8 w-8 rounded-full object-cover bg-gray-100" />
+                      <img src={user.iconUrl} alt="User" className="h-9 w-9 rounded-full object-cover bg-gray-100" />
                     ) : (
-                      <div className="h-8 w-8 rounded-full bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center text-indigo-500">
-                        <FiUser className="w-4 h-4" />
+                      <div className="h-9 w-9 rounded-full bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center text-indigo-500">
+                        <FiUser className="w-5 h-5" />
                       </div>
                     )}
-                    <FiChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isUserMenuOpen ? 'rotate-180' : ''}`} />
+                    {/* ★ 名前も少し大きく text-base */}
+                    <span className="text-base font-bold hidden sm:block text-gray-700">{user.handleName}</span>
+                    <FiChevronDown className={`w-5 h-5 text-gray-400 transition-transform ${isUserMenuOpen ? 'rotate-180' : ''}`} />
                   </button>
 
                   {isUserMenuOpen && (
-                    <div className="absolute right-0 mt-2 w-56 bg-white border border-gray-100 rounded-2xl shadow-xl z-50 overflow-hidden animate-fadeIn origin-top-right">
-                      <div className="px-4 py-3 border-b border-gray-50 bg-gray-50/50">
-                        <p className="text-xs text-gray-500 font-bold">ログイン中</p>
-                        <p className="text-sm font-bold text-gray-800 truncate">{user.handleName}</p>
+                    <div className="absolute right-0 mt-2 w-60 bg-white border border-gray-100 rounded-2xl shadow-xl z-50 overflow-hidden animate-fadeIn origin-top-right">
+                      <div className="px-5 py-4 border-b border-gray-50 bg-gray-50/50">
+                        <p className="text-xs text-gray-500 font-bold mb-1">ログイン中</p>
+                        <p className="text-base font-bold text-gray-800 truncate">{user.handleName}</p>
                       </div>
-                      <div className="p-1">
-                        <Link href="/mypage" onClick={() => setIsUserMenuOpen(false)} className="flex items-center px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 rounded-xl transition-colors">
-                          <FiUser className="mr-3 text-gray-400" /> マイページ
+                      <div className="p-2 space-y-1">
+                        <Link href="/mypage" onClick={() => setIsUserMenuOpen(false)} className="flex items-center px-4 py-3 text-base font-medium text-gray-700 hover:bg-gray-50 rounded-xl transition-colors">
+                          <FiUser className="mr-3 text-gray-400 text-lg" /> マイページ
                         </Link>
                         {user.role === 'ADMIN' && (
-                            <Link href="/admin" onClick={() => setIsUserMenuOpen(false)} className="flex items-center px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 rounded-xl transition-colors">
-                            <FiCheckCircle className="mr-3 text-gray-400" /> 管理画面
+                            <Link href="/admin" onClick={() => setIsUserMenuOpen(false)} className="flex items-center px-4 py-3 text-base font-medium text-gray-700 hover:bg-gray-50 rounded-xl transition-colors">
+                            <FiCheckCircle className="mr-3 text-gray-400 text-lg" /> 管理画面
                             </Link>
                         )}
-                        <button onClick={handleLogout} className="flex items-center w-full px-4 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 rounded-xl transition-colors">
-                          <FiLogOut className="mr-3" /> ログアウト
+                        <button onClick={handleLogout} className="flex items-center w-full px-4 py-3 text-base font-medium text-red-600 hover:bg-red-50 rounded-xl transition-colors">
+                          <FiLogOut className="mr-3 text-lg" /> ログアウト
                         </button>
                       </div>
                     </div>
@@ -298,14 +301,14 @@ export default function Header() {
                 </div>
               </>
             ) : (
-              <div className="flex items-center gap-2">
-                {/* ログインボタン */}
-                <Link href="/login" className="hidden md:flex items-center gap-2 px-4 py-2 text-sm font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-full transition-colors">
+              <div className="flex items-center gap-3">
+                {/* ログインボタン: 文字サイズアップ */}
+                <Link href="/login" className="hidden md:flex items-center gap-2 px-5 py-2.5 text-base font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-full transition-colors">
                   <FiLogIn /> ログイン
                 </Link>
                 
-                {/* 新規登録ボタン (強調) */}
-                <Link href="/register" className="flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-white bg-gradient-to-r from-pink-500 to-rose-500 rounded-full shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all">
+                {/* 新規登録ボタン: 文字サイズアップ */}
+                <Link href="/register" className="flex items-center gap-2 px-6 py-2.5 text-base font-bold text-white bg-gradient-to-r from-pink-500 to-rose-500 rounded-full shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all">
                   <FiHeart className="animate-pulse" /> ファン登録
                 </Link>
               </div>
@@ -313,10 +316,10 @@ export default function Header() {
 
             {/* モバイルメニューボタン */}
             <button 
-                className="md:hidden p-2 text-gray-600"
+                className="lg:hidden p-2 text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             >
-                {isMobileMenuOpen ? <FiX size={24} /> : <FiMenu size={24} />}
+                {isMobileMenuOpen ? <FiX size={28} /> : <FiMenu size={28} />}
             </button>
           </div>
         </div>
@@ -324,16 +327,16 @@ export default function Header() {
 
       {/* モバイルメニュー展開 */}
       {isMobileMenuOpen && (
-        <div className="md:hidden bg-white border-t border-gray-100 absolute top-16 left-0 w-full shadow-lg animate-slideDown">
-            <nav className="p-4 space-y-2">
+        <div className="lg:hidden bg-white/95 backdrop-blur-md border-t border-gray-100 absolute top-16 md:top-20 left-0 w-full shadow-lg animate-slideDown h-screen">
+            <nav className="p-6 space-y-4">
                 {navLinks.map((link) => (
                     <Link 
                         key={link.href} 
                         href={link.href}
                         onClick={() => setIsMobileMenuOpen(false)}
-                        className="flex items-center gap-3 px-4 py-3 text-gray-700 font-bold hover:bg-gray-50 rounded-xl"
+                        className="flex items-center gap-4 px-4 py-4 text-gray-800 font-bold hover:bg-gray-50 rounded-2xl text-lg"
                     >
-                        <span className="text-xl text-gray-400">{link.icon}</span>
+                        <span className="text-2xl text-gray-400">{link.icon}</span>
                         {link.label}
                     </Link>
                 ))}
@@ -341,14 +344,17 @@ export default function Header() {
                     <Link 
                         href="/login"
                         onClick={() => setIsMobileMenuOpen(false)}
-                        className="flex items-center gap-3 px-4 py-3 text-gray-700 font-bold hover:bg-gray-50 rounded-xl"
+                        className="flex items-center gap-4 px-4 py-4 text-gray-800 font-bold hover:bg-gray-50 rounded-2xl text-lg"
                     >
-                        <span className="text-xl text-gray-400"><FiLogIn /></span>
+                        <span className="text-2xl text-gray-400"><FiLogIn /></span>
                         ログイン
                     </Link>
                 )}
-                <div className="pt-2">
-                    <OshiColorPicker />
+                <div className="pt-4 mt-4 border-t border-gray-100">
+                    <p className="text-sm text-gray-400 font-bold mb-3 px-4">テーマ設定</p>
+                    <div className="px-4">
+                        <OshiColorPicker />
+                    </div>
                 </div>
             </nav>
         </div>
