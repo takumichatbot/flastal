@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { FiMapPin, FiInfo, FiAlertTriangle, FiCheckCircle, FiChevronRight } from 'react-icons/fi';
+import { FiMapPin, FiInfo, FiAlertTriangle, FiCheckCircle, FiChevronRight, FiXCircle, FiArrowRight } from 'react-icons/fi';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -31,8 +31,9 @@ export default function VenueDetailPage() {
         <div className="max-w-5xl mx-auto px-4">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
             <div>
-              <span className={`inline-block mb-3 px-3 py-1 rounded-full text-xs font-bold ${venue.isStandAllowed === false ? 'bg-red-500 text-white' : 'bg-green-500 text-white'}`}>
-                {venue.isStandAllowed === false ? '🚫 フラスタ禁止の可能性あり' : '✅ フラスタ受入実績あり'}
+              {/* ★★★ 修正: フラスタ可否のバッジ表示ロジック ★★★ */}
+              <span className={`inline-block mb-3 px-3 py-1 rounded-full text-xs font-bold flex items-center w-fit ${venue.isStandAllowed === false ? 'bg-red-500 text-white' : 'bg-green-500 text-white'}`}>
+                {venue.isStandAllowed === false ? <><FiXCircle className="mr-1"/> フラスタ禁止の可能性あり</> : <><FiCheckCircle className="mr-1"/> フラスタ受入実績あり</>}
               </span>
               <h1 className="text-3xl md:text-4xl font-bold mb-2">{venue.venueName}</h1>
               <p className="text-slate-300 flex items-center">
@@ -44,9 +45,9 @@ export default function VenueDetailPage() {
                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(venue.venueName + ' ' + venue.address)}`} 
                  target="_blank" 
                  rel="noopener noreferrer"
-                 className="bg-white/10 hover:bg-white/20 text-white px-6 py-3 rounded-lg font-bold transition-colors border border-white/20"
+                 className="bg-white/10 hover:bg-white/20 text-white px-6 py-3 rounded-lg font-bold transition-colors border border-white/20 inline-flex items-center"
                >
-                 Googleマップで見る
+                 Googleマップで見る <FiArrowRight className="ml-2"/>
                </a>
             </div>
           </div>
@@ -63,26 +64,40 @@ export default function VenueDetailPage() {
             </h2>
             
             <div className="space-y-4 text-sm">
+              {/* ★★★ 修正: コード表示にならないように修正 ★★★ */}
               <div className="border-b pb-3">
                 <p className="text-gray-500 text-xs mb-1">スタンド花</p>
-                <p className="font-bold">
-                  {venue.isStandAllowed === false ? '受入不可' : '受入可 (要確認)'}
+                <div className="flex items-center gap-2 mb-1">
+                    {venue.isStandAllowed === false ? (
+                        <span className="text-red-600 font-bold flex items-center"><FiXCircle className="mr-1"/> 受入不可</span>
+                    ) : (
+                        <span className="text-green-600 font-bold flex items-center"><FiCheckCircle className="mr-1"/> 受入可 (要確認)</span>
+                    )}
+                </div>
+                {/* note: JSON.stringifyなどを通さず、文字列として表示 */}
+                <p className="text-gray-700 bg-gray-50 p-2 rounded border border-gray-100 whitespace-pre-wrap">
+                    {venue.standRegulation || "特記事項なし"}
                 </p>
-                {venue.standRegulation && <p className="mt-1 text-gray-600 bg-gray-50 p-2 rounded">{venue.standRegulation}</p>}
               </div>
 
               <div className="border-b pb-3">
                 <p className="text-gray-500 text-xs mb-1">楽屋花 (アレンジメント)</p>
-                <p className="font-bold">
-                  {venue.isBowlAllowed === false ? '受入不可' : '受入可 (要確認)'}
+                <div className="flex items-center gap-2 mb-1">
+                    {venue.isBowlAllowed === false ? (
+                        <span className="text-red-600 font-bold flex items-center"><FiXCircle className="mr-1"/> 受入不可</span>
+                    ) : (
+                        <span className="text-green-600 font-bold flex items-center"><FiCheckCircle className="mr-1"/> 受入可 (要確認)</span>
+                    )}
+                </div>
+                <p className="text-gray-700 bg-gray-50 p-2 rounded border border-gray-100 whitespace-pre-wrap">
+                    {venue.bowlRegulation || "特記事項なし"}
                 </p>
-                {venue.bowlRegulation && <p className="mt-1 text-gray-600 bg-gray-50 p-2 rounded">{venue.bowlRegulation}</p>}
               </div>
 
               <div>
                 <p className="text-gray-500 text-xs mb-1">回収について</p>
-                <p className="font-bold">
-                  {venue.retrievalRequired ? '回収必須' : 'イベントによる'}
+                <p className="font-bold text-gray-800">
+                  {venue.retrievalRequired ? '⚠️ 回収必須 (お花屋さんに伝えてください)' : 'イベント主催者の指示に従う'}
                 </p>
               </div>
             </div>
@@ -103,13 +118,13 @@ export default function VenueDetailPage() {
           </div>
         </div>
 
-        {/* 右カラム: 実績ギャラリー */}
+        {/* 右カラム: 実績ギャラリー (変更なし) */}
         <div className="lg:col-span-2">
           <h2 className="text-xl font-bold text-gray-800 mb-6 flex items-center">
             <FiCheckCircle className="mr-2 text-green-500"/>
             この会場の過去の実績 ({venue.projects?.length || 0}件)
           </h2>
-
+          
           {venue.projects?.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {venue.projects.map(project => (

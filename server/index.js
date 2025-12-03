@@ -3185,24 +3185,24 @@ app.post('/api/admin/venues', requireAdmin, async (req, res) => {
       venueName, address, email, password, 
       isStandAllowed, standRegulation,
       isBowlAllowed, bowlRegulation,
-      retrievalRequired, accessInfo
+      retrievalRequired, accessInfo,
+      // ★ 追加
+      websiteUrl, phoneNumber, twitterUrl, instagramUrl
     } = req.body;
 
-    // パスワードのハッシュ化 (未入力ならデフォルトを設定)
     const hash = await bcrypt.hash(password || 'flastal1234', 10);
 
     const newVenue = await prisma.venue.create({
       data: {
-        venueName,
-        address,
-        email, // ※必須項目（ダミーでもOK）
-        password: hash,
+        venueName, address, email, password: hash,
         isStandAllowed: isStandAllowed ?? true,
         standRegulation,
         isBowlAllowed: isBowlAllowed ?? true,
         bowlRegulation,
         retrievalRequired: retrievalRequired ?? true,
-        accessInfo
+        accessInfo,
+        // ★ 追加
+        websiteUrl, phoneNumber, twitterUrl, instagramUrl
       }
     });
     res.status(201).json(newVenue);

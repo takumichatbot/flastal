@@ -175,7 +175,8 @@ export default function EventDetailPage() {
             <div className="bg-white rounded-xl border border-dashed border-gray-300 p-12 text-center">
               <p className="text-gray-500 mb-4">まだこのイベントの企画は立ち上がっていません。</p>
               {event.isStandAllowed && (
-                  <Link href="/create" className="text-indigo-600 font-bold hover:underline">
+                  <Link 
+                    href={`/projects/create?eventId=${event.id}`}>
                     あなたが最初の企画者になりませんか？
                   </Link>
               )}
