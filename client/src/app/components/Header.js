@@ -180,7 +180,13 @@ export default function Header() {
   };
 
   useEffect(() => {
-    if (user) fetchNotifications();
+    // 1. ユーザー情報があるか
+    // 2. トークンがlocalStorageにあるか
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+
+    if (user && token) {
+      fetchNotifications();
+    }
   }, [user]);
 
   const handleLogout = () => {

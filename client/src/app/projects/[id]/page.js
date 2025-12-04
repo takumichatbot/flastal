@@ -66,6 +66,7 @@ function InstructionSheetModal({ projectId, onClose }) {
   useEffect(() => {
     const fetchSheet = async () => {
       const token = getAuthToken();
+      if (!token) return; // トークンがなければ処理を中断
       try {
         const res = await fetch(`${API_URL}/api/projects/${projectId}/instruction-sheet`, {
           headers: { 'Authorization': `Bearer ${token}` }

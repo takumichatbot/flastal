@@ -37,6 +37,7 @@ enum NotificationType {
   QUOTATION_APPROVED
   TASK_ASSIGNED
   PROJECT_STATUS_UPDATE
+  PROJECT_APPROVED    // <--- これを追加してください
 }
 // ↑↑↑ NotificationType Enum ↑↑↑
 
