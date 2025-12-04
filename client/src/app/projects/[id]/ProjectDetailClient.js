@@ -332,6 +332,8 @@ export default function ProjectDetailClient() {
   const [showGuestPledgeModal, setShowGuestPledgeModal] = useState(false);
   const { user, isAuthenticated } = useAuth(); 
   const componentRef = useRef();
+
+  const [project, setProject] = useState(null);
   
   // projectがnullのときに undefined エラーにならないよう optional chaining で対処
   const handlePrint = useReactToPrint({
@@ -339,7 +341,6 @@ export default function ProjectDetailClient() {
     documentTitle: `収支報告書_${project?.title || '企画'}`,
   });
   
-  const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
   const [socket, setSocket] = useState(null);
   
