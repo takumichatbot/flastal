@@ -1,28 +1,27 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
 import { useForm } from 'react-hook-form';
 import { io } from 'socket.io-client';
-import VirtualStage from '@/app/components/VirtualStage'; // ★ 追加
 import toast from 'react-hot-toast';
-import { useRef } from 'react';
-import MoodBoard from '@/app/components/MoodBoard'; // ★ 追加
-import OfficialBadge from '@/app/components/OfficialBadge';
 import Link from 'next/link';
-import UpsellAlert from '@/app/components/UpsellAlert'; // ★ 追加
-import FlowerScrollIndicator from '@/app/components/FlowerScrollIndicator'; // ★ 追加
-import { useReactToPrint } from 'react-to-print'; // ★ 追加
-import { BalanceSheet } from '@/app/components/BalanceSheet';
-import PanelPreviewer from '@/app/components/PanelPreviewer'; // ★ 追加
-import GuestPledgeForm from '@/app/components/GuestPledgeForm';
-// ★ ARコンポーネントを動的インポート (SSR回避)
+import { useReactToPrint } from 'react-to-print';
 import dynamic from 'next/dynamic';
-const ArViewer = dynamic(() => import('../../components/ArViewer'), { ssr: false });
 
+// アイコン
 import { FiHeart, FiThumbsUp, FiMessageSquare, FiInfo, FiUser, FiSend, FiCheckCircle, FiCheck, FiUpload, FiPrinter, FiFileText, FiImage, FiCpu, FiBox } from 'react-icons/fi';
 
+// コンポーネント群
+import VirtualStage from '@/app/components/VirtualStage';
+import MoodBoard from '@/app/components/MoodBoard';
+import OfficialBadge from '@/app/components/OfficialBadge';
+import UpsellAlert from '@/app/components/UpsellAlert';
+import FlowerScrollIndicator from '@/app/components/FlowerScrollIndicator';
+import { BalanceSheet } from '@/app/components/BalanceSheet';
+import PanelPreviewer from '@/app/components/PanelPreviewer';
+import GuestPledgeForm from '@/app/components/GuestPledgeForm';
 import ImageModal from '../../components/ImageModal';
 import MessageForm from '../../components/MessageForm';
 import GroupChat from './components/GroupChat';
@@ -32,6 +31,8 @@ import VenueRegulationCard from '../../components/VenueRegulationCard';
 import DeliveryTracker from '@/app/components/DeliveryTracker';
 import FloristDeliveryControl from '@/app/components/FloristDeliveryControl';
 
+// ARコンポーネント (SSR回避)
+const ArViewer = dynamic(() => import('../../components/ArViewer'), { ssr: false });
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -41,15 +42,10 @@ const getAuthToken = () => {
   return rawToken ? rawToken.replace(/^"|"$/g, '') : null;
 };
 
-// ... (PROGRESS_STEPS, InstructionSheetModal, PledgeForm, TargetAmountModal は変更なし。そのまま維持してください) ...
-// ※ 長くなるため省略しませんが、以前のコードと同じものをここに配置している前提です。
-// ↓↓↓ 以下のコードブロック内に、以前のコンポーネント定義が含まれているとして進めます ↓↓↓
+// ===========================================
+// ヘルパーコンポーネント定義 (復元箇所)
+// ===========================================
 
-// ===========================================
-// ★★★ 省略されたコンポーネント定義のプレースホルダー ★★★
-// 実際にはここに InstructionSheetModal, PledgeForm, TargetAmountModal, PROGRESS_STEPS の定義が入ります
-// (直前の回答のコードと同じ内容を使用してください)
-// ===========================================
 const PROGRESS_STEPS = [
   { key: 'FUNDRAISING', label: '募集開始' },
   { key: 'FLORIST_MATCHED', label: '花屋決定' },
@@ -66,7 +62,7 @@ function InstructionSheetModal({ projectId, onClose }) {
   useEffect(() => {
     const fetchSheet = async () => {
       const token = getAuthToken();
-      if (!token) return; // トークンがなければ処理を中断
+      if (!token) return;
       try {
         const res = await fetch(`${API_URL}/api/projects/${projectId}/instruction-sheet`, {
           headers: { 'Authorization': `Bearer ${token}` }
@@ -134,8 +130,7 @@ function InstructionSheetModal({ projectId, onClose }) {
 }
 
 function PledgeForm({ project, user, onPledgeSubmit, isPledger }) {
-  const [mode, setMode] = useState('user'); 
-  const { register, handleSubmit, formState: { errors, isSubmitting }, reset, watch, setValue } = useForm({
+  const { register, handleSubmit, formState: { errors, isSubmitting }, reset, watch } = useForm({
     defaultValues: {
       pledgeType: 'tier',
       selectedTierId: project.pledgeTiers?.[0]?.id || '',
@@ -329,17 +324,19 @@ function TargetAmountModal({ project, user, onClose, onUpdate }) {
 }
 
 // ===========================================
-// ★★★ メインコンポーネント ★★★
+// ★★★ メインコンポーネント (ProjectDetailClient) ★★★
 // ===========================================
-export default function ProjectDetailPage() {
+export default function ProjectDetailClient() {
   const params = useParams();
   const { id } = params;
-  const [showGuestPledgeModal, setShowGuestPledgeModal] = useState(false); // ★ 追加
-  const { user, isAuthenticated } = useAuth(); // isAuthenticatedも使う
+  const [showGuestPledgeModal, setShowGuestPledgeModal] = useState(false);
+  const { user, isAuthenticated } = useAuth(); 
   const componentRef = useRef();
+  
+  // projectがnullのときに undefined エラーにならないよう optional chaining で対処
   const handlePrint = useReactToPrint({
     content: () => componentRef.current,
-    documentTitle: `収支報告書_${project?.title}`,
+    documentTitle: `収支報告書_${project?.title || '企画'}`,
   });
   
   const [project, setProject] = useState(null);
@@ -353,7 +350,7 @@ export default function ProjectDetailPage() {
   const [isCompletionModalOpen, setIsCompletionModalOpen] = useState(false);
   const [isTargetAmountModalOpen, setIsTargetAmountModalOpen] = useState(false);
   const [isInstructionModalOpen, setIsInstructionModalOpen] = useState(false);
-  const [isArModalOpen, setIsArModalOpen] = useState(false); // ★ ARモーダル用ステート
+  const [isArModalOpen, setIsArModalOpen] = useState(false);
 
   const [showAnnouncementForm, setShowAnnouncementForm] = useState(false);
   const [announcementTitle, setAnnouncementTitle] = useState('');
@@ -461,18 +458,18 @@ export default function ProjectDetailPage() {
     }
   };
 
-  // 表示用ステータスの決定 (productionStatusがあればそれを優先、なければstatus)
-  const currentStatus = project.productionStatus || project.status || 'ACCEPTED';
+  // 表示用ステータスの決定
+  const currentStatus = project?.productionStatus || project?.status || 'ACCEPTED';
 
   // ログインユーザーが、この企画を担当しているお花屋さんかどうか判定
-  const isAssignedFlorist = user && user.role === 'FLORIST' && project.offer?.floristId === user.id;
+  const isAssignedFlorist = user && user.role === 'FLORIST' && project?.offer?.floristId === user.id;
 
   // ステータス更新時に画面を即時反映させる関数
   const handleStatusChange = (newStatus) => {
     setProject(prev => ({ 
       ...prev, 
       productionStatus: newStatus, 
-      status: newStatus // 必要に応じて同期
+      status: newStatus 
     }));
   };
 
@@ -496,7 +493,6 @@ export default function ProjectDetailPage() {
   };
 
   const onPledgeSubmit = (data) => {
-    // ゲスト支援は PledgeForm 内で処理されるため、ここはユーザー支援のみ
     if (!user) return toast.error('ログインが必要です。');
     const token = getAuthToken();
     const promise = fetch(`${API_URL}/api/pledges`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify(data) }).then(res => { if(!res.ok) throw new Error('失敗'); return res.json(); });
@@ -540,7 +536,7 @@ export default function ProjectDetailPage() {
   const fundStatusIndex = project.status === 'FUNDRAISING' ? 0 : 1; 
   const activeIndex = Math.max(fundStatusIndex, currentStatusIndex);
 
-  const allParticipants = [{ id: project.planner.id, handleName: `${project.planner.handleName} (企画者)` }, ...project.pledges.map(p => p.user).filter((u, i, self) => self.findIndex(s => s.id === u.id) === i && u.id !== project.planner.id).map(u => ({ id: u.id, handleName: u.handleName }))];
+  const hasPostedMessage = project.messages?.some(m => m.userId === user?.id);
 
   return (
     <>
