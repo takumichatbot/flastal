@@ -8,10 +8,7 @@ export const viewport = {
   maximumScale: 1,
 };
 
-export async function generateMetadata({ params }) {
-  // ❌ ここに themeColor: '#ffffff' があるとエラーになります！
-  // もし残っていたら必ず削除してください。
-  
+export async function generateMetadata({ params }) {  
   return {
     title: '企画詳細 | FLASTAL',
     description: '推し活フラスタ企画のクラウドファンディング',
