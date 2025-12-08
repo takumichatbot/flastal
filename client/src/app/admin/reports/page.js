@@ -237,7 +237,7 @@ export default function AdminReportsPage() {
                           {report.type === 'GROUP' ? '掲示板' : 'DM'}
                         </span>
                       </td>
-                      <td className="px-4 py-4 max-w-xs truncate">"{report.content}"</td>
+                      <td className="px-4 py-4 max-w-xs truncate">&quot;{report.content}&quot;</td>
                       <td className="px-4 py-4 text-red-600">{report.reason}</td>
                       <td className="px-4 py-4">{report.reporter?.handleName}</td>
                       <td className="px-4 py-4 text-center">
