@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
     "postinstall": "(cd ../server && npx prisma generate) && cp -r ../server/node_modules/.prisma node_modules"
 
   },
