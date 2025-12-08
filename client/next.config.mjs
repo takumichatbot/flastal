@@ -1,4 +1,5 @@
 import withPWAInit from 'next-pwa';
+import path from 'path'; // pathモジュールをインポートに追加
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -23,6 +24,15 @@ const nextConfig = {
       }
     ],
   },
+  
+  // 💡 モノレポ環境で依存関係のトレース問題を解決するための設定
+  // ログの警告: "To silence this warning, set `outputFileTracingRoot`..." に対応します。
+  // ここでの仮定: Next.jsのプロジェクトディレクトリ（client）から見て、
+  // プロジェクトのルート（モノレポのルート）が2階層上にある (../../)
+  experimental: {
+    // 依存関係をトレースするルートディレクトリを明示的に指定
+    outputFileTracingRoot: path.join(__dirname, '../../'),
+  },
 };
 
 // PWAの設定
@@ -35,4 +45,5 @@ const withPWA = withPWAInit({
   importScripts: ['/push-sw.js'], 
 });
 
+// `withPWA` を通して `nextConfig` をエクスポート
 export default withPWA(nextConfig);
