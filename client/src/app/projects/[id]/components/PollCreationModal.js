@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useAuth } from '../../../contexts/AuthContext'; // ★ useAuthをインポート
+import { useAuth } from '@/app/contexts/AuthContext'; // ★ useAuthをインポート
 import toast from 'react-hot-toast';
 
 // ★ API_URLを修正

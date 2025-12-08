@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useState, useEffect, useCallback } from 'react'; // ★ useCallbackを追加
 import { useParams, useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
-import { useAuth } from '../../../contexts/AuthContext'; 
+import { useAuth } from '@/app/contexts/AuthContext'; 
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useAuth } from '../../../contexts/AuthContext';
+import { useAuth } from '@/app/contexts/AuthContext'; // @/ は src の意味
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { FiAlertTriangle, FiCheckCircle, FiExternalLink, FiSlash, FiMessageSquare, FiUser } from 'react-icons/fi';

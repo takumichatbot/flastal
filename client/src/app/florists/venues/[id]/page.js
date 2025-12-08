@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useAuth } from '../../../contexts/AuthContext'; // パス調整
+import { useAuth } from '@/app/contexts/AuthContext'; // パス調整
 import toast from 'react-hot-toast';
 import Link from 'next/link';
 import { FiMapPin, FiInfo, FiPlus, FiThumbsUp, FiArrowLeft, FiCamera } from 'react-icons/fi';

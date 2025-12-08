@@ -12,7 +12,7 @@ import {
 } from 'react-icons/fi';
 
 // ★追加: 作成したアップロードフォームを読み込む
-import UploadForm from '../components/UploadForm'; 
+import UploadForm from '@/app/components/UploadForm'; 
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
