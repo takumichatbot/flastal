@@ -20,6 +20,8 @@ function urlBase64ToUint8Array(base64String) {
   return outputArray;
 }
 
+// 💡 注意: このコンポーネントは、FloatingMenuに組み込まれるため、
+// 💡 固定配置 (fixed) のスタイルを削除し、ボタンそのものだけを返すように修正します。
 export default function PushNotificationManager() {
   const { user } = useAuth();
   const [isSupported, setIsSupported] = useState(false);
@@ -39,6 +41,7 @@ export default function PushNotificationManager() {
   };
 
   const subscribeToPush = async () => {
+    // ボタンが表示されていないはずですが、念のためのチェック
     if (!user) return toast.error('ログインが必要です');
     if (!PUBLIC_KEY) return console.error('VAPID Public Keyが設定されていません');
 
@@ -77,17 +80,16 @@ export default function PushNotificationManager() {
     }
   };
 
-  if (!isSupported || isSubscribed) return null; // 対応していないか登録済みなら非表示
+  // 💡 修正箇所: ログインしていない、または対応していないか、既に登録済みなら非表示
+  if (!user || !isSupported || isSubscribed) return null; 
 
+  // 💡 修正箇所: 外側の div と fixed スタイルを削除し、ボタンのみを返す
   return (
-    // ▼ ここを bottom-24 に変更しました（チャットボタンと被らないように上へ移動）
-    <div className="fixed bottom-24 right-4 z-50 animate-bounce">
-      <button
-        onClick={subscribeToPush}
-        className="flex items-center gap-2 px-4 py-3 bg-indigo-600 text-white font-bold rounded-full shadow-lg hover:bg-indigo-700 transition-colors"
-      >
-        <FiBell /> 通知を受け取る
-      </button>
-    </div>
+    <button
+      onClick={subscribeToPush}
+      className="flex items-center gap-2 px-4 py-3 bg-indigo-600 text-white font-bold rounded-full shadow-lg hover:bg-indigo-700 transition-colors"
+    >
+      <FiBell /> 通知を受け取る
+    </button>
   );
 }
