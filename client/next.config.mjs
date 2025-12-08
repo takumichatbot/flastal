@@ -1,5 +1,10 @@
 import withPWAInit from 'next-pwa';
-import path from 'path'; // pathモジュールをインポートに追加
+import path from 'path';
+import { fileURLToPath } from 'url'; // urlモジュールから fileURLToPath をインポート
+
+// ESモジュール環境で __dirname の代替となるパスを取得
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -26,11 +31,8 @@ const nextConfig = {
   },
   
   // 💡 モノレポ環境で依存関係のトレース問題を解決するための設定
-  // ログの警告: "To silence this warning, set `outputFileTracingRoot`..." に対応します。
-  // ここでの仮定: Next.jsのプロジェクトディレクトリ（client）から見て、
-  // プロジェクトのルート（モノレポのルート）が2階層上にある (../../)
   experimental: {
-    // 依存関係をトレースするルートディレクトリを明示的に指定
+    // __dirname の代わりに ESモジュール互換の __dirname を使用
     outputFileTracingRoot: path.join(__dirname, '../../'),
   },
 };
