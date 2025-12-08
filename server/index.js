@@ -4510,6 +4510,299 @@ app.get('/api/projects/:id/digital-flowers', (req, res) => {
   res.json(flowers);
 });
 
+
+// ==========================================
+// ★★★【新規】イベント情報のエコシステム ★★★
+// ==========================================
+
+// 1. AIによるイベント情報の抽出・登録 (Web/SNSのテキストから)
+app.post('/api/events/ai-parse', authenticateToken, async (req, res) => {
+  const { text, sourceUrl } = req.body; // text: WebサイトやSNSの本文, sourceUrl: そのURL
+
+  if (!text) return res.status(400).json({ message: '解析するテキスト情報が必要です。' });
+
+  try {
+    let eventData = null;
+
+    if (process.env.OPENAI_API_KEY) {
+      // GPT-4o等を使って、非構造化テキストからJSONを抽出させる
+      const systemPrompt = `
+        あなたはイベント情報の抽出AIです。
+        ユーザーから提供されたテキスト（SNSの投稿やWebニュース）から、イベント情報を抽出してください。
+        
+        出力は以下のJSON形式のみで行ってください。余計な会話は不要です。
+        日付が不明確な場合は null にしてください。
+        {
+          "title": "イベント名",
+          "description": "イベントの概要（出演者など）",
+          "eventDate": "YYYY-MM-DDTHH:mm:ss.sssZ" (ISO 8601形式),
+          "venueName": "会場名"
+        }
+      `;
+
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: `以下のテキストからイベント情報を抽出して:\n\n${text}` }
+        ],
+        response_format: { type: "json_object" } // JSONモードを強制
+      });
+
+      const result = completion.choices[0].message.content;
+      eventData = JSON.parse(result);
+    } else {
+      // ダミーデータ
+      eventData = {
+        title: "【AI解析】サンプルライブ2025",
+        description: "AIがテキストから抽出したイベント情報のサンプルです。",
+        eventDate: new Date().toISOString(),
+        venueName: "日本武道館"
+      };
+    }
+
+    // 会場名の紐付け（既存のVenueテーブルから検索してIDを割り当てるロジックを入れるとベター）
+    // 今回は簡易的にVenueテーブルを名前で検索
+    let venueId = null;
+    if (eventData.venueName) {
+      const venue = await prisma.venue.findFirst({
+        where: { venueName: { contains: eventData.venueName } }
+      });
+      if (venue) venueId = venue.id;
+    }
+
+    // イベント作成
+    const newEvent = await prisma.event.create({
+      data: {
+        title: eventData.title,
+        description: eventData.description,
+        eventDate: new Date(eventData.eventDate),
+        venueId: venueId,
+        sourceType: 'AI', // ソースはAI
+        sourceUrl: sourceUrl || null,
+        // AI登録の場合は、とりあえず「スタンド花許可」などはFalse(不明)にしておく
+        isStandAllowed: false 
+      }
+    });
+
+    res.status(201).json({ message: 'AIがイベント情報を解析・登録しました。', event: newEvent });
+
+  } catch (error) {
+    console.error("AIイベント解析エラー:", error);
+    res.status(500).json({ message: '情報の解析に失敗しました。' });
+  }
+});
+
+// 2. ユーザーによるイベント手動登録
+app.post('/api/events/user-submit', authenticateToken, async (req, res) => {
+  const { title, description, eventDate, venueId, sourceUrl } = req.body;
+
+  if (!title || !eventDate) {
+    return res.status(400).json({ message: '必須項目が不足しています。' });
+  }
+
+  try {
+    const newEvent = await prisma.event.create({
+      data: {
+        title,
+        description,
+        eventDate: new Date(eventDate),
+        venueId: venueId || null,
+        sourceType: 'USER', // ソースはユーザー
+        sourceUrl: sourceUrl,
+        isStandAllowed: false // デフォルトは不可（確認待ち）
+      }
+    });
+    res.status(201).json(newEvent);
+  } catch (error) {
+    res.status(500).json({ message: 'イベントの登録に失敗しました。' });
+  }
+});
+
+// 3. イベント一覧取得 (BANされていないもののみ)
+// 既存の GET /api/events を修正または新規作成
+app.get('/api/events/public', async (req, res) => {
+  try {
+    const events = await prisma.event.findMany({
+      where: {
+        eventDate: { gte: new Date() }, // 未来のイベント
+        isBanned: false // ★ BANされていないものだけ表示
+      },
+      include: { 
+        venue: true,
+        _count: { select: { reports: true } } // 通報数も含める（フロントでの警告表示用などに）
+      },
+      orderBy: { eventDate: 'asc' }
+    });
+    res.json(events);
+  } catch (error) {
+    res.status(500).json({ message: '取得失敗' });
+  }
+});
+
+// 4. イベントを通報する (ユーザー用)
+app.post('/api/events/:eventId/report', authenticateToken, async (req, res) => {
+  const { eventId } = req.params;
+  const { reason } = req.body;
+  const reporterId = req.user.id;
+
+  try {
+    await prisma.eventReport.create({
+      data: {
+        eventId,
+        reporterId,
+        reason
+      }
+    });
+    
+    // 一定数以上通報が溜まったら自動的にフラグを立てるなどのロジックも可
+    // const count = await prisma.eventReport.count({ where: { eventId } });
+    // if (count > 5) { ... }
+
+    res.status(201).json({ message: '通報を受け付けました。運営が確認します。' });
+  } catch (error) {
+    res.status(500).json({ message: '通報処理に失敗しました。' });
+  }
+});
+
+// 5. 【管理者用】通報一覧の確認
+app.get('/api/admin/event-reports', requireAdmin, async (req, res) => {
+  try {
+    const reports = await prisma.eventReport.findMany({
+      where: { status: 'PENDING' },
+      include: {
+        event: true,
+        reporter: { select: { handleName: true } }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json(reports);
+  } catch (error) {
+    res.status(500).json({ message: '取得失敗' });
+  }
+});
+
+// 6. 【管理者用】イベントをBAN（非表示）にする
+app.patch('/api/admin/events/:eventId/ban', requireAdmin, async (req, res) => {
+  const { eventId } = req.params;
+  const { isBanned } = req.body; // true = BAN, false = 解除
+
+  try {
+    const updatedEvent = await prisma.event.update({
+      where: { id: eventId },
+      data: { isBanned: isBanned }
+    });
+
+    // 関連するレポートも処理済みにする
+    if (isBanned) {
+      await prisma.eventReport.updateMany({
+        where: { eventId: eventId },
+        data: { status: 'RESOLVED' }
+      });
+    }
+
+    res.json({ message: isBanned ? 'イベントをBANしました' : 'BANを解除しました', event: updatedEvent });
+  } catch (error) {
+    res.status(500).json({ message: '更新失敗' });
+  }
+});
+
+// 【管理者用】通報を「問題なし」として解決済みにする（BANはしない）
+app.patch('/api/admin/event-reports/:reportId/dismiss', requireAdmin, async (req, res) => {
+  const { reportId } = req.params;
+  try {
+    await prisma.eventReport.update({
+      where: { id: reportId },
+      data: { status: 'RESOLVED' } // 解決済みにする
+    });
+    res.json({ message: '通報を却下しました（イベントは表示されたままです）' });
+  } catch (error) {
+    res.status(500).json({ message: '処理に失敗しました' });
+  }
+});
+
+
+// ==========================================
+// ★★★【新規】チャット通報機能 API ★★★
+// ==========================================
+
+// 1. グループチャットの通報
+app.post('/api/group-chat/:messageId/report', authenticateToken, async (req, res) => {
+  const { messageId } = req.params;
+  const { reason } = req.body;
+  const reporterId = req.user.id;
+
+  if (!reason) return res.status(400).json({ message: '通報理由を入力してください。' });
+
+  try {
+    await prisma.groupChatMessageReport.create({
+      data: {
+        messageId,
+        reporterId,
+        reason
+      }
+    });
+    res.status(201).json({ message: '通報しました。運営が確認します。' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: '通報に失敗しました。' });
+  }
+});
+
+// 2. 個別チャットの通報
+app.post('/api/chat/:messageId/report', authenticateToken, async (req, res) => {
+  const { messageId } = req.params;
+  const { reason } = req.body;
+  const reporterId = req.user.id; // user.id または florist.id
+
+  if (!reason) return res.status(400).json({ message: '通報理由を入力してください。' });
+
+  try {
+    await prisma.chatMessageReport.create({
+      data: {
+        messageId,
+        reporterId,
+        reason
+      }
+    });
+    res.status(201).json({ message: '通報しました。運営が確認します。' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: '通報に失敗しました。' });
+  }
+});
+
+// 3. 【管理者用】チャット通報一覧取得
+app.get('/api/admin/chat-reports', requireAdmin, async (req, res) => {
+  try {
+    // グループチャットと個別チャットの通報をまとめて取得
+    const groupReports = await prisma.groupChatMessageReport.findMany({
+      where: { status: 'PENDING' },
+      include: { 
+        message: true,
+        reporter: { select: { handleName: true } }
+      }
+    });
+    const directReports = await prisma.chatMessageReport.findMany({
+      where: { status: 'PENDING' },
+      include: { 
+        message: true,
+        reporter: { select: { handleName: true } }
+      }
+    });
+
+    // フロントで扱いやすいように整形して結合
+    const formatted = [
+      ...groupReports.map(r => ({ ...r, type: 'GROUP', content: r.message.content })),
+      ...directReports.map(r => ({ ...r, type: 'DIRECT', content: r.message.content }))
+    ];
+
+    res.json(formatted);
+  } catch (error) {
+    res.status(500).json({ message: '取得失敗' });
+  }
+});
+
 // ===================================
 // ★★★★★   Socket.IOの処理   ★★★★★
 // ===================================

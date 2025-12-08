@@ -4,8 +4,8 @@ import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
 import toast from 'react-hot-toast';
 import PollCreationModal from './PollCreationModal';
-// ★ アイコンを追加
-import { FiGlobe, FiLoader, FiUser, FiSend, FiImage, FiSmile } from 'react-icons/fi';
+// ★ アイコンを追加 (FiAlertTriangle, FiX)
+import { FiGlobe, FiLoader, FiUser, FiSend, FiImage, FiSmile, FiAlertTriangle, FiX } from 'react-icons/fi';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 const AVAILABLE_EMOJIS = ['👍', '❤️', '🙌', '😂', '🔥', '🤔'];
@@ -15,6 +15,84 @@ const getAuthToken = () => {
   if (typeof window === 'undefined') return null;
   const rawToken = localStorage.getItem('authToken');
   return rawToken ? rawToken.replace(/^"|"$/g, '') : null;
+};
+
+// ===============================================
+// ★★★ ヘルパー: 通報モーダル (新規追加) ★★★
+// ===============================================
+const ChatReportModal = ({ messageId, onClose }) => {
+    const [reason, setReason] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (!reason.trim()) return toast.error('理由を入力してください');
+        
+        setIsSubmitting(true);
+        try {
+            const token = getAuthToken();
+            const res = await fetch(`${API_URL}/api/group-chat/${messageId}/report`, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ reason })
+            });
+
+            if (res.ok) {
+                toast.success('通報しました。運営が確認します。');
+                onClose();
+            } else {
+                const data = await res.json();
+                throw new Error(data.message || '送信に失敗しました');
+            }
+        } catch (err) {
+            toast.error(err.message);
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+            <div className="bg-white rounded-xl p-6 w-full max-w-sm shadow-2xl relative animate-fadeIn">
+                <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+                    <FiX size={20} />
+                </button>
+                
+                <h3 className="font-bold text-red-600 mb-2 flex items-center gap-2">
+                    <FiAlertTriangle /> 発言を通報する
+                </h3>
+                <p className="text-xs text-gray-500 mb-4">
+                    不快な発言、スパム、規約違反の内容を通報してください。<br/>
+                    相手には通知されません。
+                </p>
+                
+                <form onSubmit={handleSubmit}>
+                    <textarea
+                        className="w-full p-3 border rounded-lg bg-gray-50 text-sm h-24 mb-4 focus:ring-2 focus:ring-red-200 outline-none resize-none"
+                        placeholder="通報の理由を入力（例: 暴言、勧誘行為など）"
+                        value={reason}
+                        onChange={(e) => setReason(e.target.value)}
+                        required
+                    />
+                    <div className="flex justify-end gap-3">
+                        <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">
+                            キャンセル
+                        </button>
+                        <button 
+                            type="submit" 
+                            disabled={isSubmitting}
+                            className="px-4 py-2 bg-red-500 text-white text-sm font-bold rounded-lg hover:bg-red-600 disabled:opacity-50"
+                        >
+                            {isSubmitting ? '送信中...' : '通報する'}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
 };
 
 // ===============================================
@@ -67,9 +145,9 @@ const ReactionPicker = ({ onSelect, isEnabled }) => {
 };
 
 // ===============================================
-// ★★★ コンポーネント: 個別メッセージ (翻訳＆リアクション統合版) ★★★
+// ★★★ コンポーネント: 個別メッセージ (通報機能追加版) ★★★
 // ===============================================
-const ChatMessage = ({ msg, user, isPlanner, isPledger, onReaction, templates }) => {
+const ChatMessage = ({ msg, user, isPlanner, isPledger, onReaction, onReport, templates }) => {
     const [translatedText, setTranslatedText] = useState(null);
     const [isTranslating, setIsTranslating] = useState(false);
 
@@ -86,9 +164,8 @@ const ChatMessage = ({ msg, user, isPlanner, isPledger, onReaction, templates })
 
     const contentText = getMessageContent();
 
-    // ★★★ 翻訳ハンドラ ★★★
+    // 翻訳ハンドラ
     const handleTranslate = async () => {
-        // すでに翻訳済みならトグルで消す
         if (translatedText) {
             setTranslatedText(null);
             return;
@@ -104,7 +181,7 @@ const ChatMessage = ({ msg, user, isPlanner, isPledger, onReaction, templates })
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
                 },
-                body: JSON.stringify({ text: contentText }) // AIが言語を自動判定
+                body: JSON.stringify({ text: contentText })
             });
             if (res.ok) {
                 const data = await res.json();
@@ -166,7 +243,7 @@ const ChatMessage = ({ msg, user, isPlanner, isPledger, onReaction, templates })
                             <p className="text-sm whitespace-pre-wrap leading-relaxed">{contentText}</p>
                         )}
 
-                        {/* ★★★ 翻訳結果表示 ★★★ */}
+                        {/* 翻訳結果表示 */}
                         {translatedText && (
                             <div className={`mt-2 pt-2 border-t text-xs italic flex items-start gap-1 animate-fadeIn ${isOwn ? 'border-white/30 text-sky-100' : 'border-gray-200 text-gray-500'}`}>
                                 <FiGlobe className="mt-0.5 shrink-0"/>
@@ -175,9 +252,8 @@ const ChatMessage = ({ msg, user, isPlanner, isPledger, onReaction, templates })
                         )}
                     </div>
 
-                    {/* アクションボタン (翻訳 & リアクション追加) */}
-                    {/* 自分以外のメッセージ、かつテキストがある場合に表示 */}
-                    <div className={`absolute top-0 flex items-center gap-1 ${isOwn ? 'right-full mr-2' : 'left-full ml-2'} opacity-0 group-hover:opacity-100 transition-opacity`}>
+                    {/* アクションボタン群 (翻訳・リアクション・通報) */}
+                    <div className={`absolute top-0 flex items-center gap-1 ${isOwn ? 'right-full mr-2' : 'left-full ml-2'} opacity-0 group-hover:opacity-100 transition-opacity bg-white/80 backdrop-blur-sm rounded-full p-1 shadow-sm`}>
                         
                         {/* 翻訳ボタン */}
                         {!isOwn && (msg.messageType === 'TEXT' || msg.templateId) && (
@@ -196,9 +272,20 @@ const ChatMessage = ({ msg, user, isPlanner, isPledger, onReaction, templates })
                             onSelect={(emoji) => onReaction(msg.id, emoji)}
                             isEnabled={isPledger && !!user} 
                         />
+
+                        {/* ★★★ 通報ボタン (自分以外の発言に表示) ★★★ */}
+                        {!isOwn && (
+                            <button 
+                                onClick={() => onReport(msg.id)}
+                                className="ml-2 text-gray-400 hover:text-red-500 p-1 transition-colors"
+                                title="通報する"
+                            >
+                                <FiAlertTriangle size={16} />
+                            </button>
+                        )}
                     </div>
 
-                    {/* リアクション表示バッジ (吹き出しの下) */}
+                    {/* リアクション表示バッジ */}
                     {hasReactions && (
                         <div className={`absolute -bottom-3 flex gap-1 ${isOwn ? 'right-0' : 'left-0'} z-10`}>
                             <div className="flex items-center bg-white border border-gray-200 rounded-full px-1.5 py-0.5 shadow-sm">
@@ -231,6 +318,9 @@ export default function GroupChat({ project, user, isPlanner, isPledger, onUpdat
   const [templates, setTemplates] = useState([]);
   const [isPollModalOpen, setPollModalOpen] = useState(false);
   
+  // ★ 通報対象のIDを管理するstate
+  const [reportTargetId, setReportTargetId] = useState(null);
+
   // ローカルメッセージ State
   const [messages, setMessages] = useState(project.groupChatMessages || []);
   const chatBottomRef = useRef(null); 
@@ -460,7 +550,7 @@ export default function GroupChat({ project, user, isPlanner, isPledger, onUpdat
         {/* チャットメッセージ一覧 */}
         <div className="flex-grow overflow-y-auto p-4 space-y-4 bg-slate-50">
           
-          {/* アンケートエリア (スクロール内に配置) */}
+          {/* アンケートエリア */}
           {activePoll && (
             <div className="bg-white border-2 border-purple-300 rounded-lg p-3 mb-4 shadow-sm">
               <p className="font-bold text-gray-800 mb-3">💡 アンケート実施中: {activePoll.question}</p>
@@ -499,6 +589,7 @@ export default function GroupChat({ project, user, isPlanner, isPledger, onUpdat
                     isPlanner={isPlanner}
                     isPledger={isPledger}
                     onReaction={onReaction}
+                    onReport={(id) => setReportTargetId(id)} // ★通報ハンドラを渡す
                     templates={templates}
                 />
             ))
@@ -597,6 +688,14 @@ export default function GroupChat({ project, user, isPlanner, isPledger, onUpdat
         </div>
       )}
       {isPollModalOpen && <PollCreationModal projectId={project.id} onClose={() => setPollModalOpen(false)} onPollCreated={onUpdate} />}
+      
+      {/* ★★★ 通報モーダル呼び出し ★★★ */}
+      {reportTargetId && (
+        <ChatReportModal 
+            messageId={reportTargetId} 
+            onClose={() => setReportTargetId(null)} 
+        />
+      )}
     </>
   );
 }

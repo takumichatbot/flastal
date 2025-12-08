@@ -1,91 +1,124 @@
 'use client';
 
 import { useState } from 'react';
+import { FiAlertTriangle, FiX } from 'react-icons/fi';
 import toast from 'react-hot-toast';
-// 以前存在した、不必要な自己インポートの行は削除されています。
 
-// API_URLを設定
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
-// propsでprojectId、user、onCloseを受け取る
 export default function ReportModal({ projectId, user, onClose }) {
-  const [reason, setReason] = useState('');
+  const [reason, setReason] = useState('規約違反'); // デフォルト値
   const [details, setDetails] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const reportReasons = [
-    { key: 'SPAM', text: 'スパムや詐欺、誤解を招く内容' },
-    { key: 'INAPPROPRIATE', text: '不適切なコンテンツ（暴力的、差別的など）' },
-    { key: 'COPYRIGHT', text: '著作権やその他の権利の侵害' },
-    { key: 'OTHER', text: 'その他' },
+  // 通報理由の選択肢
+  const reasons = [
+    '規約違反',
+    '詐欺・スパムの疑い',
+    '著作権侵害',
+    '不適切なコンテンツ',
+    'その他'
   ];
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!user) {
-      toast.error('報告するにはログインが必要です。');
-      return;
-    }
-    if (!reason) {
-      toast.error('通報理由を選択してください。');
-      return;
-    }
-    if (reason === 'OTHER' && !details.trim()) {
-      toast.error('「その他」を選択した場合は、詳細を記入してください。');
-      return;
-    }
+    if (!user) return toast.error('ログインが必要です');
 
-    const promise = fetch(`${API_URL}/api/reports/project`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        projectId: projectId, 
-        reporterId: user.id, // 報告者のユーザーID
-        reason, 
-        details 
-      }),
-    }).then(async res => {
-        if (!res.ok) {
-            const data = await res.json();
-            throw new Error(data.message || '通報に失敗しました。');
-        }
-        return res.json();
-    });
-    
-    toast.promise(promise, {
-        loading: '送信中...',
-        success: (data) => {
-            onClose();
-            return data.message;
+    setIsSubmitting(true);
+    const token = localStorage.getItem('authToken');
+
+    try {
+      const res = await fetch(`${API_URL}/api/reports/project`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
-        error: (err) => err.message,
-    });
+        body: JSON.stringify({ 
+          projectId, 
+          reporterId: user.id,
+          reason,
+          details 
+        })
+      });
+
+      if (res.ok) {
+        toast.success('運営に通報しました。ご協力ありがとうございます。');
+        onClose();
+      } else {
+        const data = await res.json();
+        // 既に通報済みの場合などのエラーメッセージ表示
+        toast.error(data.message || '送信に失敗しました');
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error('エラーが発生しました');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
-      <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-lg">
-        <form onSubmit={handleSubmit}>
-          <h2 className="text-xl font-bold mb-4">この企画の問題を報告</h2>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <p className="font-semibold text-sm">通報理由を選択してください</p>
-              {reportReasons.map((r) => (
-                <div key={r.key} className="flex items-center">
-                  <input type="radio" id={`reason-${r.key}`} name="reason" value={r.key} checked={reason === r.key} onChange={(e) => setReason(e.target.value)} className="h-4 w-4 text-sky-600 border-gray-300 focus:ring-sky-500"/>
-                  <label htmlFor={`reason-${r.key}`} className="ml-3 block text-sm text-gray-900">{r.text}</label>
-                </div>
-              ))}
-            </div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-fadeIn">
+      <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl relative overflow-hidden">
+        
+        {/* ヘッダー */}
+        <div className="bg-red-50 p-4 border-b border-red-100 flex justify-between items-center">
+          <h3 className="text-lg font-bold text-red-600 flex items-center">
+            <FiAlertTriangle className="mr-2"/> 企画を通報する
+          </h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
+            <FiX size={24} />
+          </button>
+        </div>
+
+        {/* フォーム */}
+        <div className="p-6">
+          <p className="text-sm text-gray-600 mb-4">
+            不適切な企画や、トラブルの恐れがある企画を報告してください。<br/>
+            報告者の情報は企画者には開示されません。
+          </p>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label htmlFor="details" className="block text-sm font-medium text-gray-700">詳細 (任意)</label>
-              <textarea id="details" value={details} onChange={(e) => setDetails(e.target.value)} rows="3" className="w-full mt-1 p-2 border rounded-md text-gray-900" placeholder="問題のある箇所など..."></textarea>
+              <label className="block text-sm font-bold text-gray-700 mb-1">通報する理由</label>
+              <select 
+                value={reason} 
+                onChange={(e) => setReason(e.target.value)}
+                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 outline-none"
+              >
+                {reasons.map(r => <option key={r} value={r}>{r}</option>)}
+              </select>
             </div>
-          </div>
-          <div className="mt-6 flex justify-end gap-4">
-            <button type="button" onClick={onClose} className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300">キャンセル</button>
-            <button type="submit" className="px-4 py-2 font-bold text-white bg-red-500 rounded-md hover:bg-red-600">報告する</button>
-          </div>
-        </form>
+
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-1">詳細（任意）</label>
+              <textarea 
+                value={details}
+                onChange={(e) => setDetails(e.target.value)}
+                className="w-full p-2 border border-gray-300 rounded-lg h-24 focus:ring-2 focus:ring-red-500 outline-none resize-none text-sm"
+                placeholder="具体的な内容をご記入ください..."
+              />
+            </div>
+
+            <div className="flex justify-end gap-3 pt-2">
+              <button 
+                type="button" 
+                onClick={onClose} 
+                className="px-4 py-2 text-gray-600 font-bold hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                キャンセル
+              </button>
+              <button 
+                type="submit" 
+                disabled={isSubmitting}
+                className="px-6 py-2 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700 transition-colors shadow-md disabled:bg-gray-400"
+              >
+                {isSubmitting ? '送信中...' : '通報する'}
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   );

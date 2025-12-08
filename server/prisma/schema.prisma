@@ -13,22 +13,21 @@ datasource db {
 // --- Enums ---
 
 enum ProductionStatus {
-  NOT_STARTED        // 未着手
-  FLORIST_MATCHED    // 花屋決定・相談中
-  DESIGN_FIXED       // デザイン決定
-  PANELS_RECEIVED    // パネル受取完了
-  IN_PRODUCTION      // 制作中
-  PRE_COMPLETION     // 前日写真アップ
-  COMPLETED          // 当日設置完了
+  NOT_STARTED // 未着手
+  FLORIST_MATCHED // 花屋決定・相談中
+  DESIGN_FIXED // デザイン決定
+  PANELS_RECEIVED // パネル受取完了
+  IN_PRODUCTION // 制作中
+  PRE_COMPLETION // 前日写真アップ
+  COMPLETED // 当日設置完了
 }
 
 enum ProjectType {
-  PUBLIC   // みんなで（通常）
-  PRIVATE  // 限定公開（合言葉が必要）
-  SOLO     // 自分ひとり（一覧に載せない）
+  PUBLIC // みんなで（通常）
+  PRIVATE // 限定公開（合言葉が必要）
+  SOLO // 自分ひとり（一覧に載せない）
 }
 
-// ↓↓↓ 【NotificationType Enum】
 enum NotificationType {
   NEW_PLEDGE
   NEW_CHAT_MESSAGE
@@ -37,9 +36,8 @@ enum NotificationType {
   QUOTATION_APPROVED
   TASK_ASSIGNED
   PROJECT_STATUS_UPDATE
-  PROJECT_APPROVED    // <--- これを追加してください
+  PROJECT_APPROVED
 }
-// ↑↑↑ NotificationType Enum ↑↑↑
 
 enum ProjectStatus {
   PENDING_APPROVAL
@@ -85,62 +83,77 @@ enum UserRole {
   ADMIN
 }
 
+enum EventSource {
+  OFFICIAL // イベント会社・主催者が登録
+  USER // 一般ユーザーが登録
+  AI // AIがWebから取得
+}
+
+enum ReportStatus {
+  PENDING
+  REVIEWED
+  RESOLVED
+}
+
 // --- Models ---
 
-// ↓↓↓ 【Notification Model】: User/Projectモデルの前に定義
 model Notification {
-  id          String          @id @default(cuid())
-  recipientId String // 受信者 (User)
+  id          String           @id @default(cuid())
+  recipientId String
   type        NotificationType
-  isRead      Boolean         @default(false)
-  message     String          @db.Text // 通知メッセージ本体
-  linkUrl     String?         // クリック時の遷移先URL
-  createdAt   DateTime        @default(now())
+  isRead      Boolean          @default(false)
+  message     String           @db.Text
+  linkUrl     String?
+  createdAt   DateTime         @default(now())
 
   // Relations
-  recipient   User?     @relation("UserNotifications", fields: [recipientId], references: [id])
-  projectId   String?
-  project     Project?  @relation("ProjectNotifications", fields: [projectId], references: [id])
+  recipient User     @relation("UserNotifications", fields: [recipientId], references: [id])
+  projectId String?
+  project   Project? @relation("ProjectNotifications", fields: [projectId], references: [id])
 }
-// ↑↑↑ Notification Model ↑↑↑
-
 
 model User {
-  id                   String       @id @default(cuid())
-  email                String       @unique
+  id                   String             @id @default(cuid())
+  email                String             @unique
   handleName           String
   password             String
-  points               Int          @default(0)
+  points               Int                @default(0)
   reviewLikes          ReviewLike[]
-  role                 UserRole     @default(USER)
+  role                 UserRole           @default(USER)
   iconUrl              String?
-  referralCode         String       @unique @default(cuid())
-  pushSubscriptions PushSubscription[]
+  referralCode         String             @unique @default(cuid())
+  pushSubscriptions    PushSubscription[]
   referredById         String?
-  hasMadeFirstPurchase Boolean      @default(false)
-  createdAt            DateTime     @default(now())
-  updatedAt            DateTime     @updatedAt
-  bio             String?   // 自己紹介 (推しへの愛を語る)
-  favoriteGenres  String[]  // 推しジャンル (例: "Vtuber", "アイドル")
-  twitterUrl      String?   // X (Twitter) リンク
-  instagramUrl    String?   // Instagram リンク
-  isProfilePublic Boolean   @default(true) // プロフィールを公開するかどうか
+  hasMadeFirstPurchase Boolean            @default(false)
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+  bio                  String?
+  favoriteGenres       String[]
+  twitterUrl           String?
+  instagramUrl         String?
+  isProfilePublic      Boolean            @default(true)
 
   // Relations
-  referrer          User?              @relation("Referrals", fields: [referredById], references: [id])
-  referredUsers     User[]             @relation("Referrals")
-  createdProjects   Project[]          @relation("PlannerProjects")
+  referrer          User?                      @relation("Referrals", fields: [referredById], references: [id])
+  referredUsers     User[]                     @relation("Referrals")
+  createdProjects   Project[]                  @relation("PlannerProjects")
   pledges           Pledge[]
   reviews           Review[]
   messages          Message[]
   groupChatMessages GroupChatMessage[]
   pollVotes         PollVote[]
-  reports           ProjectReport[]    @relation("UserReports")
-  sentChatMessages  ChatMessage[]      @relation("UserChatMessages")
-  addedVenues       Venue[]            @relation("UserAddedVenues")
-  assignedTasks     Task[]             @relation("AssignedTasks")
-  notifications     Notification[]     @relation("UserNotifications") // 参照OK
+  reports           ProjectReport[]            @relation("UserReports")
+  sentChatMessages  ChatMessage[]              @relation("UserChatMessages")
+  addedVenues       Venue[]                    @relation("UserAddedVenues")
+  assignedTasks     Task[]                     @relation("AssignedTasks")
+  notifications     Notification[]             @relation("UserNotifications")
   chatReactions     GroupChatMessageReaction[]
+
+  // ★★★ ここを追加（通報リレーション） ★★★
+  eventReports            EventReport[]
+  groupChatMessageReports GroupChatMessageReport[]
+  chatMessageReports      ChatMessageReport[]
+  Post                    Post[]
 }
 
 model Project {
@@ -160,25 +173,21 @@ model Project {
   completionImageUrls     String[]
   completionComment       String?           @db.Text
   createdAt               DateTime          @default(now())
-  eventId         String?  // 任意のイベントID
-  event           Event?   @relation(fields: [eventId], references: [id])
+  eventId                 String?
+  event                   Event?            @relation(fields: [eventId], references: [id])
   updatedAt               DateTime          @updatedAt
   finalBalance            Int?
   surplusUsageDescription String?           @db.Text
   venueId                 String?
-  designImageUrls String[]
+  designImageUrls         String[]
   venue                   Venue?            @relation(fields: [venueId], references: [id])
-  // 制作進行状況
-  productionStatus ProductionStatus @default(NOT_STARTED)
-  
-  // 各種画像の保存用
-  illustrationPanelUrls String[] // イラストパネル
-  messagePanelUrls      String[] // 祝パネル（札）
-  sponsorPanelUrls      String[] // 協賛パネル
-  
-  preEventPhotoUrls     String[] // 前日確認写真
+  productionStatus        ProductionStatus  @default(NOT_STARTED)
 
-  // Relations
+  illustrationPanelUrls String[]
+  messagePanelUrls      String[]
+  sponsorPanelUrls      String[]
+  preEventPhotoUrls     String[]
+
   plannerId         String
   planner           User               @relation("PlannerProjects", fields: [plannerId], references: [id])
   pledges           Pledge[]
@@ -194,9 +203,9 @@ model Project {
   activePoll        ActivePoll?
   reports           ProjectReport[]
   pledgeTiers       PledgeTier[]
-  notifications     Notification[]     @relation("ProjectNotifications") // 参照OK
-  projectType     ProjectType @default(PUBLIC)
-  password        String?     // PRIVATEの場合の合言葉
+  notifications     Notification[]     @relation("ProjectNotifications")
+  projectType       ProjectType        @default(PUBLIC)
+  password          String?
 }
 
 model PledgeTier {
@@ -206,9 +215,8 @@ model PledgeTier {
   description String   @db.Text
   createdAt   DateTime @default(now())
 
-  // Relations
   projectId String
-  project   Project @relation(fields: [projectId], references: [id])
+  project   Project  @relation(fields: [projectId], references: [id])
   pledges   Pledge[]
 }
 
@@ -218,50 +226,46 @@ model Pledge {
   comment   String?
   createdAt DateTime @default(now())
 
-  // Relations
-  // ★★★ 変更: userId をオプショナル（?）にする ★★★
-  userId    String?
-  user      User?    @relation(fields: [userId], references: [id])
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id])
 
-  // ★★★ 追加: ゲスト支援用の情報 ★★★
   guestName  String?
   guestEmail String?
 
   projectId String
   project   Project @relation(fields: [projectId], references: [id])
-  
+
   pledgeTierId String?
   pledgeTier   PledgeTier? @relation(fields: [pledgeTierId], references: [id])
 }
 
 model Florist {
-  id              String        @id @default(cuid())
-  email           String        @unique
-  password        String
-  contactName     String
-  portfolioImages String[]
-  address         String?
-  phoneNumber     String?
-  acceptsRushOrders Boolean @default(false)
-  website         String?
-  portfolio       String?       @db.Text
-  businessHours   String?       @db.Text
-  balance         Int           @default(0)
-  laruBotApiKey   String?
-  specialties     String[]
-  iconUrl         String?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  shopName        String
-  platformName    String        @unique
-  status          FloristStatus @default(PENDING)
+  id                String        @id @default(cuid())
+  email             String        @unique
+  password          String
+  contactName       String
+  portfolioImages   String[]
+  address           String?
+  phoneNumber       String?
+  acceptsRushOrders Boolean       @default(false)
+  website           String?
+  portfolio         String?       @db.Text
+  businessHours     String?       @db.Text
+  balance           Int           @default(0)
+  laruBotApiKey     String?
+  specialties       String[]
+  iconUrl           String?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  shopName          String
+  platformName      String        @unique
+  status            FloristStatus @default(PENDING)
 
-  // Relations
   offers           Offer[]
   reviews          Review[]
   payoutRequests   PayoutRequest[]
-  sentChatMessages ChatMessage[]   @relation("FloristChatMessages")
-  postedLogistics VenueLogisticsInfo[] // ★ 追加
+  sentChatMessages ChatMessage[]        @relation("FloristChatMessages")
+  postedLogistics  VenueLogisticsInfo[]
 }
 
 model Offer {
@@ -270,7 +274,6 @@ model Offer {
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
 
-  // Relations
   projectId String    @unique
   project   Project   @relation(fields: [projectId], references: [id])
   floristId String
@@ -282,42 +285,40 @@ model ChatRoom {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
 
-  // Relations
   offerId  String        @unique
   offer    Offer         @relation(fields: [offerId], references: [id])
   messages ChatMessage[]
 }
 
 model ChatMessage {
-  id String @id @default(cuid())
-
-  messageType MessageType @default(TEXT)
-  fileUrl     String?
-  fileName    String?
-
-  content String? @db.Text
-
+  id             String            @id @default(cuid())
+  messageType    MessageType       @default(TEXT)
+  fileUrl        String?
+  fileName       String?
+  content        String?           @db.Text
   senderType     MessageSenderType
   isAutoResponse Boolean           @default(false)
   createdAt      DateTime          @default(now())
 
-  // Relations
   chatRoomId String
   chatRoom   ChatRoom @relation(fields: [chatRoomId], references: [id])
   userId     String?
   user       User?    @relation("UserChatMessages", fields: [userId], references: [id])
   floristId  String?
   florist    Florist? @relation("FloristChatMessages", fields: [floristId], references: [id])
+
+  // ★★★ ここを追加（通報リレーション） ★★★
+  reports ChatMessageReport[]
 }
 
 model Venue {
-  id                String   @id @default(cuid())
-  venueName         String
-  address           String?
-  email             String   @unique
-  password          String
-  isOfficial        Boolean  @default(false)
-  
+  id         String  @id @default(cuid())
+  venueName  String
+  address    String?
+  email      String  @unique
+  password   String
+  isOfficial Boolean @default(false)
+
   isStandAllowed    Boolean? @default(true)
   standRegulation   String?
   isBowlAllowed     Boolean? @default(true)
@@ -326,22 +327,20 @@ model Venue {
   accessInfo        String?
   regulations       String?
 
-  // ★★★ 1. 今回追加したいSNS情報 ★★★
-  websiteUrl        String?
-  phoneNumber       String?
-  twitterUrl        String?
-  instagramUrl      String?
+  websiteUrl   String?
+  phoneNumber  String?
+  twitterUrl   String?
+  instagramUrl String?
 
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  events            Event[]
-  projects          Project[]
-  logisticsInfos    VenueLogisticsInfo[]
+  events         Event[]
+  projects       Project[]
+  logisticsInfos VenueLogisticsInfo[]
 
-  // ★★★ 2. エラーを解消するための追記 (Userとの紐付け) ★★★
-  addedById         String?
-  addedBy           User?    @relation("UserAddedVenues", fields: [addedById], references: [id])
+  addedById String?
+  addedBy   User?   @relation("UserAddedVenues", fields: [addedById], references: [id])
 }
 
 model Review {
@@ -349,7 +348,6 @@ model Review {
   comment   String?  @db.Text
   createdAt DateTime @default(now())
 
-  // Relations
   projectId String  @unique
   project   Project @relation(fields: [projectId], references: [id])
   floristId String
@@ -377,7 +375,6 @@ model Commission {
   amount    Int
   createdAt DateTime @default(now())
 
-  // Relations
   projectId String  @unique
   project   Project @relation(fields: [projectId], references: [id])
 }
@@ -388,7 +385,6 @@ model Announcement {
   content   String   @db.Text
   createdAt DateTime @default(now())
 
-  // Relations
   projectId String
   project   Project @relation(fields: [projectId], references: [id])
 }
@@ -401,7 +397,6 @@ model PayoutRequest {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  // Relations
   floristId String
   florist   Florist @relation(fields: [floristId], references: [id])
 }
@@ -412,20 +407,18 @@ model Expense {
   amount    Int
   createdAt DateTime @default(now())
 
-  // Relations
   projectId String
   project   Project @relation(fields: [projectId], references: [id])
 }
 
 model Quotation {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   totalAmount Int
-  isApproved  Boolean  @default(false)
-  isFinalized Boolean  @default(false)
+  isApproved  Boolean   @default(false)
+  isFinalized Boolean   @default(false)
   finalizedAt DateTime?
-  createdAt   DateTime @default(now())
+  createdAt   DateTime  @default(now())
 
-  // Relations
   projectId String          @unique
   project   Project         @relation(fields: [projectId], references: [id])
   items     QuotationItem[]
@@ -436,7 +429,6 @@ model QuotationItem {
   itemName String
   amount   Int
 
-  // Relations
   quotationId String
   quotation   Quotation @relation(fields: [quotationId], references: [id])
 }
@@ -448,9 +440,8 @@ model Task {
   dueDate     DateTime?
   createdAt   DateTime  @default(now())
 
-  // Relations
-  projectId String
-  project   Project @relation(fields: [projectId], references: [id])
+  projectId      String
+  project        Project @relation(fields: [projectId], references: [id])
   assignedUserId String?
   assignedUser   User?   @relation("AssignedTasks", fields: [assignedUserId], references: [id])
 }
@@ -462,7 +453,6 @@ model Message {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // Relations
   projectId String
   project   Project @relation(fields: [projectId], references: [id])
   userId    String
@@ -472,22 +462,22 @@ model Message {
 }
 
 model GroupChatMessage {
-  id String @id @default(cuid())
-
+  id          String      @id @default(cuid())
   messageType MessageType @default(TEXT)
   fileUrl     String?
   fileName    String?
+  templateId  String?
+  content     String?
+  createdAt   DateTime    @default(now())
 
-  templateId String?
-  content    String?
-  createdAt  DateTime @default(now())
-
-  // Relations
   projectId String
-  project   Project @relation(fields: [projectId], references: [id])
+  project   Project                    @relation(fields: [projectId], references: [id])
   userId    String
-  user      User    @relation(fields: [userId], references: [id])
+  user      User                       @relation(fields: [userId], references: [id])
   reactions GroupChatMessageReaction[]
+
+  // ★★★ ここを追加（通報リレーション） ★★★
+  reports GroupChatMessageReport[]
 }
 
 model GroupChatMessageReaction {
@@ -495,7 +485,6 @@ model GroupChatMessageReaction {
   emoji     String
   createdAt DateTime @default(now())
 
-  // Relations
   messageId String
   message   GroupChatMessage @relation(fields: [messageId], references: [id])
   userId    String
@@ -510,7 +499,6 @@ model ActivePoll {
   options   String[]
   createdAt DateTime @default(now())
 
-  // Relations
   projectId String     @unique
   project   Project    @relation(fields: [projectId], references: [id])
   votes     PollVote[]
@@ -520,7 +508,6 @@ model PollVote {
   id          String @id @default(cuid())
   optionIndex Int
 
-  // Relations
   pollId String
   poll   ActivePoll @relation(fields: [pollId], references: [id])
   userId String
@@ -537,7 +524,6 @@ model ProjectReport {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // Relations
   projectId  String
   project    Project @relation(fields: [projectId], references: [id])
   reporterId String
@@ -546,70 +532,116 @@ model ProjectReport {
   @@unique([projectId, reporterId])
 }
 
-
-// ★★★ 2. 主催者（Organizer）モデルを追加 (ファイルの末尾などでOK) ★★★
 model Organizer {
-  id             String   @id @default(cuid())
-  email          String   @unique
-  password       String
-  name           String   // 主催者名・団体名 (例: 株式会社〇〇プロモーション)
-  website        String?  // 公式サイトURL
-  
-  events         Event[]  // 主催するイベント一覧
-
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String
+  website   String?
+  events    Event[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
-// ★★★ 3. イベント（Event）モデルを追加 ★★★
+model Post {
+  id            String   @id @default(cuid())
+  eventName     String
+  senderName    String?
+  recipientName String? // 今回追加した宛名
+  imageUrl      String
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+  createdAt     DateTime @default(now())
+
+  @@index([userId])
+}
+
 model Event {
   id             String   @id @default(cuid())
-  title          String   // イベント名 (例: Miku Expo 2025)
-  description    String?  // イベント詳細
-  eventDate      DateTime // 開催日時
-  
-  // フラスタのレギュレーション (会場ルールより優先されるイベント独自のルール)
+  title          String
+  description    String?
+  eventDate      DateTime
   isStandAllowed Boolean  @default(true)
-  regulationNote String?  // 「スタンド花は関係者受付へ」等の特記事項
-  
-  // リレーション
-  organizerId    String
-  organizer      Organizer @relation(fields: [organizerId], references: [id])
-  
-  venueId        String?
-  venue          Venue?    @relation(fields: [venueId], references: [id])
-  
-  projects       Project[] // このイベントに立てられた企画一覧
+  regulationNote String?
+  imageUrl       String?
 
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  // ★★★ 変更: organizerId をオプショナルに ★★★
+  organizerId String?
+  organizer   Organizer? @relation(fields: [organizerId], references: [id])
+
+  venueId String?
+  venue   Venue?  @relation(fields: [venueId], references: [id])
+
+  projects Project[]
+
+  sourceType EventSource @default(USER)
+  sourceUrl  String?
+  isBanned   Boolean     @default(false)
+
+  reports EventReport[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model PushSubscription {
   id        String   @id @default(cuid())
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  endpoint  String   @unique // ブラウザごとの固有アドレス
-  p256dh    String   // 暗号化キー1
-  auth      String   // 暗号化キー2
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
   createdAt DateTime @default(now())
 }
 
 model VenueLogisticsInfo {
-  id          String   @id @default(cuid())
-  venueId     String
-  venue       Venue    @relation(fields: [venueId], references: [id], onDelete: Cascade)
-  
-  contributorId String   // 投稿したお花屋さんID
-  contributor   Florist  @relation(fields: [contributorId], references: [id])
-  
-  title       String   // 例: "裏口へのルート", "搬入エレベーターのサイズ"
-  description String   // 詳細
-  imageUrls   String[] // 写真 (複数可)
-  
-  isOfficial  Boolean  @default(false) // 会場側が認めた公式情報か
-  
-  helpfulCount Int     @default(0)     // 「役に立った」数
-  
-  createdAt   DateTime @default(now())
+  id      String @id @default(cuid())
+  venueId String
+  venue   Venue  @relation(fields: [venueId], references: [id], onDelete: Cascade)
+
+  contributorId String
+  contributor   Florist @relation(fields: [contributorId], references: [id])
+
+  title       String
+  description String
+  imageUrls   String[]
+
+  isOfficial Boolean @default(false)
+
+  helpfulCount Int @default(0)
+
+  createdAt DateTime @default(now())
+}
+
+model EventReport {
+  id         String       @id @default(uuid())
+  eventId    String
+  event      Event        @relation(fields: [eventId], references: [id])
+  reporterId String
+  reporter   User         @relation(fields: [reporterId], references: [id])
+  reason     String
+  status     ReportStatus @default(PENDING)
+  createdAt  DateTime     @default(now())
+}
+
+model GroupChatMessageReport {
+  id         String           @id @default(uuid())
+  messageId  String
+  message    GroupChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  reporterId String
+  reporter   User             @relation(fields: [reporterId], references: [id])
+  reason     String
+  status     ReportStatus     @default(PENDING)
+  createdAt  DateTime         @default(now())
+}
+
+model ChatMessageReport {
+  id         String       @id @default(uuid())
+  messageId  String
+  message    ChatMessage  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  reporterId String
+  reporter   User         @relation(fields: [reporterId], references: [id])
+  reason     String
+  status     ReportStatus @default(PENDING)
+  createdAt  DateTime     @default(now())
 }

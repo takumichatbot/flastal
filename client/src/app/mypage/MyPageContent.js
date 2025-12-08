@@ -5,7 +5,14 @@ import { useAuth } from '../contexts/AuthContext';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
-import { FiUser, FiList, FiHeart, FiBell, FiSettings, FiPlus, FiMessageSquare, FiActivity, FiCheckCircle, FiAlertCircle, FiShoppingCart, FiSearch } from 'react-icons/fi';
+import { 
+  FiUser, FiList, FiHeart, FiBell, FiSettings, 
+  FiPlus, FiMessageSquare, FiActivity, FiCheckCircle, 
+  FiAlertCircle, FiShoppingCart, FiSearch, FiCamera 
+} from 'react-icons/fi';
+
+// ★追加: 作成したアップロードフォームを読み込む
+import UploadForm from '../components/UploadForm'; 
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -39,6 +46,9 @@ export default function MyPageContent() {
   const [createdProjects, setCreatedProjects] = useState([]);
   const [pledgedProjects, setPledgedProjects] = useState([]);
   const [notifications, setNotifications] = useState([]);
+  
+  // ★追加: 自分の投稿リスト
+  const [myPosts, setMyPosts] = useState([]);
   const [loadingData, setLoadingData] = useState(true); 
 
   const fetchMyData = useCallback(async () => {
@@ -48,15 +58,19 @@ export default function MyPageContent() {
       const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
       const headers = { 'Authorization': `Bearer ${token}` };
 
-      const [createdRes, pledgedRes, notifRes] = await Promise.all([
+      // ★修正: 4つのAPIを並列で叩く (投稿一覧取得を追加)
+      // ※ postsRes は Next.js の内部API (/api/users/...) を呼ぶ想定です
+      const [createdRes, pledgedRes, notifRes, postsRes] = await Promise.all([
         fetch(`${API_URL}/api/users/${user.id}/created-projects`),
         fetch(`${API_URL}/api/users/${user.id}/pledged-projects`),
-        fetch(`${API_URL}/api/notifications`, { headers })
+        fetch(`${API_URL}/api/notifications`, { headers }),
+        fetch(`/api/users/${user.id}/posts`) // ★ここを追加
       ]);
 
       if (createdRes.ok) setCreatedProjects(await createdRes.json());
       if (pledgedRes.ok) setPledgedProjects(await pledgedRes.json());
       if (notifRes.ok) setNotifications(await notifRes.json());
+      if (postsRes.ok) setMyPosts(await postsRes.json()); // ★ここを追加
 
     } catch (error) {
       console.error("データ取得エラー:", error);
@@ -83,6 +97,9 @@ export default function MyPageContent() {
     } catch (e) { console.error(e); }
   };
 
+  // 投稿完了後にリストを更新する関数（UploadFormに渡すとより親切ですが、今回は簡易実装のためリロード前提とします）
+  // 必要であれば <UploadForm onUploadSuccess={fetchMyData} /> のように渡してください
+
   if (authLoading || !user) return <div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-sky-500"></div></div>;
 
   const unreadCount = notifications.filter(n => !n.isRead).length;
@@ -101,7 +118,7 @@ export default function MyPageContent() {
             <div className="overflow-hidden">
                 <p className="font-bold text-gray-800 truncate">{user.handleName}</p>
                 
-                {/* ★★★ ポイント表示と購入ボタン ★★★ */}
+                {/* ポイント表示と購入ボタン */}
                 <div className="flex items-center gap-2 mt-1">
                     <p className="text-xs text-sky-600 font-bold">{(user.points || 0).toLocaleString()} pt</p>
                     <Link href="/points" className="flex items-center gap-1 bg-sky-100 hover:bg-sky-200 text-sky-700 text-[10px] px-2 py-0.5 rounded-full font-bold transition-colors">
@@ -121,7 +138,7 @@ export default function MyPageContent() {
             <button onClick={() => setActiveTab('created')} className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-bold rounded-xl transition-colors ${activeTab === 'created' ? 'bg-sky-50 text-sky-600' : 'text-gray-500 hover:bg-gray-50'}`}>
                 <FiList size={18}/> 作成した企画 <span className="ml-auto bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full text-xs">{createdProjects.length}</span>
             </button>
-            {/* ★★★ 【追加】サイドバー内：企画を作成するボタン ★★★ */}
+            
             <Link href="/projects/create" className="ml-4 w-[90%] flex items-center gap-3 px-4 py-2 text-xs font-bold rounded-lg text-pink-500 hover:bg-pink-50 transition-colors mb-2">
                 <FiPlus size={16}/> 企画を作成する
             </Link>
@@ -130,10 +147,15 @@ export default function MyPageContent() {
             <button onClick={() => setActiveTab('pledged')} className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-bold rounded-xl transition-colors ${activeTab === 'pledged' ? 'bg-sky-50 text-sky-600' : 'text-gray-500 hover:bg-gray-50'}`}>
                 <FiHeart size={18}/> 支援した企画
             </button>
-            {/* ★★★ 【追加】サイドバー内：企画を探すボタン ★★★ */}
+            
             <Link href="/projects" className="ml-4 w-[90%] flex items-center gap-3 px-4 py-2 text-xs font-bold rounded-lg text-indigo-500 hover:bg-indigo-50 transition-colors mb-2">
                 <FiSearch size={16}/> 企画を探す
             </Link>
+
+            {/* ★★★ 【追加】活動報告・アルバム ★★★ */}
+            <button onClick={() => setActiveTab('posts')} className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-bold rounded-xl transition-colors ${activeTab === 'posts' ? 'bg-sky-50 text-sky-600' : 'text-gray-500 hover:bg-gray-50'}`}>
+                <FiCamera size={18}/> 活動報告・アルバム
+            </button>
 
             {/* 通知 */}
             <button onClick={() => setActiveTab('notifications')} className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-bold rounded-xl transition-colors ${activeTab === 'notifications' ? 'bg-sky-50 text-sky-600' : 'text-gray-500 hover:bg-gray-50'}`}>
@@ -166,7 +188,6 @@ export default function MyPageContent() {
                     <h1 className="text-2xl font-bold text-gray-800">ダッシュボード</h1>
                 </header>
 
-                {/* 未読通知がある場合のアラート */}
                 {unreadCount > 0 && (
                     <div onClick={() => setActiveTab('notifications')} className="bg-orange-50 border border-orange-200 p-4 rounded-xl flex items-center justify-between cursor-pointer hover:bg-orange-100 transition-colors">
                         <div className="flex items-center gap-3 text-orange-800">
@@ -177,7 +198,6 @@ export default function MyPageContent() {
                     </div>
                 )}
 
-                {/* 直近の進行中企画 */}
                 <section>
                     <h2 className="text-lg font-bold text-gray-700 mb-4 flex items-center"><FiActivity className="mr-2"/> 進行中の企画</h2>
                     {createdProjects.filter(p => p.status !== 'COMPLETED' && p.status !== 'CANCELED').length > 0 ? (
@@ -210,7 +230,6 @@ export default function MyPageContent() {
                     <p className="text-gray-500 mb-6">企画はまだありません。</p>
                 )}
 
-                {/* ★★★ 企画を作成するボタン (リストの下に配置) ★★★ */}
                 <div className="mt-8 flex justify-center">
                     <Link href="/projects/create" className="flex items-center gap-2 bg-pink-500 hover:bg-pink-600 text-white px-8 py-3 rounded-full font-bold shadow-lg transition-transform hover:-translate-y-0.5">
                         <FiPlus size={20}/> 新しい企画を作成する
@@ -244,12 +263,62 @@ export default function MyPageContent() {
                     <p className="text-gray-500 mb-6">まだ支援した企画はありません。</p>
                 )}
 
-                {/* ★★★ 企画を探すボタン (リストの下に配置) ★★★ */}
                 <div className="mt-8 flex justify-center">
                     <Link href="/projects" className="flex items-center gap-2 bg-indigo-500 hover:bg-indigo-600 text-white px-8 py-3 rounded-full font-bold shadow-lg transition-transform hover:-translate-y-0.5">
                         <FiSearch size={20}/> 他の企画を探しに行く
                     </Link>
                 </div>
+            </div>
+        )}
+
+        {/* ★★★ 【追加】活動報告・アルバム ★★★ */}
+        {activeTab === 'posts' && (
+            <div className="animate-fadeIn max-w-4xl mx-auto">
+                <h1 className="text-2xl font-bold text-gray-800 mb-6">活動報告・フラスタ投稿</h1>
+                
+                {/* 投稿フォーム */}
+                <div className="mb-12">
+                    <UploadForm />
+                </div>
+
+                <div className="flex items-center justify-between border-b pb-4 mb-6">
+                    <h2 className="text-xl font-bold text-gray-700">過去の投稿一覧</h2>
+                    <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-bold">{myPosts.length}件</span>
+                </div>
+                
+                {myPosts.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                        {myPosts.map(post => (
+                            <div key={post.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
+                                <div className="aspect-[4/3] bg-gray-100 relative">
+                                    <img src={post.imageUrl} alt={post.eventName} className="w-full h-full object-cover"/>
+                                </div>
+                                <div className="p-4">
+                                    <h3 className="font-bold text-gray-800 mb-1 line-clamp-1">{post.eventName}</h3>
+                                    <div className="text-sm text-gray-600 space-y-1 mb-3">
+                                        <p className="flex gap-2">
+                                            <span className="font-bold text-[10px] bg-sky-100 text-sky-600 px-1.5 py-0.5 rounded uppercase tracking-wide">To</span> 
+                                            <span className="truncate">{post.recipientName || '-'}</span>
+                                        </p>
+                                        <p className="flex gap-2">
+                                            <span className="font-bold text-[10px] bg-pink-100 text-pink-600 px-1.5 py-0.5 rounded uppercase tracking-wide">From</span> 
+                                            <span className="truncate">{post.senderName || '-'}</span>
+                                        </p>
+                                    </div>
+                                    <p className="text-xs text-gray-400 text-right border-t pt-2">
+                                        {new Date(post.createdAt).toLocaleDateString()}
+                                    </p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="text-center text-gray-500 py-16 bg-white rounded-xl border border-dashed border-gray-300">
+                        <div className="mb-4 text-4xl">📸</div>
+                        <p className="font-bold mb-1">まだ投稿がありません</p>
+                        <p className="text-sm text-gray-400">思い出のフラワースタンド写真を投稿して、<br/>アルバムを作りましょう！</p>
+                    </div>
+                )}
             </div>
         )}
 
@@ -290,7 +359,6 @@ export default function MyPageContent() {
             <div className="max-w-xl animate-fadeIn">
                 <h1 className="text-2xl font-bold text-gray-800 mb-6">プロフィール設定</h1>
                 <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-                    {/* 簡易表示（編集機能は /mypage/edit へ） */}
                     <div className="flex items-center gap-4 mb-6">
                         {user.iconUrl ? <img src={user.iconUrl} className="w-16 h-16 rounded-full border"/> : <div className="w-16 h-16 rounded-full bg-gray-200"></div>}
                         <div>
