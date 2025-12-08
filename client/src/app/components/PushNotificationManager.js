@@ -80,7 +80,8 @@ export default function PushNotificationManager() {
   if (!isSupported || isSubscribed) return null; // 対応していないか登録済みなら非表示
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 animate-bounce">
+    // ▼ ここを bottom-24 に変更しました（チャットボタンと被らないように上へ移動）
+    <div className="fixed bottom-24 right-4 z-50 animate-bounce">
       <button
         onClick={subscribeToPush}
         className="flex items-center gap-2 px-4 py-3 bg-indigo-600 text-white font-bold rounded-full shadow-lg hover:bg-indigo-700 transition-colors"

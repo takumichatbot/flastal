@@ -45,6 +45,14 @@ export default function AdminPayoutsPage() {
         const res = await fetch(`${API_URL}/api/admin/payouts`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
+
+        // ★ 401エラー（認証切れ）の場合の処理を追加
+        if (res.status === 401) {
+            localStorage.removeItem('authToken'); // 古いトークンを消す
+            toast.error('セッションの有効期限が切れました。再度ログインしてください。');
+            router.push('/login'); // ログイン画面へ飛ばす
+            return;
+        }
         
         if (!res.ok) {
           throw new Error('出金申請の読み込みに失敗しました。');
