@@ -4,6 +4,8 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import sharp from 'sharp';
+import { Document, NodeIO } from '@gltf-transform/core';
 import cors from 'cors';
 import Stripe from 'stripe';
 import multer from 'multer';
@@ -532,6 +534,119 @@ app.get('/api/projects/featured', async (req, res) => {
     console.error('注目の企画取得エラー:', error);
     res.status(500).json({ message: '企画の取得中にエラーが発生しました。' });
   }
+});
+
+
+// ==========================================
+// ★★★【新規】2DパネルAR生成API (Node.js版) ★★★
+// ==========================================
+app.post('/api/ar/create-panel', upload.single('image'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: '画像ファイルがありません。' });
+    }
+
+    // 1. 画像情報を取得 (縦横比計算のため)
+    const image = sharp(req.file.buffer);
+    const metadata = await image.metadata();
+    
+    // 基準サイズ設定: 高さを1.8m (180cm) に固定し、幅を比率で計算
+    const targetHeight = 1.8; 
+    const aspectRatio = metadata.width / metadata.height;
+    const targetWidth = targetHeight * aspectRatio;
+
+    // 2. GLTF(GLB) ドキュメントを作成
+    const doc = new Document();
+    const buffer = doc.createBuffer();
+
+    // 3. 画像をテクスチャとして設定
+    // (PNG/JPEGのバッファをそのまま埋め込みます)
+    const texture = doc.createTexture('base')
+      .setMimeType(req.file.mimetype)
+      .setImage(req.file.buffer);
+
+    // 4. マテリアル(質感)を作成
+    const material = doc.createMaterial('panelMat')
+      .setBaseColorTexture(texture)
+      .setAlphaMode('BLEND') // 透過画像(PNG)なら背景が透けるように設定
+      .setDoubleSided(true)  // 裏側からも見えるようにする
+      .setMetallicFactor(0)  // 金属光沢なし
+      .setRoughnessFactor(1); // マットな質感
+
+    // 5. 板ポリゴン(メッシュ)の頂点データを作成
+    // 中心を原点(0,0,0)とし、Y軸を高さとする板を作ります
+    const halfW = targetWidth / 2;
+    // Y=0を底辺にする (床に置くため)
+    const yBottom = 0;
+    const yTop = targetHeight;
+
+    // 頂点座標 (左下, 右下, 左上, 右上)
+    const vertices = new Float32Array([
+      -halfW, yBottom, 0,  // 左下
+       halfW, yBottom, 0,  // 右下
+      -halfW, yTop,    0,  // 左上
+       halfW, yTop,    0,  // 右上
+    ]);
+
+    // UV座標 (テクスチャの貼り付け位置)
+    // GLTFのUV原点は左上
+    const uvs = new Float32Array([
+      0, 1, // 左下
+      1, 1, // 右下
+      0, 0, // 左上
+      1, 0  // 右上
+    ]);
+
+    // インデックス (三角形をつなぐ順序: 0-1-2, 2-1-3)
+    const indices = new Uint16Array([
+      0, 1, 2,
+      2, 1, 3
+    ]);
+
+    // 6. メッシュとプリミティブの構築
+    const positionAccessor = doc.createAccessor()
+      .setArray(vertices)
+      .setType('VEC3')
+      .setBuffer(buffer);
+      
+    const uvAccessor = doc.createAccessor()
+      .setArray(uvs)
+      .setType('VEC2')
+      .setBuffer(buffer);
+
+    const indexAccessor = doc.createAccessor()
+      .setArray(indices)
+      .setType('SCALAR')
+      .setBuffer(buffer);
+
+    const primitive = doc.createPrimitive()
+      .setMaterial(material)
+      .setIndices(indexAccessor)
+      .setAttribute('POSITION', positionAccessor)
+      .setAttribute('TEXCOORD_0', uvAccessor);
+
+    const mesh = doc.createMesh('panelMesh')
+      .addPrimitive(primitive);
+
+    const node = doc.createNode('panelNode')
+      .setMesh(mesh);
+
+    const scene = doc.createScene('scene')
+      .addChild(node);
+
+    // 7. バイナリ(GLB)として書き出し
+    const io = new NodeIO(doc);
+    const glbBuffer = await io.writeBinary(doc);
+
+    // 8. クライアントにファイルを返す
+    res.setHeader('Content-Type', 'model/gltf-binary');
+    res.setHeader('Content-Disposition', 'attachment; filename="flower-stand-panel.glb"');
+    res.send(Buffer.from(glbBuffer));
+
+  } catch (error) {
+    console.error("ARパネル生成エラー:", error);
+    res.status(500).json({ message: 'ARデータの生成に失敗しました。' });
+  }
 });
 
 

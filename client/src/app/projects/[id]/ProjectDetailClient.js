@@ -11,7 +11,7 @@ import { useReactToPrint } from 'react-to-print';
 import dynamic from 'next/dynamic';
 
 // アイコン
-import { FiHeart, FiThumbsUp, FiMessageSquare, FiInfo, FiUser, FiSend, FiCheckCircle, FiCheck, FiUpload, FiPrinter, FiFileText, FiImage, FiCpu, FiBox } from 'react-icons/fi';
+import { FiHeart, FiThumbsUp, FiMessageSquare, FiInfo, FiUser, FiSend, FiCheckCircle, FiCheck, FiUpload, FiPrinter, FiFileText, FiImage, FiCpu, FiBox, FiX, FiRefreshCw, FiArrowUp, FiLock } from 'react-icons/fi';
 
 // コンポーネント群
 import VirtualStage from '@/app/components/VirtualStage';
@@ -43,7 +43,7 @@ const getAuthToken = () => {
 };
 
 // ===========================================
-// ヘルパーコンポーネント定義 (復元箇所)
+// ヘルパーコンポーネント定義
 // ===========================================
 
 const PROGRESS_STEPS = [
@@ -335,7 +335,6 @@ export default function ProjectDetailClient() {
 
   const [project, setProject] = useState(null);
   
-  // projectがnullのときに undefined エラーにならないよう optional chaining で対処
   const handlePrint = useReactToPrint({
     content: () => componentRef.current,
     documentTitle: `収支報告書_${project?.title || '企画'}`,
@@ -352,6 +351,12 @@ export default function ProjectDetailClient() {
   const [isTargetAmountModalOpen, setIsTargetAmountModalOpen] = useState(false);
   const [isInstructionModalOpen, setIsInstructionModalOpen] = useState(false);
   const [isArModalOpen, setIsArModalOpen] = useState(false);
+
+  // ★★★ AR用ステート ★★★
+  const [arImageFile, setArImageFile] = useState(null);
+  const [arHeight, setArHeight] = useState(180);
+  const [arSrc, setArSrc] = useState(null);
+  const [arGenLoading, setArGenLoading] = useState(false);
 
   const [showAnnouncementForm, setShowAnnouncementForm] = useState(false);
   const [announcementTitle, setAnnouncementTitle] = useState('');
@@ -432,6 +437,60 @@ export default function ProjectDetailClient() {
     }
   };
 
+  // ★★★ URL画像をファイルに変換してARセットする関数 ★★★
+  const handleSelectCompletedImage = async (url) => {
+    const toastId = toast.loading('画像を準備中...');
+    try {
+        // 画像をフェッチしてBlobに変換
+        const response = await fetch(url);
+        const blob = await response.blob();
+        
+        // Fileオブジェクトを作成
+        const file = new File([blob], "completed-flower.jpg", { type: blob.type });
+        
+        setArImageFile(file);
+        setArHeight(180); // デフォルト高さ
+        toast.success('画像をセットしました！下部の「ARモデルを生成する」ボタンを押してください', { id: toastId });
+        
+    } catch (e) {
+        console.error(e);
+        toast.error('画像の読み込みに失敗しました', { id: toastId });
+    }
+  };
+
+  // ★★★ ARモデル生成ハンドラー ★★★
+  const handleGenerateAr = async () => {
+    if (!arImageFile) return toast.error('画像を選択してください');
+    
+    setArGenLoading(true);
+    const toastId = toast.loading('ARデータを生成中...');
+
+    try {
+      const formData = new FormData();
+      formData.append('image', arImageFile);
+      formData.append('height', arHeight);
+
+      const res = await fetch(`${API_URL}/api/ar/create-panel`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!res.ok) throw new Error('生成に失敗しました');
+
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      setArSrc(url);
+      
+      toast.success('AR生成完了！カメラを床に向けてください', { id: toastId });
+
+    } catch (e) {
+      console.error(e);
+      toast.error('エラーが発生しました', { id: toastId });
+    } finally {
+      setArGenLoading(false);
+    }
+  };
+
   const handleGetRecommendations = async () => {
     if (!project) return;
     setLoadingRecommendations(true);
@@ -459,13 +518,11 @@ export default function ProjectDetailClient() {
     }
   };
 
-  // 表示用ステータスの決定
   const currentStatus = project?.productionStatus || project?.status || 'ACCEPTED';
-
-  // ログインユーザーが、この企画を担当しているお花屋さんかどうか判定
   const isAssignedFlorist = user && user.role === 'FLORIST' && project?.offer?.floristId === user.id;
+  const isPledger = user && (project?.pledges || []).some(p => p.userId === user.id);
+  const isPlanner = user && user.id === project?.planner?.id;
 
-  // ステータス更新時に画面を即時反映させる関数
   const handleStatusChange = (newStatus) => {
     setProject(prev => ({ 
       ...prev, 
@@ -525,18 +582,8 @@ export default function ProjectDetailClient() {
   if (loading) return <div className="text-center mt-10">読み込み中...</div>;
   if (!project) return <div className="text-center mt-10">企画が見つかりませんでした。</div>;
 
-  const isPlanner = user && user.id === project.planner?.id;
-  const isPledger = user && (project.pledges || []).some(p => p.userId === user.id);
-  const isFlorist = user && project.offer?.floristId === user.id; 
-  
   const totalExpense = (project.expenses || []).reduce((sum, exp) => sum + exp.amount, 0);
   const balance = project.collectedAmount - totalExpense;
-  const canMakeOffer = isPlanner && (project.status === 'FUNDRAISING' || project.status === 'SUCCESSFUL');
-  
-  const currentStatusIndex = PROGRESS_STEPS.findIndex(s => s.key === project.productionStatus);
-  const fundStatusIndex = project.status === 'FUNDRAISING' ? 0 : 1; 
-  const activeIndex = Math.max(fundStatusIndex, currentStatusIndex);
-
   const hasPostedMessage = project.messages?.some(m => m.userId === user?.id);
 
   return (
@@ -605,7 +652,6 @@ export default function ProjectDetailClient() {
 
               <UpsellAlert target={project.targetAmount} collected={project.collectedAmount} />
 
-              {/* ★★★ デジタルネームボードへのリンクボタン (ここに追加) ★★★ */}
               <div className="mb-8">
                 <Link href={`/projects/${id}/board`} className="block group">
                     <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-slate-900 to-slate-800 p-6 shadow-lg border border-slate-700 text-center">
@@ -699,10 +745,8 @@ export default function ProjectDetailClient() {
                     </h2>
                     <div className="mb-8">
                         <PanelPreviewer onImageSelected={(file) => {
-                            // ここでファイルアップロード処理を呼ぶ
-                            // ダミーイベントオブジェクトを作って既存のhandleUploadを再利用
                             const dummyEvent = { target: { files: [file] } };
-                            handleUpload(dummyEvent, 'illustration'); // 'illustration' としてアップロード
+                            handleUpload(dummyEvent, 'illustration');
                         }} />
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -1012,32 +1056,115 @@ export default function ProjectDetailClient() {
       {isTargetAmountModalOpen && <TargetAmountModal project={project} user={user} onClose={() => setIsTargetAmountModalOpen(false)} onUpdate={fetchProject} />}
       {isInstructionModalOpen && <InstructionSheetModal projectId={id} onClose={() => setIsInstructionModalOpen(false)} />}
       
-      {/* ★★★ ARモーダル (ここに追加) ★★★ */}
+      {/* ★★★ 修正: ARモーダル (画像アップロード機能付き) ★★★ */}
       {isArModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-80 flex justify-center items-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-2xl overflow-hidden relative shadow-2xl">
-            <button onClick={() => setIsArModalOpen(false)} className="absolute top-4 right-4 z-50 bg-white/50 rounded-full p-2 hover:bg-white transition-colors">
-              <span className="text-xl font-bold">×</span>
-            </button>
-            <div className="p-6">
-              <h3 className="text-xl font-bold mb-2 text-center">ARでサイズを確認</h3>
-              <p className="text-sm text-center text-gray-500 mb-4">
-                スマホのカメラをかざすと、実寸大のモデルが表示されます。<br/>
-                ※これは汎用モデルです。実際のデザインとは異なります。
-              </p>
-              {/* src: Android/Web用 (.glb)
-                 ios-src: iOS用 (.usdz)
-                 今回はGoogleのサンプルモデルを使用していますが、
-                 本来は「フラスタの3Dモデル」のURLを指定します。
-              */}
-              <ArViewer 
-                src="https://modelviewer.dev/shared-assets/models/Astronaut.glb" 
-                iosSrc="https://modelviewer.dev/shared-assets/models/Astronaut.usdz"
-                alt="3Dモデル"
-              />
-              <div className="mt-4 text-center">
-                <button onClick={() => setIsArModalOpen(false)} className="text-sm text-gray-500 underline">閉じる</button>
-              </div>
+        <div className="fixed inset-0 bg-black bg-opacity-80 flex justify-center items-center z-50 p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl w-full max-w-2xl overflow-hidden relative shadow-2xl flex flex-col max-h-[90vh]">
+            
+            <div className="p-4 border-b flex justify-between items-center">
+                <h3 className="font-bold text-lg text-gray-800 flex items-center">
+                    <FiBox className="mr-2"/> ARでサイズ確認 (2Dパネル)
+                </h3>
+                <button onClick={() => setIsArModalOpen(false)} className="bg-gray-100 hover:bg-gray-200 rounded-full p-2 transition-colors">
+                  <FiX />
+                </button>
+            </div>
+
+            <div className="p-6 overflow-y-auto">
+              {!arSrc ? (
+                  /* 生成前：フォーム表示 */
+                  <div className="space-y-6">
+                      
+                      {/* ★★★ 支援者向け: 完成写真の選択機能 ★★★ */}
+                      {project.status === 'COMPLETED' && (isPledger || isPlanner || isFlorist) && project.completionImageUrls?.length > 0 && (
+                          <div className="bg-green-50 border border-green-200 p-4 rounded-lg">
+                             <h4 className="font-bold text-green-800 mb-2 flex items-center">
+                               <FiCheckCircle className="mr-2"/> 完成したフラスタをARで見る
+                             </h4>
+                             <p className="text-xs text-green-700 mb-3">現地に行けない方も、実際の仕上がりをARで確認できます。</p>
+                             <div className="flex gap-2 overflow-x-auto pb-2">
+                                {project.completionImageUrls.map((url, i) => (
+                                    <div key={i} className="flex-shrink-0 cursor-pointer group" onClick={() => handleSelectCompletedImage(url)}>
+                                        <img src={url} className="w-24 h-24 object-cover rounded border-2 border-transparent group-hover:border-green-500 transition-colors" />
+                                        <p className="text-[10px] text-center mt-1 text-green-700 group-hover:font-bold">これを選択</p>
+                                    </div>
+                                ))}
+                             </div>
+                          </div>
+                      )}
+
+                      <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
+                          <p className="text-sm text-blue-800">
+                              <FiInfo className="inline mr-1"/>
+                              持っているフラスタの画像をアップロードして、ARで部屋に置いてみましょう。<br/>
+                              高さを指定すると、実寸大で表示されます。
+                          </p>
+                      </div>
+
+                      <div>
+                          <label className="block text-sm font-bold text-gray-700 mb-2">1. 画像を選択</label>
+                          <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                              <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                                  {arImageFile ? (
+                                      <div className="text-center">
+                                          <p className="text-sm font-bold text-green-600 mb-1"><FiCheck className="inline"/> {arImageFile.name}</p>
+                                          <p className="text-xs text-gray-500">クリックして変更</p>
+                                      </div>
+                                  ) : (
+                                      <>
+                                          <FiUpload className="w-8 h-8 text-gray-400 mb-2" />
+                                          <p className="text-sm text-gray-500">クリックして画像をアップロード</p>
+                                      </>
+                                  )}
+                              </div>
+                              <input type="file" className="hidden" accept="image/*" onChange={(e) => setArImageFile(e.target.files[0])} />
+                          </label>
+                      </div>
+
+                      <div>
+                          <label className="block text-sm font-bold text-gray-700 mb-2">2. 高さを指定 (cm)</label>
+                          <div className="relative">
+                              <FiArrowUp className="absolute left-3 top-3 text-gray-400"/>
+                              <input 
+                                  type="number" 
+                                  value={arHeight} 
+                                  onChange={(e) => setArHeight(e.target.value)} 
+                                  className="pl-10 w-full p-2 border rounded-lg"
+                                  placeholder="例: 180"
+                              />
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1">※一般的なフラスタの高さは 180cm〜200cm です。</p>
+                      </div>
+
+                      <button 
+                          onClick={handleGenerateAr}
+                          disabled={arGenLoading || !arImageFile}
+                          className="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 disabled:bg-gray-300 transition-colors shadow-md flex justify-center items-center"
+                      >
+                          {arGenLoading ? 'ARデータを生成中...' : 'ARモデルを生成する'}
+                      </button>
+                  </div>
+              ) : (
+                  /* 生成後：ARビューワー表示 */
+                  <div className="flex flex-col items-center">
+                      <p className="text-sm text-center text-gray-600 mb-4">
+                        スマホのカメラをかざすと、<br/>高さ <strong>{arHeight}cm</strong> のパネルが表示されます。
+                      </p>
+                      
+                      <ArViewer 
+                        src={arSrc} 
+                        // iOS用usdzは生成していないため省略(Android/WebXRで動作)
+                        alt="フラスタARパネル"
+                      />
+
+                      <button 
+                        onClick={() => { setArSrc(null); setArImageFile(null); }}
+                        className="mt-6 text-sm text-gray-500 flex items-center hover:text-indigo-600"
+                      >
+                        <FiRefreshCw className="mr-1"/> 別の画像で試す
+                      </button>
+                  </div>
+              )}
             </div>
           </div>
         </div>
