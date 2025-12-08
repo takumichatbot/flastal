@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '@/app/contexts/AuthContext';
 import { FiCalendar, FiMapPin, FiSearch, FiAlertTriangle, FiCheckCircle, FiPlus, FiCpu, FiLink, FiX, FiInfo } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
