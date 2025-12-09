@@ -330,6 +330,7 @@ function TargetAmountModal({ project, user, onClose, onUpdate }) {
 export default function ProjectDetailClient() {
   const params = useParams();
   const { id } = params;
+  const [aiSummary, setAiSummary] = useState(null);
   const [showGuestPledgeModal, setShowGuestPledgeModal] = useState(false);
   const { user, isAuthenticated } = useAuth(); 
   const componentRef = useRef();
@@ -626,6 +627,21 @@ export default function ProjectDetailClient() {
               </div>
             )}
 
+            {/* チャットエリア */}
+            {(isPlanner || isPledger || isFlorist) && (
+              <div className="border-t my-8 pt-6">
+                {/* 💡 ★★★ GroupChat に onSummaryUpdate を渡し、要約結果を親に保存する ★★★ */}
+                <GroupChat 
+                    project={project} 
+                    user={user} 
+                    isPlanner={isPlanner} 
+                    isPledger={isPledger} 
+                    socket={socket} 
+                    onSummaryUpdate={setAiSummary} // ここで要約結果を受け取る
+                />
+              </div>
+            )}
+
             {/* 完了報告 */}
             {project.status === 'COMPLETED' && (
                 <div className="p-6 bg-orange-50 border-b border-orange-200">
@@ -720,6 +736,17 @@ export default function ProjectDetailClient() {
                         )}
                     </div>
                 </div>
+              )}
+
+              {/* 💡 【オプション】要約結果をデザインエリアのどこかに固定表示することも可能 */}
+              {aiSummary && (
+                  <div className="mt-8 border-t pt-6 bg-slate-50 p-6 rounded-xl">
+                    <h2 className="text-xl font-bold text-gray-800 mb-2">現在のデザイン決定事項</h2>
+                    {/* Markdownで整形して表示 */}
+                    <div className="text-sm text-gray-700">
+                        <Markdown>{aiSummary}</Markdown>
+                    </div>
+                  </div>
               )}
 
               {/* ▼ 配送トラッカー (全員に表示) ▼ */}

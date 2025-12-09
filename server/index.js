@@ -2856,31 +2856,6 @@ app.get('/api/admin/projects/:projectId/chats', requireAdmin, async (req, res) =
   }
 });
 
-app.delete('/api/admin/group-chat/:messageId', requireAdmin, async (req, res) => {
-  const { messageId } = req.params;
-  try {
-    const message = await prisma.groupChatMessage.findUnique({ where: { id: messageId } });
-    if (!message) return res.status(404).send();
-    await prisma.groupChatMessage.delete({ where: { id: messageId } });
-    io.to(message.projectId).emit('groupMessageDeleted', { messageId });
-    res.status(204).send();
-  } catch (error) {
-    res.status(500).json({ message: 'メッセージの削除に失敗しました。' });
-  }
-});
-
-app.delete('/api/admin/florist-chat/:messageId', requireAdmin, async (req, res) => {
-  const { messageId } = req.params;
-  try {
-    const message = await prisma.chatMessage.findUnique({ where: { id: messageId } });
-    if (!message) return res.status(404).send();
-    await prisma.chatMessage.delete({ where: { id: messageId } });
-    io.to(message.chatRoomId).emit('floristMessageDeleted', { messageId });
-    res.status(204).send();
-  } catch (error) {
-    res.status(500).json({ message: 'メッセージの削除に失敗しました。' });
-  }
-});
 
 app.post('/api/reports/project', async (req, res) => {
   const { projectId, reporterId, reason, details } = req.body;
@@ -4936,6 +4911,126 @@ app.get('/api/gallery/feed', async (req, res) => {
     }
 });
 
+
+// ★★★【新規】グループチャット要約API ★★★
+app.post('/api/group-chat/:projectId/summarize', authenticateToken, async (req, res) => {
+    const { projectId } = req.params;
+    const userId = req.user.id;
+    
+    // 企画者または支援者であるかを確認 (権限チェック)
+    const isPlanner = await prisma.project.count({ where: { id: projectId, plannerId: userId } });
+    const isPledger = await prisma.pledge.count({ where: { projectId, userId } });
+
+    if (isPlanner === 0 && isPledger === 0) {
+        return res.status(403).json({ message: '要約機能は企画の参加者のみ利用できます。' });
+    }
+
+    try {
+        // 1. グループチャットの履歴を取得 (最新の50件など、AIのトークン制限に応じて調整)
+        const messages = await prisma.groupChatMessage.findMany({
+            where: { projectId },
+            orderBy: { createdAt: 'desc' },
+            take: 50, // 最新50件に制限
+            include: { user: { select: { handleName: true } } }
+        });
+        
+        if (messages.length === 0) {
+            return res.status(404).json({ message: '要約するチャット履歴がありません。' });
+        }
+
+        // 2. AIに渡すプロンプトを作成
+        // 履歴を時間順に戻す
+        const chatHistory = messages.reverse().map(msg => 
+            `[${msg.user.handleName}] (${msg.createdAt.toLocaleTimeString()}): ${msg.content}`
+        ).join('\n');
+
+        const systemPrompt = `
+            あなたはフラワースタンド（フラスタ）企画のAIアシスタントです。
+            以下のチャット履歴を読み、企画者や支援者にとって最も重要な「決定事項」「デザインの方向性」「次のアクション」の3点に絞って、箇条書きで分かりやすく要約してください。
+            
+            出力形式は、以下の構造を持つMarkdown形式のみで行ってください。
+            ### [要約タイトル]
+            * **決定事項**: ...
+            * **デザイン**: ...
+            * **次のアクション**: ...
+        `;
+
+        let summary = '';
+        
+        // 3. AIによる要約実行
+        if (process.env.OPENAI_API_KEY) {
+            const completion = await openai.chat.completions.create({
+                model: "gpt-3.5-turbo", // コスト効率の良いモデルを使用
+                messages: [
+                    { role: "system", content: systemPrompt },
+                    { role: "user", content: `【チャット履歴】\n${chatHistory}` }
+                ],
+            });
+            summary = completion.choices[0].message.content.trim();
+        } else {
+            // ダミーモード
+            summary = `### AI要約 (ダミー)
+* **決定事項**: 次回ミーティングは水曜日20時。
+* **デザイン**: メインカラーは青系、バルーンは追加しない。
+* **次のアクション**: 企画者が花屋に見積もりを依頼。`;
+        }
+        
+        // 4. 要約結果をデータベースに保存 (ProjectPostの新しいタイプとして保存することを検討)
+        // 今回はシンプルに、要約結果をチャットにメッセージとして投稿する、または一時的に返すことにします。
+        
+        // シンプルに結果を返す
+        res.status(200).json({ summary });
+
+    } catch (error) {
+        console.error("AIチャット要約エラー:", error);
+        res.status(500).json({ message: 'チャットの要約中にエラーが発生しました。' });
+    }
+});
+
+
+
+// ★★★【新規】管理者向け：チャット通報一覧取得API ★★★
+app.get('/api/admin/chat-reports', requireAdmin, async (req, res) => {
+    try {
+        // グループチャットの通報を取得
+        const groupReports = await prisma.groupChatMessageReport.findMany({
+            where: { status: 'PENDING' },
+            include: { 
+                message: { select: { content: true, projectId: true } },
+                reporter: { select: { handleName: true } }
+            }
+        });
+        
+        // 個別チャットの通報を取得
+        const directReports = await prisma.chatMessageReport.findMany({
+            where: { status: 'PENDING' },
+            include: { 
+                message: { select: { content: true } }, // 個別チャットメッセージ
+                reporter: { select: { handleName: true } }
+            }
+        });
+
+        // 結合して、フロントで扱いやすい形式に整形
+        const formatted = [
+            ...groupReports.map(r => ({ 
+                ...r, 
+                type: 'GROUP', 
+                content: r.message.content,
+                projectId: r.message.projectId // どの企画か特定
+            })),
+            ...directReports.map(r => ({ 
+                ...r, 
+                type: 'DIRECT', 
+                content: r.message.content 
+            }))
+        ];
+
+        res.status(200).json(formatted);
+    } catch (error) {
+        console.error("チャット通報リスト取得エラー:", error);
+        res.status(500).json({ message: '通報データの取得に失敗しました。' });
+    }
+});
 // ===================================
 // ★★★★★   Socket.IOの処理   ★★★★★
 // ===================================
