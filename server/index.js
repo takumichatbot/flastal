@@ -154,6 +154,43 @@ async function sendEmail(to, subject, htmlContent) {
   }
 }
 
+const LEVEL_CONFIG = {
+    'Bronze': 10000, // 10,000ptでブロンズ
+    'Silver': 50000, // 50,000ptでシルバー
+    'Gold': 100000,  // 100,000ptでゴールド
+};
+
+async function checkUserLevelAndBadges(tx, userId) {
+    const user = await tx.user.findUnique({ where: { id: userId } });
+    if (!user) return;
+
+    // 1. レベルアップチェック
+    let newLevel = user.supportLevel;
+    let levelChanged = false;
+
+    // 現在のレベルより上のレベルをチェック
+    for (const [levelName, threshold] of Object.entries(LEVEL_CONFIG)) {
+        if (user.totalPledgedAmount >= threshold && 
+            (user.supportLevel === null || LEVEL_CONFIG[user.supportLevel] < threshold)
+        ) {
+            newLevel = levelName;
+            levelChanged = true;
+        }
+    }
+
+    if (levelChanged) {
+        await tx.user.update({
+            where: { id: userId },
+            data: { supportLevel: newLevel },
+        });
+        // 💡 ユーザーに通知 (例: 'SILVER' にランクアップしました)
+        // await createNotification(userId, 'LEVEL_UP', `おめでとうございます！あなたは${newLevel}ランクに昇格しました！`);
+    }
+
+    // 2. バッジチェック (ここでは省略しますが、同様に Badge テーブルをチェックします)
+    // 企画支援回数、メッセージ投稿回数などをトリガーにする
+}
+
 // ★★★ 通知作成ヘルパー関数 ★★★
 async function createNotification(recipientId, type, message, projectId = null, linkUrl = null) {
   if (!recipientId) return; // 受信者がいない場合はスキップ
@@ -985,9 +1022,13 @@ app.post('/api/pledges', authenticateToken, async (req, res) => {
       
       // ユーザーポイント減算
       await tx.user.update({
-        where: { id: userId },
-        data: { points: { decrement: pledgeAmount } },
-      });
+          where: { id: userId },
+          data: { 
+              points: { decrement: pledgeAmount },
+              // ★★★ 【追加】総支援額の更新 ★★★
+              totalPledgedAmount: { increment: pledgeAmount } 
+          },
+      });
       
       // 支援作成
       const newPledge = await tx.pledge.create({
@@ -1027,6 +1068,7 @@ app.post('/api/pledges', authenticateToken, async (req, res) => {
       );
       // ↑↑↑ 通知追加 ↑↑↑
 
+
       // 目標達成チェック
       if (updatedProject.collectedAmount >= updatedProject.targetAmount && project.status !== 'SUCCESSFUL') {
         // ステータスをSUCCESSFULに更新
@@ -1056,6 +1098,8 @@ app.post('/api/pledges', authenticateToken, async (req, res) => {
                 `<p>あなたが支援した「${project.title}」が目標金額を達成しました！開催決定です！</p>`);
         }
       }
+
+      await checkUserLevelAndBadges(tx, userId);
       return { newPledge };
     });
     res.status(201).json(result);
@@ -4801,6 +4845,58 @@ app.get('/api/admin/chat-reports', requireAdmin, async (req, res) => {
   } catch (error) {
     res.status(500).json({ message: '取得失敗' });
   }
+});
+
+// A. 成功企画の投稿 API
+app.post('/api/projects/:projectId/posts', authenticateToken, async (req, res) => {
+    const { projectId } = req.params;
+    const { content, postType } = req.body;
+    const userId = req.user.id;
+
+    try {
+        const project = await prisma.project.findUnique({ where: { id: projectId } });
+        if (!project || project.status !== 'COMPLETED') {
+            return res.status(403).json({ message: '完了済みの企画にのみ投稿できます。' });
+        }
+
+        // 企画者または支援者であるかを確認
+        const isPlanner = project.plannerId === userId;
+        const isPledger = await prisma.pledge.findFirst({ where: { projectId, userId } });
+
+        if (!isPlanner && !isPledger) {
+            return res.status(403).json({ message: 'この企画の企画者または支援者のみ投稿できます。' });
+        }
+        
+        const newPost = await prisma.projectPost.create({ // ★ ProjectPost モデルを使用
+            data: {
+                projectId,
+                userId,
+                content,
+                postType: postType || 'SUCCESS_STORY',
+            },
+        });
+        res.status(201).json(newPost);
+    } catch (error) {
+        console.error("成功企画投稿エラー:", error);
+        res.status(500).json({ message: '投稿に失敗しました。' });
+    }
+});
+
+// B. 投稿一覧取得 API
+app.get('/api/projects/:projectId/posts', async (req, res) => {
+    const { projectId } = req.params;
+    try {
+        const posts = await prisma.projectPost.findMany({ // ★ ProjectPost モデルを使用
+            where: { projectId },
+            include: { 
+                user: { select: { handleName: true, iconUrl: true } }
+            },
+            orderBy: { createdAt: 'desc' },
+        });
+        res.status(200).json(posts);
+    } catch (error) {
+        res.status(500).json({ message: '投稿の取得に失敗しました。' });
+    }
 });
 
 // ===================================
