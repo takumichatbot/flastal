@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '../contexts/AuthContext';
-import { FiMessageSquare, FiAlertTriangle, FiRefreshCw, FiDollarSign } from 'react-icons/fi'; // アイコンを追加
+import { FiMessageSquare, FiAlertTriangle, FiRefreshCw, FiDollarSign } from 'react-icons/fi';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -119,9 +119,9 @@ export default function AdminPage() {
           >
             出金管理
           </Link>
-          {/* ★修正箇所 3: チャット通報へのナビリンクを追加 */}
+          {/* ★修正箇所 3: チャット通報へのナビリンクを /admin/reports に修正 */}
           <Link 
-            href="/admin/chat-reports"
+            href="/admin/reports"
             className={`px-4 py-2 text-sm font-semibold text-white rounded-lg shadow transition-colors flex items-center ${chatReportCount > 0 ? 'bg-red-600 hover:bg-red-700' : 'bg-slate-500 hover:bg-slate-600'}`}
           >
             <FiMessageSquare className="mr-1"/> チャット通報 
@@ -167,9 +167,9 @@ export default function AdminPage() {
                 <p className="text-sm mt-2 text-slate-500">手数料が発生した回数</p>
             </div>
 
-            {/* ★修正箇所 4: KPI 3をチャット通報件数に置き換え */}
+            {/* ★修正箇所 4: KPI 3をチャット通報件数に置き換え、リンクを /admin/reports に修正 */}
             <Link 
-                href="/admin/chat-reports"
+                href="/admin/reports"
                 className={`block p-6 rounded-xl shadow-md border border-slate-100 transition-shadow hover:ring-2 ${chatReportCount > 0 ? 'bg-red-50 hover:ring-red-200' : 'bg-white hover:ring-sky-200'}`}
             >
                 <h3 className={`text-sm font-medium flex items-center ${chatReportCount > 0 ? 'text-red-500' : 'text-slate-500'}`}>
