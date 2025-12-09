@@ -130,6 +130,7 @@ model User {
   referralCode         String             @unique @default(cuid())
   pushSubscriptions    PushSubscription[]
   referredById         String?
+  posts         ProjectPost[]
   hasMadeFirstPurchase Boolean            @default(false)
   createdAt            DateTime           @default(now())
   updatedAt            DateTime           @updatedAt
@@ -183,6 +184,7 @@ model Project {
   completionComment       String?           @db.Text
   createdAt               DateTime          @default(now())
   eventId                 String?
+  successPosts  ProjectPost[]
   event                   Event?            @relation(fields: [eventId], references: [id])
   updatedAt               DateTime          @updatedAt
   finalBalance            Int?
