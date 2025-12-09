@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '../contexts/AuthContext';
+import { FiMessageSquare, FiAlertTriangle, FiRefreshCw, FiDollarSign } from 'react-icons/fi'; // アイコンを追加
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -13,6 +14,9 @@ export default function AdminPage() {
 
   const [commissions, setCommissions] = useState([]);
   const [loadingData, setLoadingData] = useState(true);
+  
+  // ★修正箇所 1: チャット通報件数のステートを追加
+  const [chatReportCount, setChatReportCount] = useState(0); 
 
   useEffect(() => {
     if (loading) return;
@@ -29,28 +33,38 @@ export default function AdminPage() {
       return;
     }
 
-    const fetchCommissions = async () => {
+    // ★修正箇所 2: データ取得関数を変更し、チャット通報データを並行取得
+    const fetchAdminData = async () => { 
       setLoadingData(true);
       try {
         const token = localStorage.getItem('authToken');
-        const res = await fetch(`${API_URL}/api/admin/commissions`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
+        const headers = { 'Authorization': `Bearer ${token}` };
         
-        if (!res.ok) throw new Error('手数料履歴の取得に失敗しました');
-        const data = await res.json();
-        setCommissions(Array.isArray(data) ? data : []);
+        // データ並列取得
+        const [commissionsRes, reportsRes] = await Promise.all([
+            fetch(`${API_URL}/api/admin/commissions`, { headers }),
+            // 💡 通報数を取得するAPI (admin/reports/page.jsと同じAPI)
+            fetch(`${API_URL}/api/admin/chat-reports`, { headers }) 
+        ]);
+        
+        if (!commissionsRes.ok) throw new Error('手数料履歴の取得に失敗しました');
+        
+        const commissionData = await commissionsRes.json();
+        const reportData = reportsRes.ok ? await reportsRes.json() : []; 
+
+        setCommissions(Array.isArray(commissionData) ? commissionData : []);
+        setChatReportCount(Array.isArray(reportData) ? reportData.length : 0); // 件数をセット
+
       } catch (error) {
         toast.error(error.message);
         setCommissions([]);
+        setChatReportCount(0);
       } finally {
         setLoadingData(false);
       }
     };
 
-    fetchCommissions();
+    fetchAdminData();
 
   }, [isAuthenticated, user, router, loading]);
 
@@ -105,12 +119,15 @@ export default function AdminPage() {
           >
             出金管理
           </Link>
+          {/* ★修正箇所 3: チャット通報へのナビリンクを追加 */}
           <Link 
-            href="/admin/moderation"
-            className="px-4 py-2 text-sm font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors shadow-sm"
+            href="/admin/chat-reports"
+            className={`px-4 py-2 text-sm font-semibold text-white rounded-lg shadow transition-colors flex items-center ${chatReportCount > 0 ? 'bg-red-600 hover:bg-red-700' : 'bg-slate-500 hover:bg-slate-600'}`}
           >
-            チャット監視
+            <FiMessageSquare className="mr-1"/> チャット通報 
+            {chatReportCount > 0 && <span className="ml-2 bg-white text-red-600 px-2 rounded-full font-bold">{chatReportCount}</span>}
           </Link>
+          
           <Link 
             href="/admin/florist-approval"
             className="px-4 py-2 text-sm font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors shadow-sm"
@@ -124,7 +141,6 @@ export default function AdminPage() {
             プロジェクト審査
           </Link>
           
-          {/* ★★★ 追加: 会場データベースへのリンク ★★★ */}
           <Link 
             href="/admin/venues"
             className="px-4 py-2 text-sm font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors shadow-sm flex items-center"
@@ -137,7 +153,7 @@ export default function AdminPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {/* KPI 1: 総手数料収益 */}
             <div className="block bg-white p-6 rounded-xl shadow-md border border-slate-100">
-                <h3 className="text-sm font-medium text-slate-500">総手数料収益</h3>
+                <h3 className="text-sm font-medium text-slate-500 flex items-center"><FiDollarSign className="mr-1"/> 総手数料収益</h3>
                 <p className="text-3xl font-bold text-sky-600 mt-2">
                     {totalCommission.toLocaleString()}<span className="text-lg font-medium ml-1">pt</span>
                 </p>
@@ -151,12 +167,19 @@ export default function AdminPage() {
                 <p className="text-sm mt-2 text-slate-500">手数料が発生した回数</p>
             </div>
 
-            {/* KPI 3: ダミー/拡張用 */}
-            <div className="block bg-white p-6 rounded-xl shadow-md border border-slate-100 bg-opacity-60">
-                <h3 className="text-sm font-medium text-slate-500">今月の売上 (未実装)</h3>
-                <p className="text-3xl font-bold text-slate-400 mt-2">-</p>
-                <p className="text-sm mt-2 text-slate-400">前月比: --%</p>
-            </div>
+            {/* ★修正箇所 4: KPI 3をチャット通報件数に置き換え */}
+            <Link 
+                href="/admin/chat-reports"
+                className={`block p-6 rounded-xl shadow-md border border-slate-100 transition-shadow hover:ring-2 ${chatReportCount > 0 ? 'bg-red-50 hover:ring-red-200' : 'bg-white hover:ring-sky-200'}`}
+            >
+                <h3 className={`text-sm font-medium flex items-center ${chatReportCount > 0 ? 'text-red-500' : 'text-slate-500'}`}>
+                    <FiAlertTriangle className="mr-1"/> 未処理のチャット通報
+                </h3>
+                <p className={`text-3xl font-bold mt-2 ${chatReportCount > 0 ? 'text-red-600 animate-pulse' : 'text-slate-800'}`}>
+                    {chatReportCount}
+                </p>
+                <p className="text-sm mt-2 text-slate-500">{chatReportCount > 0 ? '早急に対応が必要です' : '現在、問題なし'}</p>
+            </Link>
 
             {/* KPI 4: ダミー/拡張用 */}
             <div className="block bg-white p-6 rounded-xl shadow-md border border-slate-100 bg-opacity-60">
@@ -190,7 +213,7 @@ export default function AdminPage() {
                                     <div key={c.id} className="flex items-center justify-between p-4 border-b border-slate-100 last:border-0 hover:bg-slate-50 transition-colors">
                                         <div className="flex items-center gap-4">
                                             <div className="w-10 h-10 rounded-full bg-sky-100 flex items-center justify-center text-sky-600">
-                                                <span className="font-bold text-lg">¥</span>
+                                                <FiDollarSign className="text-lg"/>
                                             </div>
                                             <div>
                                                 <p className="font-semibold text-slate-800">{c.project.title || '不明な企画'}</p>
@@ -233,7 +256,6 @@ export default function AdminPage() {
                             </div>
                          </Link>
                          
-                         {/* ★★★ 追加: こちらにもリンクを追加 ★★★ */}
                          <Link href="/admin/venues" className="flex items-center p-3 rounded-lg bg-slate-50 hover:bg-slate-100 transition-colors">
                             <span className="text-2xl mr-3">🏢</span>
                             <div>

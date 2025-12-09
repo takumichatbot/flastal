@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/app/contexts/AuthContext'; // @/ は src の意味
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
-import { FiAlertTriangle, FiCheckCircle, FiExternalLink, FiSlash, FiMessageSquare, FiUser } from 'react-icons/fi';
+import { FiAlertTriangle, FiCheckCircle, FiExternalLink, FiSlash, FiMessageSquare, FiUser, FiRefreshCw, FiChevronLeft } from 'react-icons/fi'; // FiChevronLeft を追加
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -23,7 +23,7 @@ export default function AdminReportsPage() {
   const router = useRouter();
 
   // データ一括取得
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('authToken');
@@ -48,7 +48,7 @@ export default function AdminReportsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []); // useCallback の依存リストに空配列を指定
 
   useEffect(() => {
     if (!authLoading) {
@@ -59,7 +59,7 @@ export default function AdminReportsPage() {
         fetchData();
       }
     }
-  }, [authLoading, isAuthenticated, user, router]);
+  }, [authLoading, isAuthenticated, user, router, fetchData]); // fetchData を依存リストに追加
 
   // --- アクション関数群 ---
 
@@ -99,13 +99,13 @@ export default function AdminReportsPage() {
 
   // 3. チャットメッセージ削除 (BAN)
   const handleDeleteChatMessage = async (messageId, type) => {
-    if (!window.confirm('このメッセージを削除しますか？（元に戻せません）')) return;
+    if (!window.confirm('このメッセージをシステムから完全に削除しますか？')) return;
     const token = localStorage.getItem('authToken');
     
     // typeは 'GROUP' か 'DIRECT'
     const endpoint = type === 'GROUP' 
-      ? `/api/admin/group-chat/${messageId}` 
-      : `/api/admin/florist-chat/${messageId}`;
+      ? `/api/admin/group-chat/messages/${messageId}` 
+      : `/api/admin/florist-chat/messages/${messageId}`;
 
     const res = await fetch(`${API_URL}${endpoint}`, {
       method: 'DELETE',
@@ -115,6 +115,7 @@ export default function AdminReportsPage() {
     if (res.ok) {
       toast.success('メッセージを削除しました');
       setChatReports(prev => prev.filter(r => r.messageId !== messageId));
+      fetchData(); // ★ 削除後に全体を再取得することで通報件数も正確に反映される
     } else {
       toast.error('削除に失敗しました');
     }
@@ -128,9 +129,10 @@ export default function AdminReportsPage() {
     // APIエンドポイントの振り分け
     let url = '';
     if (type === 'EVENT') url = `/api/admin/event-reports/${reportId}/dismiss`;
-    // 企画やチャット用にも同様のAPIがあればここで分岐。今回はイベントのみ実装済みと仮定して他は省略または実装が必要
-    // ※ 簡易的にフロントでの非表示のみ行う場合
+    
+    // 企画やチャット用にも同様のAPIがあればここで分岐。今回はイベントのみ実装済みと仮定
     if (type !== 'EVENT') {
+        // DB更新APIがない場合のフォールバック（フロントでの非表示のみ）
         toast.success('リストから除外しました（DB更新は未実装）');
         if(type === 'CHAT') setChatReports(prev => prev.filter(r => r.id !== reportId));
         if(type === 'PROJECT') setProjectReports(prev => prev.filter(r => r.id !== reportId));
@@ -156,6 +158,13 @@ export default function AdminReportsPage() {
         <h1 className="text-2xl font-bold text-gray-800 mb-6 flex items-center">
           <FiAlertTriangle className="mr-2 text-red-500"/> 通報管理ダッシュボード
         </h1>
+        
+        {/* ★修正箇所 5: ダッシュボードへのリンクを追加 */}
+        <div className="mb-4">
+            <Link href="/admin" className="text-sm text-slate-600 hover:underline flex items-center">
+                <FiChevronLeft size={16} className="mr-1"/> ダッシュボードに戻る
+            </Link>
+        </div>
 
         {/* タブ切り替え */}
         <div className="flex gap-2 mb-6 border-b border-gray-300 pb-1">
