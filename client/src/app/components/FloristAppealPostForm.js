@@ -3,7 +3,7 @@
 
 import { useState } from 'react';
 import toast from 'react-hot-toast';
-import { FiCamera, FiSend, FiX } from 'react-icons/fi';
+import { FiCamera, FiSend, FiCheckCircle } from 'react-icons/fi'; 
 import { useAuth } from '../contexts/AuthContext';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';

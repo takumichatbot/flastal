@@ -19,6 +19,7 @@ import MoodboardPostForm from '@/app/components/MoodboardPostForm';
 import MoodboardDisplay from '@/app/components/MoodboardDisplay';
 import OfficialBadge from '@/app/components/OfficialBadge';
 import UpsellAlert from '@/app/components/UpsellAlert';
+import Markdown from 'react-markdown';
 import FlowerScrollIndicator from '@/app/components/FlowerScrollIndicator';
 import { BalanceSheet } from '@/app/components/BalanceSheet';
 import PanelPreviewer from '@/app/components/PanelPreviewer';
