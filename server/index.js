@@ -4899,6 +4899,43 @@ app.get('/api/projects/:projectId/posts', async (req, res) => {
     }
 });
 
+
+// ★★★【新規】成功企画ギャラリー用フィードデータ取得API ★★★
+app.get('/api/gallery/feed', async (req, res) => {
+    try {
+        // 1. 完了した企画（COMPLETED）を取得
+        const completedProjects = await prisma.project.findMany({
+            where: {
+                status: 'COMPLETED',
+                visibility: 'PUBLIC', // 公開企画のみ
+                completionImageUrls: { hasSome: [] } // 完了写真が1枚以上あるもののみ
+            },
+            select: {
+                id: true,
+                title: true,
+                planner: { select: { handleName: true, iconUrl: true } },
+                completionImageUrls: true,
+                completionComment: true,
+                createdAt: true,
+                // 紐づく成功ストーリー投稿（掲示板）を取得
+                successPosts: {
+                    select: { id: true, content: true, user: { select: { handleName: true } } },
+                    orderBy: { createdAt: 'desc' },
+                    take: 1 // 最新の投稿のみ
+                },
+                // いいね/コメント数の集計はフロントで対応するか、別のAPIで取得
+            },
+            orderBy: { deliveryDateTime: 'desc' }, // 新しいものから表示
+            take: 20 // 20件のフィード項目
+        });
+
+        res.status(200).json(completedProjects);
+    } catch (error) {
+        console.error("ギャラリーフィード取得エラー:", error);
+        res.status(500).json({ message: 'ギャラリーデータの取得に失敗しました。' });
+    }
+});
+
 // ===================================
 // ★★★★★   Socket.IOの処理   ★★★★★
 // ===================================

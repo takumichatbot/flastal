@@ -15,7 +15,8 @@ import { FiHeart, FiThumbsUp, FiMessageSquare, FiInfo, FiUser, FiSend, FiCheckCi
 
 // コンポーネント群
 import VirtualStage from '@/app/components/VirtualStage';
-import MoodBoard from '@/app/components/MoodBoard';
+import MoodboardPostForm from '@/app/components/MoodboardPostForm';
+import MoodboardDisplay from '@/app/components/MoodboardDisplay';
 import OfficialBadge from '@/app/components/OfficialBadge';
 import UpsellAlert from '@/app/components/UpsellAlert';
 import FlowerScrollIndicator from '@/app/components/FlowerScrollIndicator';
@@ -856,7 +857,13 @@ export default function ProjectDetailClient() {
 
               {(isPlanner || isPledger || isFlorist) && (
                 <div className="mt-8 mb-8">
-                   <MoodBoard projectId={project.id} user={user} />
+                   <h2 className="text-2xl font-semibold text-gray-800 mb-6">ムードボード (デザイン共同作業)</h2>
+                   
+                   {/* 投稿フォーム：企画者、支援者、花屋はアイデアを投稿可能 */}
+                   <MoodboardPostForm projectId={project.id} onPostSuccess={fetchProject} /> 
+                   
+                   {/* 表示エリア：いいね機能付き */}
+                   <MoodboardDisplay projectId={project.id} />
                 </div>
               )}
               <div className="mt-12 mb-8">

@@ -11,6 +11,10 @@ import {
   FiAlertCircle, FiShoppingCart, FiSearch, FiCamera 
 } from 'react-icons/fi';
 
+// ★修正箇所 1: SupportLevelBadge をインポート
+import SupportLevelBadge from '@/app/components/SupportLevelBadge'; 
+// ★修正箇所 1: 終わり
+
 // ★追加: 作成したアップロードフォームを読み込む
 import UploadForm from '@/app/components/UploadForm'; 
 
@@ -118,9 +122,19 @@ export default function MyPageContent() {
             <div className="overflow-hidden">
                 <p className="font-bold text-gray-800 truncate">{user.handleName}</p>
                 
-                {/* ポイント表示と購入ボタン */}
-                <div className="flex items-center gap-2 mt-1">
-                    <p className="text-xs text-sky-600 font-bold">{(user.points || 0).toLocaleString()} pt</p>
+                {/* 💡 修正箇所 2: 支援者レベルバッジの表示 */}
+                <div className="mt-1">
+                    <SupportLevelBadge level={user.supportLevel} />
+                </div>
+                
+                {/* 💡 修正箇所 3: 総支援額の表示 */}
+                <p className="text-xs text-gray-500 font-bold mt-1">
+                    総支援額: {Number(user.totalPledgedAmount || 0).toLocaleString()} pt
+                </p>
+
+                {/* 💡 修正箇所 4: 保有ポイント表示と購入ボタン (レイアウトを調整) */}
+                <div className="flex items-center gap-2 mt-1 pt-2 border-t border-gray-100">
+                    <p className="text-xs text-sky-600 font-bold">保有: {(user.points || 0).toLocaleString()} pt</p>
                     <Link href="/points" className="flex items-center gap-1 bg-sky-100 hover:bg-sky-200 text-sky-700 text-[10px] px-2 py-0.5 rounded-full font-bold transition-colors">
                         <FiShoppingCart size={10} /> 購入
                     </Link>
