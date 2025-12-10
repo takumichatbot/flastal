@@ -3,8 +3,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
+import Image from 'next/image'; // ★★★ Image コンポーネントをインポート ★★★
 import { FiCamera, FiMessageSquare, FiHeart, FiUser } from 'react-icons/fi';
-import { useAuth } from '../contexts/AuthContext'; // いいね機能のために使用
+import { useAuth } from '../contexts/AuthContext'; 
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -22,12 +23,9 @@ export default function GalleryPage() {
     const [feedItems, setFeedItems] = useState([]);
     const [loading, setLoading] = useState(true);
     
-    // 💡 総いいね数やコメント数表示は、データモデルにフィールド追加が必要なため、今回はスキップします。
-
     const fetchFeed = useCallback(async () => {
         setLoading(true);
         try {
-            // ステップ 1 で追加した新しい API を使用
             const response = await fetch(`${API_URL}/api/gallery/feed`); 
             if (!response.ok) throw new Error('ギャラリーデータの取得に失敗しました');
             const data = await response.json();
@@ -78,8 +76,6 @@ export default function GalleryPage() {
                             key={item.id} 
                             item={item} 
                             userId={user?.id}
-                            // ★ いいね機能はサーバーで実装が必要ですが、今回はUIのみ準備
-                            // onLikeToggle={handleLikeToggle} 
                         />
                     ))}
                 </div>
@@ -118,13 +114,15 @@ function FeedCard({ item, userId }) {
                 <div className="ml-auto text-xs font-bold text-green-600 bg-green-50 px-3 py-1 rounded-full">完了</div>
             </div>
 
-            {/* 1. 写真エリア (インスタの投稿画像) */}
+            {/* 1. 写真エリア (Imageコンポーネントに置き換え) */}
             <div className="aspect-[4/3] bg-gray-200 relative">
                 {mainImage ? (
-                    <img 
+                    <Image 
                         src={mainImage} 
-                        alt={item.title} 
-                        className="w-full h-full object-cover"
+                        alt={`${item.title} 完成写真`} 
+                        fill 
+                        sizes="(max-width: 768px) 100vw, 800px"
+                        style={{ objectFit: 'cover' }}
                     />
                 ) : (
                     <div className="w-full h-full flex items-center justify-center text-gray-500">写真がありません</div>
@@ -137,7 +135,6 @@ function FeedCard({ item, userId }) {
                 {/* 2.1 アクションバー (いいねボタンのダミー) */}
                 <div className="flex items-center gap-4 mb-3">
                     <button className="flex items-center gap-1 text-gray-500 hover:text-pink-500 transition-colors">
-                        {/* 💡 ここにいいねの状態管理ロジックが入る */}
                         <FiHeart size={24} className="fill-transparent"/>
                         <span className="font-bold text-sm">99</span> {/* ダミーいいね数 */}
                     </button>

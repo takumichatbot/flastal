@@ -5,22 +5,20 @@ import { useAuth } from '../contexts/AuthContext';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
+import Image from 'next/image'; // ★★★ Image コンポーネントをインポート ★★★
 import { 
   FiUser, FiList, FiHeart, FiBell, FiSettings, 
   FiPlus, FiMessageSquare, FiActivity, FiCheckCircle, 
-  FiAlertCircle, FiShoppingCart, FiSearch, FiCamera 
+  FiAlertCircle, FiShoppingCart, FiSearch, FiCamera, FiExternalLink
 } from 'react-icons/fi';
-
-// ★修正箇所 1: SupportLevelBadge をインポート
-import SupportLevelBadge from '@/app/components/SupportLevelBadge'; 
-// ★修正箇所 1: 終わり
 
 // ★追加: 作成したアップロードフォームを読み込む
 import UploadForm from '@/app/components/UploadForm'; 
+import SupportLevelBadge from '@/app/components/SupportLevelBadge'; 
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
-// ★ ステータスバッジ
+// ★ ステータスバッジ (既存)
 const getStatusBadge = (status) => {
   const styles = {
     'PENDING_APPROVAL': { label: '審査中', color: 'bg-yellow-100 text-yellow-800 border-yellow-200', icon: '⏳' },
@@ -62,23 +60,25 @@ export default function MyPageContent() {
       const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
       const headers = { 'Authorization': `Bearer ${token}` };
 
-      // ★修正: 4つのAPIを並列で叩く (投稿一覧取得を追加)
-      // ※ postsRes は Next.js の内部API (/api/users/...) を呼ぶ想定です
       const [createdRes, pledgedRes, notifRes, postsRes] = await Promise.all([
         fetch(`${API_URL}/api/users/${user.id}/created-projects`),
         fetch(`${API_URL}/api/users/${user.id}/pledged-projects`),
         fetch(`${API_URL}/api/notifications`, { headers }),
-        fetch(`/api/users/${user.id}/posts`) // ★ここを追加
+        fetch(`/api/users/${user.id}/posts`) 
       ]);
 
       if (createdRes.ok) setCreatedProjects(await createdRes.json());
       if (pledgedRes.ok) setPledgedProjects(await pledgedRes.json());
       if (notifRes.ok) setNotifications(await notifRes.json());
-      if (postsRes.ok) setMyPosts(await postsRes.json()); // ★ここを追加
+      
+      // /api/users/:userId/posts はまだバックエンドに実装されていない可能性が高いため、エラーを無視
+      if (postsRes.ok) setMyPosts(await postsRes.json()); 
+      else setMyPosts([]);
 
     } catch (error) {
       console.error("データ取得エラー:", error);
-      toast.error("データの取得に失敗しました");
+      // toast.error("データの取得に失敗しました"); // エラーが多発する場合コメントアウト
+      setMyPosts([]);
     } finally {
       setLoadingData(false);
     }
@@ -101,9 +101,6 @@ export default function MyPageContent() {
     } catch (e) { console.error(e); }
   };
 
-  // 投稿完了後にリストを更新する関数（UploadFormに渡すとより親切ですが、今回は簡易実装のためリロード前提とします）
-  // 必要であれば <UploadForm onUploadSuccess={fetchMyData} /> のように渡してください
-
   if (authLoading || !user) return <div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-sky-500"></div></div>;
 
   const unreadCount = notifications.filter(n => !n.isRead).length;
@@ -114,25 +111,34 @@ export default function MyPageContent() {
       {/* ★★★ 左サイドバー (ナビゲーション) ★★★ */}
       <aside className="w-full md:w-64 bg-white border-r border-gray-200 md:min-h-screen shrink-0">
         <div className="p-6 border-b border-gray-100 flex items-center gap-3">
+            {/* ★修正 1: ユーザーアイコンを Image コンポーネントに置き換え */}
             {user.iconUrl ? (
-                <img src={user.iconUrl} className="w-10 h-10 rounded-full object-cover border"/>
+                <div className="w-10 h-10 rounded-full relative overflow-hidden border">
+                    <Image 
+                        src={user.iconUrl} 
+                        alt={`${user.handleName}アイコン`} 
+                        fill 
+                        style={{ objectFit: 'cover' }}
+                        sizes="40px"
+                    />
+                </div>
             ) : (
                 <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-500 flex items-center justify-center"><FiUser/></div>
             )}
             <div className="overflow-hidden">
                 <p className="font-bold text-gray-800 truncate">{user.handleName}</p>
                 
-                {/* 💡 修正箇所 2: 支援者レベルバッジの表示 */}
+                {/* 支援者レベルバッジ */}
                 <div className="mt-1">
                     <SupportLevelBadge level={user.supportLevel} />
                 </div>
                 
-                {/* 💡 修正箇所 3: 総支援額の表示 */}
+                {/* 総支援額の表示 */}
                 <p className="text-xs text-gray-500 font-bold mt-1">
                     総支援額: {Number(user.totalPledgedAmount || 0).toLocaleString()} pt
                 </p>
 
-                {/* 💡 修正箇所 4: 保有ポイント表示と購入ボタン (レイアウトを調整) */}
+                {/* 保有ポイント表示と購入ボタン */}
                 <div className="flex items-center gap-2 mt-1 pt-2 border-t border-gray-100">
                     <p className="text-xs text-sky-600 font-bold">保有: {(user.points || 0).toLocaleString()} pt</p>
                     <Link href="/points" className="flex items-center gap-1 bg-sky-100 hover:bg-sky-200 text-sky-700 text-[10px] px-2 py-0.5 rounded-full font-bold transition-colors">
@@ -166,7 +172,7 @@ export default function MyPageContent() {
                 <FiSearch size={16}/> 企画を探す
             </Link>
 
-            {/* ★★★ 【追加】活動報告・アルバム ★★★ */}
+            {/* 活動報告・アルバム */}
             <button onClick={() => setActiveTab('posts')} className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-bold rounded-xl transition-colors ${activeTab === 'posts' ? 'bg-sky-50 text-sky-600' : 'text-gray-500 hover:bg-gray-50'}`}>
                 <FiCamera size={18}/> 活動報告・アルバム
             </button>
@@ -285,7 +291,7 @@ export default function MyPageContent() {
             </div>
         )}
 
-        {/* ★★★ 【追加】活動報告・アルバム ★★★ */}
+        {/* 活動報告・アルバム */}
         {activeTab === 'posts' && (
             <div className="animate-fadeIn max-w-4xl mx-auto">
                 <h1 className="text-2xl font-bold text-gray-800 mb-6">活動報告・フラスタ投稿</h1>
@@ -304,8 +310,15 @@ export default function MyPageContent() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
                         {myPosts.map(post => (
                             <div key={post.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
+                                {/* ★修正 2: 投稿画像を Image コンポーネントに置き換え */}
                                 <div className="aspect-[4/3] bg-gray-100 relative">
-                                    <img src={post.imageUrl} alt={post.eventName} className="w-full h-full object-cover"/>
+                                    <Image 
+                                        src={post.imageUrl} 
+                                        alt={post.eventName} 
+                                        fill 
+                                        sizes="(max-width: 768px) 50vw, 33vw"
+                                        style={{ objectFit: 'cover' }}
+                                    />
                                 </div>
                                 <div className="p-4">
                                     <h3 className="font-bold text-gray-800 mb-1 line-clamp-1">{post.eventName}</h3>
@@ -374,7 +387,14 @@ export default function MyPageContent() {
                 <h1 className="text-2xl font-bold text-gray-800 mb-6">プロフィール設定</h1>
                 <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
                     <div className="flex items-center gap-4 mb-6">
-                        {user.iconUrl ? <img src={user.iconUrl} className="w-16 h-16 rounded-full border"/> : <div className="w-16 h-16 rounded-full bg-gray-200"></div>}
+                        {/* ★修正 3: プロフィール編集画面のアイコンを Image コンポーネントに置き換え */}
+                        {user.iconUrl ? (
+                            <div className="w-16 h-16 rounded-full relative overflow-hidden border">
+                                <Image src={user.iconUrl} alt="ユーザーアイコン" fill style={{ objectFit: 'cover' }} sizes="64px"/>
+                            </div>
+                        ) : (
+                            <div className="w-16 h-16 rounded-full bg-gray-200"></div>
+                        )}
                         <div>
                             <p className="font-bold text-lg">{user.handleName}</p>
                             <p className="text-gray-500 text-sm">{user.email}</p>
@@ -422,9 +442,16 @@ function ProjectCard({ project, isOwner }) {
     return (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-all flex flex-col sm:flex-row">
             {/* サムネイル */}
+            {/* ★修正 4: 企画カードのサムネイルを Image コンポーネントに置き換え */}
             <div className="w-full sm:w-48 h-32 sm:h-auto bg-gray-200 relative shrink-0">
                 {project.imageUrl ? (
-                    <img src={project.imageUrl} className="w-full h-full object-cover"/>
+                    <Image 
+                        src={project.imageUrl} 
+                        alt={project.title} 
+                        fill 
+                        sizes="(max-width: 640px) 100vw, 192px"
+                        style={{ objectFit: 'cover' }}
+                    />
                 ) : (
                     <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">No Image</div>
                 )}

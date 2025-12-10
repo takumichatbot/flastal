@@ -9,9 +9,11 @@ import toast from 'react-hot-toast';
 import Link from 'next/link';
 import { useReactToPrint } from 'react-to-print';
 import dynamic from 'next/dynamic';
+import Markdown from 'react-markdown';
+import Image from 'next/image'; // ★★★ Image コンポーネントをインポート ★★★
 
 // アイコン
-import { FiHeart, FiThumbsUp, FiMessageSquare, FiInfo, FiUser, FiSend, FiCheckCircle, FiCheck, FiUpload, FiPrinter, FiFileText, FiImage, FiCpu, FiBox, FiX, FiRefreshCw, FiArrowUp, FiLock } from 'react-icons/fi';
+import { FiHeart, FiThumbsUp, FiMessageSquare, FiInfo, FiUser, FiSend, FiCheckCircle, FiCheck, FiUpload, FiPrinter, FiFileText, FiImage, FiCpu, FiBox, FiX, FiRefreshCw, FiArrowUp, FiLock, FiBookOpen, FiTool, FiDollarSign } from 'react-icons/fi';
 
 // コンポーネント群
 import VirtualStage from '@/app/components/VirtualStage';
@@ -19,7 +21,6 @@ import MoodboardPostForm from '@/app/components/MoodboardPostForm';
 import MoodboardDisplay from '@/app/components/MoodboardDisplay';
 import OfficialBadge from '@/app/components/OfficialBadge';
 import UpsellAlert from '@/app/components/UpsellAlert';
-import Markdown from 'react-markdown';
 import FlowerScrollIndicator from '@/app/components/FlowerScrollIndicator';
 import { BalanceSheet } from '@/app/components/BalanceSheet';
 import PanelPreviewer from '@/app/components/PanelPreviewer';
@@ -45,7 +46,7 @@ const getAuthToken = () => {
 };
 
 // ===========================================
-// ヘルパーコンポーネント定義
+// ヘルパーコンポーネント定義 (PledgeForm, TargetAmountModal などは省略)
 // ===========================================
 
 const PROGRESS_STEPS = [
@@ -331,6 +332,7 @@ function TargetAmountModal({ project, user, onClose, onUpdate }) {
 export default function ProjectDetailClient() {
   const params = useParams();
   const { id } = params;
+  const [activeTab, setActiveTab] = useState('overview'); // 💡 新規追加: アクティブタブ
   const [aiSummary, setAiSummary] = useState(null);
   const [showGuestPledgeModal, setShowGuestPledgeModal] = useState(false);
   const { user, isAuthenticated } = useAuth(); 
@@ -588,6 +590,8 @@ export default function ProjectDetailClient() {
   const totalExpense = (project.expenses || []).reduce((sum, exp) => sum + exp.amount, 0);
   const balance = project.collectedAmount - totalExpense;
   const hasPostedMessage = project.messages?.some(m => m.userId === user?.id);
+  const activeIndex = PROGRESS_STEPS.findIndex(step => step.key === currentStatus);
+
 
   return (
     <>
@@ -621,35 +625,37 @@ export default function ProjectDetailClient() {
         <div className="max-w-6xl mx-auto p-4 sm:p-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 bg-white rounded-2xl shadow-xl overflow-hidden h-fit">
             
-            {/* メイン画像 */}
+            {/* メイン画像 (Imageコンポーネントに修正) */}
             {project.status !== 'COMPLETED' && project.imageUrl && (
               <div className="h-96 bg-gray-200 relative group cursor-pointer" onClick={() => { setModalImageSrc(project.imageUrl); setIsImageModalOpen(true); }}>
-                <img src={project.imageUrl} alt={project.title} className="w-full h-full object-cover"/>
-              </div>
-            )}
-
-            {/* チャットエリア */}
-            {(isPlanner || isPledger || isFlorist) && (
-              <div className="border-t my-8 pt-6">
-                {/* 💡 ★★★ GroupChat に onSummaryUpdate を渡し、要約結果を親に保存する ★★★ */}
-                <GroupChat 
-                    project={project} 
-                    user={user} 
-                    isPlanner={isPlanner} 
-                    isPledger={isPledger} 
-                    socket={socket} 
-                    onSummaryUpdate={setAiSummary} // ここで要約結果を受け取る
+                <Image 
+                  src={project.imageUrl} 
+                  alt={project.title} 
+                  fill 
+                  sizes="(max-width: 1024px) 100vw, 66vw"
+                  style={{ objectFit: 'cover' }}
                 />
               </div>
             )}
 
-            {/* 完了報告 */}
+            {/* 完了報告 (トップ固定) */}
             {project.status === 'COMPLETED' && (
                 <div className="p-6 bg-orange-50 border-b border-orange-200">
                     <h2 className="text-2xl font-bold text-center text-orange-800 mb-4">🎉 企画完了 🎉</h2>
                     {project.completionImageUrls?.length > 0 && (
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
-                            {project.completionImageUrls.map((url, i) => <img key={i} src={url} className="w-full h-auto rounded shadow aspect-square object-cover" />)}
+                            {project.completionImageUrls.map((url, i) => (
+                              <div key={i} className="relative aspect-square">
+                                <Image 
+                                  src={url} 
+                                  alt={`完了写真 ${i}`} 
+                                  fill 
+                                  sizes="(max-width: 768px) 50vw, 33vw"
+                                  style={{ objectFit: 'cover' }}
+                                  className="rounded shadow"
+                                />
+                              </div>
+                            ))}
                         </div>
                     )}
                     <p className="text-gray-700 whitespace-pre-wrap">{project.completionComment}</p>
@@ -665,9 +671,6 @@ export default function ProjectDetailClient() {
 
               <p className="text-gray-600 mb-6">企画者: {project.planner?.handleName}</p>
               
-              {/* 会場情報 */}
-              {project.venue && <div className="mb-8"><VenueRegulationCard venue={project.venue} /></div>}
-
               <UpsellAlert target={project.targetAmount} collected={project.collectedAmount} />
 
               <div className="mb-8">
@@ -687,323 +690,304 @@ export default function ProjectDetailClient() {
                 </Link>
               </div>
 
-              {/* ★★★ AIマッチング (お花屋さんレコメンド) ★★★ */}
-              {isPlanner && !project.offer && (project.status === 'FUNDRAISING' || project.status === 'SUCCESSFUL') && (
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-indigo-100 mb-8">
-                    <h2 className="font-bold text-lg text-gray-800 mb-4 flex items-center">
-                        <FiCpu className="mr-2 text-indigo-500 text-2xl"/> お花屋さん AIマッチング
-                    </h2>
-                    <div className="bg-indigo-50 p-4 rounded-lg">
-                        <p className="text-sm text-indigo-800 font-bold mb-2">あなたの希望に合うお花屋さんを探します</p>
-                        <p className="text-xs text-indigo-600 mb-3">デザインの雰囲気やお花の種類から、AIがおすすめを提案します。</p>
-                        
-                        {!recommendations ? (
-                            <button 
-                                onClick={handleGetRecommendations}
-                                disabled={loadingRecommendations}
-                                className="w-full py-2 bg-white border border-indigo-300 text-indigo-600 rounded-md text-sm font-bold hover:bg-indigo-100 flex items-center justify-center transition-colors"
-                            >
-                                {loadingRecommendations ? 'AIが検索中...' : 'おすすめのお花屋さんを表示'}
-                            </button>
-                        ) : (
-                            <div className="space-y-3 animate-fadeIn">
-                                <div className="flex flex-wrap gap-1 mb-3">
-                                    <span className="text-xs text-gray-500 mr-2">抽出されたタグ:</span>
-                                    {recommendations.tags.map(t => <span key={t} className="text-[10px] bg-indigo-200 text-indigo-800 px-2 py-0.5 rounded">{t}</span>)}
-                                </div>
-                                {recommendations.recommendedFlorists.length > 0 ? (
-                                    <div className="grid gap-3">
-                                        {recommendations.recommendedFlorists.map(f => (
-                                            <div key={f.id} className="bg-white p-3 rounded border flex items-center justify-between hover:shadow-sm transition-shadow">
-                                                <div className="flex items-center gap-3">
-                                                    {f.iconUrl ? <img src={f.iconUrl} className="w-10 h-10 rounded-full object-cover"/> : <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center text-xs text-gray-500">No Img</div>}
-                                                    <div>
-                                                        <p className="text-sm font-bold text-gray-800">{f.platformName}</p>
-                                                        <div className="flex gap-1 mt-1">
-                                                            {f.specialties?.slice(0, 2).map(s => <span key={s} className="text-[10px] bg-gray-100 text-gray-500 px-1 rounded">{s}</span>)}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div className="flex gap-2">
-                                                    <Link href={`/florists/${f.id}`} target="_blank" className="text-xs bg-white border border-gray-300 text-gray-700 px-3 py-1.5 rounded hover:bg-gray-50">詳細</Link>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <p className="text-sm text-gray-500 text-center py-2">条件に合うお花屋さんが見つかりませんでした。<br/>条件を変えて試してみてください。</p>
-                                )}
-                            </div>
-                        )}
-                    </div>
-                </div>
-              )}
-
-              {/* 💡 【オプション】要約結果をデザインエリアのどこかに固定表示することも可能 */}
-              {aiSummary && (
-                  <div className="mt-8 border-t pt-6 bg-slate-50 p-6 rounded-xl">
-                    <h2 className="text-xl font-bold text-gray-800 mb-2">現在のデザイン決定事項</h2>
-                    {/* Markdownで整形して表示 */}
-                    <div className="text-sm text-gray-700">
-                        <Markdown>{aiSummary}</Markdown>
-                    </div>
-                  </div>
-              )}
-
-              {/* ▼ 配送トラッカー (全員に表示) ▼ */}
-              <div className="mb-8">
-                <DeliveryTracker status={currentStatus} />
+              {/* ★★★ タブナビゲーション ★★★ */}
+              <div className="border-b border-gray-200 mb-8">
+                <nav className="-mb-px flex space-x-8 overflow-x-auto">
+                    <button 
+                        onClick={() => setActiveTab('overview')}
+                        className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium transition-colors flex items-center gap-2 ${activeTab === 'overview' ? 'border-pink-500 text-pink-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                    >
+                        <FiBookOpen size={18}/> 概要
+                    </button>
+                    <button 
+                        onClick={() => setActiveTab('collaboration')}
+                        className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium transition-colors flex items-center gap-2 ${activeTab === 'collaboration' ? 'border-pink-500 text-pink-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                    >
+                        <FiTool size={18}/> 共同作業・デザイン
+                    </button>
+                    <button 
+                        onClick={() => setActiveTab('finance')}
+                        className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium transition-colors flex items-center gap-2 ${activeTab === 'finance' ? 'border-pink-500 text-pink-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                    >
+                        <FiDollarSign size={18}/> 収支・報告
+                    </button>
+                </nav>
               </div>
 
-              {/* ▼ お花屋さん専用操作パネル (担当花屋のみ表示) ▼ */}
-              {isAssignedFlorist && (
-                <div className="mb-8">
-                  <FloristDeliveryControl 
-                    projectId={project.id} 
-                    currentStatus={currentStatus} 
-                    onStatusChange={handleStatusChange} 
-                  />
-                </div>
-              )}
-
-              {/* 2. パネルデータ管理 */}
-              {(isPlanner || isFlorist) && (
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-pink-100 mb-8">
-                    <h2 className="font-bold text-lg text-gray-800 mb-4 flex items-center">
-                        <FiImage className="mr-2 text-pink-500"/> パネル・装飾データ提出
-                    </h2>
+              {/* =========================================== */}
+              {/* ★★★ タブコンテンツ: 1. 概要 (Overview) ★★★ */}
+              {/* =========================================== */}
+              {activeTab === 'overview' && (
+                <div className="space-y-8 animate-fadeIn">
+                    
+                    {/* 企画詳細 */}
                     <div className="mb-8">
-                        <PanelPreviewer onImageSelected={(file) => {
-                            const dummyEvent = { target: { files: [file] } };
-                            handleUpload(dummyEvent, 'illustration');
-                        }} />
+                        <h2 className="text-2xl font-semibold text-gray-800 mb-2">詳細</h2>
+                        <p className="text-gray-700 whitespace-pre-wrap">{project.description}</p>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        {/* イラストパネル */}
-                        <div>
-                            <p className="text-sm font-bold text-gray-700 mb-2">イラストパネル</p>
-                            <div className="flex flex-wrap gap-2">
-                                {project.illustrationPanelUrls?.map((url, i) => (
-                                    <img key={i} src={url} className="w-20 h-20 object-cover rounded border cursor-pointer" onClick={()=>{setModalImageSrc(url); setIsImageModalOpen(true)}} />
-                                ))}
-                                <label className="w-20 h-20 flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded cursor-pointer hover:bg-gray-50">
-                                    <FiUpload className="text-gray-400"/>
-                                    <input type="file" className="hidden" onChange={(e) => handleUpload(e, 'illustration')} />
-                                </label>
+
+                    {/* デザイン詳細 */}
+                    {(project.designDetails || project.size || project.flowerTypes) && (
+                        <div className="border-t pt-6">
+                            <h2 className="text-xl font-semibold text-gray-800 mb-2">デザインの希望</h2>
+                            <div className="bg-slate-50 p-6 rounded-lg space-y-3">
+                                {project.designDetails && <div><strong>雰囲気:</strong> <p className="text-gray-700 whitespace-pre-wrap">{project.designDetails}</p></div>}
+                                {project.size && <div><strong>希望サイズ:</strong> <p className="text-gray-700">{project.size}</p></div>}
+                                {project.flowerTypes && <div><strong>お花:</strong> <p className="text-gray-700">{project.flowerTypes}</p></div>}
                             </div>
                         </div>
-                        {/* 宛名・祝パネル */}
-                        <div>
-                            <p className="text-sm font-bold text-gray-700 mb-2">祝パネル（札）</p>
-                            <div className="flex flex-wrap gap-2">
-                                {project.messagePanelUrls?.map((url, i) => (
-                                    <img key={i} src={url} className="w-20 h-20 object-cover rounded border cursor-pointer" onClick={()=>{setModalImageSrc(url); setIsImageModalOpen(true)}} />
-                                ))}
-                                <label className="w-20 h-20 flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded cursor-pointer hover:bg-gray-50">
-                                    <FiUpload className="text-gray-400"/>
-                                    <input type="file" className="hidden" onChange={(e) => handleUpload(e, 'message')} />
-                                </label>
-                            </div>
+                    )}
+
+                    {/* 会場情報 */}
+                    {project.venue && <div className="mt-8"><VenueRegulationCard venue={project.venue} /></div>}
+
+                    {/* お知らせ */}
+                    {(project.announcements?.length > 0 || isPlanner) && (
+                        <div className="border-t pt-6">
+                            <h2 className="text-xl font-semibold mb-4">お知らせ・活動報告</h2>
+                            {isPlanner && (
+                                <div className="mb-4">
+                                    <button onClick={() => setShowAnnouncementForm(!showAnnouncementForm)} className="w-full p-2 bg-indigo-500 text-white rounded">お知らせを投稿</button>
+                                    {showAnnouncementForm && (
+                                        <form onSubmit={handleAnnouncementSubmit} className="mt-4 p-4 bg-gray-100 rounded space-y-2">
+                                            <input value={announcementTitle} onChange={(e)=>setAnnouncementTitle(e.target.value)} placeholder="タイトル" className="w-full p-2 border rounded"/>
+                                            <textarea value={announcementContent} onChange={(e)=>setAnnouncementContent(e.target.value)} placeholder="内容" className="w-full p-2 border rounded"/>
+                                            <button type="submit" className="w-full bg-green-500 text-white p-2 rounded">投稿</button>
+                                        </form>
+                                    )}
+                                </div>
+                            )}
+                            {project.announcements?.length > 0 && (
+                                <div className="space-y-4">
+                                    {project.announcements.map(a=>(
+                                        <div key={a.id} className="bg-slate-50 p-4 rounded">
+                                            <p className="text-xs text-gray-500">{new Date(a.createdAt).toLocaleDateString()}</p>
+                                            <h3 className="font-bold">{a.title}</h3>
+                                            <p className="text-sm mt-1 whitespace-pre-wrap">{a.content}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
-                        {/* 協賛パネル */}
-                        <div>
-                            <p className="text-sm font-bold text-gray-700 mb-2">協賛パネル</p>
-                            <div className="flex flex-wrap gap-2">
-                                {project.sponsorPanelUrls?.map((url, i) => (
-                                    <img key={i} src={url} className="w-20 h-20 object-cover rounded border cursor-pointer" onClick={()=>{setModalImageSrc(url); setIsImageModalOpen(true)}} />
-                                ))}
-                                <label className="w-20 h-20 flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded cursor-pointer hover:bg-gray-50">
-                                    <FiUpload className="text-gray-400"/>
-                                    <input type="file" className="hidden" onChange={(e) => handleUpload(e, 'sponsor')} />
-                                </label>
-                            </div>
-                        </div>
-                    </div>
+                    )}
                 </div>
               )}
 
-              {/* 3. 前日写真エリア */}
-              {((isPlanner || isFlorist) || project.productionStatus === 'PRE_COMPLETION') && (
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-indigo-100 mb-8">
-                    <h2 className="font-bold text-lg text-gray-800 mb-4 flex items-center">
-                        <FiImage className="mr-2 text-indigo-500"/> 仕上がり確認 (前日写真)
-                    </h2>
-                    {project.preEventPhotoUrls?.length > 0 ? (
-                        <div className="flex flex-wrap gap-2">
-                            {project.preEventPhotoUrls.map((url, i) => (
-                                <img key={i} src={url} className="w-32 h-32 object-cover rounded border cursor-pointer" onClick={()=>{setModalImageSrc(url); setIsImageModalOpen(true)}} />
+
+              {/* =================================================== */}
+              {/* ★★★ タブコンテンツ: 2. 共同作業・デザイン (Collaboration) ★★★ */}
+              {/* =================================================== */}
+              {activeTab === 'collaboration' && (
+                <div className="space-y-8 animate-fadeIn">
+
+                    {/* AI要約結果 (決定事項の固定表示) */}
+                    {aiSummary && (
+                        <div className="bg-yellow-50 p-6 rounded-xl border border-yellow-200">
+                            <h2 className="text-xl font-bold text-yellow-800 mb-2 flex items-center">
+                                <FiCheckCircle className="mr-2"/> AIがまとめた決定事項 (最新)
+                            </h2>
+                            <div className="text-sm text-gray-800">
+                                {/* Markdownで整形して表示 */}
+                                <Markdown>{aiSummary}</Markdown> 
+                            </div>
+                        </div>
+                    )}
+
+                    {/* ムードボード (アイデア共有) */}
+                    {(isPlanner || isPledger || isFlorist) && (
+                        <div className="border-t pt-6">
+                            <h2 className="text-xl font-semibold text-gray-800 mb-4">ムードボード (アイデア共有)</h2>
+                            <MoodboardPostForm projectId={project.id} onPostSuccess={fetchProject} /> 
+                            <MoodboardDisplay projectId={project.id} />
+                        </div>
+                    )}
+
+                    {/* グループチャット (コミュニケーション) */}
+                    {(isPlanner || isPledger || isFlorist) && (
+                        <div className="border-t pt-6">
+                            <GroupChat 
+                                project={project} 
+                                user={user} 
+                                isPlanner={isPlanner} 
+                                isPledger={isPledger} 
+                                socket={socket} 
+                                onSummaryUpdate={setAiSummary} // 要約結果を親に保存
+                                summary={aiSummary} // 要約結果を子に渡し、表示させる
+                            />
+                        </div>
+                    )}
+
+                    {/* ToDo (タスク管理) */}
+                    {isPlanner && (
+                        <div className="border-t pt-6">
+                            <h2 className="text-xl font-semibold mb-4">タスク管理</h2>
+                            <div className="bg-slate-50 p-4 rounded-lg">
+                                <form onSubmit={handleAddTask} className="flex gap-2 mb-4">
+                                    <input type="text" value={newTaskTitle} onChange={(e)=>setNewTaskTitle(e.target.value)} placeholder="タスク追加" className="p-2 border rounded flex-grow"/>
+                                    <button type="submit" className="p-2 bg-sky-500 text-white rounded"><FiSend/></button>
+                                </form>
+                                <div className="space-y-2">
+                                    {project.tasks?.map(t=>(
+                                        <div key={t.id} className="flex justify-between items-center p-2 bg-white rounded shadow-sm">
+                                            <div className="flex items-center gap-2">
+                                                <input type="checkbox" checked={t.isCompleted} onChange={()=>handleToggleTask(t.id, t.isCompleted)}/>
+                                                <span className={t.isCompleted?'line-through text-gray-400':''}>{t.title}</span>
+                                            </div>
+                                            <button onClick={()=>handleDeleteTask(t.id)} className="text-red-500 text-xs">削除</button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* AR/パネル管理 (確認ツール) */}
+                    <div className="border-t pt-6">
+                        <h2 className="text-xl font-semibold text-gray-800 mb-4">確認・ツール</h2>
+                        <div className="space-y-4">
+                            <div className="flex justify-between items-center bg-gray-50 p-4 rounded-lg">
+                                <strong>ARサイズ確認</strong>
+                                <button 
+                                    onClick={() => setIsArModalOpen(true)}
+                                    className="text-sm bg-gray-900 text-white px-3 py-1.5 rounded-full hover:bg-gray-800 flex items-center shadow-md transition-transform active:scale-95"
+                                >
+                                    <FiBox className="mr-1"/> ARシミュレーション
+                                </button>
+                            </div>
+                            
+                            {(isPlanner || isFlorist) && (
+                                <div className="bg-white p-4 rounded-xl shadow-sm border border-pink-100">
+                                    <h3 className="font-bold text-gray-700 mb-3">パネル・装飾データ提出</h3>
+                                    <PanelPreviewer onImageSelected={(file) => {
+                                        const dummyEvent = { target: { files: [file] } };
+                                        handleUpload(dummyEvent, 'illustration');
+                                    }} />
+                                </div>
+                            )}
+
+                             {/* 前日写真エリア */}
+                            {((isPlanner || isFlorist) || project.productionStatus === 'PRE_COMPLETION') && (
+                                <div className="bg-white p-4 rounded-xl shadow-sm border border-indigo-100">
+                                    <h3 className="font-bold text-gray-700 mb-3">仕上がり確認 (前日写真)</h3>
+                                    {project.preEventPhotoUrls?.length > 0 ? (
+                                        <div className="flex flex-wrap gap-2">
+                                            {project.preEventPhotoUrls.map((url, i) => (
+                                                <div key={i} className="relative w-20 h-20">
+                                                    <Image 
+                                                      src={url} 
+                                                      alt={`前日写真 ${i}`} 
+                                                      fill 
+                                                      style={{ objectFit: 'cover' }}
+                                                      className="rounded border cursor-pointer" 
+                                                      onClick={()=>{setModalImageSrc(url); setIsImageModalOpen(true)}} 
+                                                    />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <p className="text-sm text-gray-400">まだ写真はアップロードされていません。</p>
+                                    )}
+                                    {isFlorist && (
+                                        <div className="mt-4">
+                                            <label className="inline-flex items-center px-4 py-2 bg-indigo-500 text-white rounded cursor-pointer hover:bg-indigo-600 shadow text-sm">
+                                                <FiUpload className="mr-2"/> 前日写真をアップロード
+                                                <input type="file" className="hidden" onChange={(e) => handleUpload(e, 'pre_photo')} />
+                                            </label>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                  )}
+
+
+              {/* =================================================== */}
+              {/* ★★★ タブコンテンツ: 3. 収支・報告 (Finance) ★★★ */}
+              {/* =================================================== */}
+              {activeTab === 'finance' && (
+                <div className="space-y-8 animate-fadeIn">
+                    
+                    {/* 収支報告サマリー */}
+                    <div className="border-b pb-6">
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-xl font-semibold">収支報告</h2>
+                            <button 
+                                onClick={handlePrint}
+                                className="flex items-center gap-2 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded transition-colors"
+                            >
+                                <FiPrinter /> 報告書をPDF発行
+                            </button>
+                        </div>
+                        <div className="bg-slate-50 p-4 rounded-lg text-sm space-y-2">
+                            <div className="flex justify-between"><span>収入 (支援総額):</span><span>{project.collectedAmount.toLocaleString()} pt</span></div>
+                            <div className="flex justify-between text-red-600"><span>支出合計:</span><span>- {totalExpense.toLocaleString()} pt</span></div>
+                            <div className="flex justify-between font-bold border-t pt-2"><span>残高 (余剰金):</span><span>{balance.toLocaleString()} pt</span></div>
+                        </div>
+                    </div>
+
+                    {/* 支出詳細 */}
+                    <div className="border-b pb-6">
+                        <h3 className="text-lg font-semibold mb-3">支出詳細</h3>
+                        {isPlanner && (
+                            <form onSubmit={handleAddExpense} className="flex gap-2 mt-4 mb-4">
+                                <input type="text" value={expenseName} onChange={(e)=>setExpenseName(e.target.value)} placeholder="項目名" className="p-2 border rounded flex-grow"/>
+                                <input type="number" value={expenseAmount} onChange={(e)=>setExpenseAmount(e.target.value)} placeholder="金額" className="p-2 border rounded w-24"/>
+                                <button type="submit" className="p-2 bg-sky-500 text-white rounded">追加</button>
+                            </form>
+                        )}
+                        <div className="space-y-1">
+                            {project.expenses?.map(e=>(
+                                <div key={e.id} className="flex justify-between text-sm bg-gray-50 p-2 rounded">
+                                    <span>{e.itemName}</span>
+                                    <span>{e.amount.toLocaleString()} pt {isPlanner && <button onClick={()=>handleDeleteExpense(e.id)} className="text-red-500 ml-2">×</button>}</span>
+                                </div>
                             ))}
                         </div>
-                    ) : (
-                        <p className="text-sm text-gray-400">まだ写真はアップロードされていません。</p>
-                    )}
-                    
-                    {isFlorist && (
-                        <div className="mt-4">
-                            <label className="inline-flex items-center px-4 py-2 bg-indigo-500 text-white rounded cursor-pointer hover:bg-indigo-600 shadow">
-                                <FiUpload className="mr-2"/> 前日写真をアップロード
-                                <input type="file" className="hidden" onChange={(e) => handleUpload(e, 'pre_photo')} />
-                            </label>
-                            <p className="text-xs text-gray-500 mt-1">※アップロードするとステータスが「前日写真」に進みます</p>
-                        </div>
-                    )}
-                </div>
-              )}
-
-              <div className="mb-8">
-                <h2 className="text-2xl font-semibold text-gray-800 mb-2 flex items-center justify-between">
-                  <span>詳細</span>
-                  {/* ★★★ ARサイズ確認ボタン (ここに追加) ★★★ */}
-                  <button 
-                    onClick={() => setIsArModalOpen(true)}
-                    className="text-xs bg-gray-900 text-white px-3 py-1.5 rounded-full hover:bg-gray-800 flex items-center shadow-md transition-transform active:scale-95"
-                  >
-                    <FiBox className="mr-1"/> ARでサイズ確認
-                  </button>
-                </h2>
-                <p className="text-gray-700 whitespace-pre-wrap">{project.description}</p>
-              </div>
-
-              {/* チャットエリア */}
-              {(isPlanner || isPledger || isFlorist) && (
-                <div className="border-t my-8 pt-6">
-                  <GroupChat project={project} user={user} isPlanner={isPlanner} isPledger={isPledger} socket={socket} />
-                </div>
-              )}
-
-              {/* デザイン詳細 */}
-              {(project.designDetails || project.size) && (
-                <div className="mt-8 border-t pt-6">
-                  <h2 className="text-xl font-semibold text-gray-800 mb-2">デザインの希望</h2>
-                  <div className="bg-slate-50 p-6 rounded-lg space-y-3">
-                    {project.designDetails && <div><strong>雰囲気:</strong> <p className="text-gray-700 whitespace-pre-wrap">{project.designDetails}</p></div>}
-                    {project.size && <div><strong>希望サイズ:</strong> <p className="text-gray-700">{project.size}</p></div>}
-                    {project.flowerTypes && <div><strong>お花:</strong> <p className="text-gray-700">{project.flowerTypes}</p></div>}
-                  </div>
-                </div>
-              )}
-
-              {(isPlanner || isPledger || isFlorist) && (
-                <div className="mt-8 mb-8">
-                   <h2 className="text-2xl font-semibold text-gray-800 mb-6">ムードボード (デザイン共同作業)</h2>
-                   
-                   {/* 投稿フォーム：企画者、支援者、花屋はアイデアを投稿可能 */}
-                   <MoodboardPostForm projectId={project.id} onPostSuccess={fetchProject} /> 
-                   
-                   {/* 表示エリア：いいね機能付き */}
-                   <MoodboardDisplay projectId={project.id} />
-                </div>
-              )}
-              <div className="mt-12 mb-8">
-                <VirtualStage projectId={project.id} />
-              </div>
-
-              {/* ToDo */}
-              {isPlanner && (
-                <div className="border-t my-8 pt-6">
-                  <h2 className="text-xl font-semibold mb-4">スケジュール管理</h2>
-                  <div className="bg-slate-50 p-4 rounded-lg">
-                    <form onSubmit={handleAddTask} className="flex gap-2 mb-4">
-                      <input type="text" value={newTaskTitle} onChange={(e)=>setNewTaskTitle(e.target.value)} placeholder="タスク追加" className="p-2 border rounded flex-grow"/>
-                      <button type="submit" className="p-2 bg-sky-500 text-white rounded"><FiSend/></button>
-                    </form>
-                    <div className="space-y-2">
-                        {project.tasks?.map(t=>(
-                            <div key={t.id} className="flex justify-between items-center p-2 bg-white rounded shadow-sm">
-                                <div className="flex items-center gap-2">
-                                    <input type="checkbox" checked={t.isCompleted} onChange={()=>handleToggleTask(t.id, t.isCompleted)}/>
-                                    <span className={t.isCompleted?'line-through text-gray-400':''}>{t.title}</span>
-                                </div>
-                                <button onClick={()=>handleDeleteTask(t.id)} className="text-red-500 text-xs">削除</button>
-                            </div>
-                        ))}
                     </div>
-                  </div>
-                </div>
-              )}
 
-              {/* 収支報告 */}
-              <div className="border-t my-8 pt-6">
-                 <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-xl font-semibold">収支報告</h2>
-                    {/* ★★★ PDF発行ボタン (企画者または支援者に見せる) ★★★ */}
-                    <button 
-                        onClick={handlePrint}
-                        className="flex items-center gap-2 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded transition-colors"
-                    >
-                        <FiPrinter /> 報告書をPDF発行
-                    </button>
-                 </div>
-                 <div className="bg-slate-50 p-4 rounded-lg text-sm space-y-2">
-                   <div className="flex justify-between"><span>収入:</span><span>{project.collectedAmount.toLocaleString()} pt</span></div>
-                   <div className="flex justify-between text-red-600"><span>支出:</span><span>- {totalExpense.toLocaleString()} pt</span></div>
-                   <div className="flex justify-between font-bold border-t pt-2"><span>残高:</span><span>{balance.toLocaleString()} pt</span></div>
-                 </div>
-                 {isPlanner && (
-                    <form onSubmit={handleAddExpense} className="flex gap-2 mt-4">
-                        <input type="text" value={expenseName} onChange={(e)=>setExpenseName(e.target.value)} placeholder="項目名" className="p-2 border rounded flex-grow"/>
-                        <input type="number" value={expenseAmount} onChange={(e)=>setExpenseAmount(e.target.value)} placeholder="金額" className="p-2 border rounded w-24"/>
-                        <button type="submit" className="p-2 bg-sky-500 text-white rounded">追加</button>
-                    </form>
-                 )}
-                 <div className="mt-4 space-y-1">
-                    {project.expenses?.map(e=>(
-                        <div key={e.id} className="flex justify-between text-sm bg-gray-50 p-2 rounded">
-                            <span>{e.itemName}</span>
-                            <span>{e.amount.toLocaleString()} pt {isPlanner && <button onClick={()=>handleDeleteExpense(e.id)} className="text-red-500 ml-2">×</button>}</span>
+                    {/* 支援者メッセージ */}
+                    <div className="border-b pb-6">
+                        <h2 className="text-xl font-semibold mb-4">支援者メッセージ ({project.messages?.length || 0})</h2>
+                        {isPlanner && project.messages?.length > 0 && <button onClick={handleCopyMessages} className="text-blue-500 text-sm mb-2">すべてコピー</button>}
+                        {isPledger && !isPlanner && !hasPostedMessage && <MessageForm projectId={id} onMessagePosted={fetchProject} />}
+                        <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                            {project.messages?.map(m=>(
+                                <div key={m.id} className="bg-white p-3 border rounded shadow-sm">
+                                    <p className="font-bold text-sm">{m.cardName}</p>
+                                    <p className="text-sm text-gray-700">{m.content}</p>
+                                </div>
+                            ))}
                         </div>
-                    ))}
-                 </div>
-                 {/* ★★★ 印刷用コンポーネント (画面には表示しない) ★★★ */}
-                 <div style={{ display: "none" }}>
-                    <BalanceSheet 
-                        ref={componentRef} 
-                        project={project} 
-                        totalExpense={totalExpense} 
-                        balance={balance} 
-                    />
-                  </div>
-              </div>
+                    </div>
 
-              {/* お知らせ */}
-              {isPlanner && (
-                <div className="border-t my-8 pt-6">
-                  <button onClick={() => setShowAnnouncementForm(!showAnnouncementForm)} className="w-full p-2 bg-indigo-500 text-white rounded">お知らせを投稿</button>
-                  {showAnnouncementForm && (
-                    <form onSubmit={handleAnnouncementSubmit} className="mt-4 p-4 bg-gray-100 rounded space-y-2">
-                        <input value={announcementTitle} onChange={(e)=>setAnnouncementTitle(e.target.value)} placeholder="タイトル" className="w-full p-2 border rounded"/>
-                        <textarea value={announcementContent} onChange={(e)=>setAnnouncementContent(e.target.value)} placeholder="内容" className="w-full p-2 border rounded"/>
-                        <button type="submit" className="w-full bg-green-500 text-white p-2 rounded">投稿</button>
-                    </form>
-                  )}
+                    {/* 完了報告 (アクションボタン) */}
+                    <div className="border-t pt-6">
+                        <h3 className="text-lg font-semibold mb-3">完了報告</h3>
+                        {project.status === 'COMPLETED' ? (
+                            <div className="bg-green-50 p-4 rounded-lg text-green-800 font-bold">
+                                報告書提出済みです。
+                            </div>
+                        ) : (
+                            isPlanner && project.status === 'SUCCESSFUL' && (
+                                <button onClick={()=>setIsCompletionModalOpen(true)} className="w-full mt-2 bg-green-500 text-white p-3 rounded-lg font-bold hover:bg-green-600">
+                                    完了報告を作成する
+                                </button>
+                            )
+                        )}
+                    </div>
+
+                    {/* ★★★ 印刷用コンポーネント (画面には表示しない) ★★★ */}
+                    <div style={{ display: "none" }}>
+                        <BalanceSheet 
+                            ref={componentRef} 
+                            project={project} 
+                            totalExpense={totalExpense} 
+                            balance={balance} 
+                        />
+                    </div>
                 </div>
               )}
-              {project.announcements?.length > 0 && (
-                  <div className="mt-6 space-y-4">
-                      {project.announcements.map(a=>(
-                          <div key={a.id} className="bg-slate-50 p-4 rounded">
-                              <p className="text-xs text-gray-500">{new Date(a.createdAt).toLocaleDateString()}</p>
-                              <h3 className="font-bold">{a.title}</h3>
-                              <p className="text-sm mt-1 whitespace-pre-wrap">{a.content}</p>
-                          </div>
-                      ))}
-                  </div>
-              )}
-
-              {/* メッセージ・レビュー */}
-              <div className="border-t my-8 pt-6">
-                <h2 className="text-xl font-semibold mb-4">メッセージ ({project.messages?.length || 0})</h2>
-                {isPlanner && project.messages?.length > 0 && <button onClick={handleCopyMessages} className="text-blue-500 text-sm mb-2">すべてコピー</button>}
-                {isPledger && !isPlanner && !hasPostedMessage && <MessageForm projectId={id} onMessagePosted={fetchProject} />}
-                <div className="space-y-2 max-h-60 overflow-y-auto">
-                    {project.messages?.map(m=>(
-                        <div key={m.id} className="bg-white p-3 border rounded shadow-sm">
-                            <p className="font-bold text-sm">{m.cardName}</p>
-                            <p className="text-sm text-gray-700">{m.content}</p>
-                        </div>
-                    ))}
-                </div>
-              </div>
 
             </div>
           </div>
@@ -1011,12 +995,9 @@ export default function ProjectDetailClient() {
           {/* 右カラム (サイドバー) */}
           <div className="lg:col-span-1 space-y-6">
              <div className="bg-white rounded-2xl shadow-xl p-6 sticky top-24">
-                {/* ★ 2. ここを修正: ログイン状態によって表示を変える */}
                 {user ? (
-                    // ログイン済みなら、通常の支援フォームを表示
                     <PledgeForm project={project} user={user} onPledgeSubmit={onPledgeSubmit} isPledger={isPledger} />
                 ) : (
-                    // 未ログインなら、「ログインして支援」または「ゲストとして支援」を選ばせるボタンを表示
                     <div className="text-center">
                         <h3 className="text-xl font-bold mb-4 text-gray-800">この企画を支援する</h3>
                         <p className="text-sm text-gray-500 mb-6">ログインするとポイントが貯まります。</p>
@@ -1091,7 +1072,7 @@ export default function ProjectDetailClient() {
       {isTargetAmountModalOpen && <TargetAmountModal project={project} user={user} onClose={() => setIsTargetAmountModalOpen(false)} onUpdate={fetchProject} />}
       {isInstructionModalOpen && <InstructionSheetModal projectId={id} onClose={() => setIsInstructionModalOpen(false)} />}
       
-      {/* ★★★ 修正: ARモーダル (画像アップロード機能付き) ★★★ */}
+      {/* ★★★ ARモーダル (画像アップロード機能付き) ★★★ */}
       {isArModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-80 flex justify-center items-center z-50 p-4 backdrop-blur-sm">
           <div className="bg-white rounded-2xl w-full max-w-2xl overflow-hidden relative shadow-2xl flex flex-col max-h-[90vh]">
@@ -1119,9 +1100,15 @@ export default function ProjectDetailClient() {
                              <p className="text-xs text-green-700 mb-3">現地に行けない方も、実際の仕上がりをARで確認できます。</p>
                              <div className="flex gap-2 overflow-x-auto pb-2">
                                 {project.completionImageUrls.map((url, i) => (
-                                    <div key={i} className="flex-shrink-0 cursor-pointer group" onClick={() => handleSelectCompletedImage(url)}>
-                                        <img src={url} className="w-24 h-24 object-cover rounded border-2 border-transparent group-hover:border-green-500 transition-colors" />
-                                        <p className="text-[10px] text-center mt-1 text-green-700 group-hover:font-bold">これを選択</p>
+                                    <div key={i} className="flex-shrink-0 cursor-pointer group relative w-24 h-24" onClick={() => handleSelectCompletedImage(url)}>
+                                        <Image 
+                                            src={url} 
+                                            alt={`完了写真選択 ${i}`} 
+                                            fill 
+                                            style={{ objectFit: 'cover' }}
+                                            className="rounded border-2 border-transparent group-hover:border-green-500 transition-colors" 
+                                        />
+                                        <p className="text-[10px] text-center mt-1 text-green-700 group-hover:font-bold absolute -bottom-5 w-full">これを選択</p>
                                     </div>
                                 ))}
                              </div>
