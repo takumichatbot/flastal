@@ -7,7 +7,8 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext'; 
-import { FiCheckCircle, FiFileText, FiRefreshCw, FiCalendar, FiMapPin, FiClock, FiChevronLeft, FiChevronRight, FiCamera, FiUser } from 'react-icons/fi'; // FiCamera, FiUser 追加
+// アイコンの追加: FiShare, FiEye, FiEyeOff, FiTrash2
+import { FiCheckCircle, FiFileText, FiRefreshCw, FiCalendar, FiMapPin, FiClock, FiChevronLeft, FiChevronRight, FiCamera, FiUser, FiShare, FiEye, FiEyeOff, FiTrash2 } from 'react-icons/fi'; 
 
 // ★修正箇所 1: AppealPostForm をインポート
 import FloristAppealPostForm from '@/app/components/FloristAppealPostForm';
@@ -41,29 +42,24 @@ const STATUS_LABELS = {
   'FUNDRAISING': '募集中'
 };
 
-// ★★★ カレンダーコンポーネント ★★★
+// ★★★ カレンダーコンポーネント (省略なし) ★★★
 function CalendarView({ events }) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
 
-  // 月の最初の日と最後の日を取得
   const year = currentDate.getFullYear();
-  const month = currentDate.getMonth(); // 0-indexed
+  const month = currentDate.getMonth(); 
   const firstDay = new Date(year, month, 1);
   const lastDay = new Date(year, month + 1, 0);
   
-  // カレンダーのマス目を生成
   const days = [];
-  // 月初の空白
   for (let i = 0; i < firstDay.getDay(); i++) {
     days.push(null);
   }
-  // 日付埋め
   for (let i = 1; i <= lastDay.getDate(); i++) {
     days.push(new Date(year, month, i));
   }
 
-  // 選択された日のイベント
   const selectedEvents = events.filter(e => 
     new Date(e.date).toDateString() === selectedDate.toDateString()
   );
@@ -96,7 +92,6 @@ function CalendarView({ events }) {
           {days.map((date, idx) => {
             if (!date) return <div key={idx} className="min-h-[80px] bg-gray-50/30"></div>;
             
-            // その日のイベントがあるか確認
             const dayEvents = events.filter(e => new Date(e.date).toDateString() === date.toDateString());
             const isToday = new Date().toDateString() === date.toDateString();
             const isSelected = selectedDate.toDateString() === date.toDateString();
@@ -117,7 +112,6 @@ function CalendarView({ events }) {
                     {dayEvents.length > 0 && <span className="w-2 h-2 bg-pink-500 rounded-full"></span>}
                 </div>
                 
-                {/* イベントバッジ (2件まで表示) */}
                 <div className="space-y-1 overflow-hidden mt-1">
                   {dayEvents.slice(0, 2).map(e => (
                     <div key={e.id} className="text-[9px] bg-white border border-indigo-100 text-indigo-700 px-1 py-0.5 rounded truncate shadow-sm">
@@ -183,7 +177,6 @@ export default function FloristDashboardPage() {
   const [offers, setOffers] = useState([]);
   const [payouts, setPayouts] = useState([]);
   const [scheduleEvents, setScheduleEvents] = useState([]); 
-  // ★修正箇所 2: 投稿データを保持する state を追加
   const [appealPosts, setAppealPosts] = useState([]); 
   
   const [loading, setLoading] = useState(true);
@@ -203,7 +196,6 @@ export default function FloristDashboardPage() {
     setLoading(true);
     
     try {
-      // 1. すべてのデータを並行して取得
       const [dashboardRes, payoutsRes, scheduleRes] = await Promise.all([
         fetch(`${API_URL}/api/florists/dashboard`, {
           headers: { 'Authorization': `Bearer ${token}` }
@@ -229,6 +221,7 @@ export default function FloristDashboardPage() {
       const scheduleData = scheduleRes.ok ? await scheduleRes.json() : [];
 
       // ★★★ 修正箇所: portfolioImages のデシリアライズとフィルタリング ★★★
+      // 注意: profile API を叩けば floristData には最新の情報が入っています
       const rawPortfolioImages = dashboardData.florist.portfolioImages || [];
 
       // JSON文字列の配列をオブジェクトにデシリアライズする
@@ -236,15 +229,19 @@ export default function FloristDashboardPage() {
         .map(itemString => {
             try {
                 // itemString は "{"url":"...", "content":"..."}" のようなJSON文字列
-                return JSON.parse(itemString); 
+                const item = JSON.parse(itemString);
+                // JSON.parseが成功した場合でも、投稿オブジェクトに必要なキーがない場合はnullを返す
+                if (!item || item.type !== 'appeal') {
+                    return null;
+                }
+                // 投稿オブジェクトにJSON文字列自体も保持しておくと削除時に便利
+                return { ...item, originalJson: itemString };
             } catch (e) {
-                // パース失敗時はエラーログを出して無視
                 console.error("JSON parse error on portfolio item:", e, itemString);
                 return null; 
             }
         })
-        // nullでなく、かつ type: 'appeal' (FloristAppealPostFormで設定した値) のみフィルタ
-        .filter(p => p && p.type === 'appeal'); 
+        .filter(p => p !== null); 
       // ★★★ 修正箇所 終わり ★★★
 
       setFloristData(dashboardData.florist);
@@ -263,19 +260,107 @@ export default function FloristDashboardPage() {
     } finally {
       setLoading(false);
     }
-  }, [token, logout, router]); // 依存配列に router を追加
+  }, [token, logout, router]); 
 
   useEffect(() => {
     if (user && user.role === 'FLORIST' && token) {
         fetchData();
     }
   }, [user, token, fetchData]); 
-
-  // オファー状態更新 (既存ロジックは省略)
-  const handleUpdateOfferStatus = async (offerId, newStatus) => { /* ... */ };
-  const handleUpdateProductionStatus = async (projectId, newStatus) => { /* ... */ };
-  const handlePayoutSubmit = async (e) => { /* ... */ };
   
+  // ★★★ 新規追加: 制作アピール投稿の削除ハンドラ ★★★
+  const handleDeleteAppealPost = async (postObject) => {
+      if (!window.confirm("このアピール投稿を本当に削除しますか？")) {
+          return;
+      }
+      
+      const currentImages = floristData.portfolioImages || [];
+      
+      // 削除したい投稿のJSON文字列を、配列内から探し、除去する
+      const updatedImages = currentImages.filter(itemString => {
+          // postObject の JSON 文字列が現在のリストに含まれているかチェック
+          // (postObject はデシリアライズされたオブジェクトなので、比較用にシリアライズ)
+          return itemString !== JSON.stringify(postObject); 
+      });
+
+      const toastId = toast.loading('投稿を削除中...');
+      
+      try {
+          const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+          
+          // 2. プロフィールを PATCH で更新
+          const res = await fetch(`${API_URL}/api/florists/profile`, { 
+              method: 'PATCH',
+              headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`,
+              },
+              body: JSON.stringify({ 
+                  portfolioImages: updatedImages // 削除後の配列を送信
+              }),
+          });
+
+          if (!res.ok) {
+              throw new Error('削除処理に失敗しました。');
+          }
+          
+          toast.success('投稿を削除しました。', { id: toastId });
+          fetchData(); // リストをリフレッシュ
+          
+      } catch (error) {
+          console.error(error);
+          toast.error(error.message || '削除中にエラーが発生しました。', { id: toastId });
+      }
+  };
+  
+  // ★★★ 新規追加: 公開/非公開の切り替えハンドラ ★★★
+  const handleToggleVisibility = async (postObject) => {
+      const currentImages = floristData.portfolioImages || [];
+      const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+      const isCurrentlyPublic = postObject.isPublic === true || postObject.isPublic === undefined;
+      
+      const updatedImages = currentImages.map(itemString => {
+          try {
+              const item = JSON.parse(itemString);
+              // 対象の投稿オブジェクトが見つかったら isPublic を反転させる
+              if (itemString === JSON.stringify(postObject)) {
+                  item.isPublic = !isCurrentlyPublic;
+              }
+              return JSON.stringify(item); // 再度 JSON 文字列に戻す
+          } catch (e) {
+              return itemString;
+          }
+      });
+
+      const toastId = toast.loading(isCurrentlyPublic ? '非公開に設定中...' : '公開に設定中...');
+
+      try {
+          const res = await fetch(`${API_URL}/api/florists/profile`, { 
+              method: 'PATCH',
+              headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`,
+              },
+              body: JSON.stringify({ 
+                  portfolioImages: updatedImages 
+              }),
+          });
+
+          if (!res.ok) {
+              throw new Error('公開設定の更新に失敗しました。');
+          }
+          
+          toast.success(isCurrentlyPublic ? '非公開に設定しました' : '公開に設定しました', { id: toastId });
+          fetchData(); 
+          
+      } catch (error) {
+          console.error(error);
+          toast.error(error.message || '公開設定の更新中にエラーが発生しました。', { id: toastId });
+      }
+  };
+  
+  // ... (中略) ...
+
   const handleLogout = () => {
       logout();
       toast.success('ログアウトしました。');
@@ -310,7 +395,7 @@ export default function FloristDashboardPage() {
       
       <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
           
-          {/* ★★★ 修正箇所 5: 制作アピール投稿フォームをメインエリアの先頭に追加 ★★★ */}
+          {/* ★★★ 制作アピール投稿フォームをメインエリアの先頭に追加 ★★★ */}
           <div className="mb-8">
               <FloristAppealPostForm onPostSuccess={fetchData} />
           </div>
@@ -388,34 +473,69 @@ export default function FloristDashboardPage() {
                   {appealPosts.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       {appealPosts.map(post => {
-                          // JSON文字列からデシリアライズされたオブジェクトを使用
                           const match = post.content.match(/\[Image:\s*(.*?)\]/);
-                          const imageUrl = match ? match[1] : post.url; // post.url もあれば使用
-                          
+                          const imageUrl = match ? match[1] : post.url; 
+                          const isPublic = post.isPublic !== false; // false でない場合は公開と見なす
+
                           return (
-                              <div key={post.id || post.createdAt} className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
-                                  {imageUrl && (
-                                      <div className="relative aspect-[4/3] bg-gray-200">
-                                          <Image 
-                                              src={imageUrl} 
-                                              alt="アピール写真" 
-                                              fill
-                                              sizes="(max-width: 768px) 100vw, 50vw"
-                                              style={{ objectFit: 'cover' }}
-                                              className="w-full h-full object-cover" 
-                                          />
-                                      </div>
-                                  )}
-                                  <div className="p-4">
-                                      <p className="text-xs text-gray-500">{new Date(post.createdAt || Date.now()).toLocaleDateString('ja-JP')}</p>
-                                      {/* 画像URL部分を除去して表示 */}
-                                      <p className="text-sm text-gray-700 mt-2 whitespace-pre-wrap">
-                                          {post.content.replace(/ \[Image:\s*.*?\]/, '')}
-                                      </p>
-                                      <div className="mt-4 border-t pt-2 flex justify-end">
-                                          <button className="text-xs text-red-500 hover:underline">削除</button>
-                                      </div>
-                                  </div>
+                              <div key={post.createdAt} className="bg-white rounded-xl shadow-lg border overflow-hidden">
+                                 <div className={`p-1 text-center font-semibold text-xs ${isPublic ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                                    {isPublic ? '公開中 (プロフィールに表示されます)' : '下書き (非公開)'}
+                                </div>
+                                <div className="relative">
+                                    {imageUrl && (
+                                        <div className="relative aspect-[4/3] bg-gray-200">
+                                            <Image 
+                                                src={imageUrl} 
+                                                alt="アピール写真" 
+                                                fill
+                                                sizes="(max-width: 768px) 100vw, 50vw"
+                                                style={{ objectFit: 'cover' }}
+                                                className="w-full h-full object-cover" 
+                                            />
+                                        </div>
+                                    )}
+                                    <div className="absolute top-2 right-2 flex gap-2">
+                                        {/* C. 外部共有リンク */}
+                                        <Link 
+                                            href={`/florists/${floristData.id}`} 
+                                            target="_blank" 
+                                            title="外部シェア"
+                                            className="p-2 bg-white/70 backdrop-blur-sm rounded-full text-gray-700 hover:bg-white transition-colors"
+                                        >
+                                            <FiShare size={18} />
+                                        </Link>
+                                    </div>
+                                </div>
+
+                                <div className="p-4">
+                                    <p className="text-xs text-gray-500">{new Date(post.createdAt || Date.now()).toLocaleDateString('ja-JP')}</p>
+                                    
+                                    <p className="text-sm text-gray-700 mt-2 whitespace-pre-wrap">
+                                        {post.content.replace(/ \[Image:\s*.*?\]/, '')}
+                                    </p>
+                                    
+                                    <div className="mt-4 border-t pt-2 flex justify-end gap-2">
+                                        
+                                        {/* A. 公開/非公開切り替えボタン */}
+                                        <button 
+                                            onClick={() => handleToggleVisibility(post)} 
+                                            className={`text-xs font-medium px-3 py-1 rounded-full transition-colors flex items-center gap-1 ${isPublic ? 'bg-yellow-200 text-yellow-800 hover:bg-yellow-300' : 'bg-sky-200 text-sky-800 hover:bg-sky-300'}`}
+                                        >
+                                            {isPublic ? <FiEyeOff size={14} /> : <FiEye size={14} />}
+                                            {isPublic ? '非公開にする' : '公開する'}
+                                        </button>
+                                        
+                                        {/* B. 削除ボタン */}
+                                        <button 
+                                            onClick={() => handleDeleteAppealPost(post)} 
+                                            className="text-xs text-red-500 hover:text-red-700 font-medium px-3 py-1 rounded-full hover:bg-red-50 transition-colors flex items-center gap-1"
+                                            title="投稿を削除"
+                                        >
+                                            <FiTrash2 size={14}/> 削除
+                                        </button>
+                                    </div>
+                                </div>
                               </div>
                           );
                       })}
