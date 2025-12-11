@@ -1966,16 +1966,16 @@ app.patch('/api/florists/profile', authenticateToken, async (req, res) => {
   const { 
     shopName, platformName, contactName, address, 
     phoneNumber, website, portfolio, laruBotApiKey,
-    portfolioImages, businessHours,
+    portfolioImages, // フロントからオブジェクト配列で来る
+    businessHours,
     iconUrl,
-    specialties,       // (前回追加済み)
-    acceptsRushOrders  // ★ 追加
+    specialties,       
+    acceptsRushOrders  
   } = req.body;
 
   try {
-    const updatedFlorist = await prisma.florist.update({
-      where: { id: id },
-      data: {
+    // ★★★ 修正: 更新データを構築し、portfolioImagesをシリアライズする ★★★
+    let dataToUpdate = {
         shopName,
         platformName,
         contactName,
@@ -1984,18 +1984,35 @@ app.patch('/api/florists/profile', authenticateToken, async (req, res) => {
         website,
         portfolio,
         laruBotApiKey,
-        portfolioImages, 
         businessHours,
         iconUrl,
         specialties,
-        acceptsRushOrders // ★ 追加
-      },
+        acceptsRushOrders
+    };
+
+    if (portfolioImages && Array.isArray(portfolioImages)) {
+        // 配列内の各オブジェクト（{url, content, type}など）をJSON文字列に変換
+        const serializedImages = portfolioImages.map(item => JSON.stringify(item));
+        dataToUpdate.portfolioImages = serializedImages;
+    }
+    // ★★★ 修正終わり ★★★
+
+    const updatedFlorist = await prisma.florist.update({
+      where: { id: id },
+      data: dataToUpdate, // ★ 変換済みのデータを使用
     });
 
     const { password, ...floristWithoutPassword } = updatedFlorist;
     res.status(200).json(floristWithoutPassword);
   } catch (error) {
     console.error('プロフィール更新エラー:', error);
+    
+    // エラーコード P2007 はデータ型エラーを示すことが多いため、ここで捕捉
+    if (error.code === 'P2007') {
+        console.error('Prisma Validation Error: Expected String array, received Object array.');
+        return res.status(500).json({ message: 'プロフィールの更新に失敗しました。データベースの形式エラーです。' });
+    }
+    
     res.status(500).json({ message: 'プロフィールの更新中にエラーが発生しました。' });
   }
 });
