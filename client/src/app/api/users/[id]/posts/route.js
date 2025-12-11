@@ -1,9 +1,9 @@
-// /src/app/api/users/[id]/posts/route.js の修正案 3
+// /src/app/api/users/[id]/posts/route.js の修正案 4
 
 import { NextResponse } from 'next/server';
-// ★★★ 修正: パスを5階層に変更 (src/app/api/users/[id]/posts から client/lib/prisma.js を指す想定) ★★★
-import prisma from '../../../../../lib/prisma'; 
-// ------------------------------------------------------------------------------------------
+// ★★★ 修正: 確実に解決されるはずのエイリアスに戻す ★★★
+import prisma from '@/lib/prisma'; 
+// -------------------------------------------------------------
 
 // GET: 特定ユーザーの投稿一覧を取得
 export async function GET(request, { params }) {
