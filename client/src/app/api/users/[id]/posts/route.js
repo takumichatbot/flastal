@@ -1,8 +1,8 @@
-// /src/app/api/users/[id]/posts/route.js の修正版
+// /src/app/api/users/[id]/posts/route.js の修正案 2
 
 import { NextResponse } from 'next/server';
-// ★★★ 修正: エイリアスから相対パスに変更 (src/lib/prisma.jsを指す) ★★★
-import prisma from '../../../../lib/prisma'; 
+// ★★★ 修正: パスを3階層に変更 (../../.. = users/[id]/posts から app/ まで戻る想定) ★★★
+import prisma from '../../../lib/prisma'; 
 // -------------------------------------------------------------
 
 // GET: 特定ユーザーの投稿一覧を取得
