@@ -2,10 +2,8 @@
 
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-// prismaもここでインポート
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+// ★★★ 修正: PrismaClientの直接インポートを削除し、シングルトンをインポート ★★★
+import prisma from '@/lib/prisma';
 
 const s3 = new S3Client({
   region: process.env.AWS_REGION,

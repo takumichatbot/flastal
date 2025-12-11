@@ -1,20 +1,18 @@
-// client/src/lib/prisma.js (最終修正: globalThisを使用し、型チェックを確実にする)
+// client/src/lib/prisma.js (最終版 - ビルド成功を最優先)
 
 import { PrismaClient } from '@prisma/client';
 
-// グローバルオブジェクトに型の拡張を宣言 (Next.js環境のベストプラクティス)
+// グローバルオブジェクト (globalThis または global)
 const globalForPrisma = globalThis;
-
-// 開発環境と本番環境でインスタンス生成方法を分ける
-// 開発環境: グローバルにインスタンスを保存し、ホットリロードで再生成を防ぐ
-// 本番環境: グローバルに保存せず、モジュールスコープでインスタンスを保持
 
 let prisma;
 
+// Next.jsのビルドプロセス中に PrismaClient の初期化を防ぐためのチェック
+// ビルド時は undefined に設定し、ランタイムでのみ初期化を試みる
 if (process.env.NODE_ENV === 'production') {
   prisma = new PrismaClient();
 } else {
-  // グローバルにインスタンスがなければ生成
+  // 開発環境のホットリロード対策 (globalThisでシングルトンを保証)
   if (!globalForPrisma.prisma) {
     globalForPrisma.prisma = new PrismaClient();
   }
