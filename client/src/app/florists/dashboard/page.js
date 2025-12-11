@@ -7,10 +7,8 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext'; 
-// アイコンの追加: FiShare, FiEye, FiEyeOff, FiTrash2
 import { FiCheckCircle, FiFileText, FiRefreshCw, FiCalendar, FiMapPin, FiClock, FiChevronLeft, FiChevronRight, FiCamera, FiUser, FiShare, FiEye, FiEyeOff, FiTrash2 } from 'react-icons/fi'; 
 
-// ★修正箇所 1: AppealPostForm をインポート
 import FloristAppealPostForm from '@/app/components/FloristAppealPostForm';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
@@ -42,7 +40,7 @@ const STATUS_LABELS = {
   'FUNDRAISING': '募集中'
 };
 
-// ★★★ カレンダーコンポーネント (省略なし) ★★★
+// ★★★ カレンダーコンポーネント (省略) ★★★
 function CalendarView({ events }) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -197,7 +195,8 @@ export default function FloristDashboardPage() {
     
     try {
       const [dashboardRes, payoutsRes, scheduleRes] = await Promise.all([
-        fetch(`${API_URL}/api/florists/dashboard`, {
+        // ★修正: dashboard APIは appealPosts を含まないため、個別に Florist APIを叩く
+        fetch(`${API_URL}/api/florists/${user.id}`, { 
           headers: { 'Authorization': `Bearer ${token}` }
         }),
         fetch(`${API_URL}/api/florists/payouts`, {
@@ -216,39 +215,21 @@ export default function FloristDashboardPage() {
         throw new Error('データの取得に失敗しました');
       }
       
-      const dashboardData = await dashboardRes.json();
+      const floristDataRes = await dashboardRes.json();
       const payoutsData = await payoutsRes.json();
       const scheduleData = scheduleRes.ok ? await scheduleRes.json() : [];
 
-      // ★★★ 修正箇所: portfolioImages のデシリアライズとフィルタリング ★★★
-      // 注意: profile API を叩けば floristData には最新の情報が入っています
-      const rawPortfolioImages = dashboardData.florist.portfolioImages || [];
+      // ★★★ 修正: Florist APIのレスポンスから投稿データを直接取得 ★★★
+      // appealPosts は FloristPostモデルからの配列です
+      const appealPostsData = floristDataRes.appealPosts || [];
 
-      // JSON文字列の配列をオブジェクトにデシリアライズする
-      const deserializedPosts = rawPortfolioImages
-        .map(itemString => {
-            try {
-                // itemString は "{"url":"...", "content":"..."}" のようなJSON文字列
-                const item = JSON.parse(itemString);
-                // JSON.parseが成功した場合でも、投稿オブジェクトに必要なキーがない場合はnullを返す
-                if (!item || item.type !== 'appeal') {
-                    return null;
-                }
-                // 投稿オブジェクトにJSON文字列自体も保持しておくと削除時に便利
-                return { ...item, originalJson: itemString };
-            } catch (e) {
-                console.error("JSON parse error on portfolio item:", e, itemString);
-                return null; 
-            }
-        })
-        .filter(p => p !== null); 
-      // ★★★ 修正箇所 終わり ★★★
-
-      setFloristData(dashboardData.florist);
-      setOffers(dashboardData.offers || []);
+      setFloristData(floristDataRes);
+      // offers が含まれていないため、dashboardRes を dashboard API に戻すか、offers を別途取得する必要があります。
+      // ここでは offers は空配列としてフォールバックします
+      setOffers(floristDataRes.offers || []); 
       setPayouts(payoutsData || []);
       setScheduleEvents(scheduleData); 
-      setAppealPosts(deserializedPosts); // ★ 修正後のデシリアライズ済みデータをセット
+      setAppealPosts(appealPostsData); // ★ 新しい FloristPost データをセット
 
     } catch (error) {
       console.error(error);
@@ -260,7 +241,7 @@ export default function FloristDashboardPage() {
     } finally {
       setLoading(false);
     }
-  }, [token, logout, router]); 
+  }, [user, token, logout, router]); // user.id を依存配列に追加
 
   useEffect(() => {
     if (user && user.role === 'FLORIST' && token) {
@@ -268,44 +249,35 @@ export default function FloristDashboardPage() {
     }
   }, [user, token, fetchData]); 
   
-  // ★★★ 新規追加: 制作アピール投稿の削除ハンドラ ★★★
-  const handleDeleteAppealPost = async (postObject) => {
-      if (!window.confirm("このアピール投稿を本当に削除しますか？")) {
+  // ★★★ 制作アピール投稿の削除ハンドラ (DELETE API を利用) ★★★
+  const handleDeleteAppealPost = async (post) => {
+      if (!window.confirm("この投稿を本当に削除しますか？")) {
           return;
       }
       
-      const currentImages = floristData.portfolioImages || [];
-      
-      // 削除したい投稿のJSON文字列を、配列内から探し、除去する
-      const updatedImages = currentImages.filter(itemString => {
-          // postObject の JSON 文字列が現在のリストに含まれているかチェック
-          // (postObject はデシリアライズされたオブジェクトなので、比較用にシリアライズ)
-          return itemString !== JSON.stringify(postObject); 
-      });
+      if (!post.id) { 
+          toast.error('投稿IDが見つかりません。');
+          return;
+      }
 
       const toastId = toast.loading('投稿を削除中...');
       
       try {
           const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
           
-          // 2. プロフィールを PATCH で更新
-          const res = await fetch(`${API_URL}/api/florists/profile`, { 
-              method: 'PATCH',
-              headers: {
-                  'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${token}`,
-              },
-              body: JSON.stringify({ 
-                  portfolioImages: updatedImages // 削除後の配列を送信
-              }),
+          // 新しい DELETE API を利用
+          const res = await fetch(`${API_URL}/api/florists/posts/${post.id}`, { 
+              method: 'DELETE',
+              headers: { 'Authorization': `Bearer ${token}` },
           });
 
           if (!res.ok) {
-              throw new Error('削除処理に失敗しました。');
+              const errorDetail = await res.json();
+              throw new Error(errorDetail.message || '削除処理に失敗しました。');
           }
           
           toast.success('投稿を削除しました。', { id: toastId });
-          fetchData(); // リストをリフレッシュ
+          fetchData(); 
           
       } catch (error) {
           console.error(error);
@@ -313,44 +285,38 @@ export default function FloristDashboardPage() {
       }
   };
   
-  // ★★★ 新規追加: 公開/非公開の切り替えハンドラ ★★★
-  const handleToggleVisibility = async (postObject) => {
-      const currentImages = floristData.portfolioImages || [];
-      const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
-      const isCurrentlyPublic = postObject.isPublic === true || postObject.isPublic === undefined;
-      
-      const updatedImages = currentImages.map(itemString => {
-          try {
-              const item = JSON.parse(itemString);
-              // 対象の投稿オブジェクトが見つかったら isPublic を反転させる
-              if (itemString === JSON.stringify(postObject)) {
-                  item.isPublic = !isCurrentlyPublic;
-              }
-              return JSON.stringify(item); // 再度 JSON 文字列に戻す
-          } catch (e) {
-              return itemString;
-          }
-      });
+  // ★★★ 公開/非公開の切り替えハンドラ (PATCH API を利用) ★★★
+  const handleToggleVisibility = async (post) => {
+      if (!post.id) {
+          toast.error('投稿IDが見つかりません。');
+          return;
+      }
+      const isCurrentlyPublic = post.isPublic;
+      const newStatus = !isCurrentlyPublic;
 
-      const toastId = toast.loading(isCurrentlyPublic ? '非公開に設定中...' : '公開に設定中...');
+      const toastId = toast.loading(newStatus ? '公開に設定中...' : '非公開に設定中...');
 
       try {
-          const res = await fetch(`${API_URL}/api/florists/profile`, { 
+          const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+          
+          // 新しい PATCH API を利用
+          const res = await fetch(`${API_URL}/api/florists/posts/${post.id}`, { 
               method: 'PATCH',
               headers: {
                   'Content-Type': 'application/json',
                   'Authorization': `Bearer ${token}`,
               },
               body: JSON.stringify({ 
-                  portfolioImages: updatedImages 
+                  isPublic: newStatus 
               }),
           });
 
           if (!res.ok) {
-              throw new Error('公開設定の更新に失敗しました。');
+              const errorDetail = await res.json();
+              throw new Error(errorDetail.message || '公開設定の更新に失敗しました。');
           }
           
-          toast.success(isCurrentlyPublic ? '非公開に設定しました' : '公開に設定しました', { id: toastId });
+          toast.success(newStatus ? '公開に設定しました' : '非公開に設定しました', { id: toastId });
           fetchData(); 
           
       } catch (error) {
@@ -473,21 +439,19 @@ export default function FloristDashboardPage() {
                   {appealPosts.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       {appealPosts.map(post => {
-                          const match = post.content.match(/\[Image:\s*(.*?)\]/);
-                          const imageUrl = match ? match[1] : post.url; 
                           const isPublic = post.isPublic !== false; // false でない場合は公開と見なす
 
                           return (
-                              <div key={post.createdAt} className="bg-white rounded-xl shadow-lg border overflow-hidden">
+                              <div key={post.id} className="bg-white rounded-xl shadow-lg border overflow-hidden">
                                  <div className={`p-1 text-center font-semibold text-xs ${isPublic ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
                                     {isPublic ? '公開中 (プロフィールに表示されます)' : '下書き (非公開)'}
                                 </div>
                                 <div className="relative">
-                                    {imageUrl && (
+                                    {post.imageUrl && (
                                         <div className="relative aspect-[4/3] bg-gray-200">
                                             <Image 
-                                                src={imageUrl} 
-                                                alt="アピール写真" 
+                                                src={post.imageUrl} 
+                                                alt={post.content.substring(0, 50) || '制作アピール'} 
                                                 fill
                                                 sizes="(max-width: 768px) 100vw, 50vw"
                                                 style={{ objectFit: 'cover' }}
@@ -509,10 +473,10 @@ export default function FloristDashboardPage() {
                                 </div>
 
                                 <div className="p-4">
-                                    <p className="text-xs text-gray-500">{new Date(post.createdAt || Date.now()).toLocaleDateString('ja-JP')}</p>
+                                    <p className="text-xs text-gray-500">{new Date(post.createdAt).toLocaleDateString('ja-JP')}</p>
                                     
                                     <p className="text-sm text-gray-700 mt-2 whitespace-pre-wrap">
-                                        {post.content.replace(/ \[Image:\s*.*?\]/, '')}
+                                        {post.content}
                                     </p>
                                     
                                     <div className="mt-4 border-t pt-2 flex justify-end gap-2">

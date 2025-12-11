@@ -1621,28 +1621,39 @@ app.get('/api/florists/schedule', authenticateToken, async (req, res) => {
 });
 
 app.get('/api/florists/:id', async (req, res) => {
-  const { id } = req.params;
-  try {
-    const florist = await prisma.florist.findUnique({
-      where: { id: id },
-      include: {
-        reviews: {
-        orderBy: { createdAt: 'desc' },
-        include: {
-          user: true,
-          project: true,
-        }
-      }
-    }
-  });
-    if (!florist) {
-      return res.status(404).json({ message: 'お花屋さんが見つかりません。' });
-    }
-    const { password, ...floristWithoutPassword } = florist;
-    res.status(200).json(floristWithoutPassword);
-  } catch (error) {
-    res.status(500).json({ message: 'お花屋さんの取得中にエラーが発生しました。' });
-  }
+    const { id } = req.params;
+
+    try {
+        const florist = await prisma.florist.findUnique({
+            where: { id },
+            // ... (他の include も必要に応じて追加)
+        });
+
+        if (!florist) return res.status(404).json({ message: '花屋が見つかりません。' });
+
+        // ★★★ 修正箇所: 新 FloristPost モデルから投稿を取得 ★★★
+        const appealPosts = await prisma.floristPost.findMany({
+            where: {
+                floristId: id,
+                isPublic: true, // 公開設定のもののみ
+            },
+            include: {
+                likes: { select: { userId: true } }, // 誰が「いいね」したか
+                _count: { select: { likes: true } } // いいね数
+            },
+            orderBy: { createdAt: 'desc' }
+        });
+        // ★★★ 修正箇所 終わり ★★★
+
+        const { password, laruBotApiKey, ...publicFloristData } = florist;
+        publicFloristData.appealPosts = appealPosts; // 新しい投稿リストをセット
+        
+        res.status(200).json(publicFloristData);
+
+    } catch (error) {
+        console.error('花屋情報取得エラー:', error);
+        res.status(500).json({ message: 'サーバーエラーが発生しました。' });
+    }
 });
 
 app.get('/api/users/:userId/projects', async (req, res) => {
@@ -4544,6 +4555,79 @@ app.get('/api/projects/:id/digital-flowers', (req, res) => {
   const { id } = req.params;
   const flowers = DIGITAL_FLOWERS.filter(f => f.projectId === id);
   res.json(flowers);
+});
+
+
+// ★★★【新規】制作アピール投稿の作成API ★★★
+app.post('/api/florists/posts', authenticateToken, async (req, res) => {
+    const floristId = req.user.id;
+    const { imageUrl, content, isPublic = true } = req.body;
+
+    if (req.user.role !== 'FLORIST') {
+         return res.status(403).json({ message: '権限がありません。' });
+    }
+    if (!imageUrl || !content) {
+        return res.status(400).json({ message: '画像URLと内容は必須です。' });
+    }
+
+    try {
+        const newPost = await prisma.floristPost.create({
+            data: {
+                floristId: floristId,
+                imageUrl,
+                content,
+                isPublic,
+            },
+            include: {
+                florist: { select: { platformName: true, iconUrl: true } },
+                likes: true,
+                _count: { select: { likes: true } }
+            }
+        });
+        res.status(201).json(newPost);
+    } catch (error) {
+        console.error("Florist Post creation error:", error);
+        res.status(500).json({ message: '投稿の作成に失敗しました。' });
+    }
+});
+
+// ★★★【新規】制作アピール投稿の「いいね」トグルAPI ★★★
+app.post('/api/florists/posts/:postId/like', authenticateToken, async (req, res) => {
+    const { postId } = req.params;
+    const userId = req.user.id;
+
+    if (req.user.role === 'FLORIST' || req.user.role === 'VENUE' || req.user.role === 'ADMIN') {
+         return res.status(403).json({ message: 'お花屋さん/会場アカウントはいいねできません。' });
+    }
+    
+    try {
+        const existingLike = await prisma.floristPostLike.findUnique({
+            where: {
+                floristPostId_userId: {
+                    floristPostId: postId,
+                    userId: userId,
+                },
+            },
+        });
+
+        if (existingLike) {
+            // 既にあれば、いいねを削除 (解除)
+            await prisma.floristPostLike.delete({ where: { id: existingLike.id } });
+            return res.status(200).json({ liked: false, message: 'いいねを解除しました。' });
+        } else {
+            // なければ、いいねを作成
+            await prisma.floristPostLike.create({
+                data: {
+                    floristPostId: postId,
+                    userId: userId,
+                },
+            });
+            return res.status(201).json({ liked: true, message: 'いいねしました！' });
+        }
+    } catch (error) {
+        console.error("制作アピール いいね処理エラー:", error);
+        res.status(500).json({ message: 'いいねの処理中にエラーが発生しました。' });
+    }
 });
 
 

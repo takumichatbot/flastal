@@ -124,6 +124,7 @@ model User {
   email                String             @unique
   handleName           String
   password             String
+  floristPostLikes FloristPostLike[]
   points               Int                @default(0)
   reviewLikes          ReviewLike[]
   role                 UserRole           @default(USER)
@@ -272,7 +273,7 @@ model Florist {
   shopName          String
   platformName      String        @unique
   status            FloristStatus @default(PENDING)
-
+  posts FloristPost[]
   offers           Offer[]
   reviews          Review[]
   payoutRequests   PayoutRequest[]
@@ -675,3 +676,39 @@ model ProjectPost {
   // 企画ごとにユーザーの投稿を重複させない（任意）
   @@unique([projectId, userId, postType]) 
 }
+
+// -----------------------------------------------------
+// ★★★ 制作アピール用モデル ★★★
+// -----------------------------------------------------
+
+model FloristPost {
+  id          String   @id @default(cuid())
+  floristId   String   // どの花屋の投稿か
+  florist     Florist  @relation(fields: [floristId], references: [id])
+  
+  imageUrl    String   // 画像URL (必須)
+  content     String?  @db.Text // 投稿コメント
+  isPublic    Boolean  @default(false) // 公開/非公開フラグ
+  createdAt   DateTime @default(now())
+
+  // いいね機能
+  likes       FloristPostLike[]
+  
+  // 複合インデックスでパフォーマンス向上
+  @@index([floristId, isPublic])
+}
+
+model FloristPostLike {
+  id          String   @id @default(cuid())
+  floristPostId String
+  floristPost FloristPost @relation(fields: [floristPostId], references: [id])
+  
+  userId      String   // いいねしたユーザー
+  user        User     @relation(fields: [userId], references: [id])
+  
+  createdAt   DateTime @default(now())
+
+  // 1人のユーザーは1つの投稿に1回しかいいねできない
+  @@unique([floristPostId, userId])
+}
+// -----------------------------------------------------
