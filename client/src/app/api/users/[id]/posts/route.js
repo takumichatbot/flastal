@@ -1,13 +1,16 @@
+// /src/app/api/users/[id]/posts/route.js の修正版
+
 import { NextResponse } from 'next/server';
-// 修正: トップレベルでの直接的な初期化を削除し、シングルトンをインポート
-import prisma from '@/lib/prisma'; // 👆 lib/prisma.jsのパスに合わせて修正してください (例: @/lib/prisma, または ../../../../lib/prisma)
+// ★★★ 修正: エイリアスから相対パスに変更 (src/lib/prisma.jsを指す) ★★★
+import prisma from '../../../../lib/prisma'; 
+// -------------------------------------------------------------
 
 // GET: 特定ユーザーの投稿一覧を取得
 export async function GET(request, { params }) {
   const userId = params.id;
 
   try {
-    const posts = await prisma.post.findMany({ // prismaインスタンスはシングルトンから取得されます
+    const posts = await prisma.post.findMany({
       where: { userId: userId },
       orderBy: { createdAt: 'desc' }, // 新しい順
     });
