@@ -1,14 +1,13 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+// 修正: トップレベルでの直接的な初期化を削除し、シングルトンをインポート
+import prisma from '@/lib/prisma'; // 👆 lib/prisma.jsのパスに合わせて修正してください (例: @/lib/prisma, または ../../../../lib/prisma)
 
 // GET: 特定ユーザーの投稿一覧を取得
 export async function GET(request, { params }) {
   const userId = params.id;
 
   try {
-    const posts = await prisma.post.findMany({
+    const posts = await prisma.post.findMany({ // prismaインスタンスはシングルトンから取得されます
       where: { userId: userId },
       orderBy: { createdAt: 'desc' }, // 新しい順
     });
