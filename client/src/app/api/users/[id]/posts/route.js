@@ -1,7 +1,7 @@
-// /src/app/api/users/[id]/posts/route.js の修正案 4
+// /src/app/api/users/[id]/posts/route.js
 
 import { NextResponse } from 'next/server';
-// ★★★ 修正: 確実に解決されるはずのエイリアスに戻す ★★★
+// ★★★ 修正: 正しいエイリアス (@/lib/prisma) に戻す ★★★
 import prisma from '@/lib/prisma'; 
 // -------------------------------------------------------------
 
