@@ -1,4 +1,4 @@
-// client/src/app/projects/[id]/ProjectDetailClient.js (修正後の全文)
+// client/src/app/projects/[id]/ProjectDetailClient.js (最終修正版)
 
 'use client';
 
@@ -48,7 +48,7 @@ const getAuthToken = () => {
 };
 
 // ===========================================
-// ヘルパーコンポーネント定義 (PledgeForm, TargetAmountModal などは省略)
+// ヘルパーコンポーネント定義 (PledgeForm, TargetAmountModal, InstructionSheetModal は省略)
 // ===========================================
 
 const PROGRESS_STEPS = [
@@ -334,7 +334,7 @@ function TargetAmountModal({ project, user, onClose, onUpdate }) {
 export default function ProjectDetailClient() {
   const params = useParams();
   const { id } = params;
-  const [activeTab, setActiveTab] = useState('overview'); // 💡 新規追加: アクティブタブ
+  const [activeTab, setActiveTab] = useState('overview'); 
   const [aiSummary, setAiSummary] = useState(null);
   const [showGuestPledgeModal, setShowGuestPledgeModal] = useState(false);
   const { user, isAuthenticated } = useAuth(); 
@@ -362,7 +362,7 @@ export default function ProjectDetailClient() {
   // ★★★ AR用ステート ★★★
   const [arImageFile, setArImageFile] = useState(null);
   const [arHeight, setArHeight] = useState(180);
-  const [arSrc, setArSrc] = useState(null);
+  const [arSrc, setArSrc] = useState(null); 
   const [arGenLoading, setArGenLoading] = useState(false);
 
   const [showAnnouncementForm, setShowAnnouncementForm] = useState(false);
@@ -692,6 +692,65 @@ export default function ProjectDetailClient() {
                 </Link>
               </div>
 
+              {/* ★★★ AIマッチング (お花屋さんレコメンド) ★★★ */}
+              {isPlanner && !project.offer && (project.status === 'FUNDRAISING' || project.status === 'SUCCESSFUL') && (
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-indigo-100 mb-8">
+                    <h2 className="font-bold text-lg text-gray-800 mb-4 flex items-center">
+                        <FiCpu className="mr-2 text-indigo-500 text-2xl"/> お花屋さん AIマッチング
+                    </h2>
+                    <div className="bg-indigo-50 p-4 rounded-lg">
+                        <p className="text-sm text-indigo-800 font-bold mb-2">あなたの希望に合うお花屋さんを探します</p>
+                        <p className="text-xs text-indigo-600 mb-3">デザインの雰囲気やお花の種類から、AIがおすすめを提案します。</p>
+                        
+                        {!recommendations ? (
+                            <button 
+                                onClick={handleGetRecommendations}
+                                disabled={loadingRecommendations}
+                                className="w-full py-2 bg-white border border-indigo-300 text-indigo-600 rounded-md text-sm font-bold hover:bg-indigo-100 flex items-center justify-center transition-colors"
+                            >
+                                {loadingRecommendations ? 'AIが検索中...' : 'おすすめのお花屋さんを表示'}
+                            </button>
+                        ) : (
+                            <div className="space-y-3 animate-fadeIn">
+                                <div className="flex flex-wrap gap-1 mb-3">
+                                    <span className="text-xs text-gray-500 mr-2">抽出されたタグ:</span>
+                                    {recommendations.tags.map(t => <span key={t} className="text-[10px] bg-indigo-200 text-indigo-800 px-2 py-0.5 rounded">{t}</span>)}
+                                </div>
+                                {recommendations.recommendedFlorists.length > 0 ? (
+                                    <div className="grid gap-3">
+                                        {recommendations.recommendedFlorists.map(f => (
+                                            <div key={f.id} className="bg-white p-3 rounded border flex items-center justify-between hover:shadow-sm transition-shadow">
+                                                <div className="flex items-center gap-3">
+                                                    {f.iconUrl ? (
+                                                        <div className="w-10 h-10 rounded-full relative overflow-hidden">
+                                                            <Image src={f.iconUrl} alt={`${f.platformName}アイコン`} fill style={{objectFit: 'cover'}} sizes="40px" />
+                                                        </div>
+                                                    ) : (
+                                                        <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center text-xs text-gray-500">No Img</div>
+                                                    )}
+                                                    <div>
+                                                        <p className="text-sm font-bold text-gray-800">{f.platformName}</p>
+                                                        <div className="flex gap-1 mt-1">
+                                                            {f.specialties?.slice(0, 2).map(s => <span key={s} className="text-[10px] bg-gray-100 text-gray-500 px-1 rounded">{s}</span>)}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div className="flex gap-2">
+                                                    <Link href={`/florists/${f.id}`} target="_blank" className="text-xs bg-white border border-gray-300 text-gray-700 px-3 py-1.5 rounded hover:bg-gray-50">詳細</Link>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <p className="text-sm text-gray-500 text-center py-2">条件に合うお花屋さんが見つかりませんでした。<br/>条件を変えて試してみてください。</p>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                </div>
+              )}
+
+
               {/* ★★★ タブナビゲーション ★★★ */}
               <div className="border-b border-gray-200 mb-8">
                 <nav className="-mb-px flex space-x-8 overflow-x-auto">
@@ -901,7 +960,7 @@ export default function ProjectDetailClient() {
                             )}
                         </div>
                     </div>
-                  </div> // ★★★ 修正: 閉じタグの調整 ★★★
+                  </div> 
               )}
 
 
