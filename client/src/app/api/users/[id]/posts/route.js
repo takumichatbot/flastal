@@ -1,13 +1,18 @@
-// /src/app/api/users/[id]/posts/route.js
+// /src/app/api/users/[id]/posts/route.js (最終修正)
 
 import { NextResponse } from 'next/server';
-// ★★★ 修正: 正しいエイリアス (@/lib/prisma) に戻す ★★★
 import prisma from '@/lib/prisma'; 
-// -------------------------------------------------------------
 
 // GET: 特定ユーザーの投稿一覧を取得
 export async function GET(request, { params }) {
   const userId = params.id;
+
+  // ★★★ 修正: prismaインスタンスの存在チェックを追加 ★★★
+  if (!prisma) {
+    console.error("Prisma client is not initialized in server runtime.");
+    return NextResponse.json({ error: 'Database service is temporarily unavailable' }, { status: 503 });
+  }
+  // ---------------------------------------------------
 
   try {
     const posts = await prisma.post.findMany({
