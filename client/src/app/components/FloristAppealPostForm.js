@@ -10,7 +10,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onre
 
 /**
  * お花屋さん専用アピール投稿フォーム
- * @param {function} onPostSuccess - 投稿成功時に実行するコールバック
+ * @param {function} onPostSuccess - 投稿成功時に実行するコールバック (親コンポーネントが全データを再取得することを想定)
  */
 export default function FloristAppealPostForm({ onPostSuccess }) {
   const { user } = useAuth();
@@ -43,6 +43,8 @@ export default function FloristAppealPostForm({ onPostSuccess }) {
       // 1. 画像をアップロード (既存の /api/upload を使用)
       const uploadData = new FormData();
       uploadData.append('image', imageFile);
+      
+      // 認証ヘッダーを付けてアップロード
       const uploadRes = await fetch(`${API_URL}/api/upload`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` },
@@ -53,24 +55,43 @@ export default function FloristAppealPostForm({ onPostSuccess }) {
       const uploadResult = await uploadRes.json();
       imageUrl = uploadResult.url;
 
-      // 2. ProjectPost API に投稿 (FLORIST_APPEALタイプを使用)
-      // 💡 プロジェクトIDの代わりに、お花屋さん自身のIDをダミーとして使用する設計（バックエンドの調整が必要）
-      //   - バックエンドでは、投稿者をfloristIdとして認識し、projectIdのチェックを緩める調整が必要です。
-      const postRes = await fetch(`${API_URL}/api/projects/${user.id}/posts`, { 
-        method: 'POST',
+      // 2. 現在のプロフィールデータを取得し、portfolioImages 配列を読み込む
+      const profileRes = await fetch(`${API_URL}/api/florists/${user.id}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!profileRes.ok) throw new Error('現在のプロフィール情報の取得に失敗しました');
+      const currentProfile = await profileRes.json();
+      
+      // portfolioImages 配列に新しい投稿を追加
+      const newPortfolioImages = [
+          ...(currentProfile.portfolioImages || []), // 既存の画像配列
+          { 
+              url: imageUrl, 
+              // contentに投稿内容と画像URLを組み込む（既存のdashboard/page.jsの表示ロジックに合わせる）
+              content: `${content} [Image: ${imageUrl}]`, 
+              type: 'appeal', // 識別用のタイプ
+              createdAt: new Date().toISOString()
+          }
+      ];
+
+      // 3. お花屋さんのプロフィールを PATCH で更新
+      const postRes = await fetch(`${API_URL}/api/florists/profile`, { 
+        method: 'PATCH',
         headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({ 
-          content: content,
-          postType: 'FLORIST_APPEAL', // ★専用のタイプ
-          imageUrl: imageUrl, // 画像URLを内容に含めるか、ProjectPostモデルに追加が必要
-          // ※ 今回のバックエンド案ではimageUrlフィールドがないため、contentに画像URLを含めるか、schema.prismaを修正する必要があります。
+          // portfolioImages 配列全体を更新
+          portfolioImages: newPortfolioImages
         }),
       });
 
-      if (!postRes.ok) throw new Error('アピール投稿に失敗しました');
+      if (!postRes.ok) {
+          // エラー詳細を取得
+          const errorDetail = await postRes.json();
+          throw new Error(errorDetail.message || 'アピール投稿に失敗しました');
+      }
       
       toast.success('制作アピールを投稿しました！', { id: toastId });
       setImageFile(null);
