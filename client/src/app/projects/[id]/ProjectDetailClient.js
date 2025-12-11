@@ -269,7 +269,7 @@ function PledgeForm({ project, user, onPledgeSubmit, isPledger }) {
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">応援メッセージ (任意)</label>
           <textarea rows="2" {...register('comment')} placeholder="企画者へ一言！" className="w-full p-3 border border-gray-300 rounded-lg text-gray-900"></textarea>
-          </div>
+        </div>
         {!user && (
             <div className="pt-4 border-t border-dashed border-gray-300 space-y-4">
                 <p className="text-sm font-bold text-gray-700">ゲスト情報入力</p>
@@ -643,7 +643,7 @@ export default function ProjectDetailClient() {
                         );
                     })}
                 </div>
-              </div>
+                  </div>
         </div>
 
         <div className="max-w-6xl mx-auto p-4 sm:p-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -827,7 +827,7 @@ export default function ProjectDetailClient() {
                     )}
 
                     {/* グループチャット (コミュニケーション) */}
-                    {(isPlanner || isPledger || isFlorist) && (
+                1269           {(isPlanner || isPledger || isFlorist) && (
                         <div className="border-t pt-6">
                             <GroupChat 
                                 project={project} 
@@ -1247,11 +1247,11 @@ export default function ProjectDetailClient() {
       )}
 
       {/* ★★★ スクロール追従プログレスバー ★★★ */}
-      <FlowerScrollIndicator 
-          collected={project.collectedAmount} 
-          target={project.targetAmount} 
-      />
+      <FlowerScrollIndicator 
+          collected={project.collectedAmount} 
+          target={project.targetAmount} 
+      />
 
-    </>
+    </>
   );
 }
