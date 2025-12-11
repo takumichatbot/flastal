@@ -3,8 +3,7 @@
 
 generator client {
   provider = "prisma-client-js"
-  // ★★★ 修正箇所: 出力先を /client/node_modules/@prisma/client に指定 ★★★
-  output = "../client/node_modules/@prisma/client"
+  output = "../../node_modules/@prisma/client"
 }
 
 datasource db {
