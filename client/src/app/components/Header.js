@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react'; // useCallback を追加
 import { useAuth } from '../contexts/AuthContext';
 // アイコンを追加
 import { FiBell, FiChevronDown, FiUser, FiLogOut, FiHeart, FiCheckCircle, FiMenu, FiX, FiCalendar, FiMapPin, FiLogIn, FiUserPlus } from 'react-icons/fi';
@@ -9,6 +9,14 @@ import toast from 'react-hot-toast';
 import OshiColorPicker from './OshiColorPicker'; // 推し色ピッカー
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
+
+// ★★★ 共通でトークンを取得するヘルパー関数 (localStorageのキーを authToken に統一) ★★★
+const getAuthToken = () => {
+    if (typeof window === 'undefined') return null;
+    // localStorageのキーを 'authToken' に統一していると仮定
+    const rawToken = localStorage.getItem('authToken'); 
+    return rawToken ? rawToken.replace(/^"|"$/g, '') : null;
+};
 
 // ... (NotificationDropdown コンポーネントは変更なし。そのまま維持してください) ...
 function NotificationDropdown({ user, notifications, fetchNotifications, unreadCount }) {
@@ -29,8 +37,12 @@ function NotificationDropdown({ user, notifications, fetchNotifications, unreadC
       if (unreadCount === 0) return;
   
       try {
-        const token = localStorage.getItem('token'); 
-        const response = await fetch(`${API_URL}/api/notifications/mark-all-read`, {
+        const token = getAuthToken(); 
+        if (!token) return;
+        
+        // ★ 既読APIのパスは /api/notifications/mark-all-read ではなく /api/notifications/readall と仮定
+        // ※ もしバックエンドで /api/notifications/readall を実装していない場合、この処理は失敗します。
+        const response = await fetch(`${API_URL}/api/notifications/readall`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
@@ -49,26 +61,33 @@ function NotificationDropdown({ user, notifications, fetchNotifications, unreadC
       }
     };
   
+    // ★★★ 修正箇所: 通知の個別既読処理と遷移 ★★★
     const handleRead = async (notificationId, linkUrl) => {
       setIsOpen(false);
       
       try {
-        const token = localStorage.getItem('token'); 
+        const token = getAuthToken(); 
+        if (!token) throw new Error('トークンがありません');
+
+        // バックエンドの /api/notifications/:notificationId/read を叩く
         await fetch(`${API_URL}/api/notifications/${notificationId}/read`, {
           method: 'PATCH',
           headers: {
             'Authorization': `Bearer ${token}`,
           },
         });
+        // 既読処理後、非同期で通知リストを更新
         fetchNotifications();
       } catch (error) {
         console.error('Failed to mark as read:', error);
       }
   
+      // ページ遷移 (非同期処理の後)
       if (linkUrl) {
         window.location.href = linkUrl;
       }
     };
+    // ★★★ 修正箇所 終わり ★★★
   
     const getNotificationIcon = (type) => {
       switch (type) {
@@ -78,6 +97,11 @@ function NotificationDropdown({ user, notifications, fetchNotifications, unreadC
           return <FiBell className="text-indigo-500 w-5 h-5" />;
         case 'TASK_ASSIGNED':
           return <FiCheckCircle className="text-sky-500 w-5 h-5" />;
+        // ★ 承認通知用のアイコンを追加
+        case 'OFFER_ACCEPTED': 
+            return <FiCheckCircle className="text-green-500 w-5 h-5" />;
+        case 'OFFER_REJECTED': 
+            return <FiX className="text-red-500 w-5 h-5" />;
         case 'QUOTATION_APPROVED':
         case 'PROJECT_STATUS_UPDATE':
           return <FiCheckCircle className="text-green-500 w-5 h-5" />;
@@ -121,10 +145,11 @@ function NotificationDropdown({ user, notifications, fetchNotifications, unreadC
                 notifications.map((notif) => (
                   <div 
                     key={notif.id} 
+                    // ★ 既読処理と遷移を handleRead に一本化
                     onClick={() => handleRead(notif.id, notif.linkUrl)}
-                    className={`p-4 flex items-start space-x-3 cursor-pointer transition-colors ${notif.isRead ? 'bg-white hover:bg-gray-50' : 'bg-blue-50/50 hover:bg-blue-50 border-l-4 border-blue-400'}`}
+                    className={`block px-4 py-3 flex items-start space-x-3 cursor-pointer transition-colors ${notif.isRead ? 'bg-white hover:bg-gray-50' : 'bg-blue-50/50 hover:bg-blue-50 border-l-4 border-blue-400'}`}
                   >
-                    <div className="mt-0.5 bg-white p-1.5 rounded-full shadow-sm border border-gray-100">{getNotificationIcon(notif.type)}</div>
+                    <div className="mt-0.5 bg-white p-1.5 rounded-full shadow-sm border border-gray-100 flex-shrink-0">{getNotificationIcon(notif.type)}</div>
                     <div className="flex-1 min-w-0">
                       <p className={`text-sm ${notif.isRead ? 'text-gray-600' : 'text-gray-900 font-bold'} line-clamp-2`}>
                         {notif.message}
@@ -160,10 +185,13 @@ export default function Header() {
     return notifications.filter(n => !n.isRead).length;
   }, [notifications]);
 
-  const fetchNotifications = async () => {
+  // ★★★ 修正: fetchNotifications を useCallback でラップし、依存性を user に限定 ★★★
+  const fetchNotifications = useCallback(async () => {
     if (!user) return;
     try {
-      const token = localStorage.getItem('token'); 
+      const token = getAuthToken(); // ヘルパー関数からトークンを取得
+      if (!token) return;
+
       const response = await fetch(`${API_URL}/api/notifications`, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -177,17 +205,18 @@ export default function Header() {
     } catch (error) {
       console.error('Failed to fetch notifications:', error);
     }
-  };
+  }, [user]); // user が変わったときのみ関数を再生成
 
   useEffect(() => {
-    // 1. ユーザー情報があるか
-    // 2. トークンがlocalStorageにあるか
-    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-
-    if (user && token) {
+    if (user) {
       fetchNotifications();
+      
+      // ★ ポーリング（定期実行）を追加
+      const interval = setInterval(fetchNotifications, 30000); // 30秒ごとに通知を取得
+      
+      return () => clearInterval(interval); // クリーンアップ関数
     }
-  }, [user]);
+  }, [user, fetchNotifications]);
 
   const handleLogout = () => {
     logout();

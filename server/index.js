@@ -1916,7 +1916,7 @@ app.patch('/api/offers/:offerId', authenticateToken, async (req, res) => { // �
           data: { offerId: offerId },
         });
       }
-      // ↓↓↓ 【通知追加】企画者に承諾通知 ↓↓↓
+      // ↓↓↓ 【通知強化】企画者に承諾通知 ↓↓↓
       await createNotification(
         updatedOffer.project.plannerId,
         'OFFER_ACCEPTED',
@@ -1924,8 +1924,12 @@ app.patch('/api/offers/:offerId', authenticateToken, async (req, res) => { // �
         updatedOffer.projectId,
         `/projects/${updatedOffer.projectId}/chat` // チャット画面へのリンク
       );
+      // ★ デバッグログを追加
+      console.log(`[Notification] Offer accepted: Notified Planner ID ${updatedOffer.project.plannerId}`);
+      // ↑↑↑ 通知強化 ↑↑↑
+
     } else if (status === 'REJECTED') {
-       // ↓↓↓ 【通知追加】拒否通知 ↓↓↓
+       // ↓↓↓ 【通知強化】拒否通知 ↓↓↓
        await createNotification(
         updatedOffer.project.plannerId,
         'OFFER_REJECTED',
@@ -1933,6 +1937,8 @@ app.patch('/api/offers/:offerId', authenticateToken, async (req, res) => { // �
         updatedOffer.projectId,
         `/florists` // お花屋さん一覧へ
       );
+      // ★ デバッグログを追加
+      console.log(`[Notification] Offer rejected: Notified Planner ID ${updatedOffer.project.plannerId}`);
     }
 
     res.status(200).json(updatedOffer);
