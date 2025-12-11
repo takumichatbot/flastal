@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import VenueRegulationCard from '../../components/VenueRegulationCard'; 
 import Image from 'next/image';
@@ -195,7 +195,7 @@ export default function FloristDashboardPage() {
   const MINIMUM_PAYOUT_AMOUNT = 1000;
 
   // データ取得関数
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     if (!token || token === 'null' || token === 'undefined') {
         return;
     }
@@ -203,8 +203,8 @@ export default function FloristDashboardPage() {
     setLoading(true);
     
     try {
-      // ★修正箇所 3: appealPosts の API 呼び出しを追加
-      const [dashboardRes, payoutsRes, scheduleRes, postsRes] = await Promise.all([
+      // 1. すべてのデータを並行して取得
+      const [dashboardRes, payoutsRes, scheduleRes] = await Promise.all([
         fetch(`${API_URL}/api/florists/dashboard`, {
           headers: { 'Authorization': `Bearer ${token}` }
         }),
@@ -214,8 +214,6 @@ export default function FloristDashboardPage() {
         fetch(`${API_URL}/api/florists/schedule`, {
           headers: { 'Authorization': `Bearer ${token}` }
         }),
-        // 💡 お花屋さん自身のIDをダミーのprojectIdとして投稿データを取得
-        fetch(`${API_URL}/api/projects/${user.id}/posts`), 
       ]);
 
       if (dashboardRes.status === 401 || dashboardRes.status === 403) {
@@ -229,14 +227,31 @@ export default function FloristDashboardPage() {
       const dashboardData = await dashboardRes.json();
       const payoutsData = await payoutsRes.json();
       const scheduleData = scheduleRes.ok ? await scheduleRes.json() : [];
-      const postsData = postsRes.ok ? await postsRes.json() : []; // ★ 投稿データを取得
+
+      // ★★★ 修正箇所: portfolioImages のデシリアライズとフィルタリング ★★★
+      const rawPortfolioImages = dashboardData.florist.portfolioImages || [];
+
+      // JSON文字列の配列をオブジェクトにデシリアライズする
+      const deserializedPosts = rawPortfolioImages
+        .map(itemString => {
+            try {
+                // itemString は "{"url":"...", "content":"..."}" のようなJSON文字列
+                return JSON.parse(itemString); 
+            } catch (e) {
+                // パース失敗時はエラーログを出して無視
+                console.error("JSON parse error on portfolio item:", e, itemString);
+                return null; 
+            }
+        })
+        // nullでなく、かつ type: 'appeal' (FloristAppealPostFormで設定した値) のみフィルタ
+        .filter(p => p && p.type === 'appeal'); 
+      // ★★★ 修正箇所 終わり ★★★
 
       setFloristData(dashboardData.florist);
       setOffers(dashboardData.offers || []);
       setPayouts(payoutsData || []);
       setScheduleEvents(scheduleData); 
-      // ★修正箇所 4: FLORIST_APPEAL のみフィルタしてセット
-      setAppealPosts(postsData.filter(p => p.postType === 'FLORIST_APPEAL') || []); 
+      setAppealPosts(deserializedPosts); // ★ 修正後のデシリアライズ済みデータをセット
 
     } catch (error) {
       console.error(error);
@@ -248,13 +263,13 @@ export default function FloristDashboardPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [token, logout, router]); // 依存配列に router を追加
 
   useEffect(() => {
     if (user && user.role === 'FLORIST' && token) {
         fetchData();
     }
-  }, [user, token]); 
+  }, [user, token, fetchData]); 
 
   // オファー状態更新 (既存ロジックは省略)
   const handleUpdateOfferStatus = async (offerId, newStatus) => { /* ... */ };
@@ -337,12 +352,20 @@ export default function FloristDashboardPage() {
             <div className="py-6">
               {/* 1. 新着オファー (既存ロジック) */}
               {activeTab === 'pending' && (
-                <div className="space-y-4">{/* ... */}</div>
+                <div className="space-y-4">
+                  <div className="text-center py-10 text-gray-400">
+                    <p className="text-sm">新着オファーの表示ロジックは省略されています。</p>
+                  </div>
+                </div>
               )}
 
               {/* 2. 対応中の企画 (既存ロジック) */}
               {activeTab === 'accepted' && (
-                <div className="space-y-4">{/* ... */}</div>
+                <div className="space-y-4">
+                  <div className="text-center py-10 text-gray-400">
+                    <p className="text-sm">対応中企画の表示ロジックは省略されています。</p>
+                  </div>
+                </div>
               )}
 
               {/* 3. スケジュール (既存ロジック) */}
@@ -352,7 +375,11 @@ export default function FloristDashboardPage() {
 
               {/* 4. 売上・出金管理 (既存ロジック) */}
                {activeTab === 'payout' && (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">{/* ... */}</div>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  <div className="text-center py-10 text-gray-400">
+                    <p className="text-sm">売上・出金管理のロジックは省略されています。</p>
+                  </div>
+                </div>
               )}
               
                {/* ★★★ 5. 制作アピール一覧 (新規追加) ★★★ */}
@@ -360,30 +387,38 @@ export default function FloristDashboardPage() {
                 <div className="space-y-6">
                   {appealPosts.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      {appealPosts.map(post => (
-                        <div key={post.id} className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
-                          {/* 画像URLを content から抽出 (簡易版) */}
-                          {post.content.match(/\[Image:\s*(.*?)\]/) && (
-                            <div className="aspect-[4/3] bg-gray-200">
-                                <img 
-                                    src={post.content.match(/\[Image:\s*(.*?)\]/)[1]} 
-                                    alt="アピール写真" 
-                                    className="w-full h-full object-cover" 
-                                />
-                            </div>
-                          )}
-                          <div className="p-4">
-                            <p className="text-xs text-gray-500">{new Date(post.createdAt).toLocaleDateString('ja-JP')}</p>
-                            {/* 画像URL部分を除去して表示 */}
-                            <p className="text-sm text-gray-700 mt-2 whitespace-pre-wrap">
-                                {post.content.replace(/ \[Image:\s*.*?\]/, '')}
-                            </p>
-                            <div className="mt-4 border-t pt-2 flex justify-end">
-                                <button className="text-xs text-red-500 hover:underline">削除</button>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
+                      {appealPosts.map(post => {
+                          // JSON文字列からデシリアライズされたオブジェクトを使用
+                          const match = post.content.match(/\[Image:\s*(.*?)\]/);
+                          const imageUrl = match ? match[1] : post.url; // post.url もあれば使用
+                          
+                          return (
+                              <div key={post.id || post.createdAt} className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+                                  {imageUrl && (
+                                      <div className="relative aspect-[4/3] bg-gray-200">
+                                          <Image 
+                                              src={imageUrl} 
+                                              alt="アピール写真" 
+                                              fill
+                                              sizes="(max-width: 768px) 100vw, 50vw"
+                                              style={{ objectFit: 'cover' }}
+                                              className="w-full h-full object-cover" 
+                                          />
+                                      </div>
+                                  )}
+                                  <div className="p-4">
+                                      <p className="text-xs text-gray-500">{new Date(post.createdAt || Date.now()).toLocaleDateString('ja-JP')}</p>
+                                      {/* 画像URL部分を除去して表示 */}
+                                      <p className="text-sm text-gray-700 mt-2 whitespace-pre-wrap">
+                                          {post.content.replace(/ \[Image:\s*.*?\]/, '')}
+                                      </p>
+                                      <div className="mt-4 border-t pt-2 flex justify-end">
+                                          <button className="text-xs text-red-500 hover:underline">削除</button>
+                                      </div>
+                                  </div>
+                              </div>
+                          );
+                      })}
                     </div>
                   ) : (
                     <div className="text-center py-12 bg-slate-50 rounded-xl border border-dashed border-slate-300">
