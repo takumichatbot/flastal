@@ -4,10 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "npm run prisma:generate && next build",
     "start": "next start",
     "lint": "eslint",
-    "prisma:generate": "npx prisma generate" 
+    "prisma:generate": "npx prisma generate --schema=../server/prisma/schema.prisma" 
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.946.0",
