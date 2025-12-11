@@ -1,4 +1,4 @@
-// client/src/app/projects/[id]/ProjectDetailClient.js (最終版の修正)
+// client/src/app/projects/[id]/ProjectDetailClient.js (修正完了版)
 
 'use client';
 
@@ -272,18 +272,18 @@ function PledgeForm({ project, user, onPledgeSubmit, isPledger }) {
         </div>
         {!user && (
             <div className="pt-4 border-t border-dashed border-gray-300 space-y-4">
-                <p className="text-sm font-bold text-gray-700">ゲスト情報入力</p>
-                <div>
-                    <label className="block text-xs font-medium text-gray-500">お名前 (ニックネーム可)</label>
-                    <input type="text" {...register('guestName', { required: !user })} className="w-full p-2 border rounded" placeholder="フラスタ 太郎"/>
-                    {errors.guestName && <p className="text-xs text-red-500">必須です</p>}
-                </div>
-                <div>
-                    <label className="block text-xs font-medium text-gray-500">メールアドレス</label>
-                    <input type="email" {...register('guestEmail', { required: !user })} className="w-full p-2 border rounded" placeholder="taro@example.com"/>
-                    <p className="text-[10px] text-gray-400">完了メールをお送りします</p>
-                    {errors.guestEmail && <p className="text-xs text-red-500">必須です</p>}
-                </div>
+              <p className="text-sm font-bold text-gray-700">ゲスト情報入力</p>
+              <div>
+                <label className="block text-xs font-medium text-gray-500">お名前 (ニックネーム可)</label>
+                <input type="text" {...register('guestName', { required: !user })} className="w-full p-2 border rounded" placeholder="フラスタ 太郎"/>
+                {errors.guestName && <p className="text-xs text-red-500">必須です</p>}
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500">メールアドレス</label>
+                <input type="email" {...register('guestEmail', { required: !user })} className="w-full p-2 border rounded" placeholder="taro@example.com"/>
+                <p className="text-[10px] text-gray-400">完了メールをお送りします</p>
+                {errors.guestEmail && <p className="text-xs text-red-500">必須です</p>}
+              </div>
             </div>
         )}
         <div className="border-t pt-4">
@@ -537,6 +537,11 @@ export default function ProjectDetailClient() {
 
   const currentStatus = project?.productionStatus || project?.status || 'ACCEPTED';
   const isAssignedFlorist = user && user.role === 'FLORIST' && project?.offer?.floristId === user.id;
+  
+  // ★★★ 修正箇所: isFloristを定義 ★★★
+  const isFlorist = user && user.role === 'FLORIST'; 
+  // ------------------------------------
+  
   const isPledger = user && (project?.pledges || []).some(p => p.userId === user.id);
   const isPlanner = user && user.id === project?.planner?.id;
 
@@ -1123,11 +1128,11 @@ export default function ProjectDetailClient() {
                       {/* ★★★ 支援者向け: 完成写真の選択機能 ★★★ */}
                       {project.status === 'COMPLETED' && (isPledger || isPlanner || isFlorist) && project.completionImageUrls?.length > 0 && (
                           <div className="bg-green-50 border border-green-200 p-4 rounded-lg">
-                             <h4 className="font-bold text-green-800 mb-2 flex items-center">
+                            <h4 className="font-bold text-green-800 mb-2 flex items-center">
                                <FiCheckCircle className="mr-2"/> 完成したフラスタをARで見る
-                             </h4>
-                             <p className="text-xs text-green-700 mb-3">現地に行けない方も、実際の仕上がりをARで確認できます。</p>
-                             <div className="flex gap-2 overflow-x-auto pb-2">
+                            </h4>
+                            <p className="text-xs text-green-700 mb-3">現地に行けない方も、実際の仕上がりをARで確認できます。</p>
+                            <div className="flex gap-2 overflow-x-auto pb-2">
                                 {project.completionImageUrls.map((url, i) => (
                                     <div key={i} className="flex-shrink-0 cursor-pointer group relative w-24 h-24" onClick={() => handleSelectCompletedImage(url)}>
                                         <Image 
@@ -1140,7 +1145,7 @@ export default function ProjectDetailClient() {
                                         <p className="text-[10px] text-center mt-1 text-green-700 group-hover:font-bold absolute -bottom-5 w-full">これを選択</p>
                                     </div>
                                 ))}
-                             </div>
+                            </div>
                           </div>
                       )}
 
@@ -1161,12 +1166,12 @@ export default function ProjectDetailClient() {
                                           <p className="text-sm font-bold text-green-600 mb-1"><FiCheck className="inline"/> {arImageFile.name}</p>
                                           <p className="text-xs text-gray-500">クリックして変更</p>
                                       </div>
-                                  ) : (
-                                      <>
-                                          <FiUpload className="w-8 h-8 text-gray-400 mb-2" />
-                                          <p className="text-sm text-gray-500">クリックして画像をアップロード</p>
-                                      </>
-                                  )}
+                                    ) : (
+                                        <>
+                                            <FiUpload className="w-8 h-8 text-gray-400 mb-2" />
+                                            <p className="text-sm text-gray-500">クリックして画像をアップロード</p>
+                                        </>
+                                    )}
                               </div>
                               <input type="file" className="hidden" accept="image/*" onChange={(e) => setArImageFile(e.target.files[0])} />
                           </label>
