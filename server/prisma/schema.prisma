@@ -195,7 +195,7 @@ model Project {
   designImageUrls         String[]
   venue                   Venue?            @relation(fields: [venueId], references: [id])
   productionStatus        ProductionStatus  @default(NOT_STARTED)
-
+  progressHistory   Json[]   @default([])
   illustrationPanelUrls String[]
   messagePanelUrls      String[]
   sponsorPanelUrls      String[]

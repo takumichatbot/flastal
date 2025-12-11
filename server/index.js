@@ -5150,6 +5150,70 @@ app.get('/api/admin/chat-reports', requireAdmin, async (req, res) => {
         res.status(500).json({ message: '通報データの取得に失敗しました。' });
     }
 });
+
+// 【新規ルート】企画の進捗ステータスを更新するAPI
+// 権限: FLORIST または ADMIN のみ
+app.patch('/api/projects/:projectId/status', authenticateToken, async (req, res) => {
+    const { projectId } = req.params;
+    const { status } = req.body; // 新しいステータス (例: DESIGN_FIXED)
+
+    // ★★★ ステータスコードの定義 (Prismaスキーマに合わせる必要があります) ★★★
+    const VALID_STATUSES = ['OFFER_ACCEPTED', 'DESIGN_FIXED', 'MATERIAL_PREP', 'PRODUCTION_IN_PROGRESS', 'READY_FOR_DELIVERY', 'DELIVERED_OR_FINISHED'];
+
+    if (!status || !VALID_STATUSES.includes(status)) {
+        return res.status(400).json({ message: '新しい有効なステータスを指定してください。' });
+    }
+
+    try {
+        const project = await prisma.project.findUnique({
+            where: { id: projectId }, // ★String型として扱う
+            include: { offer: true, planner: true }, // offer情報を含める
+        });
+
+        if (!project) {
+            return res.status(404).json({ message: '企画が見つかりませんでした。' });
+        }
+
+        // 権限チェック: 担当花屋（offer.floristIdが一致）または管理者のみ許可
+        const isFlorist = project.offer?.floristId === req.user.id;
+        if (req.user.role !== 'ADMIN' && !isFlorist) {
+            return res.status(403).json({ message: '進捗を更新する権限がありません。' });
+        }
+        
+        // ★★★ DBの更新 ★★★
+        const updatedProject = await prisma.project.update({
+            where: { id: projectId }, 
+            data: { 
+                status: status, // 企画のメインステータスを更新
+                // 進捗イベントを履歴として追加 (Prismaスキーマに progressHistory JSONB配列が必須)
+                progressHistory: {
+                    push: {
+                        status: status,
+                        timestamp: new Date(),
+                        updatedBy: req.user.id
+                    }
+                }
+            },
+            include: { planner: true, offer: { include: { florist: true } } }
+        });
+
+        // 企画者への通知 (★通知機能は既に実装済み)
+        await createNotification(
+            updatedProject.plannerId,
+            'PROJECT_STATUS_UPDATE',
+            `企画「${updatedProject.title}」の進捗が「${status}」に更新されました。`, 
+            updatedProject.id,
+            `/projects/${updatedProject.id}`
+        );
+
+        console.log(`[Status Update] Project ID ${projectId} status updated to ${status}.`);
+
+        return res.json(updatedProject);
+    } catch (error) {
+        console.error('企画ステータス更新エラー:', error);
+        res.status(500).json({ message: '企画ステータスの更新中にエラーが発生しました。' });
+    }
+});
 // ===================================
 // ★★★★★   Socket.IOの処理   ★★★★★
 // ===================================
