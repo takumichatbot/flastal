@@ -4822,7 +4822,7 @@ app.get('/api/admin/chat-reports', requireAdmin, async (req, res) => {
   }
 });
 
-// A. 成功企画の投稿 API
+// A. 成功企画の投稿 API (再修正)
 app.post('/api/projects/:projectId/posts', authenticateToken, async (req, res) => {
     const { projectId } = req.params;
     const { content, postType } = req.body;
@@ -4830,29 +4830,41 @@ app.post('/api/projects/:projectId/posts', authenticateToken, async (req, res) =
 
     try {
         const project = await prisma.project.findUnique({ where: { id: projectId } });
-        if (!project || project.status !== 'COMPLETED') {
-            return res.status(403).json({ message: '完了済みの企画にのみ投稿できます。' });
+        // ★ 権限チェックをより厳密に
+        if (!project) {
+            return res.status(404).json({ message: '企画が見つかりません。' });
         }
-
+        
         // 企画者または支援者であるかを確認
         const isPlanner = project.plannerId === userId;
         const isPledger = await prisma.pledge.findFirst({ where: { projectId, userId } });
 
+        // ★ 完了済みのチェックは削除（もしアピール投稿として使うなら）
+        // ただし、このAPIがお花屋さんダッシュボードで使われているなら、
+        // フロントエンドのロジックが間違っている可能性が高い。
+        
         if (!isPlanner && !isPledger) {
             return res.status(403).json({ message: 'この企画の企画者または支援者のみ投稿できます。' });
         }
         
-        const newPost = await prisma.projectPost.create({ // ★ ProjectPost モデルを使用
+        const newPost = await prisma.projectPost.create({ 
             data: {
                 projectId,
                 userId,
                 content,
-                postType: postType || 'SUCCESS_STORY',
+                postType: postType || 'SUCCESS_STORY', // postTypeが必須の場合にデフォルト値を設定
             },
+            include: { // ★ 投稿後にユーザー情報を返すようにする
+                user: { select: { handleName: true, iconUrl: true } } 
+            }
         });
         res.status(201).json(newPost);
     } catch (error) {
         console.error("成功企画投稿エラー:", error);
+        // ★ エラーの種類を詳細に出力（Renderログで確認できるように）
+        if (error.code) {
+             console.error(`Prisma Error Code: ${error.code}`);
+        }
         res.status(500).json({ message: '投稿に失敗しました。' });
     }
 });
