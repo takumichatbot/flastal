@@ -1246,7 +1246,7 @@ export default function ProjectDetailClient() {
         </div>
       )}
 
-      {/* ★★★ スクロール追従プログレスバー ★★★ */}
+      {/* ★★★ スクロール追従プログレスバー ★★★ */}
       <FlowerScrollIndicator 
           collected={project.collectedAmount} 
           target={project.targetAmount} 
