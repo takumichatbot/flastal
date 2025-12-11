@@ -140,7 +140,7 @@ function InstructionSheetModal({ projectId, onClose }) {
           </button>
         </div>
       </div>
-    </div>
+      </div>
   );
 }
 
@@ -373,7 +373,7 @@ export default function ProjectDetailClient() {
   const [arImageFile, setArImageFile] = useState(null);
   const [arHeight, setArHeight] = useState(180);
   const [arSrc, setArSrc] = useState(null); 
-  const [arGenLoading, setArGenLoading] = useState(false);
+  const [arGenLoading, setArGenLoading] = useState(false); // ★修正済み: ステート宣言の補完
 
   const [showAnnouncementForm, setShowAnnouncementForm] = useState(false);
   const [announcementTitle, setAnnouncementTitle] = useState('');
@@ -598,13 +598,8 @@ export default function ProjectDetailClient() {
   const handleCopyMessages = () => { if(project.messages?.length){ const t = project.messages.map(m=>`${m.cardName}\n${m.content}`).join('\n---\n'); navigator.clipboard.writeText(t); toast.success('コピーしました'); }};
 
   // ★★★ 修正: useIsMounted を ProjectDetailClient 内に定義 ★★★
-  const useIsMounted = () => {
-    const [mounted, setMounted] = useState(false);
-    useEffect(() => {
-        setMounted(true);
-    }, []);
-    return mounted;
-  };
+  // このフックは既にファイルの先頭で定義されているため、ここでは重複を避けます。
+  // const useIsMounted = () => { ... }
   const isMounted = useIsMounted();
   
   if (loading) return <div className="text-center mt-10">読み込み中...</div>;
@@ -648,7 +643,7 @@ export default function ProjectDetailClient() {
                         );
                     })}
                 </div>
-            </div>
+              </div>
         </div>
 
         <div className="max-w-6xl mx-auto p-4 sm:p-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -777,7 +772,7 @@ export default function ProjectDetailClient() {
                             {isPlanner && (
                                 <div className="mb-4">
                                     <button onClick={() => setShowAnnouncementForm(!showAnnouncementForm)} className="w-full p-2 bg-indigo-500 text-white rounded">お知らせを投稿</button>
-    〠                               {showAnnouncementForm && (
+                                    {showAnnouncementForm && (
                                         <form onSubmit={handleAnnouncementSubmit} className="mt-4 p-4 bg-gray-100 rounded space-y-2">
                                             <input value={announcementTitle} onChange={(e)=>setAnnouncementTitle(e.target.value)} placeholder="タイトル" className="w-full p-2 border rounded"/>
                                             <textarea value={announcementContent} onChange={(e)=>setAnnouncementContent(e.target.value)} placeholder="内容" className="w-full p-2 border rounded"/>
@@ -1146,7 +1141,7 @@ export default function ProjectDetailClient() {
                       )}
 
                       <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
-                          <p className="text-sm text-blue-800">
+      　                   <p className="text-sm text-blue-800">
                               <FiInfo className="inline mr-1"/>
                               持っているフラスタの画像をアップロードして、ARで部屋に置いてみましょう。<br/>
                               高さを指定すると、実寸大で表示されます。
@@ -1222,7 +1217,7 @@ export default function ProjectDetailClient() {
         </div>
       )}
       
-      {/* ★ 3. ゲスト支援モーダルを追加 (JSXの最後の方、</>の直前) */}
+      {/* ★ 3. ゲスト支援モーダルを追加 */}
       {showGuestPledgeModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-fadeIn">
           <div className="bg-white rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl relative">
@@ -1251,7 +1246,7 @@ export default function ProjectDetailClient() {
         </div>
       )}
 
-      {/* ★★★ ここに追加: スクロール追従プログレスバー ★★★ */}
+      {/* ★★★ スクロール追従プログレスバー ★★★ */}
       <FlowerScrollIndicator 
           collected={project.collectedAmount} 
           target={project.targetAmount} 
