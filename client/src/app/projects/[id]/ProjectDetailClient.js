@@ -140,7 +140,7 @@ function InstructionSheetModal({ projectId, onClose }) {
           </button>
         </div>
       </div>
-      </div>
+    </div>
   );
 }
 
@@ -269,7 +269,7 @@ function PledgeForm({ project, user, onPledgeSubmit, isPledger }) {
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">応援メッセージ (任意)</label>
           <textarea rows="2" {...register('comment')} placeholder="企画者へ一言！" className="w-full p-3 border border-gray-300 rounded-lg text-gray-900"></textarea>
-        </div>
+          </div>
         {!user && (
             <div className="pt-4 border-t border-dashed border-gray-300 space-y-4">
                 <p className="text-sm font-bold text-gray-700">ゲスト情報入力</p>
@@ -373,7 +373,7 @@ export default function ProjectDetailClient() {
   const [arImageFile, setArImageFile] = useState(null);
   const [arHeight, setArHeight] = useState(180);
   const [arSrc, setArSrc] = useState(null); 
-  const [arGenLoading, setArGenLoading] = useState(false); // ★修正済み: ステート宣言の補完
+  const [arGenLoading, setArGenLoading] = useState(false); 
 
   const [showAnnouncementForm, setShowAnnouncementForm] = useState(false);
   const [announcementTitle, setAnnouncementTitle] = useState('');
@@ -923,7 +923,7 @@ export default function ProjectDetailClient() {
                             )}
                         </div>
                     </div>
-                  </div> 
+                </div>
               )}
 
 
@@ -1141,7 +1141,7 @@ export default function ProjectDetailClient() {
                       )}
 
                       <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
-      　                   <p className="text-sm text-blue-800">
+                          <p className="text-sm text-blue-800">
                               <FiInfo className="inline mr-1"/>
                               持っているフラスタの画像をアップロードして、ARで部屋に置いてみましょう。<br/>
                               高さを指定すると、実寸大で表示されます。
