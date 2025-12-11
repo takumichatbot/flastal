@@ -1253,5 +1253,5 @@ export default function ProjectDetailClient() {
       />
 
     </>
-  );
+  );
 }
