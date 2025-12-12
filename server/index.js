@@ -1500,51 +1500,78 @@ app.get('/api/venues', async (req, res) => {
   }
 });
 
-// ★★★ お花屋さん一覧取得API (829行目あたり) ★★★
+// ★★★ お花屋さん一覧取得API (タグ/エリア/キーワード検索対応) ★★★
 app.get('/api/florists', async (req, res) => {
-  try {
-    const { keyword, prefecture, rush } = req.query; // ★ rushを追加
+    try {
+        const { keyword, prefecture, rush, tag } = req.query; // ★ tag を追加
 
-    const whereClause = {
-      status: 'APPROVED',
-    };
+        const whereClause = {
+            status: 'APPROVED',
+        };
 
-    if (keyword && keyword.trim() !== '') {
-      whereClause.OR = [
-        { platformName: { contains: keyword, mode: 'insensitive' } },
-        { portfolio: { contains: keyword, mode: 'insensitive' } },
-      ];
+        if (keyword && keyword.trim() !== '') {
+            whereClause.OR = [
+                { platformName: { contains: keyword, mode: 'insensitive' } },
+                { portfolio: { contains: keyword, mode: 'insensitive' } },
+            ];
+        }
+        
+        if (prefecture && prefecture.trim() !== '') {
+            whereClause.address = { contains: prefecture };
+        }
+
+        // ★★★ 新規追加: タグによるフィルタリング ★★★
+        if (tag && tag.trim() !== '') {
+            // specialties は PrismaでString[] (配列)型を想定
+            whereClause.specialties = {
+                has: tag.trim() // 指定されたタグが specialties 配列に含まれているお花屋さんを検索
+            };
+        }
+        // ★★★ 新規追加 終わり ★★★
+
+        if (rush === 'true') {
+            whereClause.acceptsRushOrders = true;
+        }
+
+        const florists = await prisma.florist.findMany({
+            where: whereClause,
+            select: {
+                id: true,
+                platformName: true,
+                portfolio: true,
+                // reviews: true, // レビューの集計が必要なら_countを使う
+                address: true,
+                iconUrl: true,
+                portfolioImages: true,
+                specialties: true,
+                acceptsRushOrders: true,
+            },
+            orderBy: { createdAt: 'desc' },
+        });
+
+        // ★ レビュー集計 (DBでできないため手動で計算)
+        const floristsWithRating = await Promise.all(florists.map(async (florist) => {
+            const reviews = await prisma.review.findMany({ 
+                where: { floristId: florist.id },
+                select: { rating: true }
+            });
+            const reviewCount = reviews.length;
+            const averageRating = reviewCount > 0 
+                ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviewCount 
+                : 0;
+
+            return {
+                ...florist,
+                reviewCount,
+                averageRating
+            };
+        }));
+
+        res.status(200).json(floristsWithRating);
+    } catch (error) {
+        console.error("お花屋さんリスト取得エラー:", error);
+        res.status(500).json({ message: 'お花屋さんの取得中にエラーが発生しました。' });
     }
-    
-    if (prefecture && prefecture.trim() !== '') {
-      whereClause.address = { contains: prefecture };
-    }
-
-    // ★★★ 追加: お急ぎ便フィルター ★★★
-    if (rush === 'true') {
-      whereClause.acceptsRushOrders = true;
-    }
-
-    const florists = await prisma.florist.findMany({
-      where: whereClause,
-      select: {
-        id: true,
-        platformName: true,
-        portfolio: true,
-        reviews: true,
-        address: true,
-        iconUrl: true,
-        portfolioImages: true,
-        specialties: true,       // (前回追加済み)
-        acceptsRushOrders: true, // ★ 追加
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-    res.status(200).json(florists);
-  } catch (error) {
-    console.error("お花屋さんリスト取得エラー:", error);
-    res.status(500).json({ message: 'お花屋さんの取得中にエラーが発生しました。' });
-  }
 });
 
 // ★★★【新規】企画を編集するAPI (主催者のみ) ★★★

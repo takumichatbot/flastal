@@ -9,6 +9,7 @@ import { useForm } from 'react-hook-form';
 import { io } from 'socket.io-client';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
+import VenueLogisticsWiki from '@/app/components/VenueLogisticsWiki';
 import { useReactToPrint } from 'react-to-print';
 import dynamic from 'next/dynamic';
 import Markdown from 'react-markdown'; 
@@ -46,6 +47,11 @@ const getAuthToken = () => {
   const rawToken = localStorage.getItem('authToken');
   return rawToken ? rawToken.replace(/^"|"$/g, '') : null;
 };
+
+// ★ 抽出：イベント、会場のIDと名前、お花屋さんビューであるかを定義
+    const venueId = project.venueId; 
+    const venueName = project.venue?.venueName;
+    const isAssignedFlorist = user && user.role === 'FLORIST' && project?.offer?.floristId === user.id;
 
 // ===========================================
 // ★★★ 新規追加: マウント済みチェックフック ★★★
@@ -879,8 +885,29 @@ export default function ProjectDetailClient() {
                     </button>
                 </nav>
               </div>
-              
-              
+              {/* =========================================== */}
+              {/* ★★★ 企画者・一般向け情報セクション ★★★ */}
+              {/* =========================================== */}
+              {activeTab === 'overview' && (
+                  <div className="space-y-8 animate-fadeIn">
+                                
+                      {/* 1. 公式レギュレーションカード (既存) */}
+                      {project.venue && (
+                          <div className="mt-8">
+                              <VenueRegulationCard venue={project.venue} />
+                          </div>
+                      )}
+                                
+                      {/* 2. ★★★ 現場事例 Wiki 情報 (新規追加) ★★★ */}
+                      {venueId && (
+                          <div className="mt-8">
+                              <VenueLogisticsWiki 
+                                  venueId={venueId} 
+                                  venueName={venueName} 
+                                  isFloristView={isAssignedFlorist}
+                              />
+                          </div>
+                      )}
               {/* =========================================== */}
               {/* ★★★ タブコンテンツ: 1. 概要 (Overview) ★★★ */}
               {/* =========================================== */}

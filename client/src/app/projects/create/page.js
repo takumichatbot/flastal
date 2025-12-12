@@ -1,11 +1,10 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react'; // useCallback を追加
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
 import toast from 'react-hot-toast';
-// ★★★ インポートを整理（FiCpuの重複を削除） ★★★
-import { FiInfo, FiAlertTriangle, FiCalendar, FiMapPin, FiX, FiImage, FiCpu, FiLoader } from 'react-icons/fi';
+import { FiInfo, FiAlertTriangle, FiCalendar, FiMapPin, FiX, FiImage, FiCpu, FiLoader, FiPlus, FiExternalLink, FiUser, FiAward } from 'react-icons/fi';
 import AiPlanGenerator from '@/app/components/AiPlanGenerator';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
@@ -16,8 +15,28 @@ const getAuthToken = () => {
   return rawToken ? rawToken.replace(/^"|"$/g, '') : null;
 };
 
+// 日付フォーマット関数（datetime-localに対応するISO形式に変換）
+const formatToLocalISO = (dateString) => {
+    if (!dateString) return '';
+    try {
+        const date = new Date(dateString);
+        // ISO形式 (YYYY-MM-DDTHH:mm) に整形
+        return date.toISOString().slice(0, 16); 
+    } catch (e) {
+        return '';
+    }
+};
+
+// 日付フォーマット関数（表示用）
+const formatDisplayDate = (dateString) => {
+    if (!dateString) return '日付未定';
+    return new Date(dateString).toLocaleString('ja-JP', {
+        year: 'numeric', month: 'long', day: 'numeric', weekday: 'short', hour: '2-digit', minute: '2-digit'
+    });
+};
+
 // ===========================================
-// ★★★ コンポーネント定義 (AIGenerationModal, EventSelectionModal, VenueSelectionModal) ★★★
+// ★★★ モーダル群 (変更なし。そのまま維持) ★★★
 // ===========================================
 
 function AIGenerationModal({ onClose, onGenerate }) {
@@ -121,7 +140,8 @@ function EventSelectionModal({ onClose, onSelect }) {
   useEffect(() => {
     const fetchEvents = async () => {
       try {
-        const res = await fetch(`${API_URL}/api/events`);
+        // ★ /api/events/public を叩くことを推奨
+        const res = await fetch(`${API_URL}/api/events/public`); 
         if (res.ok) {
           const data = await res.json();
           setEvents(data);
@@ -247,7 +267,7 @@ function VenueSelectionModal({ onClose, onSelect }) {
                 <button
                   key={venue.id}
                   onClick={() => { onSelect(venue); onClose(); }}
-                  className="text-left p-3 border rounded-lg hover:bg-green-50 transition-colors group"
+                  className="text-left p-3 border rounded-lg hover:bg-green-500/5 transition-colors group"
                 >
                   <div className="flex justify-between">
                       <div className="font-bold text-gray-800 group-hover:text-green-700">{venue.venueName}</div>
@@ -266,6 +286,7 @@ function VenueSelectionModal({ onClose, onSelect }) {
   );
 }
 
+
 // ===========================================
 // ★★★ メインフォーム (CreateProjectForm) ★★★
 // ===========================================
@@ -273,6 +294,9 @@ function VenueSelectionModal({ onClose, onSelect }) {
 function CreateProjectForm() {
   const router = useRouter();
   const searchParams = useSearchParams(); 
+  
+  // ★★★ URLから eventId と venueId を取得 ★★★
+  const eventIdFromUrl = searchParams.get('eventId');
   const venueIdFromUrl = searchParams.get('venueId');
 
   const { user, loading: authLoading } = useAuth();
@@ -283,10 +307,13 @@ function CreateProjectForm() {
   const [isVenueModalOpen, setIsVenueModalOpen] = useState(false);
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
   const [isAIModalOpen, setIsAIModalOpen] = useState(false); 
-  const [isAiPlanModalOpen, setIsAiPlanModalOpen] = useState(false); // ★ AI文章生成用
+  const [isAiPlanModalOpen, setIsAiPlanModalOpen] = useState(false); 
 
   const [selectedVenue, setSelectedVenue] = useState(null);
   const [selectedEvent, setSelectedEvent] = useState(null);
+  
+  // ★★★ イベント情報読み込み用ステート ★★★
+  const [eventLoading, setEventLoading] = useState(true);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -304,37 +331,84 @@ function CreateProjectForm() {
     projectType: 'PUBLIC',
     password: '',
   });
+  
+  // ★★★ イベントIDによる自動入力ロジック ★★★
+  const fetchEventDetails = useCallback(async (id) => {
+    if (!id) {
+        setEventLoading(false);
+        return;
+    }
+    try {
+        const res = await fetch(`${API_URL}/api/events/${id}`);
+        if (res.ok) {
+            const data = await res.json();
+            setSelectedEvent(data);
+            
+            // フォームのフィールドを初期値で埋める (eventId, title, deliveryDateTime)
+            const eventDate = data.eventDate ? formatToLocalISO(data.eventDate) : '';
+            
+            setFormData(prev => ({
+                ...prev,
+                title: data.title ? `【企画】${data.title} フラスタ企画` : prev.title, 
+                eventId: data.id,
+                deliveryDateTime: eventDate || prev.deliveryDateTime,
+                ...(data.venue ? { // 会場情報があれば自動でvenueも設定
+                    venueId: data.venue.id,
+                    deliveryAddress: data.venue.address || data.venue.venueName
+                } : {})
+            }));
+            
+            if (data.venue) {
+                setSelectedVenue(data.venue);
+            }
+            toast.success(`イベント「${data.title}」の情報がフォームに反映されました。`, { duration: 5000 });
+        } else {
+            toast.error('指定されたイベントの情報が見つかりませんでした。');
+        }
+    } catch (error) {
+        console.error(error);
+        toast.error('イベント情報の取得中にエラーが発生しました。');
+    } finally {
+        setEventLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (!authLoading && !user) {
       toast.error('企画を作成するにはログインが必要です。');
       router.push('/login');
     }
-  }, [user, authLoading, router]);
-
-  useEffect(() => {
-    if (venueIdFromUrl) {
-      fetch(`${API_URL}/api/venues/${venueIdFromUrl}`)
-        .then(res => res.json())
-        .then(venue => {
-          if(venue) handleVenueSelect(venue);
-        });
+    
+    // 1. URLに eventId がある場合、イベント情報を取得
+    if (eventIdFromUrl) {
+        fetchEventDetails(eventIdFromUrl);
+    } else if (venueIdFromUrl) {
+        // 2. URLに venueId のみがある場合、会場情報を取得 (イベントがない場合)
+        fetch(`${API_URL}/api/venues/${venueIdFromUrl}`)
+            .then(res => res.json())
+            .then(venue => {
+                if(venue) handleVenueSelect(venue);
+                setEventLoading(false);
+            })
+            .catch(() => setEventLoading(false));
+    } else {
+        setEventLoading(false);
     }
-  }, [venueIdFromUrl]);
+  }, [user, authLoading, router, eventIdFromUrl, venueIdFromUrl, fetchEventDetails]);
+
 
   const handleEventSelect = (event) => {
     if (!event) return;
     setSelectedEvent(event);
     
-    const eventDate = new Date(event.eventDate);
-    eventDate.setMinutes(eventDate.getMinutes() - eventDate.getTimezoneOffset());
-    const formattedDate = eventDate.toISOString().slice(0, 16);
+    const eventDate = event.eventDate ? formatToLocalISO(event.eventDate) : '';
 
     setFormData(prev => ({
         ...prev,
         title: `【企画】${event.title} フラスタ企画`, 
         eventId: event.id,
-        deliveryDateTime: formattedDate,
+        deliveryDateTime: eventDate,
+        // イベントに会場情報が紐づいていれば自動設定
         ...(event.venue ? {
             venueId: event.venue.id,
             deliveryAddress: event.venue.address || event.venue.venueName
@@ -343,8 +417,10 @@ function CreateProjectForm() {
 
     if (event.venue) {
         setSelectedVenue(event.venue);
+    } else {
+        setSelectedVenue(null);
     }
-    toast.success('公式イベント情報を読み込みました！');
+    toast.success('イベント情報を読み込みました！');
   };
 
   const handleVenueSelect = (venue) => {
@@ -466,8 +542,9 @@ function CreateProjectForm() {
         body: JSON.stringify({
           ...formData,
           targetAmount: parseInt(formData.targetAmount, 10),
-          venueId: formData.venueId || null,
-          eventId: formData.eventId || null
+          venueId: selectedVenue?.id || null, // ★ selectedVenue からIDを使用
+          eventId: selectedEvent?.id || null,  // ★ selectedEvent からIDを使用
+          deliveryDateTime: new Date(formData.deliveryDateTime).toISOString(), // ISO形式に変換
         }),
       });
 
@@ -483,7 +560,7 @@ function CreateProjectForm() {
     }
   };
 
-  if (authLoading || !user) {
+  if (authLoading || !user || eventLoading) {
     return <div className="min-h-screen flex items-center justify-center"><p>読み込み中...</p></div>;
   }
 
@@ -493,6 +570,7 @@ function CreateProjectForm() {
         <h1 className="text-3xl font-bold text-gray-900 mb-2 text-center">新しい企画を立てる</h1>
         <p className="text-gray-600 text-center mb-8">あなたの想いを形にする第一歩です。</p>
         
+        {/* ★★★ イベント選択UI ★★★ */}
         {!selectedEvent && (
             <button 
                 type="button"
@@ -507,37 +585,41 @@ function CreateProjectForm() {
             </button>
         )}
 
+        {/* ★★★ 選択されたイベント情報表示 ★★★ */}
+        {selectedEvent && (
+            <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 mb-6 relative">
+                <span className="absolute top-0 right-0 bg-indigo-600 text-white text-xs px-2 py-1 rounded-bl-lg rounded-tr-lg font-bold">公式イベント適用中</span>
+                <h3 className="font-bold text-indigo-900 text-lg mb-1 flex items-center">
+                    <FiCalendar className="mr-2"/> {selectedEvent.title}
+                </h3>
+                <p className="text-sm text-indigo-700 mb-2">{formatDisplayDate(selectedEvent.eventDate)} @ {selectedEvent.venue?.venueName || '会場未定'}</p>
+                
+                {(!selectedEvent.isStandAllowed || selectedEvent.regulationNote) && (
+                    <div className="mt-3 bg-white p-3 rounded border border-indigo-100 text-sm">
+                        <p className="font-bold text-indigo-800 mb-1 flex items-center">
+                            <FiAlertTriangle className="mr-1"/> 主催者からの注意事項
+                        </p>
+                        {selectedEvent.isStandAllowed === false && <p className="text-red-600 font-bold mb-1 flex items-center"><FiX className="mr-1"/> スタンド花（フラスタ）の受け入れは不可です。</p>}
+                        {selectedEvent.regulationNote && <p className="text-gray-700 whitespace-pre-wrap">{selectedEvent.regulationNote}</p>}
+                    </div>
+                )}
+
+                <button 
+                  type="button" 
+                  onClick={() => {
+                      setSelectedEvent(null);
+                      setSelectedVenue(null); // イベント解除時は会場も解除
+                      setFormData(prev => ({ ...prev, eventId: '', title: '', deliveryDateTime: '', venueId: '', deliveryAddress: '' }));
+                  }}
+                  className="text-xs text-gray-500 underline mt-3 hover:text-red-500"
+                >
+                  選択を解除する
+                </button>
+            </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-6">
           
-          {selectedEvent && (
-              <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 mb-6 relative">
-                  <span className="absolute top-0 right-0 bg-indigo-600 text-white text-xs px-2 py-1 rounded-bl-lg rounded-tr-lg font-bold">公式イベント適用中</span>
-                  <h3 className="font-bold text-indigo-900 text-lg mb-1">{selectedEvent.title}</h3>
-                  <p className="text-sm text-indigo-700 mb-2">{new Date(selectedEvent.eventDate).toLocaleDateString()} @ {selectedEvent.venue?.venueName || '会場未定'}</p>
-                  
-                  {(!selectedEvent.isStandAllowed || selectedEvent.regulationNote) && (
-                      <div className="mt-3 bg-white p-3 rounded border border-indigo-100 text-sm">
-                          <p className="font-bold text-indigo-800 mb-1 flex items-center">
-                              <FiAlertTriangle className="mr-1"/> 主催者からの注意事項
-                          </p>
-                          {!selectedEvent.isStandAllowed && <p className="text-red-600 font-bold">・スタンド花（フラスタ）の受け入れは不可です。</p>}
-                          {selectedEvent.regulationNote && <p className="text-gray-700 whitespace-pre-wrap">{selectedEvent.regulationNote}</p>}
-                      </div>
-                  )}
-
-                  <button 
-                    type="button" 
-                    onClick={() => {
-                        setSelectedEvent(null);
-                        setFormData(prev => ({ ...prev, eventId: '', title: '', deliveryDateTime: '' }));
-                    }}
-                    className="text-xs text-gray-500 underline mt-3 hover:text-red-500"
-                  >
-                    選択を解除する
-                  </button>
-              </div>
-          )}
-
           {/* 公開設定セクション */}
           <section className="bg-slate-50 p-4 rounded-lg border border-slate-200">
             <h2 className="text-lg font-bold text-gray-800 mb-3">公開設定</h2>
@@ -609,8 +691,8 @@ function CreateProjectForm() {
                      </div>
                      {(selectedVenue.isStandAllowed === false || selectedVenue.standRegulation) && (
                          <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-md text-sm">
-                             <div className="flex items-center font-bold text-yellow-800 mb-1"><FiInfo className="mr-1"/> この会場の注意事項</div>
-                             {selectedVenue.isStandAllowed === false && <p className="text-red-600 font-bold mb-1"><FiAlertTriangle className="inline"/> スタンド花（フラスタ）の受け入れ不可</p>}
+                             <div className="font-bold text-yellow-800 mb-1 flex items-center"><FiInfo className="mr-1"/> この会場の注意事項</div>
+                             {selectedVenue.isStandAllowed === false && <p className="text-red-600 font-bold mb-1 flex items-center"><FiAlertTriangle className="mr-1"/> スタンド花（フラスタ）の受け入れ不可</p>}
                              {selectedVenue.standRegulation && <p className="text-yellow-800 whitespace-pre-wrap">{selectedVenue.standRegulation}</p>}
                          </div>
                      )}
