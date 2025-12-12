@@ -1,19 +1,19 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react'; // ★ useMemoを追加
 import { useParams } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import toast from 'react-hot-toast'; 
-import { useAuth } from '@/app/contexts/AuthContext'; // useAuthのパスを確認
+import { useAuth } from '@/app/contexts/AuthContext'; 
 import { 
     FiMapPin, FiPhone, FiGlobe, FiCamera, FiAward, FiClock, FiCheckCircle, 
     FiUser, FiHeart, FiStar 
-} from 'react-icons/fi'; // 必要なアイコンを追加
+} from 'react-icons/fi'; 
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
-// ★ オファー用のモーダルコンポーネント (既存ロジックは省略)
+// オファー用のモーダルコンポーネント (既存ロジックは省略)
 function OfferModal({ floristId, onClose }) { /* ... */ return null; }
 
 // ヘルパーコンポーネント (ProfileItem)
@@ -29,17 +29,20 @@ const ProfileItem = ({ icon, label, value }) => (
     </div>
 );
 
-// ★ メインのページコンポーネント
+// メインのページコンポーネント
 export default function FloristDetailPage() { 
   const { id } = useParams();
-  const { user, token } = useAuth(); // token も取得
+  const { user, token } = useAuth(); 
   
   const [florist, setFlorist] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('profile');
   
-  // ★ いいねの状態管理を含む投稿リスト
+  // ★ 選択中のタグを保持
+  const [activeTag, setActiveTag] = useState(null); 
+  
+  // いいねの状態管理を含む投稿リスト
   const [appealPosts, setAppealPosts] = useState([]); 
 
   const fetchFlorist = useCallback(async () => {
@@ -47,7 +50,6 @@ export default function FloristDetailPage() {
     setLoading(true);
     
     try {
-      // 修正後の API を呼び出す (appealPosts に likes, _count.likes が含まれる)
       const floristRes = await fetch(`${API_URL}/api/florists/${id}`);
       
       if (!floristRes.ok) {
@@ -142,6 +144,44 @@ export default function FloristDetailPage() {
   };
 
 
+  // ★★★ 新規追加: すべての投稿から一意なタグを抽出 ★★★
+  const availableTags = useMemo(() => {
+    const tags = new Set();
+    appealPosts.forEach(post => {
+        // 例: #バルーン装飾 のような形式を抽出
+        const matches = post.content.match(/#[^\s#]+/g);
+        if (matches) {
+            matches.forEach(match => tags.add(match.substring(1))); // # を削除して追加
+        }
+    });
+
+    // Floristの得意なタグ (specialties) も追加 (カンマ、スペース、読点で分割)
+    if (florist && florist.specialties && typeof florist.specialties === 'string' && florist.specialties !== '未設定') {
+        florist.specialties.split(/[\s,、]+/).forEach(tag => {
+            const trimmedTag = tag.trim();
+            if (trimmedTag) tags.add(trimmedTag);
+        });
+    }
+    
+    return Array.from(tags).sort();
+  }, [appealPosts, florist]);
+
+
+  // ★★★ 新規追加: フィルタリングロジック ★★★
+  const filteredPosts = useMemo(() => {
+    if (!activeTag) {
+        return appealPosts;
+    }
+    
+    return appealPosts.filter(post => {
+        // post.content に #タグ が含まれているかチェック
+        if (post.content && post.content.includes(`#${activeTag}`)) {
+            return true;
+        }
+        return false;
+    });
+  }, [appealPosts, activeTag]);
+
   // --- UI レンダリング ---
   
   if (loading || !florist) {
@@ -232,6 +272,7 @@ export default function FloristDetailPage() {
                         <ProfileItem icon={<FiGlobe />} label="ウェブサイト" value={florist.website ? <a href={florist.website.startsWith('http') ? florist.website : `https://${florist.website}`} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline break-all">{florist.website}</a> : '未設定'} />
                         <ProfileItem icon={<FiClock />} label="営業時間" value={florist.businessHours || '未設定'} />
                         <ProfileItem icon={<FiCheckCircle />} label="特急注文" value={florist.acceptsRushOrders ? '対応可能' : '不可'} />
+                        {/* specialties は ProfileItem 内で文字列表示 */}
                         <ProfileItem icon={<FiAward />} label="得意な装飾" value={florist.specialties || '未設定'} />
                       </div>
                   </div>
@@ -240,9 +281,31 @@ export default function FloristDetailPage() {
               {/* === 制作アピールタブ (ギャラリー) === */}
               {activeTab === 'appeal' && (
                   <div className="space-y-6">
-                      {appealPosts.length > 0 ? (
+                      
+                      {/* ★★★ タグフィルター UI ★★★ */}
+                      {availableTags.length > 0 && (
+                          <div className="flex flex-wrap gap-2 mb-6 p-4 bg-white rounded-xl shadow-sm border border-gray-100">
+                              <button 
+                                  onClick={() => setActiveTag(null)} 
+                                  className={`px-3 py-1 text-sm rounded-full font-bold transition-colors ${!activeTag ? 'bg-pink-600 text-white shadow' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                              >
+                                  すべて ({appealPosts.length})
+                              </button>
+                              {availableTags.map(tag => (
+                                  <button 
+                                      key={tag}
+                                      onClick={() => setActiveTag(tag)} 
+                                      className={`px-3 py-1 text-sm rounded-full font-bold transition-colors ${activeTag === tag ? 'bg-pink-600 text-white shadow' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                                  >
+                                      #{tag}
+                                  </button>
+                              ))}
+                          </div>
+                      )}
+
+                      {filteredPosts.length > 0 ? (
                           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                              {appealPosts.map(post => {
+                              {filteredPosts.map(post => { // ★ フィルタリングされたリストを使用
                                   // ログインユーザーが既にいいねしているかチェック
                                   const isLikedByCurrentUser = user && post.likes.some(like => like.userId === user.id);
                                   
@@ -284,7 +347,9 @@ export default function FloristDetailPage() {
                           </div>
                       ) : (
                           <div className="text-center py-12 bg-white rounded-xl border border-dashed border-gray-300 shadow-sm">
-                              <p className="text-gray-500 font-bold mb-2 text-xl">公開された作品はありません</p>
+                              <p className="text-gray-500 font-bold mb-2 text-xl">
+                                  {activeTag ? `#${activeTag}の作品` : '公開された作品'} は見つかりませんでした。
+                              </p>
                               <p className="text-sm text-gray-400 mt-1">お花屋さんが公開設定にすると、ここに作品が表示されます。</p>
                           </div>
                       )}
