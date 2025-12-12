@@ -1,4 +1,4 @@
-// client/src/app/projects/[id]/ProjectDetailClient.js (進捗トラッカー実装版)
+// client/src/app/projects/[id]/ProjectDetailClient.js (最終版)
 
 'use client';
 
@@ -9,7 +9,7 @@ import { useForm } from 'react-hook-form';
 import { io } from 'socket.io-client';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
-import VenueLogisticsWiki from '@/app/components/VenueLogisticsWiki';
+import VenueLogisticsWiki from '@/app/components/VenueLogisticsWiki'; // ★ 新規追加
 import { useReactToPrint } from 'react-to-print';
 import dynamic from 'next/dynamic';
 import Markdown from 'react-markdown'; 
@@ -18,7 +18,7 @@ import Image from 'next/image';
 // アイコン
 import { FiHeart, FiThumbsUp, FiMessageSquare, FiInfo, FiUser, FiSend, FiCheckCircle, FiCheck, FiUpload, FiPrinter, FiFileText, FiImage, FiCpu, FiBox, FiX, FiRefreshCw, FiArrowUp, FiLock, FiBookOpen, FiTool, FiDollarSign } from 'react-icons/fi';
 
-// コンポーネント群
+// コンポーネント群 (パスは環境に合わせて調整してください)
 import VirtualStage from '@/app/components/VirtualStage';
 import MoodboardPostForm from '@/app/components/MoodboardPostForm';
 import MoodboardDisplay from '@/app/components/MoodboardDisplay';
@@ -47,11 +47,6 @@ const getAuthToken = () => {
   const rawToken = localStorage.getItem('authToken');
   return rawToken ? rawToken.replace(/^"|"$/g, '') : null;
 };
-
-// ★ 抽出：イベント、会場のIDと名前、お花屋さんビューであるかを定義
-    const venueId = project.venueId; 
-    const venueName = project.venue?.venueName;
-    const isAssignedFlorist = user && user.role === 'FLORIST' && project?.offer?.floristId === user.id;
 
 // ===========================================
 // ★★★ 新規追加: マウント済みチェックフック ★★★
@@ -373,7 +368,19 @@ function TargetAmountModal({ project, user, onClose, onUpdate }) {
 }
 
 // ===========================================
-// ★★★ 進捗トラッカーコンポーネント (新規追加) ★★★
+// ★★★ 進捗トラッカー用の定義に拡張 ★★★
+const PROGRESS_STEPS = [
+  { key: 'FUNDRAISING', label: '募集中', order: 0 },
+  { key: 'OFFER_ACCEPTED', label: 'オファー確定', order: 1 },
+  { key: 'DESIGN_FIXED', label: 'デザイン決定', order: 2 },
+  { key: 'MATERIAL_PREP', label: '資材手配中', order: 3 },
+  { key: 'PRODUCTION_IN_PROGRESS', label: '制作中', order: 4 },
+  { key: 'READY_FOR_DELIVERY', label: '配送準備完了', order: 5 },
+  { key: 'COMPLETED', label: '完了', order: 6 }
+];
+
+// ===========================================
+// ★★★ 進捗トラッカーコンポーネント (ProjectDetailClientに依存) ★★★
 // ===========================================
 const ProgressTracker = ({ project, isAssignedFlorist, fetchProject }) => {
     const token = getAuthToken();
@@ -531,7 +538,7 @@ export default function ProjectDetailClient() {
 
   const [showAnnouncementForm, setShowAnnouncementForm] = useState(false);
   const [announcementTitle, setAnnouncementTitle] = useState('');
-  const [announcementContent, setAnnouncementContent] = '';
+  const [announcementContent, setAnnouncementContent] = useState('');
   
   const [expenseName, setExpenseName] = useState('');
   const [expenseAmount, setExpenseAmount] = useState('');
@@ -540,6 +547,22 @@ export default function ProjectDetailClient() {
 
   const [recommendations, setRecommendations] = useState(null); 
   const [loadingRecommendations, setLoadingRecommendations] = useState(false);
+
+    // ★★★ 決済後のフィードバックロジック ★★★
+    useEffect(() => {
+        const urlParams = new URLSearchParams(window.location.search);
+        
+        if (urlParams.get('payment') === 'success') {
+            toast.success("決済が完了しました！ご支援ありがとうございます。", { duration: 6000 });
+            // URLからクエリパラメータを削除し、再ロードを防ぐ
+            history.replaceState(null, '', `${window.location.pathname}`);
+        } else if (urlParams.get('payment') === 'cancelled') {
+            toast.error("決済がキャンセルされました。再度お試しください。");
+            history.replaceState(null, '', `${window.location.pathname}`);
+        }
+        
+        // 既存の fetchProject と Socket.IO のロジックはそのまま継続
+    }, []);
 
   const fetchProject = useCallback(async () => {
     if (!id) return;
@@ -556,7 +579,10 @@ export default function ProjectDetailClient() {
     }
   }, [id]); 
 
-  useEffect(() => { fetchProject(); }, [fetchProject]);
+  useEffect(() => { 
+     fetchProject(); 
+     // 決済フィードバックロジックが useEffect の冒頭にあるため、fetchProjectはその後で実行されます
+  }, [fetchProject]);
 
   useEffect(() => {
     if (!user || !id) return;
@@ -710,11 +736,6 @@ export default function ProjectDetailClient() {
     }));
   };
 
-  // ★★★ ProgressTracker のロジックと重複するため削除または統合が必要です。
-  // handleStatusUpdate は ProgressTracker コンポーネントにロジックを委譲します。
-  // この場所の handleStatusUpdate は未使用または削除されるべきです。
-  // ------------------------------------
-  
   const handleLikeToggle = async (reviewId) => {
     if (!user) return toast.error('ログインが必要です。');
     const token = getAuthToken();
@@ -774,6 +795,11 @@ export default function ProjectDetailClient() {
   const balance = project.collectedAmount - totalExpense;
   const hasPostedMessage = project.messages?.some(m => m.userId === user?.id);
   const activeIndex = currentProgressStep.order; // ★ 進捗トラッカーの Order を使用
+
+  // ★★★ 修正: Wikiコンポーネントに渡す情報をここで定義 ★★★
+  const venueId = project.venueId; 
+  const venueName = project.venue?.venueName;
+  // ★★★ ----------------------------------------- ★★★
 
 
   return (
@@ -885,8 +911,9 @@ export default function ProjectDetailClient() {
                     </button>
                 </nav>
               </div>
+              
               {/* =========================================== */}
-              {/* ★★★ 企画者・一般向け情報セクション ★★★ */}
+              {/* ★★★ タブコンテンツ: 1. 概要 (Overview) ★★★ */}
               {/* =========================================== */}
               {activeTab === 'overview' && (
                   <div className="space-y-8 animate-fadeIn">
@@ -899,78 +926,69 @@ export default function ProjectDetailClient() {
                       )}
                                 
                       {/* 2. ★★★ 現場事例 Wiki 情報 (新規追加) ★★★ */}
-                      {venueId && (
+                      {project.venueId && (
                           <div className="mt-8">
                               <VenueLogisticsWiki 
-                                  venueId={venueId} 
-                                  venueName={venueName} 
+                                  venueId={project.venueId} 
+                                  venueName={project.venue?.venueName} 
                                   isFloristView={isAssignedFlorist}
                               />
                           </div>
                       )}
-              {/* =========================================== */}
-              {/* ★★★ タブコンテンツ: 1. 概要 (Overview) ★★★ */}
-              {/* =========================================== */}
-              {activeTab === 'overview' && (
-                <div className="space-y-8 animate-fadeIn">
-                    
-                    {/* 企画詳細 */}
-                    <div className="mb-8">
-                        <h2 className="text-2xl font-semibold text-gray-800 mb-2">詳細</h2>
-                        <p className="text-gray-700 whitespace-pre-wrap">{project.description}</p>
-                    </div>
+                      
+                      {/* 企画詳細 */}
+                      <div className="mb-8">
+                          <h2 className="text-2xl font-semibold text-gray-800 mb-2">詳細</h2>
+                          <p className="text-gray-700 whitespace-pre-wrap">{project.description}</p>
+                      </div>
 
-                    {/* デザイン詳細 */}
-                    {(project.designDetails || project.size || project.flowerTypes) && (
-                        <div className="border-t pt-6">
-                            <h2 className="text-xl font-semibold text-gray-800 mb-2">デザインの希望</h2>
-                            <div className="bg-slate-50 p-6 rounded-lg space-y-3">
-                                {project.designDetails && <div><strong>雰囲気:</strong> <p className="text-gray-700 whitespace-pre-wrap">{project.designDetails}</p></div>}
-                                {project.size && <div><strong>希望サイズ:</strong> <p className="text-gray-700">{project.size}</p></div>}
-                                {project.flowerTypes && <div><strong>お花:</strong> <p className="text-gray-700">{project.flowerTypes}</p></div>}
-                            </div>
-                        </div>
-                    )}
+                      {/* デザイン詳細 */}
+                      {(project.designDetails || project.size || project.flowerTypes) && (
+                          <div className="border-t pt-6">
+                              <h2 className="text-xl font-semibold text-gray-800 mb-2">デザインの希望</h2>
+                              <div className="bg-slate-50 p-6 rounded-lg space-y-3">
+                                  {project.designDetails && <div><strong>雰囲気:</strong> <p className="text-gray-700 whitespace-pre-wrap">{project.designDetails}</p></div>}
+                                  {project.size && <div><strong>希望サイズ:</strong> <p className="text-gray-700">{project.size}</p></div>}
+                                  {project.flowerTypes && <div><strong>お花:</strong> <p className="text-gray-700">{project.flowerTypes}</p></div>}
+                              </div>
+                          </div>
+                      )}
 
-                    {/* 会場情報 */}
-                    {project.venue && <div className="mt-8"><VenueRegulationCard venue={project.venue} /></div>}
-
-                    {/* お知らせ */}
-                    {(project.announcements?.length > 0 || isPlanner) && (
-                        <div className="border-t pt-6">
-                            <h2 className="text-xl font-semibold mb-4">お知らせ・活動報告</h2>
-                            {isPlanner && (
-                                <div className="mb-4">
-                                    <button onClick={() => setShowAnnouncementForm(!showAnnouncementForm)} className="w-full p-2 bg-indigo-500 text-white rounded">お知らせを投稿</button>
-                                    {showAnnouncementForm && (
-                                        <form onSubmit={handleAnnouncementSubmit} className="mt-4 p-4 bg-gray-100 rounded space-y-2">
-                                            <input value={announcementTitle} onChange={(e)=>setAnnouncementTitle(e.target.value)} placeholder="タイトル" className="w-full p-2 border rounded"/>
-                                            <textarea value={announcementContent} onChange={(e)=>setAnnouncementContent(e.target.value)} placeholder="内容" className="w-full p-2 border rounded"/>
-                                            <button type="submit" className="w-full bg-green-500 text-white p-2 rounded">投稿</button>
-                                        </form>
-                                    )}
-                                </div>
-                            )}
-                            {project.announcements?.length > 0 && (
-                                <div className="space-y-4">
-                                    {project.announcements.map(a=>(
-                                        <div key={a.id} className="bg-slate-50 p-4 rounded">
-                                            <p className="text-xs text-gray-500">{new Date(a.createdAt).toLocaleDateString()}</p>
-                                            <h3 className="font-bold">{a.title}</h3>
-                                            <p className="text-sm mt-1 whitespace-pre-wrap">{a.content}</p>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    )}
-                </div>
-              )}
+                      {/* お知らせ */}
+                      {(project.announcements?.length > 0 || isPlanner) && (
+                          <div className="border-t pt-6">
+                              <h2 className="text-xl font-semibold mb-4">お知らせ・活動報告</h2>
+                              {isPlanner && (
+                                  <div className="mb-4">
+                                      <button onClick={() => setShowAnnouncementForm(!showAnnouncementForm)} className="w-full p-2 bg-indigo-500 text-white rounded">お知らせを投稿</button>
+                                      {showAnnouncementForm && (
+                                          <form onSubmit={handleAnnouncementSubmit} className="mt-4 p-4 bg-gray-100 rounded space-y-2">
+                                              <input value={announcementTitle} onChange={(e)=>setAnnouncementTitle(e.target.value)} placeholder="タイトル" className="w-full p-2 border rounded"/>
+                                              <textarea value={announcementContent} onChange={(e)=>setAnnouncementContent(e.target.value)} placeholder="内容" className="w-full p-2 border rounded"/>
+                                              <button type="submit" className="w-full bg-green-500 text-white p-2 rounded">投稿</button>
+                                          </form>
+                                      )}
+                                  </div>
+                              )}
+                              {project.announcements?.length > 0 && (
+                                  <div className="space-y-4">
+                                      {project.announcements.map(a=>(
+                                          <div key={a.id} className="bg-slate-50 p-4 rounded">
+                                              <p className="text-xs text-gray-500">{new Date(a.createdAt).toLocaleDateString()}</p>
+                                              <h3 className="font-bold">{a.title}</h3>
+                                              <p className="text-sm mt-1 whitespace-pre-wrap">{a.content}</p>
+                                          </div>
+                                      ))}
+                                  </div>
+                              )}
+                          </div>
+                      )}
+                  </div>
+              )}
 
 
               {/* =================================================== */}
               {/* ★★★ タブコンテンツ: 2. 共同作業・デザイン (Collaboration) ★★★ */}
-              {/* =================================================== */}
               {activeTab === 'collaboration' && (
                 <div className="space-y-8 animate-fadeIn">
 
@@ -1099,7 +1117,6 @@ export default function ProjectDetailClient() {
 
               {/* =================================================== */}
               {/* ★★★ タブコンテンツ: 3. 収支・報告 (Finance) ★★★ */}
-              {/* =================================================== */}
               {activeTab === 'finance' && (
                 <div className="space-y-8 animate-fadeIn">
                     
@@ -1139,6 +1156,15 @@ export default function ProjectDetailClient() {
                                 </div>
                             ))}
                         </div>
+                        {/* ★★★ 印刷用コンポーネント (画面には表示しない) ★★★ */}
+                        <div style={{ display: "none" }}>
+                            <BalanceSheet 
+                                ref={componentRef} 
+                                project={project} 
+                                totalExpense={totalExpense} 
+                                balance={balance} 
+                            />
+                        </div>
                     </div>
 
                     {/* 支援者メッセージ */}
@@ -1172,15 +1198,6 @@ export default function ProjectDetailClient() {
                         )}
                     </div>
 
-                    {/* ★★★ 印刷用コンポーネント (画面には表示しない) ★★★ */}
-                    <div style={{ display: "none" }}>
-                        <BalanceSheet 
-                            ref={componentRef} 
-                            project={project} 
-                            totalExpense={totalExpense} 
-                            balance={balance} 
-                        />
-                    </div>
                 </div>
               )}
 
@@ -1245,7 +1262,7 @@ export default function ProjectDetailClient() {
                                 <label className="text-xs font-bold text-gray-600">ステータス変更</label>
                                 <select 
                                     value={currentStatus} 
-                                    onChange={(e) => handleStatusUpdate(e.target.value)} // ★ ProgressTrackerから移動した更新関数
+                                    // onClickで更新関数はProgressTrackerに依存
                                     className="w-full mt-1 p-2 border rounded text-sm"
                                 >
                                     {/* FUNDRAISING は除外 */}
