@@ -1170,6 +1170,7 @@ export default function ProjectDetailClient() {
             </div>
           </div>
         </div>
+      </div> {/* ← Close min-h-screen DIV (THIS WAS MISSING) */}
       
       {/* Modals */}
       {isImageModalOpen && <ImageModal src={modalImageSrc} onClose={() => setIsImageModalOpen(false)} />}
