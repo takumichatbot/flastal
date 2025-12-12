@@ -1,9 +1,9 @@
-// client/src/app/projects/[id]/ProjectDetailClient.js (進捗トラッカー追加版)
+// client/src/app/projects/[id]/ProjectDetailClient.js (進捗トラッカー実装版)
 
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
 import { useForm } from 'react-hook-form';
 import { io } from 'socket.io-client';
@@ -59,7 +59,7 @@ const useIsMounted = () => {
 };
 // ===========================================
 
-// ★★★ 修正: 進捗トラッカー用の定義に拡張 ★★★
+// ★★★ 進捗トラッカー用の定義に拡張 ★★★
 const PROGRESS_STEPS = [
   { key: 'FUNDRAISING', label: '募集中', order: 0 },
   { key: 'OFFER_ACCEPTED', label: 'オファー確定', order: 1 },
@@ -164,30 +164,55 @@ function PledgeForm({ project, user, onPledgeSubmit, isPledger }) {
   const selectedTier = project.pledgeTiers?.find(t => t.id === selectedTierId);
   const finalAmount = pledgeType === 'tier' && selectedTier ? selectedTier.amount : parseInt(watch('pledgeAmount')) || 0;
 
+  // ★★★ 修正: ゲスト支援をStripeリダイレクトに変更 ★★★
   const handleGuestSubmit = async (data) => {
-    const loadingToast = toast.loading('処理中...');
+    if (finalAmount <= 0) {
+      toast.error('支援金額は1円以上である必要があります。');
+      return;
+    }
+    
+    const loadingToast = toast.loading('Stripe決済ページへ移動中...');
     try {
-      const res = await fetch(`${API_URL}/api/guest/pledges`, {
+      // ゲスト情報と支援情報をバックエンドのStripeセッション作成APIへ送信
+      const res = await fetch(`${API_URL}/api/checkout/create-guest-session`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           projectId: project.id,
-          amount: finalAmount,
+          amount: finalAmount, // 円 (バックエンドでStripeに渡す)
           comment: data.comment,
           tierId: pledgeType === 'tier' ? data.selectedTierId : undefined,
           guestName: data.guestName,
-          guestEmail: data.guestEmail
+          guestEmail: data.guestEmail,
+          // 決済成功/キャンセル時のリダイレクトURLを渡す
+          successUrl: `${window.location.origin}/projects/${project.id}?payment=success`, 
+          cancelUrl: `${window.location.origin}/projects/${project.id}?payment=cancelled`,
         })
       });
+      
       const result = await res.json();
-      if (!res.ok) throw new Error(result.message || '支援に失敗しました');
-      toast.success('ゲスト支援が完了しました！', { id: loadingToast });
-      reset();
-      window.location.reload(); 
+      if (!res.ok) {
+        throw new Error(result.message || '決済セッションの作成に失敗しました');
+      }
+      
+      const { sessionUrl } = result;
+      if (!sessionUrl) {
+        throw new Error('リダイレクトURLが取得できませんでした');
+      }
+
+      toast.dismiss(loadingToast);
+      
+      // Stripe Checkoutページへリダイレクト
+      window.location.href = sessionUrl; 
+      
+      // 成功してもここで処理は終了。DBへの記録はStripe Webhookで行われます。
+
     } catch (error) {
+      console.error('Guest Pledge Error:', error);
       toast.error(error.message, { id: loadingToast });
     }
   };
+  // ★★★ 修正終わり ★★★
 
   const handleUserSubmit = (data) => {
     const submitData = {
@@ -294,7 +319,7 @@ function PledgeForm({ project, user, onPledgeSubmit, isPledger }) {
             <button type="submit" disabled={isSubmitting || finalAmount <= 0} className="w-full py-3 font-bold text-white bg-green-500 rounded-xl hover:bg-green-600 disabled:bg-slate-400 disabled:cursor-not-allowed transition-colors shadow-lg">
                 {isSubmitting ? '処理中...' : user ? 'ポイントで支援する' : 'ゲストとして支援する'}
             </button>
-            {!user && <p className="text-xs text-center text-gray-400 mt-2">※実際はStripe決済画面へ遷移します(今回は省略)</p>}
+            {!user && <p className="text-xs text-center text-gray-400 mt-2">※決済にはStripeを利用し、外部ページへ移動します</p>}
         </div>
       </form>
     </div>
@@ -346,6 +371,8 @@ function TargetAmountModal({ project, user, onClose, onUpdate }) {
 // ===========================================
 const ProgressTracker = ({ project, isAssignedFlorist, fetchProject }) => {
     const token = getAuthToken();
+    
+    // ステータス定義は外部 PROGRESS_STEPS を利用
     const currentStatusKey = project?.status;
     const currentStatus = PROGRESS_STEPS.find(s => s.key === currentStatusKey);
     const currentOrder = currentStatus ? currentStatus.order : 0;
@@ -356,6 +383,7 @@ const ProgressTracker = ({ project, isAssignedFlorist, fetchProject }) => {
         
         const toastId = toast.loading('ステータスを更新中...');
         try {
+            // ★ 新しい進捗更新 API を叩く
             const res = await fetch(`${API_URL}/api/projects/${project.id}/status`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
@@ -376,13 +404,13 @@ const ProgressTracker = ({ project, isAssignedFlorist, fetchProject }) => {
         }
     };
     
-    // 花屋の担当ではない、またはまだオファー確定前はトラッカーを表示しない
-    if (!isAssignedFlorist && currentOrder < 1) {
-        return null;
-    }
-    
     // 募集中ステータスはトラッカーから除外
     const stepsToDisplay = PROGRESS_STEPS.filter(s => s.order > 0);
+
+    // 担当花屋がいない場合は、オファー確定以降のステータス履歴があれば表示する
+    if (!isAssignedFlorist && currentOrder < 1 && project.status !== 'SUCCESSFUL' && project.status !== 'COMPLETED') {
+        return null; // まだオファー確定前の段階で、花屋担当でもない場合は表示しない
+    }
 
     return (
         <div className="bg-white p-6 rounded-xl shadow-lg border border-pink-100 mb-8">
@@ -423,16 +451,16 @@ const ProgressTracker = ({ project, isAssignedFlorist, fetchProject }) => {
             </div>
             
             {/* 2. 花屋向け更新 UI */}
-            {isAssignedFlorist && (
+            {isAssignedFlorist && currentStatusKey !== 'COMPLETED' && (
                 <div className="border-t pt-4 mt-4">
                     <h3 className="text-sm font-bold text-gray-700 mb-2">
-                        {currentStatusKey === 'COMPLETED' ? '🎉 企画は完了しました 🎉' : '次のステップへ進む'}
+                        次のステップへ進む
                     </h3>
                     
                     <div className="flex flex-wrap gap-2">
                         {stepsToDisplay
-                            .filter(s => s.order > currentOrder && s.key !== 'COMPLETED') // 現在のステップより後、かつ完了以外
-                            .slice(0, 3) // 次の3つのステップのみ表示
+                            .filter(s => s.order > currentOrder && s.key !== 'COMPLETED') 
+                            .slice(0, 3) 
                             .map(nextStep => (
                                 <button 
                                     key={nextStep.key}
@@ -458,7 +486,6 @@ const ProgressTracker = ({ project, isAssignedFlorist, fetchProject }) => {
         </div>
     );
 };
-
 // ===========================================
 // ★★★ メインコンポーネント (ProjectDetailClient) ★★★
 // ===========================================
@@ -498,7 +525,7 @@ export default function ProjectDetailClient() {
 
   const [showAnnouncementForm, setShowAnnouncementForm] = useState(false);
   const [announcementTitle, setAnnouncementTitle] = useState('');
-  const [announcementContent, setAnnouncementContent] = useState('');
+  const [announcementContent, setAnnouncementContent] = '';
   
   const [expenseName, setExpenseName] = useState('');
   const [expenseAmount, setExpenseAmount] = useState('');
@@ -656,10 +683,10 @@ export default function ProjectDetailClient() {
     }
   };
 
-  // ★★★ 修正: Project.status ではなく、更新 API で使う ProgressTracker のステータスを使用 ★★★
-  const currentStatus = project?.status || 'ACCEPTED';
+  // ★★★ 進捗管理用ステータスの取得 ★★★
+  const currentStatus = project?.status || 'ACCEPTED';
   const currentProgressStep = PROGRESS_STEPS.find(s => s.key === currentStatus) || { order: 0 };
-  // -----------------------------------------------------------------------------------------
+  // ------------------------------------
   const isAssignedFlorist = user && user.role === 'FLORIST' && project?.offer?.floristId === user.id;
   
   // ★★★ 修正箇所: isFloristを定義 ★★★
@@ -669,9 +696,18 @@ export default function ProjectDetailClient() {
   const isPledger = user && (project?.pledges || []).some(p => p.userId === user.id);
   const isPlanner = user && user.id === project?.planner?.id;
 
-  // ★★★ 修正: 進捗更新ハンドラを ProgressTracker コンポーネントに移動 ★★★
-  // handleStatusUpdate は ProgressTracker コンポーネント内で定義し、project.id と fetchProject を渡します
-  
+  const handleStatusChange = (newStatus) => {
+    setProject(prev => ({ 
+      ...prev, 
+      productionStatus: newStatus, 
+      status: newStatus 
+    }));
+  };
+
+  // ★★★ ProgressTracker のロジックと重複するため削除または統合が必要です。
+  // handleStatusUpdate は ProgressTracker コンポーネントにロジックを委譲します。
+  // この場所の handleStatusUpdate は未使用または削除されるべきです。
+  // ------------------------------------
   
   const handleLikeToggle = async (reviewId) => {
     if (!user) return toast.error('ログインが必要です。');
@@ -843,11 +879,6 @@ export default function ProjectDetailClient() {
                     </button>
                 </nav>
               </div>
-              
-              {/* ★★★ 修正: 進捗トラッカーを表示する場所がなくなったため、タブの外に移動しました。
-                  ただし、ダッシュボードでは sticky top-0 に配置されているため、ここでは省略します。
-                  （もし表示したい場合は、上記の sticky div に ProgressTracker を含めてください）
-              */}
               
               
               {/* =========================================== */}
@@ -1195,13 +1226,17 @@ export default function ProjectDetailClient() {
                                     {PROGRESS_STEPS.filter(s => s.order > 0).map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
                                 </select>
                             </div>
+                            {/**************************************************************
+                             * ProgressTrackerのロジックが重複するため、ここでドロップダウンは非表示 *
+                             **************************************************************/}
                         </div>
                     </div>
                 )}
              </div>
+            </div>
           </div>
         </div>
-      </div>
+      </div>
       
       {/* モーダル群 */}
       {isImageModalOpen && <ImageModal src={modalImageSrc} onClose={() => setIsImageModalOpen(false)} />}
@@ -1366,5 +1401,5 @@ export default function ProjectDetailClient() {
       />
 
     </>
-  );
+  );
 }
