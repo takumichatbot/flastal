@@ -56,7 +56,6 @@ const upload = multer({ storage: multer.memoryStorage() });
 const app = express();
 const httpServer = createServer(app);
 
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
 // CORS設定
 const allowedOrigins = [
