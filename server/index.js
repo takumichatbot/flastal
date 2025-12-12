@@ -223,8 +223,7 @@ app.post('/api/webhooks/stripe', express.raw({type: 'application/json'}), async 
     const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
     let event;
     
-    // 【既存】Stripeインスタンスは既にグローバルで定義されているもの (const stripe = new Stripe(...)) を使用します。
-
+    // 署名の検証 (なりすまし防止)
     try {
         event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
     } catch (err) {
@@ -235,57 +234,67 @@ app.post('/api/webhooks/stripe', express.raw({type: 'application/json'}), async 
     const session = event.data.object;
     
     switch (event.type) {
-        
         case 'checkout.session.completed':
-            const userId = session.client_reference_id; // ポイント購入の場合のユーザーID
-            const amount = session.amount_total; // 金額 (セント/円)
+            const userId = session.client_reference_id; // ユーザーID (会員の場合)
+            const amount = session.amount_total; // 支払金額
 
-            // ★★★ 新規追加: ゲスト支援の処理 ★★★
-            if (session.metadata.isGuestPledge === 'true') {
+            // ============== 🅰️ ゲスト支援の処理 ==============
+            if (session.metadata && session.metadata.isGuestPledge === 'true') {
                 const { projectId, tierId, comment, guestName, guestEmail } = session.metadata;
 
+                console.log(`[Webhook] Processing Guest Pledge for Project: ${projectId}`);
+
                 try {
-                    // データベースにゲスト支援レコードを作成
+                    // 1. 支援レコードを作成
                     const newPledge = await prisma.pledge.create({
                         data: {
-                            amount: amount, // 金額をそのまま保存 (円)
-                            projectId,
+                            amount: amount, 
+                            projectId: projectId,
                             userId: null, // ゲストなのでnull
-                            guestName,
-                            guestEmail,
-                            comment,
+                            guestName: guestName,
+                            guestEmail: guestEmail,
+                            comment: comment,
                             pledgeTierId: tierId !== 'none' ? tierId : null,
                         },
                     });
 
-                    // 企画の集計金額を更新
-                    await prisma.project.update({
+                    // 2. 企画の集計金額を更新
+                    const updatedProject = await prisma.project.update({
                         where: { id: projectId },
                         data: { collectedAmount: { increment: amount } },
+                        include: { planner: true } // 企画者情報を取得
                     });
-                    
-                    // 【追加の通知ロジック】: 企画者への通知 (Webhook実行のため、企画者IDを別途取得が必要)
-                    const project = await prisma.project.findUnique({ where: { id: projectId }, select: { plannerId: true, title: true } });
-                    if (project) {
-                         await createNotification(
-                            project.plannerId,
-                            'NEW_PLEDGE',
-                            `ゲストの ${guestName} 様から ${amount.toLocaleString()}円 の支援がありました！(Stripe決済)`,
-                            projectId,
-                            `/projects/${projectId}`
-                        );
+
+                    // 3. 企画者に通知を送る
+                    await createNotification(
+                        updatedProject.plannerId,
+                        'NEW_PLEDGE',
+                        `ゲストの ${guestName} 様から ${amount.toLocaleString()}円 の支援がありました！`,
+                        projectId,
+                        `/projects/${projectId}`
+                    );
+
+                    // 4. 目標達成チェック (Success化)
+                    if (updatedProject.collectedAmount >= updatedProject.targetAmount && updatedProject.status !== 'SUCCESSFUL') {
+                        await prisma.project.update({
+                            where: { id: projectId },
+                            data: { status: 'SUCCESSFUL' },
+                        });
+                        // 企画者へのお祝いメール
+                        const successEmailContent = `
+                            <p>${updatedProject.planner.handleName} 様</p>
+                            <p>おめでとうございます！企画「${updatedProject.title}」が目標金額を達成しました！</p>
+                        `;
+                        sendEmail(updatedProject.planner.email, '【FLASTAL】目標金額達成のお祝い', successEmailContent);
                     }
 
+                    console.log(`[Webhook] Guest pledge saved successfully. ID: ${newPledge.id}`);
 
-                    console.log(`[Stripe Webhook] Guest pledge processed for Project ID ${projectId}, Amount: ${amount}`);
-                    
                 } catch (error) {
-                    console.error(`[Stripe Webhook Error] Failed to process guest pledge for project ${session.metadata.projectId}:`, error);
-                    // エラーを投げても Stripe は 200 を期待しているため、ログに記録するのみ
+                    console.error(`[Webhook Error] Failed to save guest pledge:`, error);
                 }
-
             } 
-            // ★★★ 既存: ポイント購入の処理（userIdが存在する場合） ★★★
+            // ============== 🅱️ ポイント購入の処理 (会員) ==============
             else if (userId) { 
                 const pointsPurchased = parseInt(session.metadata.points) || amount;
                 try {
@@ -293,16 +302,16 @@ app.post('/api/webhooks/stripe', express.raw({type: 'application/json'}), async 
                     if (purchaser) {
                         await prisma.$transaction(async (tx) => {
                             await tx.user.update({ where: { id: userId }, data: { points: { increment: pointsPurchased } } });
-                            // リファラルボーナスロジック (既存)
+                            // 初回購入ボーナス (紹介者へ)
                             if (!purchaser.hasMadeFirstPurchase && purchaser.referredById) {
                                 await tx.user.update({ where: { id: purchaser.referredById }, data: { points: { increment: 500 } } });
                                 await tx.user.update({ where: { id: userId }, data: { hasMadeFirstPurchase: true } });
                             }
                         });
-                        console.log(`User ${userId} successfully purchased ${pointsPurchased} points.`);
+                        console.log(`[Webhook] User ${userId} purchased ${pointsPurchased} points.`);
                     }
                 } catch(error) {
-                    console.error(`Failed to process purchase for user ${userId}:`, error);
+                    console.error(`[Webhook Error] Point purchase failed:`, error);
                 }
             }
             break;
@@ -311,7 +320,6 @@ app.post('/api/webhooks/stripe', express.raw({type: 'application/json'}), async 
             console.log(`Unhandled event type ${event.type}`);
     }
     
-    // Stripe Webhook は常に 200 を返す必要がある
     res.status(200).json({ received: true });
 });
 
