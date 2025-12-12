@@ -1185,7 +1185,6 @@ export default function ProjectDetailClient() {
               )}
 
             </div>
-          </div>
 
           {/* 右カラム (サイドバー) */}
           <div className="lg:col-span-1 space-y-6">
