@@ -4,10 +4,20 @@ import { useState, useEffect, useCallback, Suspense, useRef } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
-import { FiSearch, FiMapPin, FiCamera, FiLoader, FiX, FiZap } from 'react-icons/fi';
+// ★ FiAward (タグアイコンとして使用) を追加
+import { FiSearch, FiMapPin, FiCamera, FiLoader, FiX, FiZap, FiAward } from 'react-icons/fi'; 
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
+// ★★★ 共通タグ定義 (バックエンドの specialties と一致させる) ★★★
+const STYLE_TAGS = [
+    'かわいい/キュート', 'クール/かっこいい', 'おしゃれ/モダン', '和風/和モダン',
+    'ゴージャス/豪華', 'パステルカラー', 'ビビッドカラー', 'ニュアンスカラー',
+    'バルーン装飾', 'ペーパーフラワー', '布・リボン装飾', 'キャラクター/モチーフ',
+    '大型/連結', '卓上/楽屋花'
+];
+
+// 都道府県リスト (簡易版)
 const prefectures = [
   '北海道', '青森県', '岩手県', '宮城県', '秋田県', '山形県', '福島県',
   '茨城県', '栃木県', '群馬県', '埼玉県', '千葉県', '東京都', '神奈川県',
@@ -15,7 +25,7 @@ const prefectures = [
   '静岡県', '愛知県', '三重県', '滋賀県', '京都府', '大阪府', '兵庫県', 
   '奈良県', '和歌山県', '鳥取県', '島根県', '岡山県', '広島県', '山口県',
   '徳島県', '香川県', '愛媛県', '高知県', '福岡県', '佐賀県', '長崎県', 
-  '熊本県', '大分県', '宮崎県', '鹿児島県', '沖縄県'
+  '熊本県', '大分県', '宮崎県', '鹿児島県', '沖縄県', '全国対応' // 全国対応を追加
 ];
 
 // お花屋さんカード
@@ -48,12 +58,13 @@ function FloristCard({ florist, projectId, onOffer, isOffering }) {
         <h3 className="text-lg font-bold text-gray-800 mb-1">{florist.platformName}</h3>
         
         <div className="flex flex-wrap gap-1 mb-2">
-            {florist.specialties?.slice(0, 3).map(tag => (
+            {/* specialtiesが配列の場合のみ表示 */}
+            {Array.isArray(florist.specialties) && florist.specialties?.slice(0, 3).map(tag => (
                 <span key={tag} className="text-[10px] bg-pink-50 text-pink-600 px-2 py-0.5 rounded-full border border-pink-100">
                     {tag.split('/')[0]}
                 </span>
             ))}
-            {florist.specialties?.length > 3 && <span className="text-[10px] text-gray-400">+</span>}
+            {Array.isArray(florist.specialties) && florist.specialties.length > 3 && <span className="text-[10px] text-gray-400">+</span>}
         </div>
 
         <p className="text-xs text-gray-500 flex items-center gap-1 mb-3">
@@ -61,8 +72,9 @@ function FloristCard({ florist, projectId, onOffer, isOffering }) {
         </p>
         
         <div className="mt-auto border-t pt-3 flex items-center justify-between">
-           {florist.reviews && florist.reviews.length > 0 ? (
-              <span className="text-xs text-orange-500 font-bold">★ レビュー {florist.reviews.length}件</span>
+           {/* レビュー情報がAPIで返される前提 */}
+           {florist.reviewCount > 0 ? (
+              <span className="text-xs text-orange-500 font-bold">★ 平均 {florist.averageRating?.toFixed(1) || '—'} ({florist.reviewCount}件)</span>
             ) : (
               <span className="text-xs text-gray-400">レビューなし</span>
             )}
@@ -98,11 +110,6 @@ function FloristsListContent() {
   const [loading, setLoading] = useState(true);
   const [isOffering, setIsOffering] = useState(false);
   
-  const [keyword, setKeyword] = useState('');
-  const [prefecture, setPrefecture] = useState('');
-  // ★★★ 追加: お急ぎ便フィルター ★★★
-  const [isRush, setIsRush] = useState(false);
-
   const fileInputRef = useRef(null);
   const [isSearchingImage, setIsSearchingImage] = useState(false);
   const [detectedTags, setDetectedTags] = useState([]); 
@@ -111,23 +118,38 @@ function FloristsListContent() {
   const projectId = searchParams.get('projectId');
   const router = useRouter();
 
-  const fetchFlorists = useCallback(async (searchKeyword, searchPrefecture, searchRush) => {
+  // ★★★ フィルター Stateに tag を追加 ★★★
+  const [filters, setFilters] = useState({
+    keyword: searchParams.get('keyword') || '',
+    prefecture: searchParams.get('prefecture') || '',
+    isRush: searchParams.get('rush') === 'true',
+    tag: searchParams.get('tag') || '' // ★ tagを追加
+  });
+
+  const fetchFlorists = useCallback(async (currentFilters) => {
     setLoading(true);
     setDetectedTags([]); 
 
     try {
       const url = new URL(`${API_URL}/api/florists`);
-      if (searchKeyword && searchKeyword.trim() !== '') url.searchParams.append('keyword', searchKeyword);
-      if (searchPrefecture && searchPrefecture.trim() !== '') url.searchParams.append('prefecture', searchPrefecture);
-      // ★ 追加
-      if (searchRush) url.searchParams.append('rush', 'true');
+      
+      // クエリパラメータを構築
+      if (currentFilters.keyword && currentFilters.keyword.trim() !== '') url.searchParams.append('keyword', currentFilters.keyword);
+      if (currentFilters.prefecture && currentFilters.prefecture.trim() !== '') url.searchParams.append('prefecture', currentFilters.prefecture);
+      if (currentFilters.isRush) url.searchParams.append('rush', 'true');
+      if (currentFilters.tag) url.searchParams.append('tag', currentFilters.tag); // ★ tagをAPIに渡す
 
       const response = await fetch(url.toString());
       if (!response.ok) throw new Error('データの取得に失敗しました。');
       const data = await response.json();
+      
       setFlorists(data);
 
-      if (data.length === 0 && (searchKeyword || searchPrefecture || searchRush)) {
+      // URLも更新
+      const queryString = url.searchParams.toString();
+      router.replace(`/florists?${queryString}`, undefined, { shallow: true });
+
+      if (data.length === 0 && (currentFilters.keyword || currentFilters.prefecture || currentFilters.isRush || currentFilters.tag)) {
         toast.success('その条件に一致するお花屋さんは見つかりませんでした。');
       }
     } catch (error) {
@@ -136,16 +158,38 @@ function FloristsListContent() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [router]);
 
   useEffect(() => {
-    fetchFlorists(null, null, false);
-  }, [fetchFlorists]);
+    fetchFlorists(filters);
+  }, [filters, fetchFlorists]);
 
-  const handleSearchSubmit = (e) => {
-    e.preventDefault();
-    fetchFlorists(keyword, prefecture, isRush);
+  // ★★★ フィルターハンドラを統合 ★★★
+  const handleFilterChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setFilters(prev => ({
+        ...prev,
+        [name]: type === 'checkbox' ? checked : value
+    }));
   };
+    
+  const handleTagSelect = (tag) => {
+      setFilters(prev => ({
+          ...prev,
+          // 選択されたタグが現在のタグと同じなら解除、そうでなければ設定
+          tag: prev.tag === tag ? '' : tag
+      }));
+  };
+    
+  const handleResetSearch = () => {
+      setFilters({
+          keyword: '',
+          prefecture: '',
+          isRush: false,
+          tag: ''
+      });
+  };
+  // ★★★ フィルターハンドラ統合 終わり ★★★
 
   const handleImageSearch = async (e) => {
     const file = e.target.files[0];
@@ -167,7 +211,16 @@ function FloristsListContent() {
         if (!res.ok) throw new Error('解析に失敗しました');
         
         const data = await res.json();
-        setFlorists(data.florists);
+        
+        // AI検索結果でフィルターを上書き
+        const firstTag = data.analyzedTags[0] || '';
+        setFilters({
+            keyword: '',
+            prefecture: '',
+            isRush: false,
+            tag: firstTag // AIが検出した最初のタグで検索開始
+        });
+        
         setDetectedTags(data.analyzedTags);
         
         if (data.florists.length > 0) {
@@ -185,13 +238,6 @@ function FloristsListContent() {
     }
   };
 
-  const handleResetSearch = () => {
-      setKeyword('');
-      setPrefecture('');
-      setIsRush(false);
-      fetchFlorists();
-  };
-
   const handleOffer = async (floristId) => {
     if (!projectId) return;
     if (!window.confirm('このお花屋さんにオファーを送信しますか？\n承認されるとチャットルームが開設されます。')) {
@@ -200,9 +246,10 @@ function FloristsListContent() {
     setIsOffering(true);
     const toastId = toast.loading('オファーを送信中...');
     try {
+      const token = getAuthToken();
       const res = await fetch(`${API_URL}/api/offers`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ projectId, floristId }),
       });
       if (!res.ok) {
@@ -269,6 +316,7 @@ function FloristsListContent() {
                         </span>
                     ))}
                 </div>
+                {/* AI検索後に全リセットボタンを表示 */}
                 <button onClick={handleResetSearch} className="text-xs text-gray-500 underline flex items-center justify-center mx-auto hover:text-gray-800">
                     <FiX className="mr-1"/> 検索条件をクリアして全件表示
                 </button>
@@ -276,42 +324,100 @@ function FloristsListContent() {
         )}
         
         {/* 検索フォーム */}
-        <form onSubmit={handleSearchSubmit} className="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-100 mb-8 grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-          <div className="md:col-span-1">
-            <label htmlFor="keyword" className="block text-sm font-medium text-gray-700 mb-1">キーワード</label>
-            <div className="relative">
-                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"/>
-                <input type="text" id="keyword" value={keyword} onChange={(e) => setKeyword(e.target.value)} placeholder="名前、特徴など..." className="w-full pl-10 p-2 border border-gray-300 rounded-lg shadow-sm focus:ring-pink-500 focus:border-pink-500" />
-            </div>
-          </div>
-          <div className="md:col-span-1">
-            <label htmlFor="prefecture" className="block text-sm font-medium text-gray-700 mb-1">エリア</label>
-            <select id="prefecture" value={prefecture} onChange={(e) => setPrefecture(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg shadow-sm focus:ring-pink-500 focus:border-pink-500">
-              <option value="">すべてのエリア</option>
-              {prefectures.map(pref => <option key={pref} value={pref}>{pref}</option>)}
-            </select>
-          </div>
+        {/* ★★★ onKeyDown を追加して Enter キーの処理を統合 ★★★ */}
+        <form onSubmit={(e) => { e.preventDefault(); fetchFlorists(filters); }} className="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-100 mb-8 grid grid-cols-1 gap-6">
           
-          {/* ★★★ お急ぎ便チェックボックス ★★★ */}
-          <div className="md:col-span-1 pb-2">
-             <label className="flex items-center cursor-pointer p-2 border border-yellow-300 bg-yellow-50 rounded-lg hover:bg-yellow-100 transition-colors">
-                <input 
-                    type="checkbox" 
-                    checked={isRush} 
-                    onChange={(e) => setIsRush(e.target.checked)} 
-                    className="w-5 h-5 text-yellow-600 rounded focus:ring-yellow-500 border-gray-300"
-                />
-                <span className="ml-2 text-sm font-bold text-yellow-800 flex items-center">
-                    <FiZap className="mr-1 fill-yellow-600"/> お急ぎ便対応のみ
-                </span>
-             </label>
+          {/* 1. キーワード/エリア/お急ぎ */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+              
+              {/* キーワード */}
+              <div className="md:col-span-1">
+                <label htmlFor="keyword" className="block text-sm font-medium text-gray-700 mb-1">キーワード</label>
+                <div className="relative">
+                    <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"/>
+                    <input 
+                        type="text" 
+                        id="keyword" 
+                        name="keyword"
+                        value={filters.keyword} 
+                        onChange={handleFilterChange} 
+                        placeholder="名前、特徴など..." 
+                        className="w-full pl-10 p-2 border border-gray-300 rounded-lg shadow-sm focus:ring-pink-500 focus:border-pink-500" 
+                    />
+                </div>
+              </div>
+              
+              {/* エリア */}
+              <div className="md:col-span-1">
+                <label htmlFor="prefecture" className="block text-sm font-medium text-gray-700 mb-1">エリア</label>
+                <select 
+                    id="prefecture" 
+                    name="prefecture"
+                    value={filters.prefecture} 
+                    onChange={handleFilterChange} 
+                    className="w-full p-2 border border-gray-300 rounded-lg shadow-sm focus:ring-pink-500 focus:border-pink-500 bg-white"
+                >
+                  <option value="">すべてのエリア</option>
+                  {prefectures.map(pref => <option key={pref} value={pref}>{pref}</option>)}
+                </select>
+              </div>
+              
+              {/* お急ぎ便チェックボックス */}
+              <div className="md:col-span-1 pb-1">
+                 <label className="flex items-center cursor-pointer p-2 border border-yellow-300 bg-yellow-50 rounded-lg hover:bg-yellow-100 transition-colors">
+                    <input 
+                        type="checkbox" 
+                        name="isRush"
+                        checked={filters.isRush} 
+                        onChange={handleFilterChange} 
+                        className="w-5 h-5 text-yellow-600 rounded focus:ring-yellow-500 border-gray-300"
+                    />
+                    <span className="ml-2 text-sm font-bold text-yellow-800 flex items-center">
+                        <FiZap className="mr-1 fill-yellow-600"/> お急ぎ便対応のみ
+                    </span>
+                 </label>
+              </div>
+
+              {/* 絞り込みボタン */}
+              <div className="md:col-span-1">
+                  <button type="submit" disabled={loading || isOffering} className="w-full bg-pink-500 text-white font-semibold py-2.5 px-4 rounded-lg hover:bg-pink-600 disabled:bg-gray-400 transition-colors">
+                    <FiSearch className="inline mr-1"/> 絞り込む
+                  </button>
+              </div>
           </div>
 
-          <div className="md:col-span-1">
-            <button type="submit" disabled={loading || isOffering} className="w-full bg-gray-800 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-700 disabled:bg-gray-400 transition-colors">
-              {loading ? '検索中...' : '絞り込む'}
-            </button>
+          {/* 2. タグフィルター */}
+          <div className="pt-4 border-t border-gray-200">
+              <h3 className="text-sm font-bold text-gray-700 mb-2 flex items-center">
+                  <FiAward className="mr-1 text-pink-500"/> 得意な装飾で絞り込む:
+              </h3>
+              <div className="flex flex-wrap gap-2">
+                  {STYLE_TAGS.map(tag => (
+                      <button
+                          key={tag}
+                          type="button"
+                          onClick={() => handleTagSelect(tag)}
+                          className={`px-3 py-1 text-xs rounded-full font-medium transition-colors border ${filters.tag === tag ? 'bg-pink-500 text-white border-pink-500 shadow-md' : 'bg-white text-gray-700 border-gray-300 hover:bg-pink-50'}`}
+                      >
+                          {tag.split('/')[0]}
+                          {filters.tag === tag && <FiX className="inline ml-1 w-3 h-3"/>}
+                      </button>
+                  ))}
+              </div>
           </div>
+
+          {/* 3. クリアボタン */}
+          {(filters.keyword || filters.prefecture || filters.isRush || filters.tag) && (
+              <div className="mt-4 flex justify-end">
+                  <button 
+                      type="button"
+                      onClick={handleResetSearch}
+                      className="text-sm text-red-500 hover:underline flex items-center font-medium"
+                  >
+                      <FiX className="mr-1"/> フィルターをクリア
+                  </button>
+              </div>
+          )}
         </form>
 
         {loading ? (
