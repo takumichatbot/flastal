@@ -15,10 +15,10 @@ import dynamic from 'next/dynamic';
 import Markdown from 'react-markdown';
 import Image from 'next/image';
 
-// アイコン
+// Icons
 import { FiHeart, FiThumbsUp, FiMessageSquare, FiInfo, FiUser, FiSend, FiCheckCircle, FiCheck, FiUpload, FiPrinter, FiFileText, FiImage, FiCpu, FiBox, FiX, FiRefreshCw, FiArrowUp, FiLock, FiBookOpen, FiTool, FiDollarSign } from 'react-icons/fi';
 
-// コンポーネント群
+// Components
 import VirtualStage from '@/app/components/VirtualStage';
 import MoodboardPostForm from '@/app/components/MoodboardPostForm';
 import MoodboardDisplay from '@/app/components/MoodboardDisplay';
@@ -37,31 +37,12 @@ import VenueRegulationCard from '../../components/VenueRegulationCard';
 import DeliveryTracker from '@/app/components/DeliveryTracker';
 import FloristDeliveryControl from '@/app/components/FloristDeliveryControl';
 
-// ARコンポーネント (SSR回避)
+// Dynamic Import
 const ArViewer = dynamic(() => import('../../components/ArViewer'), { ssr: false });
 
+// Constants
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
-const getAuthToken = () => {
-  if (typeof window === 'undefined') return null;
-  const rawToken = localStorage.getItem('authToken');
-  return rawToken ? rawToken.replace(/^"|"$/g, '') : null;
-};
-
-// ===========================================
-// ★★★ マウント済みチェックフック (共通定義) ★★★
-// ===========================================
-const useIsMounted = () => {
-    const [mounted, setMounted] = useState(false);
-    useEffect(() => {
-        setMounted(true);
-    }, []);
-    return mounted;
-};
-
-// ===========================================
-// ★★★ 進捗トラッカー用の定義 (ここで1回だけ定義) ★★★
-// ===========================================
 const PROGRESS_STEPS = [
   { key: 'FUNDRAISING', label: '募集中', order: 0 },
   { key: 'OFFER_ACCEPTED', label: 'オファー確定', order: 1 },
@@ -72,8 +53,23 @@ const PROGRESS_STEPS = [
   { key: 'COMPLETED', label: '完了', order: 6 }
 ];
 
+// Helper Functions
+const getAuthToken = () => {
+  if (typeof window === 'undefined') return null;
+  const rawToken = localStorage.getItem('authToken');
+  return rawToken ? rawToken.replace(/^"|"$/g, '') : null;
+};
+
+const useIsMounted = () => {
+    const [mounted, setMounted] = useState(false);
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+    return mounted;
+};
+
 // ===========================================
-// ヘルパーコンポーネント群
+// Sub Components
 // ===========================================
 
 function InstructionSheetModal({ projectId, onClose }) {
@@ -362,23 +358,20 @@ function TargetAmountModal({ project, user, onClose, onUpdate }) {
 }
 
 // ===========================================
-// ★★★ 進捗トラッカーコンポーネント ★★★
+// Progress Tracker Component
 // ===========================================
 const ProgressTracker = ({ project, isAssignedFlorist, fetchProject }) => {
     const token = getAuthToken();
     
-    // ステータス定義は上部で定義した PROGRESS_STEPS を利用
     const currentStatusKey = project?.status;
     const currentStatus = PROGRESS_STEPS.find(s => s.key === currentStatusKey);
     const currentOrder = currentStatus ? currentStatus.order : 0;
 
-    // 花屋がステータスを更新するためのハンドラ
     const handleStatusUpdate = async (newStatusKey) => {
         if(!window.confirm(`ステータスを「${PROGRESS_STEPS.find(s => s.key === newStatusKey)?.label}」に更新しますか？`)) return;
         
         const toastId = toast.loading('ステータスを更新中...');
         try {
-            // ★ 新しい進捗更新 API を叩く
             const res = await fetch(`${API_URL}/api/projects/${project.id}/status`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
@@ -391,7 +384,7 @@ const ProgressTracker = ({ project, isAssignedFlorist, fetchProject }) => {
             }
             
             toast.success('進捗を更新しました！', { id: toastId });
-            fetchProject(); // 親コンポーネントのデータをリフレッシュ
+            fetchProject();
             
         } catch (error) {
             console.error('Status Update Error:', error);
@@ -399,12 +392,10 @@ const ProgressTracker = ({ project, isAssignedFlorist, fetchProject }) => {
         }
     };
     
-    // 募集中ステータスはトラッカーから除外
     const stepsToDisplay = PROGRESS_STEPS.filter(s => s.order > 0);
 
-    // 担当花屋がいない場合は、オファー確定以降のステータス履歴があれば表示する
     if (!isAssignedFlorist && currentOrder < 1 && project.status !== 'SUCCESSFUL' && project.status !== 'COMPLETED') {
-        return null; // まだオファー確定前の段階で、花屋担当でもない場合は表示しない
+        return null;
     }
 
     return (
@@ -413,18 +404,16 @@ const ProgressTracker = ({ project, isAssignedFlorist, fetchProject }) => {
                 <FiTool className="mr-2 text-pink-500"/> 制作進捗トラッカー
             </h2>
             
-            {/* 1. 進捗バー (企画者向け視覚化) */}
             <div className="flex justify-between items-center mb-6 relative">
-                {/* プログレスライン */}
                 <div className="absolute top-1/2 left-0 right-0 h-1 bg-gray-200">
                     <div 
                         className="h-1 bg-pink-500 transition-all duration-500" 
-                        style={{ width: `${(currentOrder / (PROGRESS_STEPS.length - 1)) * 100}%` }} // COMPLETEDが100%
+                        style={{ width: `${(currentOrder / (PROGRESS_STEPS.length - 1)) * 100}%` }}
                     ></div>
                 </div>
 
                 {stepsToDisplay.map((step, index) => {
-                    const stepIndex = index + 1; // OFFER_ACCEPTEDから始まる
+                    const stepIndex = index + 1;
                     const isCompleted = step.order <= currentOrder;
                     const isCurrent = step.order === currentOrder;
                     
@@ -445,7 +434,6 @@ const ProgressTracker = ({ project, isAssignedFlorist, fetchProject }) => {
                 })}
             </div>
             
-            {/* 2. 花屋向け更新 UI */}
             {isAssignedFlorist && currentStatusKey !== 'COMPLETED' && (
                 <div className="border-t pt-4 mt-4">
                     <h3 className="text-sm font-bold text-gray-700 mb-2">
@@ -466,7 +454,6 @@ const ProgressTracker = ({ project, isAssignedFlorist, fetchProject }) => {
                                 </button>
                             ))
                         }
-                        {/* 最終完了ボタン */}
                         {currentOrder >= (PROGRESS_STEPS.find(s => s.key === 'READY_FOR_DELIVERY')?.order || 5) && 
                             <button
                                 onClick={() => handleStatusUpdate('COMPLETED')}
@@ -483,7 +470,7 @@ const ProgressTracker = ({ project, isAssignedFlorist, fetchProject }) => {
 };
 
 // ===========================================
-// ★★★ メインコンポーネント (ProjectDetailClient) ★★★
+// Main Component: ProjectDetailClient
 // ===========================================
 export default function ProjectDetailClient() {
   const params = useParams();
@@ -491,7 +478,7 @@ export default function ProjectDetailClient() {
   const [activeTab, setActiveTab] = useState('overview'); 
   const [aiSummary, setAiSummary] = useState(null);
   const [showGuestPledgeModal, setShowGuestPledgeModal] = useState(false);
-  const { user, isAuthenticated } = useAuth(); 
+  const { user } = useAuth(); 
   const componentRef = useRef();
 
   const [project, setProject] = useState(null);
@@ -513,7 +500,7 @@ export default function ProjectDetailClient() {
   const [isInstructionModalOpen, setIsInstructionModalOpen] = useState(false);
   const [isArModalOpen, setIsArModalOpen] = useState(false);
 
-  // ★★★ AR用ステート ★★★
+  // AR States
   const [arImageFile, setArImageFile] = useState(null);
   const [arHeight, setArHeight] = useState(180);
   const [arSrc, setArSrc] = useState(null); 
@@ -531,20 +518,17 @@ export default function ProjectDetailClient() {
   const [recommendations, setRecommendations] = useState(null); 
   const [loadingRecommendations, setLoadingRecommendations] = useState(false);
 
-    // ★★★ 決済後のフィードバックロジック ★★★
+    // Payment Callback Logic
     useEffect(() => {
         const urlParams = new URLSearchParams(window.location.search);
         
         if (urlParams.get('payment') === 'success') {
             toast.success("決済が完了しました！ご支援ありがとうございます。", { duration: 6000 });
-            // URLからクエリパラメータを削除し、再ロードを防ぐ
             history.replaceState(null, '', `${window.location.pathname}`);
         } else if (urlParams.get('payment') === 'cancelled') {
             toast.error("決済がキャンセルされました。再度お試しください。");
             history.replaceState(null, '', `${window.location.pathname}`);
         }
-        
-        // 既存の fetchProject と Socket.IO のロジックはそのまま継続
     }, []);
 
   const fetchProject = useCallback(async () => {
@@ -564,7 +548,6 @@ export default function ProjectDetailClient() {
 
   useEffect(() => { 
      fetchProject(); 
-     // 決済フィードバックロジックが useEffect の冒頭にあるため、fetchProjectはその後で実行されます
   }, [fetchProject]);
 
   useEffect(() => {
@@ -617,19 +600,15 @@ export default function ProjectDetailClient() {
     }
   };
 
-  // ★★★ URL画像をファイルに変換してARセットする関数 ★★★
   const handleSelectCompletedImage = async (url) => {
     const toastId = toast.loading('画像を準備中...');
     try {
-        // 画像をフェッチしてBlobに変換
         const response = await fetch(url);
         const blob = await response.blob(); 
-        
-        // Fileオブジェクトを作成
         const file = new File([blob], "completed-flower.jpg", { type: blob.type });
         
         setArImageFile(file);
-        setArHeight(180); // デフォルト高さ
+        setArHeight(180);
         toast.success('画像をセットしました！下部の「ARモデルを生成する」ボタンを押してください', { id: toastId });
         
     } catch (e) {
@@ -638,10 +617,8 @@ export default function ProjectDetailClient() {
     }
   };
 
-  // ★★★ ARモデル生成ハンドラー ★★★
   const handleGenerateAr = async () => {
     if (!arImageFile) return toast.error('画像を選択してください');
-    
     setArGenLoading(true);
     const toastId = toast.loading('ARデータを生成中...');
 
@@ -698,26 +675,10 @@ export default function ProjectDetailClient() {
     }
   };
 
-  // ★★★ 進捗管理用ステータスの取得 ★★★
-  const currentStatus = project?.status || 'ACCEPTED';
-  const currentProgressStep = PROGRESS_STEPS.find(s => s.key === currentStatus) || { order: 0 };
-  
-  // ------------------------------------
-  // ★★★ 修正箇所: isAssignedFlorist と isFlorist を定義 ★★★
   const isAssignedFlorist = user && user.role === 'FLORIST' && project?.offer?.floristId === user.id;
   const isFlorist = user && user.role === 'FLORIST'; 
-  // ------------------------------------
-  
   const isPledger = user && (project?.pledges || []).some(p => p.userId === user.id);
   const isPlanner = user && user.id === project?.planner?.id;
-
-  const handleStatusChange = (newStatus) => {
-    setProject(prev => ({ 
-      ...prev, 
-      productionStatus: newStatus, 
-      status: newStatus 
-    }));
-  };
 
   const handleLikeToggle = async (reviewId) => {
     if (!user) return toast.error('ログインが必要です。');
@@ -755,32 +716,24 @@ export default function ProjectDetailClient() {
   const handleDeleteExpense = (eid) => { if(confirm('削除？')){ const token = getAuthToken(); fetch(`${API_URL}/api/expenses/${eid}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } }).then(()=>fetchProject()); }};
   const handleCopyMessages = () => { if(project.messages?.length){ const t = project.messages.map(m=>`${m.cardName}\n${m.content}`).join('\n---\n'); navigator.clipboard.writeText(t); toast.success('コピーしました'); }};
 
-  // ★★★ 修正: useIsMounted 重複削除 (上部の定義を使用) ★★★
   const isMounted = useIsMounted();
   
   if (loading) return <div className="text-center mt-10">読み込み中...</div>;
   if (!project) return <div className="text-center mt-10">企画が見つかりませんでした。</div>;
 
-  // ★★★ 修正: isMounted が true になるまでレンダリングをブロック ★★★
   if (!isMounted) {
       return <div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-sky-500"></div></div>;
   }
-  // -----------------------------------------------------
 
   const totalExpense = (project.expenses || []).reduce((sum, exp) => sum + exp.amount, 0);
   const balance = project.collectedAmount - totalExpense;
   const hasPostedMessage = project.messages?.some(m => m.userId === user?.id);
-  const activeIndex = currentProgressStep.order;
-
-  // ★★★ Wikiコンポーネントに渡す情報 ★★★
-  const venueId = project.venueId; 
-  const venueName = project.venue?.venueName;
 
   return (
     <>
       <div className="min-h-screen bg-gray-50 pb-20">
         
-        {/* ★★★ ProgressTracker ★★★ */}
+        {/* Progress Tracker (Sticky) */}
         {(isAssignedFlorist || project.status === 'SUCCESSFUL' || project.status === 'COMPLETED' || project.status === 'FUNDRAISING') && (
           <div className="bg-white border-b sticky top-0 z-30 shadow-sm">
             <div className="max-w-6xl mx-auto px-4 py-4">
@@ -796,7 +749,7 @@ export default function ProjectDetailClient() {
         <div className="max-w-6xl mx-auto p-4 sm:p-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 bg-white rounded-2xl shadow-xl overflow-hidden h-fit">
             
-            {/* メイン画像 */}
+            {/* Main Image */}
             {project.status !== 'COMPLETED' && project.imageUrl && (
               <div className="h-96 bg-gray-200 relative group cursor-pointer" onClick={() => { setModalImageSrc(project.imageUrl); setIsImageModalOpen(true); }}>
                 <Image 
@@ -809,7 +762,7 @@ export default function ProjectDetailClient() {
               </div>
             )}
 
-            {/* 完了報告 */}
+            {/* Completion Report Header */}
             {project.status === 'COMPLETED' && (
                 <div className="p-6 bg-orange-50 border-b border-orange-200">
                     <h2 className="text-2xl font-bold text-center text-orange-800 mb-4">🎉 企画完了 🎉</h2>
@@ -861,7 +814,7 @@ export default function ProjectDetailClient() {
                 </Link>
               </div>
 
-              {/* ★★★ タブナビゲーション ★★★ */}
+              {/* Tab Navigation */}
               <div className="border-b border-gray-200 mb-8">
                 <nav className="-mb-px flex space-x-8 overflow-x-auto">
                     <button 
@@ -885,20 +838,16 @@ export default function ProjectDetailClient() {
                 </nav>
               </div>
               
-              {/* =========================================== */}
-              {/* ★★★ タブコンテンツ: 1. 概要 (Overview) ★★★ */}
-              {/* =========================================== */}
+              {/* Tab: Overview */}
               {activeTab === 'overview' && (
                   <div className="space-y-8 animate-fadeIn">
                                 
-                      {/* 1. 公式レギュレーションカード */}
                       {project.venue && (
                           <div className="mt-8">
                               <VenueRegulationCard venue={project.venue} />
                           </div>
                       )}
                                 
-                      {/* 2. ★★★ 現場事例 Wiki 情報 ★★★ */}
                       {project.venueId && (
                           <div className="mt-8">
                               <VenueLogisticsWiki 
@@ -909,13 +858,11 @@ export default function ProjectDetailClient() {
                           </div>
                       )}
                       
-                      {/* 企画詳細 */}
                       <div className="mb-8">
                           <h2 className="text-2xl font-semibold text-gray-800 mb-2">詳細</h2>
                           <p className="text-gray-700 whitespace-pre-wrap">{project.description}</p>
                       </div>
 
-                      {/* デザイン詳細 */}
                       {(project.designDetails || project.size || project.flowerTypes) && (
                           <div className="border-t pt-6">
                               <h2 className="text-xl font-semibold text-gray-800 mb-2">デザインの希望</h2>
@@ -927,7 +874,6 @@ export default function ProjectDetailClient() {
                           </div>
                       )}
 
-                      {/* お知らせ */}
                       {(project.announcements?.length > 0 || isPlanner) && (
                           <div className="border-t pt-6">
                               <h2 className="text-xl font-semibold mb-4">お知らせ・活動報告</h2>
@@ -960,12 +906,10 @@ export default function ProjectDetailClient() {
               )}
 
 
-              {/* =================================================== */}
-              {/* ★★★ タブコンテンツ: 2. 共同作業・デザイン (Collaboration) ★★★ */}
+              {/* Tab: Collaboration */}
               {activeTab === 'collaboration' && (
                 <div className="space-y-8 animate-fadeIn">
 
-                    {/* AI要約結果 */}
                     {aiSummary && (
                         <div className="bg-yellow-50 p-6 rounded-xl border border-yellow-200">
                             <h2 className="text-xl font-bold text-yellow-800 mb-2 flex items-center">
@@ -977,7 +921,6 @@ export default function ProjectDetailClient() {
                         </div>
                     )}
 
-                    {/* ムードボード */}
                     {(isPlanner || isPledger || isFlorist) && (
                         <div className="border-t pt-6">
                             <h2 className="text-xl font-semibold text-gray-800 mb-4">ムードボード (アイデア共有)</h2>
@@ -986,7 +929,6 @@ export default function ProjectDetailClient() {
                         </div>
                     )}
 
-                    {/* グループチャット */}
                     {(isPlanner || isPledger || isFlorist) && (
                         <div className="border-t pt-6">
                             <GroupChat 
@@ -1001,7 +943,6 @@ export default function ProjectDetailClient() {
                         </div>
                     )}
 
-                    {/* ToDo */}
                     {isPlanner && (
                         <div className="border-t pt-6">
                             <h2 className="text-xl font-semibold mb-4">タスク管理</h2>
@@ -1025,7 +966,6 @@ export default function ProjectDetailClient() {
                         </div>
                     )}
 
-                    {/* AR/パネル管理 */}
                     <div className="border-t pt-6">
                         <h2 className="text-xl font-semibold text-gray-800 mb-4">確認・ツール</h2>
                         <div className="space-y-4">
@@ -1049,7 +989,6 @@ export default function ProjectDetailClient() {
                                 </div>
                             )}
 
-                             {/* 前日写真エリア */}
                             {((isPlanner || isFlorist) || project.productionStatus === 'PRE_COMPLETION') && (
                                 <div className="bg-white p-4 rounded-xl shadow-sm border border-indigo-100">
                                     <h3 className="font-bold text-gray-700 mb-3">仕上がり確認 (前日写真)</h3>
@@ -1087,12 +1026,10 @@ export default function ProjectDetailClient() {
               )}
 
 
-              {/* =================================================== */}
-              {/* ★★★ タブコンテンツ: 3. 収支・報告 (Finance) ★★★ */}
+              {/* Tab: Finance */}
               {activeTab === 'finance' && (
                 <div className="space-y-8 animate-fadeIn">
                     
-                    {/* 収支報告サマリー */}
                     <div className="border-b pb-6">
                         <div className="flex justify-between items-center mb-4">
                             <h2 className="text-xl font-semibold">収支報告</h2>
@@ -1110,7 +1047,6 @@ export default function ProjectDetailClient() {
                         </div>
                     </div>
 
-                    {/* 支出詳細 */}
                     <div className="border-b pb-6">
                         <h3 className="text-lg font-semibold mb-3">支出詳細</h3>
                         {isPlanner && (
@@ -1130,7 +1066,6 @@ export default function ProjectDetailClient() {
                         </div>
                     </div>
 
-                    {/* 支援者メッセージ */}
                     <div className="border-b pb-6">
                         <h2 className="text-xl font-semibold mb-4">支援者メッセージ ({project.messages?.length || 0})</h2>
                         {isPlanner && project.messages?.length > 0 && <button onClick={handleCopyMessages} className="text-blue-500 text-sm mb-2">すべてコピー</button>}
@@ -1145,7 +1080,6 @@ export default function ProjectDetailClient() {
                         </div>
                     </div>
 
-                    {/* 完了報告 (アクションボタン) */}
                     <div className="border-t pt-6">
                         <h3 className="text-lg font-semibold mb-3">完了報告</h3>
                         {project.status === 'COMPLETED' ? (
@@ -1166,7 +1100,7 @@ export default function ProjectDetailClient() {
 
             </div>
 
-          {/* 右カラム (サイドバー) */}
+          {/* Right Sidebar */}
           <div className="lg:col-span-1 space-y-6">
              <div className="bg-white rounded-2xl shadow-xl p-6 sticky top-24">
                 {user ? (
@@ -1198,7 +1132,6 @@ export default function ProjectDetailClient() {
                     </div>
                 )}
                 
-                {/* 企画管理メニュー (企画者) */}
                 {isPlanner && (
                     <div className="mt-6 border-t pt-4">
                         <h3 className="font-bold text-gray-700 mb-2">企画者メニュー</h3>
@@ -1210,7 +1143,6 @@ export default function ProjectDetailClient() {
                     </div>
                 )}
 
-                {/* 4. 花屋専用メニュー (指示書作成など) */}
                 {isAssignedFlorist && (
                     <div className="mt-6 bg-indigo-50 p-4 rounded-lg border border-indigo-200">
                         <span className="text-xs font-bold bg-indigo-600 text-white px-2 py-1 rounded">お花屋さん専用</span>
@@ -1239,14 +1171,14 @@ export default function ProjectDetailClient() {
           </div>
         </div>
       
-      {/* モーダル群 */}
+      {/* Modals */}
       {isImageModalOpen && <ImageModal src={modalImageSrc} onClose={() => setIsImageModalOpen(false)} />}
       {isReportModalOpen && <ReportModal projectId={id} user={user} onClose={() => setReportModalOpen(false)} />}
       {isCompletionModalOpen && <CompletionReportModal project={project} user={user} onClose={() => setIsCompletionModalOpen(false)} onReportSubmitted={fetchProject} />}
       {isTargetAmountModalOpen && <TargetAmountModal project={project} user={user} onClose={() => setIsTargetAmountModalOpen(false)} onUpdate={fetchProject} />}
       {isInstructionModalOpen && <InstructionSheetModal projectId={id} onClose={() => setIsInstructionModalOpen(false)} />}
       
-      {/* ★★★ ARモーダル (画像アップロード機能付き) ★★★ */}
+      {/* AR Modal */}
       {isArModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-80 flex justify-center items-center z-50 p-4 backdrop-blur-sm">
           <div className="bg-white rounded-2xl w-full max-w-2xl overflow-hidden relative shadow-2xl flex flex-col max-h-[90vh]">
@@ -1262,10 +1194,8 @@ export default function ProjectDetailClient() {
 
             <div className="p-6 overflow-y-auto">
               {!arSrc ? (
-                  /* 生成前：フォーム表示 */
                   <div className="space-y-6">
                       
-                      {/* ★★★ 支援者向け: 完成写真の選択機能 ★★★ */}
                       {project.status === 'COMPLETED' && (isPledger || isPlanner || isFlorist) && project.completionImageUrls?.length > 0 && (
                           <div className="bg-green-50 border border-green-200 p-4 rounded-lg">
                             <h4 className="font-bold text-green-800 mb-2 flex items-center">
@@ -1341,7 +1271,6 @@ export default function ProjectDetailClient() {
                       </button>
                   </div>
               ) : (
-                  /* 生成後：ARビューワー表示 */
                   <div className="flex flex-col items-center">
                       <p className="text-sm text-center text-gray-600 mb-4">
                         スマホのカメラをかざすと、<br/>高さ <strong>{arHeight}cm</strong> のパネルが表示されます。
@@ -1365,12 +1294,11 @@ export default function ProjectDetailClient() {
         </div>
       )}
       
-      {/* ★ 3. ゲスト支援モーダル */}
+      {/* Guest Pledge Modal */}
       {showGuestPledgeModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-fadeIn">
           <div className="bg-white rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl relative">
             
-            {/* モーダルヘッダー */}
             <div className="p-4 border-b flex justify-between items-center bg-gray-50">
               <h3 className="font-bold text-lg text-gray-800">ゲスト支援</h3>
               <button onClick={() => setShowGuestPledgeModal(false)} className="text-gray-400 hover:text-gray-600 w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-200 transition-colors">
@@ -1378,7 +1306,6 @@ export default function ProjectDetailClient() {
               </button>
             </div>
             
-            {/* モーダルコンテンツ (スクロール可能) */}
             <div className="p-6 max-h-[80vh] overflow-y-auto">
               <GuestPledgeForm 
                 projectId={project.id}
@@ -1386,7 +1313,7 @@ export default function ProjectDetailClient() {
                 onCancel={() => setShowGuestPledgeModal(false)}
                 onSuccess={() => {
                   setShowGuestPledgeModal(false);
-                  fetchProject(); // 支援完了後にデータを再取得して表示を更新
+                  fetchProject();
                 }}
               />
             </div>
@@ -1394,7 +1321,7 @@ export default function ProjectDetailClient() {
         </div>
       )}
 
-      {/* ★★★ スクロール追従プログレスバー ★★★ */}
+      {/* Scroll Indicator */}
       <FlowerScrollIndicator 
           collected={project.collectedAmount} 
           target={project.targetAmount} 
