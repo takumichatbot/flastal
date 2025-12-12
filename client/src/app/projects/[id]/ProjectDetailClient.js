@@ -1236,7 +1236,6 @@ export default function ProjectDetailClient() {
             </div>
           </div>
         </div>
-      </div>
       
       {/* モーダル群 */}
       {isImageModalOpen && <ImageModal src={modalImageSrc} onClose={() => setIsImageModalOpen(false)} />}
