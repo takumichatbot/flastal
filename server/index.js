@@ -79,12 +79,13 @@ const io = new Server(httpServer, {
   transports: ['polling'] // ★追加
 });
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({
     datasources: {
         db: {
             url: process.env.DATABASE_URL,
         },
     },
+});
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const resend = new Resend(process.env.RESEND_API_KEY);
 const openai = new OpenAI({
