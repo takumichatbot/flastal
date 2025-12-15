@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '../contexts/AuthContext';
-import { FiMessageSquare, FiAlertTriangle, FiRefreshCw, FiDollarSign, FiAward, FiMapPin, FiCalendar } from 'react-icons/fi'; // 新しいアイコンを追加
+import { FiMessageSquare, FiAlertTriangle, FiRefreshCw, FiDollarSign, FiAward, FiMapPin, FiCalendar, FiClock } from 'react-icons/fi';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
