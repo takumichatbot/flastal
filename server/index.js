@@ -410,10 +410,6 @@ app.post('/api/users/login', async (req, res) => {
         "hana87kaori@gmail.com"  // ★★★ ここに2つ目のメールアドレスを入力 ★★★
     ];
     
-    if (user.email === ADMIN_EMAIL) {
-        userRole = 'ADMIN';
-        console.log(`[ADMIN DEBUG] User ${user.email} forcefully assigned ADMIN role.`);
-    }
     // ★★★ ------------------------------------ ★★★
 
     // ★ トークンに iconUrl を含める
