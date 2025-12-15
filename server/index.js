@@ -3810,7 +3810,7 @@ app.get('/api/projects/:projectId/instruction-sheet', authenticateToken, async (
 
 
 // ★ OpenAI設定 (APIキーがない場合はダミーモードになります)
-const openai = new OpenAI({
+openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || 'dummy-key', 
 });
 
