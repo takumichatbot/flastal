@@ -387,7 +387,6 @@ app.post('/api/users/register', async (req, res) => {
     res.status(500).json({ message: 'サーバーエラーが発生しました。' });
   }
 });
-
 app.post('/api/users/login', async (req, res) => {
   try {
     const { email, password } = req.body
@@ -404,12 +403,17 @@ app.post('/api/users/login', async (req, res) => {
     
     // ★★★ 【一時的な管理者昇格デバッグロジック】 ★★★
     let userRole = user.role;
-    // ★★★ ここにあなたのメールアドレスを入力し、管理者設定が完了したら必ず削除/コメントアウトしてください ★★★
+    
     const ADMIN_EMAILS = [
         "takuminsitou946@gmail.com", // ★★★ ここに1つ目のメールアドレスを入力 ★★★
         "hana87kaori@gmail.com"  // ★★★ ここに2つ目のメールアドレスを入力 ★★★
     ];
     
+    // ★★★ 修正箇所: 判定ロジックをここに追加 ★★★
+    if (ADMIN_EMAILS.includes(user.email)) {
+        userRole = 'ADMIN';
+        console.log(`[ADMIN DEBUG] User ${user.email} forcefully assigned ADMIN role.`);
+    }
     // ★★★ ------------------------------------ ★★★
 
     // ★ トークンに iconUrl を含める
@@ -417,8 +421,8 @@ app.post('/api/users/login', async (req, res) => {
       id: user.id,
       email: user.email,
       handleName: user.handleName,
-      role: userRole, // ★ 強制的に上書きしたロールを使用
-      iconUrl: user.iconUrl, // ★ この行を追加
+      role: userRole, // ★ 昇格したロールを使用
+      iconUrl: user.iconUrl, 
       referralCode: user.referralCode,
       sub: user.id
     };
@@ -438,7 +442,6 @@ app.post('/api/users/login', async (req, res) => {
     res.status(500).json({ message: 'サーバーエラーが発生しました。' })
   }
 });
-
 app.get('/api/users/:userId/created-projects', async (req, res) => {
   const { userId } = req.params;
   try {
