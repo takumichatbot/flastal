@@ -2,8 +2,8 @@
 // learn more about it in the docs: https://pris.lyd/prisma-schema
 
 generator client {
-  provider = "prisma-client-js"
-  output = "../../node_modules/.prisma/client" 
+  provider = "prisma-client-js"
+  output = "../../node_modules/.prisma/client" 
 }
 
 datasource db {
@@ -14,9 +14,9 @@ datasource db {
 // --- Enums ---
 
 enum ApprovalStatus {
-  PENDING   // 承認待ち
-  APPROVED  // 承認済み
-  REJECTED  // 却下
+  PENDING   // 承認待ち
+  APPROVED  // 承認済み
+  REJECTED  // 却下
 }
 
 enum ProductionStatus {
@@ -110,6 +110,17 @@ enum ReportStatus {
 
 // --- Models ---
 
+// ★★★ 新規追加: システム全体の設定を格納するモデル ★★★
+model SystemSettings {
+  id                   String            @id @default(cuid())
+  // 顧客全体に適用される基本手数料率 (例: 0.10 は 10%)
+  platformFeeRate      Float            @default(0.10) 
+  // メールテンプレート: アカウント承認
+  approvalEmailSubject String           @default("[FLASTAL] アカウント承認のお知らせ")
+  approvalEmailBody    String           @db.Text @default("この度はご登録ありがとうございます。審査が完了し、アカウントが承認されました。今すぐログインしてサービスをご利用いただけます。")
+}
+// ★★★ ----------------------------------------- ★★★
+
 model Notification {
   id          String           @id @default(cuid())
   recipientId String
@@ -130,7 +141,7 @@ model User {
   email                String             @unique
   handleName           String
   password             String
-  floristPostLikes FloristPostLike[]
+  floristPostLikes FloristPostLike[]
   points               Int                @default(0)
   reviewLikes          ReviewLike[]
   role                 UserRole           @default(USER)
@@ -147,7 +158,7 @@ model User {
   twitterUrl           String?
   instagramUrl         String?
   isProfilePublic      Boolean            @default(true)
-  totalPledgedAmount Int?      @default(0) // 総支援額を格納 (Intにすると桁数オーバーの可能性もあるため、BigIntも検討可)
+  totalPledgedAmount Int?    @default(0) // 総支援額を格納 (Intにすると桁数オーバーの可能性もあるため、BigIntも検討可)
   supportLevel       String?   // 現在のレベル名 (例: Bronze, Gold)
   badgeIds           String[]  // 獲得したバッジIDの配列 (現状はバッジマスタがないため、String[]で対応)
 
@@ -201,7 +212,7 @@ model Project {
   designImageUrls         String[]
   venue                   Venue?            @relation(fields: [venueId], references: [id])
   productionStatus        ProductionStatus  @default(NOT_STARTED)
-  progressHistory   Json[]   @default([])
+  progressHistory   Json[]   @default([])
   illustrationPanelUrls String[]
   messagePanelUrls      String[]
   sponsorPanelUrls      String[]
@@ -279,7 +290,12 @@ model Florist {
   shopName          String
   platformName      String        @unique
   status            FloristStatus @default(PENDING)
-  posts FloristPost[]
+  
+  // ★★★ 追加: 個別手数料率 (設定されない場合は SystemSettings.platformFeeRate が適用される) ★★★
+  customFeeRate     Float? 
+  // ★★★ ---------------------------------------------------------------------- ★★★
+  
+  posts FloristPost[]
   offers           Offer[]
   reviews          Review[]
   payoutRequests   PayoutRequest[]
@@ -337,7 +353,7 @@ model Venue {
   email      String  @unique
   password   String
   isOfficial Boolean @default(false)
-  status           ApprovalStatus   @default(PENDING)
+  status           ApprovalStatus   @default(PENDING)
   isStandAllowed    Boolean? @default(true)
   standRegulation   String?
   isBowlAllowed     Boolean? @default(true)
@@ -560,7 +576,7 @@ model Organizer {
   events    Event[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  status           ApprovalStatus   @default(PENDING)
+  status           ApprovalStatus   @default(PENDING)
 }
 
 model Post {
@@ -689,33 +705,33 @@ model ProjectPost {
 // -----------------------------------------------------
 
 model FloristPost {
-  id          String   @id @default(cuid())
-  floristId   String   // どの花屋の投稿か
-  florist     Florist  @relation(fields: [floristId], references: [id])
-  
-  imageUrl    String   // 画像URL (必須)
-  content     String?  @db.Text // 投稿コメント
-  isPublic    Boolean  @default(false) // 公開/非公開フラグ
-  createdAt   DateTime @default(now())
+  id          String   @id @default(cuid())
+  floristId   String   // どの花屋の投稿か
+  florist     Florist  @relation(fields: [floristId], references: [id])
+  
+  imageUrl    String   // 画像URL (必須)
+  content     String?  @db.Text // 投稿コメント
+  isPublic    Boolean  @default(false) // 公開/非公開フラグ
+  createdAt   DateTime @default(now())
 
-  // いいね機能
-  likes       FloristPostLike[]
-  
-  // 複合インデックスでパフォーマンス向上
-  @@index([floristId, isPublic])
+  // いいね機能
+  likes       FloristPostLike[]
+  
+  // 複合インデックスでパフォーマンス向上
+  @@index([floristId, isPublic])
 }
 
 model FloristPostLike {
-  id          String   @id @default(cuid())
-  floristPostId String
-  floristPost FloristPost @relation(fields: [floristPostId], references: [id])
-  
-  userId      String   // いいねしたユーザー
-  user        User     @relation(fields: [userId], references: [id])
-  
-  createdAt   DateTime @default(now())
+  id          String   @id @default(cuid())
+  floristPostId String
+  floristPost FloristPost @relation(fields: [floristPostId], references: [id])
+  
+  userId      String   // いいねしたユーザー
+  user        User     @relation(fields: [userId], references: [id])
+  
+  createdAt   DateTime @default(now())
 
-  // 1人のユーザーは1つの投稿に1回しかいいねできない
-  @@unique([floristPostId, userId])
+  // 1人のユーザーは1つの投稿に1回しかいいねできない
+  @@unique([floristPostId, userId])
 }
 // -----------------------------------------------------

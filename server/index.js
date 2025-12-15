@@ -1283,7 +1283,7 @@ app.post('/api/quotations', authenticateToken, async (req, res) => { // ★ auth
   }
 });
 
-app.patch('/api/quotations/:id/approve', authenticateToken, async (req, res) => { // ★ authenticateToken を追加
+app.patch('/api/quotations/:id/approve', authenticateToken, async (req, res) => {
   const { id } = req.params;
   const userId = req.user.id; // トークンから userId を取得
 
@@ -1294,19 +1294,39 @@ app.patch('/api/quotations/:id/approve', authenticateToken, async (req, res) => 
       if (quotation.project.plannerId !== userId) throw new Error('権限がありません。');
       if (quotation.isApproved) throw new Error('この見積書は既に承認済みです。');
       
-      // プロジェクト情報を再取得して必要な情報（collectedAmountなど）を取得
+      // 1. プロジェクト、オファー、花屋、システム設定を取得
       const project = await tx.project.findUnique({ where: { id: quotation.projectId } });
       const totalAmount = quotation.totalAmount;
       if (project.collectedAmount < totalAmount) {
         throw new Error('集まったポイントが見積もり金額に足りません。');
       }
-      const offer = await tx.offer.findUnique({ where: { projectId: project.id } });
-      if (!offer || !offer.floristId) throw new Error('担当のお花屋さんが見つかりません。');
+      const offer = await tx.offer.findUnique({ 
+          where: { projectId: project.id }, 
+          include: { 
+              florist: { // ★★★ ここに select を加えて customFeeRate を確実に取得 ★★★
+                  select: { id: true, customFeeRate: true } 
+              } 
+          }
+      });
+      if (!offer || !offer.floristId || !offer.florist) throw new Error('担当のお花屋さんが見つかりません。');
       
-      const commissionAmount = totalAmount - Math.floor(totalAmount * 0.80);
-      const netPayout = totalAmount - commissionAmount;
+      // ★★★ 2. 手数料率の決定ロジック (ここが修正の核です) ★★★
+      const systemSettings = await tx.systemSettings.findFirst() || { platformFeeRate: 0.10 }; // システム設定取得
+      const platformFeeRate = systemSettings.platformFeeRate || 0.10; // 全体手数料率 (デフォルト 10%)
+
+      // 花屋の個別設定をチェック。設定がなければ全体設定を適用。
+      const finalFeeRate = (
+          offer.florist.customFeeRate !== null && offer.florist.customFeeRate !== undefined 
+          ? offer.florist.customFeeRate 
+          : platformFeeRate
+      );
       
-      // 売上残高の更新とコミッションの作成
+      // 手数料と純売上を計算
+      const commissionAmount = Math.floor(totalAmount * finalFeeRate); // 手数料
+      const netPayout = totalAmount - commissionAmount; // 花屋への純売上
+      // ★★★ ----------------------------------------- ★★★
+      
+      // 3. 売上残高の更新とコミッションの作成
       await tx.florist.update({
         where: { id: offer.floristId },
         data: { balance: { increment: netPayout } },
@@ -1315,21 +1335,21 @@ app.patch('/api/quotations/:id/approve', authenticateToken, async (req, res) => 
         data: { amount: commissionAmount, projectId: project.id }
       });
       
-      // 見積もりステータスの更新
+      // 4. 見積もりステータスの更新
       const approvedQuotation = await tx.quotation.update({
         where: { id },
         data: { isApproved: true },
       });
       
-      // ↓↓↓ 【通知追加】お花屋さんに通知 ↓↓↓
+      // ↓↓↓ 通知とメール送信 (既存ロジック) ↓↓↓
       await createNotification(
         offer.floristId,
         'QUOTATION_APPROVED',
-        `企画「${project.title}」の見積もりが承認されました。制作を開始してください。`,
+        `企画「${project.title}」の見積もりが承認されました。純利益: ${netPayout.toLocaleString()} pt`,
         project.id,
-        `/florists/offers/${offer.id}` // お花屋さんダッシュボードのオファー詳細ページへ
+        `/florists/offers/${offer.id}`
       );
-      // ↑↑↑ 通知追加 ↑↑↑
+      // ↑↑↑ 通知とメール送信 (既存ロジック) ↑↑↑
 
       return approvedQuotation;
     });
@@ -3407,6 +3427,29 @@ app.get('/api/admin/florists/pending', requireAdmin, async (req, res) => {
   } catch (error) {
     res.status(500).json({ message: '審査待ちリストの取得に失敗しました。' });
   }
+});
+
+// ★★★【管理者用】全花屋リストの取得API (個別手数料を含む) ★★★
+app.get('/api/admin/florists/all', requireAdmin, async (req, res) => {
+    try {
+        const florists = await prisma.florist.findMany({
+            select: {
+                id: true,
+                email: true,
+                platformName: true, // UI表示用
+                customFeeRate: true, // 個別手数料
+                status: true, // 承認ステータス
+                // 必要に応じて他のフィールドを追加
+            },
+            orderBy: {
+                createdAt: 'asc',
+            }
+        });
+        res.status(200).json(florists);
+    } catch (error) {
+        console.error("Error fetching all florists for admin:", error);
+        res.status(500).json({ message: '花屋リストの取得に失敗しました。' });
+    }
 });
 
 // ★★★【管理者用】花屋さんの登録を承認/拒否するAPI ★★★
@@ -5498,6 +5541,73 @@ app.patch('/api/admin/organizers/:organizerId/status', requireAdmin, async (req,
     } catch (error) {
         console.error("主催者審査更新エラー:", error);
         res.status(500).json({ message: 'ステータスの更新に失敗しました。' });
+    }
+});
+
+// ★★★【管理者用】システム設定（手数料・メール）の取得・更新API ★★★
+app.get('/api/admin/settings', requireAdmin, async (req, res) => {
+    try {
+        const settings = await prisma.systemSettings.findFirst() || await prisma.systemSettings.create({ data: {} });
+        res.status(200).json(settings);
+    } catch (error) {
+        res.status(500).json({ message: '設定の取得に失敗しました。' });
+    }
+});
+
+app.patch('/api/admin/settings', requireAdmin, async (req, res) => {
+    const { platformFeeRate, approvalEmailSubject, approvalEmailBody } = req.body;
+    try {
+        const updatedSettings = await prisma.systemSettings.updateMany({
+            data: { 
+                platformFeeRate: platformFeeRate !== undefined ? parseFloat(platformFeeRate) : undefined,
+                approvalEmailSubject,
+                approvalEmailBody,
+            },
+        });
+        // 更新後の設定を返す
+        const settings = await prisma.systemSettings.findFirst();
+        res.status(200).json(settings);
+    } catch (error) {
+        res.status(500).json({ message: '設定の更新に失敗しました。' });
+    }
+});
+
+// ★★★【管理者用】花屋の個別手数料設定API ★★★
+// 個別設定を取得
+app.get('/api/admin/florists/:floristId/fee', requireAdmin, async (req, res) => {
+    const { floristId } = req.params;
+    try {
+        const florist = await prisma.florist.findUnique({
+            where: { id: floristId },
+            select: { id: true, platformName: true, customFeeRate: true }
+        });
+        if (!florist) return res.status(404).json({ message: '花屋が見つかりません。' });
+        res.status(200).json(florist);
+    } catch (error) {
+        res.status(500).json({ message: '設定の取得に失敗しました。' });
+    }
+});
+
+// 個別設定を更新（customFeeRate: null で全体設定に戻る）
+app.patch('/api/admin/florists/:floristId/fee', requireAdmin, async (req, res) => {
+    const { floristId } = req.params;
+    const { customFeeRate } = req.body;
+    
+    // null または有効な数値であること
+    const rate = customFeeRate === null ? null : (customFeeRate !== undefined ? parseFloat(customFeeRate) : undefined);
+    if (rate !== null && (isNaN(rate) || rate < 0 || rate >= 1)) {
+         return res.status(400).json({ message: '手数料率は0から1の間の有効な数値またはnullである必要があります。' });
+    }
+
+    try {
+        const updatedFlorist = await prisma.florist.update({
+            where: { id: floristId },
+            data: { customFeeRate: rate },
+            select: { id: true, platformName: true, customFeeRate: true }
+        });
+        res.status(200).json(updatedFlorist);
+    } catch (error) {
+        res.status(500).json({ message: '個別手数料率の更新に失敗しました。' });
     }
 });
 // ===================================

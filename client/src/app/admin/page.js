@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '../contexts/AuthContext';
-import { FiMessageSquare, FiAlertTriangle, FiRefreshCw, FiDollarSign, FiAward, FiMapPin, FiCalendar, FiClock } from 'react-icons/fi';
+import { FiMessageSquare, FiAlertTriangle, FiRefreshCw, FiDollarSign, FiAward, FiMapPin, FiCalendar, FiClock, FiSettings, FiEdit } from 'react-icons/fi'; // FiSettings, FiEdit を追加
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -146,9 +146,8 @@ export default function AdminPage() {
           >
             ダッシュボード
           </Link>
-          {/* ★★★ ナビゲーションを審査ページに統一 ★★★ */}
           <Link 
-            href="/admin/approval" // ★ 共通の審査ページにリンク
+            href="/admin/approval" 
             className={`px-4 py-2 text-sm font-semibold text-white rounded-lg shadow transition-colors flex items-center ${totalPendingAccounts > 0 ? 'bg-orange-600 hover:bg-orange-700' : 'bg-slate-500 hover:bg-slate-600'}`}
           >
             <FiClock className="mr-1"/> アカウント審査 
@@ -169,6 +168,23 @@ export default function AdminPage() {
           >
             プロジェクト審査
           </Link>
+          
+          {/* ★★★ 新規追加: システム設定 ★★★ */}
+          <Link 
+            href="/admin/settings"
+            className="px-4 py-2 text-sm font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors shadow-sm flex items-center"
+          >
+            <FiSettings className="mr-1"/> システム設定 (手数料/メール)
+          </Link>
+          
+          {/* ★★★ 新規追加: 花屋個別手数料管理 ★★★ */}
+          <Link 
+            href="/admin/florists"
+            className="px-4 py-2 text-sm font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors shadow-sm flex items-center"
+          >
+            <FiEdit className="mr-1"/> 花屋個別手数料
+          </Link>
+          
           <Link 
             href="/admin/venues"
             className="px-4 py-2 text-sm font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors shadow-sm flex items-center"
@@ -297,6 +313,25 @@ export default function AdminPage() {
                                 <p className="text-xs text-slate-500">お花屋さんへの出金処理</p>
                             </div>
                          </Link>
+                         
+                         {/* ★★★ 新規追加: システム設定 (手数料/メール) ★★★ */}
+                         <Link href="/admin/settings" className="flex items-center p-3 rounded-lg bg-sky-50 hover:bg-sky-100 transition-colors">
+                            <span className="text-2xl mr-3">⚙️</span>
+                            <div>
+                                <h4 className="font-semibold text-slate-700 text-sm">システム設定</h4>
+                                <p className="text-xs text-slate-500">全体手数料・メールテンプレート</p>
+                            </div>
+                         </Link>
+
+                         {/* ★★★ 新規追加: 花屋個別手数料管理 ★★★ */}
+                         <Link href="/admin/florists" className="flex items-center p-3 rounded-lg bg-sky-50 hover:bg-sky-100 transition-colors">
+                            <span className="text-2xl mr-3">🌸</span>
+                            <div>
+                                <h4 className="font-semibold text-slate-700 text-sm">花屋個別手数料</h4>
+                                <p className="text-xs text-slate-500">個別手数料率の調整</p>
+                            </div>
+                         </Link>
+                         
                          <Link href="/admin/venues" className="flex items-center p-3 rounded-lg bg-slate-50 hover:bg-slate-100 transition-colors">
                             <span className="text-2xl mr-3">🏢</span>
                             <div>

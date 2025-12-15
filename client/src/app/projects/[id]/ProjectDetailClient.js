@@ -72,40 +72,105 @@ const useIsMounted = () => {
 // Sub Components
 // ===========================================
 
-function InstructionSheetModal({ projectId, onClose }) {
-  const [text, setText] = useState('');
-  const [loading, setLoading] = useState(true);
+function InstructionSheetModal({ project, onClose }) {
+  // text の取得APIは不要になるため、コメントアウトまたは削除します。
+  // const [text, setText] = useState(''); 
+  const [loading, setLoading] = useState(false); // ★ APIコールをしないため、falseに設定
+  
+  // プロジェクトから最大3枚の画像を取得
+  // プロジェクトの画像URLフィールドに応じて調整してください
+  const images = [
+    project.designImageUrls?.[0] || project.imageUrl, 
+    project.designImageUrls?.[1], 
+    project.designImageUrls?.[2]
+  ].filter(url => url); 
+    
+  // 指示書の本文コンテンツを生成
+  const generateContentHTML = () => {
+    // 既存のテキスト指示書の内容をHTML構造にマッピングします。
+    // (ここではProjectDetailClient.js内で利用可能な project の情報に基づいてコンテンツを作成します)
+    
+    // バックエンドから取得していた指示書の内容をここで直接生成すると仮定
+    const instructionText = `
+      <h1>【FLASTAL 制作指示書】</h1>
+      <h2>企画名: ${project.title}</h2>
+      <p><strong>企画者:</strong> ${project.planner?.handleName}</p>
+      <p><strong>納品日時:</strong> ${new Date(project.deliveryDate).toLocaleString()}</p>
+      <p><strong>会場:</strong> ${project.venue?.venueName || '未定'} / ${project.venue?.address || '未定'}</p>
+      <hr/>
+      <h3>デザイン詳細:</h3>
+      <p>${project.designDetails || 'なし'}</p>
+      <p><strong>希望サイズ:</strong> ${project.size || '不明'}</p>
+      <p><strong>花材・色:</strong> ${project.flowerTypes || '不明'}</p>
+      <hr/>
+      <h3>会場レギュレーション（重要）:</h3>
+      <pre>${project.venue?.regulations || 'レギュレーション情報なし'}</pre>
+    `;
 
-  useEffect(() => {
-    const fetchSheet = async () => {
-      const token = getAuthToken();
-      if (!token) return;
-      try {
-        const res = await fetch(`${API_URL}/api/projects/${projectId}/instruction-sheet`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setText(data.text);
-        } else {
-          toast.error('指示書の生成に失敗しました');
-        }
-      } catch (e) {
-        console.error(e);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchSheet();
-  }, [projectId]);
+    // 画像表示HTMLの生成
+    const imageHtml = images.length > 0 ? `
+        <div style="margin-bottom: 20px; page-break-before: auto;">
+            <h3 style="border-bottom: 1px solid #ccc; padding-bottom: 5px;">デザイン参考画像</h3>
+            
+            <div style="margin-bottom: 15px; border: 1px solid #ccc; padding: 5px;">
+                <img 
+                    src="${images[0]}" 
+                    alt="メインデザイン" 
+                    style="width: 100%; max-height: 500px; object-fit: contain; display: block;"
+                />
+                <p style="text-align: center; font-size: 12px; margin-top: 5px;">[画像 1/3 - メイン参考]</p>
+            </div>
+            
+            ${images[1] || images[2] ? `
+                <div style="display: flex; gap: 10px;">
+                    ${images[1] ? `
+                        <div style="flex: 1; border: 1px solid #ccc; padding: 5px;">
+                            <img 
+                                src="${images[1]}" 
+                                alt="サブ画像 2" 
+                                style="width: 100%; height: 150px; object-fit: cover; display: block;"
+                            />
+                            <p style="text-align: center; font-size: 12px; margin-top: 5px;">[画像 2/3]</p>
+                        </div>
+                    ` : ''}
+                    ${images[2] ? `
+                        <div style="flex: 1; border: 1px solid #ccc; padding: 5px;">
+                            <img 
+                                src="${images[2]}" 
+                                alt="サブ画像 3" 
+                                style="width: 100%; height: 150px; object-fit: cover; display: block;"
+                            />
+                            <p style="text-align: center; font-size: 12px; margin-top: 5px;">[画像 3/3]</p>
+                        </div>
+                    ` : ''}
+                </div>
+            ` : ''}
+        </div>
+    ` : '';
+    
+    return imageHtml + instructionText;
+  };
+  
+  const contentHtml = generateContentHTML();
 
   const handlePrint = () => {
     const printWindow = window.open('', '_blank');
     printWindow.document.write(`
       <html>
-        <head><title>制作指示書</title></head>
-        <body style="font-family: monospace; font-size: 16px; padding: 20px;">
-          <pre style="white-space: pre-wrap;">${text}</pre>
+        <head>
+          <title>制作指示書: ${project.title}</title>
+          <style>
+            body { font-family: 'Hiragino Kaku Gothic Pro', 'Meiryo', sans-serif; font-size: 14px; padding: 20px; color: #333; }
+            h1 { font-size: 24px; color: #E91E63; border-bottom: 2px solid #E91E63; padding-bottom: 5px; }
+            h2 { font-size: 18px; margin-top: 20px; color: #555; }
+            h3 { font-size: 16px; margin-top: 15px; color: #333; }
+            hr { margin: 20px 0; border: none; border-top: 1px dashed #ccc; }
+            pre { background: #f4f4f4; padding: 10px; border: 1px solid #ddd; white-space: pre-wrap; }
+            img { max-width: 100%; height: auto; display: block; }
+          </style>
+        </head>
+        <body>
+          ${contentHtml}
           <script>window.print();</script>
         </body>
       </html>
@@ -114,31 +179,32 @@ function InstructionSheetModal({ projectId, onClose }) {
   };
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(text);
-    toast.success('クリップボードにコピーしました');
+    // 画像URLやHTMLタグを除いた純粋なテキストをコピー
+    const textToCopy = `制作指示書 - ${project.title}\n\n企画者: ${project.planner?.handleName}\n納品日時: ${new Date(project.deliveryDate).toLocaleString()}\n会場: ${project.venue?.venueName || '未定'}\n\nデザイン詳細:\n${project.designDetails || 'なし'}\n希望サイズ: ${project.size || '不明'}\n花材・色: ${project.flowerTypes || '不明'}\n\n会場レギュレーション:\n${project.venue?.regulations || 'レギュレーション情報なし'}\n\n画像URL:\n${images.join('\n')}`;
+    navigator.clipboard.writeText(textToCopy);
+    toast.success('指示書のテキストをクリップボードにコピーしました');
   };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-lg p-6 flex flex-col max-h-[90vh]">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl p-6 flex flex-col max-h-[90vh]">
         <h3 className="text-lg font-bold mb-4 flex items-center text-gray-800">
-          <FiFileText className="mr-2"/> 制作指示書 (自動生成)
+          <FiFileText className="mr-2"/> 制作指示書プレビュー
         </h3>
-        {loading ? (
-          <div className="flex-grow flex items-center justify-center p-10">読み込み中...</div>
-        ) : (
-          <textarea 
-            readOnly 
-            className="flex-grow p-4 border rounded bg-gray-50 font-mono text-sm resize-none mb-4 focus:outline-none" 
-            value={text}
-            style={{ minHeight: '300px' }}
-          />
-        )}
+        
+        <div className="flex-grow p-4 border rounded bg-gray-50 text-sm mb-4 overflow-y-auto">
+          {loading ? (
+            <div className="flex-grow flex items-center justify-center p-10">読み込み中...</div>
+          ) : (
+             <div dangerouslySetInnerHTML={{ __html: contentHtml }} />
+          )}
+        </div>
+        
         <div className="mt-auto flex justify-end gap-3 pt-4 border-t">
           <button onClick={onClose} className="px-4 py-2 bg-gray-200 rounded text-gray-700 hover:bg-gray-300">閉じる</button>
-          <button onClick={handleCopy} className="px-4 py-2 bg-indigo-500 text-white rounded hover:bg-indigo-600">コピー</button>
+          <button onClick={handleCopy} className="px-4 py-2 bg-indigo-500 text-white rounded hover:bg-indigo-600">テキストコピー</button>
           <button onClick={handlePrint} className="px-4 py-2 bg-blue-600 text-white rounded flex items-center hover:bg-blue-700">
-            <FiPrinter className="mr-2"/> A4印刷
+            <FiPrinter className="mr-2"/> 印刷 / PDF
           </button>
         </div>
       </div>
@@ -1177,7 +1243,7 @@ export default function ProjectDetailClient() {
       {isReportModalOpen && <ReportModal projectId={id} user={user} onClose={() => setReportModalOpen(false)} />}
       {isCompletionModalOpen && <CompletionReportModal project={project} user={user} onClose={() => setIsCompletionModalOpen(false)} onReportSubmitted={fetchProject} />}
       {isTargetAmountModalOpen && <TargetAmountModal project={project} user={user} onClose={() => setIsTargetAmountModalOpen(false)} onUpdate={fetchProject} />}
-      {isInstructionModalOpen && <InstructionSheetModal projectId={id} onClose={() => setIsInstructionModalOpen(false)} />}
+      {isInstructionModalOpen && <InstructionSheetModal project={project} onClose={() => setIsInstructionModalOpen(false)} />}
       
       {/* AR Modal */}
       {isArModalOpen && (
