@@ -402,12 +402,26 @@ app.post('/api/users/login', async (req, res) => {
       return res.status(401).json({ message: 'パスワードが間違っています。' })
     }
     
+    // ★★★ 【一時的な管理者昇格デバッグロジック】 ★★★
+    let userRole = user.role;
+    // ★★★ ここにあなたのメールアドレスを入力し、管理者設定が完了したら必ず削除/コメントアウトしてください ★★★
+    const ADMIN_EMAILS = [
+        "takuminsitou946@gmail.com", // ★★★ ここに1つ目のメールアドレスを入力 ★★★
+        "hana87kaori@gmail.com"  // ★★★ ここに2つ目のメールアドレスを入力 ★★★
+    ];
+    
+    if (user.email === ADMIN_EMAIL) {
+        userRole = 'ADMIN';
+        console.log(`[ADMIN DEBUG] User ${user.email} forcefully assigned ADMIN role.`);
+    }
+    // ★★★ ------------------------------------ ★★★
+
     // ★ トークンに iconUrl を含める
     const tokenPayload = {
       id: user.id,
       email: user.email,
       handleName: user.handleName,
-      role: user.role, 
+      role: userRole, // ★ 強制的に上書きしたロールを使用
       iconUrl: user.iconUrl, // ★ この行を追加
       referralCode: user.referralCode,
       sub: user.id
@@ -2959,44 +2973,7 @@ app.get('/api/admin/payouts', requireAdmin, async (req, res) => {
     res.status(500).json({ message: '出金申請の取得中にエラーが発生しました。' });
   }
 });
-// ★★★【管理者用】メールアドレスでユーザーの役割 (Role) を更新するAPI ★★★
-app.patch('/api/admin/user-by-email/role', requireAdmin, async (req, res) => {
-    const { email, newRole } = req.body; // email と newRole をリクエストボディから取得
 
-    // 役割のバリデーション
-    if (!['USER', 'ADMIN', 'FLORIST', 'VENUE', 'ORGANIZER'].includes(newRole)) {
-        return res.status(400).json({ message: '無効な役割が指定されました。' });
-    }
-    if (!email) {
-        return res.status(400).json({ message: 'メールアドレスは必須です。' });
-    }
-
-    try {
-        // 1. メールアドレスでユーザーを検索
-        const targetUser = await prisma.user.findUnique({ where: { email } });
-
-        if (!targetUser) {
-            return res.status(404).json({ message: 'そのメールアドレスのユーザーが見つかりません。' });
-        }
-        
-        // 2. 役割を更新
-        const updatedUser = await prisma.user.update({
-            where: { id: targetUser.id },
-            data: { role: newRole },
-            select: { id: true, email: true, handleName: true, role: true }
-        });
-        
-        // 3. 応答
-        res.status(200).json({ 
-            message: `ユーザー ${updatedUser.handleName} (${updatedUser.email}) の役割を ${newRole} に変更しました。再ログインしてください。`,
-            user: updatedUser
-        });
-
-    } catch (error) {
-        console.error("ユーザー役割更新エラー (By Email):", error);
-        res.status(500).json({ message: '役割の更新に失敗しました。' });
-    }
-});
 
 app.patch('/api/admin/payouts/:id/complete', requireAdmin, async (req, res) => {
   const { id } = req.params;
