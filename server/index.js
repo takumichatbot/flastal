@@ -2,7 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient } from '../node_modules/@prisma/client/index.js';
 import bcrypt from 'bcryptjs';
 import sharp from 'sharp';
 import { Document, NodeIO } from '@gltf-transform/core';
@@ -80,6 +80,11 @@ const io = new Server(httpServer, {
 });
 
 const prisma = new PrismaClient();
+    datasources: {
+        db: {
+            url: process.env.DATABASE_URL,
+        },
+    },
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const resend = new Resend(process.env.RESEND_API_KEY);
 const openai = new OpenAI({

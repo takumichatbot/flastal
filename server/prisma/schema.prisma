@@ -3,12 +3,10 @@
 
 generator client {
   provider = "prisma-client-js"
-  output = "../../node_modules/.prisma/client" 
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 // --- Enums ---
@@ -112,12 +110,12 @@ enum ReportStatus {
 
 // ★★★ 新規追加: システム全体の設定を格納するモデル ★★★
 model SystemSettings {
-  id                   String            @id @default(cuid())
-  // 顧客全体に適用される基本手数料率 (例: 0.10 は 10%)
-  platformFeeRate      Float            @default(0.10) 
-  // メールテンプレート: アカウント承認
-  approvalEmailSubject String           @default("[FLASTAL] アカウント承認のお知らせ")
-  approvalEmailBody    String           @db.Text @default("この度はご登録ありがとうございます。審査が完了し、アカウントが承認されました。今すぐログインしてサービスをご利用いただけます。")
+  id                   String            @id @default(cuid())
+  // 顧客全体に適用される基本手数料率 (例: 0.10 は 10%)
+  platformFeeRate      Float            @default(0.10) 
+  // メールテンプレート: アカウント承認
+  approvalEmailSubject String           @default("[FLASTAL] アカウント承認のお知らせ")
+  approvalEmailBody    String           @db.Text @default("この度はご登録ありがとうございます。審査が完了し、アカウントが承認されました。今すぐログインしてサービスをご利用いただけます。")
 }
 // ★★★ ----------------------------------------- ★★★
 
@@ -290,11 +288,11 @@ model Florist {
   shopName          String
   platformName      String        @unique
   status            FloristStatus @default(PENDING)
-  
+  
   // ★★★ 追加: 個別手数料率 (設定されない場合は SystemSettings.platformFeeRate が適用される) ★★★
-  customFeeRate     Float? 
-  // ★★★ ---------------------------------------------------------------------- ★★★
-  
+  customFeeRate     Float? 
+  // ★★★ ---------------------------------------------------------------------- ★★★
+  
   posts FloristPost[]
   offers           Offer[]
   reviews          Review[]

@@ -15,6 +15,7 @@
     "@google/model-viewer": "^4.1.0",
     "@vercel/og": "^0.8.5",
     "canvas-confetti": "^1.9.4",
+    "dotenv": "^17.2.3",
     "next": "^15.5.7",
     "next-pwa": "^5.6.0",
     "openai": "^6.9.1",
