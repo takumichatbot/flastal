@@ -13,6 +13,12 @@ datasource db {
 
 // --- Enums ---
 
+enum ApprovalStatus {
+  PENDING   // 承認待ち
+  APPROVED  // 承認済み
+  REJECTED  // 却下
+}
+
 enum ProductionStatus {
   NOT_STARTED // 未着手
   FLORIST_MATCHED // 花屋決定・相談中
@@ -331,7 +337,7 @@ model Venue {
   email      String  @unique
   password   String
   isOfficial Boolean @default(false)
-
+  status           ApprovalStatus   @default(PENDING)
   isStandAllowed    Boolean? @default(true)
   standRegulation   String?
   isBowlAllowed     Boolean? @default(true)
@@ -554,6 +560,7 @@ model Organizer {
   events    Event[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  status           ApprovalStatus   @default(PENDING)
 }
 
 model Post {

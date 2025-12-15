@@ -1,3 +1,5 @@
+// src/app/contexts/AuthContext.js
+
 'use client';
 
 import { createContext, useContext, useState, useEffect } from 'react';
@@ -6,7 +8,21 @@ import { useRouter } from 'next/navigation';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
-const AuthContext = createContext(null);
+// ★★★ 修正: AuthContext の初期値に新しいフィールドを追加 ★★★
+const AuthContext = createContext({
+  user: null,
+  isAuthenticated: false,
+  isApproved: true, // 一般ユーザーは常に true とみなす
+  isPending: false,
+  isProfessional: false,
+  token: null,
+  loading: true,
+  login: () => {},
+  logout: () => {},
+  register: () => {},
+});
+// ★★★ --------------------------------------------------- ★★★
+
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -32,6 +48,7 @@ export function AuthProvider({ children }) {
       if (decoded.role === 'FLORIST') displayName = decoded.shopName;
       if (decoded.role === 'VENUE') displayName = decoded.venueName;
 
+      // ★★★ 修正: status フィールドを追加 ★★★
       setUser({ 
         id: decoded.id,
         email: decoded.email,
@@ -41,15 +58,20 @@ export function AuthProvider({ children }) {
         referralCode: decoded.referralCode,
         shopName: decoded.shopName,
         venueName: decoded.venueName,
+        status: decoded.status, // ← status を追加
         sub: decoded.sub 
       });
+      // ★★★ ---------------------------- ★★★
       
       setToken(rawToken);
       localStorage.setItem('authToken', rawToken); // ★ きれいなトークンを保存
       return true;
     } catch (error) {
       console.error("Failed to decode token:", error);
-      logout();
+      // ★ ログアウト時に router.push が実行されるため、ここでは実行しない
+      setUser(null);
+      setToken(null);
+      localStorage.removeItem('authToken'); 
       return false;
     }
   };
@@ -99,7 +121,32 @@ export function AuthProvider({ children }) {
     return response.json();
   };
 
-  const authInfo = { user, token, login, logout, register, isAuthenticated: !!user, loading };
+  // ★★★ 修正: 新しい認証情報ヘルパーを追加 ★★★
+  const isProfessional = user && ['FLORIST', 'VENUE', 'ORGANIZER'].includes(user.role);
+  
+  // プロフェッショナルで status が APPROVED の場合のみ承認済み
+  // 一般ユーザー (USER) は isProfessional=false なので、isApproved は常に true
+  const isApproved = isProfessional ? user.status === 'APPROVED' : true; 
+  const isPending = isProfessional ? user.status === 'PENDING' : false;
+
+  const authInfo = { 
+    user, 
+    token, 
+    login, 
+    logout, 
+    register, 
+    isAuthenticated: !!user, 
+    loading,
+    
+    // ★★★ 追加した情報 ★★★
+    isProfessional, 
+    isApproved, 
+    isPending,
+    // (REJECTEDの場合は isApproved=false, isPending=false となる)
+    // ★★★ ---------------- ★★★
+  };
+  // ★★★ -------------------------------------- ★★★
+
 
   return (
     <AuthContext.Provider value={authInfo}>

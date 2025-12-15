@@ -1,15 +1,19 @@
+// /organizers/dashboard/page.js
 'use client';
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+// ★★★ useAuth, ApprovalPendingCard をインポート ★★★
 import { useAuth } from '../../contexts/AuthContext';
+import ApprovalPendingCard from '@/app/components/ApprovalPendingCard';
+// ★★★ --------------------------------------- ★★★
 import { FiPlus, FiCalendar, FiMapPin, FiLogOut } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
-// ★トークン取得ヘルパー
+// ★トークン取得ヘルパー (AuthContextから取得するため、この関数は削除しても良いが、ここでは残します)
 const getAuthToken = () => {
   if (typeof window === 'undefined') return null;
   const rawToken = localStorage.getItem('authToken');
@@ -17,10 +21,33 @@ const getAuthToken = () => {
 };
 
 export default function OrganizerDashboard() {
-  const { user, isAuthenticated, loading, logout } = useAuth();
+  // ★★★ isPending, isApproved を取得 ★★★
+  const { user, isAuthenticated, loading, logout, isPending, isApproved } = useAuth();
   const router = useRouter();
   const [events, setEvents] = useState([]);
   const [isLoadingEvents, setIsLoadingEvents] = useState(true);
+
+  // ★★★ データ取得ロジックの修正: 承認済みのみAPIコール ★★★
+  const fetchEvents = useCallback(async () => {
+    if (isPending || !isApproved) {
+        setIsLoadingEvents(false);
+        return; // 審査待ち/却下ならAPIコールをスキップ
+    }
+    
+    try {
+      const token = getAuthToken();
+      const res = await fetch(`${API_URL}/api/organizers/events`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error('イベント一覧の取得に失敗しました');
+      setEvents(await res.json());
+    } catch (error) {
+      console.error(error);
+      toast.error('データの読み込みに失敗しました');
+    } finally {
+      setIsLoadingEvents(false);
+    }
+  }, [isPending, isApproved]); // 依存配列に追加
 
   useEffect(() => {
     if (loading) return;
@@ -29,24 +56,8 @@ export default function OrganizerDashboard() {
       return;
     }
 
-    const fetchEvents = async () => {
-      try {
-        const token = getAuthToken();
-        const res = await fetch(`${API_URL}/api/organizers/events`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (!res.ok) throw new Error('イベント一覧の取得に失敗しました');
-        setEvents(await res.json());
-      } catch (error) {
-        console.error(error);
-        toast.error('データの読み込みに失敗しました');
-      } finally {
-        setIsLoadingEvents(false);
-      }
-    };
-
     fetchEvents();
-  }, [loading, isAuthenticated, user, router]);
+  }, [loading, isAuthenticated, user, router, fetchEvents]);
 
   const handleLogout = () => {
     logout();
@@ -54,6 +65,12 @@ export default function OrganizerDashboard() {
   };
 
   if (loading || !user) return <div className="p-8 text-center">読み込み中...</div>;
+
+  // ★★★ 審査待ち/却下UIの表示 ★★★
+  if (isPending || !isApproved) {
+      return <ApprovalPendingCard />;
+  }
+  // ★★★ -------------------- ★★★
 
   return (
     <div className="min-h-screen bg-gray-50">

@@ -1,3 +1,4 @@
+// /florists/dashboard/page.js
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -6,7 +7,10 @@ import VenueRegulationCard from '../../components/VenueRegulationCard';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
+// ★ useAuth, ApprovalPendingCard をインポート
 import { useAuth } from '../../contexts/AuthContext'; 
+import ApprovalPendingCard from '@/app/components/ApprovalPendingCard'; 
+// ... (他のインポート)
 import { FiCheckCircle, FiFileText, FiRefreshCw, FiCalendar, FiMapPin, FiClock, FiChevronLeft, FiChevronRight, FiCamera, FiUser, FiShare, FiEye, FiEyeOff, FiTrash2 } from 'react-icons/fi'; 
 
 import FloristAppealPostForm from '@/app/components/FloristAppealPostForm';
@@ -168,7 +172,8 @@ function CalendarView({ events }) {
 }
 
 export default function FloristDashboardPage() {
-  const { user, token, logout } = useAuth(); 
+  // ★★★ useAuth から isPending と isApproved を取得 ★★★
+  const { user, token, logout, isPending, isApproved } = useAuth(); 
   const router = useRouter();
   
   const [floristData, setFloristData] = useState(null);
@@ -187,6 +192,12 @@ export default function FloristDashboardPage() {
 
   // データ取得関数
   const fetchData = useCallback(async () => {
+    // 審査待ち/却下状態の場合、APIコールは不要（または権限エラーになる）
+    if (user && user.role === 'FLORIST' && (isPending || !isApproved)) {
+        setLoading(false);
+        return; 
+    }
+    
     if (!token || token === 'null' || token === 'undefined') {
         return;
     }
@@ -195,7 +206,7 @@ export default function FloristDashboardPage() {
     
     try {
       const [dashboardRes, payoutsRes, scheduleRes] = await Promise.all([
-        // ★修正: dashboard APIは appealPosts を含まないため、個別に Florist APIを叩く
+        // Florist API（ appealPosts を含む）
         fetch(`${API_URL}/api/florists/${user.id}`, { 
           headers: { 'Authorization': `Bearer ${token}` }
         }),
@@ -219,17 +230,13 @@ export default function FloristDashboardPage() {
       const payoutsData = await payoutsRes.json();
       const scheduleData = scheduleRes.ok ? await scheduleRes.json() : [];
 
-      // ★★★ 修正: Florist APIのレスポンスから投稿データを直接取得 ★★★
-      // appealPosts は FloristPostモデルからの配列です
       const appealPostsData = floristDataRes.appealPosts || [];
 
       setFloristData(floristDataRes);
-      // offers が含まれていないため、dashboardRes を dashboard API に戻すか、offers を別途取得する必要があります。
-      // ここでは offers は空配列としてフォールバックします
-      setOffers(floristDataRes.offers || []); 
+      setOffers(floristDataRes.offers || []); // dashboard APIがoffersを返さない場合は別途修正が必要
       setPayouts(payoutsData || []);
       setScheduleEvents(scheduleData); 
-      setAppealPosts(appealPostsData); // ★ 新しい FloristPost データをセット
+      setAppealPosts(appealPostsData); 
 
     } catch (error) {
       console.error(error);
@@ -241,7 +248,7 @@ export default function FloristDashboardPage() {
     } finally {
       setLoading(false);
     }
-  }, [user, token, logout, router]); // user.id を依存配列に追加
+  }, [user, token, logout, router, isPending, isApproved]); 
 
   useEffect(() => {
     if (user && user.role === 'FLORIST' && token) {
@@ -265,7 +272,6 @@ export default function FloristDashboardPage() {
       try {
           const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
           
-          // 新しい DELETE API を利用
           const res = await fetch(`${API_URL}/api/florists/posts/${post.id}`, { 
               method: 'DELETE',
               headers: { 'Authorization': `Bearer ${token}` },
@@ -299,7 +305,6 @@ export default function FloristDashboardPage() {
       try {
           const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
           
-          // 新しい PATCH API を利用
           const res = await fetch(`${API_URL}/api/florists/posts/${post.id}`, { 
               method: 'PATCH',
               headers: {
@@ -325,22 +330,36 @@ export default function FloristDashboardPage() {
       }
   };
   
-  // ... (中略) ...
-
   const handleLogout = () => {
       logout();
       toast.success('ログアウトしました。');
       router.push('/florists/login');
   };
       
-  if (loading || !floristData) {
+  // ★★★ 認証とステータス制御 ★★★
+  if (user && user.role !== 'FLORIST') {
+    router.push('/'); // ロール違いはトップへ
+    return null;
+  }
+  if (!user && !loading) {
+    router.push('/florists/login');
+    return null;
+  }
+  
+  if (loading || !user) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-slate-50">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-pink-500"></div>
       </div>
     );
   }
-  
+
+  // ★★★ 審査待ち/却下UIの表示 ★★★
+  if (isPending || !isApproved) {
+      return <ApprovalPendingCard />;
+  }
+  // ★★★ -------------------- ★★★
+
   const pendingOffers = offers.filter(o => o.status === 'PENDING');
   const acceptedOffers = offers.filter(o => o.status === 'ACCEPTED');
   const isPayoutDisabled = !payoutAmount || !accountInfo || Number(payoutAmount) < MINIMUM_PAYOUT_AMOUNT || Number(payoutAmount) > (floristData.balance || 0);
