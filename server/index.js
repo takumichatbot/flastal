@@ -3809,11 +3809,6 @@ app.get('/api/projects/:projectId/instruction-sheet', authenticateToken, async (
 });
 
 
-// ★ OpenAI設定 (APIキーがない場合はダミーモードになります)
-openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY || 'dummy-key', 
-});
-
 // ★★★【新規】AI画像生成API ★★★
 app.post('/api/ai/generate-image', authenticateToken, async (req, res) => {
   const { prompt } = req.body;
