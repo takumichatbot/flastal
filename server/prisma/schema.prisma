@@ -746,4 +746,32 @@ model EmailTemplate {
   // テンプレートで利用可能なプレースホルダーの例
   // placeholders String[] 
 }
+
+// ★★★ 管理者チャットルーム ★★★
+model AdminChatRoom {
+  id              String      @id @default(cuid())
+  adminId         String      // 管理者ID (チャットを始めた管理者)
+  userId          String      // ユーザーID (ファン、お花屋さん、会場、主催者のID)
+  userRole        UserRole    // ユーザーの役割
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  
+  messages        AdminChatMessage[] // 紐づくメッセージ
+  
+  @@unique([userId, userRole])
+}
+
+// ★★★ 管理者チャットメッセージ ★★★
+model AdminChatMessage {
+  id              String         @id @default(cuid())
+  chatRoomId      String
+  senderId        String         // 送信者ID (adminId または userId)
+  senderRole      UserRole       // 送信者の役割 (ADMIN, USER, FLORISTなど)
+  content         String         @db.Text
+  isRead          Boolean        @default(false)
+  isAutoResponse  Boolean        @default(false) // LARUbotからの応答かどうか
+  createdAt       DateTime       @default(now())
+  
+  chatRoom        AdminChatRoom  @relation(fields: [chatRoomId], references: [id])
+}
 // -----------------------------------------------------

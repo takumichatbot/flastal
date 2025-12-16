@@ -2,11 +2,20 @@
   "name": "client",
   "version": "0.1.0",
   "private": true,
+
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    
+
+    "migrate:dev": "npm run install:deps && npx prisma@5 migrate dev --schema=server/prisma/schema.prisma",
+    
+    "migrate:deploy": "npm run install:deps && npx prisma@5 migrate deploy --schema=server/prisma/schema.prisma",
+
+    "install:deps": "cd server && npm install"
+
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.946.0",
@@ -31,8 +40,11 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
+    "@types/node": "^25.0.2",
     "eslint": "^9",
     "eslint-config-next": "15.5.3",
-    "tailwindcss": "^4"
+    "tailwindcss": "^4",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
   }
 }

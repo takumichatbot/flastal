@@ -172,6 +172,29 @@ const LEVEL_CONFIG = {
     'Gold': 100000,  // 100,000ptでゴールド
 };
 
+// ★★★ メールテンプレートのプレースホルダー置換関数 ★★★
+function replacePlaceholders(templateContent, data) {
+    let replacedContent = templateContent;
+
+    // ユーザー名、メールアドレスなどの基本情報の置換
+    if (data.user) {
+        // user.handleName や user.email を使用
+        replacedContent = replacedContent.replace(/\{user_name\}/g, data.user.handleName || 'ユーザー様');
+        replacedContent = replacedContent.replace(/\{user_email\}/g, data.user.email || '');
+    }
+    
+    // お花屋さん情報の置換
+    if (data.florist) {
+        // florist.platformName を使用
+        replacedContent = replacedContent.replace(/\{florist_shop_name\}/g, data.florist.platformName || 'お花屋さん');
+    }
+
+    // 共通のプレースホルダー
+    replacedContent = replacedContent.replace(/\{current_date\}/g, new Date().toLocaleDateString('ja-JP'));
+    
+    return replacedContent;
+}
+
 async function checkUserLevelAndBadges(tx, userId) {
     const user = await tx.user.findUnique({ where: { id: userId } });
     if (!user) return;
@@ -5630,6 +5653,218 @@ app.patch('/api/admin/florists/:floristId/fee', requireAdmin, async (req, res) =
         res.status(500).json({ message: '個別手数料率の更新に失敗しました。' });
     }
 });
+
+// ★★★【新規】管理者向けAPI(3): メールテンプレート一覧を取得 ★★★
+app.get('/api/admin/email-templates', requireAdmin, async (req, res) => {
+    try {
+        const templates = await prisma.emailTemplate.findMany({
+            orderBy: { name: 'asc' },
+            select: {
+                id: true,
+                name: true,
+                subject: true,
+                targetRole: true,
+                isSystemTemplate: true,
+                body: true, // 管理画面で本文も表示・編集できるように取得
+            }
+        });
+
+        res.status(200).json(templates);
+    } catch (error) {
+        console.error("Error fetching email templates:", error);
+        res.status(500).json({ message: 'メールテンプレートの取得に失敗しました。' });
+    }
+});
+
+// ★★★【新規】管理者向けAPI(4): 個別メール送信 ★★★
+app.post('/api/admin/send-individual-email', requireAdmin, async (req, res) => {
+    const { userId, targetRole, templateId, customSubject, customBody } = req.body;
+
+    if (!userId || (!templateId && !customBody)) {
+        return res.status(400).json({ message: 'ユーザーID、またはテンプレートID/カスタム本文が必要です。' });
+    }
+
+    try {
+        let user;
+        let selectFields = {
+            id: true, 
+            email: true, 
+            handleName: true, 
+            role: true,
+        };
+
+        // 1. ユーザー種別に基づいて情報を取得 (ファン/企画者/お花屋さんの情報を統合)
+        if (targetRole === 'FLORIST') {
+            user = await prisma.florist.findUnique({
+                where: { id: userId },
+                select: { 
+                    ...selectFields,
+                    platformName: true // お花屋さん固有のフィールド
+                }
+            });
+        } else { // USER, ORGANIZER, VENUE など、Userテーブルに存在するロール
+            user = await prisma.user.findUnique({
+                where: { id: userId },
+                select: selectFields
+            });
+        }
+        
+        if (!user || !user.email) {
+            return res.status(404).json({ message: 'ユーザーが見つからないか、メールアドレスが登録されていません。' });
+        }
+        
+        let subject = customSubject;
+        let body = customBody;
+        let htmlContent = '';
+
+        // 2. テンプレートの適用
+        if (templateId) {
+            const template = await prisma.emailTemplate.findUnique({
+                where: { id: templateId }
+            });
+            
+            if (!template) {
+                return res.status(404).json({ message: '指定されたテンプレートが見つかりません。' });
+            }
+
+            // プレースホルダーの置換実行
+            const placeholderData = {
+                user: user,
+                // Floristの場合は user オブジェクト内に platformName が含まれている
+                florist: targetRole === 'FLORIST' ? user : null 
+            };
+            
+            subject = replacePlaceholders(template.subject, placeholderData);
+            body = replacePlaceholders(template.body, placeholderData);
+            
+            // NOTE: body が HTML 形式のテンプレートとして扱われる前提
+            htmlContent = body;
+        } else {
+             // カスタム本文の場合は、シンプルなHTMLでラップする
+             htmlContent = `<p>${customBody.replace(/\n/g, '<br>')}</p>`;
+        }
+
+
+        // 3. メールの送信 (既存の sendEmail ヘルパーを使用)
+        if (!subject || !htmlContent) {
+            return res.status(500).json({ message: 'メールの件名または本文が空です。' });
+        }
+        
+        // ★ 既存の sendEmail 関数を呼び出し
+        const sendResult = await sendEmail(user.email, subject, htmlContent);
+
+        if (sendResult && !sendResult.error) {
+             res.status(200).json({ 
+                message: `${user.email} 宛にメールを送信しました。`
+            });
+        } else {
+            res.status(500).json({ message: 'メール送信に失敗しました。Resendログを確認してください。' });
+        }
+
+    } catch (error) {
+        console.error("Error sending individual email:", error);
+        res.status(500).json({ message: 'サーバーエラーによりメール送信に失敗しました。' });
+    }
+});
+
+// ★★★【新規】管理者向けAPI(5): 全ユーザーの横断検索 ★★★
+app.get('/api/admin/users/search', requireAdmin, async (req, res) => {
+    const { keyword } = req.query;
+    const searchKeyword = `%${keyword}%`;
+
+    try {
+        // 1. User テーブルから検索 (ファン/企画者)
+        const users = await prisma.user.findMany({
+            where: {
+                OR: [
+                    { email: { contains: keyword, mode: 'insensitive' } },
+                    { handleName: { contains: keyword, mode: 'insensitive' } },
+                ]
+            },
+            select: {
+                id: true,
+                email: true,
+                handleName: true,
+                role: true,
+                iconUrl: true,
+            }
+        });
+
+        // 2. Florist テーブルから検索
+        const florists = await prisma.florist.findMany({
+            where: {
+                OR: [
+                    { email: { contains: keyword, mode: 'insensitive' } },
+                    { platformName: { contains: keyword, mode: 'insensitive' } },
+                ]
+            },
+            select: {
+                id: true,
+                email: true,
+                platformName: true,
+                iconUrl: true,
+            }
+        });
+
+        // 3. データを統合し、形式を統一 (role: 'FLORIST', handleName: platformNameなど)
+        const formattedFlorists = florists.map(f => ({
+            id: f.id,
+            email: f.email,
+            handleName: f.platformName, // お花屋さん名を表示名とする
+            role: 'FLORIST',
+            iconUrl: f.iconUrl,
+        }));
+
+        // 4. 全ユーザーリストを結合
+        const allUsers = [...users, ...formattedFlorists];
+
+        res.status(200).json(allUsers);
+    } catch (error) {
+        console.error("Admin user search error:", error);
+        res.status(500).json({ message: 'ユーザー検索に失敗しました。' });
+    }
+});
+
+// ★★★【新規】管理者向けAPI(6): 個別チャットルームの生成/取得 ★★★
+app.post('/api/admin/chat-rooms', requireAdmin, async (req, res) => {
+    const { targetUserId, targetUserRole } = req.body;
+    const adminId = req.user.id; // 管理者ID (トークンから取得)
+
+    if (!targetUserId || !targetUserRole) {
+        return res.status(400).json({ message: 'ユーザーIDとロールが必要です。' });
+    }
+
+    try {
+        // 1. 既存のチャットルームを探す (ユーザー/ロールの組み合わせでユニーク)
+        let room = await prisma.adminChatRoom.findFirst({
+            where: {
+                userId: targetUserId,
+                userRole: targetUserRole,
+            }
+        });
+
+        if (room) {
+            // 2. 既にあればそれを返す
+            return res.status(200).json(room);
+        }
+
+        // 3. なければ新しいルームを作成
+        const newRoom = await prisma.adminChatRoom.create({
+            data: {
+                adminId: adminId, // 管理者ID
+                userId: targetUserId,
+                userRole: targetUserRole,
+            }
+        });
+
+        res.status(201).json(newRoom);
+    } catch (error) {
+        console.error("Admin chat room creation error:", error);
+        res.status(500).json({ message: 'チャットルームの作成に失敗しました。' });
+    }
+});
+
+
 // ===================================
 // ★★★★★   Socket.IOの処理   ★★★★★
 // ===================================
