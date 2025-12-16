@@ -75,8 +75,9 @@ const corsOptions = {
 
 const io = new Server(httpServer, {
   cors: corsOptions,
-  allowEIO3: true,        // ★追加
-  transports: ['polling'] // ★追加
+  allowEIO3: true,
+  // ★★★ 重要な修正: Render環境でWebSocketがブロックされた場合の代替手段を強化 ★★★
+  transports: ['websocket', 'polling'], // WebSocketを優先し、失敗したらpollingにフォールバック
 });
 
 const prisma = new PrismaClient({
@@ -5603,8 +5604,6 @@ app.patch('/api/admin/settings', requireAdmin, async (req, res) => {
         const updatedSettings = await prisma.systemSettings.updateMany({
             data: { 
                 platformFeeRate: platformFeeRate !== undefined ? parseFloat(platformFeeRate) : undefined,
-                approvalEmailSubject,
-                approvalEmailBody,
             },
         });
         // 更新後の設定を返す
@@ -5654,25 +5653,40 @@ app.patch('/api/admin/florists/:floristId/fee', requireAdmin, async (req, res) =
     }
 });
 
-// ★★★【新規】管理者向けAPI(3): メールテンプレート一覧を取得 ★★★
 app.get('/api/admin/email-templates', requireAdmin, async (req, res) => {
     try {
         const templates = await prisma.emailTemplate.findMany({
             orderBy: { name: 'asc' },
-            select: {
-                id: true,
-                name: true,
-                subject: true,
-                targetRole: true,
-                isSystemTemplate: true,
-                body: true, // 管理画面で本文も表示・編集できるように取得
-            }
         });
-
         res.status(200).json(templates);
     } catch (error) {
         console.error("Error fetching email templates:", error);
-        res.status(500).json({ message: 'メールテンプレートの取得に失敗しました。' });
+        res.status(500).json({ message: 'テンプレートの取得に失敗しました。' });
+    }
+});
+
+// ★★★【新規】メールテンプレートの作成/更新 ★★★
+app.post('/api/admin/email-templates', requireAdmin, async (req, res) => {
+    const { id, name, subject, body, targetRole, isSystemTemplate } = req.body;
+    
+    try {
+        if (id) {
+            // 更新 (既存IDがある場合)
+            const updatedTemplate = await prisma.emailTemplate.update({
+                where: { id: id },
+                data: { name, subject, body, targetRole, isSystemTemplate }
+            });
+            return res.status(200).json(updatedTemplate);
+        } else {
+            // 新規作成
+            const newTemplate = await prisma.emailTemplate.create({
+                data: { name, subject, body, targetRole, isSystemTemplate }
+            });
+            return res.status(201).json(newTemplate);
+        }
+    } catch (error) {
+        console.error("Error saving email template:", error);
+        res.status(500).json({ message: 'テンプレートの保存に失敗しました。' });
     }
 });
 

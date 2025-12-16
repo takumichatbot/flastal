@@ -30,15 +30,16 @@ export default function AdminUserList({ onUserSelect, selectedUser }) {
     const [searchResults, setSearchResults] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
 
-    // 検索ロジック (キーワードが3文字以上の時のみ検索を実行)
+    // 検索ロジック (修正)
     useEffect(() => {
         const delaySearch = setTimeout(() => {
-            if (searchKeyword.length >= 3) {
+            // ★★★ 修正箇所: 検索キーワードがない場合 (searchKeyword === '') も fetchUsers を呼び出す ★★★
+            if (searchKeyword.length >= 3 || searchKeyword === '') {
                 fetchUsers();
             } else {
                 setSearchResults([]);
             }
-        }, 500); // 0.5秒のディレイ
+        }, 500);
 
         return () => clearTimeout(delaySearch);
     }, [searchKeyword]);
