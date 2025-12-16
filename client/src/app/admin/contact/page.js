@@ -2,11 +2,10 @@
 'use client';
 
 import { useState } from 'react';
-// @/ が src/ を指すようになったため、以下のパスが正しい
-import AdminUserList from '@/app/components/admin/AdminUserList'; 
-import AdminIndividualChat from '@/app/components/admin/AdminIndividualChat';
+// ★★★ 修正: @/ から app/ を削除 ★★★
+import AdminUserList from '@/components/admin/AdminUserList'; 
+import AdminIndividualChat from '@/components/admin/AdminIndividualChat';
 import { useAuth } from '@/app/contexts/AuthContext';
-
 export default function AdminContactPage() {
     const { user } = useAuth(); // ログインユーザー（管理者）情報を取得
     const [selectedUser, setSelectedUser] = useState(null);
