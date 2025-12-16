@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { FiLoader, FiSend, FiUser, FiMessageSquare } from 'react-icons/fi';
+import { FiLoader, FiSend, FiUser, FiMessageSquare, FiAlertTriangle } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { io } from 'socket.io-client'; // Socket.IO クライアントをインポート
 
@@ -28,14 +28,13 @@ const getRoleColor = (role) => {
 
 let socket; // Socket.IO クライアントインスタンス
 
-export default function AdminIndividualChat({ selectedUser, chatRoom }) {
+export default function AdminIndividualChat({ selectedUser, chatRoom, adminUserId }) {
     const [messages, setMessages] = useState([]);
     const [inputContent, setInputContent] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [socketConnected, setSocketConnected] = useState(false);
     const chatBottomRef = useRef(null);
-    const adminUserId = chatRoom?.adminId; // 管理者ID（サーバー側で設定したID）
-    const targetUserId = selectedUser?.id;
-
+    
     // 1. Socket.IO 接続と切断の処理
     useEffect(() => {
         if (!chatRoom) return;
@@ -45,7 +44,9 @@ export default function AdminIndividualChat({ selectedUser, chatRoom }) {
 
         // 既存の接続があれば切断
         if (socket) {
+            socket.off('receiveAdminMessage');
             socket.disconnect();
+            socket = null;
         }
 
         // 新しい接続の作成
@@ -53,36 +54,38 @@ export default function AdminIndividualChat({ selectedUser, chatRoom }) {
             auth: {
                 token: `Bearer ${token}` // トークンを認証ヘッダーとして渡す
             },
-            // Next.jsのCORS対応設定 (index.jsの設定と一致させる)
-            transports: ['polling']
+            transports: ['websocket', 'polling'] // WebSocketを優先
         });
 
         socket.on('connect', () => {
+            setSocketConnected(true);
             console.log(`[AdminChat] Socket Connected: ${socket.id}`);
             // チャットルームに参加
             socket.emit('joinRoom', chatRoom.id);
         });
 
         socket.on('disconnect', () => {
+            setSocketConnected(false);
             console.log('[AdminChat] Socket Disconnected');
         });
 
         socket.on('connect_error', (err) => {
             console.error('[AdminChat] Connection Error:', err.message);
             toast.error('チャット接続エラーが発生しました。');
+            setSocketConnected(false);
         });
         
         // 2. メッセージ受信リスナー
         socket.on('receiveAdminMessage', (newMessage) => {
-            console.log('Received:', newMessage);
             setMessages(prevMessages => {
-                // 重複防止チェック (オプティミスティックUIを考慮)
+                // 仮メッセージとの重複を防ぎ、最新メッセージを追加
                 const isDuplicated = prevMessages.some(msg => 
-                    msg.id === newMessage.id || 
-                    (msg.senderId === newMessage.senderId && msg.content === newMessage.content && (new Date() - new Date(msg.createdAt)) < 1000)
+                    msg.content === newMessage.content && 
+                    msg.senderId === newMessage.senderId && 
+                    (new Date(msg.createdAt).getTime() === new Date(newMessage.createdAt).getTime())
                 );
                 if (!isDuplicated) {
-                    return [...prevMessages, newMessage];
+                    return [...prevMessages.filter(msg => typeof msg.id !== 'string' || !msg.id.startsWith('temp_')), newMessage];
                 }
                 return prevMessages;
             });
@@ -92,12 +95,13 @@ export default function AdminIndividualChat({ selectedUser, chatRoom }) {
             socket.off('receiveAdminMessage');
             socket.disconnect();
             socket = null;
+            setSocketConnected(false);
         };
     }, [chatRoom]);
 
     // 3. 履歴のロード処理
     useEffect(() => {
-        if (chatRoom) {
+        if (chatRoom?.id) {
             fetchMessages();
         } else {
             setMessages([]);
@@ -110,6 +114,7 @@ export default function AdminIndividualChat({ selectedUser, chatRoom }) {
         if (!token) return;
 
         try {
+            // API: /api/admin/chat-rooms/:roomId/messages を呼び出し
             const res = await fetch(`${API_URL}/api/admin/chat-rooms/${chatRoom.id}/messages`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
@@ -138,18 +143,21 @@ export default function AdminIndividualChat({ selectedUser, chatRoom }) {
     // 5. メッセージ送信処理
     const handleSendMessage = (e) => {
         e.preventDefault();
-        if (!inputContent.trim() || !socket || !chatRoom) return;
+        if (!inputContent.trim() || !socketConnected || !chatRoom) return;
 
         const content = inputContent.trim();
+        const tempId = `temp_${Date.now()}`;
+        
+        // オプティミスティックUI用の仮メッセージ
         const tempMessage = {
-            // オプティミスティックUI用の仮ID
-            id: Date.now().toString(), 
+            id: tempId, 
             chatRoomId: chatRoom.id,
-            senderId: adminUserId, // ADMINとして送信
+            senderId: adminUserId, 
             senderRole: 'ADMIN',
             content: content,
             isRead: false,
             createdAt: new Date().toISOString(),
+            isTemp: true, // 仮メッセージであることを示すフラグ
         };
 
         // オプティミスティックにUIを更新
@@ -175,7 +183,6 @@ export default function AdminIndividualChat({ selectedUser, chatRoom }) {
         );
     }
 
-    // 相手が Florist の場合、Botキーを持っている可能性があることを示す
     const isFloristChat = selectedUser.role === 'FLORIST';
     
     return (
@@ -196,6 +203,11 @@ export default function AdminIndividualChat({ selectedUser, chatRoom }) {
 
             {/* メッセージエリア */}
             <div className="flex-grow overflow-y-auto p-4 space-y-4 bg-gray-100">
+                {!socketConnected && (
+                     <div className="bg-red-100 border border-red-300 text-red-700 p-3 rounded-lg flex items-center gap-2">
+                        <FiAlertTriangle/> リアルタイム接続が切断されています。
+                     </div>
+                )}
                 {isLoading ? (
                     <div className="text-center p-10 text-gray-500 flex items-center justify-center">
                         <FiLoader className="animate-spin mr-2" /> 履歴をロード中...
@@ -208,19 +220,18 @@ export default function AdminIndividualChat({ selectedUser, chatRoom }) {
 
                         return (
                             <div key={msg.id} className={`flex items-end gap-3 ${isOwn ? 'justify-end' : 'justify-start'}`}>
-                                {!isOwn && !isBot && (
-                                    <div className={`w-8 h-8 rounded-full ${getRoleColor(selectedUser.role)} flex items-center justify-center text-white text-xs font-bold`}>
-                                        {selectedUser.handleName?.[0]}
-                                    </div>
-                                )}
-                                {isBot && (
-                                    <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold" title="AI Bot">
-                                        AI
+                                {/* アイコン表示 (相手ユーザーまたはBot) */}
+                                {!isOwn && (
+                                    <div className={`w-8 h-8 rounded-full ${isBot ? 'bg-blue-500' : getRoleColor(selectedUser.role)} flex items-center justify-center text-white text-xs font-bold`} title={isBot ? 'AI Bot' : senderName}>
+                                        {isBot ? 'AI' : (selectedUser.iconUrl ? <img src={selectedUser.iconUrl} alt={selectedUser.handleName} className="w-full h-full rounded-full object-cover" /> : selectedUser.handleName?.[0] || selectedUser.role?.[0])}
                                     </div>
                                 )}
                                 
                                 <div className={`flex flex-col max-w-[70%] ${isOwn ? 'items-end' : 'items-start'}`}>
-                                    <span className="text-xs text-gray-500 mb-1">{senderName} ({new Date(msg.createdAt).toLocaleTimeString()})</span>
+                                    <span className="text-xs text-gray-500 mb-1">
+                                        {senderName} ({new Date(msg.createdAt).toLocaleTimeString()})
+                                        {msg.isTemp && <span className="text-red-500 ml-1">(送信中...)</span>}
+                                    </span>
                                     <div className={`px-4 py-2 rounded-xl text-sm shadow-md ${
                                         isOwn ? 'bg-red-500 text-white rounded-br-none' : 
                                         isBot ? 'bg-indigo-100 text-indigo-800 rounded-tl-none border border-indigo-300' :
@@ -229,6 +240,12 @@ export default function AdminIndividualChat({ selectedUser, chatRoom }) {
                                         <p className="whitespace-pre-wrap">{msg.content}</p>
                                     </div>
                                 </div>
+                                {/* アイコン表示 (管理者本人) */}
+                                {isOwn && (
+                                    <div className="w-8 h-8 rounded-full bg-red-500 flex items-center justify-center text-white text-xs font-bold" title="管理者">
+                                        管
+                                    </div>
+                                )}
                             </div>
                         );
                     })
@@ -242,15 +259,21 @@ export default function AdminIndividualChat({ selectedUser, chatRoom }) {
                     <textarea
                         value={inputContent}
                         onChange={(e) => setInputContent(e.target.value)}
-                        placeholder="メッセージを入力..."
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                                e.preventDefault();
+                                handleSendMessage(e);
+                            }
+                        }}
+                        placeholder="管理者としてメッセージを入力..."
                         rows="1"
-                        disabled={!socket || !chatRoom}
+                        disabled={!socketConnected || !chatRoom}
                         className="flex-grow p-3 border rounded-lg bg-gray-50 resize-none focus:ring-2 focus:ring-sky-500"
                         style={{ minHeight: '44px' }}
                     />
                     <button
                         type="submit"
-                        disabled={!inputContent.trim() || !socket || !chatRoom}
+                        disabled={!inputContent.trim() || !socketConnected || !chatRoom}
                         className="w-12 h-12 flex items-center justify-center bg-sky-500 text-white rounded-full hover:bg-sky-600 transition-colors disabled:bg-gray-400"
                         title="送信"
                     >
