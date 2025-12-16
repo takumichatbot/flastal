@@ -2,12 +2,10 @@
 'use client';
 
 import { useState } from 'react';
-// ★★★ 修正: エイリアス (@/) から相対パス (../../../components/admin/) に変更 ★★★
-import AdminUserList from '../../components/admin/AdminUserList'; 
-import AdminIndividualChat from '../../components/admin/AdminIndividualChat';
-// ★★★ 修正: AuthContextのパスも確認 ★★★
-// ※ AuthContextが app/contexts/AuthContext.js にある場合はこのパスでOK
-import { useAuth } from '@/app/contexts/AuthContext'; 
+// @/ が src/ を指すようになったため、以下のパスが正しい
+import AdminUserList from '@/app/components/admin/AdminUserList'; 
+import AdminIndividualChat from '@/app/components/admin/AdminIndividualChat';
+import { useAuth } from '@/app/contexts/AuthContext';
 
 export default function AdminContactPage() {
     const { user } = useAuth(); // ログインユーザー（管理者）情報を取得

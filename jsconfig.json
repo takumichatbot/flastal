@@ -1,9 +1,11 @@
+// flastal/jsconfig.json (修正後)
 {
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@/components/*": ["components/*"],
-      "@/*": ["*"] 
+      // ★★★ @/ を src/ にマッピングする標準的な修正 ★★★
+      "@/*": ["src/*"]
     }
-  }
+  },
+  "include": ["**/*.js", "**/*.jsx", "**/*.ts", "**/*.tsx"]
 }
