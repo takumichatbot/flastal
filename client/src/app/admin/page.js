@@ -1,11 +1,13 @@
-// src/app/admin/page.js
+// src/app/admin/page.js (修正後の全文)
+
 'use client';
 import { useState, useEffect, useCallback } from 'react'; // useCallback をインポート
 import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '../contexts/AuthContext';
-import { FiMessageSquare, FiAlertTriangle, FiRefreshCw, FiDollarSign, FiAward, FiMapPin, FiCalendar, FiClock, FiSettings, FiEdit } from 'react-icons/fi'; // FiSettings, FiEdit を追加
+// FiMessageSquare, FiAlertTriangle, FiRefreshCw, FiDollarSign, FiAward, FiMapPin, FiCalendar, FiClock, FiSettings, FiEdit, FiMail を追加
+import { FiMessageSquare, FiAlertTriangle, FiRefreshCw, FiDollarSign, FiAward, FiMapPin, FiCalendar, FiClock, FiSettings, FiEdit, FiMail } from 'react-icons/fi'; 
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -154,6 +156,15 @@ export default function AdminPage() {
             {totalPendingAccounts > 0 && <span className="ml-2 bg-white text-orange-600 px-2 rounded-full font-bold">{totalPendingAccounts}</span>}
           </Link>
           
+          {/* ★★★ 修正箇所 1: 個別チャット連絡を追加 ★★★ */}
+          <Link 
+            href="/admin/contact"
+            className="px-4 py-2 text-sm font-semibold text-white bg-indigo-500 rounded-lg shadow hover:bg-indigo-600 transition-colors flex items-center"
+          >
+            <FiMail className="mr-1"/> 個別チャット連絡
+          </Link>
+          {/* ★★★ ------------------------------ ★★★ */}
+
           <Link 
             href="/admin/reports"
             className={`px-4 py-2 text-sm font-semibold text-white rounded-lg shadow transition-colors flex items-center ${chatReportCount > 0 ? 'bg-red-600 hover:bg-red-700' : 'bg-slate-500 hover:bg-slate-600'}`}
@@ -299,6 +310,17 @@ export default function AdminPage() {
                                 <p className="text-xs text-slate-500">お花屋さん/会場/主催者の承認</p>
                             </div>
                          </Link>
+                         
+                         {/* ★★★ 修正箇所 2: 個別チャット連絡をクイックリンクに追加 ★★★ */}
+                         <Link href="/admin/contact" className="flex items-center p-3 rounded-lg bg-sky-50 hover:bg-sky-100 transition-colors">
+                            <span className="text-2xl mr-3">📧</span>
+                            <div>
+                                <h4 className="font-semibold text-slate-700 text-sm">個別チャット連絡</h4>
+                                <p className="text-xs text-slate-500">ファン/花屋/会場への個別メッセージ</p>
+                            </div>
+                         </Link>
+                         {/* ★★★ ------------------------------------ ★★★ */}
+                         
                          <Link href="/admin/project-approval" className="flex items-center p-3 rounded-lg bg-slate-50 hover:bg-slate-100 transition-colors">
                             <span className="text-2xl mr-3">📋</span>
                             <div>
