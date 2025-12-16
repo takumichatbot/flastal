@@ -5864,7 +5864,22 @@ app.post('/api/admin/chat-rooms', requireAdmin, async (req, res) => {
     }
 });
 
-
+// ★★★【新規】管理者向けAPI(7): 個別チャットメッセージ履歴を取得 ★★★
+app.get('/api/admin/chat-rooms/:roomId/messages', requireAdmin, async (req, res) => {
+    const { roomId } = req.params;
+    
+    try {
+        const messages = await prisma.adminChatMessage.findMany({
+            where: { chatRoomId: roomId },
+            orderBy: { createdAt: 'asc' }
+        });
+        
+        res.status(200).json(messages);
+    } catch (error) {
+        console.error("Admin chat history error:", error);
+        res.status(500).json({ message: 'チャット履歴の取得に失敗しました。' });
+    }
+});
 // ===================================
 // ★★★★★   Socket.IOの処理   ★★★★★
 // ===================================
@@ -6058,6 +6073,80 @@ io.on('connection', (socket) => {
       socket.emit('messageError', 'メッセージの送信に失敗しました。');
     }
   });
+
+  // --- 管理者個別チャット ---
+socket.on('sendAdminMessage', async ({ roomId, content }) => {
+    const senderId = socket.user.id;
+    const senderRole = socket.user.role;
+    
+    // 1. 権限チェック (管理者またはチャットルームの相手ユーザーであること)
+    if (senderRole !== 'ADMIN' && senderRole !== 'USER' && senderRole !== 'FLORIST' /* ... 他のロール */) {
+        socket.emit('messageError', '権限がありません。');
+        return;
+    }
+    
+    // 2. チャットルーム情報の取得
+    const room = await prisma.adminChatRoom.findUnique({ where: { id: roomId } });
+    if (!room) {
+        socket.emit('messageError', 'チャットルームが見つかりません。');
+        return;
+    }
+
+    // 3. メッセージ保存
+    const newMessage = await prisma.adminChatMessage.create({
+        data: {
+            chatRoomId: roomId,
+            senderId: senderId,
+            senderRole: senderRole,
+            content: content,
+        }
+    });
+
+    // 4. ルーム全員に送信
+    io.to(roomId).emit('receiveAdminMessage', newMessage);
+
+    // 5. ★★★ LARUbot 連携ロジック ★★★
+    // チャット相手がLARUbotキーを持っている場合 (例: FLORISTの場合)
+    if (room.userRole === 'FLORIST' && room.userId) {
+        const targetFlorist = await prisma.florist.findUnique({ 
+            where: { id: room.userId },
+            select: { laruBotApiKey: true }
+        });
+
+        if (targetFlorist && targetFlorist.laruBotApiKey) {
+            try {
+                // LARUbot APIを呼び出す
+                const larubotResponse = await fetch('https://larubot.tokyo/api/v1/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${targetFlorist.laruBotApiKey}`
+                    },
+                    // 管理者チャットの場合、userIdではなくroomIdなどを渡す
+                    body: JSON.stringify({ message: content, userId: room.userId }) 
+                });
+                
+                if (larubotResponse.ok) {
+                    const aiData = await larubotResponse.json();
+                    const aiContent = aiData.reply || "AIアシスタントは応答できません。";
+                    
+                    const aiMessage = await prisma.adminChatMessage.create({
+                        data: {
+                            content: aiContent,
+                            senderId: room.userId, // ユーザーに代わってBotが応答
+                            senderRole: room.userRole, 
+                            isAutoResponse: true,
+                            chatRoomId: roomId,
+                        }
+                    });
+                    io.to(roomId).emit('receiveAdminMessage', aiMessage);
+                }
+            } catch (aiError) {
+                console.error("LARUbot API Error in Admin Chat:", aiError);
+            }
+        }
+    }
+});
 
   // --- リアクション機能 (DB直接操作版) ---
   socket.on('handleReaction', async ({ messageId, emoji }) => {
