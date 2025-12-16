@@ -6,8 +6,8 @@ generator client {
 }
 
 datasource db {
-  url      = env("DATABASE_URL")
   provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 // --- Enums ---
@@ -732,5 +732,18 @@ model FloristPostLike {
 
   // 1人のユーザーは1つの投稿に1回しかいいねできない
   @@unique([floristPostId, userId])
+}
+model EmailTemplate {
+  id               String      @id @default(cuid())
+  name             String      @unique  // 管理画面で表示するテンプレート名 (例: "Florist承認メール")
+  subject          String      // メール件名
+  body             String      @db.Text // メール本文（プレースホルダーを含む）
+  targetRole       UserRole?   // ターゲットとなるユーザーの役割 (FLORIST, USER, ADMINなど)
+  isSystemTemplate Boolean     @default(false) // 削除不可なシステム固定テンプレートかどうか
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+  
+  // テンプレートで利用可能なプレースホルダーの例
+  // placeholders String[] 
 }
 // -----------------------------------------------------
