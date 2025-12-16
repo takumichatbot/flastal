@@ -39,8 +39,8 @@ import FloristDeliveryControl from '@/app/components/FloristDeliveryControl';
 
 // ★★★ 新規コンポーネントのインポート ★★★
 // ※ パスは実際の配置場所に合わせて調整してください（例: @/components/project/...）
-import FloristMaterialModal from '@/app/components/project/FloristMaterialModal';
-import ProjectCancelModal from '@/app/components/project/ProjectCancelModal';
+import FloristMaterialModal from '@/components/project/FloristMaterialModal';
+import ProjectCancelModal from '@/components/project/ProjectCancelModal';
 
 // Dynamic Import
 const ArViewer = dynamic(() => import('../../components/ArViewer'), { ssr: false });
