@@ -3196,91 +3196,159 @@ app.patch('/api/projects/:projectId/complete', async (req, res) => {
 
 app.patch('/api/projects/:projectId/cancel', authenticateToken, async (req, res) => {
   const { projectId } = req.params;
-  const userId = req.user.id; 
-
-  // ★★★ デバッグ用ログ出力 (ここがログに出るか確認してください) ★★★
-  console.log(`▼▼▼ Cancel Request Debug ▼▼▼`);
-  console.log(`Logged in User ID: ${userId}`);
-  console.log(`Target Project ID: ${projectId}`);
+  const userId = req.user.id;
 
   try {
     const result = await prisma.$transaction(async (tx) => {
+      // 1. 企画情報の取得（支援情報も含める）
       const project = await tx.project.findUnique({
         where: { id: projectId },
         include: { pledges: true }
       });
-      
-      if (!project) {
-        console.log(`Error: Project not found.`);
-        throw new Error('企画が見つかりません。');
+
+      // 2. 基本的なバリデーション
+      if (!project) throw new Error('企画が見つかりません。');
+      if (project.plannerId !== userId) throw new Error('権限がありません。企画者本人ではありません。');
+      if (['COMPLETED', 'CANCELED'].includes(project.status)) {
+        throw new Error('この企画は既に完了または中止されています。');
       }
 
-      // ★★★ 企画者のIDと比較 ★★★
-      console.log(`Project Planner ID : ${project.plannerId}`);
-      if (project.plannerId !== userId) {
-        console.log(`❌ MISMATCH: Logged in user is NOT the planner.`);
-        // ここであえて 403 を返すように明示します
-        throw new Error('FORBIDDEN_ACCESS'); 
+      // --- A. キャンセル料の計算ロジック ---
+      const now = new Date();
+      const deliveryDate = new Date(project.deliveryDateTime);
+      
+      // ミリ秒単位の差分を日数に変換 (切り上げ)
+      // 例: 残り3.5日 → 4日前扱い、残り2.9日 → 3日前扱い
+      const diffTime = deliveryDate - now;
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+
+      let cancelFeeRate = 0;
+      let policyMessage = "";
+
+      // ポリシー分岐
+      if (diffDays <= 3) {
+        // お届け3日前〜当日: 100%
+        cancelFeeRate = 1.0;
+        policyMessage = "お届け3日前以降のため、キャンセル料は100%です。";
+      } else if (diffDays <= 6) {
+        // お届け6日前〜4日前: 50%
+        cancelFeeRate = 0.5;
+        policyMessage = "お届け6日前〜4日前のため、キャンセル料は50%です。";
       } else {
-        console.log(`✅ MATCH: User is the planner.`);
+        // お届け7日前以前: 0% (ただし資材費はかかる場合がある)
+        cancelFeeRate = 0.0;
+        policyMessage = "お届け7日前以前のため、基本キャンセル料は無料です。";
       }
 
-      if (project.status === 'COMPLETED' || project.status === 'CANCELED') {
-        throw new Error('この企画は既に完了または中止されているため、中止できません。');
-      }
+      // キャンセル料総額の計算
+      const collectedAmount = project.collectedAmount || 0;
+      const baseCancelFee = Math.floor(collectedAmount * cancelFeeRate);
       
-      const uniquePledgerIds = new Set(); 
-
-      for (const pledge of project.pledges) {
-        await tx.user.update({
-          where: { id: pledge.userId },
-          data: { points: { increment: pledge.amount } }
-        });
-        uniquePledgerIds.add(pledge.userId);
-      }
+      // 特注資材費を加算 (お花屋さんが入力済みの値)
+      const materialCost = project.materialCost || 0;
       
-      const canceledProject = await tx.project.update({
-        where: { id: projectId },
-        data: { status: 'CANCELED' },
-      });
+      // 合計キャンセル料 (集まった金額を超えないようにキャップ)
+      let totalCancelFee = baseCancelFee + materialCost;
+      if (totalCancelFee > collectedAmount) {
+        totalCancelFee = collectedAmount;
+      }
 
-      for (const id of uniquePledgerIds) {
-        if (id !== userId) {
-          await createNotification(
-            id,
-            'PROJECT_STATUS_UPDATE',
-            `企画「${project.title}」は中止され、支援額${project.collectedAmount.toLocaleString()}ptが返金されました。`,
-            projectId,
-            `/projects/${projectId}`
-          );
+      // 返金可能総額 (支援者に返せる残りのお金)
+      const totalRefundAmount = collectedAmount - totalCancelFee;
 
-          const userToNotify = await tx.user.findUnique({ where: { id } });
-          if (userToNotify) {
-             const emailContent = `
-               <p>誠に残念ながら、企画「${project.title}」は中止されました。</p>
-               <p>これに伴い、支援いただいたポイントは全額返金（ポイント返還）いたしました。</p>
-               <p>現在のポイント残高はマイページよりご確認ください。</p>
-             `;
-             // エラー無視で送信
-             sendEmail(userToNotify.email, '【重要】企画中止と返金のお知らせ', emailContent).catch(e => console.error(e));
+      console.log(`[Cancel Debug] ProjectId: ${projectId}, DiffDays: ${diffDays}, Rate: ${cancelFeeRate}, MaterialCost: ${materialCost}, TotalFee: ${totalCancelFee}, Refundable: ${totalRefundAmount}`);
+
+      // --- B. 返金処理 (ポイント返還) ---
+      // 通知を送る対象のユーザーIDを収集するSet
+      const uniquePledgerIds = new Set();
+
+      // 返金原資があり、かつ集まったお金がある場合のみ計算
+      if (totalRefundAmount > 0 && collectedAmount > 0) {
+        // 返金率 (各支援者の支援額に対して何割戻るか)
+        // 例: 10万円集まって5万円返すなら 0.5
+        const refundRatio = totalRefundAmount / collectedAmount;
+
+        for (const pledge of project.pledges) {
+          // 個別返金額の計算 (端数切り捨て)
+          const refundForPledge = Math.floor(pledge.amount * refundRatio);
+
+          if (refundForPledge > 0) {
+            // 会員の場合: ポイントを加算して返還
+            if (pledge.userId) {
+              await tx.user.update({
+                where: { id: pledge.userId },
+                data: { points: { increment: refundForPledge } }
+              });
+              uniquePledgerIds.add(pledge.userId);
+            } 
+            // ゲストの場合 (Stripe決済): 
+            // ※本来はここでStripeのPartial Refund APIを叩く必要がありますが、
+            //  現在はログ出力にとどめ、後ほど手動対応または別途実装とします。
+            else if (pledge.guestEmail) {
+                console.log(`[TODO: Stripe Refund Action Required] Project: ${projectId}, Guest: ${pledge.guestEmail}, RefundAmount: ${refundForPledge}`);
+            }
           }
         }
       }
 
-      return canceledProject;
-    }); 
+      // --- C. プロジェクト情報の更新 ---
+      const canceledProject = await tx.project.update({
+        where: { id: projectId },
+        data: { 
+            status: 'CANCELED',
+            cancellationDate: new Date(),
+            cancellationFee: totalCancelFee,
+            // 全額返金できたか、一部か、なしか
+            refundStatus: totalRefundAmount >= collectedAmount ? 'COMPLETED' : (totalRefundAmount > 0 ? 'PARTIAL' : 'NONE'),
+        },
+      });
 
-    res.status(200).json({ message: '企画を中止し、すべての支援者にポイントが返金されました。', project: result });
+      // --- D. 通知送信 ---
+      // 支援者全員へ通知
+      for (const id of uniquePledgerIds) {
+        // 企画者本人には送らない
+        if (id !== userId) {
+          await createNotification(
+            id,
+            'PROJECT_CANCELED', // 通知タイプ
+            `企画「${project.title}」が中止されました。${policyMessage} キャンセル料を除いた残額がポイント返還されました。`,
+            projectId,
+            `/projects/${projectId}`
+          );
+        }
+      }
 
-  } catch (error) { 
-    console.error("企画の中止処理エラー:", error.message);
-    
-    // 権限エラーの場合は 403 を返す
-    if (error.message === 'FORBIDDEN_ACCESS') {
-        return res.status(403).json({ message: '権限がありません。企画者本人ではありません。' });
-    }
-    
-    res.status(400).json({ message: error.message || '企画の中止処理中にエラーが発生しました。' });
+      // お花屋さんにも通知 (担当が決まっていれば)
+      if (project.offer && project.offer.floristId) {
+         await createNotification(
+            project.offer.floristId,
+            'PROJECT_CANCELED',
+            `担当企画「${project.title}」が企画者により中止されました。資材費等の補償については管理画面をご確認ください。`,
+            projectId,
+            `/projects/${projectId}` // 花屋用詳細URLがあればそちらへ
+          );
+      }
+
+      return { 
+          project: canceledProject, 
+          refundAmount: totalRefundAmount, 
+          fee: totalCancelFee, 
+          policy: policyMessage 
+      };
+    });
+
+    // 成功レスポンス
+    res.status(200).json({ 
+        message: '企画を中止しました。', 
+        detail: result.policy,
+        refundTotal: result.refundAmount,
+        feeTotal: result.fee 
+    });
+
+  } catch (error) {
+    console.error("企画中止処理エラー:", error);
+    // エラーメッセージをクライアントに返す
+    res.status(400).json({ message: error.message || '処理中にエラーが発生しました。' });
   }
 });
 
@@ -5893,6 +5961,53 @@ app.get('/api/admin/chat-rooms/:roomId/messages', requireAdmin, async (req, res)
         console.error("Admin chat history error:", error);
         res.status(500).json({ message: 'チャット履歴の取得に失敗しました。' });
     }
+});
+
+// ★★★【新規】お花屋さん用：特注資材費の入力API ★★★
+app.patch('/api/projects/:projectId/materials', authenticateToken, async (req, res) => {
+  const { projectId } = req.params;
+  const { materialCost, materialDescription } = req.body;
+  const floristId = req.user.id;
+
+  if (req.user.role !== 'FLORIST') {
+    return res.status(403).json({ message: '権限がありません。' });
+  }
+
+  try {
+    // 1. 自分が担当している企画かチェック
+    const project = await prisma.project.findUnique({
+      where: { id: projectId },
+      include: { offer: true }
+    });
+
+    if (!project) return res.status(404).json({ message: '企画が見つかりません。' });
+    if (project.offer?.floristId !== floristId) {
+      return res.status(403).json({ message: 'この企画の担当ではありません。' });
+    }
+
+    // 2. 資材費を更新
+    const updatedProject = await prisma.project.update({
+      where: { id: projectId },
+      data: {
+        materialCost: parseInt(materialCost, 10) || 0,
+        materialDescription: materialDescription || null,
+      }
+    });
+
+    // 企画者に通知
+    await createNotification(
+      project.plannerId,
+      'PROJECT_UPDATE',
+      `お花屋さんが資材費（${updatedProject.materialCost.toLocaleString()}円）情報を更新しました。`,
+      projectId,
+      `/projects/${projectId}`
+    );
+
+    res.json(updatedProject);
+  } catch (error) {
+    console.error("資材費更新エラー:", error);
+    res.status(500).json({ message: '更新に失敗しました。' });
+  }
 });
 // ===================================
 // ★★★★★   Socket.IOの処理   ★★★★★

@@ -68,6 +68,14 @@ enum OfferStatus {
   REJECTED
 }
 
+enum RefundStatus {
+  NONE        // 返金なし（通常）
+  PENDING     // 返金処理待ち
+  PARTIAL     // 一部返金完了（キャンセル料差し引き後など）
+  COMPLETED   // 全額返金完了
+  FAILED      // 返金失敗
+}
+
 enum FloristStatus {
   PENDING
   APPROVED
@@ -198,6 +206,14 @@ model Project {
   imageUrl                String?
   designDetails           String?           @db.Text
   size                    String?
+  // キャンセル管理用
+  cancellationDate    DateTime? // キャンセルされた日時
+  cancellationFee     Int       @default(0) // 確定したキャンセル料総額
+  refundStatus        String    @default("NONE") // NONE, PENDING, COMPLETED
+  
+  // 特注資材費（お花屋さんが入力）
+  materialCost        Int       @default(0) // パネル代などの実費
+  materialDescription String?   // 「パネル印刷代として」などのメモ
   flowerTypes             String?
   status                  ProjectStatus     @default(PENDING_APPROVAL)
   visibility              ProjectVisibility @default(PUBLIC)

@@ -37,6 +37,11 @@ import VenueRegulationCard from '../../components/VenueRegulationCard';
 import DeliveryTracker from '@/app/components/DeliveryTracker';
 import FloristDeliveryControl from '@/app/components/FloristDeliveryControl';
 
+// ★★★ 新規コンポーネントのインポート ★★★
+// ※ パスは実際の配置場所に合わせて調整してください（例: @/components/project/...）
+import FloristMaterialModal from '@/app/components/project/FloristMaterialModal';
+import ProjectCancelModal from '@/app/components/project/ProjectCancelModal';
+
 // Dynamic Import
 const ArViewer = dynamic(() => import('../../components/ArViewer'), { ssr: false });
 
@@ -73,24 +78,15 @@ const useIsMounted = () => {
 // ===========================================
 
 function InstructionSheetModal({ project, onClose }) {
-  // text の取得APIは不要になるため、コメントアウトまたは削除します。
-  // const [text, setText] = useState(''); 
-  const [loading, setLoading] = useState(false); // ★ APIコールをしないため、falseに設定
+  const [loading, setLoading] = useState(false);
   
-  // プロジェクトから最大3枚の画像を取得
-  // プロジェクトの画像URLフィールドに応じて調整してください
   const images = [
     project.designImageUrls?.[0] || project.imageUrl, 
     project.designImageUrls?.[1], 
     project.designImageUrls?.[2]
   ].filter(url => url); 
     
-  // 指示書の本文コンテンツを生成
   const generateContentHTML = () => {
-    // 既存のテキスト指示書の内容をHTML構造にマッピングします。
-    // (ここではProjectDetailClient.js内で利用可能な project の情報に基づいてコンテンツを作成します)
-    
-    // バックエンドから取得していた指示書の内容をここで直接生成すると仮定
     const instructionText = `
       <h1>【FLASTAL 制作指示書】</h1>
       <h2>企画名: ${project.title}</h2>
@@ -107,7 +103,6 @@ function InstructionSheetModal({ project, onClose }) {
       <pre>${project.venue?.regulations || 'レギュレーション情報なし'}</pre>
     `;
 
-    // 画像表示HTMLの生成
     const imageHtml = images.length > 0 ? `
         <div style="margin-bottom: 20px; page-break-before: auto;">
             <h3 style="border-bottom: 1px solid #ccc; padding-bottom: 5px;">デザイン参考画像</h3>
@@ -179,7 +174,6 @@ function InstructionSheetModal({ project, onClose }) {
   };
 
   const handleCopy = () => {
-    // 画像URLやHTMLタグを除いた純粋なテキストをコピー
     const textToCopy = `制作指示書 - ${project.title}\n\n企画者: ${project.planner?.handleName}\n納品日時: ${new Date(project.deliveryDate).toLocaleString()}\n会場: ${project.venue?.venueName || '未定'}\n\nデザイン詳細:\n${project.designDetails || 'なし'}\n希望サイズ: ${project.size || '不明'}\n花材・色: ${project.flowerTypes || '不明'}\n\n会場レギュレーション:\n${project.venue?.regulations || 'レギュレーション情報なし'}\n\n画像URL:\n${images.join('\n')}`;
     navigator.clipboard.writeText(textToCopy);
     toast.success('指示書のテキストをクリップボードにコピーしました');
@@ -566,6 +560,10 @@ export default function ProjectDetailClient() {
   const [isInstructionModalOpen, setIsInstructionModalOpen] = useState(false);
   const [isArModalOpen, setIsArModalOpen] = useState(false);
 
+  // ★★★ 新規モーダルのState ★★★
+  const [isMaterialModalOpen, setIsMaterialModalOpen] = useState(false);
+  const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+
   // AR States
   const [arImageFile, setArImageFile] = useState(null);
   const [arHeight, setArHeight] = useState(180);
@@ -760,12 +758,14 @@ export default function ProjectDetailClient() {
     toast.promise(promise, { loading: '処理中...', success: () => { fetchProject(); return '支援完了！'; }, error: '失敗しました' });
   };
 
-  const handleCancelProject = () => {
+  // ★★★ 古いハンドル関数は削除し、モーダルを使うように変更するためコメントアウト/削除済み ★★★
+  /* const handleCancelProject = () => {
     if (!user || !window.confirm("本当に中止しますか？")) return;
     const token = getAuthToken();
     const promise = fetch(`${API_URL}/api/projects/${project.id}/cancel`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ userId: user.id }) });
     toast.promise(promise, { loading: '処理中...', success: (d) => { fetchProject(); return '中止しました'; }, error: '失敗しました' });
   };
+  */
 
   const handleAnnouncementSubmit = (e) => {
     e.preventDefault();
@@ -1205,7 +1205,13 @@ export default function ProjectDetailClient() {
                         <Link href={`/projects/edit/${id}`} className="block w-full text-left p-2 hover:bg-gray-50 rounded text-sm text-sky-600">企画内容の編集</Link>
                         <Link href={`/florists?projectId=${id}`} className="block w-full text-left p-2 hover:bg-gray-50 rounded text-sm text-pink-500">お花屋さんを探す</Link>
                         {project.status==='SUCCESSFUL' && <button onClick={()=>setIsCompletionModalOpen(true)} className="w-full mt-2 bg-green-500 text-white p-2 rounded font-bold">完了報告する</button>}
-                        <button onClick={handleCancelProject} className="w-full mt-4 text-red-500 text-xs text-center hover:underline">企画を中止する</button>
+                        
+                        {/* ★★★ 企画中止ボタン（修正: モーダル起動） ★★★ */}
+                        {project.status !== 'CANCELED' && project.status !== 'COMPLETED' && (
+                            <button onClick={() => setIsCancelModalOpen(true)} className="w-full mt-4 text-red-500 text-xs text-center hover:underline bg-red-50 py-2 rounded">
+                                企画を中止する...
+                            </button>
+                        )}
                     </div>
                 )}
 
@@ -1219,11 +1225,32 @@ export default function ProjectDetailClient() {
                             >
                                 <FiFileText className="mr-2"/> 指示書作成
                             </button>
+                            
+                            {/* ★★★ 資材費入力ボタン（新規追加） ★★★ */}
+                            <button 
+                                onClick={() => setIsMaterialModalOpen(true)}
+                                className="w-full py-2 bg-white border border-yellow-300 text-yellow-700 font-bold rounded shadow-sm hover:bg-yellow-50 flex items-center justify-center"
+                            >
+                                <FiDollarSign className="mr-2"/> 資材費・実費の報告
+                            </button>
+                            {project.materialCost > 0 && (
+                                <p className="text-xs text-gray-500 text-center">
+                                    報告済み資材費: {project.materialCost.toLocaleString()}円
+                                </p>
+                            )}
+
                             <div>
                                 <label className="text-xs font-bold text-gray-600">ステータス変更</label>
                                 <select 
-                                    value={currentStatus} 
-                                    className="w-full mt-1 p-2 border rounded text-sm"
+                                    value={PROGRESS_STEPS.find(s => s.key === project.status)?.key} 
+                                    onChange={(e) => {
+                                        // ProgressTracker内のロジックを呼び出すにはリファクタリングが必要ですが、
+                                        // ここでは簡易的に、上部のProgressTrackerコンポーネントのみでステータス変更を行う運用とします。
+                                        // もしここでも変更したい場合は、handleStatusUpdateを親に移動する必要があります。
+                                        toast('ステータス変更は上部のトラッカーで行ってください');
+                                    }}
+                                    className="w-full mt-1 p-2 border rounded text-sm bg-gray-100 cursor-not-allowed"
+                                    disabled
                                 >
                                     {/* FUNDRAISING は除外 */}
                                     {PROGRESS_STEPS.filter(s => s.order > 0).map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
@@ -1236,7 +1263,7 @@ export default function ProjectDetailClient() {
             </div>
           </div>
         </div>
-      </div> {/* ← Close min-h-screen DIV (THIS WAS MISSING) */}
+      </div> 
       
       {/* Modals */}
       {isImageModalOpen && <ImageModal src={modalImageSrc} onClose={() => setIsImageModalOpen(false)} />}
@@ -1245,6 +1272,23 @@ export default function ProjectDetailClient() {
       {isTargetAmountModalOpen && <TargetAmountModal project={project} user={user} onClose={() => setIsTargetAmountModalOpen(false)} onUpdate={fetchProject} />}
       {isInstructionModalOpen && <InstructionSheetModal project={project} onClose={() => setIsInstructionModalOpen(false)} />}
       
+      {/* ★★★ 新規追加: 資材費入力 & キャンセルモーダル ★★★ */}
+      <FloristMaterialModal 
+        isOpen={isMaterialModalOpen} 
+        onClose={() => setIsMaterialModalOpen(false)} 
+        project={project} 
+        onUpdate={setProject} 
+      />
+      <ProjectCancelModal 
+        isOpen={isCancelModalOpen} 
+        onClose={() => setIsCancelModalOpen(false)} 
+        project={project} 
+        onCancelComplete={() => {
+            fetchProject();
+            router.push('/mypage'); // キャンセル後はマイページへ
+        }} 
+      />
+
       {/* AR Modal */}
       {isArModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-80 flex justify-center items-center z-50 p-4 backdrop-blur-sm">
@@ -1272,14 +1316,14 @@ export default function ProjectDetailClient() {
                             <div className="flex gap-2 overflow-x-auto pb-2">
                                 {project.completionImageUrls.map((url, i) => (
                                     <div key={i} className="flex-shrink-0 cursor-pointer group relative w-24 h-24" onClick={() => handleSelectCompletedImage(url)}>
-                                        <Image 
-                                            src={url} 
-                                            alt={`完了写真選択 ${i}`} 
-                                            fill 
-                                            style={{ objectFit: 'cover' }}
-                                            className="rounded border-2 border-transparent group-hover:border-green-500 transition-colors" 
-                                        />
-                                        <p className="text-[10px] text-center mt-1 text-green-700 group-hover:font-bold absolute -bottom-5 w-full">これを選択</p>
+                                            <Image 
+                                                src={url} 
+                                                alt={`完了写真選択 ${i}`} 
+                                                fill 
+                                                style={{ objectFit: 'cover' }}
+                                                className="rounded border-2 border-transparent group-hover:border-green-500 transition-colors" 
+                                            />
+                                            <p className="text-[10px] text-center mt-1 text-green-700 group-hover:font-bold absolute -bottom-5 w-full">これを選択</p>
                                     </div>
                                 ))}
                           </div>
