@@ -152,6 +152,9 @@ model User {
   handleName           String
   password             String
   floristPostLikes FloristPostLike[]
+  acceptsRushOrders Boolean  @default(false)
+  bankAccount   BankAccount?  // 銀行口座 (1対1、未登録あり)
+  payouts       Payout[]      // 出金履歴 (1対多)
   points               Int                @default(0)
   reviewLikes          ReviewLike[]
   role                 UserRole           @default(USER)
@@ -794,5 +797,38 @@ model AdminChatMessage {
   createdAt       DateTime       @default(now())
   
   chatRoom        AdminChatRoom  @relation(fields: [chatRoomId], references: [id])
+}
+
+
+model BankAccount {
+  id            String   @id @default(cuid())
+  userId        String   @unique // 1ユーザー1口座
+  bankName      String   // 銀行名
+  branchName    String   // 支店名
+  branchCode    String?  // 支店コード (任意)
+  accountType   String   // 口座種別 (普通/当座)
+  accountNumber String   // 口座番号
+  accountHolder String   // 口座名義 (全角カナ)
+  
+  user          User     @relation(fields: [userId], references: [id])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// ★★★ 新規追加: 出金申請履歴 ★★★
+model Payout {
+  id            String   @id @default(cuid())
+  userId        String
+  amount        Int      // 申請したポイント額
+  fee           Int      // 振込手数料 (例: 250円)
+  finalAmount   Int      // 実際に振り込む金額 (amount - fee)
+  
+  status        String   @default("PENDING") // PENDING(申請中), COMPLETED(振込完了), REJECTED(却下)
+  adminComment  String?  // 管理者メモ (振込IDなど)
+  
+  requestedAt   DateTime @default(now())
+  completedAt   DateTime? // 処理完了日
+  
+  user          User     @relation(fields: [userId], references: [id])
 }
 // -----------------------------------------------------

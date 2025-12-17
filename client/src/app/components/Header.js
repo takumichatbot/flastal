@@ -1,24 +1,23 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, useRef, useEffect, useMemo, useCallback } from 'react'; // useCallback を追加
+// ★ 1. Imageコンポーネントをインポート
+import Image from 'next/image';
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-// アイコンを追加
 import { FiBell, FiChevronDown, FiUser, FiLogOut, FiHeart, FiCheckCircle, FiMenu, FiX, FiCalendar, FiMapPin, FiLogIn, FiUserPlus } from 'react-icons/fi';
 import toast from 'react-hot-toast';
-import OshiColorPicker from './OshiColorPicker'; // 推し色ピッカー
+import OshiColorPicker from './OshiColorPicker'; 
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
-// ★★★ 共通でトークンを取得するヘルパー関数 (localStorageのキーを authToken に統一) ★★★
 const getAuthToken = () => {
     if (typeof window === 'undefined') return null;
-    // localStorageのキーを 'authToken' に統一していると仮定
     const rawToken = localStorage.getItem('authToken'); 
     return rawToken ? rawToken.replace(/^"|"$/g, '') : null;
 };
 
-// ... (NotificationDropdown コンポーネントは変更なし。そのまま維持してください) ...
+// ... (NotificationDropdown コンポーネントは変更なし) ...
 function NotificationDropdown({ user, notifications, fetchNotifications, unreadCount }) {
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef(null);
@@ -40,8 +39,6 @@ function NotificationDropdown({ user, notifications, fetchNotifications, unreadC
         const token = getAuthToken(); 
         if (!token) return;
         
-        // ★ 既読APIのパスは /api/notifications/mark-all-read ではなく /api/notifications/readall と仮定
-        // ※ もしバックエンドで /api/notifications/readall を実装していない場合、この処理は失敗します。
         const response = await fetch(`${API_URL}/api/notifications/readall`, {
           method: 'PATCH',
           headers: {
@@ -61,7 +58,6 @@ function NotificationDropdown({ user, notifications, fetchNotifications, unreadC
       }
     };
   
-    // ★★★ 修正箇所: 通知の個別既読処理と遷移 ★★★
     const handleRead = async (notificationId, linkUrl) => {
       setIsOpen(false);
       
@@ -69,25 +65,21 @@ function NotificationDropdown({ user, notifications, fetchNotifications, unreadC
         const token = getAuthToken(); 
         if (!token) throw new Error('トークンがありません');
 
-        // バックエンドの /api/notifications/:notificationId/read を叩く
         await fetch(`${API_URL}/api/notifications/${notificationId}/read`, {
           method: 'PATCH',
           headers: {
             'Authorization': `Bearer ${token}`,
           },
         });
-        // 既読処理後、非同期で通知リストを更新
         fetchNotifications();
       } catch (error) {
         console.error('Failed to mark as read:', error);
       }
   
-      // ページ遷移 (非同期処理の後)
       if (linkUrl) {
         window.location.href = linkUrl;
       }
     };
-    // ★★★ 修正箇所 終わり ★★★
   
     const getNotificationIcon = (type) => {
       switch (type) {
@@ -97,7 +89,6 @@ function NotificationDropdown({ user, notifications, fetchNotifications, unreadC
           return <FiBell className="text-indigo-500 w-5 h-5" />;
         case 'TASK_ASSIGNED':
           return <FiCheckCircle className="text-sky-500 w-5 h-5" />;
-        // ★ 承認通知用のアイコンを追加
         case 'OFFER_ACCEPTED': 
             return <FiCheckCircle className="text-green-500 w-5 h-5" />;
         case 'OFFER_REJECTED': 
@@ -145,7 +136,6 @@ function NotificationDropdown({ user, notifications, fetchNotifications, unreadC
                 notifications.map((notif) => (
                   <div 
                     key={notif.id} 
-                    // ★ 既読処理と遷移を handleRead に一本化
                     onClick={() => handleRead(notif.id, notif.linkUrl)}
                     className={`block px-4 py-3 flex items-start space-x-3 cursor-pointer transition-colors ${notif.isRead ? 'bg-white hover:bg-gray-50' : 'bg-blue-50/50 hover:bg-blue-50 border-l-4 border-blue-400'}`}
                   >
@@ -179,17 +169,16 @@ export default function Header() {
   const { user, logout } = useAuth();
   const [notifications, setNotifications] = useState([]);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); // モバイルメニュー用
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); 
 
   const unreadCount = useMemo(() => {
     return notifications.filter(n => !n.isRead).length;
   }, [notifications]);
 
-  // ★★★ 修正: fetchNotifications を useCallback でラップし、依存性を user に限定 ★★★
   const fetchNotifications = useCallback(async () => {
     if (!user) return;
     try {
-      const token = getAuthToken(); // ヘルパー関数からトークンを取得
+      const token = getAuthToken(); 
       if (!token) return;
 
       const response = await fetch(`${API_URL}/api/notifications`, {
@@ -205,16 +194,13 @@ export default function Header() {
     } catch (error) {
       console.error('Failed to fetch notifications:', error);
     }
-  }, [user]); // user が変わったときのみ関数を再生成
+  }, [user]); 
 
   useEffect(() => {
     if (user) {
       fetchNotifications();
-      
-      // ★ ポーリング（定期実行）を追加
-      const interval = setInterval(fetchNotifications, 30000); // 30秒ごとに通知を取得
-      
-      return () => clearInterval(interval); // クリーンアップ関数
+      const interval = setInterval(fetchNotifications, 30000); 
+      return () => clearInterval(interval); 
     }
   }, [user, fetchNotifications]);
 
@@ -235,7 +221,6 @@ export default function Header() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // ナビゲーションリンクの定義
   const navLinks = [
     { href: '/projects', label: '企画一覧', icon: <FiHeart /> },
     { href: '/events', label: 'イベント', icon: <FiCalendar /> },
@@ -251,11 +236,17 @@ export default function Header() {
           {/* 1. ロゴエリア */}
           <div className="flex items-center gap-8">
             <Link href="/" className="flex items-center gap-2 group">
-              {/* ロゴアイコン */}
-              <div className="w-10 h-10 bg-gradient-to-tr from-pink-500 to-rose-400 rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-md group-hover:scale-105 transition-transform">
-                F
-              </div>
-              {/* ★ 文字サイズを大きく text-3xl に変更 */}
+              
+              {/* ★★★ 2. 画像ロゴへ変更 ★★★ */}
+              <Image
+                src="/icon-512x512.jpeg"
+                alt="FLASTAL Logo"
+                width={40} 
+                height={40} 
+                className="rounded-xl shadow-md group-hover:scale-105 transition-transform object-cover"
+                priority // 優先的に読み込み
+              />
+              
               <span className="text-3xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-gray-800 to-gray-600 oshi-theme-text group-hover:opacity-80 transition-opacity">
                 FLASTAL
               </span>
@@ -267,7 +258,6 @@ export default function Header() {
                 <Link 
                   key={link.href} 
                   href={link.href}
-                  // ★ 文字サイズを text-base に変更
                   className="px-4 py-2 rounded-full text-base font-bold text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition-all flex items-center gap-2"
                 >
                   {link.label}
@@ -279,14 +269,12 @@ export default function Header() {
           {/* 3. ユーザーアクションエリア */}
           <div className="flex items-center space-x-3 md:space-x-4">
             
-            {/* 推し色ピッカー */}
             <div className="hidden md:block">
                 <OshiColorPicker />
             </div>
 
             {user ? (
               <>
-                {/* 通知 */}
                 <NotificationDropdown 
                     user={user} 
                     notifications={notifications} 
@@ -294,7 +282,6 @@ export default function Header() {
                     unreadCount={unreadCount}
                 />
 
-                {/* ユーザーメニュー */}
                 <div className="relative" ref={userMenuRef}>
                   <button 
                     onClick={() => setIsUserMenuOpen(!isUserMenuOpen)} 
@@ -307,7 +294,6 @@ export default function Header() {
                         <FiUser className="w-5 h-5" />
                       </div>
                     )}
-                    {/* ★ 名前も少し大きく text-base */}
                     <span className="text-base font-bold hidden sm:block text-gray-700">{user.handleName}</span>
                     <FiChevronDown className={`w-5 h-5 text-gray-400 transition-transform ${isUserMenuOpen ? 'rotate-180' : ''}`} />
                   </button>
@@ -337,19 +323,16 @@ export default function Header() {
               </>
             ) : (
               <div className="flex items-center gap-3">
-                {/* ログインボタン: 文字サイズアップ */}
                 <Link href="/login" className="hidden md:flex items-center gap-2 px-5 py-2.5 text-base font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-full transition-colors">
                   <FiLogIn /> ログイン
                 </Link>
                 
-                {/* 新規登録ボタン: 文字サイズアップ */}
                 <Link href="/register" className="flex items-center gap-2 px-6 py-2.5 text-base font-bold text-white bg-gradient-to-r from-pink-500 to-rose-500 rounded-full shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all">
                   <FiHeart className="animate-pulse" /> ファン登録
                 </Link>
               </div>
             )}
 
-            {/* モバイルメニューボタン */}
             <button 
                 className="lg:hidden p-2 text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -360,7 +343,6 @@ export default function Header() {
         </div>
       </div>
 
-      {/* モバイルメニュー展開 */}
       {isMobileMenuOpen && (
         <div className="lg:hidden bg-white/95 backdrop-blur-md border-t border-gray-100 absolute top-16 md:top-20 left-0 w-full shadow-lg animate-slideDown h-screen">
             <nav className="p-6 space-y-4">

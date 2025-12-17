@@ -1718,39 +1718,53 @@ app.get('/api/florists/payouts', authenticateToken, async (req, res) => { // URL
 
 
 // ★★★ お花屋さんダッシュボードAPI (修正版) ★★★
-app.get('/api/florists/dashboard', authenticateToken, async (req, res) => { // :floristId を削除、authenticateTokenを追加
-  const floristId = req.user.id; // URLパラメータではなく、トークンから自分のIDを取得
-
+app.patch('/api/florists/profile', authenticateToken, async (req, res) => {
+  // 権限チェック
   if (req.user.role !== 'FLORIST') {
-      return res.status(403).json({ message: '権限がありません。お花屋さんアカウントでログインしてください。' });
+    return res.status(403).json({ message: '権限がありません' });
   }
 
+  const floristId = req.user.id; // トークンからID取得
+
+  // フロントエンドから受け取るデータ
+  const { 
+    platformName, 
+    contactName, 
+    address, 
+    phoneNumber, 
+    website, 
+    portfolio, // 自己紹介文
+    specialties, // 得意なスタイル (配列)
+    portfolioImages, // ポートフォリオ画像 (配列)
+    acceptsRushOrders // お急ぎ便対応 (Boolean)
+  } = req.body;
+
   try {
-    const florist = await prisma.florist.findUnique({
+    // Floristテーブルを更新
+    const updatedFlorist = await prisma.florist.update({
       where: { id: floristId },
-    });
-    if (!florist) {
-      return res.status(404).json({ message: 'お花屋さんが見つかりません。' });
-    }
-    
-    const offers = await prisma.offer.findMany({
-      where: { floristId: floristId },
-      include: {
-        project: {
-          include: {
-            planner: { select: { id: true, handleName: true, iconUrl: true } }, 
-          },
-        },
-        chatRoom: true,
-      },
-      orderBy: { createdAt: 'desc' },
+      data: {
+        platformName,
+        contactName,
+        address,
+        phoneNumber,
+        website,
+        portfolio,
+        // Prisma + PostgreSQL は配列をそのまま保存可能
+        specialties: specialties, 
+        portfolioImages: portfolioImages,
+        acceptsRushOrders: Boolean(acceptsRushOrders)
+      }
     });
 
-    const { password, ...floristData } = florist;
-    res.status(200).json({ florist: floristData, offers });
+    res.json({ message: 'プロフィールを更新しました', florist: updatedFlorist });
   } catch (error) {
-    console.error('ダッシュボードデータ取得エラー:', error);
-    res.status(500).json({ message: 'データの取得中にエラーが発生しました。' });
+    console.error("プロフィール更新エラー:", error);
+    // platformNameの重複エラー(P2002)などをキャッチする場合
+    if (error.code === 'P2002') {
+      return res.status(400).json({ message: 'その活動名は既に使用されています。' });
+    }
+    res.status(500).json({ message: 'プロフィールの更新に失敗しました' });
   }
 });
 
@@ -3209,6 +3223,7 @@ app.patch('/api/projects/:projectId/complete', async (req, res) => {
   }
 });
 
+// ★★★ 企画中止・返金処理 API (Stripe実装・メール修正版) ★★★
 app.patch('/api/projects/:projectId/cancel', authenticateToken, async (req, res) => {
   const { projectId } = req.params;
   const userId = req.user.id;
@@ -3218,10 +3233,10 @@ app.patch('/api/projects/:projectId/cancel', authenticateToken, async (req, res)
       // 1. 企画情報の取得（支援情報も含める）
       const project = await tx.project.findUnique({
         where: { id: projectId },
-        include: { pledges: true }
+        include: { pledges: true, offer: true }
       });
 
-      // 2. 基本的なバリデーション
+      // 2. バリデーション
       if (!project) throw new Error('企画が見つかりません。');
       if (project.plannerId !== userId) throw new Error('権限がありません。企画者本人ではありません。');
       if (['COMPLETED', 'CANCELED'].includes(project.status)) {
@@ -3231,56 +3246,38 @@ app.patch('/api/projects/:projectId/cancel', authenticateToken, async (req, res)
       // --- A. キャンセル料の計算ロジック ---
       const now = new Date();
       const deliveryDate = new Date(project.deliveryDateTime);
-      
-      // ミリ秒単位の差分を日数に変換 (切り上げ)
-      // 例: 残り3.5日 → 4日前扱い、残り2.9日 → 3日前扱い
       const diffTime = deliveryDate - now;
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
 
       let cancelFeeRate = 0;
       let policyMessage = "";
 
-      // ポリシー分岐
       if (diffDays <= 3) {
-        // お届け3日前〜当日: 100%
         cancelFeeRate = 1.0;
-        policyMessage = "お届け3日前以降のため、キャンセル料は100%です。";
+        policyMessage = "お届け3日前〜当日のため、キャンセル料は100%です。";
       } else if (diffDays <= 6) {
-        // お届け6日前〜4日前: 50%
         cancelFeeRate = 0.5;
         policyMessage = "お届け6日前〜4日前のため、キャンセル料は50%です。";
       } else {
-        // お届け7日前以前: 0% (ただし資材費はかかる場合がある)
         cancelFeeRate = 0.0;
         policyMessage = "お届け7日前以前のため、基本キャンセル料は無料です。";
       }
 
-      // キャンセル料総額の計算
       const collectedAmount = project.collectedAmount || 0;
       const baseCancelFee = Math.floor(collectedAmount * cancelFeeRate);
-      
-      // 特注資材費を加算 (お花屋さんが入力済みの値)
       const materialCost = project.materialCost || 0;
       
-      // 合計キャンセル料 (集まった金額を超えないようにキャップ)
       let totalCancelFee = baseCancelFee + materialCost;
-      if (totalCancelFee > collectedAmount) {
-        totalCancelFee = collectedAmount;
-      }
+      if (totalCancelFee > collectedAmount) totalCancelFee = collectedAmount;
 
-      // 返金可能総額 (支援者に返せる残りのお金)
       const totalRefundAmount = collectedAmount - totalCancelFee;
 
-      console.log(`[Cancel Debug] ProjectId: ${projectId}, DiffDays: ${diffDays}, Rate: ${cancelFeeRate}, MaterialCost: ${materialCost}, TotalFee: ${totalCancelFee}, Refundable: ${totalRefundAmount}`);
+      console.log(`[Cancel Debug] ID:${projectId}, Days:${diffDays}, Fee:${totalCancelFee}, Refund:${totalRefundAmount}`);
 
-      // --- B. 返金処理 (ポイント返還) ---
-      // 通知を送る対象のユーザーIDを収集するSet
+      // --- B. 返金処理 (ポイント & Stripe) ---
       const uniquePledgerIds = new Set();
 
-      // 返金原資があり、かつ集まったお金がある場合のみ計算
       if (totalRefundAmount > 0 && collectedAmount > 0) {
-        // 返金率 (各支援者の支援額に対して何割戻るか)
-        // 例: 10万円集まって5万円返すなら 0.5
         const refundRatio = totalRefundAmount / collectedAmount;
 
         for (const pledge of project.pledges) {
@@ -3288,7 +3285,7 @@ app.patch('/api/projects/:projectId/cancel', authenticateToken, async (req, res)
           const refundForPledge = Math.floor(pledge.amount * refundRatio);
 
           if (refundForPledge > 0) {
-            // 会員の場合: ポイントを加算して返還
+            // 1. 会員の場合: ポイントを加算して返還
             if (pledge.userId) {
               await tx.user.update({
                 where: { id: pledge.userId },
@@ -3296,11 +3293,23 @@ app.patch('/api/projects/:projectId/cancel', authenticateToken, async (req, res)
               });
               uniquePledgerIds.add(pledge.userId);
             } 
-            // ゲストの場合 (Stripe決済): 
-            // ※本来はここでStripeのPartial Refund APIを叩く必要がありますが、
-            //  現在はログ出力にとどめ、後ほど手動対応または別途実装とします。
-            else if (pledge.guestEmail) {
-                console.log(`[TODO: Stripe Refund Action Required] Project: ${projectId}, Guest: ${pledge.guestEmail}, RefundAmount: ${refundForPledge}`);
+            // 2. ゲスト (Stripe) の場合: ★★★ Stripe APIで返金実行 ★★★
+            else if (pledge.stripePaymentIntentId) {
+                try {
+                    // Stripe API実行 (非同期だがトランザクション内なのでawait)
+                    await stripe.refunds.create({
+                        payment_intent: pledge.stripePaymentIntentId,
+                        amount: refundForPledge, // 部分返金の金額(円)
+                        metadata: {
+                            projectId: projectId,
+                            reason: 'project_canceled_refund'
+                        }
+                    });
+                    console.log(`[Stripe Refund] Success: ${refundForPledge} JPY to guest pledge ${pledge.id}`);
+                } catch (stripeError) {
+                    // エラーでも他の処理を止めないようログ出力のみ
+                    console.error(`[Stripe Refund Error] PledgeID: ${pledge.id}`, stripeError.message);
+                }
             }
           }
         }
@@ -3313,45 +3322,47 @@ app.patch('/api/projects/:projectId/cancel', authenticateToken, async (req, res)
             status: 'CANCELED',
             cancellationDate: new Date(),
             cancellationFee: totalCancelFee,
-            // 全額返金できたか、一部か、なしか
-            refundStatus: totalRefundAmount >= collectedAmount ? 'COMPLETED' : (totalRefundAmount > 0 ? 'PARTIAL' : 'NONE'),
+            refundStatus: totalRefundAmount > 0 ? 'PARTIAL' : 'NONE',
         },
       });
 
-      // --- D. 通知送信 ---
-      // 支援者全員へ通知
+      // --- D. 通知・メール送信 ---
+      
+      // 1. 支援者（会員）への通知とメール
       for (const id of uniquePledgerIds) {
-        // 企画者本人には送らない
-        if (id !== userId) {
+        if (id !== userId) { // 自分以外
+          // サイト内通知
           await createNotification(
             id,
-            'PROJECT_CANCELED', // 通知タイプ
-            `企画「${project.title}」が中止されました。${policyMessage} キャンセル料を除いた残額がポイント返還されました。`,
+            'PROJECT_CANCELED',
+            `企画「${project.title}」が中止されました。${policyMessage} ポイントを返還しました。`,
             projectId,
             `/projects/${projectId}`
           );
+          
+          // メール送信 (テンプレート使用)
+          const pledger = await tx.user.findUnique({ where: { id } });
+          if (pledger && pledger.email) {
+             await sendDynamicEmail(pledger.email, 'PROJECT_CANCELED', {
+                userName: pledger.handleName,
+                projectTitle: project.title,
+                projectUrl: `${process.env.FRONTEND_URL}/projects/${projectId}`,
+                refundAmount: `${totalRefundAmount.toLocaleString()}pt (全体)`, // 必要なら個別の額を計算して渡す
+             });
+          }
         }
       }
 
-      // お花屋さんにも通知 (担当が決まっていれば)
+      // 2. お花屋さんへの通知
       if (project.offer && project.offer.floristId) {
          await createNotification(
             project.offer.floristId,
             'PROJECT_CANCELED',
-            `担当企画「${project.title}」が企画者により中止されました。資材費等の補償については管理画面をご確認ください。`,
+            `担当企画「${project.title}」が企画者により中止されました。詳細は管理画面をご確認ください。`,
             projectId,
-            `/projects/${projectId}` // 花屋用詳細URLがあればそちらへ
+            `/projects/${projectId}`
           );
-          const pledger = await prisma.user.findUnique({ where: { id } });
-            if (pledger && pledger.email) {
-                await sendDynamicEmail(pledger.email, 'PROJECT_CANCELED', {
-                    userName: pledger.handleName,
-                    projectTitle: project.title,
-                    projectUrl: `https://flastal.onrender.com/projects/${project.id}`,
-                    // refundAmount: ... (計算できていれば渡す)
-                });
-            }
-          }
+      }
 
       return { 
           project: canceledProject, 
@@ -3361,7 +3372,6 @@ app.patch('/api/projects/:projectId/cancel', authenticateToken, async (req, res)
       };
     });
 
-    // 成功レスポンス
     res.status(200).json({ 
         message: '企画を中止しました。', 
         detail: result.policy,
@@ -3371,7 +3381,6 @@ app.patch('/api/projects/:projectId/cancel', authenticateToken, async (req, res)
 
   } catch (error) {
     console.error("企画中止処理エラー:", error);
-    // エラーメッセージをクライアントに返す
     res.status(400).json({ message: error.message || '処理中にエラーが発生しました。' });
   }
 });
@@ -6084,6 +6093,173 @@ app.patch('/api/projects/:projectId/materials', authenticateToken, async (req, r
   } catch (error) {
     console.error("資材費更新エラー:", error);
     res.status(500).json({ message: '更新に失敗しました。' });
+  }
+});
+
+// ==========================================
+// ★★★ 出金・銀行口座関連 API ★★★
+// ==========================================
+
+// 1. 銀行口座の取得
+app.get('/api/bank-accounts', authenticateToken, async (req, res) => {
+  try {
+    const account = await prisma.bankAccount.findUnique({
+      where: { userId: req.user.id }
+    });
+    res.json(account || {}); // 未登録なら空オブジェクト
+  } catch (error) {
+    res.status(500).json({ message: '口座情報の取得に失敗しました' });
+  }
+});
+
+// 2. 銀行口座の保存 (新規・更新)
+app.post('/api/bank-accounts', authenticateToken, async (req, res) => {
+  const { bankName, branchName, accountType, accountNumber, accountHolder } = req.body;
+  
+  try {
+    const account = await prisma.bankAccount.upsert({
+      where: { userId: req.user.id },
+      update: { bankName, branchName, accountType, accountNumber, accountHolder },
+      create: { 
+        userId: req.user.id,
+        bankName, branchName, accountType, accountNumber, accountHolder 
+      }
+    });
+    res.json(account);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: '口座情報の保存に失敗しました' });
+  }
+});
+
+// 3. 出金申請履歴の取得
+app.get('/api/payouts', authenticateToken, async (req, res) => {
+  try {
+    const payouts = await prisma.payout.findMany({
+      where: { userId: req.user.id },
+      orderBy: { requestedAt: 'desc' }
+    });
+    res.json(payouts);
+  } catch (error) {
+    res.status(500).json({ message: '申請履歴の取得に失敗しました' });
+  }
+});
+
+// 4. 出金申請の実行 (ポイント減算処理含む)
+app.post('/api/payouts', authenticateToken, async (req, res) => {
+  const { amount } = req.body;
+  const requestAmount = parseInt(amount);
+  const TRANSFER_FEE = 250; // 振込手数料 (一律設定)
+
+  if (requestAmount < 1000) {
+    return res.status(400).json({ message: '出金申請は1,000ptから可能です。' });
+  }
+
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      // ユーザーのポイント残高確認
+      const user = await tx.user.findUnique({ where: { id: req.user.id } });
+      if (user.points < requestAmount) {
+        throw new Error('ポイント残高が不足しています。');
+      }
+
+      // 銀行口座登録済みか確認
+      const bank = await tx.bankAccount.findUnique({ where: { userId: req.user.id } });
+      if (!bank) {
+        throw new Error('先に振込先口座を登録してください。');
+      }
+
+      // ポイントを減算
+      await tx.user.update({
+        where: { id: req.user.id },
+        data: { points: { decrement: requestAmount } }
+      });
+
+      // 申請データ作成
+      const payout = await tx.payout.create({
+        data: {
+          userId: req.user.id,
+          amount: requestAmount,
+          fee: TRANSFER_FEE,
+          finalAmount: requestAmount - TRANSFER_FEE,
+          status: 'PENDING'
+        }
+      });
+
+      return payout;
+    });
+
+    // 管理者へ通知（省略可）
+    
+    res.status(201).json(result);
+  } catch (error) {
+    console.error("出金申請エラー:", error);
+    res.status(400).json({ message: error.message || '申請に失敗しました。' });
+  }
+});
+
+// 5. 【管理者用】出金申請一覧取得
+app.get('/api/admin/payouts', requireAdmin, async (req, res) => {
+  try {
+    const payouts = await prisma.payout.findMany({
+      include: { 
+        user: { include: { bankAccount: true } } // ユーザー情報と口座情報も取得
+      },
+      orderBy: { requestedAt: 'desc' }
+    });
+    res.json(payouts);
+  } catch (error) {
+    res.status(500).json({ message: 'データ取得失敗' });
+  }
+});
+
+// 6. 【管理者用】出金ステータス更新 (振込完了処理)
+app.patch('/api/admin/payouts/:id', requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { status, adminComment } = req.body; // status: 'COMPLETED' or 'REJECTED'
+
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      const payout = await tx.payout.findUnique({ where: { id } });
+      if (!payout) throw new Error('申請が見つかりません');
+
+      // 更新処理
+      const updatedPayout = await tx.payout.update({
+        where: { id },
+        data: { 
+          status, 
+          adminComment,
+          completedAt: status === 'COMPLETED' ? new Date() : null
+        }
+      });
+
+      // 却下された場合はポイントを返還する
+      if (status === 'REJECTED' && payout.status === 'PENDING') {
+        await tx.user.update({
+          where: { id: payout.userId },
+          data: { points: { increment: payout.amount } } // 手数料込みの全額を戻す
+        });
+      }
+
+      return updatedPayout;
+    });
+
+    // 申請者へメール通知 (テンプレート使用)
+    const user = await prisma.user.findUnique({ where: { id: result.userId } });
+    if (user && user.email) {
+        if (status === 'COMPLETED') {
+            await sendDynamicEmail(user.email, 'PAYMENT_COMPLETED', {
+                userName: user.handleName,
+                amount: `${result.finalAmount.toLocaleString()}円`,
+                projectTitle: '出金申請' 
+            });
+        }
+    }
+
+    res.json(result);
+  } catch (error) {
+    console.error("出金更新エラー:", error);
+    res.status(500).json({ message: '更新に失敗しました' });
   }
 });
 // ===================================

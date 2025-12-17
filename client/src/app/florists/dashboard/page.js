@@ -1,17 +1,18 @@
-// /florists/dashboard/page.js
+// src/app/florists/dashboard/page.js
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import VenueRegulationCard from '../../components/VenueRegulationCard'; 
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
-// ★ useAuth, ApprovalPendingCard をインポート
 import { useAuth } from '../../contexts/AuthContext'; 
 import ApprovalPendingCard from '@/app/components/ApprovalPendingCard'; 
-// ... (他のインポート)
-import { FiCheckCircle, FiFileText, FiRefreshCw, FiCalendar, FiMapPin, FiClock, FiChevronLeft, FiChevronRight, FiCamera, FiUser, FiShare, FiEye, FiEyeOff, FiTrash2 } from 'react-icons/fi'; 
+import { 
+  FiCheckCircle, FiFileText, FiRefreshCw, FiCalendar, FiMapPin, 
+  FiClock, FiChevronLeft, FiChevronRight, FiCamera, FiUser, 
+  FiShare, FiEye, FiEyeOff, FiTrash2, FiDollarSign // ★ FiDollarSignを追加
+} from 'react-icons/fi'; 
 
 import FloristAppealPostForm from '@/app/components/FloristAppealPostForm';
 
@@ -44,7 +45,7 @@ const STATUS_LABELS = {
   'FUNDRAISING': '募集中'
 };
 
-// ★★★ カレンダーコンポーネント (省略) ★★★
+// ★★★ カレンダーコンポーネント ★★★
 function CalendarView({ events }) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -172,7 +173,6 @@ function CalendarView({ events }) {
 }
 
 export default function FloristDashboardPage() {
-  // ★★★ useAuth から isPending と isApproved を取得 ★★★
   const { user, token, logout, isPending, isApproved } = useAuth(); 
   const router = useRouter();
   
@@ -192,7 +192,6 @@ export default function FloristDashboardPage() {
 
   // データ取得関数
   const fetchData = useCallback(async () => {
-    // 審査待ち/却下状態の場合、APIコールは不要（または権限エラーになる）
     if (user && user.role === 'FLORIST' && (isPending || !isApproved)) {
         setLoading(false);
         return; 
@@ -233,7 +232,7 @@ export default function FloristDashboardPage() {
       const appealPostsData = floristDataRes.appealPosts || [];
 
       setFloristData(floristDataRes);
-      setOffers(floristDataRes.offers || []); // dashboard APIがoffersを返さない場合は別途修正が必要
+      setOffers(floristDataRes.offers || []);
       setPayouts(payoutsData || []);
       setScheduleEvents(scheduleData); 
       setAppealPosts(appealPostsData); 
@@ -256,7 +255,7 @@ export default function FloristDashboardPage() {
     }
   }, [user, token, fetchData]); 
   
-  // ★★★ 制作アピール投稿の削除ハンドラ (DELETE API を利用) ★★★
+  // 制作アピール投稿の削除ハンドラ
   const handleDeleteAppealPost = async (post) => {
       if (!window.confirm("この投稿を本当に削除しますか？")) {
           return;
@@ -291,7 +290,7 @@ export default function FloristDashboardPage() {
       }
   };
   
-  // ★★★ 公開/非公開の切り替えハンドラ (PATCH API を利用) ★★★
+  // 公開/非公開の切り替えハンドラ
   const handleToggleVisibility = async (post) => {
       if (!post.id) {
           toast.error('投稿IDが見つかりません。');
@@ -336,7 +335,7 @@ export default function FloristDashboardPage() {
       router.push('/florists/login');
   };
       
-  // ★★★ 認証とステータス制御 ★★★
+  // 認証とステータス制御
   if (user && user.role !== 'FLORIST') {
     router.push('/'); // ロール違いはトップへ
     return null;
@@ -354,15 +353,13 @@ export default function FloristDashboardPage() {
     );
   }
 
-  // ★★★ 審査待ち/却下UIの表示 ★★★
+  // 審査待ち/却下UIの表示
   if (isPending || !isApproved) {
       return <ApprovalPendingCard />;
   }
-  // ★★★ -------------------- ★★★
 
   const pendingOffers = offers.filter(o => o.status === 'PENDING');
   const acceptedOffers = offers.filter(o => o.status === 'ACCEPTED');
-  const isPayoutDisabled = !payoutAmount || !accountInfo || Number(payoutAmount) < MINIMUM_PAYOUT_AMOUNT || Number(payoutAmount) > (floristData.balance || 0);
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -380,7 +377,6 @@ export default function FloristDashboardPage() {
       
       <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
           
-          {/* ★★★ 制作アピール投稿フォームをメインエリアの先頭に追加 ★★★ */}
           <div className="mb-8">
               <FloristAppealPostForm onPostSuccess={fetchData} />
           </div>
@@ -414,13 +410,12 @@ export default function FloristDashboardPage() {
                 <button onClick={() => setActiveTab('accepted')} className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium transition-colors ${activeTab === 'accepted' ? 'border-pink-500 text-pink-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>対応中の企画 ({acceptedOffers.length})</button>
                 <button onClick={() => setActiveTab('schedule')} className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium transition-colors ${activeTab === 'schedule' ? 'border-pink-500 text-pink-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>スケジュール</button>
                 <button onClick={() => setActiveTab('payout')} className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium transition-colors ${activeTab === 'payout' ? 'border-pink-500 text-pink-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>売上・出金管理</button>
-                 {/* ★★★ 制作アピールタブの追加 ★★★ */}
                 <button onClick={() => setActiveTab('appeal')} className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium transition-colors ${activeTab === 'appeal' ? 'border-pink-500 text-pink-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>制作アピール ({appealPosts.length})</button>
               </nav>
             </div>
 
             <div className="py-6">
-              {/* 1. 新着オファー (既存ロジック) */}
+              {/* 1. 新着オファー */}
               {activeTab === 'pending' && (
                 <div className="space-y-4">
                   <div className="text-center py-10 text-gray-400">
@@ -429,7 +424,7 @@ export default function FloristDashboardPage() {
                 </div>
               )}
 
-              {/* 2. 対応中の企画 (既存ロジック) */}
+              {/* 2. 対応中の企画 */}
               {activeTab === 'accepted' && (
                 <div className="space-y-4">
                   <div className="text-center py-10 text-gray-400">
@@ -438,27 +433,38 @@ export default function FloristDashboardPage() {
                 </div>
               )}
 
-              {/* 3. スケジュール (既存ロジック) */}
+              {/* 3. スケジュール */}
               {activeTab === 'schedule' && (
                 <CalendarView events={scheduleEvents} />
               )}
 
-              {/* 4. 売上・出金管理 (既存ロジック) */}
+              {/* ★★★ 4. 売上・出金管理 (更新) ★★★ */}
                {activeTab === 'payout' && (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                  <div className="text-center py-10 text-gray-400">
-                    <p className="text-sm">売上・出金管理のロジックは省略されています。</p>
+                <div className="flex flex-col items-center justify-center py-16 bg-gray-50 rounded-xl border border-gray-200">
+                  <div className="bg-white p-4 rounded-full shadow-md mb-4">
+                    <FiDollarSign className="w-10 h-10 text-pink-500" />
                   </div>
+                  <h3 className="text-xl font-bold text-gray-800 mb-2">売上管理・出金申請</h3>
+                  <p className="text-gray-500 mb-6 text-center max-w-md">
+                    現在の売上ポイントの確認、銀行口座の登録、および出金申請はこちらの専用ページから行えます。
+                  </p>
+                  
+                  <Link 
+                    href="/florists/payouts" // ★ 作成済みの出金ページへ遷移
+                    className="px-8 py-3 bg-pink-600 text-white font-bold rounded-full hover:bg-pink-700 transition-all shadow-lg flex items-center gap-2"
+                  >
+                    管理ページを開く <FiChevronRight />
+                  </Link>
                 </div>
               )}
               
-               {/* ★★★ 5. 制作アピール一覧 (新規追加) ★★★ */}
+               {/* 5. 制作アピール一覧 */}
               {activeTab === 'appeal' && (
                 <div className="space-y-6">
                   {appealPosts.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       {appealPosts.map(post => {
-                          const isPublic = post.isPublic !== false; // false でない場合は公開と見なす
+                          const isPublic = post.isPublic !== false;
 
                           return (
                               <div key={post.id} className="bg-white rounded-xl shadow-lg border overflow-hidden">
@@ -479,7 +485,6 @@ export default function FloristDashboardPage() {
                                         </div>
                                     )}
                                     <div className="absolute top-2 right-2 flex gap-2">
-                                        {/* C. 外部共有リンク */}
                                         <Link 
                                             href={`/florists/${floristData.id}`} 
                                             target="_blank" 
@@ -499,8 +504,6 @@ export default function FloristDashboardPage() {
                                     </p>
                                     
                                     <div className="mt-4 border-t pt-2 flex justify-end gap-2">
-                                        
-                                        {/* A. 公開/非公開切り替えボタン */}
                                         <button 
                                             onClick={() => handleToggleVisibility(post)} 
                                             className={`text-xs font-medium px-3 py-1 rounded-full transition-colors flex items-center gap-1 ${isPublic ? 'bg-yellow-200 text-yellow-800 hover:bg-yellow-300' : 'bg-sky-200 text-sky-800 hover:bg-sky-300'}`}
@@ -509,7 +512,6 @@ export default function FloristDashboardPage() {
                                             {isPublic ? '非公開にする' : '公開する'}
                                         </button>
                                         
-                                        {/* B. 削除ボタン */}
                                         <button 
                                             onClick={() => handleDeleteAppealPost(post)} 
                                             className="text-xs text-red-500 hover:text-red-700 font-medium px-3 py-1 rounded-full hover:bg-red-50 transition-colors flex items-center gap-1"
