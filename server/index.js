@@ -402,7 +402,11 @@ app.post('/api/users/register', async (req, res) => {
       </div>
     `;
     // エラーが出ても登録自体は成功させるため、awaitのエラーハンドリングは内部で行うか、ここでのエラーは無視して進める
-    await sendEmail(email, '【FLASTAL】会員登録完了のお知らせ', emailContent);
+    await sendDynamicEmail(email, 'WELCOME', {
+        userName: handleName,
+        email: email,
+        loginUrl: 'https://flastal.onrender.com/login' // 必要に応じてURLを変更
+    });
 
     res.status(201).json({ message: 'ユーザー登録が完了しました。', user: userWithoutPassword });
 
@@ -1042,9 +1046,12 @@ app.patch('/api/notifications/:notificationId/read', authenticateToken, async (r
   }
 });
 
+// server/index.js の該当箇所を上書き
+
 app.patch('/api/admin/projects/:projectId/status', requireAdmin, async (req, res) => {
   const { projectId } = req.params;
-  const { status } = req.body;
+  // ★ adminComment (却下理由など) も受け取るように追加
+  const { status, adminComment } = req.body;
 
   if (status !== 'FUNDRAISING' && status !== 'REJECTED') {
     return res.status(400).json({ message: '無効なステータスです。' });
@@ -1057,12 +1064,16 @@ app.patch('/api/admin/projects/:projectId/status', requireAdmin, async (req, res
       include: { planner: true } 
     });
 
+    if (!project) {
+        return res.status(404).json({ message: '企画が見つかりません。' });
+    }
+
     const updatedProject = await prisma.project.update({
       where: { id: projectId },
       data: { status: status },
     });
 
-    // ★★★ 【追加】審査結果メール送信 ★★★
+    // ★★★ 【修正】テンプレートメール送信機能に置き換え ★★★
     if (status === 'FUNDRAISING') {
       // 承認時
       await createNotification(
@@ -1073,13 +1084,14 @@ app.patch('/api/admin/projects/:projectId/status', requireAdmin, async (req, res
         `/projects/${projectId}`
       );
       
-      const emailContent = `
-        <p>${project.planner.handleName} 様</p>
-        <p>おめでとうございます！企画「${project.title}」が承認され、公開されました。</p>
-        <p>以下のURLをシェアして、支援を募りましょう！</p>
-        <p><a href="${process.env.FRONTEND_URL}/projects/${projectId}">${process.env.FRONTEND_URL}/projects/${projectId}</a></p>
-      `;
-      await sendEmail(project.planner.email, '【FLASTAL】企画が公開されました！', emailContent);
+      // テンプレート: PROJECT_APPROVAL (承認メール) を使用
+      if (project.planner && project.planner.email) {
+          await sendDynamicEmail(project.planner.email, 'PROJECT_APPROVAL', {
+              userName: project.planner.handleName,
+              projectTitle: project.title,
+              projectUrl: `${process.env.FRONTEND_URL}/projects/${projectId}`
+          });
+      }
 
     } else if (status === 'REJECTED') {
       // 却下時
@@ -1091,12 +1103,15 @@ app.patch('/api/admin/projects/:projectId/status', requireAdmin, async (req, res
         `/mypage`
       );
 
-      const emailContent = `
-        <p>${project.planner.handleName} 様</p>
-        <p>残念ながら、企画「${project.title}」は承認されませんでした。</p>
-        <p>企画内容を見直し、再度申請をご検討ください。</p>
-      `;
-      await sendEmail(project.planner.email, '【FLASTAL】企画審査結果のお知らせ', emailContent);
+      // テンプレート: PROJECT_REJECTED (却下メール) を使用
+      if (project.planner && project.planner.email) {
+          await sendDynamicEmail(project.planner.email, 'PROJECT_REJECTED', {
+              userName: project.planner.handleName,
+              projectTitle: project.title,
+              // フロントエンドから adminComment が送られてくればそれを使い、なければデフォルト文言
+              reason: adminComment || '利用規約またはガイドラインに沿わない点がありました。' 
+          });
+      }
     }
 
     res.status(200).json(updatedProject);
@@ -3327,7 +3342,16 @@ app.patch('/api/projects/:projectId/cancel', authenticateToken, async (req, res)
             projectId,
             `/projects/${projectId}` // 花屋用詳細URLがあればそちらへ
           );
-      }
+          const pledger = await prisma.user.findUnique({ where: { id } });
+            if (pledger && pledger.email) {
+                await sendDynamicEmail(pledger.email, 'PROJECT_CANCELED', {
+                    userName: pledger.handleName,
+                    projectTitle: project.title,
+                    projectUrl: `https://flastal.onrender.com/projects/${project.id}`,
+                    // refundAmount: ... (計算できていれば渡す)
+                });
+            }
+          }
 
       return { 
           project: canceledProject, 
@@ -5733,22 +5757,33 @@ app.get('/api/admin/email-templates', requireAdmin, async (req, res) => {
     }
 });
 
-// ★★★【新規】メールテンプレートの作成/更新 ★★★
+// ★★★【修正】テンプレート作成/更新 API (keyに対応) ★★★
 app.post('/api/admin/email-templates', requireAdmin, async (req, res) => {
-    const { id, name, subject, body, targetRole, isSystemTemplate } = req.body;
+    // key を追加
+    const { id, key, name, subject, body, targetRole, isSystemTemplate } = req.body;
     
     try {
         if (id) {
-            // 更新 (既存IDがある場合)
+            // 更新
             const updatedTemplate = await prisma.emailTemplate.update({
                 where: { id: id },
-                data: { name, subject, body, targetRole, isSystemTemplate }
+                data: { key, name, subject, body, targetRole, isSystemTemplate } // keyも含める
             });
             return res.status(200).json(updatedTemplate);
         } else {
             // 新規作成
+            // keyが重複していないかチェック（upsert的に扱うのもありですが今回は簡易に）
+            const existing = await prisma.emailTemplate.findUnique({ where: { key } });
+            if (existing) {
+                 const updatedTemplate = await prisma.emailTemplate.update({
+                    where: { key: key },
+                    data: { name, subject, body, targetRole, isSystemTemplate }
+                });
+                return res.status(200).json(updatedTemplate);
+            }
+
             const newTemplate = await prisma.emailTemplate.create({
-                data: { name, subject, body, targetRole, isSystemTemplate }
+                data: { key, name, subject, body, targetRole, isSystemTemplate }
             });
             return res.status(201).json(newTemplate);
         }
@@ -5757,6 +5792,48 @@ app.post('/api/admin/email-templates', requireAdmin, async (req, res) => {
         res.status(500).json({ message: 'テンプレートの保存に失敗しました。' });
     }
 });
+
+// ★★★【新規】テンプレートを使った動的メール送信関数 ★★★
+async function sendDynamicEmail(toEmail, templateKey, variables = {}) {
+    try {
+        // 1. DBからテンプレートを取得
+        const template = await prisma.emailTemplate.findUnique({
+            where: { key: templateKey }
+        });
+
+        if (!template) {
+            console.warn(`[Email Warning] Template '${templateKey}' not found in DB. Skipping email.`);
+            return false;
+        }
+
+        // 2. 変数の置換処理 ({{variable}} を実際の値に)
+        let subject = template.subject;
+        let body = template.body;
+
+        Object.keys(variables).forEach(key => {
+            const regex = new RegExp(`{{${key}}}`, 'g');
+            const value = variables[key] !== undefined ? variables[key] : '';
+            subject = subject.replace(regex, value);
+            body = body.replace(regex, value);
+        });
+
+        // 3. メール送信
+        const mailOptions = {
+            from: process.env.EMAIL_USER,
+            to: toEmail,
+            subject: subject,
+            text: body,
+        };
+
+        await transporter.sendMail(mailOptions);
+        console.log(`[Email Sent] Template: ${templateKey}, To: ${toEmail}`);
+        return true;
+
+    } catch (error) {
+        console.error(`[Email Error] Failed to send '${templateKey}' to ${toEmail}:`, error);
+        return false;
+    }
+}
 
 // ★★★【新規】管理者向けAPI(4): 個別メール送信 ★★★
 app.post('/api/admin/send-individual-email', requireAdmin, async (req, res) => {
