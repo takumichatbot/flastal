@@ -239,7 +239,7 @@ export default function Header() {
               
               {/* ★★★ 2. 画像ロゴへ変更 ★★★ */}
               <Image
-                src="/icon-512x512.jpeg"
+                src="/icon-512x512.png"
                 alt="FLASTAL Logo"
                 width={40} 
                 height={40} 
