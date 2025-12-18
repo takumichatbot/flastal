@@ -5789,13 +5789,15 @@ app.post('/api/admin/email-templates', requireAdmin, async (req, res) => {
 
 // ★★★【新規】テンプレートを使った動的メール送信関数 ★★★
 async function sendDynamicEmail(toEmail, templateKey, variables = {}) {
+    console.log(`[Email Attempt] Key: ${templateKey}, To: ${toEmail}`); // ★ログ出力
+
     try {
         // 1. DBからテンプレートを取得
         const template = await prisma.emailTemplate.findUnique({
             where: { key: templateKey }
         });
 
-        // テンプレートがない場合のフォールバック（エラー回避）
+        // テンプレートがない場合のフォールバック
         let subject = '【FLASTAL】お知らせ';
         let body = '<p>通知が届きました。</p>';
 
@@ -5806,9 +5808,8 @@ async function sendDynamicEmail(toEmail, templateKey, variables = {}) {
             console.warn(`[Email Warning] Template '${templateKey}' not found. Using default.`);
         }
 
-        // 2. 変数の置換処理 ({{variable}} を実際の値に)
+        // 2. 変数の置換処理
         Object.keys(variables).forEach(key => {
-            // 正規表現でグローバル置換
             const regex = new RegExp(`{{${key}}}`, 'g');
             const value = variables[key] !== undefined ? variables[key] : '';
             subject = subject.replace(regex, value);
@@ -5816,25 +5817,25 @@ async function sendDynamicEmail(toEmail, templateKey, variables = {}) {
         });
 
         // 3. Resendで送信
-        // ★重要: 開発中は 'onboarding@resend.dev' を使う必要があります
+        // ★重要: Sandboxモードでは from は 'onboarding@resend.dev' のみに固定してください（名前をつけない）
+        // ★重要: Sandboxモードでは to は「Resendに登録した自分のメールアドレス」以外には送れません
         const { data, error } = await resend.emails.send({
-            from: 'FLASTAL <onboarding@resend.dev>', 
+            from: 'onboarding@resend.dev', 
             to: [toEmail],
             subject: subject,
             html: body,
         });
 
         if (error) {
-            console.error(`[Resend Error] Key: ${templateKey}, To: ${toEmail}`, error);
-            // エラー内容に "pattern" が含まれていたら詳細をログに出す
+            console.error(`[Resend Error Details]`, error);
             return false;
         }
 
-        console.log(`[Email Sent] Template: ${templateKey}, To: ${toEmail}, ID: ${data?.id}`);
+        console.log(`[Email Success] ID: ${data?.id}`);
         return true;
 
     } catch (error) {
-        console.error(`[System Error] Failed to send '${templateKey}' to ${toEmail}:`, error);
+        console.error(`[System Error] Failed to send email:`, error);
         return false;
     }
 }
