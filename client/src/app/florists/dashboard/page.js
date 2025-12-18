@@ -206,7 +206,7 @@ export default function FloristDashboardPage() {
     try {
       const [dashboardRes, payoutsRes, scheduleRes] = await Promise.all([
         // Florist API（ appealPosts を含む）
-        fetch(`${API_URL}/api/florists/${user.id}`, { 
+        fetch(`${API_URL}/api/florists/dashboard`, { 
           headers: { 'Authorization': `Bearer ${token}` }
         }),
         fetch(`${API_URL}/api/florists/payouts`, {

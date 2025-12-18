@@ -6262,6 +6262,74 @@ app.patch('/api/admin/payouts/:id', requireAdmin, async (req, res) => {
     res.status(500).json({ message: '更新に失敗しました' });
   }
 });
+
+// ==========================================
+// ★★★ 管理者機能: アカウント審査・一覧 ★★★
+// ==========================================
+
+// 1. 審査待ちリストの取得 (花屋・会場・主催者)
+app.get('/api/admin/:role/pending', requireAdmin, async (req, res) => {
+  const { role } = req.params; // 'florists', 'venues', 'organizers'
+  try {
+    let data = [];
+    if (role === 'florists') {
+      data = await prisma.florist.findMany({ where: { status: 'PENDING' }, orderBy: { createdAt: 'desc' } });
+    } else if (role === 'venues') {
+      data = await prisma.venue.findMany({ where: { status: 'PENDING' }, orderBy: { createdAt: 'desc' } });
+    } else if (role === 'organizers') {
+      data = await prisma.organizer.findMany({ where: { status: 'PENDING' }, orderBy: { createdAt: 'desc' } });
+    }
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ message: 'データ取得失敗' });
+  }
+});
+
+// 2. アカウント承認・却下アクション
+app.patch('/api/admin/:role/:id/approval', requireAdmin, async (req, res) => {
+  const { role, id } = req.params;
+  const { status } = req.body; // 'APPROVED' or 'REJECTED'
+
+  try {
+    let result;
+    let email = '';
+    let name = '';
+
+    // ステータス更新
+    if (role === 'florists') {
+      result = await prisma.florist.update({ where: { id }, data: { status } });
+      email = result.email;
+      name = result.platformName;
+      // Floristの場合はUserテーブルのroleもFLORISTにする必要があるが、
+      // 現在の設計ではUserとFloristが別テーブルかリンクしているかによる。
+      // ※ここではFloristテーブルのステータス管理を優先。
+    } else if (role === 'venues') {
+      result = await prisma.venue.update({ where: { id }, data: { status } });
+      email = result.email;
+      name = result.venueName;
+    } else if (role === 'organizers') {
+      result = await prisma.organizer.update({ where: { id }, data: { status } });
+      email = result.email;
+      name = result.name;
+    }
+
+    // メール送信 (承認時)
+    if (status === 'APPROVED' && email) {
+      // 共通の承認メールテンプレートを使用 (roleごとに分けることも可能)
+      await sendDynamicEmail(email, 'ACCOUNT_APPROVED', {
+        userName: name,
+        loginUrl: `${process.env.FRONTEND_URL}/${role}/login` // roleに合わせてログインURLを変える
+      });
+    }
+
+    res.json(result);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: '更新失敗' });
+  }
+});
+
+
 // ===================================
 // ★★★★★   Socket.IOの処理   ★★★★★
 // ===================================

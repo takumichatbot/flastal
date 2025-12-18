@@ -13,6 +13,7 @@ const VARIABLE_GUIDE = {
   'PROJECT_REJECTED': ['{{userName}} (企画者名)', '{{projectTitle}} (企画名)', '{{reason}} (却下理由)'],
   'PROJECT_CANCELED': ['{{userName}} (受信者名)', '{{projectTitle}} (企画名)', '{{refundAmount}} (返金額)'],
   'FLORIST_OFFER': ['{{floristName}} (花屋名)', '{{projectTitle}} (企画名)', '{{offerUrl}} (オファーURL)'],
+  'ACCOUNT_APPROVED': ['{{userName}} (ユーザー名)', '{{loginUrl}} (ログインURL)'],
 };
 
 // デフォルトのテンプレート定義（DBが空の場合の初期値）
@@ -43,7 +44,7 @@ export default function EmailTemplateManager() {
       if (res.ok) {
         const data = await res.json();
         if (data.length === 0) {
-            // データがない場合はデフォルトを表示（保存はされていない状態）
+            // データがない場合はデフォルトを表示
             setTemplates(DEFAULT_TEMPLATES.map(t => ({ ...t, id: null })));
         } else {
             setTemplates(data);
@@ -57,8 +58,21 @@ export default function EmailTemplateManager() {
     }
   };
 
+  // ★ 新規作成モードへ切り替え
+  const handleCreateNew = () => {
+      setSelectedTemplate({
+          key: '',
+          name: '新規テンプレート',
+          subject: '',
+          body: '',
+          isNew: true // 新規フラグ（保存時にIDではなくKEYで判定させるため）
+      });
+  };
+
   const handleSave = async () => {
     if (!selectedTemplate) return;
+    if (!selectedTemplate.key) return toast.error('テンプレートキー(ID)は必須です');
+    
     setSaving(true);
     const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
 
@@ -96,7 +110,8 @@ export default function EmailTemplateManager() {
   };
 
   const handleSelect = (temp) => {
-      setSelectedTemplate({ ...temp }); // コピーを作成して編集用にする
+      // 既存選択時はコピーを作成して編集用にする
+      setSelectedTemplate({ ...temp, isNew: false }); 
   };
 
   if (loading) return <div className="p-8 text-center text-gray-500">テンプレート読み込み中...</div>;
@@ -104,12 +119,19 @@ export default function EmailTemplateManager() {
   return (
     <div className="flex flex-col md:flex-row h-[600px] border rounded-xl overflow-hidden bg-white shadow-sm">
       {/* 左サイドバー: リスト */}
-      <div className="w-full md:w-1/3 border-r bg-gray-50 overflow-y-auto">
-        <div className="p-4 border-b bg-gray-100 font-bold text-gray-700 flex justify-between items-center">
+      <div className="w-full md:w-1/3 border-r bg-gray-50 overflow-y-auto flex flex-col">
+        <div className="p-4 border-b bg-gray-100 font-bold text-gray-700 flex justify-between items-center sticky top-0 bg-gray-100 z-10">
           <span>テンプレート一覧</span>
-          <button onClick={fetchTemplates} className="text-gray-500 hover:text-indigo-600"><FiRefreshCw/></button>
+          <div className="flex gap-2">
+            <button onClick={handleCreateNew} className="text-pink-600 hover:bg-pink-100 p-2 rounded-full transition-colors" title="新規作成">
+                <FiPlus size={20}/>
+            </button>
+            <button onClick={fetchTemplates} className="text-gray-500 hover:text-indigo-600 p-2 rounded-full transition-colors" title="更新">
+                <FiRefreshCw size={18}/>
+            </button>
+          </div>
         </div>
-        <ul>
+        <ul className="flex-grow">
           {templates.map(temp => (
             <li 
               key={temp.key || temp.id}
@@ -128,14 +150,28 @@ export default function EmailTemplateManager() {
         {selectedTemplate ? (
           <>
             <div className="p-6 flex-grow overflow-y-auto">
-              <div className="mb-4">
-                <label className="block text-xs font-bold text-gray-500 mb-1 uppercase tracking-wide">テンプレート名 (管理用)</label>
-                <input 
-                  type="text" 
-                  value={selectedTemplate.name || ''} 
-                  onChange={e => setSelectedTemplate({...selectedTemplate, name: e.target.value})}
-                  className="w-full p-2 border rounded bg-gray-50 text-sm"
-                />
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 mb-1 uppercase tracking-wide">テンプレート名 (管理用)</label>
+                    <input 
+                      type="text" 
+                      value={selectedTemplate.name || ''} 
+                      onChange={e => setSelectedTemplate({...selectedTemplate, name: e.target.value})}
+                      className="w-full p-2 border rounded bg-gray-50 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 mb-1 uppercase tracking-wide">KEY (プログラム用ID)</label>
+                    <input 
+                      type="text" 
+                      value={selectedTemplate.key || ''} 
+                      onChange={e => setSelectedTemplate({...selectedTemplate, key: e.target.value.toUpperCase()})} 
+                      className="w-full p-2 border rounded bg-gray-50 text-sm font-mono"
+                      placeholder="例: ACCOUNT_APPROVED"
+                      // 新規作成時以外はキーを変更できないようにする（整合性のため）
+                      disabled={!selectedTemplate.isNew && selectedTemplate.id} 
+                    />
+                  </div>
               </div>
 
               <div className="mb-4">
@@ -189,7 +225,7 @@ export default function EmailTemplateManager() {
         ) : (
           <div className="flex flex-col items-center justify-center h-full text-gray-400">
             <FiCheck className="text-4xl mb-2 opacity-20"/>
-            <p>左のリストから編集するテンプレートを選択してください</p>
+            <p>左のリストから編集するテンプレートを選択するか、<br/>＋ボタンで新規作成してください</p>
           </div>
         )}
       </div>
