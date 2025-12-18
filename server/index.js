@@ -5795,36 +5795,46 @@ async function sendDynamicEmail(toEmail, templateKey, variables = {}) {
             where: { key: templateKey }
         });
 
-        if (!template) {
-            console.warn(`[Email Warning] Template '${templateKey}' not found in DB. Skipping email.`);
-            return false;
+        // テンプレートがない場合のフォールバック（エラー回避）
+        let subject = '【FLASTAL】お知らせ';
+        let body = '<p>通知が届きました。</p>';
+
+        if (template) {
+            subject = template.subject;
+            body = template.body;
+        } else {
+            console.warn(`[Email Warning] Template '${templateKey}' not found. Using default.`);
         }
 
         // 2. 変数の置換処理 ({{variable}} を実際の値に)
-        let subject = template.subject;
-        let body = template.body;
-
         Object.keys(variables).forEach(key => {
+            // 正規表現でグローバル置換
             const regex = new RegExp(`{{${key}}}`, 'g');
             const value = variables[key] !== undefined ? variables[key] : '';
             subject = subject.replace(regex, value);
             body = body.replace(regex, value);
         });
 
-        // 3. メール送信
-        const mailOptions = {
-            from: process.env.EMAIL_USER,
-            to: toEmail,
+        // 3. Resendで送信
+        // ★重要: 開発中は 'onboarding@resend.dev' を使う必要があります
+        const { data, error } = await resend.emails.send({
+            from: 'FLASTAL <onboarding@resend.dev>', 
+            to: [toEmail],
             subject: subject,
-            text: body,
-        };
+            html: body,
+        });
 
-        await transporter.sendMail(mailOptions);
-        console.log(`[Email Sent] Template: ${templateKey}, To: ${toEmail}`);
+        if (error) {
+            console.error(`[Resend Error] Key: ${templateKey}, To: ${toEmail}`, error);
+            // エラー内容に "pattern" が含まれていたら詳細をログに出す
+            return false;
+        }
+
+        console.log(`[Email Sent] Template: ${templateKey}, To: ${toEmail}, ID: ${data?.id}`);
         return true;
 
     } catch (error) {
-        console.error(`[Email Error] Failed to send '${templateKey}' to ${toEmail}:`, error);
+        console.error(`[System Error] Failed to send '${templateKey}' to ${toEmail}:`, error);
         return false;
     }
 }
