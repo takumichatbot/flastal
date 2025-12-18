@@ -5789,10 +5789,21 @@ app.post('/api/admin/email-templates', requireAdmin, async (req, res) => {
 
 // ★★★【新規】テンプレートを使った動的メール送信関数 ★★★
 async function sendDynamicEmail(toEmail, templateKey, variables = {}) {
-    console.log(`[Email Attempt] Key: ${templateKey}, To: ${toEmail}`); // ★ログ出力
+    // 1. メールアドレスのクリーニング（前後の空白削除）
+    // これが原因で "pattern mismatch" になることが非常に多いです
+    const cleanToEmail = toEmail ? toEmail.trim() : '';
+
+    console.log(`[Email Attempt] Template: ${templateKey}`);
+    console.log(`[Email Address] To: '${cleanToEmail}'`); // ログで確認用
+
+    // メールアドレスが空なら即終了
+    if (!cleanToEmail) {
+        console.error('[Email Error] Destination email is empty.');
+        return false;
+    }
 
     try {
-        // 1. DBからテンプレートを取得
+        // 2. DBからテンプレートを取得
         const template = await prisma.emailTemplate.findUnique({
             where: { key: templateKey }
         });
@@ -5808,7 +5819,7 @@ async function sendDynamicEmail(toEmail, templateKey, variables = {}) {
             console.warn(`[Email Warning] Template '${templateKey}' not found. Using default.`);
         }
 
-        // 2. 変数の置換処理
+        // 3. 変数の置換処理
         Object.keys(variables).forEach(key => {
             const regex = new RegExp(`{{${key}}}`, 'g');
             const value = variables[key] !== undefined ? variables[key] : '';
@@ -5816,18 +5827,19 @@ async function sendDynamicEmail(toEmail, templateKey, variables = {}) {
             body = body.replace(regex, value);
         });
 
-        // 3. Resendで送信
-        // ★重要: Sandboxモードでは from は 'onboarding@resend.dev' のみに固定してください（名前をつけない）
-        // ★重要: Sandboxモードでは to は「Resendに登録した自分のメールアドレス」以外には送れません
+        // 4. Resendで送信
+        // ★重要: Sandboxモードでは from に「名前」をつけず、アドレスのみにします
+        // これは "The string did not match the expected pattern" を回避するためです
         const { data, error } = await resend.emails.send({
             from: 'onboarding@resend.dev', 
-            to: [toEmail],
+            to: [cleanToEmail], 
             subject: subject,
             html: body,
         });
 
         if (error) {
-            console.error(`[Resend Error Details]`, error);
+            // エラー内容を詳細にログに出力
+            console.error(`[Resend API Error] Name: ${error.name}, Message: ${error.message}`);
             return false;
         }
 
@@ -5835,7 +5847,7 @@ async function sendDynamicEmail(toEmail, templateKey, variables = {}) {
         return true;
 
     } catch (error) {
-        console.error(`[System Error] Failed to send email:`, error);
+        console.error(`[System Exception] Failed to send email:`, error);
         return false;
     }
 }
