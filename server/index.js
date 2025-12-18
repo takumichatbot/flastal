@@ -1686,21 +1686,17 @@ app.get('/api/florists', async (req, res) => {
             orderBy: { createdAt: 'desc' },
         });
 
-        // ★ レビュー集計 (DBでできないため手動で計算)
+        // ★ レビュー集計 (修正版: ratingカラムがないため件数のみ取得)
         const floristsWithRating = await Promise.all(florists.map(async (florist) => {
-            const reviews = await prisma.review.findMany({ 
-                where: { floristId: florist.id },
-                select: { rating: true }
+            // レビューの「件数」だけをデータベースから数える
+            const reviewCount = await prisma.review.count({ 
+                where: { floristId: florist.id }
             });
-            const reviewCount = reviews.length;
-            const averageRating = reviewCount > 0 
-                ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviewCount 
-                : 0;
 
             return {
                 ...florist,
-                reviewCount,
-                averageRating
+                reviewCount,     // 件数は返す
+                averageRating: 0 // 星機能は不要なので 0 固定（フロントエンドのエラー防止用）
             };
         }));
 
