@@ -7,6 +7,7 @@ import bcrypt from 'bcryptjs';
 import sharp from 'sharp';
 import { Document, NodeIO } from '@gltf-transform/core';
 import cors from 'cors';
+import crypto from 'crypto';
 import Stripe from 'stripe';
 import multer from 'multer';
 import cloudinary from './config/cloudinary.js';
@@ -368,59 +369,105 @@ app.get('/', (req, res) => {
 app.post('/api/users/register', async (req, res) => {
   try {
     const { email, password, handleName, referralCode } = req.body;
+
+    const existingUser = await prisma.user.findUnique({ where: { email } });
+    if (existingUser) return res.status(409).json({ message: 'このメールアドレスは既に使用されています。' });
+
     const hashedPassword = await bcrypt.hash(password, 10);
-    
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+
     const userData = {
       email,
       handleName,
       password: hashedPassword,
+      isVerified: false, 
+      verificationToken,
     };
 
+    // 紹介コード処理
     if (referralCode && referralCode.trim() !== '') {
-      const referrer = await prisma.user.findUnique({
-        where: { referralCode: referralCode.trim() },
-      });
+      const referrer = await prisma.user.findUnique({ where: { referralCode: referralCode.trim() } });
       if (referrer) {
         userData.referredById = referrer.id;
       }
     }
 
-    const newUser = await prisma.user.create({
-      data: userData,
+    // 4. ユーザー作成 (DB保存)
+   await prisma.user.create({ data: userData });
+
+    // ★★★ テンプレートを使ってメール送信 ★★★
+    // 管理画面で 'VERIFICATION_EMAIL' というキーのテンプレートを作成してください
+    const verificationUrl = `${process.env.FRONTEND_URL}/verify?token=${verificationToken}`;
+    
+    await sendDynamicEmail(email, 'VERIFICATION_EMAIL', {
+      userName: handleName,
+      verificationUrl: verificationUrl
     });
 
-    // ★ パスワード情報は返さないようにする
-    const { password: _, ...userWithoutPassword } = newUser;
-
-    // ★★★ 【追加】ウェルカムメール送信 ★★★
-    const emailContent = `
-      <div style="font-family: sans-serif; color: #333;">
-        <h2>FLASTALへようこそ！</h2>
-        <p>${handleName} 様</p>
-        <p>会員登録ありがとうございます。これからFLASTALで素敵な推し活ライフをお楽しみください！</p>
-        <p><a href="${process.env.FRONTEND_URL}/login">ログインはこちら</a></p>
-      </div>
-    `;
-    // エラーが出ても登録自体は成功させるため、awaitのエラーハンドリングは内部で行うか、ここでのエラーは無視して進める
-    await sendDynamicEmail(email, 'WELCOME', {
-        userName: handleName,
-        email: email,
-        loginUrl: 'https://flastal.onrender.com/login' // 必要に応じてURLを変更
-    });
-
-    res.status(201).json({ message: 'ユーザー登録が完了しました。', user: userWithoutPassword });
-
-  } catch (error) { // ★ ここでエラーが出ていました。直前の } が必要です
-    // もし、エラーが「重複エラー(P2002)」だったら...
-    if (error.code === 'P2002') {
-      // 親切なメッセージを返す
-      return res.status(409).json({ message: 'このメールアドレスは既に使用されています。' });
-    }
-    // その他の予期せぬエラー
-    console.error('ユーザー登録エラー:', error);
-    res.status(500).json({ message: 'サーバーエラーが発生しました。' });
+    res.status(201).json({ message: '確認メールを送信しました。' });
+  } catch (error) {
+    console.error('User登録エラー:', error);
+    res.status(500).json({ message: 'エラーが発生しました。' });
   }
 });
+
+// 2. 本登録完了API (新規追加)
+// registerAPIの直下に追加してください
+app.post('/api/auth/verify', async (req, res) => {
+  try {
+    const { token } = req.body;
+    if (!token) return res.status(400).json({ message: 'トークンがありません' });
+
+    // 1. 全テーブルからトークンを持つユーザーを探す
+    // (Prismaは複数のモデルを一度に検索できないため、順にチェックします)
+    let userType = null;
+    let record = null;
+
+    // Userを探す
+    record = await prisma.user.findFirst({ where: { verificationToken: token } });
+    if (record) userType = 'user';
+
+    // いなければFloristを探す
+    if (!record) {
+      record = await prisma.florist.findFirst({ where: { verificationToken: token } });
+      if (record) userType = 'florist';
+    }
+
+    // いなければVenueを探す
+    if (!record) {
+      record = await prisma.venue.findFirst({ where: { verificationToken: token } });
+      if (record) userType = 'venue';
+    }
+
+    // いなければOrganizerを探す
+    if (!record) {
+      record = await prisma.organizer.findFirst({ where: { verificationToken: token } });
+      if (record) userType = 'organizer';
+    }
+
+    // どこにもいなければエラー
+    if (!record) {
+      return res.status(400).json({ message: '無効なトークンか、既に期限切れです' });
+    }
+
+    // 2. 該当テーブルのステータスを更新
+    // (prisma[userType] で動的にテーブルを指定)
+    await prisma[userType].update({
+      where: { id: record.id },
+      data: {
+        isVerified: true,
+        verificationToken: null, // トークン消費
+      },
+    });
+
+    res.json({ message: '認証成功！登録が完了しました。' });
+
+  } catch (error) {
+    console.error("認証エラー:", error);
+    res.status(500).json({ message: '認証処理に失敗しました' });
+  }
+});
+
 app.post('/api/users/login', async (req, res) => {
   try {
     const { email, password } = req.body
@@ -434,6 +481,9 @@ app.post('/api/users/login', async (req, res) => {
     if (!isPasswordValid) {
       return res.status(401).json({ message: 'パスワードが間違っています。' })
     }
+    if (user.isVerified === false) { 
+       return res.status(403).json({ message: 'メールアドレスの認証が完了していません。届いたメールを確認してください。' });
+    }
     
     // ★★★ 【一時的な管理者昇格デバッグロジック】 ★★★
     let userRole = user.role;
@@ -1520,36 +1570,42 @@ app.get('/api/admin/commissions', requireAdmin, async (req, res) => {
 // server/index.js (修正)
 
 app.post('/api/florists/register', async (req, res) => {
-  try {
-    // ★ platformName を受け取るように変更
-    const { email, password, shopName, contactName, platformName } = req.body;
+  try {
+    const { email, password, shopName, contactName, platformName } = req.body;
+    
+    // ... バリデーション ...
+    const existing = await prisma.florist.findUnique({ where: { email } });
+    if (existing) return res.status(409).json({ message: '既に使用されています。' });
 
-    if (!email || !password || !shopName || !contactName || !platformName) {
-      return res.status(400).json({ message: '必須項目が不足しています。' });
-    }
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const verificationToken = crypto.randomBytes(32).toString('hex');
 
-    const newFlorist = await prisma.florist.create({
-      data: {
-        email,
-        password: hashedPassword,
-        shopName,      // 実店舗名
-        platformName,  // 活動名
-        contactName,
-        // statusはデフォルトでPENDINGになる
-      },
-    });
+    await prisma.florist.create({
+      data: {
+        email,
+        password: hashedPassword,
+        shopName,
+        platformName,
+        contactName,
+        status: 'PENDING', // 運営承認待ち
+        isVerified: false, // ★メール認証待ち
+        verificationToken,
+      },
+    });
 
-    const { password: _, ...floristWithoutPassword } = newFlorist;
-    res.status(201).json({ message: 'お花屋さんの登録申請が完了しました。運営による承認をお待ちください。', florist: floristWithoutPassword });
+    const verificationUrl = `${process.env.FRONTEND_URL}/verify?token=${verificationToken}`;
+    
+    // 花屋用テンプレートがあればそれを、なければ共通を使う
+    await sendDynamicEmail(email, 'VERIFICATION_EMAIL', {
+      userName: platformName, // 花屋名をuserNameとして渡す
+      verificationUrl: verificationUrl
+    });
 
-  } catch (error) {
-    if (error.code === 'P2002') {
-      return res.status(409).json({ message: 'このメールアドレスは既に使用されています。' });
-    }
-    console.error('お花屋さん登録エラー:', error);
-    res.status(500).json({ message: 'サーバーエラーが発生しました。' });
-  }
+    res.status(201).json({ message: '確認メールを送信しました。リンクをクリックして申請を完了させてください。' });
+  } catch (error) {
+    console.error('Florist登録エラー:', error);
+    res.status(500).json({ message: 'エラーが発生しました。' });
+  }
 });
 
 // ★★★ 会場一覧API (公開用: 企画作成フォームなどで使用) ★★★
@@ -1716,57 +1772,6 @@ app.get('/api/florists/payouts', authenticateToken, async (req, res) => { // URL
     }
   });
 
-
-// ★★★ お花屋さんダッシュボードAPI (修正版) ★★★
-app.patch('/api/florists/profile', authenticateToken, async (req, res) => {
-  // 権限チェック
-  if (req.user.role !== 'FLORIST') {
-    return res.status(403).json({ message: '権限がありません' });
-  }
-
-  const floristId = req.user.id; // トークンからID取得
-
-  // フロントエンドから受け取るデータ
-  const { 
-    platformName, 
-    contactName, 
-    address, 
-    phoneNumber, 
-    website, 
-    portfolio, // 自己紹介文
-    specialties, // 得意なスタイル (配列)
-    portfolioImages, // ポートフォリオ画像 (配列)
-    acceptsRushOrders // お急ぎ便対応 (Boolean)
-  } = req.body;
-
-  try {
-    // Floristテーブルを更新
-    const updatedFlorist = await prisma.florist.update({
-      where: { id: floristId },
-      data: {
-        platformName,
-        contactName,
-        address,
-        phoneNumber,
-        website,
-        portfolio,
-        // Prisma + PostgreSQL は配列をそのまま保存可能
-        specialties: specialties, 
-        portfolioImages: portfolioImages,
-        acceptsRushOrders: Boolean(acceptsRushOrders)
-      }
-    });
-
-    res.json({ message: 'プロフィールを更新しました', florist: updatedFlorist });
-  } catch (error) {
-    console.error("プロフィール更新エラー:", error);
-    // platformNameの重複エラー(P2002)などをキャッチする場合
-    if (error.code === 'P2002') {
-      return res.status(400).json({ message: 'その活動名は既に使用されています。' });
-    }
-    res.status(500).json({ message: 'プロフィールの更新に失敗しました' });
-  }
-});
 
 // ★★★【新規】お花屋さん用スケジュール取得API ★★★
 app.get('/api/florists/schedule', authenticateToken, async (req, res) => {
@@ -1994,6 +1999,15 @@ app.post('/api/florists/login', async (req, res) => {
       return res.status(401).json({ message: 'メールアドレスまたはパスワードが違います。' });
     }
 
+    if (!account.isVerified) { // account は florist, venue, organizer の変数名に合わせてください
+      return res.status(403).json({ message: 'メールアドレスの認証が完了していません。' });
+    }
+
+    // ※ 花屋・会場・主催者の場合、「運営の承認(status === 'APPROVED')」もチェックが必要です
+    if (account.status !== 'APPROVED') {
+      return res.status(403).json({ message: '現在、運営による審査中です。承認をお待ちください。' });
+    }
+
     // ★ JWTトークンの発行 (role: 'FLORIST' を付与)
     const tokenPayload = {
       id: florist.id,
@@ -2035,6 +2049,14 @@ app.post('/api/venues/login', async (req, res) => {
     const isPasswordValid = await bcrypt.compare(password, venue.password);
     if (!isPasswordValid) {
       return res.status(401).json({ message: 'パスワードが間違っています。' });
+    }
+    if (!account.isVerified) { // account は florist, venue, organizer の変数名に合わせてください
+      return res.status(403).json({ message: 'メールアドレスの認証が完了していません。' });
+    }
+
+    // ※ 花屋・会場・主催者の場合、「運営の承認(status === 'APPROVED')」もチェックが必要です
+    if (account.status !== 'APPROVED') {
+      return res.status(403).json({ message: '現在、運営による審査中です。承認をお待ちください。' });
     }
 
     // ★ JWTトークンの発行 (role: 'VENUE' を付与)
@@ -2265,26 +2287,45 @@ app.patch('/api/florists/:id', async (req, res) => {
 });
 
 app.post('/api/venues/register', async (req, res) => {
-  try {
-    const { email, password, venueName } = req.body;
-    // ... (バリデーションは省略) ...
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const newVenue = await prisma.venue.create({
-      data: {
-        email,
-        password: hashedPassword,
-        venueName,
-        // ★★★ 修正: PENDING ステータスを設定 ★★★
-        status: 'PENDING', 
-        // ★★★ 終わり ★★★
-      },
-    });
-    const { password: _, ...venueWithoutPassword } = newVenue;
-    // ★★★ 修正: 登録完了メッセージを更新 ★★★
-    res.status(201).json({ message: '会場の登録申請が完了しました。運営による承認をお待ちください。', venue: venueWithoutPassword });
-  } catch (error) {
-    // ... (エラー処理は省略) ...
-  }
+  try {
+    const { email, password, venueName } = req.body;
+
+    // 1. 重複チェック
+    const existing = await prisma.venue.findUnique({ where: { email } });
+    if (existing) {
+      return res.status(409).json({ message: 'このメールアドレスは既に使用されています。' });
+    }
+
+    // 2. パスワードハッシュ化 & トークン生成
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+
+    // 3. データ作成 (ステータス: 承認待ち + 認証待ち)
+    await prisma.venue.create({
+      data: {
+        email,
+        password: hashedPassword,
+        venueName,
+        status: 'PENDING',     // 運営の審査待ち
+        isVerified: false,     // ★メール認証待ち
+        verificationToken: verificationToken,
+      },
+    });
+
+    // 4. 認証メール送信 (テンプレート使用)
+    const verificationUrl = `${process.env.FRONTEND_URL}/verify?token=${verificationToken}`;
+
+    await sendDynamicEmail(email, 'VERIFICATION_EMAIL', {
+      userName: venueName, // 会場名を宛名にする
+      verificationUrl: verificationUrl
+    });
+
+    res.status(201).json({ message: '確認メールを送信しました。リンクをクリックして申請を完了させてください。' });
+
+  } catch (error) {
+    console.error('Venue登録エラー:', error);
+    res.status(500).json({ message: 'サーバーエラーが発生しました。' });
+  }
 });
 
 app.get('/api/venues/:id', async (req, res) => {
@@ -2403,93 +2444,6 @@ app.post('/api/reviews', authenticateToken, async (req, res) => { // ★ authent
   }
 });
 
-// ★★★ メッセージ（カード用）投稿API (JWT対応) ★★★
-app.post('/api/messages', authenticateToken, async (req, res) => { // ★ authenticateToken 追加
-  // const { content, cardName, projectId, userId } = req.body; // ❌ userId 削除
-  const { content, cardName, projectId } = req.body;
-  const userId = req.user.id; // ✅ トークンから取得
-
-  try {
-    const pledge = await prisma.pledge.findFirst({
-      where: {
-        projectId: projectId,
-        userId: userId,
-      },
-    });
-    if (!pledge) {
-      return res.status(403).json({ message: 'この企画の支援者のみメッセージを投稿できます。' });
-    }
-    const newMessage = await prisma.message.create({
-      data: {
-        content,
-        cardName,
-        projectId,
-        userId,
-      },
-    });
-    res.status(201).json(newMessage);
-  } catch (error) {
-    if (error.code === 'P2002') {
-      return res.status(409).json({ message: 'あなたはこの企画に既にメッセージを投稿済みです。' });
-    }
-    console.error("メッセージ投稿APIでエラー:", error);
-    res.status(500).json({ message: 'メッセージの投稿中にエラーが発生しました。' });
-  }
-});
-
-// ★★★ アンケート作成API (JWT対応) ★★★
-app.post('/api/group-chat/polls', authenticateToken, async (req, res) => { // ★ authenticateToken 追加
-  // const { projectId, userId, question, options } = req.body; // ❌ userId 削除
-  const { projectId, question, options } = req.body;
-  const userId = req.user.id; // ✅ トークンから取得
-
-  try {
-    const project = await prisma.project.findUnique({ where: { id: projectId } });
-    // 企画者本人かチェック
-    if (!project || project.plannerId !== userId) {
-      return res.status(403).json({ message: 'アンケートを作成できるのは企画者のみです。' });
-    }
-    
-    // 既存のアンケートがあれば削除（1企画1アンケートの場合）
-    await prisma.activePoll.deleteMany({ where: { projectId } });
-    
-    const newPoll = await prisma.activePoll.create({
-      data: { projectId, question, options },
-      include: { votes: true }
-    });
-    res.status(201).json(newPoll);
-  } catch (error) {
-    console.error("アンケート作成APIエラー:", error);
-    res.status(500).json({ message: 'アンケート作成中にエラーが発生しました。' });
-  }
-});
-
-// ★★★ アンケート投票API (JWT対応) ★★★
-app.post('/api/group-chat/polls/vote', authenticateToken, async (req, res) => { // ★ authenticateToken 追加
-  // const { pollId, userId, optionIndex } = req.body; // ❌ userId 削除
-  const { pollId, optionIndex } = req.body;
-  const userId = req.user.id; // ✅ トークンから取得
-
-  try {
-    const poll = await prisma.activePoll.findUnique({ where: { id: pollId } });
-    if (!poll) return res.status(404).json({ message: 'アンケートが見つかりません。' });
-    
-    // 支援者かどうかチェック
-    const pledge = await prisma.pledge.findFirst({ where: { projectId: poll.projectId, userId } });
-    if (!pledge) return res.status(403).json({ message: '投票は企画の支援者のみ可能です。' });
-    
-    const vote = await prisma.pollVote.create({
-      data: { pollId, userId, optionIndex },
-    });
-    res.status(201).json(vote);
-  } catch (error) {
-    if (error.code === 'P2002') {
-      return res.status(409).json({ message: 'このアンケートには既に投票済みです。' });
-    }
-    console.error("アンケート投票APIエラー:", error);
-    res.status(500).json({ message: '投票中にエラーが発生しました。' });
-  }
-});
 
 // ★★★ Stripe決済セッション作成API (JWT対応) ★★★
 app.post('/api/checkout/create-session', authenticateToken, async (req, res) => { // ★ authenticateToken 追加
@@ -3724,30 +3678,45 @@ app.delete('/api/admin/venues/:id', requireAdmin, async (req, res) => {
 // 1. 主催者登録
 // ★★★ 主催者登録 API (審査制に対応) ★★★
 app.post('/api/organizers/register', async (req, res) => {
-  try {
-    const { email, password, name, website } = req.body;
-    // ... (バリデーションは省略) ...
-    const hashedPassword = await bcrypt.hash(password, 10);
-    
-    const newOrganizer = await prisma.organizer.create({
-      data: { 
-          email, 
-          password: hashedPassword, 
-          name, 
-          website,
-          // ★★★ 修正: PENDING ステータスを設定 ★★★
-          status: 'PENDING'
-          // ★★★ 終わり ★★★
-      }
-    });
-    
-    const { password: _, ...organizerWithoutPassword } = newOrganizer;
-    // ★★★ 修正: 登録完了メッセージを更新 ★★★
-    res.status(201).json({ message: '主催者登録申請が完了しました。運営による承認をお待ちください。', organizer: organizerWithoutPassword });
-  } catch (error) {
-    if (error.code === 'P2002') return res.status(409).json({ message: 'このメールアドレスは既に使用されています。' });
-    console.error("主催者登録エラー:", error);
-    res.status(500).json({ message: '登録処理中にエラーが発生しました。' });
+  try {
+    const { email, password, name, website } = req.body;
+
+    // 1. 重複チェック
+    const existing = await prisma.organizer.findUnique({ where: { email } });
+    if (existing) {
+      return res.status(409).json({ message: 'このメールアドレスは既に使用されています。' });
+    }
+
+    // 2. パスワードハッシュ化 & トークン生成
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+
+    // 3. データ作成
+    await prisma.organizer.create({
+      data: {
+        email,
+        password: hashedPassword,
+        name,
+        website,
+        status: 'PENDING',     // 運営の審査待ち
+        isVerified: false,     // ★メール認証待ち
+        verificationToken: verificationToken,
+      },
+    });
+
+    // 4. 認証メール送信
+    const verificationUrl = `${process.env.FRONTEND_URL}/verify?token=${verificationToken}`;
+
+    await sendDynamicEmail(email, 'VERIFICATION_EMAIL', {
+      userName: name, // 主催者名を宛名にする
+      verificationUrl: verificationUrl
+    });
+
+    res.status(201).json({ message: '確認メールを送信しました。リンクをクリックして申請を完了させてください。' });
+
+  } catch (error) {
+    console.error('Organizer登録エラー:', error);
+    res.status(500).json({ message: 'サーバーエラーが発生しました。' });
   }
 });
 
@@ -3756,10 +3725,25 @@ app.post('/api/organizers/login', async (req, res) => {
   try {
     const { email, password } = req.body;
     const organizer = await prisma.organizer.findUnique({ where: { email } });
+    
     if (!organizer) return res.status(401).json({ message: 'メールアドレスまたはパスワードが違います。' });
 
     const isValid = await bcrypt.compare(password, organizer.password);
-    if (!isValid) return res.status(401).json({ message: 'パスワードが違います。' });
+    if (!isValid) return res.status(401).json({ message: 'メールアドレスまたはパスワードが違います。' });
+
+    // ★★★ 追加: メール認証チェック ★★★
+    if (!organizer.isVerified) {
+      return res.status(403).json({ message: 'メールアドレスの認証が完了していません。届いたメールを確認してください。' });
+    }
+
+    // ★★★ 追加: 運営の承認ステータスチェック ★★★
+    if (organizer.status !== 'APPROVED') {
+      return res.status(403).json({ 
+        message: organizer.status === 'REJECTED' 
+          ? 'このアカウントは利用が許可されませんでした。' 
+          : 'アカウントは現在審査中です。運営による承認をお待ちください。' 
+      });
+    }
 
     // トークン発行 (Role: ORGANIZER)
     const token = jwt.sign(
@@ -3778,12 +3762,14 @@ app.post('/api/organizers/login', async (req, res) => {
 
     res.status(200).json({ message: 'ログイン成功', token });
   } catch (error) {
+    console.error("Organizer login error:", error);
     res.status(500).json({ message: 'ログイン処理中にエラーが発生しました。' });
   }
 });
 
 // 3. イベント作成 (主催者のみ)
 app.post('/api/events', authenticateToken, async (req, res) => {
+  // 主催者以外は弾く（ここは元のまま）
   if (req.user.role !== 'ORGANIZER') return res.status(403).json({ message: '権限がありません。' });
   
   const { title, description, eventDate, venueId, isStandAllowed, regulationNote } = req.body;
@@ -3797,7 +3783,10 @@ app.post('/api/events', authenticateToken, async (req, res) => {
         venueId: venueId || null,
         organizerId: req.user.id,
         isStandAllowed: isStandAllowed ?? true,
-        regulationNote
+        regulationNote,
+        // ★★★ ここを追加！ ★★★
+        // 主催者が作成した場合は即座に「公開」ステータスにする
+        status: 'PUBLISHED' 
       }
     });
     res.status(201).json(newEvent);
@@ -6328,6 +6317,8 @@ app.patch('/api/admin/:role/:id/approval', requireAdmin, async (req, res) => {
     res.status(500).json({ message: '更新失敗' });
   }
 });
+
+
 
 
 // ===================================

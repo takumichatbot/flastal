@@ -152,6 +152,8 @@ model User {
   handleName           String
   password             String
   floristPostLikes FloristPostLike[]
+  isVerified        Boolean  @default(false)  // メール認証済みか
+  verificationToken String?  // 認証用の一時トークン
   acceptsRushOrders Boolean  @default(false)
   bankAccount   BankAccount?  // 銀行口座 (1対1、未登録あり)
   payouts       Payout[]      // 出金履歴 (1対多)
@@ -295,6 +297,8 @@ model Florist {
   email             String        @unique
   password          String
   contactName       String
+  isVerified        Boolean  @default(false) // ★追加
+  verificationToken String?                  // ★追加
   portfolioImages   String[]
   address           String?
   phoneNumber       String?
@@ -371,6 +375,8 @@ model Venue {
   id         String  @id @default(cuid())
   venueName  String
   address    String?
+  isVerified        Boolean  @default(false) // ★追加
+  verificationToken String?                  // ★追加
   email      String  @unique
   password   String
   isOfficial Boolean @default(false)
@@ -594,6 +600,8 @@ model Organizer {
   password  String
   name      String
   website   String?
+  isVerified        Boolean  @default(false) // ★追加
+  verificationToken String?                  // ★追加
   events    Event[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
