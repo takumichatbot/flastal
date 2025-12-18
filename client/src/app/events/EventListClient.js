@@ -30,14 +30,13 @@ export default function EventListClient() {
   // データ取得
   const fetchEvents = async () => {
     try {
-      // 既存の /api/events がBAN済みを除外するように修正されている前提
-      // または /api/events/public を叩く
       const res = await fetch(`${API_URL}/api/events/public`); 
       if (res.ok) {
         setEvents(await res.json());
       }
     } catch (e) {
       console.error(e);
+      toast.error('イベント情報の取得に失敗しました');
     } finally {
       setLoading(false);
     }
@@ -46,6 +45,17 @@ export default function EventListClient() {
   useEffect(() => {
     fetchEvents();
   }, []);
+
+  // ★ 追加時のハンドラー（即時反映用）
+  const handleEventAdded = (newEvent) => {
+    if (newEvent) {
+        // 新しいイベントをリストの先頭に追加
+        setEvents(prevEvents => [newEvent, ...prevEvents]);
+    } else {
+        // データが渡されなかった場合は再取得
+        fetchEvents();
+    }
+  };
 
   // 検索フィルタリング
   const filteredEvents = events.filter(e => 
@@ -123,7 +133,7 @@ export default function EventListClient() {
                             {event.sourceType === 'AI' ? '🤖' : event.sourceType === 'USER' ? '👤' : '🎤'}
                         </span>
                         
-                        {/* フラスタOK/NGバッジ (情報がある場合のみ) */}
+                        {/* フラスタOK/NGバッジ */}
                         {event.sourceType === 'OFFICIAL' && (
                             <div className="absolute bottom-4 right-4">
                                 {event.isStandAllowed ? (
@@ -188,8 +198,8 @@ export default function EventListClient() {
       </div>
 
       {/* モーダル群 */}
-      {showAiModal && <AiAddModal onClose={() => setShowAiModal(false)} onAdded={fetchEvents} />}
-      {showManualModal && <ManualAddModal onClose={() => setShowManualModal(false)} onAdded={fetchEvents} />}
+      {showAiModal && <AiAddModal onClose={() => setShowAiModal(false)} onAdded={handleEventAdded} />}
+      {showManualModal && <ManualAddModal onClose={() => setShowManualModal(false)} onAdded={handleEventAdded} />}
       {reportTargetId && <ReportModal eventId={reportTargetId} onClose={() => setReportTargetId(null)} />}
 
     </div>
@@ -221,19 +231,26 @@ function AiAddModal({ onClose, onAdded }) {
       if (!res.ok) throw new Error('解析に失敗しました');
       
       const data = await res.json();
-      toast.success(`「${data.event.title}」を追加しました！`, { id: toastId });
-      onAdded();
+      
+      // ★ 修正: 解析されたイベントオブジェクトを渡す（存在確認も行う）
+      const newEvent = data.event || data; 
+      
+      toast.success(`「${newEvent.title || 'イベント'}」を追加しました！`, { id: toastId });
+      
+      // 親コンポーネントへ即座に反映
+      onAdded(newEvent);
       onClose();
+
     } catch (e) {
       console.error(e);
-      toast.error('エラーが発生しました', { id: toastId });
+      toast.error('解析エラーが発生しました。時間を置いてお試しください。', { id: toastId });
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-sm animate-fadeIn">
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100] p-4 backdrop-blur-sm animate-fadeIn">
       <div className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-2xl relative">
         <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"><FiX size={24}/></button>
         
@@ -264,7 +281,7 @@ function AiAddModal({ onClose, onAdded }) {
           <button onClick={onClose} className="px-5 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg font-bold">キャンセル</button>
           <button 
             onClick={handleSubmit} 
-            disabled={isSubmitting}
+            disabled={isSubmitting || !text}
             className="px-6 py-2.5 bg-gradient-to-r from-purple-500 to-indigo-600 text-white font-bold rounded-lg hover:shadow-lg disabled:opacity-50 transition-all"
           >
             {isSubmitting ? '解析中...' : '解析して登録'}
@@ -282,10 +299,16 @@ function ManualAddModal({ onClose, onAdded }) {
   const [formData, setFormData] = useState({ title: '', eventDate: '', description: '', sourceUrl: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // ★ 修正: バリデーション状態を確認
+  const isFormValid = formData.title.trim() !== '' && formData.eventDate !== '';
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!isFormValid) return;
+
     setIsSubmitting(true);
     const toastId = toast.loading('登録中...');
+    
     try {
       const token = localStorage.getItem('authToken');
       const res = await fetch(`${API_URL}/api/events/user-submit`, {
@@ -293,42 +316,85 @@ function ManualAddModal({ onClose, onAdded }) {
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(formData)
       });
+      
       if (res.ok) {
+        const data = await res.json();
+        const newEvent = data.event || data; // レスポンス形式に合わせて調整
+        
         toast.success('イベントを登録しました！', { id: toastId });
-        onAdded();
+        
+        // 即時反映
+        onAdded(newEvent);
         onClose();
       } else {
-        toast.error('登録に失敗しました', { id: toastId });
+        throw new Error('登録失敗');
       }
-    } catch (e) { console.error(e); toast.error('エラーが発生しました'); } finally { setIsSubmitting(false); }
+    } catch (e) { 
+        console.error(e); 
+        toast.error('エラーが発生しました。入力内容を確認してください。', { id: toastId }); 
+    } finally { 
+        setIsSubmitting(false); 
+    }
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-sm animate-fadeIn">
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100] p-4 backdrop-blur-sm animate-fadeIn">
       <div className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-2xl relative">
         <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"><FiX size={24}/></button>
         <h3 className="text-xl font-bold mb-4 text-gray-800">手動でイベントを追加</h3>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
               <label className="block text-xs font-bold text-gray-500 mb-1">イベント名 <span className="text-red-500">*</span></label>
-              <input required className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" onChange={e => setFormData({...formData, title: e.target.value})} />
+              <input 
+                required 
+                className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" 
+                onChange={e => setFormData({...formData, title: e.target.value})} 
+                value={formData.title}
+              />
           </div>
           <div>
               <label className="block text-xs font-bold text-gray-500 mb-1">開催日時 <span className="text-red-500">*</span></label>
-              <input required type="datetime-local" className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" onChange={e => setFormData({...formData, eventDate: e.target.value})} />
+              <input 
+                required 
+                type="datetime-local" 
+                className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" 
+                onChange={e => setFormData({...formData, eventDate: e.target.value})} 
+                value={formData.eventDate}
+              />
           </div>
           <div>
               <label className="block text-xs font-bold text-gray-500 mb-1">詳細・備考</label>
-              <textarea className="w-full p-3 border rounded-lg h-24 focus:ring-2 focus:ring-indigo-500 outline-none" onChange={e => setFormData({...formData, description: e.target.value})} />
+              <textarea 
+                className="w-full p-3 border rounded-lg h-24 focus:ring-2 focus:ring-indigo-500 outline-none" 
+                onChange={e => setFormData({...formData, description: e.target.value})} 
+                value={formData.description}
+              />
           </div>
           <div>
               <label className="block text-xs font-bold text-gray-500 mb-1">情報元URL</label>
-              <input className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="https://..." onChange={e => setFormData({...formData, sourceUrl: e.target.value})} />
+              <input 
+                className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" 
+                placeholder="https://..." 
+                onChange={e => setFormData({...formData, sourceUrl: e.target.value})} 
+                value={formData.sourceUrl}
+              />
           </div>
           
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={onClose} className="px-5 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg font-bold">キャンセル</button>
-            <button type="submit" disabled={isSubmitting} className="px-6 py-2.5 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 transition-colors">登録</button>
+            
+            {/* ★ 修正: 入力がない場合は視覚的に無効化 */}
+            <button 
+                type="submit" 
+                disabled={isSubmitting || !isFormValid} 
+                className={`px-6 py-2.5 font-bold rounded-lg transition-colors ${
+                    isSubmitting || !isFormValid 
+                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+                    : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                }`}
+            >
+                {isSubmitting ? '処理中...' : '登録'}
+            </button>
           </div>
         </form>
       </div>
@@ -363,7 +429,7 @@ function ReportModal({ eventId, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-sm animate-fadeIn">
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100] p-4 backdrop-blur-sm animate-fadeIn">
       <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl relative">
         <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"><FiX size={24}/></button>
         <h3 className="text-xl font-bold mb-2 text-red-600 flex items-center"><FiAlertTriangle className="mr-2"/> 問題を報告</h3>
