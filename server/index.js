@@ -153,7 +153,7 @@ async function sendEmail(to, subject, htmlContent) {
   try {
     const { data, error } = await resend.emails.send({
       // ★ 本番環境では認証済みドメイン（例: noreply@flastal.com）に変更してください
-      from: 'FLASTAL <onboarding@resend.dev>', 
+      from: 'FLASTAL <noreply@flastal.com>',
       to: [to],
       subject: subject,
       html: htmlContent,
@@ -5831,8 +5831,12 @@ async function sendDynamicEmail(toEmail, templateKey, variables = {}) {
         // ★重要: Sandboxモードでは from に「名前」をつけず、アドレスのみにします
         // これは "The string did not match the expected pattern" を回避するためです
         const { data, error } = await resend.emails.send({
-            from: 'onboarding@resend.dev', 
+            // ★★★ 修正: 独自ドメインに変更（名前付きでOK） ★★★
+            from: 'FLASTAL <noreply@flastal.com>', 
+            
+            // ★★★ 制限解除: 誰にでも送れるようになります ★★★
             to: [cleanToEmail], 
+            
             subject: subject,
             html: body,
         });
