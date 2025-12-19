@@ -6337,7 +6337,84 @@ app.patch('/api/admin/:role/:id/approval', requireAdmin, async (req, res) => {
   }
 });
 
+// ==========================================
+// ★★★【新規】認証メール再送信API ★★★
+// ==========================================
+app.post('/api/auth/resend-verification', async (req, res) => {
+  const { email } = req.body;
 
+  if (!email) {
+    return res.status(400).json({ message: 'メールアドレスが必要です。' });
+  }
+
+  try {
+    // 1. どのテーブルのユーザーか特定する
+    let targetModel = null; // 'user', 'florist', 'venue', 'organizer'
+    let account = null;
+
+    // Userテーブル検索
+    account = await prisma.user.findUnique({ where: { email } });
+    if (account) targetModel = 'user';
+
+    // Floristテーブル検索
+    if (!account) {
+      account = await prisma.florist.findUnique({ where: { email } });
+      if (account) targetModel = 'florist';
+    }
+
+    // Venueテーブル検索
+    if (!account) {
+      account = await prisma.venue.findUnique({ where: { email } });
+      if (account) targetModel = 'venue';
+    }
+
+    // Organizerテーブル検索
+    if (!account) {
+      account = await prisma.organizer.findUnique({ where: { email } });
+      if (account) targetModel = 'organizer';
+    }
+
+    // 2. アカウントが見つからない場合
+    if (!account) {
+      return res.status(404).json({ message: 'このメールアドレスは登録されていません。' });
+    }
+
+    // 3. 既に認証済みの場合
+    if (account.isVerified) {
+      return res.status(400).json({ message: 'このアカウントは既に認証済みです。ログインしてください。' });
+    }
+
+    // 4. 新しいトークンを生成して更新
+    const newToken = crypto.randomBytes(32).toString('hex');
+    
+    // 動的にテーブルを指定して更新
+    await prisma[targetModel].update({
+      where: { id: account.id },
+      data: { verificationToken: newToken }
+    });
+
+    // 5. メール送信 (テンプレート使用)
+    const verificationUrl = `${process.env.FRONTEND_URL}/verify?token=${newToken}`;
+    
+    // 宛名を取得 (モデルによって名前のカラムが違うため)
+    const userName = account.handleName || account.platformName || account.venueName || account.name || 'お客様';
+
+    const emailSent = await sendDynamicEmail(email, 'VERIFICATION_EMAIL', {
+      userName: userName,
+      verificationUrl: verificationUrl
+    });
+
+    if (!emailSent) {
+       return res.status(500).json({ message: 'メール送信に失敗しました。サーバーログを確認してください。' });
+    }
+
+    res.status(200).json({ message: '認証メールを再送信しました。メールボックスを確認してください。' });
+
+  } catch (error) {
+    console.error("再送信エラー:", error);
+    res.status(500).json({ message: 'メールの再送信に失敗しました。' });
+  }
+});
 
 
 // ===================================
