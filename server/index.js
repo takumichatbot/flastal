@@ -1995,13 +1995,16 @@ app.post('/api/florists/login', async (req, res) => {
       return res.status(401).json({ message: 'メールアドレスまたはパスワードが違います。' });
     }
 
-    if (!account.isVerified) { // account は florist, venue, organizer の変数名に合わせてください
-      return res.status(403).json({ message: 'メールアドレスの認証が完了していません。' });
+    if (!florist.isVerified) { 
+      return res.status(403).json({ message: 'メールアドレスの認証が完了していません。届いたメールを確認してください。' });
     }
 
-    // ※ 花屋・会場・主催者の場合、「運営の承認(status === 'APPROVED')」もチェックが必要です
-    if (account.status !== 'APPROVED') {
-      return res.status(403).json({ message: '現在、運営による審査中です。承認をお待ちください。' });
+    if (florist.status !== 'APPROVED') {
+      return res.status(403).json({ 
+        message: florist.status === 'REJECTED' 
+          ? 'このアカウントは利用が許可されませんでした。' 
+          : '現在、運営による審査中です。承認をお待ちください。' 
+      });
     }
 
     // ★ JWTトークンの発行 (role: 'FLORIST' を付与)
@@ -2046,13 +2049,12 @@ app.post('/api/venues/login', async (req, res) => {
     if (!isPasswordValid) {
       return res.status(401).json({ message: 'パスワードが間違っています。' });
     }
-    if (!account.isVerified) { // account は florist, venue, organizer の変数名に合わせてください
+    if (!venue.isVerified) { 
       return res.status(403).json({ message: 'メールアドレスの認証が完了していません。' });
     }
 
-    // ※ 花屋・会場・主催者の場合、「運営の承認(status === 'APPROVED')」もチェックが必要です
-    if (account.status !== 'APPROVED') {
-      return res.status(403).json({ message: '現在、運営による審査中です。承認をお待ちください。' });
+    if (venue.status !== 'APPROVED') {
+      return res.status(403).json({ message: '現在、運営による審査中です。' });
     }
 
     // ★ JWTトークンの発行 (role: 'VENUE' を付与)
