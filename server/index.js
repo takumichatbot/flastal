@@ -3839,6 +3839,37 @@ app.get('/api/events', async (req, res) => {
   }
 });
 
+// 3. イベント一覧取得 (BANされていないもののみ)
+
+app.get('/api/events/public', async (req, res) => {
+  try {
+    // 現在時刻より「24時間前」を基準にする（今日のイベントも表示させるため）
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    const events = await prisma.event.findMany({
+      where: {
+        // ★ 修正: 開催日が「昨日以降」のものを取得
+        eventDate: { gte: yesterday }, 
+        isBanned: false, // BANされていない
+        // status: 'PUBLISHED' // もし下書き機能がある場合はこれも有効化
+      },
+      include: { 
+        venue: true, 
+        organizer: { select: { name: true, website: true } }, // 主催者名を取得
+        _count: { select: { projects: true } }, // 紐づく企画数
+        _count: { select: { reports: true } }   // 通報数（任意）
+      },
+      orderBy: { eventDate: 'asc' }
+    });
+    res.status(200).json(events);
+  } catch (error) {
+    console.error("イベント一覧取得エラー:", error);
+    res.status(500).json({ message: 'イベントリストの取得に失敗しました。' });
+  }
+});
+
+
 // ★★★ イベント詳細取得API (公開用: 紐づく企画一覧も取得) ★★★
 app.get('/api/events/:id', async (req, res) => {
   const { id } = req.params;
@@ -5033,36 +5064,6 @@ app.post('/api/events/user-submit', authenticateToken, async (req, res) => {
   }
 });
 
-// 3. イベント一覧取得 (BANされていないもののみ)
-// 既存の GET /api/events を修正または新規作成
-
-app.get('/api/events/public', async (req, res) => {
-  try {
-    // 現在時刻より「24時間前」を基準にする（今日のイベントも表示させるため）
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-
-    const events = await prisma.event.findMany({
-      where: {
-        // ★ 修正: 開催日が「昨日以降」のものを取得
-        eventDate: { gte: yesterday }, 
-        isBanned: false, // BANされていない
-        // status: 'PUBLISHED' // もし下書き機能がある場合はこれも有効化
-      },
-      include: { 
-        venue: true, 
-        organizer: { select: { name: true, website: true } }, // 主催者名を取得
-        _count: { select: { projects: true } }, // 紐づく企画数
-        _count: { select: { reports: true } }   // 通報数（任意）
-      },
-      orderBy: { eventDate: 'asc' }
-    });
-    res.status(200).json(events);
-  } catch (error) {
-    console.error("イベント一覧取得エラー:", error);
-    res.status(500).json({ message: 'イベントリストの取得に失敗しました。' });
-  }
-});
 
 // 4. イベントを通報する (ユーザー用)
 app.post('/api/events/:eventId/report', authenticateToken, async (req, res) => {
