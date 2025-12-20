@@ -2,20 +2,14 @@
   "name": "client",
   "version": "0.1.0",
   "private": true,
-
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    
-
     "migrate:dev": "npm run install:deps && npx prisma@5 migrate dev --schema=server/prisma/schema.prisma",
-    
     "migrate:deploy": "npm run install:deps && npx prisma@5 migrate deploy --schema=server/prisma/schema.prisma",
-
     "install:deps": "cd server && npm install"
-
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.946.0",
@@ -25,6 +19,8 @@
     "@vercel/og": "^0.8.5",
     "canvas-confetti": "^1.9.4",
     "dotenv": "^17.2.3",
+    "framer-motion": "^12.23.26",
+    "lucide-react": "^0.562.0",
     "next": "^15.5.7",
     "next-pwa": "^5.6.0",
     "openai": "^6.9.1",
