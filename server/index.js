@@ -3839,29 +3839,98 @@ app.get('/api/events', async (req, res) => {
   }
 });
 
-// 3. イベント一覧取得 (BANされていないもののみ)
+// ★★★【新規】イベント「興味あり！」トグルAPI ★★★
+app.post('/api/events/:id/interest', authenticateToken, async (req, res) => {
+  const { id } = req.params;
+  const userId = req.user.id;
 
-app.get('/api/events/public', async (req, res) => {
   try {
-    // 現在時刻より「24時間前」を基準にする（今日のイベントも表示させるため）
+    // 既存の「興味あり」を探す
+    const existing = await prisma.eventInterest.findUnique({
+      where: {
+        userId_eventId: { userId, eventId: id }
+      }
+    });
+
+    let isInterested = false;
+
+    if (existing) {
+      // あれば削除 (解除)
+      await prisma.eventInterest.delete({
+        where: { id: existing.id }
+      });
+      isInterested = false;
+    } else {
+      // なければ作成 (登録)
+      await prisma.eventInterest.create({
+        data: { userId, eventId: id }
+      });
+      isInterested = true;
+    }
+
+    // 最新のカウント数を返す
+    const count = await prisma.eventInterest.count({ where: { eventId: id } });
+
+    res.json({ isInterested, count });
+  } catch (error) {
+    console.error("興味あり処理エラー:", error);
+    res.status(500).json({ message: '処理に失敗しました。' });
+  }
+});
+
+// ★★★ 3. イベント一覧取得 (強化版: 検索・ジャンル・並び替え・興味あり数) ★★★
+app.get('/api/events/public', async (req, res) => {
+  const { sort, genre, keyword } = req.query; // クエリパラメータを受け取る
+
+  try {
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
 
+    // 検索条件の構築
+    const whereClause = {
+      eventDate: { gte: yesterday },
+      isBanned: false,
+    };
+
+    // ジャンル絞り込み
+    if (genre && genre !== 'ALL') {
+      whereClause.genre = genre;
+    }
+
+    // キーワード検索 (タイトル or 会場名)
+    if (keyword) {
+      whereClause.OR = [
+        { title: { contains: keyword, mode: 'insensitive' } },
+        { venue: { venueName: { contains: keyword, mode: 'insensitive' } } }
+      ];
+    }
+
+    // 並び替え順の決定
+    let orderBy = { eventDate: 'asc' }; // デフォルト: 開催日が近い順
+    if (sort === 'newest') {
+      orderBy = { createdAt: 'desc' }; // 新着順
+    } else if (sort === 'popular') {
+      orderBy = { interests: { _count: 'desc' } }; // 人気順 (興味あり数)
+    }
+
     const events = await prisma.event.findMany({
-      where: {
-        // ★ 修正: 開催日が「昨日以降」のものを取得
-        eventDate: { gte: yesterday }, 
-        isBanned: false, // BANされていない
-        // status: 'PUBLISHED' // もし下書き機能がある場合はこれも有効化
+      where: whereClause,
+      include: {
+        venue: true,
+        organizer: { select: { name: true, website: true } },
+        _count: { 
+          select: { 
+            projects: true, // 企画数
+            interests: true // ★興味あり数
+          } 
+        },
+        // ログインユーザーが興味あり済みか確認するため、簡易的に取得
+        // (フロントエンドで自分のIDと照合するか、別途APIで取得)
+        interests: { select: { userId: true } }
       },
-      include: { 
-        venue: true, 
-        organizer: { select: { name: true, website: true } }, // 主催者名を取得
-        _count: { select: { projects: true } }, // 紐づく企画数
-        _count: { select: { reports: true } }   // 通報数（任意）
-      },
-      orderBy: { eventDate: 'asc' }
+      orderBy: orderBy
     });
+
     res.status(200).json(events);
   } catch (error) {
     console.error("イベント一覧取得エラー:", error);

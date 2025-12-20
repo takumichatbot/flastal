@@ -176,7 +176,7 @@ model User {
   totalPledgedAmount Int?    @default(0) // 総支援額を格納 (Intにすると桁数オーバーの可能性もあるため、BigIntも検討可)
   supportLevel       String?   // 現在のレベル名 (例: Bronze, Gold)
   badgeIds           String[]  // 獲得したバッジIDの配列 (現状はバッジマスタがないため、String[]で対応)
-
+  eventInterests EventInterest[] // ★ 追加
   // Relations
   referrer          User?                      @relation("Referrals", fields: [referredById], references: [id])
   referredUsers     User[]                     @relation("Referrals")
@@ -629,6 +629,9 @@ model Event {
   isStandAllowed Boolean  @default(true)
   regulationNote String?
   imageUrl       String?
+  genre          String?  // ★ 追加: ジャンル (例: "IDOL", "VTUBER")
+  
+  interests      EventInterest[] // ★ 追加: 興味ありのリレーション
 
   // ★★★ 変更: organizerId をオプショナルに ★★★
   organizerId String?
@@ -647,6 +650,18 @@ model Event {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model EventInterest {
+  id        String   @id @default(cuid())
+  userId    String
+  eventId   String
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id])
+  event     Event    @relation(fields: [eventId], references: [id])
+
+  @@unique([userId, eventId]) // 1人が同じイベントに何度も「興味あり」できないようにする
 }
 
 model PushSubscription {
