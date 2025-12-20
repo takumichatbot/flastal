@@ -55,7 +55,10 @@ export default function OrganizerLoginPage() {
       const res = await fetch(`${API_URL}/api/auth/resend-verification`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ 
+            email: getValues('email'), // react-hook-formの場合
+            userType: 'ORGANIZER' // ★★★ これを追加！ ★★★
+        }),
       });
       const data = await res.json();
       if (res.ok) {

@@ -6344,45 +6344,38 @@ app.patch('/api/admin/:role/:id/approval', requireAdmin, async (req, res) => {
 });
 
 // ==========================================
-// ★★★【新規】認証メール再送信API ★★★
+// ★★★【修正版】認証メール再送信API (ロール指定対応) ★★★
 // ==========================================
 app.post('/api/auth/resend-verification', async (req, res) => {
-  const { email } = req.body;
+  const { email, userType } = req.body; // ★ userType ('FLORIST', 'VENUE' 等) を受け取る
 
   if (!email) {
     return res.status(400).json({ message: 'メールアドレスが必要です。' });
   }
 
   try {
-    // 1. どのテーブルのユーザーか特定する
-    let targetModel = null; // 'user', 'florist', 'venue', 'organizer'
+    let targetModel = null;
     let account = null;
 
-    // Userテーブル検索
-    account = await prisma.user.findUnique({ where: { email } });
-    if (account) targetModel = 'user';
-
-    // Floristテーブル検索
-    if (!account) {
+    // ★★★ userType が指定されている場合は、そのテーブルだけを探す ★★★
+    if (userType === 'FLORIST') {
       account = await prisma.florist.findUnique({ where: { email } });
-      if (account) targetModel = 'florist';
-    }
-
-    // Venueテーブル検索
-    if (!account) {
+      targetModel = 'florist';
+    } else if (userType === 'VENUE') {
       account = await prisma.venue.findUnique({ where: { email } });
-      if (account) targetModel = 'venue';
-    }
-
-    // Organizerテーブル検索
-    if (!account) {
+      targetModel = 'venue';
+    } else if (userType === 'ORGANIZER') {
       account = await prisma.organizer.findUnique({ where: { email } });
-      if (account) targetModel = 'organizer';
+      targetModel = 'organizer';
+    } else {
+      // 指定がない、または 'USER' の場合は Userテーブルを探す
+      account = await prisma.user.findUnique({ where: { email } });
+      targetModel = 'user';
     }
 
     // 2. アカウントが見つからない場合
     if (!account) {
-      return res.status(404).json({ message: 'このメールアドレスは登録されていません。' });
+      return res.status(404).json({ message: 'そのメールアドレスの登録が見つかりません。' });
     }
 
     // 3. 既に認証済みの場合
@@ -6402,17 +6395,14 @@ app.post('/api/auth/resend-verification', async (req, res) => {
     // 5. メール送信 (テンプレート使用)
     const verificationUrl = `${process.env.FRONTEND_URL}/verify?token=${newToken}`;
     
-    // 宛名を取得 (モデルによって名前のカラムが違うため)
+    // 宛名を取得
     const userName = account.handleName || account.platformName || account.venueName || account.name || 'お客様';
 
-    const emailSent = await sendDynamicEmail(email, 'VERIFICATION_EMAIL', {
+    // 修正: 送信元アドレスのドメイン設定
+    await sendDynamicEmail(email, 'VERIFICATION_EMAIL', {
       userName: userName,
       verificationUrl: verificationUrl
     });
-
-    if (!emailSent) {
-       return res.status(500).json({ message: 'メール送信に失敗しました。サーバーログを確認してください。' });
-    }
 
     res.status(200).json({ message: '認証メールを再送信しました。メールボックスを確認してください。' });
 

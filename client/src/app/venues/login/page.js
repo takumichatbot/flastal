@@ -53,7 +53,10 @@ export default function VenueLoginPage() {
       const res = await fetch(`${API_URL}/api/auth/resend-verification`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ 
+            email, 
+            userType: 'VENUE' // ★★★ これを追加！ ★★★
+        }),
       });
       const data = await res.json();
       if (res.ok) {

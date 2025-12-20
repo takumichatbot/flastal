@@ -60,7 +60,10 @@ export default function FloristLoginPage() {
       const res = await fetch(`${API_URL}/api/auth/resend-verification`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ 
+            email, 
+            userType: 'FLORIST' // ★★★ これを追加！ ★★★
+        }),
       });
       const data = await res.json();
       if (res.ok) {
