@@ -1,533 +1,642 @@
 'use client';
 
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { motion, useScroll, useTransform, useSpring, useInView, AnimatePresence } from 'framer-motion';
 import { 
-  Sparkles, Zap, ShieldCheck, Globe, Smartphone, Heart, 
+  motion, useScroll, useTransform, useSpring, useInView, 
+  useMotionValue, useMotionTemplate, AnimatePresence 
+} from 'framer-motion';
+import { 
   ArrowRight, Check, Play, MessageCircle, Layers, 
-  Calendar, Users, Gift, CreditCard, ChevronDown, Star
+  Calendar, Users, Gift, ShieldCheck, Globe, 
+  Sparkles, Zap, Heart, Star, Music, Search
 } from 'lucide-react';
+import { clsx, type ClassValue } from 'clsx';
+import { twMerge } from 'tailwind-merge';
 
-// --- Utility Components ---
+// --- Utility: Tailwind Class Merger ---
+function cn(...inputs) {
+  return twMerge(clsx(inputs));
+}
 
-const cn = (...classes) => classes.filter(Boolean).join(' ');
+// --- 💎 Core Component: 3D Glass SVG Icons (No Images, Pure Code) ---
+// これが「絵文字以上のもの」です。SVGグラデーションでガラスの質感を生成します。
 
-// スクロールプログレスバー
-const ScrollProgress = () => {
-  const { scrollYProgress } = useScroll();
-  const scaleX = useSpring(scrollYProgress, { stiffness: 100, damping: 30, restDelta: 0.001 });
-  return (
-    <motion.div className="fixed top-0 left-0 right-0 h-1 bg-gradient-to-r from-sky-400 via-indigo-500 to-pink-500 origin-left z-50" style={{ scaleX }} />
-  );
-};
+const GlassShape = ({ type, className, delay = 0 }) => {
+  const isHeart = type === 'heart';
+  const isStar = type === 'star';
+  const isGem = type === 'gem';
+  const isBubble = type === 'bubble';
 
-// 3Dチルトカード
-const TiltCard = ({ children, className }) => {
-  const ref = useRef(null);
-  const [rotateX, setRotateX] = useState(0);
-  const [rotateY, setRotateY] = useState(0);
-
-  const handleMouseMove = (e) => {
-    if (!ref.current) return;
-    const rect = ref.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    const centerX = rect.width / 2;
-    const centerY = rect.height / 2;
-    setRotateX(((y - centerY) / centerY) * -5);
-    setRotateY(((x - centerX) / centerX) * 5);
-  };
-
-  const handleMouseLeave = () => {
-    setRotateX(0);
-    setRotateY(0);
+  // 浮遊アニメーション
+  const floatAnim = {
+    y: [0, -15, 0],
+    rotate: [0, 5, -5, 0],
+    scale: [1, 1.05, 1],
+    transition: {
+      duration: 6,
+      repeat: Infinity,
+      ease: "easeInOut",
+      delay: delay
+    }
   };
 
   return (
-    <motion.div
-      ref={ref}
-      onMouseMove={handleMouseMove}
-      onMouseLeave={handleMouseLeave}
-      style={{ transformStyle: "preserve-3d", rotateX, rotateY }}
-      className={cn("transition-transform duration-200 ease-out", className)}
-    >
-      {children}
+    <motion.div animate={floatAnim} className={cn("relative drop-shadow-2xl", className)}>
+      <svg viewBox="0 0 200 200" className="w-full h-full overflow-visible">
+        <defs>
+          {/* 共通: 内部の光彩 */}
+          <radialGradient id={`glow-${type}`} cx="30%" cy="30%" r="70%">
+            <stop offset="0%" stopColor="white" stopOpacity="0.9" />
+            <stop offset="40%" stopColor={isHeart ? "#f472b6" : isStar ? "#facc15" : isGem ? "#38bdf8" : "#c084fc"} stopOpacity="0.5" />
+            <stop offset="100%" stopColor={isHeart ? "#be185d" : isStar ? "#ca8a04" : isGem ? "#0284c7" : "#7e22ce"} stopOpacity="0.8" />
+          </radialGradient>
+          {/* 共通: 表面の反射 (ハイライト) */}
+          <linearGradient id={`reflect-${type}`} x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="white" stopOpacity="0.8" />
+            <stop offset="20%" stopColor="white" stopOpacity="0.1" />
+            <stop offset="100%" stopColor="white" stopOpacity="0" />
+          </linearGradient>
+          {/* 共通: フチの光 (リムライト) */}
+          <filter id={`blur-${type}`} x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="2" />
+          </filter>
+        </defs>
+
+        {/* シェイプ定義 */}
+        <g style={{ filter: 'drop-shadow(0px 10px 20px rgba(0,0,0,0.15))' }}>
+          {isHeart && (
+            <path d="M100 180 C20 100 0 50 50 20 C80 0 100 30 100 30 C100 30 120 0 150 20 C200 50 180 100 100 180 Z" fill={`url(#glow-${type})`} />
+          )}
+          {isStar && (
+            <path d="M100 10 L125 70 L190 75 L140 115 L155 180 L100 145 L45 180 L60 115 L10 75 L75 70 Z" fill={`url(#glow-${type})`} />
+          )}
+          {isGem && (
+            <path d="M50 50 L150 50 L190 100 L100 180 L10 100 Z" fill={`url(#glow-${type})`} />
+          )}
+          {isBubble && (
+            <circle cx="100" cy="100" r="80" fill={`url(#glow-${type})`} />
+          )}
+          
+          {/* ガラスの反射レイヤー (ツヤ) */}
+          {isHeart && (
+             <path d="M100 180 C20 100 0 50 50 20 C80 0 100 30 100 30" fill="none" stroke="white" strokeWidth="2" strokeOpacity="0.5" />
+          )}
+          {/* ハイライトの楕円 */}
+          <ellipse cx="70" cy="60" rx="20" ry="10" fill="white" fillOpacity="0.4" transform="rotate(-45, 70, 60)" />
+          <circle cx="130" cy="50" r="5" fill="white" fillOpacity="0.8" />
+        </g>
+      </svg>
     </motion.div>
   );
 };
 
-// --- Main Content Components ---
+// --- ✨ Particle Background System ---
+const Particles = () => {
+  const [particles, setParticles] = useState([]);
 
-const HeroSection = () => {
+  useEffect(() => {
+    // クライアントサイドでのみ生成
+    const count = 30;
+    const newParticles = Array.from({ length: count }).map((_, i) => ({
+      id: i,
+      x: Math.random() * 100,
+      y: Math.random() * 100,
+      size: Math.random() * 4 + 1,
+      duration: Math.random() * 20 + 10,
+    }));
+    setParticles(newParticles);
+  }, []);
+
   return (
-    <section className="relative w-full min-h-screen flex items-center justify-center overflow-hidden bg-[#030712] text-white">
-      {/* 動的背景 (Aurora Effect) */}
-      <div className="absolute inset-0 w-full h-full">
-        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-sky-500/20 rounded-full blur-[120px] animate-pulse" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-indigo-500/20 rounded-full blur-[120px] animate-pulse delay-1000" />
-        <div className="absolute top-[40%] left-[50%] transform -translate-x-1/2 w-[60%] h-[60%] bg-pink-500/10 rounded-full blur-[150px]" />
-        {/* グリッドオーバーレイ */}
-        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 brightness-100 contrast-150 mix-blend-overlay"></div>
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
-      </div>
-
-      <div className="relative z-10 max-w-7xl mx-auto px-6 text-center">
+    <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+      {particles.map((p) => (
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8 }}
+          key={p.id}
+          className="absolute rounded-full bg-white mix-blend-overlay"
+          style={{
+            left: `${p.x}%`,
+            top: `${p.y}%`,
+            width: p.size,
+            height: p.size,
+            opacity: 0.3,
+          }}
+          animate={{
+            y: [0, -100, 0],
+            x: [0, Math.random() * 50 - 25, 0],
+            opacity: [0, 0.5, 0],
+          }}
+          transition={{
+            duration: p.duration,
+            repeat: Infinity,
+            ease: "linear",
+          }}
+        />
+      ))}
+    </div>
+  );
+};
+
+// --- 🖱️ Magnetic Button Component ---
+const MagneticButton = ({ children, className, onClick }) => {
+  const ref = useRef(null);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+
+  const handleMouse = (e) => {
+    const { clientX, clientY } = e;
+    const { height, width, left, top } = ref.current.getBoundingClientRect();
+    const middleX = clientX - (left + width / 2);
+    const middleY = clientY - (top + height / 2);
+    setPosition({ x: middleX * 0.2, y: middleY * 0.2 });
+  };
+
+  const reset = () => {
+    setPosition({ x: 0, y: 0 });
+  };
+
+  const { x, y } = position;
+  return (
+    <motion.button
+      ref={ref}
+      onMouseMove={handleMouse}
+      onMouseLeave={reset}
+      animate={{ x, y }}
+      transition={{ type: "spring", stiffness: 150, damping: 15, mass: 0.1 }}
+      className={cn("relative overflow-hidden", className)}
+      onClick={onClick}
+    >
+      {children}
+    </motion.button>
+  );
+};
+
+// --- 📱 Tilt Card (Holographic) ---
+const HolographicCard = ({ children, className }) => {
+  const x = useMotionValue(0);
+  const y = useMotionValue(0);
+  const rotateX = useTransform(y, [-100, 100], [10, -10]);
+  const rotateY = useTransform(x, [-100, 100], [-10, 10]);
+
+  function handleMouseMove({ currentTarget, clientX, clientY }) {
+    const { left, top, width, height } = currentTarget.getBoundingClientRect();
+    x.set(clientX - left - width / 2);
+    y.set(clientY - top - height / 2);
+  }
+
+  return (
+    <motion.div
+      style={{ rotateX, rotateY, perspective: 1000 }}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={() => { x.set(0); y.set(0); }}
+      className={cn("relative transition-all duration-200 ease-out", className)}
+    >
+      <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-white/10 to-white/0 backdrop-blur-xl border border-white/20 shadow-[0_8px_32px_0_rgba(31,38,135,0.37)]" />
+      <div className="relative z-10">{children}</div>
+    </motion.div>
+  );
+};
+
+
+// --- 🚀 SECTIONS 🚀 ---
+
+// 1. Ultra Hero Section
+const HeroSection = () => {
+  const { scrollY } = useScroll();
+  const y1 = useTransform(scrollY, [0, 500], [0, 200]);
+  const y2 = useTransform(scrollY, [0, 500], [0, -150]);
+
+  return (
+    <section className="relative w-full min-h-[110vh] flex items-center justify-center overflow-hidden bg-[#0a0a0a]">
+      {/* Background Gradients */}
+      <div className="absolute inset-0 bg-[#0a0a0a]">
+        <div className="absolute top-[-20%] left-[-10%] w-[50vw] h-[50vw] bg-purple-600/30 rounded-full blur-[120px] mix-blend-screen animate-blob" />
+        <div className="absolute bottom-[-20%] right-[-10%] w-[50vw] h-[50vw] bg-pink-500/30 rounded-full blur-[120px] mix-blend-screen animate-blob animation-delay-2000" />
+        <div className="absolute top-[40%] left-[40%] w-[40vw] h-[40vw] bg-sky-500/20 rounded-full blur-[120px] mix-blend-screen animate-blob animation-delay-4000" />
+      </div>
+      
+      <Particles />
+
+      <div className="container relative z-10 px-6 mx-auto grid lg:grid-cols-2 gap-12 items-center">
+        {/* Left: Text Content */}
+        <motion.div 
+          initial={{ opacity: 0, x: -50 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 1, ease: "easeOut" }}
+          className="text-center lg:text-left"
         >
-          <span className="inline-block py-1 px-3 rounded-full bg-white/5 border border-white/10 text-sky-300 text-sm font-medium mb-6 backdrop-blur-md">
-            ✨ The Future of Fan Support is Here
-          </span>
-          <h1 className="text-5xl md:text-8xl font-bold tracking-tighter bg-clip-text text-transparent bg-gradient-to-b from-white via-white to-white/50 mb-6">
-            想いを、<br className="md:hidden" />
-            <span className="bg-clip-text text-transparent bg-gradient-to-r from-sky-400 via-indigo-400 to-pink-400">
-              結晶化(クリスタル)
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 backdrop-blur-md mb-8">
+            <span className="relative flex h-3 w-3">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-sky-500"></span>
             </span>
-            する。
+            <span className="text-sky-300 text-sm font-bold tracking-wider">FLASTAL 2.0</span>
+          </div>
+          
+          <h1 className="text-6xl md:text-8xl font-black tracking-tighter text-white leading-[0.9] mb-8">
+            <span className="block text-transparent bg-clip-text bg-gradient-to-r from-white via-white to-white/50">MAKE IT</span>
+            <span className="block text-transparent bg-clip-text bg-gradient-to-r from-sky-400 via-purple-400 to-pink-400 drop-shadow-[0_0_30px_rgba(192,132,252,0.5)]">
+              KAWAII &
+            </span>
+            <span className="block text-transparent bg-clip-text bg-gradient-to-r from-pink-400 via-rose-400 to-yellow-400">
+              FOREVER.
+            </span>
           </h1>
-          <p className="mt-6 text-lg md:text-2xl text-slate-400 max-w-3xl mx-auto leading-relaxed">
-            FLASTALは、ファンの熱狂を「透明」で「美しい」体験に変える、<br />
-            次世代フラスタ支援プラットフォームです。
+
+          <p className="text-lg md:text-xl text-slate-300 mb-10 max-w-xl mx-auto lg:mx-0 leading-relaxed">
+            推しへの想いを、ただの「支援」で終わらせない。<br/>
+            世界一透明で、世界一美しい、<br/>
+            ガラス細工のようなクラウドファンディング体験。
           </p>
 
-          <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link href="/projects">
-              <motion.button 
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="group relative px-8 py-4 bg-white text-slate-900 rounded-full font-bold text-lg shadow-[0_0_40px_-10px_rgba(255,255,255,0.5)] overflow-hidden"
-              >
-                <span className="relative z-10 flex items-center gap-2">
-                  企画を探す <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                </span>
-                <div className="absolute inset-0 bg-gradient-to-r from-sky-200 to-indigo-200 opacity-0 group-hover:opacity-100 transition-opacity" />
-              </motion.button>
-            </Link>
+          <div className="flex flex-col sm:flex-row gap-6 justify-center lg:justify-start">
             <Link href="/create">
-              <motion.button 
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="px-8 py-4 bg-white/5 text-white border border-white/10 rounded-full font-bold text-lg backdrop-blur-sm hover:bg-white/10 transition-colors"
-              >
-                無料で企画する
-              </motion.button>
+              <MagneticButton className="group px-10 py-5 bg-white text-black rounded-full font-bold text-lg shadow-[0_0_50px_-10px_rgba(255,255,255,0.6)]">
+                <span className="relative z-10 group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-purple-600 group-hover:to-pink-600 transition-colors">
+                  企画を始める
+                </span>
+                <div className="absolute inset-0 bg-gradient-to-r from-sky-200 via-purple-200 to-pink-200 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              </MagneticButton>
+            </Link>
+            <Link href="/projects">
+              <MagneticButton className="px-10 py-5 bg-white/5 border border-white/10 text-white rounded-full font-bold text-lg backdrop-blur-sm hover:bg-white/10">
+                企画を探す
+              </MagneticButton>
             </Link>
           </div>
         </motion.div>
 
-        {/* UI Mockup / Visual */}
-        <motion.div 
-          initial={{ opacity: 0, y: 100, rotateX: 20 }}
-          animate={{ opacity: 1, y: 0, rotateX: 0 }}
-          transition={{ duration: 1, delay: 0.2 }}
-          className="mt-20 relative mx-auto max-w-5xl"
-          style={{ perspective: "1000px" }}
-        >
-          <div className="relative rounded-2xl border border-white/10 bg-white/5 p-2 shadow-2xl backdrop-blur-xl">
-            <div className="absolute -top-10 -left-10 w-24 h-24 bg-sky-500 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob"></div>
-            <div className="absolute -bottom-10 -right-10 w-24 h-24 bg-pink-500 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-2000"></div>
+        {/* Right: 3D Visuals */}
+        <div className="relative h-[600px] hidden lg:block perspective-1000">
+          <motion.div style={{ y: y1, x: 50 }} className="absolute top-0 right-10 w-64 h-64 z-20">
+            <GlassShape type="heart" />
+          </motion.div>
+          <motion.div style={{ y: y2 }} className="absolute bottom-20 left-10 w-48 h-48 z-10">
+            <GlassShape type="gem" />
+          </motion.div>
+          <motion.div animate={{ rotate: 360 }} transition={{ duration: 40, repeat: Infinity, ease: "linear" }} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] border border-white/10 rounded-full z-0 border-dashed opacity-30" />
+          
+          {/* Main Hero Card Mockup */}
+          <motion.div 
+            initial={{ rotateY: 45, opacity: 0 }}
+            animate={{ rotateY: -10, opacity: 1 }}
+            transition={{ duration: 1.5, ease: "easeOut" }}
+            className="absolute top-1/4 left-1/4 w-[400px] h-[500px] bg-slate-900/80 backdrop-blur-xl border border-white/20 rounded-[40px] shadow-2xl p-6 flex flex-col z-10"
+            style={{ transformStyle: 'preserve-3d' }}
+          >
+            {/* Mockup Content */}
+            <div className="w-full h-48 rounded-3xl bg-gradient-to-br from-indigo-500 to-purple-600 mb-6 relative overflow-hidden group">
+              <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1490750967868-58cb75069ed6?auto=format&fit=crop&q=80')] bg-cover bg-center opacity-80 group-hover:scale-110 transition-transform duration-700"></div>
+              <div className="absolute bottom-4 right-4 bg-white/20 backdrop-blur px-3 py-1 rounded-full text-xs font-bold text-white">
+                あと3日
+              </div>
+            </div>
+            <div className="space-y-4">
+              <div className="h-4 w-2/3 bg-white/10 rounded-full" />
+              <div className="h-4 w-1/2 bg-white/10 rounded-full" />
+            </div>
+            <div className="mt-auto">
+               <div className="flex justify-between items-end mb-2">
+                 <span className="text-sky-400 font-bold text-2xl">125%</span>
+                 <span className="text-slate-400 text-sm">Goal: ¥100,000</span>
+               </div>
+               <div className="w-full h-2 bg-slate-700 rounded-full overflow-hidden">
+                 <motion.div 
+                   initial={{ width: 0 }}
+                   animate={{ width: "100%" }}
+                   transition={{ duration: 2, delay: 1 }}
+                   className="h-full bg-gradient-to-r from-sky-400 to-pink-500" 
+                 />
+               </div>
+            </div>
+            {/* Floating Element */}
+            <motion.div 
+              animate={{ y: [0, -20, 0] }}
+              transition={{ repeat: Infinity, duration: 3 }}
+              className="absolute -right-12 top-20 bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/20 flex items-center gap-3 shadow-xl"
+            >
+              <div className="w-10 h-10 rounded-full bg-pink-500 flex items-center justify-center">🎉</div>
+              <div className="text-white text-sm font-bold">
+                Masato.K<br/><span className="text-xs font-normal text-slate-300">Supported!</span>
+              </div>
+            </motion.div>
+          </motion.div>
+        </div>
+      </div>
+    </section>
+  );
+};
+
+// --- 2. Infinite Marquee (Social Proof) ---
+const Marquee = () => {
+  return (
+    <div className="bg-[#0a0a0a] py-8 border-y border-white/5 overflow-hidden relative z-20">
+      <div className="absolute inset-y-0 left-0 w-32 bg-gradient-to-r from-[#0a0a0a] to-transparent z-10" />
+      <div className="absolute inset-y-0 right-0 w-32 bg-gradient-to-l from-[#0a0a0a] to-transparent z-10" />
+      
+      <motion.div 
+        className="flex gap-16 whitespace-nowrap"
+        animate={{ x: [0, -1000] }}
+        transition={{ repeat: Infinity, duration: 20, ease: "linear" }}
+      >
+        {[...Array(2)].map((_, i) => (
+          <div key={i} className="flex gap-16 items-center">
+            {['TOTAL SUPPORT: ¥12,400,000+', 'ACTIVE PROJECTS: 450+', 'HAPPY IDOLS: 8,000+', 'NEW FLOWER SHOPS: 120+'].map((text, j) => (
+              <div key={j} className="flex items-center gap-4">
+                <Star className="text-yellow-400 fill-yellow-400 w-6 h-6" />
+                <span className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-slate-200 to-slate-500 font-mono tracking-tighter">
+                  {text}
+                </span>
+              </div>
+            ))}
+          </div>
+        ))}
+      </motion.div>
+    </div>
+  );
+};
+
+// --- 3. Features: The "Bento Grid" Reimagined ---
+const FeaturesSection = () => {
+  return (
+    <section className="py-32 bg-[#050505] relative">
+      <div className="container mx-auto px-6">
+        <div className="mb-24 text-center">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            className="inline-block"
+          >
+            <h2 className="text-5xl md:text-7xl font-bold text-white mb-6">
+              Future is <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-400 to-emerald-400">Crystal Clear.</span>
+            </h2>
+            <p className="text-slate-400 text-xl">
+              「まさか」を「あたりまえ」にする、魔法のような機能たち。
+            </p>
+          </motion.div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 md:grid-rows-3 gap-6 h-[1200px] md:h-[800px]">
+          
+          {/* Feature 1: AI Assistant (Large) */}
+          <HolographicCard className="md:col-span-2 md:row-span-2 rounded-[40px] p-10 overflow-hidden group">
+            <div className="absolute inset-0 bg-gradient-to-br from-indigo-900/40 to-purple-900/40 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+            
+            <div className="relative z-10 h-full flex flex-col">
+              <div className="w-16 h-16 rounded-2xl bg-indigo-500/20 flex items-center justify-center backdrop-blur-md border border-indigo-500/30 mb-6">
+                <Sparkles className="w-8 h-8 text-indigo-300" />
+              </div>
+              <h3 className="text-3xl font-bold text-white mb-2">AI Concierge</h3>
+              <p className="text-slate-300 mb-8">
+                文章が苦手でも大丈夫。最新のAIが、出演者の心を揺さぶる<br/>「エモい」メッセージや企画文を数秒で代筆します。
+              </p>
+
+              {/* AI Chat Simulation */}
+              <div className="mt-auto bg-black/40 backdrop-blur-md rounded-2xl p-6 border border-white/10 font-mono text-sm relative overflow-hidden">
+                <div className="flex gap-3 mb-4">
+                  <div className="w-2 h-2 rounded-full bg-red-500" />
+                  <div className="w-2 h-2 rounded-full bg-yellow-500" />
+                  <div className="w-2 h-2 rounded-full bg-green-500" />
+                </div>
+                <div className="space-y-3 text-slate-300">
+                  <p><span className="text-green-400">User:</span> 感動的なお礼のメッセージを書いて</p>
+                  <p><span className="text-purple-400">AI:</span> 承知しました。以下のような文面はいかがでしょう？</p>
+                  <p className="text-white typing-effect border-l-2 border-sky-400 pl-3">
+                    &quot;ステージ上の輝きは、私たちの明日への道標でした。この花束に、言葉にできない感謝を込めて...&quot;
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            <GlassShape type="star" className="absolute -bottom-10 -right-10 w-64 h-64 opacity-20 group-hover:opacity-40 transition-opacity duration-500" />
+          </HolographicCard>
+
+          {/* Feature 2: AR (Tall) */}
+          <HolographicCard className="md:row-span-2 rounded-[40px] p-8 overflow-hidden group relative">
+             <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1550645614-8f35475db63e?auto=format&fit=crop&q=80')] bg-cover bg-center grayscale group-hover:grayscale-0 transition-all duration-700 opacity-50" />
+             <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent" />
+             
+             <div className="relative z-10 h-full flex flex-col justify-end">
+                <div className="w-12 h-12 rounded-xl bg-sky-500 flex items-center justify-center mb-4 shadow-[0_0_20px_theme(colors.sky.500)]">
+                  <Zap className="text-white" />
+                </div>
+                <h3 className="text-2xl font-bold text-white">AR Preview</h3>
+                <p className="text-slate-400 text-sm mt-2">
+                  スマホをかざせば、そこはもう会場。<br/>
+                  フラスタのサイズ感や色味を<br/>
+                  拡張現実でリアルに確認。
+                </p>
+             </div>
+          </HolographicCard>
+
+          {/* Feature 3: Global (Wide) */}
+          <HolographicCard className="md:col-span-2 rounded-[40px] p-8 flex items-center justify-between overflow-hidden bg-gradient-to-r from-slate-900 to-slate-800">
+             <div className="relative z-10">
+               <h3 className="text-2xl font-bold text-white flex items-center gap-3">
+                 <Globe className="text-emerald-400" /> Global Support
+               </h3>
+               <p className="text-slate-400 mt-2">海外ファンからの支援も、自動翻訳と多通貨決済でシームレスに。</p>
+             </div>
+             <div className="flex gap-2">
+               {['USD', 'EUR', 'JPY', 'KRW', 'CNY'].map((cur, i) => (
+                 <div key={i} className="px-3 py-1 rounded-lg bg-white/5 border border-white/10 text-xs font-mono text-slate-300">
+                   {cur}
+                 </div>
+               ))}
+             </div>
+          </HolographicCard>
+
+          {/* Feature 4: Security (Small) */}
+          <HolographicCard className="rounded-[40px] p-8 bg-slate-900 flex flex-col justify-center items-center text-center">
+             <ShieldCheck className="w-12 h-12 text-rose-400 mb-4" />
+             <h3 className="text-xl font-bold text-white">Safe & Secure</h3>
+             <p className="text-xs text-slate-400 mt-1">返金保証制度完備。</p>
+          </HolographicCard>
+
+        </div>
+      </div>
+    </section>
+  );
+};
+
+// --- 4. The "Journey" (Interactive Roadmap) ---
+const JourneySection = () => {
+  return (
+    <section className="py-32 bg-[#050505] overflow-hidden text-white relative">
+      <div className="container mx-auto px-6">
+         <h2 className="text-center text-4xl md:text-6xl font-bold mb-32">
+           <span className="text-sky-400">Flow</span> of Emotion
+         </h2>
+         
+         <div className="relative">
+            {/* Connecting Line (Snake) */}
+            <div className="absolute left-1/2 top-0 bottom-0 w-1 bg-gradient-to-b from-sky-500 via-purple-500 to-pink-500 -translate-x-1/2 hidden md:block opacity-30" />
+            
+            {[
+              { title: "Launch", desc: "AIと共に、3分で企画ページ公開。", icon: "rocket", color: "sky" },
+              { title: "Share", desc: "SNSで仲間を集める。招待はリンク一つで。", icon: "share", color: "indigo" },
+              { title: "Connect", desc: "花屋さんとチャットでデザイン相談。", icon: "message", color: "purple" },
+              { title: "Bloom", desc: "当日、あなたの想いが会場を彩る。", icon: "flower", color: "pink" }
+            ].map((step, i) => (
+              <motion.div 
+                key={i}
+                initial={{ opacity: 0, x: i % 2 === 0 ? -100 : 100 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ margin: "-100px" }}
+                transition={{ duration: 0.8 }}
+                className={`flex items-center gap-12 mb-32 ${i % 2 === 0 ? 'md:flex-row' : 'md:flex-row-reverse'} flex-col`}
+              >
+                 <div className="flex-1 text-center md:text-right">
+                   {i % 2 === 0 && (
+                     <>
+                      <h3 className={`text-4xl font-bold text-${step.color}-400 mb-4`}>{step.title}</h3>
+                      <p className="text-xl text-slate-300">{step.desc}</p>
+                     </>
+                   )}
+                 </div>
+                 
+                 <div className="relative">
+                   <div className={`w-24 h-24 rounded-full bg-${step.color}-500 blur-xl absolute inset-0 opacity-50 animate-pulse`} />
+                   <div className="w-24 h-24 rounded-full bg-[#0a0a0a] border-4 border-white/10 relative z-10 flex items-center justify-center text-3xl">
+                     {i + 1}
+                   </div>
+                 </div>
+
+                 <div className="flex-1 text-center md:text-left">
+                  {i % 2 !== 0 && (
+                     <>
+                      <h3 className={`text-4xl font-bold text-${step.color}-400 mb-4`}>{step.title}</h3>
+                      <p className="text-xl text-slate-300">{step.desc}</p>
+                     </>
+                   )}
+                 </div>
+              </motion.div>
+            ))}
+         </div>
+      </div>
+    </section>
+  );
+};
+
+
+// --- 5. Gallery (Parallax Effect) ---
+const GallerySection = () => {
+  const { scrollYProgress } = useScroll();
+  const x = useTransform(scrollYProgress, [0, 1], [0, -500]);
+  
+  const images = [
+    "https://images.unsplash.com/photo-1563241527-3002b76364f6?auto=format&fit=crop&q=80",
+    "https://images.unsplash.com/photo-1526047932273-341f2a7631f9?auto=format&fit=crop&q=80",
+    "https://images.unsplash.com/photo-1533616688419-b7a585564566?auto=format&fit=crop&q=80",
+    "https://images.unsplash.com/photo-1457089328109-e5d9bd499191?auto=format&fit=crop&q=80",
+    "https://images.unsplash.com/photo-1507290439931-a861b5a38200?auto=format&fit=crop&q=80",
+  ];
+
+  return (
+    <section className="py-24 bg-[#0a0a0a] overflow-hidden">
+      <div className="text-center mb-16">
+        <h2 className="text-3xl font-bold text-white">Gallery of Dreams</h2>
+      </div>
+      <motion.div style={{ x }} className="flex gap-8 px-8 w-max">
+        {images.map((src, i) => (
+          <div key={i} className="w-[300px] md:w-[500px] h-[400px] rounded-3xl overflow-hidden relative group">
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent z-10" />
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img 
-              src="/dashboard-mockup-dark.png" 
-              alt="FLASTAL Dashboard" 
-              className="rounded-xl w-full h-auto object-cover opacity-90 shadow-inner bg-slate-900/50 aspect-[16/9]"
-              // Note: Replace with actual image path or placeholder
-              style={{ minHeight: '300px' }} 
+              src={src} 
+              alt="Project" 
+              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" 
             />
-            
-            {/* Floating Badges */}
-            <motion.div 
-              animate={{ y: [0, -10, 0] }}
-              transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}
-              className="absolute -right-4 top-10 bg-slate-900/80 backdrop-blur-md border border-white/10 p-4 rounded-xl shadow-xl flex items-center gap-3"
-            >
-              <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center text-green-400">
-                <Check size={20} />
-              </div>
-              <div>
-                <p className="text-xs text-slate-400">Goal Reached</p>
-                <p className="text-sm font-bold text-white">125% 達成！</p>
-              </div>
-            </motion.div>
-
-             <motion.div 
-              animate={{ y: [0, 10, 0] }}
-              transition={{ repeat: Infinity, duration: 5, ease: "easeInOut", delay: 1 }}
-              className="absolute -left-4 bottom-20 bg-slate-900/80 backdrop-blur-md border border-white/10 p-4 rounded-xl shadow-xl flex items-center gap-3"
-            >
-              <div className="w-10 h-10 rounded-full bg-pink-500/20 flex items-center justify-center text-pink-400">
-                <Heart size={20} fill="currentColor" />
-              </div>
-              <div>
-                <p className="text-xs text-slate-400">New Supporter</p>
-                <p className="text-sm font-bold text-white">Yuki.S さんが支援</p>
-              </div>
-            </motion.div>
-          </div>
-        </motion.div>
-      </div>
-    </section>
-  );
-};
-
-// --- Future Feature Section (Bento Grid) ---
-const BentoGrid = () => {
-  return (
-    <section className="py-32 bg-slate-50 relative overflow-hidden">
-      <div className="max-w-7xl mx-auto px-6">
-        <div className="mb-16 md:text-center max-w-3xl mx-auto">
-          <h2 className="text-sky-500 font-semibold tracking-wide uppercase">Advanced Technology</h2>
-          <p className="mt-2 text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-            「不可能」を「標準機能」に。
-          </p>
-          <p className="mt-6 text-lg text-slate-600">
-            FLASTALは単なる集金ツールではありません。AI、AR、リアルタイム通信を駆使した、
-            体験共有プラットフォームです。
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-4 grid-rows-3 gap-6 h-auto md:h-[800px]">
-          {/* Card 1: Large - AI Assistant */}
-          <TiltCard className="md:col-span-2 md:row-span-2 bg-white rounded-3xl p-8 shadow-xl border border-slate-100 relative overflow-hidden group">
-            <div className="absolute inset-0 bg-gradient-to-br from-indigo-50 to-purple-50 opacity-50" />
-            <div className="relative z-10 h-full flex flex-col justify-between">
-              <div>
-                <div className="w-12 h-12 bg-indigo-500 rounded-2xl flex items-center justify-center text-white mb-6 shadow-lg shadow-indigo-200">
-                  <Sparkles />
-                </div>
-                <h3 className="text-2xl font-bold text-slate-900">AI Concierge</h3>
-                <p className="mt-2 text-slate-600">
-                  「どんなメッセージを書けばいい？」<br/>
-                  生成AIが、出演者の心を動かすメッセージ案や、企画ページの魅力的な紹介文を数秒で提案します。
-                </p>
-              </div>
-              <div className="mt-6 bg-white/80 backdrop-blur border border-slate-200 rounded-xl p-4 text-sm text-slate-600 shadow-sm">
-                <p className="font-mono text-xs text-indigo-500 mb-1">AI Suggestion:</p>
-                {/* 修正: ダブルクォーテーションを &quot; に変更 */}
-                &quot;いつも感動をありがとう！このフラスタは、私たちの感謝の結晶です...&quot;
-              </div>
-            </div>
-            <div className="absolute bottom-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl group-hover:bg-indigo-500/20 transition-all duration-500" />
-          </TiltCard>
-
-          {/* Card 2: Medium - AR Preview */}
-          <TiltCard className="md:col-span-2 bg-slate-900 rounded-3xl p-8 shadow-xl border border-slate-800 relative overflow-hidden text-white group">
-            <div className="relative z-10 flex items-center gap-6">
-              <div className="flex-1">
-                <div className="w-12 h-12 bg-sky-500 rounded-2xl flex items-center justify-center text-white mb-4 shadow-lg shadow-sky-900">
-                  <Smartphone />
-                </div>
-                <h3 className="text-xl font-bold">AR Pre-visualization</h3>
-                <p className="mt-2 text-slate-400 text-sm">
-                  スマホをかざして、会場にフラスタを仮想配置。サイズ感や色味を事前に確認できます。
-                </p>
-              </div>
-              <div className="w-32 h-32 bg-gradient-to-tr from-sky-500 to-cyan-400 rounded-2xl opacity-80 animate-pulse" />
-            </div>
-          </TiltCard>
-
-          {/* Card 3: Small - Global Payments */}
-          <TiltCard className="md:col-span-1 md:row-span-1 bg-white rounded-3xl p-6 shadow-lg border border-slate-100 flex flex-col justify-center items-center text-center">
-            <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-4">
-              <Globe />
-            </div>
-            <h3 className="text-lg font-bold text-slate-900">Global Support</h3>
-            <p className="text-xs text-slate-500 mt-1">海外ファンも参加可能。<br/>多言語・多通貨対応。</p>
-          </TiltCard>
-
-          {/* Card 4: Small - Security */}
-          <TiltCard className="md:col-span-1 md:row-span-1 bg-white rounded-3xl p-6 shadow-lg border border-slate-100 flex flex-col justify-center items-center text-center">
-             <div className="w-12 h-12 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mb-4">
-              <ShieldCheck />
-            </div>
-            <h3 className="text-lg font-bold text-slate-900">Escrow Protect</h3>
-            <p className="text-xs text-slate-500 mt-1">企画中止時は<br/>全額自動返金保証。</p>
-          </TiltCard>
-
-           {/* Card 5: Wide - Realtime Chat */}
-           <TiltCard className="md:col-span-2 md:row-span-1 bg-gradient-to-r from-pink-500 to-rose-500 rounded-3xl p-8 shadow-xl text-white relative overflow-hidden flex items-center justify-between">
-            <div className="relative z-10">
-              <h3 className="text-xl font-bold">Real-time Synergy</h3>
-              <p className="text-white/80 text-sm mt-2 max-w-xs">
-                お花屋さん・参加者・主催者を繋ぐ専用チャット。NGワードフィルタリングで平和なコミュニティを維持。
-              </p>
-            </div>
-            <div className="relative z-10 bg-white/20 p-3 rounded-full backdrop-blur-md">
-              <MessageCircle size={32} />
-            </div>
-            <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay"></div>
-          </TiltCard>
-        </div>
-      </div>
-    </section>
-  );
-};
-
-// --- Timeline/Process Section ---
-const ProcessSection = () => {
-  const steps = [
-    { num: '01', title: 'Project Launch', desc: 'AIサポートで、魅力的な企画ページを3分で作成。' },
-    { num: '02', title: 'Team Building', desc: 'SNS連携と招待リンクで、仲間を瞬時に集める。' },
-    { num: '03', title: 'Florist Match', desc: '予算とイメージから、最適なアーティスト（花屋）とマッチング。' },
-    { num: '04', title: 'Transparent Ops', desc: '収支はブロックチェーン級の透明性でリアルタイム公開。' },
-    { num: '05', title: 'Emotional Share', desc: '完成写真と動画で、感動の瞬間を永遠にアーカイブ。' },
-  ];
-
-  return (
-    <section className="py-32 bg-slate-900 text-white overflow-hidden">
-      <div className="max-w-7xl mx-auto px-6">
-        <div className="grid md:grid-cols-2 gap-16 items-center">
-          <div>
-            <h2 className="text-4xl md:text-6xl font-bold mb-8 leading-tight">
-              複雑なプロセスを、<br/>
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-400 to-emerald-400">
-                美しい物語
-              </span>に。
-            </h2>
-            <p className="text-slate-400 text-lg mb-8">
-              従来の手順にあった「不安」や「面倒」をすべて排除しました。<br/>
-              あなたはただ、推しへの想いを語るだけ。あとはFLASTALがナビゲートします。
-            </p>
-            <Link href="/create">
-              <button className="flex items-center gap-3 text-sky-400 hover:text-sky-300 transition-colors font-bold text-xl group">
-                体験を始める <ArrowRight className="group-hover:translate-x-2 transition-transform"/>
-              </button>
-            </Link>
-          </div>
-
-          <div className="relative">
-            {/* 縦のライン */}
-            <div className="absolute left-8 top-0 bottom-0 w-0.5 bg-gradient-to-b from-sky-500/0 via-sky-500/50 to-sky-500/0"></div>
-            
-            <div className="space-y-8">
-              {steps.map((step, i) => (
-                <motion.div 
-                  initial={{ opacity: 0, x: 20 }}
-                  whileInView={{ opacity: 1, x: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: i * 0.1 }}
-                  key={i} 
-                  className="relative pl-24 group"
-                >
-                  <div className="absolute left-0 top-0 w-16 h-16 rounded-2xl bg-slate-800 border border-slate-700 flex items-center justify-center font-mono text-2xl font-bold text-slate-500 group-hover:text-sky-400 group-hover:border-sky-500/50 transition-all shadow-lg z-10">
-                    {step.num}
-                  </div>
-                  <h3 className="text-xl font-bold text-slate-200 group-hover:text-white transition-colors">{step.title}</h3>
-                  <p className="text-slate-500 group-hover:text-slate-300 transition-colors">{step.desc}</p>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-};
-
-// --- Ecosystem Section (Florists, Venues, Organizers) ---
-const EcosystemSection = () => {
-  const roles = [
-    {
-      id: 'florist',
-      title: 'For Florists',
-      subtitle: 'クリエイティビティの解放',
-      desc: '集金の手間や未払いのリスクから解放され、デザインと制作に没頭できる環境を。',
-      color: 'from-pink-500 to-rose-500',
-      icon: <Gift className="w-6 h-6" />,
-      link: '/florists'
-    },
-    {
-      id: 'venue',
-      title: 'For Venues',
-      subtitle: '完全なるコントロール',
-      desc: '搬入トラブルゼロへ。公認フラスタの管理とレギュレーション周知を一元化。',
-      color: 'from-blue-500 to-cyan-500',
-      icon: <Layers className="w-6 h-6" />,
-      link: '/venues'
-    },
-    {
-      id: 'organizer',
-      title: 'For Organizers',
-      subtitle: 'ファンエンゲージメントの最大化',
-      desc: '公式イベントページと連動し、ファンの熱量を可視化。安全な応援文化を醸成します。',
-      color: 'from-indigo-500 to-purple-500',
-      icon: <Users className="w-6 h-6" />,
-      link: '/organizers'
-    }
-  ];
-
-  return (
-    <section className="py-32 bg-slate-50">
-      <div className="max-w-7xl mx-auto px-6">
-        <div className="text-center mb-20">
-          <h2 className="text-4xl font-bold text-slate-900">Participate in the Ecosystem</h2>
-          <p className="mt-4 text-slate-600">3つのプレイヤーがつながることで、最高のエンターテイメントが生まれます。</p>
-        </div>
-
-        <div className="grid md:grid-cols-3 gap-8">
-          {roles.map((role) => (
-            <motion.div 
-              key={role.id}
-              whileHover={{ y: -10 }}
-              className="relative group bg-white rounded-[2rem] p-8 shadow-xl border border-slate-100 overflow-hidden"
-            >
-              <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br ${role.color} opacity-10 rounded-bl-[100px] transition-all group-hover:scale-150 duration-500`} />
-              
-              <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${role.color} flex items-center justify-center text-white shadow-lg mb-8`}>
-                {role.icon}
-              </div>
-              
-              <span className={`text-sm font-bold bg-clip-text text-transparent bg-gradient-to-r ${role.color} uppercase tracking-wider`}>
-                {role.title}
-              </span>
-              <h3 className="text-2xl font-bold text-slate-900 mt-2 mb-4">{role.subtitle}</h3>
-              <p className="text-slate-600 leading-relaxed mb-8">
-                {role.desc}
-              </p>
-
-              <div className="flex gap-4 mt-auto">
-                <Link href={`${role.link}/login`} className="flex-1 py-3 text-center rounded-xl border border-slate-200 text-slate-600 font-medium hover:bg-slate-50 transition-colors">
-                  Login
-                </Link>
-                <Link href={`${role.link}/register`} className={`flex-1 py-3 text-center rounded-xl text-white font-medium bg-gradient-to-r ${role.color} shadow-lg shadow-black/5 hover:shadow-black/15 transition-all`}>
-                  Join
-                </Link>
-              </div>
-            </motion.div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-};
-
-// --- Testimonials (Infinite Scroll) ---
-const Testimonials = () => {
-  const reviews = [
-    { text: "初めての主催でしたが、AIサポートのおかげで完璧な文章が書けました！", user: "Sakura.M", role: "Organizer" },
-    { text: "集金管理のストレスがゼロに。これなしではもう企画できません。", user: "Taro.K", role: "Organizer" },
-    { text: "お花屋さんとのチャットがスムーズで、イメージ通りのフラスタができました。", user: "Yui.O", role: "Organizer" },
-    { text: "透明性が高いので、安心して支援できました。", user: "Kenji.S", role: "Supporter" },
-  ];
-
-  return (
-    <section className="py-24 bg-white overflow-hidden">
-      <div className="max-w-7xl mx-auto px-6 mb-12 text-center">
-         <h2 className="text-3xl font-bold text-slate-900">Voices of Delight</h2>
-      </div>
-      <div className="flex gap-8 animate-scroll-left whitespace-nowrap">
-        {[...reviews, ...reviews, ...reviews].map((review, i) => (
-          <div key={i} className="inline-block w-[400px] p-8 rounded-2xl bg-slate-50 border border-slate-100 whitespace-normal">
-            <div className="flex gap-1 text-yellow-400 mb-4">
-              {[1,2,3,4,5].map(n => <Star key={n} size={16} fill="currentColor" />)}
-            </div>
-            {/* 修正: ダブルクォーテーションを &quot; に変更 */}
-            <p className="text-slate-700 text-lg font-medium mb-6">&quot;{review.text}&quot;</p>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-slate-200" />
-              <div>
-                <p className="text-sm font-bold text-slate-900">{review.user}</p>
-                <p className="text-xs text-slate-500">{review.role}</p>
-              </div>
+            <div className="absolute bottom-6 left-6 z-20">
+              <p className="text-white font-bold text-lg">Project #{100 + i}</p>
+              <div className="flex text-yellow-400">★★★★★</div>
             </div>
           </div>
         ))}
-      </div>
-      <style jsx>{`
-        .animate-scroll-left {
-          animation: scroll 40s linear infinite;
-        }
-        @keyframes scroll {
-          0% { transform: translateX(0); }
-          100% { transform: translateX(-50%); }
-        }
-      `}</style>
+      </motion.div>
     </section>
   );
 };
 
-// --- FAQ Section (Accordion) ---
-const FAQ = () => {
-  const faqs = [
-    { q: "企画が目標金額に届かなかった場合は？", a: "ご安心ください。All-in方式であれば集まった金額で実施、All-or-Nothing方式であれば全額返金など、企画作成時に柔軟に設定可能です。" },
-    { q: "手数料はいくらですか？", a: "基本利用料は無料です。支援が集まった場合のみ、決済手数料とシステム利用料を合わせて〇〇%を頂戴します。" },
-    { q: "お花屋さんの指定はできますか？", a: "はい、FLASTALに登録されている全国の提携フローリストから指名できます。未登録のお店への依頼サポートも行っています。" },
-  ];
 
+// --- 6. Final CTA (Glassmorphism Bomb) ---
+const FinalCTA = () => {
   return (
-    <section className="py-32 max-w-4xl mx-auto px-6">
-      <h2 className="text-3xl font-bold text-center mb-16 text-slate-900">Frequently Asked Questions</h2>
-      <div className="space-y-4">
-        {faqs.map((faq, i) => (
-          <details key={i} className="group bg-white border border-slate-200 rounded-2xl p-6 [&_summary::-webkit-details-marker]:hidden cursor-pointer open:ring-2 open:ring-sky-500/20 transition-all">
-            <summary className="flex items-center justify-between font-bold text-slate-900 list-none">
-              {faq.q}
-              <ChevronDown className="transition-transform group-open:rotate-180 text-slate-400" />
-            </summary>
-            <div className="mt-4 text-slate-600 leading-relaxed text-sm">
-              {faq.a}
-            </div>
-          </details>
-        ))}
-      </div>
-    </section>
-  );
-};
-
-// --- Footer / CTA ---
-const FooterCTA = () => {
-  return (
-    <footer className="bg-[#030712] text-white pt-32 pb-12 overflow-hidden relative">
-      {/* Background Glow */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-3xl h-[500px] bg-gradient-to-b from-sky-500/20 to-transparent blur-[100px] pointer-events-none" />
-
-      <div className="max-w-5xl mx-auto px-6 text-center relative z-10">
-        <h2 className="text-5xl md:text-7xl font-bold tracking-tight mb-8">
-          Ready to <br/>
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-400 to-pink-400">
-            Make it Bloom?
-          </span>
+    <section className="relative py-48 overflow-hidden bg-black flex flex-col items-center justify-center text-center">
+      {/* Background Shapes */}
+      <GlassShape type="heart" className="absolute top-10 left-10 w-48 h-48 opacity-50 blur-sm" delay={0} />
+      <GlassShape type="bubble" className="absolute bottom-10 right-10 w-64 h-64 opacity-50 blur-sm" delay={2} />
+      
+      <div className="relative z-10 max-w-4xl px-6">
+        <h2 className="text-6xl md:text-9xl font-black text-transparent bg-clip-text bg-gradient-to-r from-sky-400 via-pink-400 to-yellow-400 mb-12">
+          READY?
         </h2>
-        <p className="text-slate-400 text-xl mb-12 max-w-2xl mx-auto">
-          あなたのその想いは、誰かの勇気になる。<br/>
-          さあ、世界一優しい革命をここから始めよう。
+        <p className="text-2xl text-slate-300 mb-12">
+          あなたの「好き」という気持ちは、<br/>
+          世界で一番強いエネルギーです。
         </p>
         
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
-          <Link href="/create">
-            <button className="px-12 py-5 bg-white text-slate-950 text-xl font-bold rounded-full hover:scale-105 transition-transform shadow-[0_0_50px_-10px_rgba(255,255,255,0.3)]">
-              無料で企画を作成
-            </button>
-          </Link>
-        </div>
+        <Link href="/create">
+          <motion.button 
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+            className="px-16 py-8 rounded-full bg-white text-black text-2xl font-bold shadow-[0_0_100px_theme(colors.sky.500)] hover:shadow-[0_0_150px_theme(colors.pink.500)] transition-all duration-500"
+          >
+            今すぐ始める
+          </motion.button>
+        </Link>
+      </div>
+    </section>
+  );
+};
 
-        <div className="mt-32 pt-8 border-t border-white/10 flex flex-col md:flex-row justify-between items-center text-slate-500 text-sm">
-          <p>© 2025 FLASTAL Inc. All rights reserved.</p>
-          <div className="flex gap-6 mt-4 md:mt-0">
-            <Link href="#" className="hover:text-white transition-colors">Privacy</Link>
-            <Link href="#" className="hover:text-white transition-colors">Terms</Link>
-            <Link href="#" className="hover:text-white transition-colors">Twitter</Link>
-          </div>
+// --- Footer ---
+const Footer = () => {
+  return (
+    <footer className="bg-black text-white pt-24 pb-12 border-t border-white/10">
+      <div className="container mx-auto px-6 grid md:grid-cols-4 gap-12">
+        <div className="col-span-1 md:col-span-2">
+          <h3 className="text-3xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-sky-400 to-pink-400">FLASTAL</h3>
+          <p className="text-slate-500 max-w-sm">
+            推し活を、もっと自由に、もっと美しく。<br/>
+            次世代のクラウドファンディング＆フラワースタンド支援プラットフォーム。
+          </p>
         </div>
+        <div>
+          <h4 className="font-bold mb-4">Platform</h4>
+          <ul className="space-y-2 text-slate-400 text-sm">
+            <li className="hover:text-white cursor-pointer">企画を探す</li>
+            <li className="hover:text-white cursor-pointer">企画を立てる</li>
+            <li className="hover:text-white cursor-pointer">成功事例</li>
+          </ul>
+        </div>
+        <div>
+          <h4 className="font-bold mb-4">Support</h4>
+          <ul className="space-y-2 text-slate-400 text-sm">
+            <li className="hover:text-white cursor-pointer">ヘルプセンター</li>
+            <li className="hover:text-white cursor-pointer">利用規約</li>
+            <li className="hover:text-white cursor-pointer">プライバシーポリシー</li>
+          </ul>
+        </div>
+      </div>
+      <div className="text-center mt-24 text-slate-600 text-xs">
+        © 2025 FLASTAL Inc. All rights reserved. Made with ❤️ and Glass.
       </div>
     </footer>
   );
 };
 
+
+// --- 👑 MAIN EXPORT ---
 export default function HomePageContent() {
   return (
-    <div className="bg-white min-h-screen selection:bg-sky-500 selection:text-white">
-      <ScrollProgress />
+    <div className="bg-[#0a0a0a] min-h-screen text-slate-200 selection:bg-pink-500 selection:text-white font-sans">
       <HeroSection />
-      <BentoGrid />
-      <ProcessSection />
-      <EcosystemSection />
-      <Testimonials />
-      <FAQ />
-      <FooterCTA />
+      <Marquee />
+      <FeaturesSection />
+      <JourneySection />
+      <GallerySection />
+      <FinalCTA />
+      <Footer />
     </div>
   );
 }
