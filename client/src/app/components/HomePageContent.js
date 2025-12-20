@@ -129,6 +129,7 @@ const HeroSection = () => {
           <div className="relative rounded-2xl border border-white/10 bg-white/5 p-2 shadow-2xl backdrop-blur-xl">
             <div className="absolute -top-10 -left-10 w-24 h-24 bg-sky-500 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob"></div>
             <div className="absolute -bottom-10 -right-10 w-24 h-24 bg-pink-500 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-2000"></div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img 
               src="/dashboard-mockup-dark.png" 
               alt="FLASTAL Dashboard" 
@@ -205,7 +206,8 @@ const BentoGrid = () => {
               </div>
               <div className="mt-6 bg-white/80 backdrop-blur border border-slate-200 rounded-xl p-4 text-sm text-slate-600 shadow-sm">
                 <p className="font-mono text-xs text-indigo-500 mb-1">AI Suggestion:</p>
-                "いつも感動をありがとう！このフラスタは、私たちの感謝の結晶です..."
+                {/* 修正: ダブルクォーテーションを &quot; に変更 */}
+                &quot;いつも感動をありがとう！このフラスタは、私たちの感謝の結晶です...&quot;
               </div>
             </div>
             <div className="absolute bottom-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl group-hover:bg-indigo-500/20 transition-all duration-500" />
@@ -422,7 +424,8 @@ const Testimonials = () => {
             <div className="flex gap-1 text-yellow-400 mb-4">
               {[1,2,3,4,5].map(n => <Star key={n} size={16} fill="currentColor" />)}
             </div>
-            <p className="text-slate-700 text-lg font-medium mb-6">"{review.text}"</p>
+            {/* 修正: ダブルクォーテーションを &quot; に変更 */}
+            <p className="text-slate-700 text-lg font-medium mb-6">&quot;{review.text}&quot;</p>
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-slate-200" />
               <div>
