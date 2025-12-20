@@ -11,7 +11,7 @@ import {
   Calendar, Users, Gift, ShieldCheck, Globe, 
   Sparkles, Zap, Heart, Star, Music, Search
 } from 'lucide-react';
-import { clsx, type ClassValue } from 'clsx';
+import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
 // --- Utility: Tailwind Class Merger ---
