@@ -1,26 +1,24 @@
 'use client';
 
-import React, { useRef, useState, useEffect, useMemo } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { 
-  motion, useScroll, useTransform, useSpring, useInView, 
-  useMotionValue, useMotionTemplate, AnimatePresence 
+  motion, useScroll, useTransform, useSpring, 
+  useMotionValue 
 } from 'framer-motion';
 import { 
   ArrowRight, Check, Play, MessageCircle, Layers, 
   Calendar, Users, Gift, ShieldCheck, Globe, 
   Sparkles, Zap, Heart, Star, Music, Search
 } from 'lucide-react';
-import { clsx } from 'clsx';
-import { twMerge } from 'tailwind-merge';
 
-// --- Utility: Tailwind Class Merger ---
-function cn(...inputs) {
-  return twMerge(clsx(inputs));
+// --- Utility: Simple Class Merger ---
+// 外部ライブラリ(clsx, tailwind-merge)を使わずに実装
+function cn(...classes) {
+  return classes.filter(Boolean).join(' ');
 }
 
-// --- 💎 Core Component: 3D Glass SVG Icons (No Images, Pure Code) ---
-// これが「絵文字以上のもの」です。SVGグラデーションでガラスの質感を生成します。
+// --- 💎 Core Component: 3D Glass SVG Icons ---
 
 const GlassShape = ({ type, className, delay = 0 }) => {
   const isHeart = type === 'heart';
