@@ -4,16 +4,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-// ★★★ useAuth, ApprovalPendingCard をインポート ★★★
 import { useAuth } from '../../contexts/AuthContext';
 import ApprovalPendingCard from '@/app/components/ApprovalPendingCard';
-// ★★★ --------------------------------------- ★★★
 import { FiPlus, FiCalendar, FiMapPin, FiLogOut } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
-// ★トークン取得ヘルパー (AuthContextから取得するため、この関数は削除しても良いが、ここでは残します)
 const getAuthToken = () => {
   if (typeof window === 'undefined') return null;
   const rawToken = localStorage.getItem('authToken');
@@ -21,17 +18,15 @@ const getAuthToken = () => {
 };
 
 export default function OrganizerDashboard() {
-  // ★★★ isPending, isApproved を取得 ★★★
   const { user, isAuthenticated, loading, logout, isPending, isApproved } = useAuth();
   const router = useRouter();
   const [events, setEvents] = useState([]);
   const [isLoadingEvents, setIsLoadingEvents] = useState(true);
 
-  // ★★★ データ取得ロジックの修正: 承認済みのみAPIコール ★★★
   const fetchEvents = useCallback(async () => {
     if (isPending || !isApproved) {
         setIsLoadingEvents(false);
-        return; // 審査待ち/却下ならAPIコールをスキップ
+        return; 
     }
     
     try {
@@ -47,7 +42,7 @@ export default function OrganizerDashboard() {
     } finally {
       setIsLoadingEvents(false);
     }
-  }, [isPending, isApproved]); // 依存配列に追加
+  }, [isPending, isApproved]); 
 
   useEffect(() => {
     if (loading) return;
@@ -66,11 +61,9 @@ export default function OrganizerDashboard() {
 
   if (loading || !user) return <div className="p-8 text-center">読み込み中...</div>;
 
-  // ★★★ 審査待ち/却下UIの表示 ★★★
   if (isPending || !isApproved) {
       return <ApprovalPendingCard />;
   }
-  // ★★★ -------------------- ★★★
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -136,8 +129,13 @@ export default function OrganizerDashboard() {
 
                 <div className="border-t pt-3 flex justify-between items-center text-sm">
                   <span className="text-gray-500">関連企画: <strong>{event._count?.projects || 0}</strong> 件</span>
-                  {/* 詳細ページへのリンクなどは今後追加 */}
-                  <span className="text-indigo-600 cursor-pointer hover:underline">詳細・編集</span>
+                  {/* ★★★ 修正箇所: Linkコンポーネントに変更 ★★★ */}
+                  <Link 
+                    href={`/organizers/events/${event.id}`} 
+                    className="text-indigo-600 font-semibold hover:underline flex items-center"
+                  >
+                    詳細・編集 &rarr;
+                  </Link>
                 </div>
               </div>
             ))}

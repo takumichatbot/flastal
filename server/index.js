@@ -6412,6 +6412,57 @@ app.post('/api/auth/resend-verification', async (req, res) => {
   }
 });
 
+// 3-2. イベント編集 (主催者のみ)
+app.patch('/api/events/:id', authenticateToken, async (req, res) => {
+  const { id } = req.params;
+  const { title, description, eventDate, venueId, isStandAllowed, regulationNote } = req.body;
+
+  if (req.user.role !== 'ORGANIZER') return res.status(403).json({ message: '権限がありません。' });
+
+  try {
+    // 所有権チェック
+    const event = await prisma.event.findUnique({ where: { id } });
+    if (!event) return res.status(404).json({ message: 'イベントが見つかりません。' });
+    if (event.organizerId !== req.user.id) return res.status(403).json({ message: '編集権限がありません。' });
+
+    const updatedEvent = await prisma.event.update({
+      where: { id },
+      data: {
+        title,
+        description,
+        eventDate: eventDate ? new Date(eventDate) : undefined,
+        venueId: venueId || null,
+        isStandAllowed,
+        regulationNote
+      }
+    });
+    res.json(updatedEvent);
+  } catch (error) {
+    console.error("イベント更新エラー:", error);
+    res.status(500).json({ message: '更新に失敗しました。' });
+  }
+});
+
+// 3-3. イベント削除 (主催者のみ)
+app.delete('/api/events/:id', authenticateToken, async (req, res) => {
+  const { id } = req.params;
+  if (req.user.role !== 'ORGANIZER') return res.status(403).json({ message: '権限がありません。' });
+
+  try {
+    // 所有権チェック
+    const event = await prisma.event.findUnique({ where: { id } });
+    if (!event) return res.status(404).json({ message: 'イベントが見つかりません。' });
+    if (event.organizerId !== req.user.id) return res.status(403).json({ message: '削除権限がありません。' });
+
+    // 関連する企画がある場合は削除できないようにする（または企画をキャンセル扱いに変更する等の対応が必要）
+    // ここではシンプルに削除実行
+    await prisma.event.delete({ where: { id } });
+    res.status(204).send();
+  } catch (error) {
+    console.error("イベント削除エラー:", error);
+    res.status(500).json({ message: '削除に失敗しました（関連する企画が存在する可能性があります）。' });
+  }
+});
 
 // ===================================
 // ★★★★★   Socket.IOの処理   ★★★★★
