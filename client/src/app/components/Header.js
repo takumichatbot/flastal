@@ -1,11 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-// ★ 1. Imageコンポーネントをインポート
 import Image from 'next/image';
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { FiBell, FiChevronDown, FiUser, FiLogOut, FiHeart, FiCheckCircle, FiMenu, FiX, FiCalendar, FiMapPin, FiLogIn, FiUserPlus } from 'react-icons/fi';
+import { FiBell, FiChevronDown, FiUser, FiLogOut, FiHeart, FiCheckCircle, FiMenu, FiX, FiCalendar, FiMapPin, FiLogIn } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import OshiColorPicker from './OshiColorPicker'; 
 
@@ -17,7 +16,7 @@ const getAuthToken = () => {
     return rawToken ? rawToken.replace(/^"|"$/g, '') : null;
 };
 
-// ... (NotificationDropdown コンポーネントは変更なし) ...
+// ... (NotificationDropdown コンポーネント) ...
 function NotificationDropdown({ user, notifications, fetchNotifications, unreadCount }) {
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef(null);
@@ -228,6 +227,27 @@ export default function Header() {
     { href: '/florists', label: 'お花屋さん', icon: <FiUser /> },
   ];
 
+  // ★ ユーザーの役割に応じたダッシュボードのURLとラベルを決定
+  const getDashboardLink = () => {
+    if (!user) return { href: '/login', label: 'ログイン' };
+    
+    switch (user.role) {
+      case 'ORGANIZER':
+        return { href: '/organizers/dashboard', label: 'ダッシュボード' };
+      case 'FLORIST':
+        return { href: '/florists/dashboard', label: 'ダッシュボード' };
+      case 'VENUE':
+        // 会場IDが必要な場合は user.id を利用する想定
+        return { href: `/venues/dashboard/${user.id}`, label: 'ダッシュボード' };
+      case 'ADMIN':
+        return { href: '/admin', label: '管理画面' };
+      default:
+        return { href: '/mypage', label: 'マイページ' };
+    }
+  };
+
+  const dashboardInfo = getDashboardLink();
+
   return (
     <header className="sticky top-0 bg-white/80 backdrop-blur-md border-b border-gray-100 z-40 transition-all">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -236,17 +256,14 @@ export default function Header() {
           {/* 1. ロゴエリア */}
           <div className="flex items-center gap-8">
             <Link href="/" className="flex items-center gap-2 group">
-              
-              {/* ★★★ 2. 画像ロゴへ変更 ★★★ */}
               <Image
                 src="/icon-512x512.png"
                 alt="FLASTAL Logo"
                 width={40} 
                 height={40} 
                 className="rounded-xl shadow-md group-hover:scale-105 transition-transform object-cover"
-                priority // 優先的に読み込み
+                priority 
               />
-              
               <span className="text-3xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-gray-800 to-gray-600 oshi-theme-text group-hover:opacity-80 transition-opacity">
                 FLASTAL
               </span>
@@ -303,16 +320,33 @@ export default function Header() {
                       <div className="px-5 py-4 border-b border-gray-50 bg-gray-50/50">
                         <p className="text-xs text-gray-500 font-bold mb-1">ログイン中</p>
                         <p className="text-base font-bold text-gray-800 truncate">{user.handleName}</p>
+                        
+                        {/* 役割ラベルの表示 */}
+                        <p className="text-[10px] text-indigo-500 font-bold mt-1 border border-indigo-100 bg-indigo-50 rounded px-1 w-fit">
+                            {user.role === 'ORGANIZER' ? '主催者' : 
+                             user.role === 'FLORIST' ? 'お花屋さん' : 
+                             user.role === 'VENUE' ? '会場' : 
+                             user.role === 'ADMIN' ? '管理者' : 'ファン'}
+                        </p>
                       </div>
                       <div className="p-2 space-y-1">
-                        <Link href="/mypage" onClick={() => setIsUserMenuOpen(false)} className="flex items-center px-4 py-3 text-base font-medium text-gray-700 hover:bg-gray-50 rounded-xl transition-colors">
-                          <FiUser className="mr-3 text-gray-400 text-lg" /> マイページ
+                        
+                        {/* ★ 修正: 役割に応じてリンク先を変える */}
+                        <Link 
+                            href={dashboardInfo.href} 
+                            onClick={() => setIsUserMenuOpen(false)} 
+                            className="flex items-center px-4 py-3 text-base font-medium text-gray-700 hover:bg-gray-50 rounded-xl transition-colors"
+                        >
+                          <FiUser className="mr-3 text-gray-400 text-lg" /> {dashboardInfo.label}
                         </Link>
-                        {user.role === 'ADMIN' && (
+
+                        {/* 管理者はダッシュボードとは別に管理画面も出しておく */}
+                        {user.role === 'ADMIN' && dashboardInfo.href !== '/admin' && (
                             <Link href="/admin" onClick={() => setIsUserMenuOpen(false)} className="flex items-center px-4 py-3 text-base font-medium text-gray-700 hover:bg-gray-50 rounded-xl transition-colors">
                             <FiCheckCircle className="mr-3 text-gray-400 text-lg" /> 管理画面
                             </Link>
                         )}
+
                         <button onClick={handleLogout} className="flex items-center w-full px-4 py-3 text-base font-medium text-red-600 hover:bg-red-50 rounded-xl transition-colors">
                           <FiLogOut className="mr-3 text-lg" /> ログアウト
                         </button>
@@ -346,6 +380,18 @@ export default function Header() {
       {isMobileMenuOpen && (
         <div className="lg:hidden bg-white/95 backdrop-blur-md border-t border-gray-100 absolute top-16 md:top-20 left-0 w-full shadow-lg animate-slideDown h-screen">
             <nav className="p-6 space-y-4">
+                {/* モバイルメニューにもダッシュボードへのリンクを追加 */}
+                {user && (
+                    <Link 
+                        href={dashboardInfo.href}
+                        onClick={() => setIsMobileMenuOpen(false)}
+                        className="flex items-center gap-4 px-4 py-4 text-indigo-700 font-bold bg-indigo-50 rounded-2xl text-lg mb-2"
+                    >
+                        <span className="text-2xl"><FiUser /></span>
+                        {dashboardInfo.label}へ
+                    </Link>
+                )}
+
                 {navLinks.map((link) => (
                     <Link 
                         key={link.href} 
