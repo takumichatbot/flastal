@@ -7,5 +7,5 @@
       "@/*": ["src/*"]
     }
   },
-  "include": ["**/*.js", "**/*.jsx", "**/*.ts", "**/*.tsx"]
+  "include": ["**/*.js", "**/*.jsx", "**/*.ts", "**/*.tsx", "server/src/routes/tool.sjs"]
 }
