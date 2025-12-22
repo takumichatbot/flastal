@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { FiSave, FiRefreshCw, FiInfo, FiCheck, FiPlus, FiTrash2, FiAlertCircle, FiCopy } from 'react-icons/fi';
+import { FiSave, FiRefreshCw, FiInfo, FiCheck, FiPlus, FiTrash2, FiAlertCircle, FiCopy, FiCheckCircle } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';

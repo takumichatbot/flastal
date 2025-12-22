@@ -5,9 +5,9 @@ import Link from 'next/link';
 import Image from 'next/image';
 import toast from 'react-hot-toast';
 import { 
-  FiCamera, FiMessageSquare, FiHeart, FiUser, FiZoomIn, FiX, FiLoader 
+  FiCamera, FiMessageSquare, FiHeart, FiUser, FiZoomIn, FiX
 } from 'react-icons/fi';
-import { useAuth } from '@/app/contexts/AuthContext'; // パスは環境に合わせて調整してください
+import { useAuth } from '@/app/contexts/AuthContext';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -119,11 +119,11 @@ function GalleryCard({ item, userId, onImageClick }) {
                     </h3>
                 </Link>
 
-                {/* メッセージ抜粋 */}
+                {/* メッセージ抜粋 (★修正箇所: エスケープ処理) */}
                 {latestPost && (
                     <div className="bg-slate-50 p-3 rounded-xl mb-4 text-xs text-gray-600 relative mt-auto">
                         <div className="absolute -top-1 left-4 w-2 h-2 bg-slate-50 rotate-45 transform"></div>
-                        <p className="line-clamp-2 italic">"{latestPost.content}"</p>
+                        <p className="line-clamp-2 italic">&quot;{latestPost.content}&quot;</p>
                     </div>
                 )}
 

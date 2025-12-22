@@ -102,14 +102,14 @@ export function AuthProvider({ children }) {
   }, [setSession]);
 
   // --- アクション: ログイン ---
-  const login = async (newToken) => {
+  const login = useCallback(async (newToken) => { // ★ useCallbackでラップ
     const success = setSession(newToken);
     if (success) {
       // ログイン成功時のトーストなどは呼び出し元で行うか、ここで出す
       // toast.success('ログインしました'); 
     }
     return success;
-  };
+  }, [setSession]);
 
   // --- アクション: ログアウト (Smart Redirect) ---
   const logout = useCallback(() => {
@@ -132,7 +132,7 @@ export function AuthProvider({ children }) {
   }, [user, router]);
 
   // --- アクション: 新規登録 ---
-  const register = async (email, password, handleName) => {
+  const register = useCallback(async (email, password, handleName) => { // ★ useCallbackでラップ
     const response = await fetch(`${API_URL}/api/users/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -144,7 +144,7 @@ export function AuthProvider({ children }) {
       throw new Error(errorData.message || '登録に失敗しました。');
     }
     return response.json();
-  };
+  }, []);
 
   // --- アクション: ユーザー情報の部分更新 ---
   // (マイページでアイコン変更などをした際に、再ログインなしで反映させる)

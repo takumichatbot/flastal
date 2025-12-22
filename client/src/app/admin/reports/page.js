@@ -22,7 +22,8 @@ function ReportDetailModal({ report, type, onClose, onAction }) {
             return (
                 <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 mb-4">
                     <p className="text-xs text-gray-500 mb-1">通報されたメッセージ:</p>
-                    <p className="text-gray-800 font-medium whitespace-pre-wrap">"{report.content}"</p>
+                    {/* ★修正箇所: エスケープ処理 */}
+                    <p className="text-gray-800 font-medium whitespace-pre-wrap">&quot;{report.content}&quot;</p>
                     <div className="mt-2 text-xs text-gray-400 flex gap-2">
                         <span>Type: {report.type}</span>
                         <span>ID: {report.messageId}</span>
