@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from './contexts/AuthContext';
 import { FiLoader, FiShield, FiAlertCircle } from 'react-icons/fi';
 // もし元のファイルで他のコンポーネントを読み込んでいる場合は、ここに追加してください
 
