@@ -1,15 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react'; // Suspenseを追加
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/app/contexts/AuthContext';
 import toast from 'react-hot-toast';
-import { motion } from 'framer-motion'; // アニメーション用
+import { motion } from 'framer-motion'; 
 import { 
   CreditCard, ShieldCheck, Zap, Star, Gem, 
   Check, ArrowRight, Info, Loader2 
-} from 'lucide-react'; // ホームページに合わせたアイコン
+} from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -34,7 +34,7 @@ const POINT_PACKAGES = [
     label: 'Standard', 
     icon: <Star className="w-6 h-6 text-white" />,
     isRecommended: true,
-    color: "from-pink-400 to-rose-500", // メインカラー
+    color: "from-pink-400 to-rose-500",
     bg: "bg-white",
     border: "border-pink-200",
     text: "text-pink-600",
@@ -54,7 +54,6 @@ const POINT_PACKAGES = [
   },
 ];
 
-// --- 簡易アニメーションコンポーネント ---
 const Reveal = ({ children, delay = 0 }) => (
   <motion.div
     initial={{ opacity: 0, y: 20 }}
@@ -65,7 +64,8 @@ const Reveal = ({ children, delay = 0 }) => (
   </motion.div>
 );
 
-export default function PointsPage() {
+// --- メインコンテンツコンポーネント ---
+function PointsContent() {
   const { user, loading: authLoading } = useAuth();
   const [processingId, setProcessingId] = useState(null);
   const router = useRouter();
@@ -112,7 +112,6 @@ export default function PointsPage() {
     }
   };
 
-  // ローディング
   if (authLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-slate-50">
@@ -121,7 +120,6 @@ export default function PointsPage() {
     );
   }
 
-  // 未ログイン
   if (!user) {
     return (
       <div className="bg-slate-50 min-h-screen flex items-center justify-center p-4">
@@ -148,13 +146,9 @@ export default function PointsPage() {
     );
   }
 
-  // メイン画面
   return (
     <div className="bg-slate-50 min-h-screen pb-32 font-sans text-slate-800 overflow-x-hidden">
-      
-      {/* 1. ヒーローセクション (背景装飾付き) */}
       <section className="relative bg-white pt-20 pb-32 overflow-hidden">
-        {/* 背景の浮遊シェイプ */}
         <motion.div 
             animate={{ y: [0, -20, 0], rotate: [0, 5, 0] }} 
             transition={{ duration: 8, repeat: Infinity }}
@@ -180,7 +174,6 @@ export default function PointsPage() {
             </p>
           </Reveal>
 
-          {/* 現在のポイントカード */}
           <Reveal delay={0.2}>
             <div className="inline-block bg-white/80 backdrop-blur-xl p-2 pr-8 rounded-full shadow-xl border border-slate-200 hover:scale-105 transition-transform duration-300 cursor-default">
                 <div className="flex items-center gap-4">
@@ -199,7 +192,6 @@ export default function PointsPage() {
         </div>
       </section>
 
-      {/* 2. プラン選択 (3Dカード風) */}
       <section className="container mx-auto px-6 -mt-16 relative z-20">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
           {POINT_PACKAGES.map((pkg, index) => {
@@ -220,7 +212,6 @@ export default function PointsPage() {
                     </div>
                   )}
 
-                  {/* ヘッダー */}
                   <div className="mb-6">
                       <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-4 shadow-sm ${isRec ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white' : pkg.bg}`}>
                           {pkg.icon}
@@ -229,7 +220,6 @@ export default function PointsPage() {
                       <p className="text-xs text-slate-400 mt-1 font-medium">{pkg.description}</p>
                   </div>
 
-                  {/* 価格 */}
                   <div className="mb-8">
                       <div className="flex items-baseline gap-1">
                           <span className={`text-4xl font-black tracking-tight ${isRec ? 'text-slate-800' : 'text-slate-700'}`}>
@@ -242,7 +232,6 @@ export default function PointsPage() {
                       </p>
                   </div>
 
-                  {/* ボタン */}
                   <div className="mt-auto">
                       <button 
                         onClick={() => handleCheckout(pkg)}
@@ -271,7 +260,6 @@ export default function PointsPage() {
         </div>
       </section>
 
-      {/* 3. 安全性・フッター */}
       <section className="container mx-auto px-6 mt-20 max-w-3xl text-center">
         <Reveal delay={0.6}>
             <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100 inline-block w-full">
@@ -303,7 +291,19 @@ export default function PointsPage() {
             </div>
         </Reveal>
       </section>
-
     </div>
+  );
+}
+
+// --- メインページエクスポート (Suspenseラップ) ---
+export default function PointsPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-screen bg-slate-50">
+        <Loader2 className="w-10 h-10 text-pink-500 animate-spin" />
+      </div>
+    }>
+      <PointsContent />
+    </Suspense>
   );
 }
