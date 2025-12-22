@@ -37,8 +37,8 @@ import ReportModal from './components/ReportModal';
 import VenueRegulationCard from '@/app/components/VenueRegulationCard';
 
 // 新規モーダル (パスは実際のプロジェクト構成に合わせてください)
-import FloristMaterialModal from '@/app/components/project/FloristMaterialModal';
-import ProjectCancelModal from '@/app/components/project/ProjectCancelModal';
+import FloristMaterialModal from '@/components/project/FloristMaterialModal';
+import ProjectCancelModal from '@/components/project/ProjectCancelModal';
 
 // Dynamic Import
 const ArViewer = dynamic(() => import('@/app/components/ArViewer'), { ssr: false });

@@ -65,10 +65,7 @@ function ProjectDetailModal({ project, onClose, onAction, isProcessing }) {
             {/* 右カラム: 画像 */}
             <div className="border border-gray-200 rounded-xl overflow-hidden bg-gray-100 flex items-center justify-center min-h-[200px]">
               {project.imageUrl ? (
-                <img 
-
-[Image of project illustration]
- src={project.imageUrl} alt="Project" className="w-full h-full object-cover" />
+                <img src={project.imageUrl} alt="Project" className="w-full h-full object-cover" />
               ) : (
                 <div className="text-gray-400 flex flex-col items-center">
                   <FiImage size={40} />
@@ -76,7 +73,6 @@ function ProjectDetailModal({ project, onClose, onAction, isProcessing }) {
                 </div>
               )}
             </div>
-          </div>
 
           {/* 説明文 */}
           <div>
