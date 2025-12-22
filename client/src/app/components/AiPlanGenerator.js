@@ -96,7 +96,7 @@ export default function AiPlanGenerator({ onGenerated, onClose }) {
         <div className="bg-gradient-to-r from-violet-600 to-indigo-600 p-6 flex justify-between items-center text-white">
             <div>
                 <h3 className="text-xl font-bold flex items-center gap-2">
-                    <FiSparkles className="text-yellow-300" /> AI アシスタント
+                  <FiStar className="text-yellow-300" /> AI アシスタント
                 </h3>
                 <p className="text-xs text-indigo-100 mt-1 opacity-90">
                     キーワードから、人を惹きつける企画文を自動生成します。
