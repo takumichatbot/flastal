@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/app/contexts/AuthContext'; // パス調整
+import { useAuth } from '@/context/AuthContext'; // パス調整
 import ApprovalPendingCard from '@/components/dashboard/ApprovalPendingCard';
 import toast from 'react-hot-toast';
 

@@ -1,39 +1,75 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useState, Suspense } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/app/contexts/AuthContext';
 import toast from 'react-hot-toast';
+import { motion } from 'framer-motion';
 import { 
   CreditCard, ShieldCheck, Zap, Star, Gem, 
-  ArrowRight, Info, Loader2 
+  Check, ArrowRight, Info, Loader2 
 } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
+// --- プラン定義 ---
 const POINT_PACKAGES = [
-  { id: 'starter', points: 1000, amount: 1000, label: 'Starter', icon: <Zap className="w-6 h-6 text-emerald-500" />, bg: "bg-emerald-50" },
-  { id: 'standard', points: 5000, amount: 5000, label: 'Standard', icon: <Star className="w-6 h-6 text-white" />, isRecommended: true, bg: "bg-white" },
-  { id: 'premium', points: 10000, amount: 10000, label: 'Premium', icon: <Gem className="w-6 h-6 text-purple-500" />, bg: "bg-purple-50" },
+  { 
+    id: 'starter',
+    points: 1000, 
+    amount: 1000, 
+    label: 'Starter', 
+    icon: <Zap className="w-6 h-6 text-emerald-500" />,
+    color: "from-emerald-400 to-teal-500",
+    bg: "bg-emerald-50",
+    border: "border-emerald-100",
+    text: "text-emerald-600",
+    description: 'まずは少しだけ応援したい方に。'
+  },
+  { 
+    id: 'standard',
+    points: 5000, 
+    amount: 5000, 
+    label: 'Standard', 
+    icon: <Star className="w-6 h-6 text-white" />,
+    isRecommended: true,
+    color: "from-pink-400 to-rose-500",
+    bg: "bg-white",
+    border: "border-pink-200",
+    text: "text-pink-600",
+    description: '複数の企画に参加できる一番人気のプラン。'
+  },
+  { 
+    id: 'premium',
+    points: 10000, 
+    amount: 10000, 
+    label: 'Premium', 
+    icon: <Gem className="w-6 h-6 text-purple-500" />,
+    color: "from-purple-400 to-indigo-500",
+    bg: "bg-purple-50",
+    border: "border-purple-100",
+    text: "text-purple-600",
+    description: '大きな企画や主催者支援に最適です。'
+  },
 ];
 
-/**
- * 【動的部分】
- * useSearchParams や useAuth を含む実際のロジックをここに閉じ込めます。
- */
-function PointsInner() {
-  const searchParams = useSearchParams();
-  const router = useRouter();
-  const { user, loading: authLoading } = useAuth();
-  
-  const [processingId, setProcessingId] = useState(null);
-  const [isMounted, setIsMounted] = useState(false);
+// --- 簡易アニメーションコンポーネント ---
+const Reveal = ({ children, delay = 0 }) => (
+  <motion.div
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ duration: 0.5, delay, type: "spring", stiffness: 100 }}
+  >
+    {children}
+  </motion.div>
+);
 
-  // ビルド時の静的解析を回避するためのマウント確認
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
+// コンテンツ部分を別コンポーネント化
+function PointsPageContent() {
+  const { user, loading: authLoading } = useAuth();
+  const [processingId, setProcessingId] = useState(null);
+  const router = useRouter();
 
   const handleCheckout = async (pkg) => {
     if (!user) {
@@ -41,88 +77,234 @@ function PointsInner() {
       router.push('/login');
       return;
     }
+
     setProcessingId(pkg.id);
+
     try {
       const response = await fetch(`${API_URL}/api/checkout/create-session`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: pkg.amount, points: pkg.points, userId: user.id }),
+        headers: { 
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          amount: pkg.amount,
+          points: pkg.points,
+          userId: user.id, 
+        }),
       });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || '決済セッションの作成に失敗しました');
+      }
+
       const data = await response.json();
-      if (data.url) window.location.href = data.url;
+      
+      if (data.url) {
+          window.location.href = data.url;
+      } else {
+          throw new Error('決済URLが取得できませんでした');
+      }
+
     } catch (error) {
-      toast.error('エラーが発生しました');
+      console.error(error);
+      toast.error(`エラー: ${error.message}`);
       setProcessingId(null);
     }
   };
 
-  // ビルド中（マウント前）または認証確認中は、中身を評価させない
-  if (!isMounted || authLoading) {
+  if (authLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-slate-50">
-        <Loader2 className="w-10 h-10 text-pink-500 animate-spin" />
+          <Loader2 className="w-10 h-10 text-pink-500 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="bg-slate-50 min-h-screen flex items-center justify-center p-4">
+        <motion.div 
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          className="max-w-md w-full p-10 text-center bg-white rounded-[40px] shadow-2xl border border-slate-100"
+        >
+          <div className="w-20 h-20 bg-pink-100 text-pink-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
+             <CreditCard size={40} />
+          </div>
+          <h2 className="text-2xl font-black text-slate-800 mb-4">ログインが必要です</h2>
+          <p className="text-slate-500 mb-8 leading-relaxed font-medium">
+            ポイントを購入して推し活を始めるには、<br/>アカウントへのログインが必要です。
+          </p>
+          <Link href="/login" className="block w-full py-4 font-bold text-white bg-gradient-to-r from-pink-500 to-rose-500 rounded-full hover:shadow-lg hover:shadow-pink-200 transition-all transform hover:-translate-y-1">
+              ログインページへ
+          </Link>
+          <p className="mt-6 text-sm text-slate-400">
+            アカウントをお持ちでない方は <Link href="/signup" className="text-pink-500 font-bold hover:underline">新規登録</Link>
+          </p>
+        </motion.div>
       </div>
     );
   }
 
   return (
-    <div className="bg-slate-50 min-h-screen pb-32 font-sans text-slate-800">
-      <section className="bg-white pt-20 pb-32 text-center">
-        <div className="container mx-auto px-6">
-          <span className="inline-block py-1 px-3 rounded-full bg-pink-100 text-pink-600 text-xs font-bold mb-6 tracking-wider">POINT CHARGE</span>
-          <h1 className="text-4xl md:text-6xl font-black text-slate-800 mb-6">エネルギーチャージ</h1>
-          <div className="inline-block bg-white shadow-xl border p-4 rounded-full">
-            <p className="text-sm font-bold text-slate-500 uppercase tracking-widest">Current Balance</p>
-            <p className="text-2xl font-black text-slate-800">{(user?.points || 0).toLocaleString()} pt</p>
-          </div>
+    <div className="bg-slate-50 min-h-screen pb-32 font-sans text-slate-800 overflow-x-hidden">
+      <section className="relative bg-white pt-20 pb-32 overflow-hidden">
+        <motion.div 
+            animate={{ y: [0, -20, 0], rotate: [0, 5, 0] }} 
+            transition={{ duration: 8, repeat: Infinity }}
+            className="absolute top-[-10%] right-[-5%] w-96 h-96 bg-pink-200 rounded-full blur-[100px] opacity-40 pointer-events-none" 
+        />
+        <motion.div 
+            animate={{ y: [0, 20, 0], rotate: [0, -5, 0] }} 
+            transition={{ duration: 10, repeat: Infinity }}
+            className="absolute bottom-[-10%] left-[-5%] w-96 h-96 bg-sky-200 rounded-full blur-[100px] opacity-40 pointer-events-none" 
+        />
+
+        <div className="container mx-auto px-6 relative z-10 text-center">
+          <Reveal>
+            <span className="inline-block py-1 px-3 rounded-full bg-pink-100 text-pink-600 text-xs font-bold tracking-wider mb-6 border border-pink-200">
+              POINT CHARGE
+            </span>
+            <h1 className="text-4xl md:text-6xl font-black text-slate-800 mb-6 tracking-tight">
+              推し活のための<br/>
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-rose-500">エネルギーチャージ</span>
+            </h1>
+            <p className="text-slate-500 text-lg max-w-xl mx-auto mb-10">
+              企画を支援したり、お祝いのお花を贈るために必要なポイントを購入します。
+            </p>
+          </Reveal>
+
+          <Reveal delay={0.2}>
+            <div className="inline-block bg-white/80 backdrop-blur-xl p-2 pr-8 rounded-full shadow-xl border border-slate-200 hover:scale-105 transition-transform duration-300 cursor-default">
+                <div className="flex items-center gap-4">
+                    <div className="bg-gradient-to-r from-yellow-400 to-orange-400 w-12 h-12 rounded-full flex items-center justify-center text-white shadow-md">
+                        <span className="text-xl">🪙</span>
+                    </div>
+                    <div className="text-left">
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Current Balance</p>
+                        <p className="text-xl font-black text-slate-800 leading-none">
+                            {(user.points || 0).toLocaleString()} <span className="text-sm font-bold text-slate-500">pt</span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+          </Reveal>
         </div>
       </section>
 
-      <section className="container mx-auto px-6 -mt-16 grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl">
-        {POINT_PACKAGES.map((pkg) => (
-          <div key={pkg.id} className={`p-8 rounded-[40px] border bg-white ${pkg.isRecommended ? 'shadow-2xl border-pink-200 z-10 scale-105 md:scale-110' : 'shadow-lg border-slate-100'}`}>
-            <div className="mb-6">
-              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-4 ${pkg.isRecommended ? 'bg-pink-500 text-white' : pkg.bg}`}>{pkg.icon}</div>
-              <h3 className="text-lg font-black">{pkg.label}</h3>
-            </div>
-            <div className="mb-8 text-left">
-              <div className="flex items-baseline gap-1">
-                <span className="text-4xl font-black tracking-tight">{pkg.points.toLocaleString()}</span>
-                <span className="text-sm font-bold text-slate-400">pt</span>
-              </div>
-              <p className="text-sm font-bold text-slate-400 mt-1">¥{pkg.amount.toLocaleString()}</p>
-            </div>
-            <button 
-              onClick={() => handleCheckout(pkg)} 
-              disabled={!!processingId} 
-              className={`w-full py-4 rounded-2xl font-bold transition-all flex items-center justify-center gap-2 ${pkg.isRecommended ? 'bg-pink-500 text-white shadow-pink-200' : 'bg-slate-800 text-white shadow-slate-200 shadow-lg'}`}
-            >
-              {processingId === pkg.id ? <Loader2 className="animate-spin" /> : <>購入する <ArrowRight size={18} /></>}
-            </button>
-          </div>
-        ))}
+      <section className="container mx-auto px-6 -mt-16 relative z-20">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+          {POINT_PACKAGES.map((pkg, index) => {
+            const isRec = pkg.isRecommended;
+            return (
+              <Reveal key={pkg.id} delay={0.3 + (index * 0.1)}>
+                <motion.div 
+                  whileHover={{ y: -10 }}
+                  className={`relative h-full flex flex-col p-8 rounded-[40px] border transition-all duration-300 ${
+                      isRec 
+                        ? 'bg-white shadow-2xl shadow-pink-200/50 border-pink-200 z-10 scale-105 md:scale-110' 
+                        : `bg-white shadow-lg border-slate-100 opacity-90 hover:opacity-100`
+                  }`}
+                >
+                  {isRec && (
+                    <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-pink-500 to-rose-500 text-white px-6 py-1.5 rounded-full text-xs font-bold shadow-lg shadow-pink-200 tracking-wider">
+                      MOST POPULAR
+                    </div>
+                  )}
+
+                  <div className="mb-6">
+                      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-4 shadow-sm ${isRec ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white' : pkg.bg}`}>
+                          {pkg.icon}
+                      </div>
+                      <h3 className={`text-lg font-black ${isRec ? 'text-slate-800' : 'text-slate-600'}`}>{pkg.label}</h3>
+                      <p className="text-xs text-slate-400 mt-1 font-medium">{pkg.description}</p>
+                  </div>
+
+                  <div className="mb-8">
+                      <div className="flex items-baseline gap-1">
+                          <span className={`text-4xl font-black tracking-tight ${isRec ? 'text-slate-800' : 'text-slate-700'}`}>
+                              {pkg.points.toLocaleString()}
+                          </span>
+                          <span className="text-sm font-bold text-slate-400">pt</span>
+                      </div>
+                      <p className="text-sm font-bold text-slate-400 mt-1">
+                          ¥{pkg.amount.toLocaleString()} (税込)
+                      </p>
+                  </div>
+
+                  <div className="mt-auto">
+                      <button 
+                        onClick={() => handleCheckout(pkg)}
+                        disabled={!!processingId}
+                        className={`w-full py-4 rounded-2xl font-bold shadow-lg transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed group overflow-hidden relative ${
+                            isRec 
+                                ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white hover:shadow-pink-300' 
+                                : 'bg-slate-800 text-white hover:bg-slate-900 hover:shadow-xl'
+                        }`}
+                      >
+                        {processingId === pkg.id ? (
+                            <Loader2 className="animate-spin" />
+                        ) : (
+                            <>
+                                <span className="relative z-10">購入する</span>
+                                <ArrowRight size={18} className="relative z-10 group-hover:translate-x-1 transition-transform"/>
+                                {isRec && <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />}
+                            </>
+                        )}
+                      </button>
+                  </div>
+                </motion.div>
+              </Reveal>
+            );
+          })}
+        </div>
       </section>
-      
-      <div className="mt-20 text-center text-xs text-slate-400">
-        <Link href="/legal/transactions" className="hover:underline">特定商取引法に基づく表記</Link>
-      </div>
+
+      <section className="container mx-auto px-6 mt-20 max-w-3xl text-center">
+        <Reveal delay={0.6}>
+            <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100 inline-block w-full">
+                <div className="flex flex-col md:flex-row items-center justify-center gap-6 text-slate-500 text-sm font-medium">
+                    <div className="flex items-center gap-2">
+                        <ShieldCheck className="text-emerald-500" />
+                        <span>Stripeによる安全な決済</span>
+                    </div>
+                    <div className="hidden md:block w-1 h-1 bg-slate-300 rounded-full"></div>
+                    <div className="flex items-center gap-2">
+                        <CreditCard className="text-slate-400" />
+                        <span>各種クレジットカード対応</span>
+                    </div>
+                </div>
+                
+                <div className="mt-6 pt-6 border-t border-slate-100 text-xs text-slate-400 text-left leading-relaxed">
+                    <div className="flex items-center gap-2 mb-2 font-bold text-slate-500">
+                        <Info size={14}/> 注意事項
+                    </div>
+                    <ul className="list-disc pl-5 space-y-1">
+                        <li>ポイントの有効期限は、最終利用日から1年間です。</li>
+                        <li>決済完了後の払い戻しは原則として行えません。</li>
+                        <li>ポイントは企画への参加や、お花屋さんへのチップとして利用可能です。</li>
+                    </ul>
+                </div>
+                <div className="mt-4 text-xs text-center">
+                    <Link href="/legal/transactions" className="text-pink-500 hover:underline">特定商取引法に基づく表記</Link>
+                </div>
+            </div>
+        </Reveal>
+      </section>
     </div>
   );
 }
 
-/**
- * 【静的部分】
- * メインエクスポート。ここを Suspense で保護することで
- * Next.js 15 のビルドエンジンに対して「中身は実行時まで触るな」と指示します。
- */
+// デフォルトエクスポートでSuspenseラップを行う
 export default function PointsPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+      <div className="flex items-center justify-center min-h-screen bg-slate-50">
         <Loader2 className="w-10 h-10 text-pink-500 animate-spin" />
       </div>
     }>
-      <PointsInner />
+      <PointsPageContent />
     </Suspense>
   );
 }

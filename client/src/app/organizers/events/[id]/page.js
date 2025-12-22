@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { useAuth } from '@/app/contexts/AuthContext'; // パス調整
+import { useAuth } from '@/context/AuthContext'; // パス調整
 import { 
   FiSave, FiTrash2, FiArrowLeft, FiCalendar, FiMapPin, 
   FiInfo, FiCheckCircle, FiUsers, FiExternalLink, FiAlertCircle 

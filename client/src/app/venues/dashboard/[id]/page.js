@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
-import { useAuth } from '@/app/contexts/AuthContext'; // パスは環境に合わせて調整
+import { useAuth } from '@/context/AuthContext'; // パスは環境に合わせて調整
 import ApprovalPendingCard from '@/components/dashboard/ApprovalPendingCard';
 
 import { 

@@ -1,5 +1,5 @@
 'use client';
-import { useAuth } from '@/app/contexts/AuthContext';
+import { useAuth } from '@/context/AuthContext';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
