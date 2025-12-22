@@ -6,7 +6,7 @@ import Link from 'next/link';
 // アイコン
 import { FiCalendar, FiMapPin, FiInfo, FiAlertTriangle, FiPlus, FiExternalLink, FiCpu, FiUser, FiCheckCircle, FiX } from 'react-icons/fi';
 import toast from 'react-hot-toast';
-import { useAuth } from '@/context/AuthContext'; // パスは環境に合わせて調整してください
+import { useAuth } from '@/app/contexts/AuthContext';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 

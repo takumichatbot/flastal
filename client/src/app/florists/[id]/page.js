@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import toast from 'react-hot-toast'; 
-import { useAuth } from '@/context/AuthContext'; // ※パスは環境に合わせて調整してください
+import { useAuth } from '@/app/contexts/AuthContext';
 import { 
     FiMapPin, FiPhone, FiGlobe, FiCamera, FiAward, FiClock, FiCheckCircle, 
     FiUser, FiHeart, FiStar, FiX 

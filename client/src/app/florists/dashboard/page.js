@@ -1,138 +1,128 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
-import { useAuth } from '@/context/AuthContext'; // パスはプロジェクト構成に合わせて調整してください
+import { useAuth } from '@/app/contexts/AuthContext';
 import ApprovalPendingCard from '@/components/dashboard/ApprovalPendingCard'; 
 import FloristAppealPostForm from '@/components/dashboard/FloristAppealPostForm';
 
 import { 
-  FiCheckCircle, FiFileText, FiRefreshCw, FiCalendar, FiMapPin, 
+  FiCheckCircle, FiRefreshCw, FiCalendar, FiMapPin, 
   FiClock, FiChevronLeft, FiChevronRight, FiCamera, FiUser, 
-  FiShare, FiEye, FiEyeOff, FiTrash2, FiDollarSign, FiLogOut, FiSettings, FiArrowRight
+  FiEye, FiEyeOff, FiTrash2, FiDollarSign, FiLogOut, FiSettings, FiArrowRight,
+  FiBriefcase, FiAlertCircle
 } from 'react-icons/fi'; 
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
-// --- コンポーネント定義 ---
-
-// 統計カード
-const StatCard = ({ title, value, icon, color = "sky" }) => {
-  const colorClasses = {
-    sky: "bg-sky-100 text-sky-600",
-    pink: "bg-pink-100 text-pink-600",
-    green: "bg-green-100 text-green-600",
+// --- コンポーネント: 統計カード ---
+const StatCard = ({ title, value, unit, icon, color = "sky", subText }) => {
+  const styles = {
+    sky: { bg: "bg-sky-50", text: "text-sky-600", iconBg: "bg-sky-100" },
+    pink: { bg: "bg-pink-50", text: "text-pink-600", iconBg: "bg-pink-100" },
+    green: { bg: "bg-emerald-50", text: "text-emerald-600", iconBg: "bg-emerald-100" },
+    orange: { bg: "bg-orange-50", text: "text-orange-600", iconBg: "bg-orange-100" },
   };
+  const theme = styles[color] || styles.sky;
 
   return (
-    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4 transition-transform hover:scale-[1.02]">
-      <div className={`p-3 rounded-full ${colorClasses[color] || colorClasses.sky}`}>
-        {icon}
+    <div className={`p-5 rounded-2xl border border-white shadow-sm flex flex-col justify-between transition-all hover:shadow-md ${theme.bg}`}>
+      <div className="flex justify-between items-start mb-2">
+        <div className={`p-2.5 rounded-xl ${theme.iconBg} ${theme.text}`}>
+          {icon}
+        </div>
+        {subText && <span className="text-[10px] bg-white/60 px-2 py-1 rounded-full text-slate-500 font-medium">{subText}</span>}
       </div>
       <div>
-        <p className="text-sm text-gray-500 font-medium">{title}</p>
-        <p className="text-2xl font-bold text-gray-900">{value}</p>
+        <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">{title}</p>
+        <p className="text-2xl font-extrabold text-slate-800">
+          {value} <span className="text-sm font-medium text-slate-500">{unit}</span>
+        </p>
       </div>
     </div>
   );
 };
 
-// ステータスの日本語変換マップ
-const STATUS_LABELS = {
-  'PENDING': '承認待ち',
-  'ACCEPTED': '受注済み',
-  'NOT_STARTED': '未着手',
-  'FLORIST_MATCHED': '相談中',
-  'DESIGN_FIXED': 'デザイン決定',
-  'PANELS_RECEIVED': 'パネル受取済',
-  'IN_PRODUCTION': '制作中',
-  'PRE_COMPLETION': '前日写真UP済',
-  'COMPLETED': '完了',
-  'FUNDRAISING': '募集中'
-};
-
-// カレンダーコンポーネント
+// --- コンポーネント: カレンダー ---
 function CalendarView({ events }) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth(); 
-  const firstDay = new Date(year, month, 1);
-  const lastDay = new Date(year, month + 1, 0);
   
-  const days = [];
-  for (let i = 0; i < firstDay.getDay(); i++) {
-    days.push(null);
-  }
-  for (let i = 1; i <= lastDay.getDate(); i++) {
-    days.push(new Date(year, month, i));
-  }
+  // カレンダー生成ロジック
+  const calendarDays = useMemo(() => {
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const days = [];
+    
+    // 空白埋め
+    for (let i = 0; i < firstDay.getDay(); i++) days.push(null);
+    // 日付埋め
+    for (let i = 1; i <= lastDay.getDate(); i++) days.push(new Date(year, month, i));
+    
+    return days;
+  }, [year, month]);
 
-  const selectedEvents = events.filter(e => 
-    new Date(e.date).toDateString() === selectedDate.toDateString()
-  );
+  const selectedEvents = useMemo(() => {
+    return events.filter(e => new Date(e.date).toDateString() === selectedDate.toDateString());
+  }, [events, selectedDate]);
 
   const handlePrevMonth = () => setCurrentDate(new Date(year, month - 1, 1));
   const handleNextMonth = () => setCurrentDate(new Date(year, month + 1, 1));
 
   return (
-    <div className="flex flex-col lg:flex-row gap-8 animate-fadeIn">
+    <div className="flex flex-col xl:flex-row gap-6 animate-fadeIn">
       {/* カレンダー本体 */}
-      <div className="lg:w-2/3 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+      <div className="xl:w-2/3 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
         <div className="flex justify-between items-center mb-6">
-          <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+          <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
             <FiCalendar className="text-pink-500"/> {year}年 {month + 1}月
           </h3>
-          <div className="flex gap-2">
-            <button onClick={handlePrevMonth} className="p-2 hover:bg-gray-100 rounded-full text-gray-600"><FiChevronLeft size={20}/></button>
-            <button onClick={() => setCurrentDate(new Date())} className="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded-full hover:bg-gray-200 font-medium">今日</button>
-            <button onClick={handleNextMonth} className="p-2 hover:bg-gray-100 rounded-full text-gray-600"><FiChevronRight size={20}/></button>
+          <div className="flex gap-1 bg-slate-100 p-1 rounded-lg">
+            <button onClick={handlePrevMonth} className="p-1.5 hover:bg-white rounded-md text-slate-500 transition-all shadow-sm"><FiChevronLeft/></button>
+            <button onClick={() => setCurrentDate(new Date())} className="px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-white rounded-md transition-all">今日</button>
+            <button onClick={handleNextMonth} className="p-1.5 hover:bg-white rounded-md text-slate-500 transition-all shadow-sm"><FiChevronRight/></button>
           </div>
         </div>
 
-        <div className="grid grid-cols-7 gap-1 text-center mb-2">
+        <div className="grid grid-cols-7 gap-2 mb-2 text-center">
           {['日', '月', '火', '水', '木', '金', '土'].map((d, i) => (
-            <div key={i} className={`text-xs font-bold uppercase tracking-wider ${i === 0 ? 'text-red-500' : i === 6 ? 'text-blue-500' : 'text-gray-400'}`}>{d}</div>
+            <div key={i} className={`text-xs font-bold ${i === 0 ? 'text-red-400' : i === 6 ? 'text-blue-400' : 'text-slate-400'}`}>{d}</div>
           ))}
         </div>
 
-        <div className="grid grid-cols-7 gap-1">
-          {days.map((date, idx) => {
-            if (!date) return <div key={idx} className="min-h-[80px] bg-gray-50/30 rounded-lg"></div>;
+        <div className="grid grid-cols-7 gap-2">
+          {calendarDays.map((date, idx) => {
+            if (!date) return <div key={idx} className="aspect-square"></div>;
             
-            const dayEvents = events.filter(e => new Date(e.date).toDateString() === date.toDateString());
+            const dateEvents = events.filter(e => new Date(e.date).toDateString() === date.toDateString());
             const isToday = new Date().toDateString() === date.toDateString();
             const isSelected = selectedDate.toDateString() === date.toDateString();
+            const hasEvent = dateEvents.length > 0;
 
             return (
               <div 
                 key={idx}
                 onClick={() => setSelectedDate(date)}
-                className={`min-h-[80px] border rounded-lg p-1 cursor-pointer transition-all flex flex-col justify-between ${
-                  isSelected ? 'border-pink-500 bg-pink-50 ring-2 ring-pink-200' : 
-                  isToday ? 'border-sky-300 bg-sky-50' : 'border-slate-100 hover:border-pink-300 hover:bg-white'
-                }`}
+                className={`
+                  aspect-square rounded-xl p-1 cursor-pointer transition-all flex flex-col items-center justify-start relative group border
+                  ${isSelected ? 'border-pink-500 bg-pink-50 text-pink-600 ring-1 ring-pink-200' : 
+                    isToday ? 'border-sky-200 bg-sky-50 text-sky-700' : 
+                    'border-transparent hover:border-slate-200 hover:bg-slate-50 text-slate-600'}
+                `}
               >
-                <div className="flex justify-between items-start">
-                    <span className={`text-xs font-bold w-6 h-6 flex items-center justify-center rounded-full ${isToday ? 'bg-sky-500 text-white' : 'text-gray-700'}`}>
-                    {date.getDate()}
-                    </span>
-                    {dayEvents.length > 0 && <span className="w-2 h-2 bg-pink-500 rounded-full"></span>}
-                </div>
-                
-                <div className="space-y-1 overflow-hidden mt-1">
-                  {dayEvents.slice(0, 2).map(e => (
-                    <div key={e.id} className="text-[9px] bg-white border border-indigo-100 text-indigo-700 px-1 py-0.5 rounded truncate shadow-sm">
-                      {e.title}
-                    </div>
+                <span className={`text-sm font-bold z-10 ${hasEvent ? '' : 'opacity-70'}`}>{date.getDate()}</span>
+                {/* イベントインジケーター */}
+                <div className="flex gap-0.5 mt-1 flex-wrap justify-center content-center w-full px-1">
+                  {dateEvents.slice(0, 3).map((_, i) => (
+                    <div key={i} className={`w-1.5 h-1.5 rounded-full ${i === 0 ? 'bg-pink-400' : 'bg-sky-400'}`}></div>
                   ))}
-                  {dayEvents.length > 2 && (
-                    <div className="text-[9px] text-gray-400 pl-1">+他 {dayEvents.length - 2} 件</div>
-                  )}
+                  {dateEvents.length > 3 && <span className="text-[8px] text-slate-400 leading-none">+</span>}
                 </div>
               </div>
             );
@@ -140,436 +130,342 @@ function CalendarView({ events }) {
         </div>
       </div>
 
-      {/* 詳細リスト (右側) */}
-      <div className="lg:w-1/3">
-        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm h-full flex flex-col">
-          <h3 className="font-bold text-gray-800 mb-4 border-b pb-3 flex items-center">
-            {selectedDate.toLocaleDateString('ja-JP')} の予定
-          </h3>
-          
-          <div className="space-y-3 overflow-y-auto flex-1 max-h-[500px] scrollbar-thin scrollbar-thumb-gray-200">
-            {selectedEvents.length > 0 ? selectedEvents.map(event => (
-              <Link key={event.id} href={`/projects/${event.id}`} target="_blank" className="block group">
-                <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 group-hover:border-pink-400 group-hover:bg-pink-50 transition-colors">
-                  <div className="flex justify-between items-start mb-2">
-                    <span className="text-xs font-bold flex items-center text-gray-600 bg-white px-2 py-0.5 rounded border">
-                      <FiClock className="mr-1"/> {new Date(event.date).getHours()}:{String(new Date(event.date).getMinutes()).padStart(2, '0')}
-                    </span>
-                    <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-bold">
-                      {STATUS_LABELS[event.status] || '進行中'}
-                    </span>
-                  </div>
-                  <h4 className="font-bold text-gray-800 mb-2 line-clamp-2 group-hover:text-pink-700">
-                    {event.title}
-                  </h4>
-                  <div className="text-xs text-gray-500 flex items-start gap-1">
-                    <FiMapPin className="shrink-0 mt-0.5 text-gray-400"/>
-                    <span className="line-clamp-2">{event.location}</span>
-                  </div>
+      {/* 詳細リスト */}
+      <div className="xl:w-1/3 flex flex-col h-[500px]">
+        <div className="bg-slate-800 text-white p-4 rounded-t-2xl flex justify-between items-center">
+          <span className="font-bold">{selectedDate.toLocaleDateString('ja-JP')} の予定</span>
+          <span className="bg-white/20 px-2 py-0.5 rounded text-xs">{selectedEvents.length}件</span>
+        </div>
+        <div className="bg-white border-x border-b border-slate-200 rounded-b-2xl p-4 flex-1 overflow-y-auto space-y-3">
+          {selectedEvents.length > 0 ? selectedEvents.map(event => (
+            <Link key={event.id} href={`/florists/my-projects/${event.id}`} className="block group">
+              <div className="p-3 bg-white rounded-xl border border-slate-200 shadow-sm group-hover:border-pink-300 group-hover:shadow-md transition-all">
+                <div className="flex justify-between items-start mb-2">
+                  <span className="inline-flex items-center text-xs font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded">
+                    <FiClock className="mr-1"/> {new Date(event.date).getHours()}:{String(new Date(event.date).getMinutes()).padStart(2, '0')}
+                  </span>
+                  <span className="text-[10px] font-bold px-2 py-1 rounded bg-green-100 text-green-700">制作・納品</span>
                 </div>
-              </Link>
-            )) : (
-              <div className="text-center py-10 text-gray-400 flex flex-col items-center justify-center h-full">
-                <p className="mb-2 text-4xl">☕</p>
-                <p className="text-sm">この日の納品予定はありません。</p>
+                <h4 className="font-bold text-slate-800 text-sm line-clamp-2 group-hover:text-pink-600 mb-1">{event.title}</h4>
+                <div className="text-xs text-slate-500 flex items-start gap-1">
+                  <FiMapPin className="mt-0.5 shrink-0"/>
+                  <span className="line-clamp-1">{event.location || '場所未定'}</span>
+                </div>
               </div>
-            )}
-          </div>
+            </Link>
+          )) : (
+            <div className="h-full flex flex-col items-center justify-center text-slate-400 opacity-70">
+              <FiCalendar size={40} className="mb-2"/>
+              <p className="text-sm">予定はありません</p>
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
 }
 
-// 案件リストカード
-const OfferListCard = ({ offers, emptyMessage, type = "normal" }) => {
+// --- コンポーネント: 案件リスト ---
+const OfferListCard = ({ offers, type = "normal" }) => {
   if (!offers || offers.length === 0) {
     return (
-      <div className="text-center py-12 bg-slate-50 rounded-xl border border-dashed border-slate-300">
-        <p className="text-gray-400">{emptyMessage}</p>
+      <div className="flex flex-col items-center justify-center py-16 text-slate-400 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
+        <FiRefreshCw size={32} className="mb-2 opacity-50"/>
+        <p>該当する案件はありません</p>
       </div>
     );
   }
 
   return (
-    <div className="grid grid-cols-1 gap-4">
+    <div className="grid gap-4">
       {offers.map((offer) => (
-        <div key={offer.id} className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div className="flex-1">
-            <div className="flex items-center gap-2 mb-2">
-              <span className={`text-xs px-2 py-1 rounded-full font-bold ${type === 'pending' ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700'}`}>
-                {STATUS_LABELS[offer.status] || offer.status}
-              </span>
-              <span className="text-xs text-gray-500">{new Date(offer.createdAt || Date.now()).toLocaleDateString('ja-JP')} 受信</span>
+        <div key={offer.id} className="group bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-pink-200 transition-all">
+          <div className="flex flex-col md:flex-row justify-between gap-4">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-2">
+                {type === 'pending' ? (
+                  <span className="bg-pink-100 text-pink-700 text-xs font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                    <span className="w-2 h-2 bg-pink-500 rounded-full animate-pulse"></span> 新着オファー
+                  </span>
+                ) : (
+                  <span className="bg-green-100 text-green-700 text-xs font-bold px-2 py-0.5 rounded-full">進行中</span>
+                )}
+                <span className="text-xs text-slate-400">{new Date(offer.createdAt).toLocaleDateString()}</span>
+              </div>
+              <h3 className="font-bold text-slate-800 text-lg mb-1 group-hover:text-pink-600 transition-colors">
+                {offer.projectTitle}
+              </h3>
+              <div className="flex flex-wrap gap-3 text-sm text-slate-500 mt-2">
+                <span className="flex items-center gap-1"><FiUser/> {offer.clientName}様</span>
+                <span className="flex items-center gap-1"><FiDollarSign/> 予算: {offer.budget?.toLocaleString()}円</span>
+              </div>
             </div>
-            <h3 className="font-bold text-gray-800 text-lg mb-1">{offer.projectTitle || 'タイトル未定の案件'}</h3>
-            <p className="text-sm text-gray-600 flex items-center gap-2">
-              <FiUser className="inline" /> {offer.clientName || 'クライアント'} 様 
-              <span className="text-gray-300">|</span> 
-              <FiDollarSign className="inline" /> 予算: {offer.budget?.toLocaleString()}円
-            </p>
+            
+            <div className="flex items-center">
+              <Link href={`/florists/projects/${offer.projectId}`} className="w-full md:w-auto">
+                <button className={`w-full px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all ${
+                  type === 'pending' 
+                    ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-lg shadow-pink-200 hover:-translate-y-0.5' 
+                    : 'bg-white border border-slate-300 text-slate-600 hover:bg-slate-50'
+                }`}>
+                  詳細を確認 <FiArrowRight />
+                </button>
+              </Link>
+            </div>
           </div>
-          <Link href={`/projects/${offer.projectId || offer.id}`} className="w-full md:w-auto">
-            <button className={`w-full md:w-auto px-6 py-2 rounded-full font-bold transition-colors flex items-center justify-center gap-2 ${type === 'pending' ? 'bg-pink-600 text-white hover:bg-pink-700' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'}`}>
-              詳細を見る <FiArrowRight />
-            </button>
-          </Link>
         </div>
       ))}
     </div>
   );
 };
 
-// --- メインページコンポーネント ---
-
+// --- メインページ ---
 export default function FloristDashboardPage() {
-  const { user, token, logout, isPending, isApproved } = useAuth(); 
+  const { user, token, logout, isPending, isApproved, loading: authLoading } = useAuth(); 
   const router = useRouter();
   
-  const [floristData, setFloristData] = useState(null);
-  const [offers, setOffers] = useState([]);
-  const [scheduleEvents, setScheduleEvents] = useState([]); 
-  const [appealPosts, setAppealPosts] = useState([]); 
-  
+  const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('pending');
 
-  // データ取得関数
+  // データ取得
   const fetchData = useCallback(async () => {
-    // 承認待ちの場合はダッシュボードデータ不要
-    if (user && user.role === 'FLORIST' && (isPending || !isApproved)) {
-        setLoading(false);
-        return; 
-    }
-    
     if (!token) return;
-    
     setLoading(true);
-    
     try {
-      // NOTE: 実際の実装ではAPIエンドポイントを適切に設定してください
-      const [dashboardRes, scheduleRes] = await Promise.all([
-        fetch(`${API_URL}/api/florists/dashboard`, { 
-          headers: { 'Authorization': `Bearer ${token}` }
-        }),
-        fetch(`${API_URL}/api/florists/schedule`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        }),
-      ]);
+      // ダッシュボード用の統合APIを想定
+      const res = await fetch(`${API_URL}/api/florists/dashboard`, { 
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
 
-      if (dashboardRes.status === 401 || dashboardRes.status === 403) {
-        throw new Error('認証エラー: 再ログインしてください');
-      }
-
-      if (!dashboardRes.ok) {
-        throw new Error('データの取得に失敗しました');
-      }
+      if (res.status === 401) throw new Error('認証切れ');
+      if (!res.ok) throw new Error('データ取得失敗');
       
-      const floristDataRes = await dashboardRes.json();
-      const scheduleData = scheduleRes.ok ? await scheduleRes.json() : [];
-
-      setFloristData(floristDataRes);
-      setOffers(floristDataRes.offers || []);
-      setAppealPosts(floristDataRes.appealPosts || []);
-      
-      // スケジュールイベントの整形 (APIレスポンスに合わせて調整)
-      setScheduleEvents(scheduleData.map(ev => ({
-        ...ev,
-        date: new Date(ev.deliveryDate || ev.date), // 日付型に変換
-      }))); 
-
+      const json = await res.json();
+      setData(json);
     } catch (error) {
       console.error(error);
-      toast.error(error.message);
-      if (error.message.includes('認証エラー')) {
+      if (error.message === '認証切れ') {
         logout();
         router.push('/florists/login');
+      } else {
+        toast.error('データの更新に失敗しました');
       }
     } finally {
       setLoading(false);
     }
-  }, [user, token, logout, router, isPending, isApproved]); 
+  }, [token, logout, router]); 
 
-  // 初期ロード
   useEffect(() => {
-    if (user && user.role === 'FLORIST' && token) {
-        fetchData();
-    } else if (user && user.role !== 'FLORIST') {
-        router.push('/');
-    } else if (!user && !loading) {
-        router.push('/florists/login');
+    if (!authLoading) {
+      if (!user) router.push('/florists/login');
+      else if (user.role !== 'FLORIST') router.push('/'); // 権限違い
+      else if (isApproved) fetchData();
     }
-  }, [user, token, fetchData, loading, router]); 
-  
-  // --- イベントハンドラ ---
+  }, [user, authLoading, isApproved, fetchData, router]); 
 
-  const handleDeleteAppealPost = async (post) => {
-      if (!window.confirm("この投稿を本当に削除しますか？")) return;
-      
-      const toastId = toast.loading('投稿を削除中...');
-      try {
-          const res = await fetch(`${API_URL}/api/florists/posts/${post.id}`, { 
-              method: 'DELETE',
-              headers: { 'Authorization': `Bearer ${token}` },
-          });
-
-          if (!res.ok) throw new Error('削除処理に失敗しました。');
-          
-          toast.success('投稿を削除しました。', { id: toastId });
-          fetchData(); // リスト更新
-      } catch (error) {
-          toast.error(error.message, { id: toastId });
-      }
-  };
-  
-  const handleToggleVisibility = async (post) => {
-      const newStatus = !post.isPublic;
-      const toastId = toast.loading(newStatus ? '公開設定中...' : '非公開設定中...');
-
-      try {
-          const res = await fetch(`${API_URL}/api/florists/posts/${post.id}`, { 
-              method: 'PATCH',
-              headers: {
-                  'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${token}`,
-              },
-              body: JSON.stringify({ isPublic: newStatus }),
-          });
-
-          if (!res.ok) throw new Error('更新に失敗しました。');
-          
-          toast.success(newStatus ? '公開しました' : '非公開にしました', { id: toastId });
-          fetchData(); 
-      } catch (error) {
-          toast.error(error.message, { id: toastId });
-      }
-  };
-  
+  // --- アクション ---
   const handleLogout = () => {
       logout();
-      toast.success('ログアウトしました。');
+      toast.success('ログアウトしました');
       router.push('/florists/login');
   };
 
-  // --- レンダリング制御 ---
+  const handleDeletePost = async (postId) => {
+    if(!confirm('本当に削除しますか？')) return;
+    const toastId = toast.loading('削除中...');
+    try {
+        await fetch(`${API_URL}/api/florists/posts/${postId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        toast.success('削除しました', { id: toastId });
+        fetchData();
+    } catch(e) { toast.error('失敗しました', { id: toastId }); }
+  };
 
-  if (loading || (!user && loading)) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-slate-50">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-pink-500"></div>
-      </div>
-    );
+  const handleTogglePost = async (post) => {
+    try {
+        await fetch(`${API_URL}/api/florists/posts/${post.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ isPublic: !post.isPublic })
+        });
+        toast.success(post.isPublic ? '非公開にしました' : '公開しました');
+        fetchData();
+    } catch(e) { toast.error('更新失敗'); }
+  };
+
+  // --- レンダリング ---
+  if (authLoading || (loading && !data)) {
+    return <div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-pink-500"></div></div>;
   }
 
-  // 審査ステータス判定
+  // 審査待ち・却下
   if (isPending || !isApproved) {
-      return <ApprovalPendingCard />;
+      return (
+        <div className="min-h-screen bg-slate-50 p-4">
+            <header className="flex justify-between items-center py-4 px-6 bg-white rounded-xl shadow-sm mb-6">
+                <h1 className="font-bold text-gray-700">Florist Dashboard</h1>
+                <button onClick={handleLogout} className="text-sm text-gray-500 hover:text-red-500 flex items-center gap-1"><FiLogOut/> ログアウト</button>
+            </header>
+            <div className="max-w-2xl mx-auto mt-10">
+                <ApprovalPendingCard />
+            </div>
+        </div>
+      );
   }
 
-  if (!floristData) return null;
-
+  const { offers = [], appealPosts = [], schedule = [], balance = 0 } = data || {};
   const pendingOffers = offers.filter(o => o.status === 'PENDING');
-  const acceptedOffers = offers.filter(o => o.status !== 'PENDING' && o.status !== 'REJECTED');
+  const activeOffers = offers.filter(o => o.status !== 'PENDING' && o.status !== 'REJECTED' && o.status !== 'COMPLETED');
 
-  
+  // スケジュールデータ整形
+  const calendarEvents = schedule.map(ev => ({
+      ...ev,
+      date: new Date(ev.deliveryDate || ev.date),
+      title: ev.projectTitle || 'タイトルなし',
+      location: ev.venueName
+  }));
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans">
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-600 pb-20">
+      
       {/* ヘッダー */}
-      <header className="bg-white shadow-sm sticky top-0 z-40 border-b border-gray-100">
-        <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-800">ダッシュボード</h1>
-            <p className="text-sm text-gray-500">
-              <span className="text-pink-500 font-bold">{floristData.platformName}</span> 様の管理画面
-            </p> 
+      <header className="bg-white/80 backdrop-blur-md sticky top-0 z-30 border-b border-slate-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex justify-between items-center">
+          <div className="flex items-center gap-2">
+            <span className="bg-pink-100 text-pink-600 p-1.5 rounded-lg"><FiBriefcase /></span>
+            <span className="font-bold text-slate-800 hidden sm:inline">Florist Dashboard</span>
           </div>
-          <button onClick={handleLogout} className="flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-red-500 transition-colors px-4 py-2 hover:bg-red-50 rounded-lg">
-              <FiLogOut /> ログアウト
-          </button>
+          <div className="flex items-center gap-4">
+            <div className="text-right hidden sm:block">
+                <p className="text-xs text-slate-400">Login as</p>
+                <p className="text-sm font-bold text-slate-700">{user.shopName}</p>
+            </div>
+            <div className="h-8 w-[1px] bg-slate-200 hidden sm:block"></div>
+            <button onClick={handleLogout} className="text-slate-400 hover:text-red-500 transition-colors p-2" title="ログアウト">
+                <FiLogOut size={20} />
+            </button>
+          </div>
         </div>
       </header>
       
-      <main className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
           
-          {/* 上部エリア: 投稿フォームとスタッツ */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-10">
-             {/* 左カラム: アピール投稿 */}
+          {/* 上部: 投稿フォーム & KPI */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
              <div className="lg:col-span-2">
-                <FloristAppealPostForm onPostSuccess={fetchData} />
+                <div className="bg-gradient-to-r from-pink-500 to-rose-500 rounded-2xl p-6 text-white shadow-lg shadow-pink-200 mb-6 flex justify-between items-center relative overflow-hidden">
+                    <div className="relative z-10">
+                        <h2 className="text-2xl font-bold mb-1">Welcome Back!</h2>
+                        <p className="opacity-90 text-sm">今日の実績をアピールして、新しいファンを獲得しましょう。</p>
+                    </div>
+                    <div className="absolute right-0 top-0 h-full w-1/3 bg-white/10 skew-x-12 transform origin-bottom-left"></div>
+                </div>
+                <FloristAppealPostForm user={user} onPostSuccess={fetchData} />
              </div>
 
-             {/* 右カラム: スタッツ & アクション */}
-             <div className="space-y-6">
+             <div className="space-y-4">
+                <StatCard 
+                    title="進行中の案件" 
+                    value={activeOffers.length} 
+                    unit="件"
+                    icon={<FiRefreshCw size={24} />} 
+                    color="green"
+                    subText="要対応"
+                />
                 <StatCard 
                     title="現在の売上残高" 
-                    value={`${floristData.balance?.toLocaleString() || 0} pt`} 
-                    icon={<FiDollarSign className="w-6 h-6" />}
-                    color="sky"
+                    value={balance.toLocaleString()} 
+                    unit="pt"
+                    icon={<FiDollarSign size={24} />} 
+                    color="pink"
                 />
-                <StatCard 
-                    title="進行中の企画" 
-                    value={`${acceptedOffers.length} 件`} 
-                    icon={<FiRefreshCw className="w-6 h-6" />}
-                    color="green"
-                />
-                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center">
-                    <p className="text-sm text-gray-500 mb-4">店舗情報の更新はこちら</p>
-                    <Link href="/florists/profile/edit" className="w-full"> 
-                      <span className="flex items-center justify-center w-full px-6 py-3 font-bold text-white bg-gray-800 rounded-xl hover:bg-gray-700 transition-colors shadow-md">
-                        <FiSettings className="mr-2"/> プロフィール編集
-                      </span>
-                    </Link>
-                </div>
+                <Link href="/florists/settings" className="block p-4 bg-slate-800 text-white rounded-2xl text-center hover:bg-slate-700 transition-colors shadow-md">
+                    <span className="flex items-center justify-center gap-2 font-bold">
+                        <FiSettings /> プロフィール編集
+                    </span>
+                </Link>
              </div>
           </div>
 
-          {/* メインコンテンツタブエリア */}
-          <div className="bg-white shadow-sm rounded-2xl border border-slate-100 overflow-hidden min-h-[600px]">
-            {/* タブナビゲーション */}
-            <div className="border-b border-gray-200 overflow-x-auto">
-              <nav className="flex min-w-max px-6">
+          {/* メインエリア: タブ切り替え */}
+          <div className="space-y-6">
+            {/* タブメニュー */}
+            <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
                 {[
-                  { id: 'pending', label: '新着オファー', count: pendingOffers.length },
-                  { id: 'accepted', label: '対応中の企画', count: acceptedOffers.length },
-                  { id: 'schedule', label: 'スケジュール' },
-                  { id: 'payout', label: '売上・出金管理' },
-                  { id: 'appeal', label: '制作アピール履歴', count: appealPosts.length },
+                    { id: 'pending', label: '新着オファー', icon: <FiAlertCircle/>, count: pendingOffers.length },
+                    { id: 'accepted', label: '進行中の企画', icon: <FiRefreshCw/>, count: activeOffers.length },
+                    { id: 'schedule', label: 'スケジュール', icon: <FiCalendar/> },
+                    { id: 'appeal', label: 'アピール投稿', icon: <FiCamera/> },
                 ].map(tab => (
-                  <button 
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)} 
-                    className={`whitespace-nowrap py-4 px-6 border-b-2 font-bold text-sm transition-colors flex items-center gap-2
-                      ${activeTab === tab.id 
-                        ? 'border-pink-500 text-pink-600' 
-                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                      }`}
-                  >
-                    {tab.label}
-                    {tab.count !== undefined && (
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${activeTab === tab.id ? 'bg-pink-100 text-pink-600' : 'bg-gray-100 text-gray-600'}`}>
-                        {tab.count}
-                      </span>
-                    )}
-                  </button>
+                    <button
+                        key={tab.id}
+                        onClick={() => setActiveTab(tab.id)}
+                        className={`
+                            px-5 py-3 rounded-xl font-bold text-sm flex items-center gap-2 whitespace-nowrap transition-all
+                            ${activeTab === tab.id 
+                                ? 'bg-white text-pink-600 shadow-md ring-1 ring-pink-100' 
+                                : 'bg-slate-100 text-slate-500 hover:bg-white hover:text-slate-700'}
+                        `}
+                    >
+                        {tab.icon} {tab.label}
+                        {tab.count > 0 && (
+                            <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${activeTab === tab.id ? 'bg-pink-100 text-pink-700' : 'bg-slate-200 text-slate-600'}`}>
+                                {tab.count}
+                            </span>
+                        )}
+                    </button>
                 ))}
-              </nav>
             </div>
 
-            <div className="p-6 lg:p-8">
-              {/* 1. 新着オファー */}
-              {activeTab === 'pending' && (
-                <OfferListCard 
-                  offers={pendingOffers} 
-                  type="pending"
-                  emptyMessage="現在、新しいオファーはありません。" 
-                />
-              )}
-
-              {/* 2. 対応中の企画 */}
-              {activeTab === 'accepted' && (
-                <OfferListCard 
-                  offers={acceptedOffers} 
-                  type="normal"
-                  emptyMessage="現在対応中の企画はありません。" 
-                />
-              )}
-
-              {/* 3. スケジュール */}
-              {activeTab === 'schedule' && (
-                <CalendarView events={scheduleEvents} />
-              )}
-
-              {/* 4. 売上・出金管理 */}
-               {activeTab === 'payout' && (
-                <div className="flex flex-col items-center justify-center py-16 text-center animate-fadeIn">
-                  <div className="bg-pink-50 p-6 rounded-full mb-6">
-                    <FiDollarSign className="w-12 h-12 text-pink-500" />
-                  </div>
-                  <h3 className="text-2xl font-bold text-gray-800 mb-3">売上管理・出金申請</h3>
-                  <p className="text-gray-500 mb-8 max-w-md leading-relaxed">
-                    現在の売上ポイントの確認、銀行口座の登録、<br/>および出金申請はこちらの専用ページから行えます。
-                  </p>
-                  
-                  <Link 
-                    href="/florists/payouts" 
-                    className="group px-8 py-4 bg-pink-600 text-white font-bold rounded-full hover:bg-pink-700 transition-all shadow-lg hover:shadow-pink-200 flex items-center gap-3"
-                  >
-                    売上管理ページへ移動 <FiChevronRight className="group-hover:translate-x-1 transition-transform"/>
-                  </Link>
-                </div>
-              )}
-              
-               {/* 5. 制作アピール一覧 */}
-              {activeTab === 'appeal' && (
-                <div className="space-y-6 animate-fadeIn">
-                  {appealPosts.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                      {appealPosts.map(post => {
-                          const isPublic = post.isPublic !== false;
-                          return (
-                              <div key={post.id} className="bg-white rounded-xl shadow-md border border-slate-100 overflow-hidden hover:shadow-lg transition-shadow">
-                                 {/* 公開ステータスバッジ */}
-                                 <div className={`py-1 text-center font-bold text-xs tracking-wide ${isPublic ? 'bg-green-500 text-white' : 'bg-gray-400 text-white'}`}>
-                                    {isPublic ? '公開中' : '非公開 (下書き)'}
-                                </div>
-                                <div className="relative group">
-                                    {post.imageUrl ? (
-                                        <div className="relative aspect-[4/3] bg-gray-100">
-                                            <Image 
-                                                src={post.imageUrl} 
-                                                alt="Post image" 
-                                                fill
-                                                className="object-cover" 
-                                            />
-                                        </div>
-                                    ) : (
-                                      <div className="aspect-[4/3] bg-slate-50 flex items-center justify-center text-gray-300">
-                                        <FiCamera size={32}/>
-                                      </div>
-                                    )}
-                                    {/* ホバー時のアクションオーバーレイ */}
-                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
-                                        <button 
-                                            onClick={() => handleToggleVisibility(post)} 
-                                            className="p-3 bg-white rounded-full text-gray-800 hover:text-pink-600 shadow-lg"
-                                            title={isPublic ? "非公開にする" : "公開する"}
-                                        >
-                                            {isPublic ? <FiEyeOff size={20} /> : <FiEye size={20} />}
+            {/* タブコンテンツ */}
+            <div className="animate-fadeIn">
+                {activeTab === 'pending' && <OfferListCard offers={pendingOffers} type="pending" />}
+                {activeTab === 'accepted' && <OfferListCard offers={activeOffers} type="normal" />}
+                {activeTab === 'schedule' && <CalendarView events={calendarEvents} />}
+                
+                {activeTab === 'appeal' && (
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                        {appealPosts.map(post => (
+                            <div key={post.id} className="group relative aspect-square bg-slate-100 rounded-xl overflow-hidden shadow-sm">
+                                {post.imageUrl ? (
+                                    <Image src={post.imageUrl} alt="" fill className="object-cover transition-transform group-hover:scale-105" />
+                                ) : (
+                                    <div className="flex items-center justify-center h-full text-slate-300"><FiCamera size={32}/></div>
+                                )}
+                                {/* オーバーレイ */}
+                                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-3">
+                                    <div className="flex justify-end gap-2">
+                                        <button onClick={() => handleTogglePost(post)} className="p-2 bg-white/20 backdrop-blur rounded-full text-white hover:bg-white hover:text-slate-800 transition-colors">
+                                            {post.isPublic ? <FiEye/> : <FiEyeOff/>}
                                         </button>
-                                        <button 
-                                            onClick={() => handleDeleteAppealPost(post)} 
-                                            className="p-3 bg-white rounded-full text-red-500 hover:bg-red-50 shadow-lg"
-                                            title="削除"
-                                        >
-                                            <FiTrash2 size={20}/>
+                                        <button onClick={() => handleDeletePost(post.id)} className="p-2 bg-red-500/80 backdrop-blur rounded-full text-white hover:bg-red-600 transition-colors">
+                                            <FiTrash2/>
                                         </button>
                                     </div>
+                                    <p className="text-white text-xs line-clamp-2">{post.content}</p>
                                 </div>
-
-                                <div className="p-4">
-                                    <p className="text-xs text-gray-400 mb-2">{new Date(post.createdAt).toLocaleDateString('ja-JP')}</p>
-                                    <p className="text-sm text-gray-700 whitespace-pre-wrap line-clamp-3">
-                                        {post.content}
-                                    </p>
-                                </div>
-                              </div>
-                          );
-                      })}
+                                {/* 公開ステータスバッジ */}
+                                {!post.isPublic && (
+                                    <div className="absolute top-2 left-2 bg-slate-800/80 text-white text-[10px] px-2 py-0.5 rounded backdrop-blur">
+                                        非公開
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                        {appealPosts.length === 0 && (
+                            <div className="col-span-full py-20 text-center text-slate-400 border-2 border-dashed border-slate-200 rounded-2xl">
+                                <FiCamera size={40} className="mx-auto mb-2 opacity-50"/>
+                                <p>投稿履歴がありません</p>
+                            </div>
+                        )}
                     </div>
-                  ) : (
-                    <div className="text-center py-20 bg-slate-50 rounded-xl border-2 border-dashed border-slate-200">
-                        <div className="bg-white p-4 rounded-full inline-block shadow-sm mb-4">
-                          <FiCamera className="w-8 h-8 text-gray-400" />
-                        </div>
-                        <p className="text-gray-500 font-bold mb-2">まだアピール投稿がありません</p>
-                        <p className="text-sm text-gray-400">ページ上部のフォームから、過去の制作事例や<br/>あなたのこだわりを投稿してみましょう！</p>
-                    </div>
-                  )}
-                </div>
-              )}
+                )}
             </div>
           </div>
+
       </main>
     </div>
   );
