@@ -7,7 +7,7 @@ import { useAuth } from '@/app/contexts/AuthContext';
 // アイコン (Lucide React)
 import { 
   Bell, ChevronDown, User, LogOut, Heart, CheckCircle2, Menu, X, 
-  Calendar, MapPin, LayoutDashboard, Settings, Sparkles, Store
+  Calendar, MapPin, LayoutDashboard, Settings, Sparkles, Store, ShieldCheck
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
@@ -53,7 +53,7 @@ function NotificationDropdown({ notifications, fetchNotifications, unreadCount }
           fetchNotifications();
         }
       } catch (error) {
-        toast.error('エラーが発生しました');
+        toast.error('既読処理に失敗しました');
       }
     };
   
@@ -171,6 +171,9 @@ export default function Header() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); 
   const userMenuRef = useRef(null);
 
+  // マウント後に色選択を強制的に適用するためのキー（色が変わらない問題の対策）
+  const [pickerKey, setPickerKey] = useState(0);
+
   const unreadCount = useMemo(() => notifications.filter(n => !n.isRead).length, [notifications]);
 
   const fetchNotifications = useCallback(async () => {
@@ -193,7 +196,7 @@ export default function Header() {
   useEffect(() => {
     if (user) {
       fetchNotifications();
-      const interval = setInterval(fetchNotifications, 60000); // ポーリング間隔を60秒に変更
+      const interval = setInterval(fetchNotifications, 60000); 
       return () => clearInterval(interval); 
     }
   }, [user, fetchNotifications]);
@@ -204,7 +207,6 @@ export default function Header() {
     toast.success('ログアウトしました');
   };
 
-  // クリック外判定
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (userMenuRef.current && !userMenuRef.current.contains(event.target)) {
@@ -222,18 +224,33 @@ export default function Header() {
     { href: '/florists', label: 'お花屋さん', icon: <Store size={18}/> },
   ];
 
-  const getDashboardLink = () => {
-    if (!user) return { href: '/login', label: 'ログイン' };
-    switch (user.role) {
-      case 'ORGANIZER': return { href: '/organizers/dashboard', label: 'ダッシュボード' };
-      case 'FLORIST': return { href: '/florists/dashboard', label: 'ダッシュボード' };
-      case 'VENUE': return { href: `/venues/dashboard/${user.id}`, label: 'ダッシュボード' };
-      case 'ADMIN': return { href: '/admin', label: '管理画面' };
-      default: return { href: '/mypage', label: 'マイページ' };
-    }
-  };
+  // ダッシュボード・マイページリンクの生成ロジック修正
+  const userMenuItems = useMemo(() => {
+    if (!user) return [];
+    
+    const items = [];
+    
+    // 全てのロールにおいて「マイページ」へのアクセスを可能にする
+    items.push({ href: '/mypage', label: 'マイページ', icon: <User size={16} /> });
 
-  const dashboardInfo = getDashboardLink();
+    // ロールに応じたダッシュボードを追加
+    switch (user.role) {
+      case 'ORGANIZER':
+        items.push({ href: '/organizers/dashboard', label: '主催者ダッシュボード', icon: <LayoutDashboard size={16} /> });
+        break;
+      case 'FLORIST':
+        items.push({ href: '/florists/dashboard', label: '花屋ダッシュボード', icon: <LayoutDashboard size={16} /> });
+        break;
+      case 'VENUE':
+        items.push({ href: `/venues/dashboard/${user.id}`, label: '会場ダッシュボード', icon: <LayoutDashboard size={16} /> });
+        break;
+      case 'ADMIN':
+        items.push({ href: '/admin', label: 'システム管理画面', icon: <ShieldCheck size={16} /> });
+        break;
+    }
+
+    return items;
+  }, [user]);
 
   return (
     <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200/50 shadow-sm transition-all h-16 md:h-20 flex items-center">
@@ -276,7 +293,7 @@ export default function Header() {
           <div className="flex items-center space-x-2 md:space-x-4">
             
             <div className="hidden md:block scale-90">
-                <OshiColorPicker />
+                <OshiColorPicker key={pickerKey} />
             </div>
 
             {user ? (
@@ -316,25 +333,24 @@ export default function Header() {
                             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">Signed in as</p>
                             <p className="text-sm font-bold text-slate-800 truncate">{user.handleName}</p>
                             <div className="mt-1">
-                                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-500 border border-slate-200 inline-block">
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-100 text-indigo-600 border border-indigo-200 inline-block">
                                     {user.role}
                                 </span>
                             </div>
                         </div>
                         <div className="p-2 space-y-1">
-                            <Link 
-                                href={dashboardInfo.href} 
-                                onClick={() => setIsUserMenuOpen(false)} 
-                                className="flex items-center px-4 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-50 hover:text-indigo-600 rounded-xl transition-colors"
-                            >
-                                <LayoutDashboard className="mr-3 text-slate-400" size={16} /> {dashboardInfo.label}
-                            </Link>
-
-                            {user.role === 'ADMIN' && dashboardInfo.href !== '/admin' && (
-                                <Link href="/admin" onClick={() => setIsUserMenuOpen(false)} className="flex items-center px-4 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-50 hover:text-indigo-600 rounded-xl transition-colors">
-                                    <Settings className="mr-3 text-slate-400" size={16} /> 管理画面
+                            {/* 動的に生成したメニューアイテムを表示 */}
+                            {userMenuItems.map((item) => (
+                                <Link 
+                                    key={item.href}
+                                    href={item.href} 
+                                    onClick={() => setIsUserMenuOpen(false)} 
+                                    className="flex items-center px-4 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-50 hover:text-indigo-600 rounded-xl transition-colors"
+                                >
+                                    <span className="mr-3 text-slate-400">{item.icon}</span>
+                                    {item.label}
                                 </Link>
-                            )}
+                            ))}
 
                             <div className="h-px bg-slate-100 my-1 mx-2"></div>
 
@@ -400,13 +416,19 @@ export default function Header() {
                                     <p className="text-xs text-slate-500 font-bold uppercase tracking-wide">{user.role}</p>
                                 </div>
                             </div>
-                            <Link 
-                                href={dashboardInfo.href}
-                                onClick={() => setIsMobileMenuOpen(false)}
-                                className="flex items-center justify-center gap-2 w-full py-3 bg-white border border-slate-200 text-indigo-600 font-bold rounded-lg shadow-sm active:scale-95 transition-transform"
-                            >
-                                <LayoutDashboard size={18} /> {dashboardInfo.label}へ移動
-                            </Link>
+                            
+                            <div className="grid grid-cols-1 gap-2">
+                                {userMenuItems.map((item) => (
+                                    <Link 
+                                        key={item.href}
+                                        href={item.href}
+                                        onClick={() => setIsMobileMenuOpen(false)}
+                                        className="flex items-center justify-center gap-2 w-full py-3 bg-white border border-slate-200 text-indigo-600 font-bold rounded-lg shadow-sm active:scale-95 transition-transform"
+                                    >
+                                        {item.icon} {item.label}
+                                    </Link>
+                                ))}
+                            </div>
                         </div>
                     )}
 
