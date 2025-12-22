@@ -3,61 +3,40 @@
 import React, { Suspense } from 'react';
 import Link from 'next/link';
 import { 
-  FiShield, FiLock, FiShare2, FiTarget, FiArrowLeft, FiPrinter, 
-  FiDatabase, FiGlobe, FiMail, FiCheckCircle 
+  FiDatabase, FiCheckCircle, FiTarget, FiShare2, 
+  FiLock, FiGlobe, FiMail, FiArrowLeft, FiShield 
 } from 'react-icons/fi';
 
-// コンテンツ部分を別コンポーネントとして定義
+// --- 動的部分を隔離したコンポーネント ---
 function PrivacyPolicyContent() {
-  
-  // 印刷機能
-  const handlePrint = () => {
-    window.print();
-  };
-
   return (
-    <div className="min-h-screen bg-slate-50 py-8 px-4 sm:px-6 lg:px-8 font-sans text-slate-700">
+    <div className="min-h-screen bg-slate-50 py-12 px-4 sm:px-6 lg:px-8 font-sans text-slate-700">
       
       {/* ヘッダーナビゲーション */}
       <div className="max-w-4xl mx-auto mb-6 flex justify-between items-center print:hidden">
         <Link href="/" className="flex items-center text-sm text-slate-500 hover:text-indigo-600 transition-colors">
           <FiArrowLeft className="mr-1" /> トップページに戻る
         </Link>
-        <button 
-          onClick={handlePrint}
-          className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-bold text-slate-600 hover:bg-slate-50 hover:text-slate-800 transition-all shadow-sm"
-        >
-          <FiPrinter /> ページを保存/印刷
-        </button>
       </div>
 
       <div className="max-w-4xl mx-auto bg-white p-8 md:p-12 rounded-2xl shadow-sm ring-1 ring-slate-100">
         
         {/* タイトルエリア */}
         <div className="border-b border-slate-200 pb-6 mb-10 text-center">
-          <div className="flex justify-center mb-4">
-            <div className="bg-indigo-50 p-3 rounded-full">
-                <FiShield className="text-4xl text-indigo-600" />
-            </div>
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-50 text-indigo-600 rounded-2xl mb-4">
+            <FiShield size={32} />
           </div>
           <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight mb-2">
             プライバシーポリシー
           </h1>
           <p className="text-sm text-slate-500">
-            FLASTAL（以下「当サービス」）における個人情報の取り扱いについて
+            当サービスにおける個人情報の取り扱いについて
           </p>
         </div>
 
         <div className="space-y-12">
           
-          {/* 前文 */}
-          <section className="text-sm leading-relaxed text-slate-600">
-            <p>
-              当サービスは、ユーザーの皆様の個人情報保護の重要性を強く認識し、個人情報の保護に関する法律（個人情報保護法）をはじめとする関係法令を遵守するとともに、以下のプライバシーポリシー（以下「本ポリシー」といいます）に従い、個人情報の適切な取り扱いに努めます。
-            </p>
-          </section>
-
-          {/* 1. 取得する情報 */}
+          {/* 1. 取得する個人情報 */}
           <section>
             <h2 className="text-xl font-bold text-slate-900 flex items-center mb-4 border-l-4 border-indigo-500 pl-3">
               <FiDatabase className="mr-2 text-indigo-500" />
@@ -102,7 +81,7 @@ function PrivacyPolicyContent() {
               <FiTarget className="mr-2 text-indigo-500" />
               2. 個人情報の利用目的
             </h2>
-            <div className="overflow-hidden rounded-xl border border-slate-200">
+            <div className="overflow-hidden rounded-xl border border-slate-200 shadow-sm">
               <table className="min-w-full divide-y divide-slate-200">
                 <tbody className="bg-white divide-y divide-slate-200 text-sm">
                   <tr className="hover:bg-slate-50 transition-colors">
@@ -135,7 +114,7 @@ function PrivacyPolicyContent() {
           </section>
 
           {/* 3. 第三者提供 */}
-          <section className="bg-indigo-50 p-6 md:p-8 rounded-2xl border border-indigo-100">
+          <section className="bg-indigo-50 p-6 md:p-8 rounded-2xl border border-indigo-100 shadow-inner">
             <h2 className="text-lg font-bold text-indigo-900 flex items-center mb-3">
               <FiShare2 className="mr-2" />
               3. 個人情報の第三者提供について
@@ -146,15 +125,15 @@ function PrivacyPolicyContent() {
             <div className="bg-white/70 p-4 rounded-xl shadow-sm border border-indigo-100">
               <ul className="space-y-3 text-sm text-indigo-900">
                 <li className="flex items-start">
-                  <span className="font-bold min-w-[100px] block">お花屋さん：</span>
+                  <span className="font-bold min-w-[110px] block shrink-0">お花屋さん：</span>
                   <span>商品の制作・配送、宛名の記載、納品確認のために必要な情報（配送先、氏名、メッセージ等）を提供します。</span>
                 </li>
                 <li className="flex items-start">
-                  <span className="font-bold min-w-[100px] block">イベント会場：</span>
+                  <span className="font-bold min-w-[110px] block shrink-0">イベント会場：</span>
                   <span>搬入・設置・回収の調整、およびセキュリティ上の理由から、主催者または会場管理者へ納品者情報を提供する場合があります。</span>
                 </li>
                 <li className="flex items-start">
-                  <span className="font-bold min-w-[100px] block">決済代行会社：</span>
+                  <span className="font-bold min-w-[110px] block shrink-0">決済代行会社：</span>
                   <span>クレジットカード決済等の処理に必要な情報を、決済代行会社（Stripe等）へ提供します。</span>
                 </li>
               </ul>
@@ -210,10 +189,15 @@ function PrivacyPolicyContent() {
   );
 }
 
-// メインコンポーネントでSuspenseラップしてエクスポート
+// --- メインエクスポート ---
+// Suspense でラップすることで Next.js 15 のビルドエラーを回避
 export default function PrivacyPolicyPage() {
   return (
-    <Suspense fallback={<div className="flex items-center justify-center min-h-screen">Loading...</div>}>
+    <Suspense fallback={
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
+      </div>
+    }>
       <PrivacyPolicyContent />
     </Suspense>
   );
