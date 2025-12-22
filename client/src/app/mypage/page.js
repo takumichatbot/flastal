@@ -1,19 +1,23 @@
 import { Suspense } from 'react';
-import MyPageContent from './MyPageContent';
+import MyPageClient from './MyPageClient';
 
 export const metadata = {
   title: 'マイページ | FLASTAL',
 };
 
-// themeColorの警告が出ていたため viewport に移動
 export const viewport = {
   themeColor: '#ffffff',
 };
 
 export default function MyPage() {
   return (
-    <Suspense fallback={<div className="flex items-center justify-center min-h-screen">読み込み中...</div>}>
-      <MyPageContent />
+    // Next.js 15 のビルド要件を満たすために Suspense でラップ
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-sky-500"></div>
+      </div>
+    }>
+      <MyPageClient />
     </Suspense>
   );
 }

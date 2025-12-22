@@ -12,15 +12,14 @@ import {
   FiShoppingCart, FiSearch, FiCamera, FiLogOut, FiChevronRight
 } from 'react-icons/fi';
 
-// コンポーネントが存在しない場合のフォールバック（開発用）
-const UploadFormStub = () => <div className="p-4 border border-dashed rounded text-gray-400 text-center">画像投稿フォーム (components/UploadForm.jsを作成してください)</div>;
-const SupportLevelBadgeStub = ({ level }) => <span className="text-xs bg-gray-200 px-2 py-1 rounded">{level || 'No Rank'}</span>;
-
-// 実際のインポート（ファイルが存在することを確認してください）
+// 実際のインポート
 import UploadForm from '@/app/components/UploadForm'; 
 import SupportLevelBadge from '@/app/components/SupportLevelBadge'; 
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
+
+// フォールバック用スタブ
+const SupportLevelBadgeStub = ({ level }) => <span className="text-xs bg-gray-200 px-2 py-1 rounded">{level || 'No Rank'}</span>;
 
 // ステータスバッジ
 const getStatusBadge = (status) => {
@@ -41,7 +40,88 @@ const getStatusBadge = (status) => {
   );
 };
 
-export default function MyPageContent() {
+// サブコンポーネント: 企画カード
+function ProjectCard({ project, isOwner }) {
+    const progress = project.targetAmount > 0 
+        ? Math.min((project.collectedAmount / project.targetAmount) * 100, 100)
+        : 0;
+    
+    let nextAction = null;
+    if (isOwner) {
+        if (project.status === 'PENDING_APPROVAL') 
+            nextAction = { text: '運営の審査をお待ちください', color: 'text-yellow-600', bg: 'bg-yellow-50' };
+        else if (project.status === 'FUNDRAISING' && !project.offer) 
+            nextAction = { text: 'お花屋さんを探してオファーしましょう', link: `/florists?projectId=${project.id}`, linkText: '探す', color: 'text-sky-600', bg: 'bg-sky-50' };
+        else if (project.offer?.status === 'PENDING') 
+            nextAction = { text: 'お花屋さんからの返信待ちです', color: 'text-gray-500', bg: 'bg-gray-50' };
+        else if (project.offer?.status === 'ACCEPTED' && !project.quotation) 
+            nextAction = { text: 'チャットで見積もり相談をしましょう', link: `/chat/${project.offer.chatRoom?.id}`, linkText: 'チャット', color: 'text-indigo-600', bg: 'bg-indigo-50' };
+        else if (project.status === 'SUCCESSFUL') 
+            nextAction = { text: '目標達成！完了報告の準備をしましょう', link: `/projects/${project.id}`, linkText: '詳細', color: 'text-green-600', bg: 'bg-green-50' };
+    }
+
+    return (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-lg hover:border-sky-200 transition-all flex flex-col sm:flex-row h-full">
+            <div className="w-full sm:w-48 h-40 sm:h-auto bg-gray-100 relative shrink-0">
+                {project.imageUrl ? (
+                    <Image 
+                        src={project.imageUrl} 
+                        alt={project.title} 
+                        fill 
+                        sizes="(max-width: 640px) 100vw, 192px"
+                        style={{ objectFit: 'cover' }}
+                    />
+                ) : (
+                    <div className="w-full h-full flex items-center justify-center text-gray-300 flex-col gap-2">
+                        <span className="text-2xl">💐</span>
+                        <span className="text-xs">No Image</span>
+                    </div>
+                )}
+                <div className="absolute top-2 left-2 z-10">
+                    {getStatusBadge(project.status)}
+                </div>
+            </div>
+            
+            <div className="p-5 flex-grow flex flex-col justify-between">
+                <div>
+                    <h3 className="font-bold text-gray-800 text-lg mb-1 line-clamp-2 leading-tight">
+                        <Link href={`/projects/${project.id}`} className="hover:text-sky-600 transition-colors">
+                            {project.title}
+                        </Link>
+                    </h3>
+                    <p className="text-xs text-gray-500 mb-4 flex items-center gap-1">
+                        🗓 納品予定: {new Date(project.deliveryDateTime).toLocaleDateString()}
+                    </p>
+                    
+                    <div className="w-full bg-gray-100 rounded-full h-2 mb-1.5 overflow-hidden">
+                        <div className="bg-gradient-to-r from-sky-400 to-sky-600 h-full rounded-full transition-all duration-1000 ease-out" style={{ width: `${progress}%` }}></div>
+                    </div>
+                    <div className="flex justify-between text-xs mb-4">
+                        <span className="font-bold text-sky-600">{progress.toFixed(0)}%</span>
+                        <span className="text-gray-400">{project.collectedAmount.toLocaleString()} / {project.targetAmount.toLocaleString()} pt</span>
+                    </div>
+                </div>
+
+                {nextAction && (
+                    <div className={`mt-auto pt-3 border-t border-gray-50 flex items-center justify-between text-xs ${nextAction.bg} -mx-5 -mb-5 px-5 py-3`}>
+                        <div className={`font-bold flex items-center gap-1.5 ${nextAction.color}`}>
+                            <FiAlertCircle className="shrink-0"/>
+                            <span className="truncate">{nextAction.text}</span>
+                        </div>
+                        {nextAction.link && (
+                            <Link href={nextAction.link} className="shrink-0 bg-white border border-gray-200 text-gray-700 px-3 py-1 rounded-full hover:bg-gray-50 transition-colors font-bold shadow-sm">
+                                {nextAction.linkText}
+                            </Link>
+                        )}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
+// メインコンポーネント
+export default function MyPageClient() {
   const { user, loading: authLoading, logout } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams(); 
@@ -62,12 +142,11 @@ export default function MyPageContent() {
       const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
       const headers = { 'Authorization': `Bearer ${token}` };
 
-      // 並列でデータ取得
       const [createdRes, pledgedRes, notifRes, postsRes] = await Promise.all([
         fetch(`${API_URL}/api/users/${user.id}/created-projects`),
         fetch(`${API_URL}/api/users/${user.id}/pledged-projects`),
         fetch(`${API_URL}/api/notifications`, { headers }),
-        fetch(`${API_URL}/api/users/${user.id}/posts`).catch(() => ({ ok: false })) // エラーでも止まらないように
+        fetch(`${API_URL}/api/users/${user.id}/posts`).catch(() => ({ ok: false }))
       ]);
 
       if (createdRes.ok) setCreatedProjects(await createdRes.json());
@@ -103,7 +182,6 @@ export default function MyPageContent() {
 
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
-  // ナビゲーションボタン用コンポーネント
   const NavButton = ({ id, label, icon: Icon, badge }) => (
     <button 
         onClick={() => setActiveTab(id)} 
@@ -125,10 +203,7 @@ export default function MyPageContent() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row font-sans">
-      
-      {/* ★★★ 左サイドバー ★★★ */}
       <aside className="w-full md:w-72 bg-white border-r border-gray-100 md:min-h-screen shrink-0 md:sticky md:top-0 md:h-screen overflow-y-auto">
-        {/* ユーザー情報カード */}
         <div className="p-6 border-b border-gray-100">
             <div className="flex items-center gap-4 mb-4">
                 <div className="w-14 h-14 rounded-full relative overflow-hidden border-2 border-sky-100 shadow-sm shrink-0">
@@ -139,7 +214,6 @@ export default function MyPageContent() {
                             fill 
                             style={{ objectFit: 'cover' }}
                             sizes="56px"
-                            className="hover:scale-105 transition-transform duration-500"
                         />
                     ) : (
                         <div className="w-full h-full bg-slate-100 flex items-center justify-center text-slate-400"><FiUser size={24}/></div>
@@ -148,15 +222,12 @@ export default function MyPageContent() {
                 <div className="min-w-0">
                     <p className="font-bold text-gray-800 truncate text-lg">{user.handleName}</p>
                     <div className="flex items-center gap-2 mt-1">
-                         {/* Badgeコンポーネントがある場合は使用、なければスタブ */}
                         {SupportLevelBadge ? <SupportLevelBadge level={user.supportLevel} /> : <SupportLevelBadgeStub level={user.supportLevel} />}
                     </div>
                 </div>
             </div>
 
-            {/* ポイントカード */}
             <div className="bg-gradient-to-r from-slate-800 to-slate-900 rounded-xl p-4 text-white shadow-lg relative overflow-hidden group">
-                <div className="absolute top-0 right-0 w-16 h-16 bg-white opacity-5 rounded-full -mr-4 -mt-4 transition-transform group-hover:scale-150 duration-700"></div>
                 <p className="text-xs text-slate-300 mb-1">現在の保有ポイント</p>
                 <div className="flex justify-between items-end">
                     <p className="text-2xl font-bold font-mono tracking-wider">{(user.points || 0).toLocaleString()} <span className="text-sm">pt</span></p>
@@ -167,7 +238,6 @@ export default function MyPageContent() {
             </div>
         </div>
         
-        {/* ナビゲーション */}
         <nav className="p-4 space-y-1">
             <p className="px-4 text-xs font-bold text-gray-400 mb-2 uppercase tracking-wider">Menu</p>
             <NavButton id="dashboard" label="ダッシュボード" icon={FiActivity} />
@@ -177,7 +247,6 @@ export default function MyPageContent() {
             <NavButton id="notifications" label="通知" icon={FiBell} badge={unreadCount} />
             <NavButton id="profile" label="プロフィール設定" icon={FiSettings} />
             
-            {/* 企画作成ボタン (強調) */}
             <Link href="/projects/create" className="mt-6 flex items-center justify-center gap-2 w-full bg-gradient-to-r from-sky-400 to-sky-600 text-white font-bold py-3 rounded-xl shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all">
                 <FiPlus size={20}/> 企画を立ち上げる
             </Link>
@@ -190,11 +259,8 @@ export default function MyPageContent() {
         </div>
       </aside>
 
-      {/* ★★★ メインコンテンツエリア ★★★ */}
       <main className="flex-grow p-4 md:p-10 overflow-y-auto bg-gray-50/50">
         <div className="max-w-5xl mx-auto">
-            
-            {/* ダッシュボード */}
             {activeTab === 'dashboard' && (
                 <div className="space-y-8 animate-fadeIn">
                     <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-2">
@@ -212,11 +278,10 @@ export default function MyPageContent() {
                                 </div>
                                 <span className="font-bold text-gray-700">{unreadCount}件の未読通知があります</span>
                             </div>
-                            <FiChevronRight className="text-gray-400 group-hover:text-orange-500 group-hover:translate-x-1 transition-all"/>
+                            <FiChevronRight />
                         </div>
                     )}
 
-                    {/* 進行中の企画セクション */}
                     <section>
                         <div className="flex items-center justify-between mb-4">
                             <h2 className="text-lg font-bold text-gray-800 flex items-center"><FiActivity className="mr-2 text-sky-500"/> 進行中の企画</h2>
@@ -233,7 +298,7 @@ export default function MyPageContent() {
                             <div className="bg-white p-10 rounded-2xl border border-dashed border-gray-300 text-center shadow-sm">
                                 <div className="text-4xl mb-4">🌱</div>
                                 <h3 className="text-lg font-bold text-gray-800 mb-2">まだ進行中の企画はありません</h3>
-                                <p className="text-gray-500 text-sm mb-6">推しへの想いを形にするために、<br/>最初のプロジェクトを立ち上げてみませんか？</p>
+                                <p className="text-gray-500 text-sm mb-6">推しへの想いを形にするために、最初のプロジェクトを立ち上げてみませんか？</p>
                                 <Link href="/projects/create" className="inline-flex items-center gap-2 text-sky-600 font-bold hover:bg-sky-50 px-4 py-2 rounded-lg transition-colors">
                                     <FiPlus/> 企画作成ページへ
                                 </Link>
@@ -243,7 +308,6 @@ export default function MyPageContent() {
                 </div>
             )}
 
-            {/* 作成した企画一覧 */}
             {activeTab === 'created' && (
                 <div className="animate-fadeIn space-y-6">
                     <h1 className="text-2xl font-bold text-gray-800">作成した企画</h1>
@@ -259,7 +323,6 @@ export default function MyPageContent() {
                 </div>
             )}
 
-            {/* 支援した企画一覧 */}
             {activeTab === 'pledged' && (
                 <div className="animate-fadeIn space-y-6">
                     <h1 className="text-2xl font-bold text-gray-800">支援した企画</h1>
@@ -300,21 +363,15 @@ export default function MyPageContent() {
                 </div>
             )}
 
-            {/* アルバム・投稿 */}
             {activeTab === 'posts' && (
                 <div className="animate-fadeIn space-y-8">
-                    <header className="flex justify-between items-end">
-                        <h1 className="text-2xl font-bold text-gray-800">アルバム・投稿</h1>
-                    </header>
-                    
-                    {/* 投稿コンポーネントがある場合のみ表示 */}
-                    {UploadForm ? (
+                    <h1 className="text-2xl font-bold text-gray-800">アルバム・投稿</h1>
+                    {UploadForm && (
                         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
                             <h2 className="font-bold text-gray-700 mb-4 flex items-center"><FiCamera className="mr-2"/> 思い出を投稿する</h2>
                             <UploadForm onUploadComplete={fetchMyData} />
                         </div>
-                    ) : <UploadFormStub />}
-
+                    )}
                     <div>
                         <h2 className="text-lg font-bold text-gray-700 mb-4">自分の投稿一覧</h2>
                         {myPosts.length > 0 ? (
@@ -326,7 +383,6 @@ export default function MyPageContent() {
                                             alt={post.eventName || 'photo'} 
                                             fill 
                                             style={{ objectFit: 'cover' }}
-                                            className="group-hover:scale-110 transition-transform duration-500"
                                         />
                                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-3">
                                             <p className="text-white font-bold text-sm line-clamp-1">{post.eventName}</p>
@@ -342,7 +398,6 @@ export default function MyPageContent() {
                 </div>
             )}
 
-            {/* 通知センター */}
             {activeTab === 'notifications' && (
                 <div className="animate-fadeIn max-w-3xl">
                     <h1 className="text-2xl font-bold text-gray-800 mb-6">通知センター</h1>
@@ -366,7 +421,6 @@ export default function MyPageContent() {
                 </div>
             )}
 
-            {/* プロフィール設定 */}
             {activeTab === 'profile' && (
                 <div className="animate-fadeIn max-w-2xl">
                     <h1 className="text-2xl font-bold text-gray-800 mb-6">プロフィール設定</h1>
@@ -390,7 +444,6 @@ export default function MyPageContent() {
                                     </div>
                                 </div>
                             </div>
-
                             <div className="border-t border-gray-100 pt-6">
                                 <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">紹介コード</h3>
                                 <div className="flex items-center gap-2 bg-gray-50 p-3 rounded-lg border border-gray-200">
@@ -402,7 +455,6 @@ export default function MyPageContent() {
                                         コピー
                                     </button>
                                 </div>
-                                <p className="text-xs text-gray-400 mt-2">※ 友達が登録時にこのコードを入力すると、特典ポイントが付与されます。</p>
                             </div>
                         </div>
                     </div>
@@ -412,89 +464,4 @@ export default function MyPageContent() {
       </main>
     </div>
   );
-}
-
-// --- サブコンポーネント: 企画カード (Next Action 付き) ---
-function ProjectCard({ project, isOwner }) {
-    const progress = project.targetAmount > 0 
-        ? Math.min((project.collectedAmount / project.targetAmount) * 100, 100)
-        : 0;
-    
-    // 次のアクションを提案するロジック
-    let nextAction = null;
-    if (isOwner) {
-        if (project.status === 'PENDING_APPROVAL') 
-            nextAction = { text: '運営の審査をお待ちください', color: 'text-yellow-600', bg: 'bg-yellow-50' };
-        else if (project.status === 'FUNDRAISING' && !project.offer) 
-            nextAction = { text: 'お花屋さんを探してオファーしましょう', link: `/florists?projectId=${project.id}`, linkText: '探す', color: 'text-sky-600', bg: 'bg-sky-50' };
-        else if (project.offer?.status === 'PENDING') 
-            nextAction = { text: 'お花屋さんからの返信待ちです', color: 'text-gray-500', bg: 'bg-gray-50' };
-        else if (project.offer?.status === 'ACCEPTED' && !project.quotation) 
-            nextAction = { text: 'チャットで見積もり相談をしましょう', link: `/chat/${project.offer.chatRoom?.id}`, linkText: 'チャット', color: 'text-indigo-600', bg: 'bg-indigo-50' };
-        else if (project.status === 'SUCCESSFUL') 
-            nextAction = { text: '目標達成！完了報告の準備をしましょう', link: `/projects/${project.id}`, linkText: '詳細', color: 'text-green-600', bg: 'bg-green-50' };
-    }
-
-    return (
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-lg hover:border-sky-200 transition-all flex flex-col sm:flex-row h-full">
-            {/* サムネイル */}
-            <div className="w-full sm:w-48 h-40 sm:h-auto bg-gray-100 relative shrink-0">
-                {project.imageUrl ? (
-                    <Image 
-                        src={project.imageUrl} 
-                        alt={project.title} 
-                        fill 
-                        sizes="(max-width: 640px) 100vw, 192px"
-                        style={{ objectFit: 'cover' }}
-                    />
-                ) : (
-                    <div className="w-full h-full flex items-center justify-center text-gray-300 flex-col gap-2">
-                        <span className="text-2xl">💐</span>
-                        <span className="text-xs">No Image</span>
-                    </div>
-                )}
-                <div className="absolute top-2 left-2 z-10">
-                    {getStatusBadge(project.status)}
-                </div>
-            </div>
-            
-            {/* 内容 */}
-            <div className="p-5 flex-grow flex flex-col justify-between">
-                <div>
-                    <h3 className="font-bold text-gray-800 text-lg mb-1 line-clamp-2 leading-tight">
-                        <Link href={`/projects/${project.id}`} className="hover:text-sky-600 transition-colors">
-                            {project.title}
-                        </Link>
-                    </h3>
-                    <p className="text-xs text-gray-500 mb-4 flex items-center gap-1">
-                        🗓 納品予定: {new Date(project.deliveryDateTime).toLocaleDateString()}
-                    </p>
-                    
-                    {/* 進捗バー */}
-                    <div className="w-full bg-gray-100 rounded-full h-2 mb-1.5 overflow-hidden">
-                        <div className="bg-gradient-to-r from-sky-400 to-sky-600 h-full rounded-full transition-all duration-1000 ease-out" style={{ width: `${progress}%` }}></div>
-                    </div>
-                    <div className="flex justify-between text-xs mb-4">
-                        <span className="font-bold text-sky-600">{progress.toFixed(0)}%</span>
-                        <span className="text-gray-400">{project.collectedAmount.toLocaleString()} / {project.targetAmount.toLocaleString()} pt</span>
-                    </div>
-                </div>
-
-                {/* アクションエリア */}
-                {nextAction && (
-                    <div className={`mt-auto pt-3 border-t border-gray-50 flex items-center justify-between text-xs ${nextAction.bg} -mx-5 -mb-5 px-5 py-3`}>
-                        <div className={`font-bold flex items-center gap-1.5 ${nextAction.color}`}>
-                            <FiAlertCircle className="shrink-0"/>
-                            <span className="truncate">{nextAction.text}</span>
-                        </div>
-                        {nextAction.link && (
-                            <Link href={nextAction.link} className="shrink-0 bg-white border border-gray-200 text-gray-700 px-3 py-1 rounded-full hover:bg-gray-50 transition-colors font-bold shadow-sm">
-                                {nextAction.linkText}
-                            </Link>
-                        )}
-                    </div>
-                )}
-            </div>
-        </div>
-    );
 }
