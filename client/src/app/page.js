@@ -11,13 +11,15 @@ import { useAuth } from './contexts/AuthContext';
 import { 
   motion, useScroll, useTransform, useSpring, useInView, useMotionValue, useMotionTemplate, AnimatePresence 
 } from 'framer-motion';
+
+// --- すべて lucide-react に統一 (Fi...系を排除) ---
 import { 
   Heart, Sparkles, Zap, MessageCircle, Gift, 
   Calendar, Users, ShieldCheck, ChevronDown, 
   Star, Palette, Music, Camera, Mail, HelpCircle,
   ArrowRight, CheckCircle2, Search, Flower, Smile,
   CreditCard, Lock, Smartphone, Megaphone, Info, 
-  Store, MapPin, Ticket, MousePointer2, FiLoader, FiShield
+  Store, MapPin, Ticket, MousePointer2, Loader2, Shield
 } from 'lucide-react';
 
 // --- Utility ---
@@ -302,7 +304,7 @@ const CultureSection = () => {
         <SectionHeader en="Otaku Culture" ja="どんなお花を贈る？" desc="「フラスタ」と一口に言っても形は様々。会場のレギュレーション（規則）や予算に合わせて、最適な形を選ぼう。" color="pink" />
         <div className="grid md:grid-cols-4 gap-6">
           {items.map((item, i) => (
-            <Reveal key={i} delay={i * 0.1} className="h-full">
+            <Reveal key={i} delay={i * 0.1}>
               <TiltCard className="h-full">
                 <div className="bg-slate-50 rounded-[30px] p-6 text-center border border-slate-100 h-full flex flex-col items-center group">
                   <div className="text-6xl mb-6 transform group-hover:scale-125 transition-transform duration-300 drop-shadow-md">{item.icon}</div>
@@ -378,7 +380,7 @@ const FeaturesSection = () => (
                   <div className="grid sm:grid-cols-2 gap-4">
                     <div className="bg-white p-6 rounded-3xl shadow-lg border border-slate-100 hover:scale-105 transition-transform">
                       <h4 className="font-bold text-slate-800 mb-2 flex items-center gap-2"><Zap size={18} className="text-yellow-500"/> All-in 方式</h4>
-                      <p className="text-xs text-slate-500 leading-relaxed">目標金額に届かなくても、集まった分だけで実施。少額でも必ず贈りたい時に。</p>
+                      <p className="text-xs text-slate-500 leading-relaxed">目標金額に届かなくても、集まった分だけで実施. 少額でも必ず贈りたい時に。</p>
                     </div>
                     <div className="bg-white p-6 rounded-3xl shadow-lg border border-slate-100 hover:scale-105 transition-transform">
                       <h4 className="font-bold text-slate-800 mb-2 flex items-center gap-2"><Lock size={18} className="text-red-500"/> All-or-Nothing</h4>
@@ -396,7 +398,7 @@ const FeaturesSection = () => (
               <MessageCircle className="text-sky-200 absolute -bottom-4 -right-4 w-40 h-40 group-hover:scale-110 transition-transform rotate-12" />
               <div className="bg-white w-12 h-12 rounded-2xl flex items-center justify-center text-sky-500 mb-4 shadow-sm"><MessageCircle size={24} /></div>
               <h3 className="text-xl font-bold text-slate-800 mb-2">参加者限定チャット</h3>
-              <p className="text-sm text-slate-600 leading-relaxed">企画参加者だけの秘密の会議室。サプライズの相談もSNSでバレずに進行可能。</p>
+              <p className="text-sm text-slate-600 leading-relaxed">企画参加者だけの秘密の会議室. サプライズの相談もSNSでバレずに進行可能。</p>
             </div>
           </TiltCard>
         </Reveal>
@@ -422,9 +424,9 @@ const SafetySection = () => (
        <SectionHeader en="Trust & Safety" ja="お金のことだから、誠実に" color="green" desc="FLASTALは、すべてのファンが安心して利用できる環境づくりを最優先しています。" />
        <div className="grid md:grid-cols-3 gap-8">
           {[
-            { title: "完全匿名配送", icon: Lock, desc: "お花屋さんへの発注はFLASTALが代行。主催者の個人情報が店舗や第三者に渡ることはありません。" },
-            { title: "安全な決済", icon: CreditCard, desc: "世界基準のStripe決済を採用。クレジットカード情報はサーバーに保存されず、安全に処理されます。" },
-            { title: "運営の審査制", icon: ShieldCheck, desc: "すべての企画は公開前に運営スタッフが目視で審査。詐欺や不適切な企画を未然に防ぎます。" }
+            { title: "完全匿名配送", icon: Lock, desc: "お花屋さんへの発注はFLASTALが代行. 主催者の個人情報が店舗や第三者に渡ることはありません。" },
+            { title: "安全な決済", icon: CreditCard, desc: "世界基準のStripe決済を採用. クレジットカード情報はサーバーに保存されず、安全に処理されます。" },
+            { title: "運営の審査制", icon: ShieldCheck, desc: "すべての企画は公開前に運営スタッフが目視で審査. 詐欺や不適切な企画を未然に防ぎます。" }
           ].map((item, i) => (
             <Reveal key={i} delay={i * 0.1}>
               <div className="bg-white p-8 rounded-[30px] shadow-sm border border-emerald-100 hover:shadow-lg transition-shadow text-center h-full">
@@ -443,7 +445,7 @@ const PartnerJoinSection = () => {
   return (
     <section className="py-24 bg-white relative">
       <div className="container mx-auto px-6">
-        <SectionHeader en="For Professionals" ja="FLASTALで広がる可能性" desc="お花屋さん、ライブ会場、イベンターの方へ。FLASTALのエコシステムに参加しませんか？" color="purple" />
+        <SectionHeader en="For Professionals" ja="FLASTALで広がる可能性" desc="お花屋さん、ライブ会場、イベンターの方へ. FLASTALのエコシステムに参加しませんか？" color="purple" />
         
         <div className="grid md:grid-cols-3 gap-8">
           <Reveal>
@@ -472,7 +474,7 @@ const PartnerJoinSection = () => {
                 </div>
                 <h3 className="text-xl font-bold text-slate-800 mb-2">会場・ホール</h3>
                 <p className="text-sm text-slate-500 mb-6 flex-grow">
-                  搬入出のトラブル防止に。公式のレギュレーションを周知し、許可されたフラスタのみを受け入れ可能。
+                  搬入出のトラブル防止に. 公式のレギュレーションを周知し、許可されたフラスタのみを受け入れ可能。
                 </p>
                 <div className="flex flex-col gap-3">
                   <Link href="/venues/login" className="w-full py-3 rounded-xl border-2 border-sky-200 text-sky-500 font-bold hover:bg-sky-50 transition-colors text-center">ログイン</Link>
@@ -490,7 +492,7 @@ const PartnerJoinSection = () => {
                 </div>
                 <h3 className="text-xl font-bold text-slate-800 mb-2">イベント主催者</h3>
                 <p className="text-sm text-slate-500 mb-6 flex-grow">
-                  ファンの応援企画を公認・把握。安全な応援文化を醸成し、イベントの盛り上がりを可視化します。
+                  ファンの応援企画を公認・把握. 安全な応援文化を醸成し、イベントの盛り上がりを可視化します。
                 </p>
                 <div className="flex flex-col gap-3">
                   <Link href="/organizers/login" className="w-full py-3 rounded-xl border-2 border-purple-200 text-purple-500 font-bold hover:bg-purple-50 transition-colors text-center">ログイン</Link>
@@ -679,12 +681,11 @@ const ContactAndCtaSection = () => (
 
 // --- 🏠 DASHBOARD WRAPPER ---
 function AuthenticatedHome({ user, logout }) {
-  const router = useRouter();
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 pt-24">
       <div className="max-w-md w-full bg-white rounded-[40px] shadow-2xl p-10 text-center border border-slate-100">
         <div className="w-20 h-20 bg-indigo-100 text-indigo-500 rounded-full flex items-center justify-center mx-auto mb-6">
-          <FiShield size={40} />
+          <ShieldCheck size={40} />
         </div>
         <h1 className="text-2xl font-black text-slate-800 mb-2">おかえりなさい</h1>
         <p className="text-slate-500 mb-8 font-medium">
@@ -721,7 +722,7 @@ export default function HomePage() {
   if (!isMounted || loading) {
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
-        <FiLoader className="w-10 h-10 text-pink-500 animate-spin mb-4" />
+        <Loader2 className="w-10 h-10 text-pink-500 animate-spin mb-4" />
         <p className="text-slate-400 text-sm font-bold tracking-widest uppercase">Initializing...</p>
       </div>
     );
@@ -733,7 +734,7 @@ export default function HomePage() {
   }
 
   return (
-    <div className="bg-white min-h-screen text-slate-800 font-sans selection:bg-pink-100 selection:text-pink-600 overflow-x-hidden">
+    <div className="bg-white min-h-screen text-slate-800 font-sans selection:bg-pink-100 selection:text-pink-600 overflow-x-hidden pt-16">
       <HeroSection />
       <TickerSection />
       <CultureSection />
@@ -750,3 +751,4 @@ export default function HomePage() {
     </div>
   );
 }
+
