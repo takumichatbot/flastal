@@ -1,7 +1,6 @@
 "use client";
 import { useState, useEffect } from 'react';
-// ★修正: FiSparkles を削除し、FiStar を利用
-import { FiCpu, FiLoader, FiCheck, FiX, FiStar, FiEdit3 } from 'react-icons/fi';
+import { FiCpu, FiLoader, FiCheck, FiX, FiStar, FiEdit3, FiZap } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
 // 雰囲気の選択肢定義
@@ -95,8 +94,7 @@ export default function AiPlanGenerator({ onGenerated, onClose }) {
         <div className="bg-gradient-to-r from-violet-600 to-indigo-600 p-6 flex justify-between items-center text-white">
             <div>
                 <h3 className="text-xl font-bold flex items-center gap-2">
-                    {/* ★修正: FiStar に変更 */}
-                    <FiStar className="text-yellow-300" /> AI アシスタント
+                  <FiZap className="text-yellow-300" /> AI アシスタント
                 </h3>
                 <p className="text-xs text-indigo-100 mt-1 opacity-90">
                     キーワードから、人を惹きつける企画文を自動生成します。
