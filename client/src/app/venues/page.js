@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react'; // Suspense追加
 import Link from 'next/link';
-import { useAuth } from '@/app/contexts/AuthContext'; // パスは環境に合わせて調整
+import { useAuth } from '@/app/contexts/AuthContext';
 import { 
   FiMapPin, FiCheckCircle, FiXCircle, FiSearch, FiPlus, 
-  FiAlertCircle, FiDatabase, FiTruck, FiX 
+  FiDatabase, FiTruck, FiX, FiPlusCircle 
 } from 'react-icons/fi';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
@@ -29,7 +29,8 @@ const VenueSkeleton = () => (
   </div>
 );
 
-export default function VenuesPage() {
+// コンテンツ部分
+function VenuesContent() {
   const [venues, setVenues] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -145,7 +146,7 @@ export default function VenuesPage() {
                     <p className="text-sm text-gray-400 mb-6">キーワードを変えて検索するか、新しい会場を登録してください。</p>
                     {user && (
                         <Link href="/venues/add" className="text-emerald-600 font-bold hover:underline underline-offset-4 flex items-center justify-center gap-1">
-                            <FiPlus /> あなたが最初の情報を登録する
+                            <FiPlusCircle /> あなたが最初の情報を登録する
                         </Link>
                     )}
                 </div>
@@ -154,7 +155,7 @@ export default function VenuesPage() {
                 {filteredVenues.map((venue) => (
                     <Link key={venue.id} href={`/venues/${venue.id}`} className="group bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-xl transition-all hover:-translate-y-1 h-full flex flex-col relative">
                         
-                        {/* サムネイル（画像がないのでグラデーション + アイコン） */}
+                        {/* サムネイル */}
                         <div className="h-36 bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center relative overflow-hidden group-hover:from-emerald-50 group-hover:to-teal-50 transition-colors">
                             <span className="text-5xl opacity-20 group-hover:scale-110 transition-transform duration-500">🏟</span>
                             
@@ -165,7 +166,7 @@ export default function VenuesPage() {
                                 </div>
                             )}
 
-                            {/* ステータスバッジ (右上) */}
+                            {/* ステータスバッジ */}
                             <div className="absolute top-3 right-3 flex flex-col items-end gap-1">
                                 {venue.isStandAllowed === false ? (
                                     <span className="bg-white/90 backdrop-blur text-red-600 text-xs px-2.5 py-1 rounded-full font-bold shadow-sm flex items-center border border-red-100">
@@ -220,5 +221,14 @@ export default function VenuesPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+// メインコンポーネントでSuspenseラップ
+export default function VenuesPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+      <VenuesContent />
+    </Suspense>
   );
 }

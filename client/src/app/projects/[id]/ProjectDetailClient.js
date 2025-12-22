@@ -18,9 +18,9 @@ import {
   FiCheckCircle, FiAlertTriangle, FiDollarSign, FiCalendar, 
   FiChevronLeft, FiSend, FiImage, 
   FiAward, FiPlus, FiSearch, FiLoader, FiX,
-  // ★追加分
+  // ★追加分（エラーログにあった不足分を全て網羅）
   FiFileText, FiPrinter, FiInfo, FiLock, FiTool, FiCheck, FiCpu, 
-  FiMessageSquare, FiTrash2, FiBox, FiUpload, FiRefreshCw
+  FiMessageSquare, FiTrash2, FiBox, FiUpload, FiRefreshCw, FiEdit3
 } from 'react-icons/fi';
 
 // Components

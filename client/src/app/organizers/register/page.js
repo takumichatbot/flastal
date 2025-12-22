@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react'; // Suspenseを追加
 import { useForm } from 'react-hook-form';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -9,7 +9,8 @@ import { FiEye, FiEyeOff, FiBriefcase, FiMail, FiLock, FiGlobe, FiArrowLeft } fr
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
-export default function OrganizerRegisterPage() {
+// コンテンツ部分を別コンポーネントに切り出し
+function OrganizerRegisterContent() {
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm();
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
@@ -146,5 +147,14 @@ export default function OrganizerRegisterPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// メインコンポーネントでSuspenseラップ
+export default function OrganizerRegisterPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+      <OrganizerRegisterContent />
+    </Suspense>
   );
 }

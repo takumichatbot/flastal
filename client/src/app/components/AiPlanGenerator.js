@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from 'react';
-import { FiCpu, FiLoader, FiCheck, FiX, FiSparkles, FiEdit3 } from 'react-icons/fi';
+import { FiCpu, FiLoader, FiCheck, FiX, FiStar, FiEdit3 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
 // 雰囲気の選択肢定義
