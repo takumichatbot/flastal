@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+export const dynamic = 'force-dynamic';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
 import { useForm } from 'react-hook-form';
