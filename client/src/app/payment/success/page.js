@@ -1,11 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react'; // Suspenseを追加
 import { useRouter } from 'next/navigation';
 import { FiCheck, FiHome, FiUser, FiCreditCard, FiArrowRight } from 'react-icons/fi';
 
-export default function PaymentSuccessPage() {
+// コンテンツ部分を切り出し
+function PaymentSuccessContent() {
   const router = useRouter();
   const [countdown, setCountdown] = useState(5);
 
@@ -79,5 +80,14 @@ export default function PaymentSuccessPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// メインコンポーネントでSuspenseラップ
+export default function PaymentSuccessPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+      <PaymentSuccessContent />
+    </Suspense>
   );
 }
