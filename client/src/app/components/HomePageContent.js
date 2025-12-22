@@ -11,7 +11,8 @@ import { useAuth } from './contexts/AuthContext';
 import { 
   motion, useScroll, useTransform, useSpring, useInView, useMotionValue, useMotionTemplate, AnimatePresence 
 } from 'framer-motion';
-// --- 修正箇所：FiLoader, FiShield をここから削除 ---
+
+// --- 1. Lucide React アイコン (Fi... から始まるものはここに入れない) ---
 import { 
   Heart, Sparkles, Zap, MessageCircle, Gift, 
   Calendar, Users, ShieldCheck, ChevronDown, 
@@ -21,7 +22,7 @@ import {
   Store, MapPin, Ticket, MousePointer2
 } from 'lucide-react';
 
-// --- 追加：FiLoader と FiShield は react-icons/fi からインポート ---
+// --- 2. Feather Icons (Fi... 系はここから単独で読み込む) ---
 import { FiLoader, FiShield } from 'react-icons/fi';
 import { twMerge } from 'tailwind-merge';
 import { clsx } from 'clsx';
