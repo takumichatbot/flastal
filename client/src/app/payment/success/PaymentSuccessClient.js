@@ -1,19 +1,16 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState, Suspense } from 'react'; // Suspenseを追加
+import { useEffect, useState } from 'react'; // Suspenseは不要なので削除
 import { useRouter } from 'next/navigation';
-import { FiCheck, FiHome, FiUser, FiCreditCard, FiArrowRight } from 'react-icons/fi';
+import { FiCheck, FiHome, FiArrowRight } from 'react-icons/fi';
 
-// コンテンツ部分を切り出し
-function PaymentSuccessContent() {
+// ★直接このコンポーネントをデフォルトエクスポートします
+export default function PaymentSuccessClient() {
   const router = useRouter();
   const [countdown, setCountdown] = useState(5);
 
   useEffect(() => {
-    // ここでコンバージョン計測タグなどを発火させることができます
-    //例: analytics.track('Purchase Completed');
-
     // 自動リダイレクトタイマー
     const timer = setInterval(() => {
       setCountdown((prev) => {
@@ -80,14 +77,5 @@ function PaymentSuccessContent() {
         </div>
       </div>
     </div>
-  );
-}
-
-// メインコンポーネントでSuspenseラップ
-export default function PaymentSuccessPage() {
-  return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
-      <PaymentSuccessContent />
-    </Suspense>
   );
 }
