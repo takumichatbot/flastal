@@ -1,5 +1,8 @@
 'use client';
 
+// Next.jsのビルドエラー（Prerenderエラー）を回避するため、動的レンダリングを強制
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -16,7 +19,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onre
 function VenuesAdminInner() {
     const { token, user } = useAuth();
     const router = useRouter();
-    const searchParams = useSearchParams(); // ここがビルドエラーの原因なので隔離
+    const searchParams = useSearchParams();
     
     const [venues, setVenues] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -178,7 +181,6 @@ function VenuesAdminInner() {
 }
 
 // --- [メインエクスポート] ---
-// ここで最上位レベルを Suspense でラップするのが Next.js 15 ビルドエラー回避の鍵
 export default function AdminVenuesPage() {
     return (
         <Suspense fallback={

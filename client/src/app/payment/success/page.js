@@ -1,13 +1,13 @@
 'use client';
 
+// Next.jsのビルドエラー（Prerenderエラー）を回避するため、動的レンダリングを強制
+export const dynamic = 'force-dynamic';
+
 import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { FiCheckCircle, FiArrowRight, FiShoppingBag, FiLoader } from 'react-icons/fi';
 import confetti from 'canvas-confetti';
-
-// Next.jsのビルドエラー（Prerenderエラー）を回避するため、動的レンダリングを強制
-export const dynamic = 'force-dynamic';
 
 /**
  * [動的部分] 決済成功の表示とロジック本体
@@ -91,7 +91,6 @@ function PaymentSuccessInner() {
 
 /**
  * [静的部分] メインエクスポート
- * Next.js 15 のビルド要件を満たすため Suspense で隔離
  */
 export default function PaymentSuccessPage() {
   return (
