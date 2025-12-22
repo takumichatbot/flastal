@@ -1,309 +1,257 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useState, Suspense } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/app/contexts/AuthContext';
 import toast from 'react-hot-toast';
-import { useAuth } from '@/app/contexts/AuthContext'; // パスは環境に合わせて調整
-import ApprovalPendingCard from '@/components/dashboard/ApprovalPendingCard';
-
+import { motion } from 'framer-motion';
 import { 
-  FiMapPin, 
-  FiFileText, 
-  FiSave, 
-  FiLogOut, 
-  FiHome,
-  FiCalendar,
-  FiCheckCircle,
-  FiAlertCircle
-} from 'react-icons/fi'; 
+  CreditCard, ShieldCheck, Zap, Star, Gem, 
+  ArrowRight, Info, Loader2 
+} from 'lucide-react';
+
+// 強制的に動的レンダリング（ビルド時のエラー回避）を設定
+export const dynamic = 'force-dynamic';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
-export default function VenueDashboardPage() {
-  const params = useParams();
-  const id = params.id; // URLからIDを取得
+const POINT_PACKAGES = [
+  { 
+    id: 'starter',
+    points: 1000, 
+    amount: 1000, 
+    label: 'Starter', 
+    icon: <Zap className="w-6 h-6 text-emerald-500" />,
+    bg: "bg-emerald-50",
+    description: 'まずは少しだけ応援したい方に。'
+  },
+  { 
+    id: 'standard',
+    points: 5000, 
+    amount: 5000, 
+    label: 'Standard', 
+    icon: <Star className="w-6 h-6 text-white" />,
+    isRecommended: true,
+    bg: "bg-white",
+    description: '複数の企画に参加できる一番人気のプラン。'
+  },
+  { 
+    id: 'premium',
+    points: 10000, 
+    amount: 10000, 
+    label: 'Premium', 
+    icon: <Gem className="w-6 h-6 text-purple-500" />,
+    bg: "bg-purple-50",
+    description: '大きな企画や主催者支援に最適です。'
+  },
+];
+
+const Reveal = ({ children, delay = 0 }) => (
+  <motion.div
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ duration: 0.5, delay, type: "spring", stiffness: 100 }}
+  >
+    {children}
+  </motion.div>
+);
+
+function PointsPageContent() {
+  const { user, loading: authLoading } = useAuth();
+  const [processingId, setProcessingId] = useState(null);
   const router = useRouter();
-  
-  const { user, loading: authLoading, logout, isPending, isApproved } = useAuth();
 
-  const [activeTab, setActiveTab] = useState('profile'); // profile | schedule
-  const [loading, setLoading] = useState(true);
-  
-  // フォームデータ
-  const [formData, setFormData] = useState({
-    venueName: '',
-    address: '',
-    regulations: '',
-    phone: '', // 追加: 連絡先電話番号などがあると便利
-    accessInfo: '' // 追加: アクセス情報
-  });
-
-  // データ取得
-  const fetchVenue = useCallback(async () => {
-    // 審査待ち/却下の場合はAPIコールをスキップ
-    if (isPending || !isApproved) {
-        setLoading(false);
-        return;
-    }
-      
-    if (!user || user.role !== 'VENUE') return;
-    
-    // URLのIDとログインユーザーのIDが不一致の場合のガード（必要に応じて）
-    if (user.uid !== id && user.id !== id) {
-       // 管理者でない限り、他人のダッシュボードは見れないようにする
-       // router.push('/venues/login'); 
-       // return;
+  const handleCheckout = async (pkg) => {
+    if (!user) {
+      toast.error('ポイントを購入するにはログインが必要です');
+      router.push('/login');
+      return;
     }
 
-    const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
-      
+    setProcessingId(pkg.id);
+
     try {
-      const res = await fetch(`${API_URL}/api/venues/${id}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-      });
-        
-      if (!res.ok) throw new Error('データ読み込みに失敗しました');
-      
-      const data = await res.json();
-      
-      // null値を空文字に変換してフォームにセット
-      setFormData({
-        venueName: data.venueName || '',
-        address: data.address || '',
-        regulations: data.regulations || '',
-        phone: data.phone || '',
-        accessInfo: data.accessInfo || ''
+      const response = await fetch(`${API_URL}/api/checkout/create-session`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount: pkg.amount,
+          points: pkg.points,
+          userId: user.id, 
+        }),
       });
 
-    } catch (error) { 
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || '決済セッションの作成に失敗しました');
+      }
+
+      const data = await response.json();
+      if (data.url) {
+          window.location.href = data.url;
+      } else {
+          throw new Error('決済URLが取得できませんでした');
+      }
+    } catch (error) {
       console.error(error);
-      toast.error('データの取得に失敗しました');
-    } finally { 
-      setLoading(false);
-    }
-  }, [id, user, isPending, isApproved]);
-
-  useEffect(() => {
-    if (authLoading) return;
-
-    if (!user || user.role !== 'VENUE') {
-        toast.error('アクセス権限がありません。');
-        router.push('/venues/login');
-        return;
-    }
-      
-    fetchVenue();
-  }, [authLoading, user, router, fetchVenue]);
-
-  // 入力ハンドラ
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
-
-  // 更新ハンドラ
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (isPending || !isApproved) {
-        return toast.error('審査完了まで情報は更新できません。');
-    }
-      
-    const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
-    const toastId = toast.loading('更新中...');
-
-    try {
-      const res = await fetch(`${API_URL}/api/venues/profile`, { 
-        method: 'PATCH',
-        headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}` 
-        },
-        body: JSON.stringify(formData),
-      });
-
-      if (!res.ok) throw new Error('更新に失敗しました。');
-      
-      const updatedData = await res.json();
-      setFormData(prev => ({...prev, ...updatedData}));
-      toast.success('会場情報を更新しました！', { id: toastId });
-      
-    } catch (err) {
-      toast.error(err.message || '更新に失敗しました', { id: toastId });
+      toast.error(`エラー: ${error.message}`);
+      setProcessingId(null);
     }
   };
 
-  const handleLogout = () => {
-    logout(); 
-    toast.success('ログアウトしました。');
-    router.push('/venues/login');
-  };
-
-  // --- レンダリング ---
-
-  if (authLoading || (loading && user)) {
+  if (authLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-slate-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-600"></div>
+          <Loader2 className="w-10 h-10 text-pink-500 animate-spin" />
       </div>
     );
   }
 
-  // 審査ステータス表示
-  if (isPending || !isApproved) {
-      return <ApprovalPendingCard />;
+  if (!user) {
+    return (
+      <div className="bg-slate-50 min-h-screen flex items-center justify-center p-4">
+        <motion.div 
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          className="max-w-md w-full p-10 text-center bg-white rounded-[40px] shadow-2xl border border-slate-100"
+        >
+          <div className="w-20 h-20 bg-pink-100 text-pink-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
+             <CreditCard size={40} />
+          </div>
+          <h2 className="text-2xl font-black text-slate-800 mb-4">ログインが必要です</h2>
+          <p className="text-slate-500 mb-8 leading-relaxed font-medium">
+            ポイントを購入して推し活を始めるには、アカウントへのログインが必要です。
+          </p>
+          <Link href="/login" className="block w-full py-4 font-bold text-white bg-gradient-to-r from-pink-500 to-rose-500 rounded-full hover:shadow-lg">
+              ログインページへ
+          </Link>
+        </motion.div>
+      </div>
+    );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-gray-800">
-      
-      {/* ヘッダー */}
-      <header className="bg-white shadow-sm sticky top-0 z-40 border-b border-gray-100">
-        <div className="max-w-5xl mx-auto py-4 px-4 sm:px-6 flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <div className="bg-green-100 p-2 rounded-lg text-green-600">
-              <FiHome size={20} />
-            </div>
-            <div>
-              <h1 className="text-xl font-bold text-gray-800">会場管理ダッシュボード</h1>
-              <p className="text-xs text-gray-500">{formData.venueName || '会場名未設定'} 様</p>
-            </div>
-          </div>
-          <button onClick={handleLogout} className="flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-red-500 transition-colors px-3 py-2 rounded-lg hover:bg-red-50">
-            <FiLogOut /> ログアウト
-          </button>
-        </div>
-      </header>
+    <div className="bg-slate-50 min-h-screen pb-32 font-sans text-slate-800 overflow-x-hidden">
+      <section className="relative bg-white pt-20 pb-32 overflow-hidden">
+        <div className="container mx-auto px-6 relative z-10 text-center">
+          <Reveal>
+            <span className="inline-block py-1 px-3 rounded-full bg-pink-100 text-pink-600 text-xs font-bold tracking-wider mb-6 border border-pink-200">
+              POINT CHARGE
+            </span>
+            <h1 className="text-4xl md:text-6xl font-black text-slate-800 mb-6 tracking-tight">
+              推し活のための<br/>
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-rose-500">エネルギーチャージ</span>
+            </h1>
+          </Reveal>
 
-      <main className="max-w-5xl mx-auto py-8 px-4 sm:px-6">
-        
-        {/* ステータス・概要カード */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 mb-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-           <div>
-             <h2 className="text-lg font-bold text-gray-800 mb-1">現在の登録状況</h2>
-             <p className="text-sm text-gray-500">ユーザーに対して公開されている情報です。</p>
-           </div>
-           <div className="flex items-center gap-3">
-              <span className="flex items-center gap-1 px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-bold">
-                 <FiCheckCircle /> 公開中
-              </span>
-              <Link href={`/venues/${id}`} target="_blank" className="text-sm text-green-600 hover:text-green-700 underline underline-offset-2">
-                プレビューを確認
-              </Link>
-           </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            {/* サイドナビ / タブ */}
-            <div className="md:col-span-1 space-y-2">
-                <button 
-                  onClick={() => setActiveTab('profile')}
-                  className={`w-full text-left px-4 py-3 rounded-xl font-medium transition-all flex items-center gap-3 ${activeTab === 'profile' ? 'bg-green-600 text-white shadow-md' : 'bg-white text-gray-600 hover:bg-slate-100'}`}
-                >
-                  <FiFileText /> 施設情報・規定
-                </button>
-                <button 
-                  onClick={() => setActiveTab('schedule')}
-                  className={`w-full text-left px-4 py-3 rounded-xl font-medium transition-all flex items-center gap-3 ${activeTab === 'schedule' ? 'bg-green-600 text-white shadow-md' : 'bg-white text-gray-600 hover:bg-slate-100'}`}
-                >
-                  <FiCalendar /> 搬入予定リスト
-                </button>
-            </div>
-
-            {/* メインコンテンツエリア */}
-            <div className="md:col-span-3">
-                
-                {/* 1. プロフィール編集タブ */}
-                {activeTab === 'profile' && (
-                  <div className="bg-white rounded-2xl shadow-lg border border-slate-100 overflow-hidden">
-                    <div className="p-6 border-b border-gray-100 bg-gray-50/50">
-                       <h3 className="font-bold text-gray-800 flex items-center gap-2">
-                         <FiFileText className="text-green-600"/> 登録情報の編集
-                       </h3>
-                       <p className="text-xs text-gray-500 mt-1">
-                         ※ フラワースタンドの搬入に関する規定は、トラブル防止のため詳細にご記入ください。
-                       </p>
+          <Reveal delay={0.2}>
+            <div className="inline-block bg-white/80 backdrop-blur-xl p-2 pr-8 rounded-full shadow-xl border border-slate-200">
+                <div className="flex items-center gap-4">
+                    <div className="bg-gradient-to-r from-yellow-400 to-orange-400 w-12 h-12 rounded-full flex items-center justify-center text-white">
+                        <span className="text-xl">🪙</span>
                     </div>
-
-                    <form onSubmit={handleSubmit} className="p-6 space-y-6">
-                      <div className="grid grid-cols-1 gap-6">
-                        {/* 基本情報 */}
-                        <div>
-                          <label className="block text-sm font-bold text-gray-700 mb-2">会場名 <span className="text-red-500">*</span></label>
-                          <input 
-                            type="text" 
-                            name="venueName" 
-                            required 
-                            value={formData.venueName} 
-                            onChange={handleChange} 
-                            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-green-500 focus:ring-2 focus:ring-green-100 transition-all outline-none"
-                            placeholder="例: 東京お祝いホール"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-sm font-bold text-gray-700 mb-2">住所 <span className="text-red-500">*</span></label>
-                          <div className="relative">
-                            <FiMapPin className="absolute top-3.5 left-4 text-gray-400" />
-                            <input 
-                              type="text" 
-                              name="address" 
-                              required 
-                              value={formData.address} 
-                              onChange={handleChange} 
-                              className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-green-500 focus:ring-2 focus:ring-green-100 transition-all outline-none"
-                              placeholder="例: 東京都新宿区..."
-                            />
-                          </div>
-                        </div>
-
-                        {/* フラスタ規定（重要） */}
-                        <div className="p-5 bg-yellow-50 rounded-xl border border-yellow-100">
-                          <label className="block text-sm font-bold text-gray-800 mb-2 flex items-center gap-2">
-                            <FiAlertCircle className="text-yellow-600"/> フラスタ受入規定・注意事項
-                          </label>
-                          <p className="text-xs text-gray-600 mb-3">
-                            サイズ制限、搬入可能時間、回収の要否、パネルの装飾ルールなどを明記してください。<br/>
-                            ここに入力された内容は、企画作成時にユーザーに提示されます。
-                          </p>
-                          <textarea 
-                            name="regulations" 
-                            rows="12" 
-                            value={formData.regulations} 
-                            onChange={handleChange} 
-                            placeholder="【例】&#13;&#10;・高さ180cm、底辺40cm×40cm以内のものに限ります。&#13;&#10;・搬入時間は公演当日の午前9時〜11時指定です。&#13;&#10;・公演終了後、翌日午前中までの回収が必須となります。回収手配のないものはお受け取りできません。&#13;&#10;・ラメや砂など、床を汚損する可能性のある装飾は禁止です。" 
-                            className="w-full p-4 bg-white border border-gray-300 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-100 transition-all outline-none text-sm leading-relaxed"
-                          ></textarea>
-                        </div>
-                      </div>
-
-                      <div className="pt-4 border-t border-gray-100 flex justify-end">
-                        <button 
-                          type="submit" 
-                          className="flex items-center gap-2 px-8 py-3 bg-green-600 text-white font-bold rounded-full hover:bg-green-700 hover:shadow-lg transform active:scale-95 transition-all"
-                        >
-                          <FiSave /> 情報を更新する
-                        </button>
-                      </div>
-                    </form>
-                  </div>
-                )}
-
-                {/* 2. 搬入予定リスト（プレースホルダー） */}
-                {activeTab === 'schedule' && (
-                  <div className="bg-white rounded-2xl shadow-lg border border-slate-100 p-8 text-center">
-                    <div className="bg-green-50 p-4 rounded-full inline-block mb-4">
-                      <FiCalendar className="w-8 h-8 text-green-600" />
+                    <div className="text-left">
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Current Balance</p>
+                        <p className="text-xl font-black text-slate-800 leading-none">
+                            {(user.points || 0).toLocaleString()} <span className="text-sm font-bold text-slate-500">pt</span>
+                        </p>
                     </div>
-                    <h3 className="text-lg font-bold text-gray-800 mb-2">搬入予定リスト</h3>
-                    <p className="text-gray-500 text-sm">
-                      現在、フラワースタンドの搬入予定はありません。<br/>
-                      イベントとフラスタのマッチングが成立すると、ここに搬入スケジュールが表示されます。
-                    </p>
-                  </div>
-                )}
+                </div>
             </div>
+          </Reveal>
         </div>
-      </main>
+      </section>
+
+      <section className="container mx-auto px-6 -mt-16 relative z-20">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+          {POINT_PACKAGES.map((pkg, index) => {
+            const isRec = pkg.isRecommended;
+            return (
+              <Reveal key={pkg.id} delay={0.3 + (index * 0.1)}>
+                <motion.div 
+                  whileHover={{ y: -10 }}
+                  className={`relative h-full flex flex-col p-8 rounded-[40px] border transition-all duration-300 ${
+                      isRec 
+                        ? 'bg-white shadow-2xl shadow-pink-200/50 border-pink-200 z-10 scale-105 md:scale-110' 
+                        : 'bg-white shadow-lg border-slate-100 opacity-90'
+                  }`}
+                >
+                  {isRec && (
+                    <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-pink-500 to-rose-500 text-white px-6 py-1.5 rounded-full text-xs font-bold shadow-lg">
+                      MOST POPULAR
+                    </div>
+                  )}
+
+                  <div className="mb-6">
+                      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-4 shadow-sm ${isRec ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white' : pkg.bg}`}>
+                          {pkg.icon}
+                      </div>
+                      <h3 className={`text-lg font-black ${isRec ? 'text-slate-800' : 'text-slate-600'}`}>{pkg.label}</h3>
+                      <p className="text-xs text-slate-400 mt-1 font-medium">{pkg.description}</p>
+                  </div>
+
+                  <div className="mb-8">
+                      <div className="flex items-baseline gap-1">
+                          <span className={`text-4xl font-black tracking-tight ${isRec ? 'text-slate-800' : 'text-slate-700'}`}>
+                              {pkg.points.toLocaleString()}
+                          </span>
+                          <span className="text-sm font-bold text-slate-400">pt</span>
+                      </div>
+                      <p className="text-sm font-bold text-slate-400 mt-1">¥{pkg.amount.toLocaleString()} (税込)</p>
+                  </div>
+
+                  <div className="mt-auto">
+                      <button 
+                        onClick={() => handleCheckout(pkg)}
+                        disabled={!!processingId}
+                        className={`w-full py-4 rounded-2xl font-bold shadow-lg transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50 ${
+                            isRec ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white' : 'bg-slate-800 text-white'
+                        }`}
+                      >
+                        {processingId === pkg.id ? (
+                            <Loader2 className="animate-spin" />
+                        ) : (
+                            <>
+                                <span>購入する</span>
+                                <ArrowRight size={18} />
+                            </>
+                        )}
+                      </button>
+                  </div>
+                </motion.div>
+              </Reveal>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="container mx-auto px-6 mt-20 max-w-3xl text-center">
+        <Reveal delay={0.6}>
+            <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100 inline-block w-full">
+                <div className="flex flex-col md:flex-row items-center justify-center gap-6 text-slate-500 text-sm font-medium">
+                    <div className="flex items-center gap-2"><ShieldCheck className="text-emerald-500" /><span>安全な決済</span></div>
+                    <div className="flex items-center gap-2"><CreditCard className="text-slate-400" /><span>カード対応</span></div>
+                </div>
+                <div className="mt-6 pt-6 border-t border-slate-100 text-xs text-slate-400 text-left">
+                    <div className="flex items-center gap-2 mb-2 font-bold text-slate-500"><Info size={14}/> 注意事項</div>
+                    <ul className="list-disc pl-5 space-y-1">
+                        <li>ポイントの有効期限は、最終利用日から1年間です。</li>
+                        <li>ポイントは企画への参加やチップとして利用可能です。</li>
+                    </ul>
+                </div>
+            </div>
+        </Reveal>
+      </section>
     </div>
+  );
+}
+
+// メインエクスポート
+export default function PointsPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-slate-50 flex items-center justify-center"><Loader2 className="animate-spin" /></div>}>
+      <PointsPageContent />
+    </Suspense>
   );
 }
