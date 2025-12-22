@@ -20,15 +20,17 @@ const POINT_PACKAGES = [
 
 /**
  * 【動的部分】
- * ロジック、フック、デザインの本体。
+ * useSearchParams や useAuth を含む実際のロジックをここに閉じ込めます。
  */
-function PointsCore() {
-  const searchParams = useSearchParams(); // ビルドエラーの根源
+function PointsInner() {
+  const searchParams = useSearchParams();
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
+  
   const [processingId, setProcessingId] = useState(null);
   const [isMounted, setIsMounted] = useState(false);
 
+  // ビルド時の静的解析を回避するためのマウント確認
   useEffect(() => {
     setIsMounted(true);
   }, []);
@@ -54,7 +56,7 @@ function PointsCore() {
     }
   };
 
-  // ビルド時（マウント前）または認証確認中は、何も表示させないことで解析を回避
+  // ビルド中（マウント前）または認証確認中は、中身を評価させない
   if (!isMounted || authLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-slate-50">
@@ -83,7 +85,7 @@ function PointsCore() {
               <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-4 ${pkg.isRecommended ? 'bg-pink-500 text-white' : pkg.bg}`}>{pkg.icon}</div>
               <h3 className="text-lg font-black">{pkg.label}</h3>
             </div>
-            <div className="mb-8">
+            <div className="mb-8 text-left">
               <div className="flex items-baseline gap-1">
                 <span className="text-4xl font-black tracking-tight">{pkg.points.toLocaleString()}</span>
                 <span className="text-sm font-bold text-slate-400">pt</span>
@@ -93,20 +95,24 @@ function PointsCore() {
             <button 
               onClick={() => handleCheckout(pkg)} 
               disabled={!!processingId} 
-              className={`w-full py-4 rounded-2xl font-bold transition-all flex items-center justify-center gap-2 ${pkg.isRecommended ? 'bg-pink-500 text-white' : 'bg-slate-800 text-white'}`}
+              className={`w-full py-4 rounded-2xl font-bold transition-all flex items-center justify-center gap-2 ${pkg.isRecommended ? 'bg-pink-500 text-white shadow-pink-200' : 'bg-slate-800 text-white shadow-slate-200 shadow-lg'}`}
             >
               {processingId === pkg.id ? <Loader2 className="animate-spin" /> : <>購入する <ArrowRight size={18} /></>}
             </button>
           </div>
         ))}
       </section>
+      
+      <div className="mt-20 text-center text-xs text-slate-400">
+        <Link href="/legal/transactions" className="hover:underline">特定商取引法に基づく表記</Link>
+      </div>
     </div>
   );
 }
 
 /**
  * 【静的部分】
- * メインエクスポート。ここを Suspense だけで包むことで
+ * メインエクスポート。ここを Suspense で保護することで
  * Next.js 15 のビルドエンジンに対して「中身は実行時まで触るな」と指示します。
  */
 export default function PointsPage() {
@@ -116,7 +122,7 @@ export default function PointsPage() {
         <Loader2 className="w-10 h-10 text-pink-500 animate-spin" />
       </div>
     }>
-      <PointsCore />
+      <PointsInner />
     </Suspense>
   );
 }
