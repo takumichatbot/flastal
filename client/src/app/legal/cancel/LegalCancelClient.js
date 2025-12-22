@@ -2,12 +2,15 @@
 
 import React from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation'; // 将来使う可能性があるため残す場合はSuspenseが必要
 import { 
   FiAlertTriangle, FiInfo, FiArrowLeft, FiPrinter, 
   FiCalendar, FiPackage, FiCheckSquare, FiHelpCircle 
 } from 'react-icons/fi';
 
-export default function CancellationPolicyPage() {
+// 関数名を page.js でのインポート名と一致させる
+export default function LegalCancelClient() {
+  const searchParams = useSearchParams(); // ここでフックを呼び出す
   
   // 印刷機能
   const handlePrint = () => {
@@ -44,7 +47,6 @@ export default function CancellationPolicyPage() {
 
         <div className="space-y-12">
           
-          {/* 1. キャンセル料基準 */}
           <section>
             <h2 className="text-xl font-bold text-slate-900 flex items-center mb-4 border-l-4 border-pink-500 pl-3">
               <FiCalendar className="mr-2 text-pink-500" />
@@ -67,7 +69,6 @@ export default function CancellationPolicyPage() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-slate-200">
-                  {/* 安全圏 */}
                   <tr className="hover:bg-blue-50/30 transition-colors">
                     <td className="px-6 py-4 text-sm font-bold text-slate-700">
                       お届け <span className="text-blue-600">7日前</span> まで
@@ -79,7 +80,6 @@ export default function CancellationPolicyPage() {
                       <p className="text-xs text-slate-400 mt-1 ml-1">※特注資材費の実費を除く</p>
                     </td>
                   </tr>
-                  {/* 注意圏 */}
                   <tr className="hover:bg-yellow-50/30 transition-colors">
                     <td className="px-6 py-4 text-sm font-bold text-slate-700">
                       お届け <span className="text-yellow-600">6日前 〜 4日前</span>
@@ -90,7 +90,6 @@ export default function CancellationPolicyPage() {
                       </span>
                     </td>
                   </tr>
-                  {/* 危険圏 */}
                   <tr className="hover:bg-red-50/30 transition-colors">
                     <td className="px-6 py-4 text-sm font-bold text-slate-700">
                       お届け <span className="text-red-600">3日前 〜 当日</span>
@@ -107,7 +106,6 @@ export default function CancellationPolicyPage() {
             </div>
           </section>
 
-          {/* 2. 特注資材費 */}
           <section className="bg-amber-50 p-6 md:p-8 rounded-2xl border border-amber-100">
             <h2 className="text-lg font-bold text-amber-800 flex items-center mb-3">
               <FiPackage className="mr-2" />
@@ -136,7 +134,6 @@ export default function CancellationPolicyPage() {
             </div>
           </section>
 
-          {/* 3. 返金について */}
           <section>
             <h2 className="text-xl font-bold text-slate-900 flex items-center mb-4 border-l-4 border-pink-500 pl-3">
               <FiInfo className="mr-2 text-pink-500" />
@@ -161,7 +158,6 @@ export default function CancellationPolicyPage() {
             </div>
           </section>
 
-          {/* 4. レギュレーション未確認 */}
           <section>
             <h2 className="text-xl font-bold text-slate-900 flex items-center mb-4 border-l-4 border-pink-500 pl-3">
               <FiCheckSquare className="mr-2 text-pink-500" />
@@ -179,7 +175,6 @@ export default function CancellationPolicyPage() {
             </div>
           </section>
 
-          {/* フッターお問い合わせ */}
           <div className="mt-12 pt-8 border-t border-slate-100 text-center">
             <p className="text-slate-600 mb-4 font-medium">ご不明な点がございましたら、お気軽にお問い合わせください。</p>
             <Link 
