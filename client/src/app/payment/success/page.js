@@ -6,6 +6,9 @@ import Link from 'next/link';
 import { FiCheckCircle, FiArrowRight, FiShoppingBag, FiLoader } from 'react-icons/fi';
 import confetti from 'canvas-confetti';
 
+// Next.jsのビルドエラー（Prerenderエラー）を回避するため、動的レンダリングを強制
+export const dynamic = 'force-dynamic';
+
 /**
  * [動的部分] 決済成功の表示とロジック本体
  */
