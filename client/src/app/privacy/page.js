@@ -1,13 +1,14 @@
 'use client';
 
-import React from 'react';
+import React, { Suspense } from 'react';
 import Link from 'next/link';
 import { 
   FiShield, FiLock, FiShare2, FiTarget, FiArrowLeft, FiPrinter, 
   FiDatabase, FiGlobe, FiMail, FiCheckCircle 
 } from 'react-icons/fi';
 
-export default function PrivacyPolicyPage() {
+// コンテンツ部分を別コンポーネントとして定義
+function PrivacyPolicyContent() {
   
   // 印刷機能
   const handlePrint = () => {
@@ -206,5 +207,14 @@ export default function PrivacyPolicyPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// メインコンポーネントでSuspenseラップしてエクスポート
+export default function PrivacyPolicyPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen">Loading...</div>}>
+      <PrivacyPolicyContent />
+    </Suspense>
   );
 }
