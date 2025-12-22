@@ -1,12 +1,18 @@
-// ./src/app/mypage/page.js
 import { Suspense } from 'react';
-import MyPageContent from './MyPageContent'; // ◀ さっき作ったコンポーネント
+import MyPageContent from './MyPageContent';
 
-// page.js はサーバーコンポーネントのまま
+export const metadata = {
+  title: 'マイページ | FLASTAL',
+};
+
+// themeColorの警告が出ていたため viewport に移動
+export const viewport = {
+  themeColor: '#ffffff',
+};
+
 export default function MyPage() {
   return (
-    // <Suspense> でクライアントコンポーネントを囲む
-    <Suspense fallback={<div>Loading...</div>}> 
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen">読み込み中...</div>}>
       <MyPageContent />
     </Suspense>
   );
