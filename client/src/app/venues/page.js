@@ -6,7 +6,7 @@ export const fetchCache = 'force-no-store';
 
 import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation'; // useSearchParamsを削除
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/app/contexts/AuthContext';
 import toast from 'react-hot-toast';
 import { 
@@ -82,7 +82,7 @@ function VenuesAdminInner() {
     });
 
     return (
-        <div className="min-h-screen bg-slate-50 p-4 md:p-8 font-sans">
+        <div className="min-h-screen bg-slate-50 p-4 md:p-8 font-sans pt-24">
             <div className="max-w-6xl mx-auto">
                 
                 {/* ヘッダー */}

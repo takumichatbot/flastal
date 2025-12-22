@@ -1,5 +1,9 @@
 'use client';
 
+// Next.js 15 ビルドエラー回避用
+export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
+
 import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/app/contexts/AuthContext';
@@ -20,8 +24,6 @@ const formatToLocalISO = (dateString) => {
     if (!dateString) return '';
     try {
         const date = new Date(dateString);
-        // ISO形式 (YYYY-MM-DDTHH:mm) に整形
-        // タイムゾーン補正を行う（日本時間の場合）
         const offset = date.getTimezoneOffset() * 60000;
         const localDate = new Date(date.getTime() - offset);
         return localDate.toISOString().slice(0, 16); 
@@ -221,7 +223,6 @@ function EventSelectionModal({ onClose, onSelect }) {
                   </div>
                 )}
                 
-                {/* Hover Effect Background */}
                 <div className="absolute inset-0 bg-indigo-50 opacity-0 group-hover:opacity-100 transition-opacity z-0"></div>
               </button>
             ))
@@ -565,7 +566,11 @@ function CreateProjectForm() {
   };
 
   if (authLoading || !user || eventLoading) {
-    return <div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div></div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
+      </div>
+    );
   }
 
   return (
@@ -574,7 +579,6 @@ function CreateProjectForm() {
         <h1 className="text-3xl font-extrabold text-gray-900 mb-2 text-center tracking-tight">新しい企画を立てる</h1>
         <p className="text-gray-500 text-center mb-10 font-medium">あなたの想いを形にする第一歩です。</p>
         
-        {/* イベント選択UI */}
         {!selectedEvent && (
             <button 
                 type="button"
@@ -591,7 +595,6 @@ function CreateProjectForm() {
             </button>
         )}
 
-        {/* 選択されたイベント情報 */}
         {selectedEvent && (
             <div className="bg-gradient-to-r from-indigo-50 to-blue-50 border border-indigo-100 rounded-2xl p-5 mb-8 relative shadow-sm animate-fadeIn">
                 <span className="absolute top-0 right-0 bg-indigo-600 text-white text-[10px] px-3 py-1 rounded-bl-xl rounded-tr-xl font-bold tracking-widest">OFFICIAL EVENT</span>
@@ -629,7 +632,6 @@ function CreateProjectForm() {
 
         <form onSubmit={handleSubmit} className="space-y-8">
           
-          {/* 公開設定 */}
           <section className="bg-slate-50 p-6 rounded-2xl border border-slate-200">
             <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2"><FiUser className="text-sky-500"/> 公開設定</h2>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -663,7 +665,6 @@ function CreateProjectForm() {
             {formData.projectType === 'SOLO' && <p className="mt-4 text-xs text-green-700 bg-green-50 p-3 rounded-lg border border-green-100 font-bold">※「ひとりで」を選択すると、企画一覧には表示されず、あなた専用の管理ページが作成されます。</p>}
           </section>
 
-          {/* AI文章生成 */}
           <div className="flex justify-end">
             <button
               type="button"
@@ -675,7 +676,6 @@ function CreateProjectForm() {
             </button>
           </div>
 
-          {/* 基本情報 */}
           <div className="space-y-6">
             <div>
                 <label htmlFor="title" className="block text-sm font-bold text-gray-700 mb-1">企画タイトル <span className="text-red-500">*</span></label>
@@ -688,7 +688,6 @@ function CreateProjectForm() {
             </div>
           </div>
 
-          {/* お届け情報 */}
           <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
              <div className="flex justify-between items-center mb-4">
                 <label className="text-lg font-bold text-gray-800 flex items-center gap-2"><FiMapPin className="text-green-600"/> お届け先</label>
@@ -724,7 +723,6 @@ function CreateProjectForm() {
              </div>
           </div>
 
-          {/* 目標金額 */}
           <div className="bg-gradient-to-r from-pink-50 to-rose-50 p-6 rounded-2xl border border-pink-100">
             <label htmlFor="targetAmount" className="block text-lg font-bold text-pink-900 mb-2">目標金額 (pt) <span className="text-red-500">*</span></label>
             <div className="relative">
@@ -734,7 +732,6 @@ function CreateProjectForm() {
             <p className="text-xs text-pink-700 mt-2 font-bold">※ 1,000pt以上で設定してください</p>
           </div>
 
-          {/* メイン画像 */}
           <div>
             <label className="block text-sm font-bold text-gray-700 mb-2">メイン画像 (一覧に表示)</label>
             <div className="border-2 border-dashed border-gray-300 rounded-2xl p-6 text-center hover:bg-gray-50 transition-colors cursor-pointer relative overflow-hidden group">
@@ -752,12 +749,10 @@ function CreateProjectForm() {
             </div>
           </div>
 
-          {/* デザイン詳細 */}
           <div className="border-t pt-8">
              <h3 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2"><FiAward className="text-yellow-500"/> デザイン・お花の希望 (任意)</h3>
              <div className="space-y-6">
                 
-                {/* デザイン画のアップロードエリア */}
                 <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
                     <div className="flex justify-between items-center mb-4">
                         <label className="block text-sm font-bold text-gray-700">参考画像・ラフ画</label>
@@ -773,7 +768,6 @@ function CreateProjectForm() {
                     <div className="flex flex-wrap gap-3 mb-4">
                         {formData.designImageUrls.map((url, index) => (
                             <div key={index} className="relative w-24 h-24 group">
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img src={url} alt={`デザイン ${index}`} className="w-full h-full object-cover rounded-xl border border-gray-200 shadow-sm" />
                                 <button
                                     type="button"
@@ -827,7 +821,6 @@ function CreateProjectForm() {
       {isEventModalOpen && <EventSelectionModal onClose={() => setIsEventModalOpen(false)} onSelect={handleEventSelect} />}
       {isAIModalOpen && <AIGenerationModal onClose={() => setIsAIModalOpen(false)} onGenerate={handleAIGenerated} />}
       
-      {/* AI文章生成モーダル */}
       {isAiPlanModalOpen && (
         <AiPlanGenerator 
           onClose={() => setIsAiPlanModalOpen(false)}
@@ -864,7 +857,11 @@ function CreateProjectForm() {
 
 export default function CreateProjectPage() {
   return (
-    <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div></div>}>
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-screen bg-slate-50">
+        <FiLoader className="animate-spin text-indigo-500 w-10 h-10" />
+      </div>
+    }>
       <CreateProjectForm />
     </Suspense>
   );

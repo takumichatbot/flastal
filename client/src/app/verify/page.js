@@ -1,5 +1,9 @@
 'use client';
 
+// Next.js 15 ビルドエラー回避
+export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
+
 import { useEffect, useState, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { FiCheckCircle, FiAlertCircle, FiLoader, FiArrowRight, FiMail } from 'react-icons/fi';
@@ -176,7 +180,7 @@ function VerifyContent() {
   );
 }
 
-// サスペンス境界を設定（useSearchParamsを使用するため必須）
+// サスペンス境界を設定
 export default function VerifyPage() {
   return (
     <div className="min-h-screen bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-indigo-50 via-white to-pink-50 flex items-center justify-center">
