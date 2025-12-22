@@ -1,11 +1,9 @@
 import jwt from 'jsonwebtoken';
 
 /**
- * ユーザー認証ミドルウェア
- * Next.jsの NextResponse などをインポートしてはいけません。
- * Expressの標準的な書き方 (req, res, next) を使用します。
+ * ユーザー認証ミドルウェア (authenticateToken という名前に合わせました)
  */
-export const authMiddleware = async (req, res, next) => {
+export const authenticateToken = async (req, res, next) => {
   try {
     // ヘッダーからトークンを取得
     const authHeader = req.headers.authorization;
@@ -18,14 +16,13 @@ export const authMiddleware = async (req, res, next) => {
       return res.status(401).json({ message: 'トークンが不正です。' });
     }
 
-    // JWTの検証
+    // JWTの検証 (JWT_SECRET は環境変数に設定されている必要があります)
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
     // リクエストオブジェクトにユーザー情報を格納
     req.user = decoded;
 
-    // 次の処理（コントローラーなど）へ進む
-    // 引数の next を呼び出します（パッケージの next ではありません）
+    // 次の処理へ進む
     next();
   } catch (error) {
     console.error('Auth Middleware Error:', error);
