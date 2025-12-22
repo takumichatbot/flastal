@@ -1,5 +1,5 @@
 'use client';
-
+export const dynamic = 'force-dynamic';
 import { useState, useEffect, useCallback, Suspense } from 'react';
 import toast from 'react-hot-toast';
 import { 
