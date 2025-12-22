@@ -1,11 +1,12 @@
 'use client';
 
-// Next.jsのビルドエラー（Prerenderエラー）を回避するため、動的レンダリングを強制
+// Next.jsのビルドエラー（Prerenderエラー）を確実に回避するため設定
 export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
 
 import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation'; // useSearchParamsを削除
 import { useAuth } from '@/app/contexts/AuthContext';
 import toast from 'react-hot-toast';
 import { 
@@ -19,12 +20,20 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onre
 function VenuesAdminInner() {
     const { token, user } = useAuth();
     const router = useRouter();
-    const searchParams = useSearchParams();
     
     const [venues, setVenues] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [filterStatus, setFilterStatus] = useState('ALL'); // ALL, APPROVED, PENDING
+
+    // 検索パラメータ等が必要な場合は、useEffect内でwindowから直接取得する
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const params = new URLSearchParams(window.location.search);
+            const status = params.get('status');
+            if (status) setFilterStatus(status.toUpperCase());
+        }
+    }, []);
 
     const fetchVenues = async () => {
         setLoading(true);
