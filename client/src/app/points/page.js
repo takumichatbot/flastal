@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/app/contexts/AuthContext';
 import toast from 'react-hot-toast';
 import { motion } from 'framer-motion'; // アニメーション用
 import { 
