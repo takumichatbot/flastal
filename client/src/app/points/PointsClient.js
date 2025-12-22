@@ -54,7 +54,7 @@ const Reveal = ({ children, delay = 0 }) => (
   </motion.div>
 );
 
-// --- ロジックを含むメインコンポーネント ---
+// --- ロジックを含むメインコンテンツ ---
 function PointsMain() {
   const { user, loading: authLoading } = useAuth();
   const [processingId, setProcessingId] = useState(null);
@@ -101,7 +101,10 @@ function PointsMain() {
         </div>
         <h2 className="text-2xl font-black text-slate-800 mb-4">ログインが必要です</h2>
         <p className="text-slate-500 mb-8 leading-relaxed font-medium">ポイントを購入して推し活を始めるには、<br/>アカウントへのログインが必要です。</p>
-        <Link href="/login" className="block w-full py-4 font-bold text-white bg-gradient-to-r from-pink-500 to-rose-500 rounded-full hover:shadow-lg transition-all">ログインページへ</Link>
+        <Link href="/login" className="block w-full py-4 font-bold text-white bg-gradient-to-r from-pink-500 to-rose-500 rounded-full hover:shadow-lg transition-all transform hover:-translate-y-1">ログインページへ</Link>
+        <p className="mt-6 text-sm text-slate-400">
+            アカウントをお持ちでない方は <Link href="/signup" className="text-pink-500 font-bold hover:underline">新規登録</Link>
+        </p>
       </motion.div>
     </div>
   );
@@ -111,17 +114,19 @@ function PointsMain() {
       <section className="relative bg-white pt-20 pb-32 overflow-hidden">
         <div className="container mx-auto px-6 relative z-10 text-center">
           <Reveal>
-            <span className="inline-block py-1 px-3 rounded-full bg-pink-100 text-pink-600 text-xs font-bold mb-6">POINT CHARGE</span>
-            <h1 className="text-4xl md:text-6xl font-black text-slate-800 mb-6">推し活のための<br/><span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-rose-500">エネルギーチャージ</span></h1>
+            <span className="inline-block py-1 px-3 rounded-full bg-pink-100 text-pink-600 text-xs font-bold tracking-wider mb-6 border border-pink-200">POINT CHARGE</span>
+            <h1 className="text-4xl md:text-6xl font-black text-slate-800 mb-6 tracking-tight">推し活のための<br/><span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-rose-500">エネルギーチャージ</span></h1>
             <p className="text-slate-500 text-lg max-w-xl mx-auto mb-10">企画を支援したり、お祝いのお花を贈るために必要なポイントを購入します。</p>
           </Reveal>
           <Reveal delay={0.2}>
-            <div className="inline-block bg-white/80 backdrop-blur-xl p-2 pr-8 rounded-full shadow-xl border border-slate-200">
+            <div className="inline-block bg-white/80 backdrop-blur-xl p-2 pr-8 rounded-full shadow-xl border border-slate-200 hover:scale-105 transition-transform duration-300 cursor-default">
                 <div className="flex items-center gap-4">
-                    <div className="bg-gradient-to-r from-yellow-400 to-orange-400 w-12 h-12 rounded-full flex items-center justify-center text-white shadow-md">🪙</div>
+                    <div className="bg-gradient-to-r from-yellow-400 to-orange-400 w-12 h-12 rounded-full flex items-center justify-center text-white shadow-md">
+                        <span className="text-xl">🪙</span>
+                    </div>
                     <div className="text-left">
-                        <p className="text-[10px] font-bold text-slate-400 uppercase">Current Balance</p>
-                        <p className="text-xl font-black text-slate-800">{(user.points || 0).toLocaleString()} <span className="text-sm font-bold text-slate-500">pt</span></p>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Current Balance</p>
+                        <p className="text-xl font-black text-slate-800 leading-none">{(user.points || 0).toLocaleString()} <span className="text-sm font-bold text-slate-500">pt</span></p>
                     </div>
                 </div>
             </div>
@@ -135,20 +140,20 @@ function PointsMain() {
             const isRec = pkg.isRecommended;
             return (
               <Reveal key={pkg.id} delay={0.3 + (index * 0.1)}>
-                <motion.div whileHover={{ y: -10 }} className={`relative h-full flex flex-col p-8 rounded-[40px] border transition-all duration-300 bg-white ${isRec ? 'shadow-2xl border-pink-200 z-10 scale-105 md:scale-110' : 'shadow-lg border-slate-100'}`}>
-                  {isRec && <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-pink-500 to-rose-500 text-white px-6 py-1.5 rounded-full text-xs font-bold">MOST POPULAR</div>}
+                <motion.div whileHover={{ y: -10 }} className={`relative h-full flex flex-col p-8 rounded-[40px] border transition-all duration-300 bg-white ${isRec ? 'shadow-2xl shadow-pink-200/50 border-pink-200 z-10 scale-105 md:scale-110' : 'shadow-lg border-slate-100 opacity-90 hover:opacity-100'}`}>
+                  {isRec && <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-pink-500 to-rose-500 text-white px-6 py-1.5 rounded-full text-xs font-bold shadow-lg shadow-pink-200 tracking-wider">MOST POPULAR</div>}
                   <div className="mb-6">
-                      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-4 ${isRec ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white' : pkg.bg}`}>{pkg.icon}</div>
-                      <h3 className="text-lg font-black">{pkg.label}</h3>
-                      <p className="text-xs text-slate-400 mt-1">{pkg.description}</p>
+                      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-4 shadow-sm ${isRec ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white' : pkg.bg}`}>{pkg.icon}</div>
+                      <h3 className={`text-lg font-black ${isRec ? 'text-slate-800' : 'text-slate-600'}`}>{pkg.label}</h3>
+                      <p className="text-xs text-slate-400 mt-1 font-medium">{pkg.description}</p>
                   </div>
                   <div className="mb-8">
-                      <div className="flex items-baseline gap-1"><span className="text-4xl font-black">{pkg.points.toLocaleString()}</span><span className="text-sm font-bold text-slate-400">pt</span></div>
+                      <div className="flex items-baseline gap-1"><span className="text-4xl font-black tracking-tight ${isRec ? 'text-slate-800' : 'text-slate-700'}">{pkg.points.toLocaleString()}</span><span className="text-sm font-bold text-slate-400">pt</span></div>
                       <p className="text-sm font-bold text-slate-400 mt-1">¥{pkg.amount.toLocaleString()} (税込)</p>
                   </div>
                   <div className="mt-auto">
-                      <button onClick={() => handleCheckout(pkg)} disabled={!!processingId} className={`w-full py-4 rounded-2xl font-bold shadow-lg transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50 ${isRec ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white' : 'bg-slate-800 text-white'}`}>
-                        {processingId === pkg.id ? <Loader2 className="animate-spin" /> : <><span className="relative z-10">購入する</span><ArrowRight size={18} /></>}
+                      <button onClick={() => handleCheckout(pkg)} disabled={!!processingId} className={`w-full py-4 rounded-2xl font-bold shadow-lg transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed group overflow-hidden relative ${isRec ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white hover:shadow-pink-300' : 'bg-slate-800 text-white hover:bg-slate-900 hover:shadow-xl'}`}>
+                        {processingId === pkg.id ? <Loader2 className="animate-spin" /> : <><span className="relative z-10">購入する</span><ArrowRight size={18} className="relative z-10 group-hover:translate-x-1 transition-transform"/></>}
                       </button>
                   </div>
                 </motion.div>
@@ -163,15 +168,18 @@ function PointsMain() {
             <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100 inline-block w-full">
                 <div className="flex flex-col md:flex-row items-center justify-center gap-6 text-slate-500 text-sm font-medium">
                     <div className="flex items-center gap-2"><ShieldCheck className="text-emerald-500" /><span>Stripeによる安全な決済</span></div>
+                    <div className="hidden md:block w-1 h-1 bg-slate-300 rounded-full"></div>
                     <div className="flex items-center gap-2"><CreditCard className="text-slate-400" /><span>各種クレジットカード対応</span></div>
                 </div>
                 <div className="mt-6 pt-6 border-t border-slate-100 text-xs text-slate-400 text-left leading-relaxed">
+                    <div className="flex items-center gap-2 mb-2 font-bold text-slate-500"><Info size={14}/> 注意事項</div>
                     <ul className="list-disc pl-5 space-y-1">
                         <li>ポイントの有効期限は、最終利用日から1年間です。</li>
                         <li>決済完了後の払い戻しは原則として行えません。</li>
+                        <li>ポイントは企画への参加や、お花屋さんへのチップとして利用可能です。</li>
                     </ul>
                 </div>
-                <div className="mt-4 text-xs"><Link href="/legal/transactions" className="text-pink-500 hover:underline">特定商取引法に基づく表記</Link></div>
+                <div className="mt-4 text-xs text-center"><Link href="/legal/transactions" className="text-pink-500 hover:underline">特定商取引法に基づく表記</Link></div>
             </div>
         </Reveal>
       </section>
@@ -179,8 +187,8 @@ function PointsMain() {
   );
 }
 
-// --- 親エクスポート (内部で再度 Suspense を噛ませる) ---
-export default function PointsClient() {
+// --- メインエクスポート (二重 Suspense ガード構造) ---
+export default function PointsPage() {
   return (
     <Suspense fallback={
       <div className="flex items-center justify-center min-h-screen bg-slate-50">
