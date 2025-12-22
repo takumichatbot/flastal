@@ -5,10 +5,12 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { FiCheck, FiHome, FiArrowRight } from 'react-icons/fi';
 
-// --- 動的部分 (useSearchParams を使う場所) ---
-function PaymentSuccessContent() {
+/**
+ * URLパラメータに依存する動的なコンテンツ部分
+ */
+function PaymentSuccessInner() {
   const router = useRouter();
-  const searchParams = useSearchParams(); // ビルドエラーの直接原因
+  const searchParams = useSearchParams(); // これがビルドエラーの原因
   const [countdown, setCountdown] = useState(5);
 
   useEffect(() => {
@@ -54,7 +56,9 @@ function PaymentSuccessContent() {
   );
 }
 
-// --- 静的部分 (外枠) ---
+/**
+ * ページ全体の器（静的な外枠）
+ */
 export default function PaymentSuccessPage() {
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 font-sans text-gray-800 relative overflow-hidden">
@@ -73,9 +77,16 @@ export default function PaymentSuccessPage() {
             <FiCheck className="w-10 h-10 text-green-500" />
           </div>
 
-          {/* ★ 決定的な Suspense 境界 ★ */}
-          <Suspense fallback={<p className="text-gray-400">Loading...</p>}>
-            <PaymentSuccessContent />
+          {/* 【重要】ここでのSuspenseがビルドエラーを回避する決定打です。
+             PaymentSuccessInnerの中にある useSearchParams をこの境界で隔離します。
+          */}
+          <Suspense fallback={
+            <div className="py-10 text-gray-400 flex flex-col items-center gap-2">
+              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-sky-500"></div>
+              <p className="text-xs">情報を確認中...</p>
+            </div>
+          }>
+            <PaymentSuccessInner />
           </Suspense>
         </div>
       </div>
