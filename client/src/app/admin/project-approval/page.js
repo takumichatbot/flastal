@@ -65,6 +65,7 @@ function ProjectDetailModal({ project, onClose, onAction, isProcessing }) {
             {/* 右カラム: 画像 */}
             <div className="border border-gray-200 rounded-xl overflow-hidden bg-gray-100 flex items-center justify-center min-h-[200px]">
               {project.imageUrl ? (
+                /* eslint-disable-next-line @next/next/no-img-element */
                 <img src={project.imageUrl} alt="Project" className="w-full h-full object-cover" />
               ) : (
                 <div className="text-gray-400 flex flex-col items-center">
@@ -73,6 +74,7 @@ function ProjectDetailModal({ project, onClose, onAction, isProcessing }) {
                 </div>
               )}
             </div>
+          </div>
 
           {/* 説明文 */}
           <div>
@@ -157,7 +159,6 @@ export default function AdminProjectApprovalsPage() {
 
   // ステータス更新
   const handleUpdateStatus = async (projectId, status) => {
-    // 確認ダイアログはモーダル側でボタンを押した時点で意思確認とみなすが、念のため
     const actionText = status === 'FUNDRAISING' ? '承認（募集開始）' : '却下';
     if (!window.confirm(`この企画を「${actionText}」しますか？`)) return;
 
@@ -303,7 +304,8 @@ export default function AdminProjectApprovalsPage() {
                             {/* サムネイル (あれば) */}
                             {project.imageUrl && (
                                 <div className="w-full h-32 mb-3 rounded-lg overflow-hidden bg-gray-100">
-                                    <img  src={project.imageUrl} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img src={project.imageUrl} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                                 </div>
                             )}
 
