@@ -1,41 +1,62 @@
-// app/components/FloristAppealPostForm.js
+// src/app/components/FloristAppealPostForm.js
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import toast from 'react-hot-toast';
-import { FiCamera, FiSend, FiCheckCircle } from 'react-icons/fi'; 
+import { FiCamera, FiSend, FiX, FiImage, FiLoader, FiEdit3 } from 'react-icons/fi'; 
 import { useAuth } from '../contexts/AuthContext';
+import Image from 'next/image';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
 /**
  * お花屋さん専用アピール投稿フォーム
- * @param {function} onPostSuccess - 投稿成功時に実行するコールバック
+ * - 画像プレビュー機能追加
+ * - デザイン刷新
  */
 export default function FloristAppealPostForm({ onPostSuccess }) {
   const { user } = useAuth();
   const [imageFile, setImageFile] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(null); // プレビュー用URL
   const [content, setContent] = useState('');
   const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef(null);
+
+  // コンポーネントのアンマウント時にプレビューURLを破棄（メモリリーク防止）
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
 
   const handleFileChange = (e) => {
-    setImageFile(e.target.files[0]);
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // ファイルサイズチェック (例: 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+        toast.error('画像サイズは5MB以下にしてください。');
+        return;
+    }
+
+    setImageFile(file);
+    setPreviewUrl(URL.createObjectURL(file));
+  };
+
+  const handleRemoveImage = () => {
+    setImageFile(null);
+    setPreviewUrl(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!imageFile || !content) {
-      toast.error('画像と内容の両方が必要です。');
-      return;
-    }
-    if (user.role !== 'FLORIST') {
-        toast.error('この機能はお花屋さんアカウント専用です。');
-        return;
-    }
+    if (!user) return toast.error('ログインが必要です。');
+    if (user.role !== 'FLORIST') return toast.error('この機能はお花屋さんアカウント専用です。');
+    if (!imageFile || !content.trim()) return toast.error('画像とコメントの両方を入力してください。');
 
     setIsUploading(true);
-    let imageUrl = '';
-    const toastId = toast.loading('投稿を準備中...');
+    const toastId = toast.loading('投稿を作成中...');
 
     try {
       const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
@@ -52,9 +73,9 @@ export default function FloristAppealPostForm({ onPostSuccess }) {
 
       if (!uploadRes.ok) throw new Error('画像のアップロードに失敗しました');
       const uploadResult = await uploadRes.json();
-      imageUrl = uploadResult.url;
+      const imageUrl = uploadResult.url;
 
-      // 2. ★★★ 修正: 新しい FloristPost 作成 API を利用 ★★★
+      // 2. 投稿データを作成
       const postRes = await fetch(`${API_URL}/api/florists/posts`, { 
         method: 'POST',
         headers: {
@@ -62,85 +83,120 @@ export default function FloristAppealPostForm({ onPostSuccess }) {
             'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({ 
-          imageUrl: imageUrl, // ★ FloristPostモデルの imageUrl フィールドに送信
+          imageUrl: imageUrl, 
           content: content,
-          isPublic: true, // デフォルトで公開設定
+          isPublic: true,
         }),
       });
 
       if (!postRes.ok) {
           const errorDetail = await postRes.json();
-          throw new Error(errorDetail.message || 'アピール投稿に失敗しました');
+          throw new Error(errorDetail.message || '投稿に失敗しました');
       }
       
-      toast.success('制作アピールを投稿しました！', { id: toastId });
-      setImageFile(null);
+      toast.success('制作事例をギャラリーに公開しました！', { id: toastId });
+      
+      // フォームリセット
+      handleRemoveImage();
       setContent('');
       if (onPostSuccess) onPostSuccess();
 
     } catch (error) {
       console.error(error);
-      toast.error(error.message || '投稿中にエラーが発生しました。', { id: toastId });
+      toast.error(error.message || 'エラーが発生しました。', { id: toastId });
     } finally {
       setIsUploading(false);
     }
   };
-  
-  const selectedFileName = imageFile ? imageFile.name : null;
+
+  if (!user || user.role !== 'FLORIST') return null;
 
   return (
-    <form onSubmit={handleSubmit} className="bg-pink-50 p-5 rounded-xl border border-pink-200">
-      <h3 className="font-bold text-lg text-pink-700 mb-4 flex items-center gap-2">
-        <FiCamera /> 制作アピールを投稿
-      </h3>
-      
-      {/* 1. 画像選択エリア */}
-      <div className="mb-4">
-        <label className="flex items-center justify-center h-16 border-2 border-dashed border-pink-300 rounded-lg cursor-pointer bg-white hover:bg-gray-50 transition-colors">
-          <input 
-            type="file" 
-            accept="image/*" 
-            onChange={handleFileChange} 
-            disabled={isUploading}
-            className="hidden" 
-          />
-          <div className="text-center text-pink-600 font-bold">
-            {selectedFileName ? (
-              <span className="flex items-center gap-2"><FiCheckCircle /> {selectedFileName}</span>
-            ) : (
-              <span className='flex items-center gap-2'><FiCamera /> 制作写真を選択</span>
-            )}
-          </div>
-        </label>
-      </div>
+    <div className="bg-white rounded-2xl shadow-lg border border-pink-100 overflow-hidden">
+        {/* ヘッダー装飾 */}
+        <div className="bg-gradient-to-r from-pink-500 to-rose-400 p-4 text-white flex items-center justify-between">
+            <h3 className="font-bold text-lg flex items-center gap-2">
+                <FiCamera className="text-xl"/> 制作実績をアピール
+            </h3>
+            <span className="text-xs bg-white/20 px-2 py-1 rounded text-white/90">Florist Only</span>
+        </div>
 
-      {/* 2. コメント入力エリア */}
-      <div className="mb-4">
-        <textarea
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          placeholder="この作品のこだわり、裏話、アピールしたい技術などを自由に記述してください。"
-          rows="3"
-          disabled={isUploading}
-          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-pink-500 focus:border-pink-500"
-        />
-      </div>
+        <form onSubmit={handleSubmit} className="p-5">
+            {/* 1. 画像プレビューエリア */}
+            <div className="mb-5">
+                {previewUrl ? (
+                    <div className="relative w-full h-64 rounded-xl overflow-hidden group shadow-md border border-gray-100">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img 
+                            src={previewUrl} 
+                            alt="Preview" 
+                            className="w-full h-full object-cover"
+                        />
+                        {/* 削除ボタン */}
+                        <button
+                            type="button"
+                            onClick={handleRemoveImage}
+                            disabled={isUploading}
+                            className="absolute top-2 right-2 bg-black/60 text-white p-2 rounded-full hover:bg-red-500 transition-colors backdrop-blur-sm"
+                        >
+                            <FiX />
+                        </button>
+                    </div>
+                ) : (
+                    <div 
+                        onClick={() => fileInputRef.current.click()}
+                        className="w-full h-40 border-2 border-dashed border-pink-200 rounded-xl bg-pink-50/50 flex flex-col items-center justify-center cursor-pointer hover:bg-pink-50 hover:border-pink-400 transition-all group"
+                    >
+                        <div className="bg-white p-3 rounded-full shadow-sm text-pink-400 group-hover:scale-110 transition-transform mb-2">
+                            <FiImage size={24} />
+                        </div>
+                        <p className="text-pink-600 font-bold text-sm">クリックして写真を選択</p>
+                        <p className="text-pink-400 text-xs mt-1">魅力的なお花の写真をアップロード</p>
+                    </div>
+                )}
+                <input 
+                    type="file" 
+                    accept="image/*" 
+                    ref={fileInputRef}
+                    onChange={handleFileChange} 
+                    disabled={isUploading}
+                    className="hidden" 
+                />
+            </div>
 
-      {/* 3. 投稿ボタン */}
-      <button
-        type="submit"
-        disabled={isUploading || !imageFile || !content}
-        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-pink-600 text-white font-bold rounded-full hover:bg-pink-700 disabled:bg-gray-400 transition-colors"
-      >
-        {isUploading ? (
-          <>
-            <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>
-            投稿中...
-          </>
-        ) : (
-          <><FiSend /> ギャラリーに公開</>
-        )}
-      </button>
-    </form>
+            {/* 2. コメント入力エリア */}
+            <div className="mb-5 relative">
+                <label className="block text-sm font-bold text-gray-700 mb-1 ml-1">コメント・こだわりポイント</label>
+                <div className="relative">
+                    <textarea
+                        value={content}
+                        onChange={(e) => setContent(e.target.value)}
+                        placeholder="例：お客様のイメージカラーに合わせて、青いバラをアクセントに使用しました。ボリューム感を出すために..."
+                        rows="3"
+                        disabled={isUploading}
+                        className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-pink-400 focus:bg-white focus:border-transparent outline-none transition-all resize-none text-sm"
+                    />
+                    <FiEdit3 className="absolute bottom-3 right-3 text-gray-400 pointer-events-none"/>
+                </div>
+            </div>
+
+            {/* 3. 送信ボタン */}
+            <button
+                type="submit"
+                disabled={isUploading || !imageFile || !content}
+                className="w-full py-3.5 bg-gradient-to-r from-pink-500 to-rose-500 text-white font-bold rounded-xl shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2"
+            >
+                {isUploading ? (
+                    <>
+                        <FiLoader className="animate-spin text-xl"/> 公開中...
+                    </>
+                ) : (
+                    <>
+                        <FiSend className="text-lg"/> ギャラリーに公開する
+                    </>
+                )}
+            </button>
+        </form>
+    </div>
   );
 }

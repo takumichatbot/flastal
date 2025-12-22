@@ -1,27 +1,123 @@
 "use client";
 
-import { useEffect } from 'react';
+import { useEffect, useState, useMemo } from 'react';
+import { useSearchParams } from 'next/navigation';
+
+// 季節ごとの設定
+const SEASON_CONFIG = {
+  spring: { className: 'theme-spring', icon: '🌸', color: '#fbcfe8', label: 'Spring' },
+  summer: { className: 'theme-summer', icon: '✨', color: '#bae6fd', label: 'Summer' },
+  autumn: { className: 'theme-autumn', icon: '🍂', color: '#fed7aa', label: 'Autumn' },
+  winter: { className: 'theme-winter', icon: '❄️', color: '#e2e8f0', label: 'Winter' },
+};
 
 export default function ThemeController() {
+  const [currentSeason, setCurrentSeason] = useState(null);
+  const [particles, setParticles] = useState([]);
+  const searchParams = useSearchParams();
+
+  // 季節の判定ロジック
   useEffect(() => {
-    const currentMonth = new Date().getMonth() + 1; // 1月=0 なので +1
+    // 1. URLパラメータでの強制指定チェック (例: ?season=winter)
+    const debugSeason = searchParams.get('season');
+    if (debugSeason && SEASON_CONFIG[debugSeason]) {
+      applySeason(debugSeason);
+      return;
+    }
+
+    // 2. 月による自動判定
+    const month = new Date().getMonth() + 1; // 1-12
+    let seasonKey = 'winter';
+
+    if (month >= 3 && month <= 5) seasonKey = 'spring';
+    else if (month >= 6 && month <= 8) seasonKey = 'summer';
+    else if (month >= 9 && month <= 11) seasonKey = 'autumn';
+    
+    applySeason(seasonKey);
+  }, [searchParams]);
+
+  const applySeason = (seasonKey) => {
+    setCurrentSeason(seasonKey);
     const body = document.body;
 
-    // 一旦すべての季節クラスを削除
-    body.classList.remove('theme-spring', 'theme-summer', 'theme-autumn', 'theme-winter');
+    // クラスの付け替え
+    Object.values(SEASON_CONFIG).forEach(cfg => body.classList.remove(cfg.className));
+    body.classList.add(SEASON_CONFIG[seasonKey].className);
+  };
 
-    // 月によってクラスを付与
-    if (currentMonth >= 3 && currentMonth <= 5) {
-      body.classList.add('theme-spring');
-    } else if (currentMonth >= 6 && currentMonth <= 8) {
-      body.classList.add('theme-summer');
-    } else if (currentMonth >= 9 && currentMonth <= 11) {
-      body.classList.add('theme-autumn');
-    } else {
-      body.classList.add('theme-winter'); // 12, 1, 2月
-    }
-  }, []);
+  // エフェクト（パーティクル）の生成
+  useEffect(() => {
+    if (!currentSeason) return;
 
-  // 画面には何も表示しない機能だけのコンポーネント
-  return null;
+    // ユーザーが「視差効果を減らす」をオンにしている場合はエフェクトを無効化
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (prefersReducedMotion) return;
+
+    // パーティクルを生成 (数は控えめに)
+    const particleCount = 12; 
+    const newParticles = Array.from({ length: particleCount }).map((_, i) => ({
+      id: i,
+      left: Math.random() * 100 + '%',
+      animationDuration: 10 + Math.random() * 20 + 's', // 10〜30秒かけてゆっくり落ちる
+      animationDelay: Math.random() * 5 + 's',
+      fontSize: 10 + Math.random() * 10 + 'px',
+      opacity: 0.3 + Math.random() * 0.5,
+    }));
+
+    setParticles(newParticles);
+  }, [currentSeason]);
+
+  // UIを持たないコントローラーだが、エフェクトレイヤーのみ描画する
+  if (!currentSeason || particles.length === 0) return null;
+
+  const config = SEASON_CONFIG[currentSeason];
+
+  return (
+    <div 
+      className="fixed inset-0 pointer-events-none z-0 overflow-hidden" 
+      aria-hidden="true"
+    >
+      {particles.map((p) => (
+        <div
+          key={p.id}
+          className="absolute top-[-20px] animate-fall"
+          style={{
+            left: p.left,
+            fontSize: p.fontSize,
+            opacity: p.opacity,
+            animationDuration: p.animationDuration,
+            animationDelay: p.animationDelay,
+            color: config.color,
+            textShadow: '0 0 5px rgba(255,255,255,0.5)'
+          }}
+        >
+          {config.icon}
+        </div>
+      ))}
+
+      {/* グローバルCSSに以下のアニメーション定義が必要です:
+        @keyframes fall {
+          0% { transform: translateY(-10vh) rotate(0deg); }
+          100% { transform: translateY(110vh) rotate(360deg); }
+        }
+        .animate-fall {
+          animation-name: fall;
+          animation-timing-function: linear;
+          animation-iteration-count: infinite;
+        }
+      */}
+      <style jsx global>{`
+        @keyframes fall {
+          0% { transform: translateY(-10vh) translateX(0px) rotate(0deg); }
+          50% { transform: translateX(20px) rotate(180deg); } /* 少し揺らす */
+          100% { transform: translateY(110vh) translateX(-20px) rotate(360deg); }
+        }
+        .animate-fall {
+          animation-name: fall;
+          animation-timing-function: linear;
+          animation-iteration-count: infinite;
+        }
+      `}</style>
+    </div>
+  );
 }

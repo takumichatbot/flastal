@@ -1,19 +1,54 @@
 "use client";
-import { useState } from 'react';
-import { FiCpu, FiLoader, FiCheck } from 'react-icons/fi';
+import { useState, useEffect } from 'react';
+import { FiCpu, FiLoader, FiCheck, FiX, FiSparkles, FiEdit3 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+
+// 雰囲気の選択肢定義
+const TONE_OPTIONS = [
+  { id: '情熱的・エモい', label: '🔥 情熱的', desc: '想いを熱く伝える' },
+  { id: '元気・ポップ', label: '🎉 元気', desc: '明るく盛り上げる' },
+  { id: '丁寧・フォーマル', label: '👔 丁寧', desc: '大人っぽく誠実に' },
+  { id: '面白い・ユニーク', label: '🤣 ユニーク', desc: '個性を出して目立つ' },
+];
+
+// ローディング中のメッセージ
+const LOADING_MESSAGES = [
+  'キーワードを分析しています...',
+  '魅力的なタイトルを考案中...',
+  '説明文を構成しています...',
+  '最後の仕上げをしています...',
+];
 
 export default function AiPlanGenerator({ onGenerated, onClose }) {
   const [loading, setLoading] = useState(false);
+  const [loadingMsgIndex, setLoadingMsgIndex] = useState(0);
+  
   const [formData, setFormData] = useState({
     targetName: '',
     eventName: '',
-    tone: '情熱的・エモい', // デフォルト
+    tone: '情熱的・エモい',
     extraInfo: ''
   });
 
+  // ローディングメッセージのアニメーション
+  useEffect(() => {
+    let interval;
+    if (loading) {
+      interval = setInterval(() => {
+        setLoadingMsgIndex((prev) => (prev + 1) % LOADING_MESSAGES.length);
+      }, 1500);
+    } else {
+      setLoadingMsgIndex(0);
+    }
+    return () => clearInterval(interval);
+  }, [loading]);
+
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleToneSelect = (toneId) => {
+    setFormData({ ...formData, tone: toneId });
   };
 
   const handleGenerate = async () => {
@@ -23,7 +58,7 @@ export default function AiPlanGenerator({ onGenerated, onClose }) {
     }
 
     setLoading(true);
-    const toastId = toast.loading('AIが最高のアピール文を考えています...');
+    // トーストは出さず、UI内でローディングを見せる
 
     try {
       const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
@@ -42,79 +77,130 @@ export default function AiPlanGenerator({ onGenerated, onClose }) {
       
       // 親コンポーネントにデータを渡す
       onGenerated(data.title, data.description);
-      toast.success('文章が生成されました！', { id: toastId });
+      toast.success('AIが文章を作成しました！', { icon: '🤖' });
       onClose();
 
     } catch (error) {
-      toast.error('エラーが発生しました', { id: toastId });
+      console.error(error);
+      toast.error('生成エラーが発生しました。時間を置いてお試しください。');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
-      <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl relative border-t-4 border-purple-500">
-        <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">✕</button>
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
+      <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl relative overflow-hidden border border-white/20">
         
-        <h3 className="text-xl font-bold text-gray-800 mb-2 flex items-center gap-2">
-          <FiCpu className="text-purple-500" /> AI アシスタント
-        </h3>
-        <p className="text-sm text-gray-500 mb-6">
-          キーワードを入れるだけで、AIが参加者を募るための魅力的なタイトルと説明文を自動作成します。
-        </p>
-
-        <div className="space-y-4">
-          <div>
-            <label className="block text-xs font-bold text-gray-600 mb-1">推しの名前 <span className="text-red-500">*</span></label>
-            <input 
-              name="targetName" 
-              placeholder="例: 星野アイ" 
-              className="w-full p-2 border rounded focus:ring-2 focus:ring-purple-500 outline-none"
-              onChange={handleChange}
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-gray-600 mb-1">イベント名 <span className="text-red-500">*</span></label>
-            <input 
-              name="eventName" 
-              placeholder="例: 東京ドーム 卒業コンサート" 
-              className="w-full p-2 border rounded focus:ring-2 focus:ring-purple-500 outline-none"
-              onChange={handleChange}
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-gray-600 mb-1">文章の雰囲気</label>
-            <select 
-              name="tone" 
-              className="w-full p-2 border rounded focus:ring-2 focus:ring-purple-500 outline-none"
-              onChange={handleChange}
+        {/* ヘッダー */}
+        <div className="bg-gradient-to-r from-violet-600 to-indigo-600 p-6 flex justify-between items-center text-white">
+            <div>
+                <h3 className="text-xl font-bold flex items-center gap-2">
+                    <FiSparkles className="text-yellow-300" /> AI アシスタント
+                </h3>
+                <p className="text-xs text-indigo-100 mt-1 opacity-90">
+                    キーワードから、人を惹きつける企画文を自動生成します。
+                </p>
+            </div>
+            <button 
+                onClick={onClose} 
+                disabled={loading}
+                className="bg-white/10 hover:bg-white/20 p-2 rounded-full transition-colors disabled:opacity-0"
             >
-              <option value="情熱的・エモい">🔥 情熱的・エモい (想いを伝える)</option>
-              <option value="元気・ポップ">🎉 元気・ポップ (楽しく盛り上げる)</option>
-              <option value="丁寧・フォーマル">👔 丁寧・フォーマル (大人っぽく)</option>
-              <option value="面白い・ユニーク">🤣 面白い・ユニーク (目立ちたい)</option>
-            </select>
+                <FiX size={20} />
+            </button>
+        </div>
+
+        <div className="p-6 md:p-8 space-y-6">
+          
+          {/* メイン入力フォーム */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-gray-600 mb-1.5 ml-1">推しの名前 <span className="text-red-500">*</span></label>
+              <input 
+                name="targetName" 
+                placeholder="例: 星野アイ" 
+                disabled={loading}
+                className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-violet-500 outline-none transition-all font-bold text-gray-800 placeholder-gray-400"
+                onChange={handleChange}
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-gray-600 mb-1.5 ml-1">イベント名 <span className="text-red-500">*</span></label>
+              <input 
+                name="eventName" 
+                placeholder="例: 東京ドーム 卒業ライブ" 
+                disabled={loading}
+                className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-violet-500 outline-none transition-all font-bold text-gray-800 placeholder-gray-400"
+                onChange={handleChange}
+              />
+            </div>
           </div>
 
+          {/* 雰囲気選択 (Chips) */}
           <div>
-            <label className="block text-xs font-bold text-gray-600 mb-1">補足情報 (任意)</label>
-            <textarea 
-              name="extraInfo" 
-              placeholder="例: イメージカラーは赤です。バルーンを使いたいです。" 
-              className="w-full p-2 border rounded focus:ring-2 focus:ring-purple-500 outline-none h-20"
-              onChange={handleChange}
-            />
+            <label className="block text-xs font-bold text-gray-600 mb-2 ml-1">文章の雰囲気</label>
+            <div className="grid grid-cols-2 gap-2">
+                {TONE_OPTIONS.map((t) => (
+                    <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => handleToneSelect(t.id)}
+                        disabled={loading}
+                        className={`p-3 rounded-xl border text-left transition-all relative overflow-hidden ${
+                            formData.tone === t.id 
+                            ? 'border-violet-500 bg-violet-50 text-violet-800 ring-1 ring-violet-500' 
+                            : 'border-gray-200 hover:bg-gray-50 text-gray-600'
+                        }`}
+                    >
+                        <div className="text-sm font-bold">{t.label}</div>
+                        <div className="text-[10px] opacity-70">{t.desc}</div>
+                        {formData.tone === t.id && (
+                            <div className="absolute top-2 right-2 text-violet-500"><FiCheck /></div>
+                        )}
+                    </button>
+                ))}
+            </div>
           </div>
 
+          {/* 補足情報 */}
+          <div>
+            <label className="block text-xs font-bold text-gray-600 mb-1.5 ml-1">補足情報 (任意)</label>
+            <div className="relative">
+                <textarea 
+                name="extraInfo" 
+                placeholder="AIに伝えたい要素があれば入力してください。&#13;&#10;例: イメージカラーは赤。バルーンスタンドにしたい。感動的にしてほしい。" 
+                disabled={loading}
+                className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-violet-500 outline-none h-24 text-sm resize-none placeholder-gray-400"
+                onChange={handleChange}
+                />
+                <FiEdit3 className="absolute bottom-3 right-3 text-gray-400 pointer-events-none"/>
+            </div>
+          </div>
+
+          {/* アクションボタン */}
           <button 
             onClick={handleGenerate}
-            disabled={loading}
-            className="w-full py-3 bg-gradient-to-r from-purple-500 to-indigo-600 text-white font-bold rounded-xl shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={loading || !formData.targetName || !formData.eventName}
+            className="w-full py-4 bg-gradient-to-r from-violet-600 to-indigo-600 text-white font-bold rounded-2xl shadow-lg hover:shadow-xl hover:scale-[1.01] transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:scale-100 disabled:cursor-not-allowed group"
           >
-            {loading ? <><FiLoader className="animate-spin" /> 生成中...</> : <><FiCheck /> AIに書いてもらう</>}
+            {loading ? (
+                <div className="flex flex-col items-center">
+                    <div className="flex items-center gap-2 mb-1">
+                        <FiLoader className="animate-spin text-xl" />
+                        <span>生成中...</span>
+                    </div>
+                    <span className="text-[10px] font-normal opacity-90 animate-pulse">
+                        {LOADING_MESSAGES[loadingMsgIndex]}
+                    </span>
+                </div>
+            ) : (
+                <>
+                    <FiCpu className="text-xl group-hover:rotate-12 transition-transform" /> 
+                    AIに文章を考えてもらう
+                </>
+            )}
           </button>
         </div>
       </div>

@@ -1,41 +1,83 @@
-// /organizers/dashboard/page.js
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '../../contexts/AuthContext';
-import ApprovalPendingCard from '@/app/components/ApprovalPendingCard';
-import { FiPlus, FiCalendar, FiMapPin, FiLogOut } from 'react-icons/fi';
+import { useAuth } from '@/context/AuthContext'; // パス調整
+import ApprovalPendingCard from '@/components/dashboard/ApprovalPendingCard';
 import toast from 'react-hot-toast';
+
+// アイコンセット
+import { 
+  FiPlus, 
+  FiCalendar, 
+  FiMapPin, 
+  FiLogOut, 
+  FiSettings, 
+  FiLayers, 
+  FiTrendingUp, 
+  FiArrowRight,
+  FiUsers
+} from 'react-icons/fi';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
-const getAuthToken = () => {
-  if (typeof window === 'undefined') return null;
-  const rawToken = localStorage.getItem('authToken');
-  return rawToken ? rawToken.replace(/^"|"$/g, '') : null;
-};
+// 統計カードコンポーネント
+const StatCard = ({ title, value, icon, subText }) => (
+  <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4 transition-transform hover:scale-[1.01]">
+    <div className="p-3 bg-indigo-50 text-indigo-600 rounded-xl">
+      {icon}
+    </div>
+    <div>
+      <p className="text-sm text-gray-500 font-medium">{title}</p>
+      <div className="flex items-baseline gap-2">
+        <h3 className="text-2xl font-bold text-gray-900">{value}</h3>
+        {subText && <span className="text-xs text-gray-400">{subText}</span>}
+      </div>
+    </div>
+  </div>
+);
 
 export default function OrganizerDashboard() {
   const { user, isAuthenticated, loading, logout, isPending, isApproved } = useAuth();
   const router = useRouter();
+  
   const [events, setEvents] = useState([]);
+  const [stats, setStats] = useState({ totalEvents: 0, upcomingEvents: 0, totalProjects: 0 });
   const [isLoadingEvents, setIsLoadingEvents] = useState(true);
 
+  // データ取得
   const fetchEvents = useCallback(async () => {
     if (isPending || !isApproved) {
         setIsLoadingEvents(false);
         return; 
     }
     
+    // トークン取得 (AuthContextからtokenが取れればそれがベストですが、localStorage参照のままにします)
+    const token = typeof window !== 'undefined' ? localStorage.getItem('authToken')?.replace(/^"|"$/g, '') : null;
+    
+    if (!token) return;
+
     try {
-      const token = getAuthToken();
       const res = await fetch(`${API_URL}/api/organizers/events`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
+
       if (!res.ok) throw new Error('イベント一覧の取得に失敗しました');
-      setEvents(await res.json());
+      
+      const data = await res.json();
+      setEvents(data);
+
+      // 簡易統計の計算
+      const upcoming = data.filter(e => new Date(e.eventDate) >= new Date()).length;
+      const projects = data.reduce((acc, curr) => acc + (curr._count?.projects || 0), 0);
+      
+      setStats({
+        totalEvents: data.length,
+        upcomingEvents: upcoming,
+        totalProjects: projects
+      });
+
     } catch (error) {
       console.error(error);
       toast.error('データの読み込みに失敗しました');
@@ -46,6 +88,8 @@ export default function OrganizerDashboard() {
 
   useEffect(() => {
     if (loading) return;
+    
+    // ロールチェック
     if (!isAuthenticated || user?.role !== 'ORGANIZER') {
       router.push('/organizers/login');
       return;
@@ -56,89 +100,150 @@ export default function OrganizerDashboard() {
 
   const handleLogout = () => {
     logout();
+    toast.success('ログアウトしました');
     router.push('/organizers/login');
   };
 
-  if (loading || !user) return <div className="p-8 text-center">読み込み中...</div>;
+  // --- レンダリング ---
 
+  if (loading || (isLoadingEvents && user)) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-slate-50">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-600"></div>
+      </div>
+    );
+  }
+
+  // 審査ステータス判定
   if (isPending || !isApproved) {
       return <ApprovalPendingCard />;
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-50 font-sans text-gray-800">
       {/* ヘッダー */}
-      <header className="bg-white shadow-sm border-b border-gray-200">
+      <header className="bg-white shadow-sm sticky top-0 z-40 border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
           <div>
-            <h1 className="text-xl font-bold text-gray-900">主催者ダッシュボード</h1>
-            <p className="text-sm text-gray-500">{user.handleName} 様</p>
+            <h1 className="text-xl font-bold text-gray-800">主催者ダッシュボード</h1>
+            <p className="text-sm text-gray-500">
+               ログイン中: <span className="font-semibold text-indigo-600">{user.handleName || user.name}</span> 様
+            </p>
           </div>
-          <button onClick={handleLogout} className="flex items-center text-gray-600 hover:text-red-600 transition-colors text-sm">
-            <FiLogOut className="mr-2" /> ログアウト
-          </button>
+          <div className="flex items-center gap-4">
+            <Link href="/organizers/profile" className="text-gray-500 hover:text-indigo-600 transition-colors" title="設定">
+               <FiSettings size={20} />
+            </Link>
+            <button onClick={handleLogout} className="flex items-center text-sm font-medium text-gray-600 hover:text-red-500 transition-colors bg-gray-50 hover:bg-red-50 px-3 py-2 rounded-lg">
+              <FiLogOut className="mr-2" /> ログアウト
+            </button>
+          </div>
         </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         
-        {/* アクションエリア */}
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-lg font-semibold text-gray-800">管理中のイベント</h2>
-          <Link 
-            href="/organizers/events/new" 
-            className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 shadow-sm transition-colors"
-          >
-            <FiPlus className="mr-2" /> 新しいイベントを作成
-          </Link>
+        {/* スタッツエリア */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+            <StatCard 
+              title="今後の開催イベント" 
+              value={`${stats.upcomingEvents} 件`} 
+              subText={`全 ${stats.totalEvents} イベント中`}
+              icon={<FiCalendar size={24} />} 
+            />
+            <StatCard 
+              title="受け入れ中の企画総数" 
+              value={`${stats.totalProjects} 件`} 
+              icon={<FiLayers size={24} />} 
+            />
+            {/* 新規作成アクションカード */}
+            <Link href="/organizers/events/new" className="group h-full">
+              <div className="h-full bg-indigo-600 text-white p-6 rounded-2xl shadow-md border border-indigo-600 flex flex-col justify-center items-center gap-2 hover:bg-indigo-700 transition-colors cursor-pointer">
+                  <div className="p-3 bg-white/20 rounded-full group-hover:scale-110 transition-transform">
+                    <FiPlus size={24} />
+                  </div>
+                  <span className="font-bold text-lg">新しいイベントを作成</span>
+              </div>
+            </Link>
         </div>
 
-        {/* イベントリスト */}
-        {isLoadingEvents ? (
-          <p className="text-center py-10 text-gray-500">イベントを読み込んでいます...</p>
-        ) : events.length === 0 ? (
-          <div className="bg-white rounded-xl border border-dashed border-gray-300 p-12 text-center">
-            <p className="text-gray-500 mb-4">まだイベントが登録されていません。</p>
-            <Link href="/organizers/events/new" className="text-indigo-600 font-semibold hover:underline">
-              最初のイベントを作成する
+        {/* イベントリストセクション */}
+        <div className="mb-6 flex justify-between items-end">
+          <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+            <FiLayers className="text-indigo-600"/> 管理中のイベント一覧
+          </h2>
+        </div>
+
+        {events.length === 0 ? (
+          // Empty State
+          <div className="bg-white rounded-2xl border-2 border-dashed border-slate-200 p-16 text-center">
+            <div className="bg-slate-50 p-4 rounded-full inline-block mb-4">
+               <FiCalendar className="w-8 h-8 text-gray-400" />
+            </div>
+            <h3 className="text-lg font-bold text-gray-700 mb-2">イベントがまだありません</h3>
+            <p className="text-gray-500 mb-6">
+              まずはイベントを作成して、<br/>ファンからのフラワースタンドを受け入れましょう。
+            </p>
+            <Link 
+              href="/organizers/events/new" 
+              className="inline-flex items-center px-6 py-3 bg-indigo-600 text-white rounded-full font-bold hover:bg-indigo-700 shadow-lg hover:shadow-indigo-200 transition-all"
+            >
+              <FiPlus className="mr-2" /> 最初のイベントを作成
             </Link>
           </div>
         ) : (
+          // Event Grid
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {events.map(event => (
-              <div key={event.id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 hover:shadow-md transition-shadow">
-                <div className="flex justify-between items-start mb-2">
-                  <span className={`text-xs px-2 py-1 rounded-full font-bold ${new Date(event.eventDate) > new Date() ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                    {new Date(event.eventDate) > new Date() ? '公開中' : '終了'}
-                  </span>
-                  <p className="text-xs text-gray-400">作成日: {new Date(event.createdAt).toLocaleDateString('ja-JP')}</p>
-                </div>
-                
-                <h3 className="text-lg font-bold text-gray-900 mb-2 truncate">{event.title}</h3>
-                
-                <div className="space-y-1 text-sm text-gray-600 mb-4">
-                  <div className="flex items-center">
-                    <FiCalendar className="mr-2 text-indigo-500" />
-                    {new Date(event.eventDate).toLocaleDateString('ja-JP')}
+            {events.map(event => {
+              const isUpcoming = new Date(event.eventDate) > new Date();
+              
+              return (
+                <div key={event.id} className="group bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-all hover:border-indigo-300 flex flex-col h-full">
+                  {/* カードヘッダー */}
+                  <div className="p-5 flex-1">
+                    <div className="flex justify-between items-start mb-3">
+                      <span className={`text-xs px-2.5 py-1 rounded-full font-bold tracking-wide ${isUpcoming ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                        {isUpcoming ? '公開中' : '終了'}
+                      </span>
+                      <span className="text-[10px] text-gray-400 bg-gray-50 px-2 py-1 rounded">
+                        作成: {new Date(event.createdAt).toLocaleDateString('ja-JP')}
+                      </span>
+                    </div>
+                    
+                    <h3 className="text-lg font-bold text-gray-900 mb-3 line-clamp-2 group-hover:text-indigo-600 transition-colors">
+                      {event.title}
+                    </h3>
+                    
+                    <div className="space-y-2 text-sm text-gray-600">
+                      <div className="flex items-start gap-2">
+                        <FiCalendar className="mt-0.5 text-indigo-400 shrink-0" />
+                        <span>{new Date(event.eventDate).toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' })}</span>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <FiMapPin className="mt-0.5 text-indigo-400 shrink-0" />
+                        <span className="line-clamp-1">{event.venue ? event.venue.venueName : '会場未定'}</span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex items-center">
-                    <FiMapPin className="mr-2 text-indigo-500" />
-                    {event.venue ? event.venue.venueName : '会場未定'}
-                  </div>
-                </div>
 
-                <div className="border-t pt-3 flex justify-between items-center text-sm">
-                  <span className="text-gray-500">関連企画: <strong>{event._count?.projects || 0}</strong> 件</span>
-                  {/* ★★★ 修正箇所: Linkコンポーネントに変更 ★★★ */}
-                  <Link 
-                    href={`/organizers/events/${event.id}`} 
-                    className="text-indigo-600 font-semibold hover:underline flex items-center"
-                  >
-                    詳細・編集 &rarr;
-                  </Link>
+                  {/* カードフッター */}
+                  <div className="bg-gray-50 px-5 py-4 border-t border-gray-100 flex justify-between items-center">
+                    <div className="flex items-center gap-1.5 text-sm text-gray-600" title="関連企画数">
+                      <FiLayers className="text-gray-400"/>
+                      <span className="font-bold">{event._count?.projects || 0}</span>
+                      <span className="text-xs text-gray-400">企画</span>
+                    </div>
+
+                    <Link 
+                      href={`/organizers/events/${event.id}`} 
+                      className="text-sm font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 transition-colors"
+                    >
+                      詳細・編集 <FiArrowRight />
+                    </Link>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </main>

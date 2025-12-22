@@ -1,102 +1,129 @@
 "use client";
 import { useState } from 'react';
 import toast from 'react-hot-toast';
-import { FiTool, FiTruck, FiMapPin, FiCheck } from 'react-icons/fi';
+import { FiTool, FiTruck, FiMapPin, FiCheck, FiAlertCircle } from 'react-icons/fi';
 
 export default function FloristDeliveryControl({ projectId, currentStatus, onStatusChange }) {
   const [loading, setLoading] = useState(false);
 
-  // ステータス変更APIを叩く関数
-  const updateStatus = async (newStatus) => {
-    if(!window.confirm(`ステータスを「${newStatus}」に変更しますか？\n（ファン全員に通知が飛びます）`)) return;
+  // ステータス定義
+  const STATUS_STEPS = [
+    { key: 'PROCESSING', label: '制作開始', icon: <FiTool />, message: 'ステータスを「制作中」に更新しますか？' },
+    { key: 'DELIVERING', label: '配送出発', icon: <FiTruck />, message: 'ステータスを「配送中」に更新しますか？' },
+    { key: 'DELIVERED', label: '設置完了', icon: <FiMapPin />, message: 'ステータスを「設置完了」に更新しますか？\n（完了後、必ず「前日写真」をアップロードしてください）' },
+    { key: 'COMPLETED', label: '納品完了', icon: <FiCheck />, message: '全ての工程を完了としますか？' },
+  ];
+
+  // 現在のステータスのインデックスを取得 (未定義の場合は-1)
+  const currentIndex = STATUS_STEPS.findIndex(s => s.key === currentStatus);
+
+  // ステータス変更API
+  const updateStatus = async (newStatus, confirmMessage) => {
+    if(!window.confirm(`${confirmMessage}\n(支援者に通知が送信されます)`)) return;
 
     setLoading(true);
-    const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
-
+    const toastId = toast.loading('ステータスを更新中...');
+    
     try {
+      const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/projects/${projectId}/production-status`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        // API側で floristId を受け取る仕様なら user.id を送る、あるいはトークンから取る
-        body: JSON.stringify({ status: newStatus, floristId: 'ME' }) // floristIdはバックエンドでtokenから取るのが安全
+        body: JSON.stringify({ status: newStatus })
       });
 
       if (!res.ok) throw new Error('更新に失敗しました');
       
-      toast.success('ステータスを更新しました！');
-      if (onStatusChange) onStatusChange(newStatus); // 親コンポーネントの状態も更新
+      toast.success('ステータスを更新しました', { id: toastId });
+      if (onStatusChange) onStatusChange(newStatus);
 
     } catch (error) {
       console.error(error);
-      toast.error('エラーが発生しました');
+      toast.error('エラーが発生しました', { id: toastId });
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="bg-white p-4 rounded-xl border-2 border-indigo-100 shadow-sm mt-6">
-      <h3 className="font-bold text-gray-700 mb-4 flex items-center">
-        <span className="bg-indigo-600 text-white text-xs px-2 py-1 rounded mr-2">花屋さん専用</span>
-        進行ステータス更新
-      </h3>
+    <div className="bg-white rounded-xl border border-indigo-100 shadow-lg overflow-hidden mt-6">
       
-      <div className="grid grid-cols-2 gap-3">
-        <StatusButton 
-          icon={<FiTool />} 
-          label="制作開始" 
-          active={currentStatus === 'PROCESSING'} 
-          onClick={() => updateStatus('PROCESSING')} 
-          disabled={loading}
-        />
-        <StatusButton 
-          icon={<FiTruck />} 
-          label="配送出発" 
-          active={currentStatus === 'DELIVERING'} 
-          onClick={() => updateStatus('DELIVERING')} 
-          disabled={loading}
-        />
-        <StatusButton 
-          icon={<FiMapPin />} 
-          label="設置完了" 
-          active={currentStatus === 'DELIVERED'} 
-          onClick={() => updateStatus('DELIVERED')} 
-          disabled={loading}
-        />
-        <StatusButton 
-          icon={<FiCheck />} 
-          label="企画完了" 
-          active={currentStatus === 'COMPLETED'} 
-          onClick={() => updateStatus('COMPLETED')} 
-          disabled={loading}
-          color="bg-green-600 hover:bg-green-700 text-white"
-        />
+      {/* Header */}
+      <div className="bg-indigo-50 px-4 py-3 border-b border-indigo-100 flex justify-between items-center">
+        <h3 className="font-bold text-indigo-900 text-sm flex items-center gap-2">
+          <span className="bg-indigo-600 text-white text-[10px] px-2 py-0.5 rounded-full tracking-wider">FLORIST ONLY</span>
+          進行管理パネル
+        </h3>
       </div>
-      <p className="text-xs text-gray-400 mt-2 text-center">※ボタンを押すと支援者に通知が送信されます</p>
+      
+      {/* Controls */}
+      <div className="p-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {STATUS_STEPS.map((step, index) => {
+            // 状態判定
+            const isCurrent = currentStatus === step.key;
+            const isPast = currentIndex > index;
+            
+            return (
+              <StatusButton 
+                key={step.key}
+                icon={step.icon}
+                label={step.label}
+                isCurrent={isCurrent}
+                isPast={isPast}
+                onClick={() => updateStatus(step.key, step.message)}
+                disabled={loading}
+              />
+            );
+          })}
+        </div>
+        
+        <div className="mt-4 flex items-start gap-2 bg-gray-50 p-3 rounded text-xs text-gray-500 border border-gray-100">
+            <FiAlertCircle className="shrink-0 mt-0.5 text-indigo-400" />
+            <p>ボタンを押すと支援者に通知が飛びます。実際の作業進捗に合わせてこまめに更新しましょう。</p>
+        </div>
+      </div>
     </div>
   );
 }
 
-// ボタン部品
-function StatusButton({ icon, label, active, onClick, disabled, color }) {
-  const baseClass = "flex flex-col items-center justify-center p-4 rounded-lg transition-all duration-200 border-2";
-  const activeClass = active 
-    ? "bg-indigo-50 border-indigo-500 text-indigo-700 ring-2 ring-indigo-200" 
-    : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50";
+function StatusButton({ icon, label, isCurrent, isPast, onClick, disabled }) {
+  // スタイルロジック
+  let btnClass = "relative flex flex-col items-center justify-center p-3 rounded-lg transition-all duration-200 border-2 h-full ";
   
-  const finalColor = color ? color : activeClass;
+  if (isCurrent) {
+    // 現在のステータス（アクティブ）
+    btnClass += "bg-indigo-600 border-indigo-600 text-white shadow-md scale-[1.02] z-10 ring-2 ring-indigo-200 ring-offset-2";
+  } else if (isPast) {
+    // 過去のステータス（完了済み）
+    btnClass += "bg-indigo-50 border-indigo-200 text-indigo-400 hover:bg-indigo-100 opacity-80";
+  } else {
+    // 未来のステータス（未完了）
+    btnClass += "bg-white border-gray-200 text-gray-500 hover:border-indigo-300 hover:text-indigo-600 hover:bg-indigo-50";
+  }
 
   return (
     <button 
       onClick={onClick} 
       disabled={disabled}
-      className={`${baseClass} ${finalColor} ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+      className={`${btnClass} ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
     >
+      {/* 現在地インジケーター（Pingアニメーション） */}
+      {isCurrent && (
+        <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+          <span className="relative inline-flex rounded-full h-4 w-4 bg-indigo-500 border-2 border-white"></span>
+        </span>
+      )}
+      
       <span className="text-2xl mb-1">{icon}</span>
-      <span className="text-sm font-bold">{label}</span>
+      <span className="text-xs font-bold">{label}</span>
+      
+      {isCurrent && <span className="text-[10px] mt-1 opacity-90 font-normal">現在進行中</span>}
+      {isPast && <span className="text-[10px] mt-1 font-bold text-indigo-300">✓ 完了</span>}
     </button>
   );
 }

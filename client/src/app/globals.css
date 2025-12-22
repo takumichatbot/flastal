@@ -9,30 +9,26 @@
   --seasonal-bg: #ffffff;
 
   /* --- 🎨 推し色カスタム用変数 (HSL定義) --- */
-  /* デフォルトはスカイブルー (Hue: 204) */
-  --primary-h: 204;
-  --primary-s: 89%;
-  --primary-l: 53%;
+  /* OshiColorPicker.js で制御される変数です。
+     Tailwind v4 / Shadcn UI 形式に合わせて "H S L" (スペース区切り) で定義します。
+     例: 204 89% 53%
+  */
+  --primary: 204 89% 53%;
+  --primary-foreground: 210 40% 98%; /* 推し色背景の上の文字色 */
 
-  /* 変数を組み合わせてカラーを生成 */
-  --primary: hsl(var(--primary-h), var(--primary-s), var(--primary-l));
-  /* 薄い色（背景用） */
-  --primary-50: hsl(var(--primary-h), var(--primary-s), 95%);
-  /* 濃い色（ホバー用） */
-  --primary-600: hsl(var(--primary-h), var(--primary-s), 45%);
+  /* 個別の色相（古いコンポーネントとの互換性のため維持） */
+  --primary-h: 204; 
 }
 
 /* --- 🌙 ダークモード定義 --- */
 .dark-mode {
   --background: #0f172a; /* Slate-900 */
   --foreground: #f1f5f9; /* Slate-100 */
-  /* ダークモード時の季節背景は少し暗くするか、無効化する調整が必要ですが、
-     今回は「推し色」が見えやすいようにシンプルなダーク背景にします */
   --seasonal-bg: #0f172a; 
 }
 
 body {
-  background: var(--seasonal-bg); /* 季節 or ダークモード背景 */
+  background: var(--seasonal-bg);
   color: var(--foreground);
   transition: background 0.3s ease, color 0.3s ease;
   min-height: 100vh;
@@ -67,31 +63,42 @@ body.theme-winter:not(.dark-mode) {
 }
 
 /* --- 🎨 推し色適用ユーティリティ --- */
-/* Tailwindのクラスを「推し色変数」で強制的に上書きします */
+/* 新しい --primary 変数 (H S L) を使用して色を生成します。
+   color-mix関数を使うことで、JS側で個別に計算しなくても濃淡を自動生成します。
+*/
 
 .oshi-theme-bg {
-  background-color: var(--primary) !important;
+  /* hsl(H S L) の形式で展開 */
+  background-color: hsl(var(--primary)) !important;
 }
+
+/* ホバー時は少し黒を混ぜて暗くする */
 .oshi-theme-bg:hover {
-  background-color: var(--primary-600) !important;
+  background-color: color-mix(in srgb, hsl(var(--primary)), black 10%) !important;
 }
 
 .oshi-theme-text {
-  color: var(--primary) !important;
+  color: hsl(var(--primary)) !important;
 }
 
 .oshi-theme-border {
-  border-color: var(--primary) !important;
+  border-color: hsl(var(--primary)) !important;
 }
 
+/* 薄い背景色（白を90%混ぜる＝元の色の10%の濃さ） */
 .oshi-theme-bg-light {
-  background-color: var(--primary-50) !important;
-  color: var(--primary-600) !important;
+  background-color: color-mix(in srgb, hsl(var(--primary)), white 90%) !important;
+  color: color-mix(in srgb, hsl(var(--primary)), black 20%) !important; /* 文字は少し暗く */
 }
 
 /* リング（フォーカス枠）の色 */
 .oshi-theme-ring:focus {
-  --tw-ring-color: var(--primary) !important;
+  --tw-ring-color: hsl(var(--primary)) !important;
+}
+
+/* ボタンなどの文字色（コントラスト確保） */
+.oshi-theme-fg {
+  color: hsl(var(--primary-foreground)) !important;
 }
 
 .hero-background {

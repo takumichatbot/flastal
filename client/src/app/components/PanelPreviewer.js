@@ -1,141 +1,229 @@
 "use client";
-import { useState, useRef } from 'react';
-import { FiUpload, FiAlertTriangle, FiCheckCircle, FiImage, FiTrash2 } from 'react-icons/fi';
+import { useState, useRef, useEffect } from 'react';
+import { FiUpload, FiAlertTriangle, FiCheckCircle, FiImage, FiTrash2, FiMaximize, FiRefreshCcw } from 'react-icons/fi';
+import toast from 'react-hot-toast';
+
+// 形状定義
+const SHAPES = [
+  { id: 'rect', label: '長方形 (A3/A4)', icon: '⬜' },
+  { id: 'square', label: '正方形', icon: '⬛' },
+  { id: 'circle', label: '円形', icon: '⚪' },
+  { id: 'heart', label: 'ハート型', icon: '❤️' },
+  { id: 'wood', label: '木札 (立札)', icon: '🟫' },
+];
 
 export default function PanelPreviewer({ onImageSelected }) {
   const [previewUrl, setPreviewUrl] = useState(null);
-  const [qualityStatus, setQualityStatus] = useState(null); // 'good', 'warning', 'bad'
-  const [shape, setShape] = useState('rect'); // rect, heart, circle, wood
+  const [imageMeta, setImageMeta] = useState({ width: 0, height: 0, size: 0 });
+  const [qualityStatus, setQualityStatus] = useState(null); 
+  const [shape, setShape] = useState('rect'); 
+  const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef(null);
 
-  // 画質判定ロジック (A3サイズ印刷を想定: 約3508 x 4961 px が300dpi)
+  // 画質判定ロジック (300dpi基準)
+  // A3サイズ(297×420mm) 300dpi ≒ 3508×4961px
+  // A4サイズ(210×297mm) 300dpi ≒ 2480×3508px
   const checkQuality = (width, height) => {
     const longSide = Math.max(width, height);
-    if (longSide >= 2500) return 'good';     // A4〜A3レベルで綺麗
-    if (longSide >= 1200) return 'warning';  // L判〜A5レベル。A3だと少し粗いかも
-    return 'bad';                            // 印刷には不向き
+    const shortSide = Math.min(width, height);
+
+    if (longSide >= 2500 && shortSide >= 1500) return { status: 'good', msg: '高画質 (A3印刷可能)' };
+    if (longSide >= 1200) return { status: 'warning', msg: '中画質 (A4〜A5推奨)' };
+    return { status: 'bad', msg: '低画質 (粗くなる可能性あり)' };
   };
 
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+  const processFile = (file) => {
+    if (!file.type.startsWith('image/')) {
+        toast.error('画像ファイルを選択してください');
+        return;
+    }
 
-    // 画像読み込みと画質チェック
     const img = new Image();
     const objectUrl = URL.createObjectURL(file);
     
     img.onload = () => {
-      const status = checkQuality(img.width, img.height);
-      setQualityStatus(status);
+      const result = checkQuality(img.width, img.height);
+      setQualityStatus(result);
+      setImageMeta({ width: img.width, height: img.height, size: (file.size / 1024 / 1024).toFixed(2) });
       setPreviewUrl(objectUrl);
-      if (onImageSelected) onImageSelected(file); // 親コンポーネントへ渡す
+      if (onImageSelected) onImageSelected(file); 
     };
     img.src = objectUrl;
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) processFile(file);
+  };
+
+  // ドラッグ＆ドロップ処理
+  const handleDragOver = (e) => { e.preventDefault(); setIsDragging(true); };
+  const handleDragLeave = () => setIsDragging(false);
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files[0];
+    if (file) processFile(file);
   };
 
   const clearImage = () => {
     setPreviewUrl(null);
     setQualityStatus(null);
+    setShape('rect');
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  // 形状ごとのマスクスタイル (CSS clip-path)
-  const getClipPath = () => {
-    switch(shape) {
-      case 'heart': return 'path("M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z")';
-      case 'circle': return 'circle(50% at 50% 50%)';
-      case 'wood': return 'polygon(10% 0, 90% 0, 90% 10%, 100% 10%, 100% 90%, 90% 90%, 90% 100%, 10% 100%, 10% 90%, 0 90%, 0 10%, 10% 10%)'; // 簡易的な木札風
-      default: return 'none'; // rect
-    }
-  };
-
   return (
-    <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-      <h3 className="font-bold text-gray-800 mb-4 flex items-center">
-        <FiImage className="mr-2 text-pink-500"/> パネル・シミュレーター
-      </h3>
+    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+      
+      {/* ヘッダー */}
+      <div className="bg-gray-50 px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+        <h3 className="font-bold text-gray-800 flex items-center">
+          <FiImage className="mr-2 text-indigo-500"/> パネル・シミュレーター
+        </h3>
+        {previewUrl && (
+            <span className={`text-xs font-bold px-2 py-1 rounded-full border ${
+                qualityStatus.status === 'good' ? 'bg-green-50 text-green-700 border-green-200' :
+                qualityStatus.status === 'warning' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' :
+                'bg-red-50 text-red-700 border-red-200'
+            }`}>
+                {qualityStatus.msg}
+            </span>
+        )}
+      </div>
 
-      {!previewUrl ? (
-        <div 
-          onClick={() => fileInputRef.current.click()}
-          className="border-2 border-dashed border-gray-300 rounded-xl h-64 flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50 transition-colors group"
-        >
-          <FiUpload className="text-4xl text-gray-300 group-hover:text-pink-400 mb-2 transition-colors"/>
-          <p className="text-gray-500 font-bold">画像をアップロード</p>
-          <p className="text-xs text-gray-400 mt-1">印刷画質の自動チェックを行います</p>
-          <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
-        </div>
-      ) : (
-        <div className="flex flex-col md:flex-row gap-6">
-          {/* プレビューエリア */}
-          <div className="flex-1 bg-gray-100 rounded-xl p-4 flex items-center justify-center relative min-h-[300px]">
-            {/* 背景のグリッド（透過確認用） */}
-            <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/grid-me.png')]"></div>
+      <div className="p-6">
+        {!previewUrl ? (
+          /* アップロードエリア */
+          <div 
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            onClick={() => fileInputRef.current.click()}
+            className={`border-2 border-dashed rounded-xl h-64 flex flex-col items-center justify-center cursor-pointer transition-all duration-300 group ${
+                isDragging ? 'border-indigo-500 bg-indigo-50 scale-[1.02]' : 'border-gray-300 hover:border-indigo-400 hover:bg-gray-50'
+            }`}
+          >
+            <div className={`p-4 rounded-full mb-3 transition-colors ${isDragging ? 'bg-indigo-200 text-indigo-600' : 'bg-gray-100 text-gray-400 group-hover:bg-indigo-100 group-hover:text-indigo-500'}`}>
+                <FiUpload className="text-3xl"/>
+            </div>
+            <p className="text-gray-600 font-bold text-lg">画像をドロップ または 選択</p>
+            <p className="text-xs text-gray-400 mt-2">対応形式: JPG, PNG (推奨: 長辺2500px以上)</p>
+            <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
+          </div>
+        ) : (
+          <div className="flex flex-col lg:flex-row gap-8">
             
-            <div 
-              className="relative w-full max-w-[250px] aspect-[1/1.4] transition-all duration-500 shadow-xl bg-white overflow-hidden"
-              style={{ 
-                clipPath: shape === 'heart' ? 'none' : getClipPath(), // SVG pathのclip-pathはscale調整が難しいため、簡易実装では heartは別途対応するか、mask-imageを使うのがベター。今回は簡易的に四角以外でCSS適用
-                borderRadius: shape === 'circle' ? '50%' : shape === 'rect' ? '4px' : '0'
-              }}
-            >
-               {/* ハート型の場合はSVGマスクを使うなどの工夫が必要だが、ここでは簡易的にCSSで対応 */}
-               <img src={previewUrl} className="w-full h-full object-cover" />
-               
-               {/* 木札の場合の枠線 */}
-               {shape === 'wood' && (
-                 <div className="absolute inset-0 border-[8px] border-amber-700 pointer-events-none opacity-80"></div>
-               )}
+            {/* プレビュー表示エリア */}
+            <div className="flex-1 bg-slate-100 rounded-xl p-8 flex items-center justify-center relative min-h-[400px] shadow-inner overflow-hidden">
+                {/* 背景: スタンドの雰囲気を出すためのぼかし背景 */}
+                <div 
+                    className="absolute inset-0 bg-cover bg-center opacity-30 blur-xl scale-110"
+                    style={{ backgroundImage: `url(${previewUrl})` }}
+                ></div>
+                <div className="absolute inset-0 bg-white/40 backdrop-blur-sm"></div>
+
+                {/* --- パネル本体 --- */}
+                <div 
+                    className={`relative shadow-2xl transition-all duration-500 z-10 ${
+                        shape === 'wood' ? 'bg-[#eecfa1]' : 'bg-white'
+                    }`}
+                    style={{
+                        width: shape === 'square' || shape === 'circle' || shape === 'heart' ? '300px' : '280px',
+                        height: shape === 'square' || shape === 'circle' || shape === 'heart' ? '300px' : '400px',
+                        // 形状の切り抜き
+                        borderRadius: shape === 'circle' ? '50%' : shape === 'rect' ? '4px' : '0',
+                        maskImage: shape === 'heart' 
+                            ? "url(\"data:image/svg+xml;utf8,<svg viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'><path d='M50 88.9L16.7 55.6C7.2 46.1 7.2 30.9 16.7 21.4 26.2 11.9 41.4 11.9 50.9 21.4L50 22.3 49.1 21.4C58.6 11.9 73.8 11.9 83.3 21.4 92.8 30.9 92.8 46.1 83.3 55.6L50 88.9z'/></svg>\")"
+                            : 'none',
+                        WebkitMaskImage: shape === 'heart' 
+                            ? "url(\"data:image/svg+xml;utf8,<svg viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'><path d='M50 88.9L16.7 55.6C7.2 46.1 7.2 30.9 16.7 21.4 26.2 11.9 41.4 11.9 50.9 21.4L50 22.3 49.1 21.4C58.6 11.9 73.8 11.9 83.3 21.4 92.8 30.9 92.8 46.1 83.3 55.6L50 88.9z'/></svg>\")"
+                            : 'none',
+                        maskSize: 'contain',
+                        maskRepeat: 'no-repeat',
+                        maskPosition: 'center',
+                    }}
+                >
+                    {/* 木札モードの場合のテクスチャオーバーレイ */}
+                    {shape === 'wood' && (
+                         <div className="absolute inset-0 opacity-40 mix-blend-multiply pointer-events-none"
+                              style={{ backgroundImage: `repeating-linear-gradient(90deg, #d2b48c 0px, #deb887 2px, #d2b48c 4px)` }}
+                         >
+                            <div className="absolute inset-0 border-[6px] border-[#8b4513] opacity-80"></div>
+                            {/* 木札の文字入力エリア（簡易） */}
+                            <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-white/80 px-2 py-0.5 text-[10px] font-serif border border-black">
+                                御祝
+                            </div>
+                         </div>
+                    )}
+
+                    {/* 画像本体 */}
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img 
+                        src={previewUrl} 
+                        className={`w-full h-full object-cover ${shape === 'wood' ? 'mix-blend-multiply opacity-90 p-6' : ''}`} 
+                        alt="Preview"
+                    />
+                </div>
             </div>
 
-            {/* 画質判定バッジ */}
-            <div className="absolute top-4 right-4">
-              {qualityStatus === 'good' && (
-                <span className="bg-green-500 text-white px-3 py-1 rounded-full text-xs font-bold shadow flex items-center gap-1">
-                  <FiCheckCircle /> 画質OK (高解像度)
-                </span>
-              )}
-              {qualityStatus === 'warning' && (
-                <span className="bg-yellow-500 text-white px-3 py-1 rounded-full text-xs font-bold shadow flex items-center gap-1">
-                  <FiAlertTriangle /> 画質注意 (A3だと粗いかも)
-                </span>
-              )}
-              {qualityStatus === 'bad' && (
-                <span className="bg-red-500 text-white px-3 py-1 rounded-full text-xs font-bold shadow flex items-center gap-1 animate-pulse">
-                  <FiAlertTriangle /> 画質不足 (印刷に不向き)
-                </span>
-              )}
+            {/* コントロールパネル */}
+            <div className="w-full lg:w-64 space-y-6">
+                
+                {/* 形状選択 */}
+                <div>
+                    <label className="text-xs font-bold text-gray-500 mb-3 block uppercase tracking-wider">Shape Selection</label>
+                    <div className="grid grid-cols-2 gap-2">
+                        {SHAPES.map((s) => (
+                            <button 
+                                key={s.id}
+                                onClick={() => setShape(s.id)}
+                                className={`flex items-center gap-2 p-2 rounded-lg text-sm font-bold border transition-all ${
+                                    shape === s.id 
+                                    ? 'bg-indigo-50 border-indigo-500 text-indigo-700 shadow-sm' 
+                                    : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                                }`}
+                            >
+                                <span className="text-lg">{s.icon}</span>
+                                {s.label}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                {/* 画像情報 */}
+                <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
+                    <p className="text-xs font-bold text-gray-500 mb-2 uppercase">File Info</p>
+                    <div className="space-y-1 text-sm text-gray-700 font-mono">
+                        <div className="flex justify-between">
+                            <span>Resolution:</span>
+                            <span className="font-bold">{imageMeta.width} x {imageMeta.height} px</span>
+                        </div>
+                        <div className="flex justify-between">
+                            <span>File Size:</span>
+                            <span>{imageMeta.size} MB</span>
+                        </div>
+                    </div>
+                    
+                    {/* アラート */}
+                    {qualityStatus.status !== 'good' && (
+                        <div className="mt-3 text-xs bg-yellow-100 text-yellow-800 p-2 rounded border border-yellow-200 flex items-start gap-1">
+                            <FiAlertTriangle className="shrink-0 mt-0.5"/>
+                            <span>解像度が低いため、印刷時にぼやける可能性があります。より大きな画像の使用を推奨します。</span>
+                        </div>
+                    )}
+                </div>
+
+                <button 
+                    onClick={clearImage} 
+                    className="w-full py-3 border border-red-200 text-red-500 bg-white rounded-xl text-sm font-bold hover:bg-red-50 hover:border-red-300 transition-colors flex items-center justify-center gap-2"
+                >
+                    <FiTrash2 /> 画像を削除してリセット
+                </button>
             </div>
           </div>
-
-          {/* 操作パネル */}
-          <div className="w-full md:w-48 space-y-6">
-            <div>
-              <label className="text-xs font-bold text-gray-500 mb-2 block">パネルの形状</label>
-              <div className="grid grid-cols-2 gap-2">
-                <button onClick={()=>setShape('rect')} className={`p-2 border rounded text-xs font-bold ${shape==='rect' ? 'bg-pink-50 border-pink-500 text-pink-700' : 'hover:bg-gray-50'}`}>⬜ 長方形</button>
-                <button onClick={()=>setShape('circle')} className={`p-2 border rounded text-xs font-bold ${shape==='circle' ? 'bg-pink-50 border-pink-500 text-pink-700' : 'hover:bg-gray-50'}`}>⚪ 丸型</button>
-                <button onClick={()=>setShape('wood')} className={`p-2 border rounded text-xs font-bold ${shape==='wood' ? 'bg-amber-50 border-amber-500 text-amber-700' : 'hover:bg-gray-50'}`}>🟫 木札風</button>
-                {/* ハートはCSS実装が複雑なため今回はボタンのみ（実装上は四角になる） */}
-                <button onClick={()=>setShape('rect')} className="p-2 border rounded text-xs font-bold text-gray-400 cursor-not-allowed" title="実装中">❤️ ハート</button>
-              </div>
-            </div>
-
-            <div>
-              <p className="text-xs font-bold text-gray-500 mb-2">判定結果</p>
-              <p className="text-sm text-gray-700">
-                {qualityStatus === 'good' ? 'バッチリです！綺麗に印刷できます。' : 
-                 qualityStatus === 'warning' ? '少し解像度が低いです。A4サイズ程度なら大丈夫ですが、大きく印刷すると粗くなる可能性があります。' :
-                 '解像度が低すぎます。元の大きな画像データを探してください。'}
-              </p>
-            </div>
-
-            <button onClick={clearImage} className="w-full py-2 border border-red-200 text-red-500 rounded-lg text-sm font-bold hover:bg-red-50 flex items-center justify-center gap-2">
-              <FiTrash2 /> 画像を選び直す
-            </button>
-          </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

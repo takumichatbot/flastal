@@ -2,13 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { FiBell } from 'react-icons/fi';
+import { FiBell, FiLoader, FiCheck } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 const PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
 
-// Base64文字列をUint8Arrayに変換する関数
+// Base64文字列をUint8Arrayに変換するヘルパー関数
 function urlBase64ToUint8Array(base64String) {
   const padding = '='.repeat((4 - base64String.length % 4) % 4);
   const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
@@ -20,43 +20,58 @@ function urlBase64ToUint8Array(base64String) {
   return outputArray;
 }
 
-// 💡 注意: このコンポーネントは、FloatingMenuに組み込まれるため、
-// 💡 固定配置 (fixed) のスタイルを削除し、ボタンそのものだけを返すように修正します。
 export default function PushNotificationManager() {
   const { user } = useAuth();
   const [isSupported, setIsSupported] = useState(false);
   const [isSubscribed, setIsSubscribed] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false); // 完了演出用
 
   useEffect(() => {
-    if ('serviceWorker' in navigator && 'PushManager' in window) {
+    // ブラウザが Service Worker と Push API に対応しているかチェック
+    if (typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window) {
       setIsSupported(true);
       checkSubscription();
     }
   }, []);
 
   const checkSubscription = async () => {
-    const registration = await navigator.serviceWorker.ready;
-    const subscription = await registration.pushManager.getSubscription();
-    setIsSubscribed(!!subscription);
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      const subscription = await registration.pushManager.getSubscription();
+      if (subscription) {
+        setIsSubscribed(true);
+      }
+    } catch (e) {
+      console.error('Subscription check failed', e);
+    }
   };
 
   const subscribeToPush = async () => {
-    // ボタンが表示されていないはずですが、念のためのチェック
     if (!user) return toast.error('ログインが必要です');
     if (!PUBLIC_KEY) return console.error('VAPID Public Keyが設定されていません');
 
+    setLoading(true);
+    const toastId = toast.loading('通知を設定中...');
+
     try {
       const registration = await navigator.serviceWorker.ready;
-      
-      // ブラウザに通知許可を求める
+
+      // 1. 通知の権限をリクエスト
+      const permission = await Notification.requestPermission();
+      if (permission === 'denied') {
+        throw new Error('通知がブロックされています。ブラウザの設定から許可してください。');
+      }
+
+      // 2. プッシュ通知の購読 (ブラウザ)
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(PUBLIC_KEY)
       });
 
-      // サーバーに登録
+      // 3. サーバーへ購読情報を送信
       const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
-      await fetch(`${API_URL}/api/push/subscribe`, {
+      const res = await fetch(`${API_URL}/api/push/subscribe`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -65,31 +80,65 @@ export default function PushNotificationManager() {
         body: JSON.stringify({ subscription })
       });
 
-      setIsSubscribed(true);
-      toast.success('プッシュ通知をオンにしました！');
-      
-      // テスト送信
-      fetch(`${API_URL}/api/push/test`, {
+      if (!res.ok) throw new Error('サーバーへの登録に失敗しました');
+
+      // 4. テスト通知をトリガー (オプション)
+      await fetch(`${API_URL}/api/push/test`, {
          method: 'POST', 
          headers: { 'Authorization': `Bearer ${token}` }
       });
 
+      toast.success('通知をオンにしました！', { id: toastId });
+      
+      // 成功演出を入れてから非表示にする
+      setSuccess(true);
+      setTimeout(() => {
+        setIsSubscribed(true);
+      }, 2000); // 2秒後にボタンを消す
+
     } catch (error) {
       console.error(error);
-      toast.error('通知の登録に失敗しました。ブラウザの設定を確認してください。');
+      toast.error(error.message || '通知の登録に失敗しました', { id: toastId });
+    } finally {
+      setLoading(false);
     }
   };
 
-  // 💡 修正箇所: ログインしていない、または対応していないか、既に登録済みなら非表示
-  if (!user || !isSupported || isSubscribed) return null; 
+  // 表示条件: 
+  // 1. ログインしている
+  // 2. ブラウザが対応している
+  // 3. まだ購読していない (または成功演出中)
+  if (!user || !isSupported || (isSubscribed && !success)) return null;
 
-  // 💡 修正箇所: 外側の div と fixed スタイルを削除し、ボタンのみを返す
+  // 成功時の表示
+  if (success) {
+    return (
+      <div className="flex items-center gap-2 px-5 py-3 bg-green-500 text-white font-bold rounded-full shadow-lg animate-pulse">
+        <FiCheck /> 設定完了！
+      </div>
+    );
+  }
+
+  // 通常時のボタン
   return (
     <button
       onClick={subscribeToPush}
-      className="flex items-center gap-2 px-4 py-3 bg-indigo-600 text-white font-bold rounded-full shadow-lg hover:bg-indigo-700 transition-colors"
+      disabled={loading}
+      className={`
+        group flex items-center gap-2 px-5 py-3 rounded-full text-white font-bold shadow-lg transition-all duration-300
+        ${loading ? 'bg-indigo-400 cursor-wait' : 'bg-indigo-600 hover:bg-indigo-700 hover:scale-105'}
+      `}
     >
-      <FiBell /> 通知を受け取る
+      {loading ? (
+        <>
+          <FiLoader className="animate-spin" /> 設定中...
+        </>
+      ) : (
+        <>
+          <FiBell className="group-hover:rotate-12 transition-transform" /> 
+          <span className="whitespace-nowrap">通知を受け取る</span>
+        </>
+      )}
     </button>
   );
 }

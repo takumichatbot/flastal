@@ -1,132 +1,137 @@
-// src/app/contexts/AuthContext.js
-
 'use client';
 
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { jwtDecode } from 'jwt-decode';
 import { useRouter, usePathname } from 'next/navigation';
+import toast from 'react-hot-toast';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
 const AuthContext = createContext({
   user: null,
-  isAuthenticated: false,
-  isApproved: true,
-  isPending: false,
-  isProfessional: false,
   token: null,
-  loading: true,
-  login: () => {},
+  isAuthenticated: false,
+  isLoading: true,
+  // 権限・ステータスフラグ
+  isAdmin: false,
+  isProfessional: false, // 花屋・会場・主催者など
+  isApproved: false,     // 審査承認済みか
+  isPending: false,      // 審査待ちか
+  // アクション
+  login: async () => {},
   logout: () => {},
-  register: () => {},
+  register: async () => {},
+  updateUser: () => {}, // ユーザー情報の部分更新用
 });
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
   const pathname = usePathname();
 
-  // ★ 修正1: 依存関係ループを防ぐため useCallback でラップ
-  // ★ 修正2: この関数内では router.push (リダイレクト) をしない
-  const setupUser = useCallback((newToken) => {
-    if (!newToken) return false;
-
-    // 文字列の "null" や "undefined" をクリーニング
-    let rawToken = newToken.replace(/^"|"$/g, '');
-
-    // トークンが無効な値の場合
-    if (!rawToken || rawToken === 'null' || rawToken === 'undefined') {
-      // ここではリダイレクトせず、ストレージを掃除してfalseを返すだけにする
-      localStorage.removeItem('authToken');
-      setToken(null);
-      setUser(null);
-      return false;
-    }
-
+  // --- ヘルパー: トークンからユーザー情報を抽出 ---
+  const parseUserFromToken = useCallback((rawToken) => {
+    if (!rawToken || rawToken === 'null' || rawToken === 'undefined') return null;
+    
     try {
-      const decoded = jwtDecode(rawToken);
-      
-      // 有効期限切れチェック (decoded.exp は秒単位)
-      const currentTime = Date.now() / 1000;
-      if (decoded.exp < currentTime) {
-        console.warn("Token expired");
-        localStorage.removeItem('authToken');
-        setToken(null);
-        setUser(null);
-        return false;
+      // 余計なクォートを除去
+      const cleanToken = rawToken.replace(/^"|"$/g, '');
+      const decoded = jwtDecode(cleanToken);
+
+      // 有効期限チェック (expは秒単位)
+      if (decoded.exp * 1000 < Date.now()) {
+        console.warn("[Auth] Token expired");
+        return null;
       }
 
+      // 表示名の決定ロジック
       let displayName = decoded.handleName;
-      if (decoded.role === 'FLORIST') displayName = decoded.shopName;
-      if (decoded.role === 'VENUE') displayName = decoded.venueName;
+      if (decoded.role === 'FLORIST') displayName = decoded.shopName || decoded.handleName;
+      if (decoded.role === 'VENUE') displayName = decoded.venueName || decoded.handleName;
+      if (decoded.role === 'ORGANIZER') displayName = decoded.name || decoded.handleName;
 
-      setUser({ 
+      return {
         id: decoded.id,
         email: decoded.email,
         role: decoded.role,
         handleName: displayName,
         iconUrl: decoded.iconUrl,
-        referralCode: decoded.referralCode,
         shopName: decoded.shopName,
         venueName: decoded.venueName,
-        status: decoded.status,
-        sub: decoded.sub 
-      });
-      
-      setToken(rawToken);
-      localStorage.setItem('authToken', rawToken);
-      return true;
-
+        status: decoded.status, // PENDING, APPROVED, REJECTED
+        sub: decoded.sub,
+        // トークン自体もユーザーオブジェクトに含めておく（便利機能）
+        _token: cleanToken 
+      };
     } catch (error) {
-      console.error("Failed to decode token:", error);
-      // デコード失敗時もリダイレクトせず、ログアウト状態にするだけ
-      localStorage.removeItem('authToken');
-      setToken(null);
-      setUser(null);
-      return false;
+      console.error("[Auth] Token decode failed:", error);
+      return null;
     }
   }, []);
 
-  // ★ 修正3: 初期化ロジック
+  // --- メイン: ユーザー設定処理 ---
+  const setSession = useCallback((newToken) => {
+    const userData = parseUserFromToken(newToken);
+
+    if (userData) {
+      setUser(userData);
+      setToken(userData._token);
+      localStorage.setItem('authToken', userData._token);
+      return true;
+    } else {
+      // 無効なトークンならクリア
+      setUser(null);
+      setToken(null);
+      localStorage.removeItem('authToken');
+      return false;
+    }
+  }, [parseUserFromToken]);
+
+  // --- 初期化ロジック ---
   useEffect(() => {
     const initAuth = () => {
-      try {
-        const storedToken = localStorage.getItem('authToken');
-        if (storedToken) {
-          setupUser(storedToken);
-        }
-      } catch (error) {
-        console.error("Auth init failed:", error);
-      } finally {
-        // ★ ここが最も重要：何があっても必ず loading を false にする
-        setLoading(false);
+      const storedToken = localStorage.getItem('authToken');
+      if (storedToken) {
+        setSession(storedToken);
       }
+      setIsLoading(false);
     };
-
     initAuth();
-  }, [setupUser]);
+  }, [setSession]);
 
-  const login = async (newToken, userData = null) => {
-    const success = setupUser(newToken);
-    if (success && userData) {
-      // 必要ならuserDataのマージ処理
+  // --- アクション: ログイン ---
+  const login = async (newToken) => {
+    const success = setSession(newToken);
+    if (success) {
+      // ログイン成功時のトーストなどは呼び出し元で行うか、ここで出す
+      // toast.success('ログインしました'); 
     }
+    return success;
   };
 
-  // 手動ログアウト時はリダイレクトしても良い
+  // --- アクション: ログアウト (Smart Redirect) ---
   const logout = useCallback(() => {
+    const currentRole = user?.role;
+    
+    // ステートクリア
     setUser(null);
     setToken(null);
     localStorage.removeItem('authToken');
-    localStorage.removeItem('flastal-florist');
-    
-    // 現在のページが認証が必要なページならリダイレクト、そうでなければトップへ
-    // ここでは安全のため一律ログイン画面、またはトップページへ
-    router.push('/florists/login'); 
-  }, [router]);
-  
+    localStorage.removeItem('flastal-florist'); // 旧仕様のゴミ掃除
+
+    // ロールに基づいたリダイレクト先決定
+    let redirectPath = '/login';
+    if (currentRole === 'FLORIST') redirectPath = '/florists/login';
+    else if (currentRole === 'VENUE') redirectPath = '/venues/login'; // 仮
+    else if (currentRole === 'ADMIN') redirectPath = '/admin/login'; // 仮
+
+    toast.success('ログアウトしました');
+    router.push(redirectPath);
+  }, [user, router]);
+
+  // --- アクション: 新規登録 ---
   const register = async (email, password, handleName) => {
     const response = await fetch(`${API_URL}/api/users/register`, {
       method: 'POST',
@@ -141,25 +146,38 @@ export function AuthProvider({ children }) {
     return response.json();
   };
 
-  const isProfessional = user && ['FLORIST', 'VENUE', 'ORGANIZER'].includes(user.role);
-  const isApproved = isProfessional ? user.status === 'APPROVED' : true; 
-  const isPending = isProfessional ? user.status === 'PENDING' : false;
+  // --- アクション: ユーザー情報の部分更新 ---
+  // (マイページでアイコン変更などをした際に、再ログインなしで反映させる)
+  const updateUser = useCallback((newUserData) => {
+    setUser(prev => ({ ...prev, ...newUserData }));
+  }, []);
 
-  const authInfo = { 
-    user, 
-    token, 
-    login, 
-    logout, 
-    register, 
-    isAuthenticated: !!user, 
-    loading,
-    isProfessional, 
-    isApproved, 
-    isPending,
-  };
+  // --- 計算プロパティ (Computed Properties) ---
+  const contextValue = useMemo(() => {
+    const isProfessional = user && ['FLORIST', 'VENUE', 'ORGANIZER'].includes(user.role);
+    
+    return {
+      user,
+      token,
+      isAuthenticated: !!user,
+      isLoading,
+      
+      // 権限フラグ
+      isAdmin: user?.role === 'ADMIN',
+      isProfessional,
+      isApproved: isProfessional ? user.status === 'APPROVED' : true, // 一般ユーザーは常に承認済み扱い
+      isPending: isProfessional ? user.status === 'PENDING' : false,
+      
+      // メソッド
+      login,
+      logout,
+      register,
+      updateUser
+    };
+  }, [user, token, isLoading, login, logout, register, updateUser]);
 
   return (
-    <AuthContext.Provider value={authInfo}>
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );

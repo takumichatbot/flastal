@@ -1,35 +1,144 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '../../contexts/AuthContext'; // ★ ../../
+import { 
+  FiSearch, FiEye, FiCheckCircle, FiXCircle, FiClock, 
+  FiCalendar, FiTarget, FiUser, FiImage, FiX, FiFileText 
+} from 'react-icons/fi';
+import { useAuth } from '../../contexts/AuthContext';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
+// --- 詳細確認モーダル ---
+function ProjectDetailModal({ project, onClose, onAction, isProcessing }) {
+  if (!project) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+        {/* Header */}
+        <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+          <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+            <span className="bg-sky-100 text-sky-700 px-2 py-1 rounded text-xs uppercase">Project</span>
+            企画審査詳細
+          </h3>
+          <button onClick={onClose} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
+            <FiX size={24} className="text-gray-500" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="p-6 overflow-y-auto flex-1 space-y-6">
+          
+          {/* タイトル & 基本情報 */}
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">{project.title}</h2>
+            <div className="flex flex-wrap gap-4 text-sm text-gray-600">
+               <span className="flex items-center gap-1"><FiUser/> 企画者: {project.planner?.handleName || '不明'}</span>
+               <span className="flex items-center gap-1"><FiClock/> 申請日: {new Date(project.createdAt).toLocaleDateString()}</span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* 左カラム: 数値・日程系 */}
+            <div className="space-y-4">
+              <div className="bg-sky-50 p-4 rounded-xl border border-sky-100">
+                <label className="text-xs font-bold text-sky-600 uppercase flex items-center gap-1 mb-1"><FiTarget/> 目標金額</label>
+                <p className="text-2xl font-extrabold text-gray-800">{Number(project.targetAmount).toLocaleString()} <span className="text-sm font-medium">pt</span></p>
+              </div>
+              
+              <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
+                <div className="mb-3">
+                    <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-1 mb-1"><FiCalendar/> イベント開催日</label>
+                    <p className="font-bold text-gray-800">{project.eventDate ? new Date(project.eventDate).toLocaleDateString() : '未定'}</p>
+                </div>
+                <div>
+                    <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-1 mb-1"><FiClock/> 募集終了日</label>
+                    <p className="font-bold text-gray-800">{project.deadline ? new Date(project.deadline).toLocaleDateString() : '未定'}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* 右カラム: 画像 */}
+            <div className="border border-gray-200 rounded-xl overflow-hidden bg-gray-100 flex items-center justify-center min-h-[200px]">
+              {project.imageUrl ? (
+                <img 
+
+[Image of project illustration]
+ src={project.imageUrl} alt="Project" className="w-full h-full object-cover" />
+              ) : (
+                <div className="text-gray-400 flex flex-col items-center">
+                  <FiImage size={40} />
+                  <span className="text-sm mt-2">画像なし</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* 説明文 */}
+          <div>
+            <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-1 mb-2"><FiFileText/> 企画説明・詳細</label>
+            <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 text-sm text-gray-700 leading-relaxed whitespace-pre-wrap max-h-60 overflow-y-auto">
+              {project.description || '説明文がありません。'}
+            </div>
+          </div>
+
+        </div>
+
+        {/* Footer Actions */}
+        <div className="p-6 border-t border-gray-100 bg-gray-50 flex gap-4">
+          <button
+            onClick={() => onAction(project.id, 'REJECTED')}
+            disabled={isProcessing}
+            className="flex-1 bg-white border border-red-200 text-red-600 font-bold py-3 rounded-xl hover:bg-red-50 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+          >
+            <FiXCircle /> 却下する
+          </button>
+          <button
+            onClick={() => onAction(project.id, 'FUNDRAISING')}
+            disabled={isProcessing}
+            className="flex-[2] bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold py-3 rounded-xl hover:shadow-lg hover:scale-[1.01] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+          >
+            <FiCheckCircle /> 承認 (募集開始)
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// --- メインページ ---
 export default function AdminProjectApprovalsPage() {
-  const [projects, setProjects] = useState([]); // ★ projects に変更
+  const [projects, setProjects] = useState([]);
   const [loadingData, setLoadingData] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedProject, setSelectedProject] = useState(null); // モーダル用
+  const [isProcessing, setIsProcessing] = useState(false);
+
   const router = useRouter();
-  
   const { user, isAuthenticated, loading, logout } = useAuth();
 
-  // ★ 審査待ちプロジェクトを取得する関数
+  // データ取得
   const fetchPendingProjects = async () => {
     setLoadingData(true);
     try {
       const token = localStorage.getItem('authToken');
+      if (!token) return;
+
       const res = await fetch(`${API_URL}/api/admin/projects/pending`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.status === 401) throw new Error('管理者権限がありません。');
-      if (!res.ok) throw new Error('審査待ち企画リストの取得に失敗しました。');
+      if (!res.ok) throw new Error('リストの取得に失敗しました。');
+      
       const data = await res.json();
-      setProjects(Array.isArray(data) ? data : []); // ★ setProjects に変更
+      setProjects(Array.isArray(data) ? data : []);
     } catch (error) {
       toast.error(error.message);
-      setProjects([]); // ★ setProjects に変更
+      setProjects([]);
     } finally {
       setLoadingData(false);
     }
@@ -47,132 +156,192 @@ export default function AdminProjectApprovalsPage() {
       router.push('/mypage');
       return;
     }
-    
-    fetchPendingProjects(); // ★ 実行する関数を変更
-    
+    fetchPendingProjects();
   }, [isAuthenticated, user, router, loading]);
 
-  // ★ プロジェクトのステータスを更新する関数
+  // ステータス更新
   const handleUpdateStatus = async (projectId, status) => {
-    // ★ API (index.js 478行目) に合わせて、承認は 'FUNDRAISING'
-    const actionText = status === 'FUNDRAISING' ? '承認' : '拒否';
+    // 確認ダイアログはモーダル側でボタンを押した時点で意思確認とみなすが、念のため
+    const actionText = status === 'FUNDRAISING' ? '承認（募集開始）' : '却下';
     if (!window.confirm(`この企画を「${actionText}」しますか？`)) return;
 
-    const token = localStorage.getItem('authToken'); // ★追加
+    setIsProcessing(true);
+    const toastId = toast.loading('処理中...');
+    const token = localStorage.getItem('authToken');
 
-    const promise = fetch(`${API_URL}/api/admin/projects/${projectId}/status`, {
-      method: 'PATCH',
-      headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}` // ★追加
-      },
-      body: JSON.stringify({ status }),
-    }).then(async res => {
-      if (res.status === 401) throw new Error('管理者権限がありません。');
+    try {
+      const res = await fetch(`${API_URL}/api/admin/projects/${projectId}/status`, {
+        method: 'PATCH',
+        headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ status }),
+      });
+
       if (!res.ok) {
-         let errorMsg = `処理に失敗しました`;
-         try {
-             const errData = await res.json();
-             errorMsg = errData.message || errorMsg;
-         } catch(e) { /* ignore */ }
-         throw new Error(errorMsg);
+         const errData = await res.json();
+         throw new Error(errData.message || '処理に失敗しました');
       }
-      return res.json();
-    });
 
-    toast.promise(promise, {
-      loading: '処理中...',
-      success: () => {
-        setProjects(prev => prev.filter(p => p.id !== projectId)); // ★ setProjects
-        return `企画を「${actionText}」しました。`;
-      },
-      error: (err) => err.message,
-    });
+      toast.success(`企画を${status === 'FUNDRAISING' ? '承認' : '却下'}しました`, { id: toastId });
+      setProjects(prev => prev.filter(p => p.id !== projectId));
+      setSelectedProject(null); // モーダル閉じる
+
+    } catch (error) {
+      toast.error(error.message, { id: toastId });
+    } finally {
+      setIsProcessing(false);
+    }
   };
+
+  // 検索フィルタリング
+  const filteredProjects = useMemo(() => {
+    if (!searchTerm) return projects;
+    const lowerTerm = searchTerm.toLowerCase();
+    return projects.filter(p => 
+      (p.title && p.title.toLowerCase().includes(lowerTerm)) ||
+      (p.planner?.handleName && p.planner.handleName.toLowerCase().includes(lowerTerm))
+    );
+  }, [projects, searchTerm]);
 
   if (loading || !isAuthenticated || !user || user.role !== 'ADMIN') {
     return (
-      <div className="flex justify-center items-center min-h-screen bg-gray-100">
-        <p className="text-gray-700">管理者権限を確認中...</p>
+      <div className="flex justify-center items-center min-h-screen bg-gray-50">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-sky-500"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 p-4 sm:p-8">
-      <div className="max-w-4xl mx-auto">
+    <div className="min-h-screen bg-gray-50 p-4 sm:p-8 font-sans text-gray-800">
+      <div className="max-w-6xl mx-auto">
         
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold text-gray-900">プロジェクト 登録審査</h1>
-          <button onClick={() => {
-              logout(); 
-              router.push('/login'); 
-            }} className="text-sm font-medium text-gray-600 hover:text-red-500 transition-colors">
-              ログアウト
-          </button>
+        {/* ヘッダー */}
+        <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
+          <div>
+            <h1 className="text-2xl font-extrabold text-gray-900 flex items-center gap-2">
+              <FiCheckCircle className="text-sky-500"/> プロジェクト登録審査
+            </h1>
+            <p className="text-sm text-gray-500 mt-1">申請された企画内容を確認し、募集開始の承認を行います。</p>
+          </div>
+          
+          <div className="flex items-center gap-4">
+             <span className="text-sm font-bold bg-white px-3 py-1 rounded-full border border-gray-200 shadow-sm">
+               管理者: {user.name || user.email}
+             </span>
+             <button onClick={() => { logout(); router.push('/login'); }} className="text-xs font-bold text-gray-500 hover:text-red-600 underline">
+               ログアウト
+             </button>
+          </div>
         </div>
 
-        {/* ★ ナビゲーション (このページをアクティブに) */}
-        <nav className="mb-6 flex gap-3 sm:gap-4 flex-wrap">
-          <Link 
-            href="/admin" 
-            className="px-4 py-2 text-sm font-semibold text-slate-700 bg-slate-200 rounded-lg hover:bg-slate-300 transition-colors"
-          >
-            ダッシュボード (収益)
-          </Link>
-          <Link 
-            href="/admin/payouts" 
-            className="px-4 py-2 text-sm font-semibold text-slate-700 bg-slate-200 rounded-lg hover:bg-slate-300 transition-colors"
-          >
-            出金管理
-          </Link>
-          <Link 
-            href="/admin/moderation"
-            className="px-4 py-2 text-sm font-semibold text-slate-700 bg-slate-200 rounded-lg hover:bg-slate-300 transition-colors"
-          >
-            チャット監視
-          </Link>
-          <Link 
-            href="/admin/florist-approval"
-            className="px-4 py-2 text-sm font-semibold text-slate-700 bg-slate-200 rounded-lg hover:bg-slate-300 transition-colors"
-          >
-            お花屋さん審査
-          </Link>
-          <Link 
-            href="/admin/project-approval"
-            className="px-4 py-2 text-sm font-semibold text-white bg-sky-500 rounded-lg shadow-sm hover:bg-sky-600 transition-colors"
-          >
-            プロジェクト審査
-          </Link>
-        </nav>
+        {/* ナビゲーション */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-1 mb-8 inline-flex flex-wrap gap-1">
+          {[
+            { name: 'ダッシュボード', path: '/admin' },
+            { name: '出金管理', path: '/admin/payouts' },
+            { name: 'チャット監視', path: '/admin/moderation' },
+            { name: '花屋審査', path: '/admin/florist-approval' },
+            { name: '企画審査', path: '/admin/project-approval', active: true },
+          ].map((nav) => (
+            <Link 
+              key={nav.path}
+              href={nav.path}
+              className={`
+                px-4 py-2 text-sm font-bold rounded-lg transition-all
+                ${nav.active 
+                  ? 'bg-sky-500 text-white shadow-md' 
+                  : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'}
+              `}
+            >
+              {nav.name}
+            </Link>
+          ))}
+        </div>
 
-        {/* ★ 表示コンテンツを projects に変更 */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-            {loadingData ? (
-              <p className="text-gray-500 text-center">読み込み中...</p>
-            ) : projects.length === 0 ? (
-              <p className="text-gray-500 text-center">現在、審査待ちの企画はありません。</p>
-            ) : (
-            <div className="space-y-4">
-                {projects.map(project => ( // ★ projects.map
-                project && project.id ? (
-                    <div key={project.id} className="border rounded-lg p-4 bg-gray-50">
-                        <p className="text-xs text-gray-400">申請日時: {new Date(project.createdAt).toLocaleString('ja-JP')}</p>
-                        <p><strong>企画タイトル:</strong> {project.title}</p>
-                        <p><strong>企画者:</strong> {project.planner?.handleName || '不明'}</p>
-                        <p><strong>目標金額:</strong> {project.targetAmount.toLocaleString()} pt</p>
-                        <div className="mt-4 flex gap-4">
-                        {/* ★ APIに合わせて status を 'FUNDRAISING' に */}
-                        <button onClick={() => handleUpdateStatus(project.id, 'FUNDRAISING')} className="px-4 py-2 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600">承認する</button>
-                        <button onClick={() => handleUpdateStatus(project.id, 'REJECTED')} className="px-4 py-2 bg-red-500 text-white font-semibold rounded-lg hover:bg-red-600">拒否する</button>
-                        </div>
-                    </div>
-                 ) : null
-                ))}
+        {/* メインエリア */}
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
+            
+            {/* コントロールバー */}
+            <div className="p-6 border-b border-gray-100 flex flex-col sm:flex-row justify-between items-center gap-4 bg-gray-50/50">
+              <h2 className="font-bold text-lg flex items-center gap-2">
+                審査待ちリスト 
+                <span className="bg-sky-100 text-sky-600 text-xs px-2 py-0.5 rounded-full">{filteredProjects.length}件</span>
+              </h2>
+              <div className="relative w-full sm:w-64">
+                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input 
+                  type="text" 
+                  placeholder="企画名や企画者で検索..." 
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/50 transition-all"
+                />
+              </div>
             </div>
-            )}
+
+            {/* リスト表示 */}
+            <div className="p-6">
+                {loadingData ? (
+                  <div className="flex justify-center py-10 text-gray-400">読み込み中...</div>
+                ) : filteredProjects.length === 0 ? (
+                   <div className="text-center py-20 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                     <FiCheckCircle className="mx-auto text-4xl text-gray-300 mb-3" />
+                     <p className="text-gray-500 font-medium">現在、審査待ちの企画はありません。</p>
+                   </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {filteredProjects.map(project => (
+                      <div key={project.id} className="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md transition-all flex flex-col justify-between group h-full">
+                        <div>
+                            <div className="flex justify-between items-start mb-3">
+                                <span className="bg-yellow-100 text-yellow-800 text-[10px] font-bold px-2 py-1 rounded flex items-center gap-1">
+                                    <FiClock /> 申請中
+                                </span>
+                                <span className="text-[10px] text-gray-400">
+                                    {new Date(project.createdAt).toLocaleDateString()}
+                                </span>
+                            </div>
+                            
+                            {/* サムネイル (あれば) */}
+                            {project.imageUrl && (
+                                <div className="w-full h-32 mb-3 rounded-lg overflow-hidden bg-gray-100">
+                                    <img  src={project.imageUrl} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                                </div>
+                            )}
+
+                            <h3 className="font-bold text-lg text-gray-900 mb-2 line-clamp-2 leading-tight">
+                                {project.title}
+                            </h3>
+                            
+                            <div className="space-y-1 mb-4 text-xs text-gray-500">
+                                <p className="flex items-center gap-1"><FiUser className="shrink-0"/> {project.planner?.handleName}</p>
+                                <p className="flex items-center gap-1"><FiTarget className="shrink-0"/> 目標: {Number(project.targetAmount).toLocaleString()} pt</p>
+                            </div>
+                        </div>
+
+                        <button 
+                            onClick={() => setSelectedProject(project)}
+                            className="w-full py-2.5 px-4 bg-gray-900 text-white text-sm font-bold rounded-lg hover:bg-gray-800 transition-colors flex items-center justify-center gap-2 group-hover:bg-sky-600"
+                        >
+                            <FiEye /> 内容を確認して審査
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+            </div>
         </div>
       </div>
+
+      {/* 詳細モーダル */}
+      <ProjectDetailModal 
+        project={selectedProject} 
+        onClose={() => setSelectedProject(null)} 
+        onAction={handleUpdateStatus}
+        isProcessing={isProcessing}
+      />
     </div>
   );
 }

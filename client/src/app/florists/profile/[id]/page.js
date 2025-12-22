@@ -1,353 +1,469 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
+import { useAuth } from '@/context/AuthContext';
+import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
-import { useAuth } from '@/app/contexts/AuthContext';
+import { 
+  FiSave, FiCamera, FiArrowLeft, FiZap, FiCheck, FiMapPin, 
+  FiPhone, FiGlobe, FiUser, FiImage, FiTrash2, FiLoader 
+} from 'react-icons/fi';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
-export default function EditFloristProfilePage() {
-  const { user, token, login, loading: authLoading } = useAuth();
+const STYLE_TAGS = [
+  'かわいい/キュート', 'クール/かっこいい', 'おしゃれ/モダン', '和風/和モダン',
+  'ゴージャス/豪華', 'パステルカラー', 'ビビッドカラー', 'ニュアンスカラー',
+  'バルーン装飾', 'ペーパーフラワー', '布・リボン装飾', 'キャラクター/モチーフ',
+  '大型/連結', '卓上/楽屋花', 'リーズナブル'
+];
+
+const getAuthToken = () => {
+  if (typeof window === 'undefined') return null;
+  const rawToken = localStorage.getItem('authToken');
+  return rawToken ? rawToken.replace(/^"|"$/g, '') : null;
+};
+
+export default function FloristProfileEditPage() {
+  const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   
-  const [formData, setFormData] = useState({
-    shopName: '',
-    platformName: '',
-    contactName: '',
-    address: '',
-    phoneNumber: '',
-    website: '',
-    portfolio: '',
-    laruBotApiKey: '', 
-    portfolioImages: [], 
-    businessHours: '',
-    iconUrl: '', 
-  });
+  // React Hook Form
+  const { 
+    register, 
+    handleSubmit, 
+    setValue, 
+    watch, 
+    formState: { errors, isSubmitting } 
+  } = useForm();
   
-  const [loading, setLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isUploading, setIsUploading] = useState(false); 
+  // Local State
+  const [loadingData, setLoadingData] = useState(true);
+  const [selectedTags, setSelectedTags] = useState([]);
+  const [portfolioImages, setPortfolioImages] = useState([]);
+  const [iconUrl, setIconUrl] = useState(''); // アイコン画像用ステート追加
+  
+  // Upload State
+  const [isPortfolioUploading, setIsPortfolioUploading] = useState(false);
   const [isIconUploading, setIsIconUploading] = useState(false);
   
-  const portfolioFileInputRef = useRef(null);
-  const iconFileInputRef = useRef(null);
+  // Refs
+  const iconInputRef = useRef(null);
 
-  // 1. データの初期読み込み
+  // データ取得
   useEffect(() => {
     if (authLoading) return;
-
     if (!user || user.role !== 'FLORIST') {
-      toast.error("お花屋さんとしてログインしてください");
       router.push('/florists/login');
       return;
     }
 
-    const fetchFloristData = async () => {
+    const fetchProfile = async () => {
       try {
-        // IDを指定せず、トークンを使って自分の情報を取得
+        const token = getAuthToken();
         const res = await fetch(`${API_URL}/api/florists/dashboard`, {
-            headers: { 'Authorization': `Bearer ${token}` }
+          headers: { 'Authorization': `Bearer ${token}` }
         });
-        
-        if (!res.ok) throw new Error('プロフィール情報の読み込みに失敗しました');
-        
-        const data = await res.json();
-        const floristData = data.florist;
-        
-        setFormData({
-          shopName: floristData.shopName || '',
-          platformName: floristData.platformName || '',
-          contactName: floristData.contactName || '',
-          address: floristData.address || '',
-          phoneNumber: floristData.phoneNumber || '',
-          website: floristData.website || '',
-          portfolio: floristData.portfolio || '',
-          laruBotApiKey: floristData.laruBotApiKey || '', 
-          portfolioImages: floristData.portfolioImages || [], 
-          businessHours: floristData.businessHours || '',
-          iconUrl: floristData.iconUrl || '',
-        });
-
+        if (res.ok) {
+          const data = await res.json();
+          const f = data.florist;
+          
+          // フォーム初期値設定
+          setValue('shopName', f.shopName);
+          setValue('platformName', f.platformName);
+          setValue('contactName', f.contactName);
+          setValue('address', f.address || '');
+          setValue('phoneNumber', f.phoneNumber || '');
+          setValue('website', f.website || '');
+          setValue('portfolio', f.portfolio || '');
+          setValue('acceptsRushOrders', f.acceptsRushOrders || false);
+          
+          // ステート初期値設定
+          setSelectedTags(f.specialties || []);
+          setPortfolioImages(f.portfolioImages || []);
+          setIconUrl(f.iconUrl || '');
+        }
       } catch (error) {
         console.error(error);
-        toast.error(error.message);
+        toast.error('プロフィールの読み込みに失敗しました');
       } finally {
-        setLoading(false);
+        setLoadingData(false);
       }
     };
+    fetchProfile();
+  }, [user, authLoading, router, setValue]);
 
-    if (token) {
-        fetchFloristData();
+  // タグ切り替え
+  const toggleTag = (tag) => {
+    if (selectedTags.includes(tag)) {
+      setSelectedTags(prev => prev.filter(t => t !== tag));
+    } else {
+      setSelectedTags(prev => [...prev, tag]);
     }
-  }, [user, token, authLoading, router]);
+  };
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prevState => ({ ...prevState, [name]: value }));
+  // 汎用アップロード関数
+  const uploadFile = async (file) => {
+    const token = getAuthToken();
+    const formData = new FormData();
+    formData.append('image', file);
+    
+    const res = await fetch(`${API_URL}/api/upload`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` },
+      body: formData
+    });
+    
+    if (!res.ok) throw new Error('Upload failed');
+    return await res.json();
   };
 
   // アイコン画像アップロード
-  const handleIconUpload = async (event) => {
-    const file = event.target.files[0];
+  const handleIconUpload = async (e) => {
+    const file = e.target.files[0];
     if (!file) return;
 
     setIsIconUploading(true);
-    const toastId = toast.loading('アイコンをアップロード中...');
-    
-    const uploadFormData = new FormData();
-    uploadFormData.append('image', file);
-    
+    const toastId = toast.loading('アイコンを更新中...');
     try {
-        const res = await fetch(`${API_URL}/api/upload`, { 
-            method: 'POST', 
-            headers: { 'Authorization': `Bearer ${token}` }, // ★トークン必須
-            body: uploadFormData 
-        });
-        
-        if (!res.ok) throw new Error('アップロードに失敗');
-        const data = await res.json();
-        
-        setFormData(prev => ({ ...prev, iconUrl: data.url }));
-        toast.success('アイコンをアップロードしました！', { id: toastId });
-
+      const data = await uploadFile(file);
+      setIconUrl(data.url);
+      toast.success('アイコンを変更しました', { id: toastId });
     } catch (error) {
-        toast.error('アップロードに失敗しました。', { id: toastId });
+      toast.error('アップロードに失敗しました', { id: toastId });
     } finally {
-        setIsIconUploading(false);
-        if(iconFileInputRef.current) iconFileInputRef.current.value = '';
+      setIsIconUploading(false);
+      if(iconInputRef.current) iconInputRef.current.value = '';
     }
   };
 
   // ポートフォリオ画像アップロード
-  const handlePortfolioImageUpload = async (event) => {
-    const files = event.target.files;
-    if (!files || files.length === 0) return;
+  const handlePortfolioUpload = async (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
     
-    if (formData.portfolioImages.length + files.length > 3) {
-      return toast.error('写真は3枚までアップロードできます。');
+    // 枚数制限チェック (例: 最大6枚)
+    if (portfolioImages.length + files.length > 6) {
+        return toast.error('ポートフォリオ画像は最大6枚までです');
     }
     
-    setIsUploading(true);
-    const toastId = toast.loading(`画像をアップロード中...`);
-    
-    const uploadedUrls = [];
-    for (const file of files) {
-        const uploadFormData = new FormData();
-        uploadFormData.append('image', file);
-        try {
-            const res = await fetch(`${API_URL}/api/upload`, { 
-                method: 'POST', 
-                headers: { 'Authorization': `Bearer ${token}` }, // ★トークン必須
-                body: uploadFormData 
-            });
-            if (!res.ok) throw new Error('アップロードに失敗');
-            const data = await res.json();
-            uploadedUrls.push(data.url);
-        } catch (error) {
-            toast.error('アップロードに失敗しました。', { id: toastId });
-            setIsUploading(false);
-            return;
-        }
-    }
-    
-    setFormData(prev => ({ ...prev, portfolioImages: [...prev.portfolioImages, ...uploadedUrls] }));
-    toast.success('アップロード完了！', { id: toastId });
-    setIsUploading(false);
-    if(portfolioFileInputRef.current) portfolioFileInputRef.current.value = '';
-  };
-  
-  const handleRemovePortfolioImage = (index) => {
-      setFormData(prev => ({
-          ...prev,
-          portfolioImages: prev.portfolioImages.filter((_, i) => i !== index)
-      }));
-  };
-
-  // フォーム送信
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setIsSubmitting(true);
+    setIsPortfolioUploading(true);
+    const toastId = toast.loading(`${files.length}枚の画像をアップロード中...`);
 
     try {
-        const res = await fetch(`${API_URL}/api/florists/profile`, { // ★自分自身を更新するエンドポイント
-            method: 'PATCH',
-            headers: { 
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}` // ★トークン必須
-            },
-            body: JSON.stringify(formData), 
-        });
-
-        if (!res.ok) {
-            const errorData = await res.json();
-            throw new Error(errorData.message || '更新に失敗しました。');
-        }
-        
-        const updatedFlorist = await res.json();
-
-        // AuthContext内の情報を更新 (roleを付与して保存)
-        await login(token, { ...updatedFlorist, role: 'FLORIST' });
-
-        toast.success('プロフィールが更新されました！');
-        
-        // 少し待ってからダッシュボードへ戻る
-        setTimeout(() => {
-            router.push('/florists/dashboard');
-        }, 1000);
-
-    } catch (err) {
-        toast.error(err.message);
+      const uploadedUrls = [];
+      for (const file of files) {
+        const data = await uploadFile(file);
+        uploadedUrls.push(data.url);
+      }
+      setPortfolioImages(prev => [...prev, ...uploadedUrls]);
+      toast.success('画像を追加しました', { id: toastId });
+    } catch (error) {
+      toast.error('アップロードに失敗しました', { id: toastId });
     } finally {
-        setIsSubmitting(false);
+      setIsPortfolioUploading(false);
+      e.target.value = '';
     }
   };
 
-  if (loading) {
-    return (
-        <div className="flex items-center justify-center min-h-screen bg-slate-50">
+  // 更新送信
+  const onSubmit = async (data) => {
+    const token = getAuthToken();
+    try {
+      const res = await fetch(`${API_URL}/api/florists/profile`, {
+        method: 'PATCH',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          ...data,
+          iconUrl: iconUrl, // アイコンも送信
+          specialties: selectedTags,
+          portfolioImages: portfolioImages
+        }),
+      });
+
+      if (!res.ok) throw new Error('更新に失敗しました');
+      
+      toast.success('プロフィールを更新しました！');
+      router.push('/florists/dashboard');
+    } catch (error) {
+      toast.error(error.message);
+    }
+  };
+
+  if (authLoading || loadingData) {
+      return (
+        <div className="flex items-center justify-center min-h-screen bg-gray-50">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-pink-500"></div>
         </div>
-    );
+      );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-3xl mx-auto bg-white rounded-xl shadow-lg p-8">
-        <h2 className="text-3xl font-bold text-center text-slate-800 mb-8">プロフィール編集</h2>
+    <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 font-sans text-gray-800">
+      <div className="max-w-4xl mx-auto">
         
-        <form onSubmit={handleSubmit} className="space-y-8">
-
-          {/* アイコン画像 */}
-          <div>
-            <label className="block text-sm font-bold text-slate-700 mb-2">プロフィールアイコン</label>
-            <div className="flex items-center gap-6">
-              <div className="relative w-24 h-24 rounded-full overflow-hidden bg-slate-100 border border-slate-200">
-                {formData.iconUrl ? (
-                  <Image src={formData.iconUrl} alt="Icon" fill className="object-cover" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-slate-400">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4m0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4"/></svg>
-                  </div>
-                )}
-              </div>
-              <button 
-                type="button" 
-                onClick={() => iconFileInputRef.current.click()} 
-                disabled={isIconUploading} 
-                className="px-4 py-2 text-sm font-medium text-sky-700 bg-sky-50 rounded-lg hover:bg-sky-100 border border-sky-200 transition-colors"
-              >
-                {isIconUploading ? 'アップロード中...' : '画像を変更'}
-              </button>
-              <input type="file" accept="image/*" ref={iconFileInputRef} onChange={handleIconUpload} className="hidden" />
+        {/* ヘッダーエリア */}
+        <div className="flex items-center justify-between mb-6 sticky top-0 z-20 bg-gray-50/90 backdrop-blur-sm py-4">
+            <div className="flex items-center gap-4">
+                <Link href="/florists/dashboard" className="p-2 bg-white rounded-full text-gray-500 hover:text-pink-600 shadow-sm border border-gray-200 transition-colors">
+                    <FiArrowLeft size={20}/>
+                </Link>
+                <h1 className="text-2xl font-bold text-gray-800">プロフィール編集</h1>
             </div>
-          </div>
+            {/* PC用保存ボタン */}
+            <button 
+                onClick={handleSubmit(onSubmit)}
+                disabled={isSubmitting || isIconUploading || isPortfolioUploading}
+                className="hidden sm:flex items-center px-6 py-2.5 bg-pink-600 text-white font-bold rounded-full hover:bg-pink-700 shadow-lg shadow-pink-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+                {isSubmitting ? <FiLoader className="animate-spin mr-2"/> : <FiSave className="mr-2"/>}
+                変更を保存
+            </button>
+        </div>
 
-          {/* テキスト入力フィールド群 */}
-          <div className="grid grid-cols-1 gap-6">
-            <div>
-                <label htmlFor="shopName" className="block text-sm font-bold text-slate-700 mb-1">店舗名 (正式名称・非公開)</label>
-                <input type="text" name="shopName" id="shopName" required value={formData.shopName} onChange={handleChange} className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent outline-none transition" />
-            </div>
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 pb-20">
             
-            <div>
-                <label htmlFor="platformName" className="block text-sm font-bold text-slate-700 mb-1">活動名 (ユーザーに公開される名前)</label>
-                <input type="text" name="platformName" id="platformName" required value={formData.platformName} onChange={handleChange} className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent outline-none transition" />
-            </div>
-
-            <div>
-                <label htmlFor="contactName" className="block text-sm font-bold text-slate-700 mb-1">担当者名 (非公開)</label>
-                <input type="text" name="contactName" id="contactName" required value={formData.contactName} onChange={handleChange} className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent outline-none transition" />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                    <label htmlFor="phoneNumber" className="block text-sm font-bold text-slate-700 mb-1">電話番号</label>
-                    <input type="tel" name="phoneNumber" id="phoneNumber" value={formData.phoneNumber} onChange={handleChange} className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent outline-none transition" />
+            {/* 1. 基本情報 & アイコン */}
+            <section className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                <div className="bg-gray-50 px-6 py-3 border-b border-gray-100">
+                    <h2 className="font-bold text-gray-700 flex items-center gap-2">
+                        <FiUser className="text-pink-500"/> 基本情報
+                    </h2>
                 </div>
-                <div>
-                    <label htmlFor="website" className="block text-sm font-bold text-slate-700 mb-1">Webサイト URL</label>
-                    <input type="url" name="website" id="website" value={formData.website} onChange={handleChange} className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent outline-none transition" placeholder="https://..." />
-                </div>
-            </div>
-
-            <div>
-                <label htmlFor="address" className="block text-sm font-bold text-slate-700 mb-1">住所</label>
-                <input type="text" name="address" id="address" value={formData.address} onChange={handleChange} className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent outline-none transition" />
-            </div>
-
-            <div>
-                <label htmlFor="businessHours" className="block text-sm font-bold text-slate-700 mb-1">営業時間・定休日</label>
-                <textarea name="businessHours" id="businessHours" rows="2" value={formData.businessHours} onChange={handleChange} className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent outline-none transition" placeholder="例：10:00〜19:00 (火曜定休)"></textarea>
-            </div>
-
-            <div>
-                <label htmlFor="portfolio" className="block text-sm font-bold text-slate-700 mb-1">自己紹介・得意なスタイル</label>
-                <textarea name="portfolio" id="portfolio" rows="5" value={formData.portfolio} onChange={handleChange} className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent outline-none transition" placeholder="これまでの実績や、得意なアレンジについて記入してください。"></textarea>
-            </div>
-          </div>
-
-          {/* ポートフォリオ画像 */}
-          <div className="border-t border-slate-200 pt-6">
-            <label className="block text-sm font-bold text-slate-700 mb-2">ポートフォリオ写真 (最大3枚)</label>
-            <div className="p-6 border-2 border-dashed border-slate-300 rounded-xl bg-slate-50">
-                <div className="flex flex-wrap gap-4">
-                    {formData.portfolioImages.map((url, index) => (
-                        <div key={index} className="relative w-32 h-32 group">
-                            <Image src={url} alt={`Portfolio ${index + 1}`} fill className="object-cover rounded-lg shadow-sm" />
-                            <button 
-                                type="button" 
-                                onClick={() => handleRemovePortfolioImage(index)} 
-                                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center shadow-md hover:bg-red-600 transition-colors"
+                <div className="p-6 md:p-8">
+                    <div className="flex flex-col md:flex-row gap-8 items-start">
+                        {/* アイコンアップロード */}
+                        <div className="flex flex-col items-center gap-3 mx-auto md:mx-0">
+                            <div 
+                                className="relative w-32 h-32 rounded-full border-4 border-gray-100 shadow-md bg-gray-200 overflow-hidden cursor-pointer group"
+                                onClick={() => iconInputRef.current.click()}
                             >
-                                &times;
+                                {iconUrl ? (
+                                    <Image src={iconUrl} alt="Icon" fill className="object-cover" />
+                                ) : (
+                                    <div className="w-full h-full flex items-center justify-center text-gray-400">
+                                        <FiUser size={48} />
+                                    </div>
+                                )}
+                                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <FiCamera className="text-white text-2xl"/>
+                                </div>
+                            </div>
+                            <input type="file" ref={iconInputRef} accept="image/*" onChange={handleIconUpload} className="hidden" />
+                            <button type="button" onClick={() => iconInputRef.current.click()} className="text-sm font-bold text-pink-600 hover:underline">
+                                {isIconUploading ? '更新中...' : 'アイコンを変更'}
                             </button>
                         </div>
-                    ))}
-                    {formData.portfolioImages.length < 3 && (
-                        <button 
-                            type="button" 
-                            onClick={() => portfolioFileInputRef.current.click()} 
-                            disabled={isUploading} 
-                            className="w-32 h-32 flex flex-col items-center justify-center bg-white border border-slate-300 rounded-lg text-slate-400 hover:bg-slate-50 hover:text-pink-500 hover:border-pink-300 transition-all"
-                        >
-                            <span className="text-2xl mb-1">+</span>
-                            <span className="text-xs font-bold">{isUploading ? '...' : '写真を追加'}</span>
-                        </button>
-                    )}
+
+                        {/* テキスト入力 */}
+                        <div className="flex-1 w-full grid grid-cols-1 gap-6">
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 mb-1">
+                                    活動名 (ユーザーに公開) <span className="text-red-500">*</span>
+                                </label>
+                                <input 
+                                    type="text" 
+                                    {...register('platformName', { required: '活動名は必須です' })} 
+                                    className={`w-full p-3 bg-gray-50 border rounded-xl focus:bg-white focus:border-pink-500 focus:ring-2 focus:ring-pink-100 outline-none transition-all ${errors.platformName ? 'border-red-500' : 'border-gray-200'}`}
+                                    placeholder="例: フラワーショップ FLOWER"
+                                />
+                                {errors.platformName && <p className="text-red-500 text-xs mt-1">{errors.platformName.message}</p>}
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 mb-1">
+                                    店舗名 (正式名称・非公開)
+                                </label>
+                                <input 
+                                    type="text" 
+                                    {...register('shopName')} 
+                                    className="w-full p-3 bg-gray-100 border border-gray-200 rounded-xl text-gray-600 cursor-not-allowed" 
+                                    readOnly 
+                                    title="変更する場合は運営にお問い合わせください"
+                                />
+                                <p className="text-xs text-gray-400 mt-1">※ 正式名称の変更は運営への申請が必要です</p>
+                            </div>
+
+                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-1">担当者名</label>
+                                    <input type="text" {...register('contactName')} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-pink-500 outline-none transition-all" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-1"><FiPhone className="inline mr-1"/> 電話番号</label>
+                                    <input type="tel" {...register('phoneNumber')} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-pink-500 outline-none transition-all" />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <input type="file" multiple accept="image/*" ref={portfolioFileInputRef} onChange={handlePortfolioImageUpload} className="hidden" />
-            </div>
-          </div>
+            </section>
 
-          {/* LARUbot API Key */}
-          <div className="bg-sky-50 p-6 rounded-xl border border-sky-100">
-            <h3 className="text-lg font-bold text-slate-800 mb-2">AIチャット連携 (任意)</h3>
-            <p className="text-sm text-slate-600 mb-4">
-              LARUbotと連携すると、ファンからの問い合わせにAIが自動応答します。
-              <a href="https://larubot.tokyo" target="_blank" rel="noopener noreferrer" className="text-sky-600 hover:underline font-bold ml-1">公式サイト</a>でAPIキーを取得してください。
-            </p>
-            <label htmlFor="laruBotApiKey" className="block text-sm font-bold text-slate-700 mb-1">LARUbot API Key</label>
-            <input type="password" name="laruBotApiKey" id="laruBotApiKey" value={formData.laruBotApiKey} onChange={handleChange} className="w-full p-3 border border-sky-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-transparent outline-none transition bg-white" placeholder="sk-..." />
-          </div>
+            {/* 2. 店舗詳細情報 */}
+            <section className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                <div className="bg-gray-50 px-6 py-3 border-b border-gray-100">
+                    <h2 className="font-bold text-gray-700 flex items-center gap-2">
+                        <FiMapPin className="text-pink-500"/> 店舗詳細・Web
+                    </h2>
+                </div>
+                <div className="p-6 md:p-8 space-y-6">
+                    <div>
+                       <label className="block text-sm font-bold text-gray-700 mb-1">住所</label>
+                       <input type="text" {...register('address')} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-pink-500 outline-none transition-all" placeholder="〒000-0000 東京都..." />
+                    </div>
+                    <div>
+                       <label className="block text-sm font-bold text-gray-700 mb-1"><FiGlobe className="inline mr-1"/> ウェブサイト / SNS</label>
+                       <input type="url" {...register('website')} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-pink-500 outline-none transition-all" placeholder="https://instagram.com/..." />
+                    </div>
+                </div>
+            </section>
 
-          {/* ボタンエリア */}
-          <div className="flex flex-col sm:flex-row gap-4 pt-4 border-t border-slate-200">
-             <Link href="/florists/dashboard" className="flex-1 text-center py-3 font-bold text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors">
-                キャンセルして戻る
-            </Link>
-            <button 
-                type="submit" 
-                disabled={isSubmitting || isUploading || isIconUploading} 
-                className="flex-1 py-3 font-bold text-white bg-pink-500 rounded-lg hover:bg-pink-600 transition-colors disabled:bg-slate-300 disabled:cursor-not-allowed shadow-md"
-            >
-              {isSubmitting ? '保存中...' : '変更を保存する'}
-            </button>
-          </div>
+            {/* 3. お急ぎ便設定 (Feature Toggle) */}
+            <section className="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-2xl border border-yellow-200 p-6 relative overflow-hidden">
+                <div className="relative z-10 flex items-start gap-4">
+                    <div className="p-3 bg-yellow-400 text-white rounded-full shadow-md shrink-0">
+                        <FiZap size={24}/>
+                    </div>
+                    <div className="flex-1">
+                        <h3 className="text-lg font-bold text-gray-800">お急ぎ便 (Rush Order) 対応</h3>
+                        <p className="text-sm text-gray-600 mb-4">
+                            直前の依頼も受け付けますか？ <br/>
+                            <span className="font-bold">オン</span>にすると、お急ぎのユーザーの検索結果で上位に表示されやすくなります。
+                        </p>
+                        
+                        <label className="inline-flex items-center cursor-pointer group">
+                            <input 
+                                type="checkbox" 
+                                {...register('acceptsRushOrders')} 
+                                className="sr-only peer"
+                            />
+                            <div className="relative w-14 h-7 bg-gray-300 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-yellow-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:start-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-yellow-400 shadow-inner"></div>
+                            <span className="ms-3 text-sm font-bold text-gray-600 group-hover:text-gray-800 transition-colors">
+                                対応を受け付ける
+                            </span>
+                        </label>
+                    </div>
+                </div>
+                <FiZap className="absolute -bottom-4 -right-4 text-9xl text-yellow-400 opacity-10 rotate-12 pointer-events-none" />
+            </section>
+
+            {/* 4. スタイルタグ */}
+            <section className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                <div className="bg-gray-50 px-6 py-3 border-b border-gray-100">
+                    <h2 className="font-bold text-gray-700 flex items-center gap-2">
+                        <FiCheck className="text-pink-500"/> 得意なスタイル・特徴
+                    </h2>
+                </div>
+                <div className="p-6 md:p-8">
+                    <p className="text-sm text-gray-500 mb-4">
+                        あなたの作風や強みを選択してください（複数選択可）。検索時のフィルターに使用されます。
+                    </p>
+                    <div className="flex flex-wrap gap-3">
+                        {STYLE_TAGS.map(tag => {
+                             const isSelected = selectedTags.includes(tag);
+                             return (
+                                <button
+                                    key={tag}
+                                    type="button"
+                                    onClick={() => toggleTag(tag)}
+                                    className={`px-4 py-2 rounded-full text-sm font-bold transition-all transform active:scale-95 border ${
+                                    isSelected 
+                                        ? 'bg-pink-500 text-white border-pink-500 shadow-md ring-2 ring-pink-200' 
+                                        : 'bg-white text-gray-600 border-gray-200 hover:border-pink-300 hover:text-pink-500 hover:bg-pink-50'
+                                    }`}
+                                >
+                                    {tag}
+                                </button>
+                             );
+                        })}
+                    </div>
+                </div>
+            </section>
+
+            {/* 5. ポートフォリオ & 自己紹介 */}
+            <section className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                <div className="bg-gray-50 px-6 py-3 border-b border-gray-100">
+                    <h2 className="font-bold text-gray-700 flex items-center gap-2">
+                        <FiImage className="text-pink-500"/> ポートフォリオ & 自己紹介
+                    </h2>
+                </div>
+                <div className="p-6 md:p-8 space-y-8">
+                    
+                    {/* 画像グリッド */}
+                    <div>
+                        <div className="flex justify-between items-end mb-2">
+                            <label className="block text-sm font-bold text-gray-700">制作実績写真 (最大6枚)</label>
+                            <span className="text-xs text-gray-400">{portfolioImages.length} / 6 枚</span>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                            {portfolioImages.map((url, i) => (
+                                <div key={i} className="relative group aspect-square rounded-xl overflow-hidden border border-gray-200 shadow-sm">
+                                    <Image src={url} alt="Portfolio" fill className="object-cover" />
+                                    {/* 削除オーバーレイ */}
+                                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                        <button
+                                            type="button"
+                                            onClick={() => setPortfolioImages(prev => prev.filter((_, idx) => idx !== i))}
+                                            className="bg-red-500 text-white p-2 rounded-full hover:bg-red-600 transition-colors"
+                                            title="削除"
+                                        >
+                                            <FiTrash2 size={20} />
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                            
+                            {/* 追加ボタン */}
+                            {portfolioImages.length < 6 && (
+                                <label className={`aspect-square flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:bg-gray-50 hover:border-pink-300 hover:text-pink-500 transition-all ${isPortfolioUploading ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                                    {isPortfolioUploading ? (
+                                        <FiLoader className="w-8 h-8 animate-spin text-pink-500"/>
+                                    ) : (
+                                        <>
+                                            <FiCamera className="w-8 h-8 mb-1"/>
+                                            <span className="text-xs font-bold">追加</span>
+                                        </>
+                                    )}
+                                    <input type="file" multiple accept="image/*" onChange={handlePortfolioUpload} disabled={isPortfolioUploading} className="hidden" />
+                                </label>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* 自己紹介テキスト */}
+                    <div>
+                         <label className="block text-sm font-bold text-gray-700 mb-2">自己紹介・アピールポイント</label>
+                         <textarea 
+                            {...register('portfolio')} 
+                            rows="6" 
+                            className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-pink-500 focus:ring-2 focus:ring-pink-100 outline-none transition-all resize-y" 
+                            placeholder="お花のこだわり、得意な色味、お客様へのメッセージなどを自由に記載してください。"
+                         ></textarea>
+                    </div>
+                </div>
+            </section>
 
         </form>
+
+        {/* モバイル用固定保存ボタン */}
+        <div className="sm:hidden fixed bottom-6 left-4 right-4 z-30">
+            <button 
+                onClick={handleSubmit(onSubmit)}
+                disabled={isSubmitting || isIconUploading || isPortfolioUploading}
+                className="w-full py-3.5 bg-pink-600 text-white font-bold rounded-full shadow-xl flex items-center justify-center gap-2 active:scale-95 transition-all disabled:bg-gray-400"
+            >
+                {isSubmitting ? <FiLoader className="animate-spin"/> : <FiSave />}
+                {isSubmitting ? '保存中...' : '変更を保存する'}
+            </button>
+        </div>
+
       </div>
     </div>
   );

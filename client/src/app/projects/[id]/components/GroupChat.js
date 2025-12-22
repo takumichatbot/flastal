@@ -1,12 +1,15 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useAuth } from '@/app/contexts/AuthContext';
 import toast from 'react-hot-toast';
+import Markdown from 'react-markdown';
+// ★ アイコンを追加
+import { 
+  FiGlobe, FiLoader, FiUser, FiSend, FiImage, FiSmile, 
+  FiAlertTriangle, FiX, FiFileText, FiCpu, FiRefreshCw, FiCopy 
+} from 'react-icons/fi';
+
 import PollCreationModal from './PollCreationModal';
-import Markdown from 'react-markdown'; // ★ Markdown をインポート
-// ★ アイコンを追加 (FiAlertTriangle, FiX, FiFileText, FiCpu, FiRefreshCw, FiCopy)
-import { FiGlobe, FiLoader, FiUser, FiSend, FiImage, FiSmile, FiAlertTriangle, FiX, FiFileText, FiCpu, FiRefreshCw, FiCopy } from 'react-icons/fi';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 const AVAILABLE_EMOJIS = ['👍', '❤️', '🙌', '😂', '🔥', '🤔'];
@@ -19,10 +22,9 @@ const getAuthToken = () => {
 };
 
 // ===============================================
-// ★★★ ヘルパー: 通報モーダル (既存) ★★★
+// サブコンポーネント: 通報モーダル
 // ===============================================
 const ChatReportModal = ({ messageId, onClose }) => {
-    // ... (既存の ChatReportModal コンポーネントのロジック)
     const [reason, setReason] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -98,7 +100,7 @@ const ChatReportModal = ({ messageId, onClose }) => {
 };
 
 // ===============================================
-// ★★★ ヘルパー: リアクションピッカー (既存) ★★★
+// サブコンポーネント: リアクションピッカー
 // ===============================================
 const ReactionPicker = ({ onSelect, isEnabled }) => {
     const [isOpen, setIsOpen] = useState(false);
@@ -127,14 +129,14 @@ const ReactionPicker = ({ onSelect, isEnabled }) => {
             </button>
             
             {isOpen && (
-                <div className="absolute bottom-full right-0 mb-2 bg-white border border-gray-300 rounded-lg shadow-xl p-2 z-50 whitespace-nowrap">
+                <div className="absolute bottom-full right-0 mb-2 bg-white border border-gray-300 rounded-lg shadow-xl p-2 z-50 whitespace-nowrap animate-fadeIn">
                     <div className="flex gap-1">
                         {AVAILABLE_EMOJIS.map(emoji => (
                             <button 
                                 key={emoji} 
                                 type="button" 
                                 onClick={() => { onSelect(emoji); setIsOpen(false); }}
-                                className="text-xl p-1 rounded-md hover:bg-gray-100 transition-colors"
+                                className="text-xl p-1 rounded-md hover:bg-gray-100 transition-colors transform hover:scale-125"
                             >
                                 {emoji}
                             </button>
@@ -147,7 +149,7 @@ const ReactionPicker = ({ onSelect, isEnabled }) => {
 };
 
 // ===============================================
-// ★★★ コンポーネント: 個別メッセージ (既存) ★★★
+// サブコンポーネント: 個別メッセージ
 // ===============================================
 const ChatMessage = ({ msg, user, isPlanner, isPledger, onReaction, onReport, templates }) => {
     const [translatedText, setTranslatedText] = useState(null);
@@ -155,10 +157,9 @@ const ChatMessage = ({ msg, user, isPlanner, isPledger, onReaction, onReport, te
 
     const isOwn = user && msg.userId === user.id;
 
-    // テンプレートメッセージのフォーマット
+    // テンプレートメッセージの解決
     const getMessageContent = () => {
         if (!msg.templateId) return msg.content;
-        // テンプレート定義は外部ファイルに依存
         const template = templates.find(t => t.id === msg.templateId); 
         if (!template) return msg.content || '不明なメッセージ';
         if (template.hasCustomInput && msg.content) return template.text.replace('...', `"${msg.content}"`);
@@ -167,7 +168,6 @@ const ChatMessage = ({ msg, user, isPlanner, isPledger, onReaction, onReport, te
 
     const contentText = getMessageContent();
 
-    // 翻訳ハンドラ (既存)
     const handleTranslate = async () => {
         if (translatedText) {
             setTranslatedText(null);
@@ -200,7 +200,7 @@ const ChatMessage = ({ msg, user, isPlanner, isPledger, onReaction, onReport, te
         }
     };
 
-    // リアクション集計 (既存)
+    // リアクション集計
     const groupedReactions = (msg.reactions || []).reduce((acc, reaction) => {
         const emoji = reaction.emoji;
         acc[emoji] = acc[emoji] || { count: 0, users: [], isReactedByMe: false };
@@ -216,10 +216,11 @@ const ChatMessage = ({ msg, user, isPlanner, isPledger, onReaction, onReport, te
             {/* アイコン */}
             <div className="flex-shrink-0">
                 {msg.user?.iconUrl ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
                     <img src={msg.user.iconUrl} alt={msg.user.handleName} className="h-10 w-10 rounded-full object-cover border border-gray-200" />
                 ) : (
                     <div className="h-10 w-10 rounded-full bg-indigo-100 text-indigo-500 flex items-center justify-center font-bold">
-                        {msg.user?.handleName?.[0]}
+                        <FiUser />
                     </div>
                 )}
             </div>
@@ -233,20 +234,20 @@ const ChatMessage = ({ msg, user, isPlanner, isPledger, onReaction, onReport, te
 
                 <div className="relative">
                     {/* 吹き出し */}
-                    <div className={`px-4 py-2 rounded-2xl relative shadow-sm ${isOwn ? 'bg-sky-500 text-white rounded-tr-none' : 'bg-white border border-gray-200 text-gray-800 rounded-tl-none'}`}>
+                    <div className={`px-4 py-2 rounded-2xl relative shadow-sm text-sm ${isOwn ? 'bg-sky-500 text-white rounded-tr-none' : 'bg-white border border-gray-200 text-gray-800 rounded-tl-none'}`}>
                         
-                        {/* コンテンツ表示 */}
                         {msg.messageType === 'IMAGE' ? (
-                            <img src={msg.fileUrl} alt="画像" className="max-w-full h-auto rounded-lg my-1 cursor-pointer hover:opacity-90"/>
+                            /* eslint-disable-next-line @next/next/no-img-element */
+                            <img src={msg.fileUrl} alt="画像" className="max-w-full h-auto rounded-lg my-1 cursor-pointer hover:opacity-90 transition-opacity"/>
                         ) : msg.messageType === 'FILE' ? (
                             <a href={msg.fileUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sky-600 font-semibold hover:underline bg-white/80 p-2 rounded">
                                 📎 {msg.fileName || 'ファイルを表示'}
                             </a>
                         ) : (
-                            <p className="text-sm whitespace-pre-wrap leading-relaxed">{contentText}</p>
+                            <p className="whitespace-pre-wrap leading-relaxed">{contentText}</p>
                         )}
 
-                        {/* 翻訳結果表示 */}
+                        {/* 翻訳結果 */}
                         {translatedText && (
                             <div className={`mt-2 pt-2 border-t text-xs italic flex items-start gap-1 animate-fadeIn ${isOwn ? 'border-white/30 text-sky-100' : 'border-gray-200 text-gray-500'}`}>
                                 <FiGlobe className="mt-0.5 shrink-0"/>
@@ -255,10 +256,9 @@ const ChatMessage = ({ msg, user, isPlanner, isPledger, onReaction, onReport, te
                         )}
                     </div>
 
-                    {/* アクションボタン群 (翻訳・リアクション・通報) */}
+                    {/* アクションボタン群 */}
                     <div className={`absolute top-0 flex items-center gap-1 ${isOwn ? 'right-full mr-2' : 'left-full ml-2'} opacity-0 group-hover:opacity-100 transition-opacity bg-white/80 backdrop-blur-sm rounded-full p-1 shadow-sm`}>
                         
-                        {/* 翻訳ボタン */}
                         {!isOwn && (msg.messageType === 'TEXT' || msg.templateId) && (
                             <button 
                                 onClick={handleTranslate}
@@ -270,13 +270,12 @@ const ChatMessage = ({ msg, user, isPlanner, isPledger, onReaction, onReport, te
                             </button>
                         )}
 
-                        {/* リアクションピッカー */}
                         <ReactionPicker 
                             onSelect={(emoji) => onReaction(msg.id, emoji)}
                             isEnabled={isPledger && !!user} 
                         />
 
-                        {/* ★★★ 通報ボタン (自分以外の発言に表示) ★★★ */}
+                        {/* 通報ボタン */}
                         {!isOwn && (
                             <button 
                                 onClick={() => onReport(msg.id)}
@@ -288,7 +287,7 @@ const ChatMessage = ({ msg, user, isPlanner, isPledger, onReaction, onReport, te
                         )}
                     </div>
 
-                    {/* リアクション表示バッジ */}
+                    {/* リアクション表示 */}
                     {hasReactions && (
                         <div className={`absolute -bottom-3 flex gap-1 ${isOwn ? 'right-0' : 'left-0'} z-10`}>
                             <div className="flex items-center bg-white border border-gray-200 rounded-full px-1.5 py-0.5 shadow-sm">
@@ -297,7 +296,7 @@ const ChatMessage = ({ msg, user, isPlanner, isPledger, onReaction, onReport, te
                                         key={emoji}
                                         onClick={() => isPledger && onReaction(msg.id, emoji)}
                                         title={`${data.users.join(', ')}`}
-                                        className={`flex items-center text-xs px-1 rounded-full hover:bg-gray-100 transition-colors ${data.isReactedByMe ? 'bg-blue-100' : ''}`}
+                                        className={`flex items-center text-xs px-1 rounded-full hover:bg-gray-100 transition-colors ${data.isReactedByMe ? 'bg-blue-50 border border-blue-100' : ''}`}
                                     >
                                         <span className="mr-0.5">{emoji}</span>
                                         <span className="font-bold text-gray-600">{data.count}</span>
@@ -314,39 +313,32 @@ const ChatMessage = ({ msg, user, isPlanner, isPledger, onReaction, onReport, te
 
 
 // ===============================================
-// ★★★ メインコンポーネント: GroupChat ★★★
+// メインコンポーネント: GroupChat
 // ===============================================
-
-// 💡 修正 1: onSummaryUpdate と summary を props として受け取るように変更
 export default function GroupChat({ project, user, isPlanner, isPledger, onUpdate, socket, onSummaryUpdate, summary }) {
   const [templates, setTemplates] = useState([]);
   const [isPollModalOpen, setPollModalOpen] = useState(false);
-  
-  // ★ 通報対象のIDを管理するstate
   const [reportTargetId, setReportTargetId] = useState(null);
-  // 💡 修正 2: AI要約機能用のステートを追加
   const [isSummarizing, setIsSummarizing] = useState(false); 
 
-  // ローカルメッセージ State
   const [messages, setMessages] = useState(project.groupChatMessages || []);
   const chatBottomRef = useRef(null); 
   
+  // 初期化とSocket更新
   useEffect(() => {
     setMessages(project.groupChatMessages || []);
   }, [project.groupChatMessages]);
   
-  // Socket.IO リスナー (既存)
   useEffect(() => {
     if (!socket) return;
     
     const handleReceiveMessage = (newMessage) => {
-        setMessages(prevMessages => [...prevMessages, newMessage]);
+        setMessages(prev => [...prev, newMessage]);
     };
 
     const handleReactionAdded = (newReaction) => {
-        setMessages(prevMessages => prevMessages.map(msg => {
+        setMessages(prev => prev.map(msg => {
             if (msg.id === newReaction.messageId) {
-                // 重複チェック
                 const existingReaction = (msg.reactions || []).find(
                     r => r.userId === newReaction.userId && r.emoji === newReaction.emoji
                 );
@@ -358,12 +350,12 @@ export default function GroupChat({ project, user, isPlanner, isPledger, onUpdat
     };
 
     const handleReactionRemoved = ({ messageId, userId, emoji }) => {
-        setMessages(prevMessages => prevMessages.map(msg => {
+        setMessages(prev => prev.map(msg => {
             if (msg.id === messageId) {
-                const updatedReactions = (msg.reactions || []).filter(
-                    r => !(r.userId === userId && r.emoji === emoji)
-                );
-                return { ...msg, reactions: updatedReactions };
+                return { 
+                    ...msg, 
+                    reactions: (msg.reactions || []).filter(r => !(r.userId === userId && r.emoji === emoji)) 
+                };
             }
             return msg;
         }));
@@ -380,74 +372,51 @@ export default function GroupChat({ project, user, isPlanner, isPledger, onUpdat
     };
   }, [socket]);
   
-  // オートスクロール (既存)
+  // オートスクロール
   useEffect(() => {
     chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-
-  const [customInputModal, setCustomInputModal] = useState({
-    isOpen: false,
-    template: null,
-    text: '',
-  });
+  // 入力関連
+  const [customInputModal, setCustomInputModal] = useState({ isOpen: false, template: null, text: '' });
   const [freeText, setFreeText] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef(null);
 
-  // 既存の fetchTemplates (既存)
   useEffect(() => {
     const fetchTemplates = async () => {
       try {
         const res = await fetch(`${API_URL}/api/chat-templates`);
-        if (!res.ok) throw new Error('テンプレート取得失敗');
-        setTemplates(await res.json());
+        if (res.ok) setTemplates(await res.json());
       } catch (error) { console.error(error); }
     };
     fetchTemplates();
   }, []);
 
-  const templatesByCategory = templates.reduce((acc, t) => {
-    acc[t.category] = [...(acc[t.category] || []), t];
-    return acc;
-  }, {});
-  
-  // 既存の handleTemplateClick (既存)
-  const handleTemplateClick = (template) => {
-    if (!isPledger && !isPlanner && !(user && project.offer?.floristId === user.id)) {
-      toast.error('権限がありません。');
-      return;
-    }
-    if (template.hasCustomInput) {
-      setCustomInputModal({ isOpen: true, template: template, text: '' });
-    } else {
-      handleSendMessage(template.id, null, 'TEXT', null, null);
-    }
-  };
-  
-  // 既存の handleCustomSubmit (既存)
-  const handleCustomSubmit = (e) => {
-    e.preventDefault();
-    if (customInputModal.template && customInputModal.text.trim()) {
-      handleSendMessage(customInputModal.template.id, customInputModal.text, 'TEXT', null, null);
-      setCustomInputModal({ isOpen: false, template: null, text: '' });
-    }
+  const handleSendMessage = (templateId, content, messageType, fileUrl, fileName) => {
+    if (!socket || !user) return toast.error('接続エラー');
+    socket.emit('sendGroupChatMessage', {
+      projectId: project.id,
+      userId: user.id,
+      templateId,
+      content,
+      messageType,
+      fileUrl,
+      fileName
+    });
   };
 
-  // 既存の handleFreeTextSubmit (既存)
   const handleFreeTextSubmit = (e) => {
-    e.preventDefault();
+    e?.preventDefault();
     if (freeText.trim()) {
       handleSendMessage(null, freeText, 'TEXT', null, null);
       setFreeText('');
     }
   };
 
-  // 既存の handleFileUpload (既存)
   const handleFileUpload = async (event) => {
     const file = event.target.files[0];
     if (!file) return;
-
     if (!user || !socket) return toast.error('権限がありません。');
 
     setIsUploading(true);
@@ -463,192 +432,110 @@ export default function GroupChat({ project, user, isPlanner, isPledger, onUpdat
           headers: { 'Authorization': `Bearer ${token}` },
           body: uploadFormData 
       });
-      if (!res.ok) throw new Error('アップロードに失敗');
+      if (!res.ok) throw new Error('アップロード失敗');
       const data = await res.json();
       
       const messageType = file.type.startsWith('image/') ? 'IMAGE' : 'FILE';
       handleSendMessage(null, null, messageType, data.url, file.name);
-      toast.success('ファイルを送信しました！', { id: toastId });
+      toast.success('送信しました', { id: toastId });
 
     } catch (error) {
-        toast.error(`送信に失敗しました: ${error.message}`, { id: toastId });
+        toast.error(`送信失敗: ${error.message}`, { id: toastId });
     } finally {
         setIsUploading(false);
         if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
-
-  // 既存の handleSendMessage (既存)
-  const handleSendMessage = (templateId, content, messageType, fileUrl, fileName) => {
-    if (!socket || !user) {
-      toast.error('接続エラー');
-      return;
-    }
-    socket.emit('sendGroupChatMessage', {
-      projectId: project.id,
-      userId: user.id,
-      templateId,
-      content,
-      messageType,
-      fileUrl,
-      fileName
-    });
-  };
   
-  // 既存の onReaction (既存)
   const onReaction = (messageId, emoji) => {
     if (!isPledger && !isPlanner && !(user && project.offer?.floristId === user.id)) {
-      toast.error('リアクションできる権限がありません。');
-      return;
+      return toast.error('権限がありません');
     }
-    socket.emit('handleReaction', {
-        messageId: messageId,
-        emoji: emoji,
-        userId: user.id
-    });
+    socket.emit('handleReaction', { messageId, emoji, userId: user.id });
   };
-  
-  // 既存の handleVote (既存)
-  const handleVote = (optionIndex) => {
-    if (!project.activePoll || !user || !isPledger) {
-      toast.error('投票するにはこの企画の支援者である必要があります。');
-      return;
-    }
+
+  // AI要約
+  const handleSummarize = async () => {
+    if (isSummarizing) return;
+    if (!user) return toast.error("ログインが必要です");
+
+    setIsSummarizing(true);
+    const toastId = toast.loading('チャット履歴をAIが分析中...');
     const token = getAuthToken();
-    const promise = fetch(`${API_URL}/api/group-chat/polls/vote`, {
-      method: 'POST', 
-      headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({ 
-        pollId: project.activePoll.id,
-        userId: user.id,
-        optionIndex 
-      }),
-    }).then(async res => {
-      if (!res.ok) {
+    
+    try {
+        const res = await fetch(`${API_URL}/api/group-chat/${project.id}/summarize`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (!res.ok) throw new Error('AI要約の実行に失敗しました');
         const data = await res.json();
-        throw new Error(data.message || '投票に失敗しました。');
-      }
-    });
-    toast.promise(promise, {
-      loading: '投票中...',
-      success: () => { onUpdate(); return '投票しました！'; },
-      error: (err) => err.message,
-    });
+        
+        if (onSummaryUpdate) onSummaryUpdate(data.summary); 
+        toast.success('要約完了！', { id: toastId });
+
+    } catch (error) {
+        console.error(error);
+        toast.error(error.message, { id: toastId });
+    } finally {
+        setIsSummarizing(false);
+    }
+  };
+    
+  const handleCopySummary = () => {
+    if (summary) {
+        navigator.clipboard.writeText(summary);
+        toast.success('コピーしました');
+    }
   };
   
-  // 💡 ★★★ 新規: AI要約実行ロジック ★★★
-    const handleSummarize = async () => {
-        if (isSummarizing) return;
-        if (!user) return toast.error("ログインが必要です。");
-
-        setIsSummarizing(true);
-        const toastId = toast.loading('チャット履歴をAIが分析中...');
-        const token = getAuthToken();
-        
-        try {
-            const res = await fetch(`${API_URL}/api/group-chat/${project.id}/summarize`, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            
-            const data = await res.json();
-            
-            if (!res.ok) {
-                throw new Error(data.message || 'AI要約の実行に失敗しました。');
-            }
-            
-            // 親コンポーネネントのステートを更新
-            if (onSummaryUpdate) onSummaryUpdate(data.summary); 
-            
-            toast.success('AIによる要約が完了しました！', { id: toastId });
-
-        } catch (error) {
-            console.error("Summarization Error:", error);
-            toast.error(error.message, { id: toastId });
-        } finally {
-            setIsSummarizing(false);
-        }
-    };
-    
-    // 💡 要約結果をクリップボードにコピー
-    const handleCopySummary = () => {
-        if (summary) {
-            navigator.clipboard.writeText(summary);
-            toast.success('要約内容をコピーしました。');
-        }
-    };
-  
-  const activePoll = project.activePoll;
-  const userVote = activePoll?.votes.find(v => v.userId === user?.id);
-  const totalVotes = activePoll?.votes.length || 0;
-  
-  // 参加権限があるか
   const hasPermission = isPlanner || isPledger;
-  
-  // 企画者または花屋がお花屋さんチャットへのリンクを持つ
-  const isFloristChatAvailable = project.offer?.chatRoom?.id && (isPlanner || user?.role === 'FLORIST');
 
   return (
     <>
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col h-[600px]">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col h-[600px] relative">
         {/* ヘッダー */}
-        <div className="p-4 border-b bg-gray-50 flex justify-between items-center">
+        <div className="p-4 border-b bg-gray-50 flex justify-between items-center z-10">
             <div>
-            <h3 className="font-bold text-gray-800 flex items-center gap-2">
-                <FiSmile className="text-pink-500" /> 参加者グループチャット
-            </h3>
-            <p className="text-xs text-gray-500">企画者と支援者のみが見れます</p>
+                <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                    <FiSmile className="text-pink-500" /> 参加者グループチャット
+                </h3>
+                <p className="text-xs text-gray-500">企画者と支援者のみが見れます</p>
             </div>
-            {/* 💡 修正 3: AI要約ボタンをヘッダーに追加 */}
             {hasPermission && (
                 <button 
                     onClick={handleSummarize}
                     disabled={isSummarizing}
-                    className="text-xs bg-indigo-500 text-white px-3 py-1.5 rounded-full hover:bg-indigo-600 disabled:bg-gray-400 transition-colors flex items-center shadow-sm"
-                    title="チャット履歴をAIが分析して要約します"
+                    className="text-xs bg-indigo-500 text-white px-3 py-1.5 rounded-full hover:bg-indigo-600 disabled:bg-gray-300 transition-colors flex items-center shadow-sm font-bold"
                 >
-                    {isSummarizing ? (
-                        <FiRefreshCw className="w-3 h-3 mr-1 animate-spin" />
-                    ) : (
-                        <FiCpu className="w-3 h-3 mr-1" />
-                    )}
+                    {isSummarizing ? <FiRefreshCw className="w-3 h-3 mr-1 animate-spin" /> : <FiCpu className="w-3 h-3 mr-1" />}
                     AIで要約
                 </button>
             )}
         </div>
 
-        {/* チャットメッセージ一覧 */}
-        <div className="flex-grow overflow-y-auto p-4 space-y-4 bg-slate-50">
+        {/* チャットエリア */}
+        <div className="flex-grow overflow-y-auto p-4 space-y-4 bg-slate-50 scrollbar-thin scrollbar-thumb-gray-300">
           
-          {/* 💡 修正 4: 要約結果の表示エリア (チャット一覧の先頭に表示) */}
+          {/* AI要約 (Sticky) */}
           {summary && (
-              <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-xl mb-4 animate-fadeIn sticky top-0 z-10">
+              <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-xl mb-4 animate-fadeIn sticky top-0 z-10 shadow-sm">
                   <div className="flex justify-between items-start mb-2">
-                      <h3 className="font-bold text-yellow-800 flex items-center">
-                          <FiFileText className="mr-1"/> AI要約 (最新)
+                      <h3 className="font-bold text-yellow-800 flex items-center text-sm">
+                          <FiFileText className="mr-1"/> AI要約 (最新の決定事項)
                       </h3>
-                      <button onClick={handleCopySummary} className="text-xs text-yellow-800 hover:text-yellow-900 flex items-center">
+                      <button onClick={handleCopySummary} className="text-xs text-yellow-800 hover:text-yellow-900 flex items-center bg-yellow-100 px-2 py-1 rounded">
                           <FiCopy className="w-3 h-3 mr-1"/> コピー
                       </button>
                   </div>
-                  {/* Markdownで整形して表示 */}
-                  <div className="text-sm text-gray-800 leading-relaxed max-h-40 overflow-y-auto">
+                  <div className="text-sm text-gray-800 leading-relaxed max-h-32 overflow-y-auto">
                       <Markdown>{summary}</Markdown>
                   </div>
               </div>
           )}
           
-          {/* アンケートエリア (既存) */}
-          {activePoll && (
-            <div className="bg-white border-2 border-purple-300 rounded-lg p-3 mb-4 shadow-sm">
-              <p className="font-bold text-gray-800 mb-3">💡 アンケート実施中: {activePoll.question}</p>
-              {/* ... (既存のアンケート投票ロジック) ... */}
-            </div>
-          )}
-
+          {/* メッセージ一覧 */}
           {messages.length > 0 ? (
             messages.map(msg => (
                 <ChatMessage 
@@ -658,7 +545,7 @@ export default function GroupChat({ project, user, isPlanner, isPledger, onUpdat
                     isPlanner={isPlanner}
                     isPledger={isPledger}
                     onReaction={onReaction}
-                    onReport={(id) => setReportTargetId(id)} // ★通報ハンドラを渡す
+                    onReport={(id) => setReportTargetId(id)}
                     templates={templates}
                 />
             ))
@@ -670,18 +557,23 @@ export default function GroupChat({ project, user, isPlanner, isPledger, onUpdat
           <div ref={chatBottomRef} />
         </div>
 
-        {/* テンプレート・入力エリア (既存) */}
-        <div className="p-3 bg-white border-t">
-          {/* ... (既存のテンプレートボタン、入力フォーム、送信ボタンのロジック) ... */}
-           {/* テンプレートボタン */}
-          {Object.entries(templatesByCategory).length > 0 && (
-             <div className="mb-3 flex overflow-x-auto gap-2 pb-2 scrollbar-thin">
+        {/* 入力エリア */}
+        <div className="p-3 bg-white border-t z-10">
+          {/* テンプレート (横スクロール) */}
+          {templates.length > 0 && (
+             <div className="mb-3 flex overflow-x-auto gap-2 pb-2 scrollbar-hide">
                 {templates.map(template => (
                   <button 
                     key={template.id} 
-                    onClick={() => handleTemplateClick(template)} 
-                    disabled={!isPledger && !isPlanner} 
-                    className="whitespace-nowrap px-3 py-1 text-xs bg-gray-50 border text-gray-700 rounded-full hover:bg-orange-100 transition-colors disabled:opacity-50"
+                    onClick={() => {
+                        if (template.hasCustomInput) {
+                            setCustomInputModal({ isOpen: true, template: template, text: '' });
+                        } else {
+                            handleSendMessage(template.id, null, 'TEXT', null, null);
+                        }
+                    }} 
+                    disabled={!hasPermission} 
+                    className="whitespace-nowrap px-3 py-1 text-xs bg-gray-50 border border-gray-200 text-gray-600 rounded-full hover:bg-orange-50 hover:text-orange-600 hover:border-orange-200 transition-colors disabled:opacity-50"
                   >
                     {template.text}
                   </button>
@@ -690,7 +582,6 @@ export default function GroupChat({ project, user, isPlanner, isPledger, onUpdat
           )}
 
           <div className="flex gap-2 items-end">
-             {/* 画像アップロードボタン */}
              <button 
                 type="button" 
                 onClick={() => fileInputRef.current.click()} 
@@ -701,7 +592,6 @@ export default function GroupChat({ project, user, isPlanner, isPledger, onUpdat
               </button>
               <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" disabled={isUploading} />
              
-             {/* テキスト入力 */}
              <div className="flex-grow">
                <textarea
                  value={freeText}
@@ -715,12 +605,11 @@ export default function GroupChat({ project, user, isPlanner, isPledger, onUpdat
                  placeholder={isUploading ? "アップロード中..." : "メッセージを入力..."} 
                  disabled={isUploading} 
                  rows="1"
-                 className="w-full bg-gray-100 border-0 rounded-2xl px-4 py-3 focus:ring-2 focus:ring-sky-500 focus:bg-white transition-all resize-none text-sm max-h-32"
+                 className="w-full bg-gray-100 border-0 rounded-2xl px-4 py-3 focus:ring-2 focus:ring-sky-500 focus:bg-white transition-all resize-none text-sm max-h-32 shadow-inner"
                  style={{ minHeight: '44px' }}
                />
              </div>
 
-             {/* 送信ボタン */}
              <button 
                onClick={handleFreeTextSubmit}
                disabled={isUploading || !freeText.trim()} 
@@ -735,31 +624,49 @@ export default function GroupChat({ project, user, isPlanner, isPledger, onUpdat
           </div>
 
           {isPlanner && (
-            <button onClick={() => setPollModalOpen(true)} className="w-full mt-2 p-2 text-xs font-semibold text-purple-500 hover:bg-purple-50 rounded transition-colors text-center">
+            <button onClick={() => setPollModalOpen(true)} className="w-full mt-2 py-2 text-xs font-semibold text-purple-600 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors text-center border border-purple-100">
                 📊 アンケートを作成する
             </button>
           )}
         </div>
       </div>
 
+      {/* カスタム入力モーダル */}
       {customInputModal.isOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
-          <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-lg animate-fadeIn">
-            <form onSubmit={handleCustomSubmit}>
-              <p className="text-sm text-gray-600">テンプレート:</p>
-              <p className="mb-4 font-semibold text-lg">{customInputModal.template.text.replace('...', `「${customInputModal.text || '...'}」`)}</p>
-              <input type="text" value={customInputModal.text} onChange={(e) => setCustomInputModal({ ...customInputModal, text: e.target.value })} placeholder={customInputModal.template.placeholder} required autoFocus className="w-full mt-1 p-2 border rounded-md text-gray-900 focus:ring-2 focus:ring-orange-500"/>
-              <div className="mt-6 flex justify-end gap-4">
-                <button type="button" onClick={() => setCustomInputModal({ isOpen: false, template: null, text: '' })} className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300">閉じる</button>
-                <button type="submit" className="px-4 py-2 font-bold text-white bg-orange-500 rounded-md hover:bg-orange-600">送信する</button>
-              </div>
+        <div className="fixed inset-0 bg-black/60 flex justify-center items-center z-50 p-4 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-white p-6 rounded-2xl shadow-xl w-full max-w-md">
+            <h3 className="font-bold text-gray-800 mb-4">メッセージを入力</h3>
+            <p className="text-sm text-gray-500 mb-2">テンプレート:</p>
+            <div className="bg-gray-100 p-3 rounded-lg text-gray-700 font-medium mb-4 text-sm">
+                {customInputModal.template.text.replace('...', `「 ... 」`)}
+            </div>
+            
+            <form onSubmit={(e) => {
+                e.preventDefault();
+                if (customInputModal.text.trim()) {
+                    handleSendMessage(customInputModal.template.id, customInputModal.text, 'TEXT', null, null);
+                    setCustomInputModal({ isOpen: false, template: null, text: '' });
+                }
+            }}>
+                <input 
+                    type="text" 
+                    value={customInputModal.text} 
+                    onChange={(e) => setCustomInputModal({ ...customInputModal, text: e.target.value })} 
+                    placeholder={customInputModal.template.placeholder || "ここに入力..."} 
+                    required autoFocus 
+                    className="w-full p-3 border border-gray-300 rounded-xl text-gray-900 focus:ring-2 focus:ring-orange-500 outline-none mb-6"
+                />
+                <div className="flex justify-end gap-3">
+                    <button type="button" onClick={() => setCustomInputModal({ isOpen: false, template: null, text: '' })} className="px-4 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 font-bold text-sm">閉じる</button>
+                    <button type="submit" className="px-6 py-2 font-bold text-white bg-orange-500 rounded-lg hover:bg-orange-600 shadow-md text-sm">送信</button>
+                </div>
             </form>
           </div>
         </div>
       )}
+
       {isPollModalOpen && <PollCreationModal projectId={project.id} onClose={() => setPollModalOpen(false)} onPollCreated={onUpdate} />}
       
-      {/* ★★★ 通報モーダル呼び出し ★★★ */}
       {reportTargetId && (
         <ChatReportModal 
             messageId={reportTargetId} 

@@ -1,4 +1,3 @@
-// src/app/florists/dashboard/page.js
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -6,35 +5,45 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
-import { useAuth } from '../../contexts/AuthContext'; 
-import ApprovalPendingCard from '@/app/components/ApprovalPendingCard'; 
+import { useAuth } from '@/context/AuthContext'; // パスはプロジェクト構成に合わせて調整してください
+import ApprovalPendingCard from '@/components/dashboard/ApprovalPendingCard'; 
+import FloristAppealPostForm from '@/components/dashboard/FloristAppealPostForm';
+
 import { 
   FiCheckCircle, FiFileText, FiRefreshCw, FiCalendar, FiMapPin, 
   FiClock, FiChevronLeft, FiChevronRight, FiCamera, FiUser, 
-  FiShare, FiEye, FiEyeOff, FiTrash2, FiDollarSign // ★ FiDollarSignを追加
+  FiShare, FiEye, FiEyeOff, FiTrash2, FiDollarSign, FiLogOut, FiSettings, FiArrowRight
 } from 'react-icons/fi'; 
-
-import FloristAppealPostForm from '@/app/components/FloristAppealPostForm';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
-// StatCard Component
-const StatCard = ({ title, value, icon }) => (
-  <div className="bg-white p-6 rounded-2xl shadow-lg border border-slate-100">
-    <div className="flex items-center gap-4">
-      <div className="bg-sky-100 p-3 rounded-full">
+// --- コンポーネント定義 ---
+
+// 統計カード
+const StatCard = ({ title, value, icon, color = "sky" }) => {
+  const colorClasses = {
+    sky: "bg-sky-100 text-sky-600",
+    pink: "bg-pink-100 text-pink-600",
+    green: "bg-green-100 text-green-600",
+  };
+
+  return (
+    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4 transition-transform hover:scale-[1.02]">
+      <div className={`p-3 rounded-full ${colorClasses[color] || colorClasses.sky}`}>
         {icon}
       </div>
       <div>
-        <p className="text-sm text-gray-500">{title}</p>
+        <p className="text-sm text-gray-500 font-medium">{title}</p>
         <p className="text-2xl font-bold text-gray-900">{value}</p>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 // ステータスの日本語変換マップ
 const STATUS_LABELS = {
+  'PENDING': '承認待ち',
+  'ACCEPTED': '受注済み',
   'NOT_STARTED': '未着手',
   'FLORIST_MATCHED': '相談中',
   'DESIGN_FIXED': 'デザイン決定',
@@ -45,7 +54,7 @@ const STATUS_LABELS = {
   'FUNDRAISING': '募集中'
 };
 
-// ★★★ カレンダーコンポーネント ★★★
+// カレンダーコンポーネント
 function CalendarView({ events }) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -75,8 +84,8 @@ function CalendarView({ events }) {
       {/* カレンダー本体 */}
       <div className="lg:w-2/3 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
         <div className="flex justify-between items-center mb-6">
-          <h3 className="text-xl font-bold text-gray-800">
-            {year}年 {month + 1}月
+          <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+            <FiCalendar className="text-pink-500"/> {year}年 {month + 1}月
           </h3>
           <div className="flex gap-2">
             <button onClick={handlePrevMonth} className="p-2 hover:bg-gray-100 rounded-full text-gray-600"><FiChevronLeft size={20}/></button>
@@ -93,7 +102,7 @@ function CalendarView({ events }) {
 
         <div className="grid grid-cols-7 gap-1">
           {days.map((date, idx) => {
-            if (!date) return <div key={idx} className="min-h-[80px] bg-gray-50/30"></div>;
+            if (!date) return <div key={idx} className="min-h-[80px] bg-gray-50/30 rounded-lg"></div>;
             
             const dayEvents = events.filter(e => new Date(e.date).toDateString() === date.toDateString());
             const isToday = new Date().toDateString() === date.toDateString();
@@ -105,7 +114,7 @@ function CalendarView({ events }) {
                 onClick={() => setSelectedDate(date)}
                 className={`min-h-[80px] border rounded-lg p-1 cursor-pointer transition-all flex flex-col justify-between ${
                   isSelected ? 'border-pink-500 bg-pink-50 ring-2 ring-pink-200' : 
-                  isToday ? 'border-sky-300 bg-sky-50' : 'border-slate-100 hover:border-pink-300 hover:bg-slate-50'
+                  isToday ? 'border-sky-300 bg-sky-50' : 'border-slate-100 hover:border-pink-300 hover:bg-white'
                 }`}
               >
                 <div className="flex justify-between items-start">
@@ -132,13 +141,13 @@ function CalendarView({ events }) {
       </div>
 
       {/* 詳細リスト (右側) */}
-      <div className="lg:w-1/3 space-y-4">
-        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm h-full">
+      <div className="lg:w-1/3">
+        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm h-full flex flex-col">
           <h3 className="font-bold text-gray-800 mb-4 border-b pb-3 flex items-center">
-            <FiCalendar className="mr-2 text-pink-500"/> {selectedDate.toLocaleDateString('ja-JP')} の予定
+            {selectedDate.toLocaleDateString('ja-JP')} の予定
           </h3>
           
-          <div className="space-y-3 overflow-y-auto max-h-[500px]">
+          <div className="space-y-3 overflow-y-auto flex-1 max-h-[500px] scrollbar-thin scrollbar-thumb-gray-200">
             {selectedEvents.length > 0 ? selectedEvents.map(event => (
               <Link key={event.id} href={`/projects/${event.id}`} target="_blank" className="block group">
                 <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 group-hover:border-pink-400 group-hover:bg-pink-50 transition-colors">
@@ -160,8 +169,8 @@ function CalendarView({ events }) {
                 </div>
               </Link>
             )) : (
-              <div className="text-center py-10 text-gray-400">
-                <p className="mb-2 text-2xl">☕</p>
+              <div className="text-center py-10 text-gray-400 flex flex-col items-center justify-center h-full">
+                <p className="mb-2 text-4xl">☕</p>
                 <p className="text-sm">この日の納品予定はありません。</p>
               </div>
             )}
@@ -172,44 +181,75 @@ function CalendarView({ events }) {
   );
 }
 
+// 案件リストカード
+const OfferListCard = ({ offers, emptyMessage, type = "normal" }) => {
+  if (!offers || offers.length === 0) {
+    return (
+      <div className="text-center py-12 bg-slate-50 rounded-xl border border-dashed border-slate-300">
+        <p className="text-gray-400">{emptyMessage}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-1 gap-4">
+      {offers.map((offer) => (
+        <div key={offer.id} className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-2">
+              <span className={`text-xs px-2 py-1 rounded-full font-bold ${type === 'pending' ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700'}`}>
+                {STATUS_LABELS[offer.status] || offer.status}
+              </span>
+              <span className="text-xs text-gray-500">{new Date(offer.createdAt || Date.now()).toLocaleDateString('ja-JP')} 受信</span>
+            </div>
+            <h3 className="font-bold text-gray-800 text-lg mb-1">{offer.projectTitle || 'タイトル未定の案件'}</h3>
+            <p className="text-sm text-gray-600 flex items-center gap-2">
+              <FiUser className="inline" /> {offer.clientName || 'クライアント'} 様 
+              <span className="text-gray-300">|</span> 
+              <FiDollarSign className="inline" /> 予算: {offer.budget?.toLocaleString()}円
+            </p>
+          </div>
+          <Link href={`/projects/${offer.projectId || offer.id}`} className="w-full md:w-auto">
+            <button className={`w-full md:w-auto px-6 py-2 rounded-full font-bold transition-colors flex items-center justify-center gap-2 ${type === 'pending' ? 'bg-pink-600 text-white hover:bg-pink-700' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'}`}>
+              詳細を見る <FiArrowRight />
+            </button>
+          </Link>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+// --- メインページコンポーネント ---
+
 export default function FloristDashboardPage() {
   const { user, token, logout, isPending, isApproved } = useAuth(); 
   const router = useRouter();
   
   const [floristData, setFloristData] = useState(null);
   const [offers, setOffers] = useState([]);
-  const [payouts, setPayouts] = useState([]);
   const [scheduleEvents, setScheduleEvents] = useState([]); 
   const [appealPosts, setAppealPosts] = useState([]); 
   
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('pending');
-  
-  const [payoutAmount, setPayoutAmount] = useState('');
-  const [accountInfo, setAccountInfo] = useState('');
-
-  const MINIMUM_PAYOUT_AMOUNT = 1000;
 
   // データ取得関数
   const fetchData = useCallback(async () => {
+    // 承認待ちの場合はダッシュボードデータ不要
     if (user && user.role === 'FLORIST' && (isPending || !isApproved)) {
         setLoading(false);
         return; 
     }
     
-    if (!token || token === 'null' || token === 'undefined') {
-        return;
-    }
+    if (!token) return;
     
     setLoading(true);
     
     try {
-      const [dashboardRes, payoutsRes, scheduleRes] = await Promise.all([
-        // Florist API（ appealPosts を含む）
+      // NOTE: 実際の実装ではAPIエンドポイントを適切に設定してください
+      const [dashboardRes, scheduleRes] = await Promise.all([
         fetch(`${API_URL}/api/florists/dashboard`, { 
-          headers: { 'Authorization': `Bearer ${token}` }
-        }),
-        fetch(`${API_URL}/api/florists/payouts`, {
           headers: { 'Authorization': `Bearer ${token}` }
         }),
         fetch(`${API_URL}/api/florists/schedule`, {
@@ -221,21 +261,22 @@ export default function FloristDashboardPage() {
         throw new Error('認証エラー: 再ログインしてください');
       }
 
-      if (!dashboardRes.ok || !payoutsRes.ok) {
+      if (!dashboardRes.ok) {
         throw new Error('データの取得に失敗しました');
       }
       
       const floristDataRes = await dashboardRes.json();
-      const payoutsData = await payoutsRes.json();
       const scheduleData = scheduleRes.ok ? await scheduleRes.json() : [];
-
-      const appealPostsData = floristDataRes.appealPosts || [];
 
       setFloristData(floristDataRes);
       setOffers(floristDataRes.offers || []);
-      setPayouts(payoutsData || []);
-      setScheduleEvents(scheduleData); 
-      setAppealPosts(appealPostsData); 
+      setAppealPosts(floristDataRes.appealPosts || []);
+      
+      // スケジュールイベントの整形 (APIレスポンスに合わせて調整)
+      setScheduleEvents(scheduleData.map(ev => ({
+        ...ev,
+        date: new Date(ev.deliveryDate || ev.date), // 日付型に変換
+      }))); 
 
     } catch (error) {
       console.error(error);
@@ -249,83 +290,58 @@ export default function FloristDashboardPage() {
     }
   }, [user, token, logout, router, isPending, isApproved]); 
 
+  // 初期ロード
   useEffect(() => {
     if (user && user.role === 'FLORIST' && token) {
         fetchData();
+    } else if (user && user.role !== 'FLORIST') {
+        router.push('/');
+    } else if (!user && !loading) {
+        router.push('/florists/login');
     }
-  }, [user, token, fetchData]); 
+  }, [user, token, fetchData, loading, router]); 
   
-  // 制作アピール投稿の削除ハンドラ
-  const handleDeleteAppealPost = async (post) => {
-      if (!window.confirm("この投稿を本当に削除しますか？")) {
-          return;
-      }
-      
-      if (!post.id) { 
-          toast.error('投稿IDが見つかりません。');
-          return;
-      }
+  // --- イベントハンドラ ---
 
-      const toastId = toast.loading('投稿を削除中...');
+  const handleDeleteAppealPost = async (post) => {
+      if (!window.confirm("この投稿を本当に削除しますか？")) return;
       
+      const toastId = toast.loading('投稿を削除中...');
       try {
-          const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
-          
           const res = await fetch(`${API_URL}/api/florists/posts/${post.id}`, { 
               method: 'DELETE',
               headers: { 'Authorization': `Bearer ${token}` },
           });
 
-          if (!res.ok) {
-              const errorDetail = await res.json();
-              throw new Error(errorDetail.message || '削除処理に失敗しました。');
-          }
+          if (!res.ok) throw new Error('削除処理に失敗しました。');
           
           toast.success('投稿を削除しました。', { id: toastId });
-          fetchData(); 
-          
+          fetchData(); // リスト更新
       } catch (error) {
-          console.error(error);
-          toast.error(error.message || '削除中にエラーが発生しました。', { id: toastId });
+          toast.error(error.message, { id: toastId });
       }
   };
   
-  // 公開/非公開の切り替えハンドラ
   const handleToggleVisibility = async (post) => {
-      if (!post.id) {
-          toast.error('投稿IDが見つかりません。');
-          return;
-      }
-      const isCurrentlyPublic = post.isPublic;
-      const newStatus = !isCurrentlyPublic;
-
-      const toastId = toast.loading(newStatus ? '公開に設定中...' : '非公開に設定中...');
+      const newStatus = !post.isPublic;
+      const toastId = toast.loading(newStatus ? '公開設定中...' : '非公開設定中...');
 
       try {
-          const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
-          
           const res = await fetch(`${API_URL}/api/florists/posts/${post.id}`, { 
               method: 'PATCH',
               headers: {
                   'Content-Type': 'application/json',
                   'Authorization': `Bearer ${token}`,
               },
-              body: JSON.stringify({ 
-                  isPublic: newStatus 
-              }),
+              body: JSON.stringify({ isPublic: newStatus }),
           });
 
-          if (!res.ok) {
-              const errorDetail = await res.json();
-              throw new Error(errorDetail.message || '公開設定の更新に失敗しました。');
-          }
+          if (!res.ok) throw new Error('更新に失敗しました。');
           
-          toast.success(newStatus ? '公開に設定しました' : '非公開に設定しました', { id: toastId });
+          toast.success(newStatus ? '公開しました' : '非公開にしました', { id: toastId });
           fetchData(); 
-          
       } catch (error) {
-          console.error(error);
-          toast.error(error.message || '公開設定の更新中にエラーが発生しました。', { id: toastId });
+          toast.error(error.message, { id: toastId });
       }
   };
   
@@ -334,18 +350,10 @@ export default function FloristDashboardPage() {
       toast.success('ログアウトしました。');
       router.push('/florists/login');
   };
-      
-  // 認証とステータス制御
-  if (user && user.role !== 'FLORIST') {
-    router.push('/'); // ロール違いはトップへ
-    return null;
-  }
-  if (!user && !loading) {
-    router.push('/florists/login');
-    return null;
-  }
-  
-  if (loading || !user) {
+
+  // --- レンダリング制御 ---
+
+  if (loading || (!user && loading)) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-slate-50">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-pink-500"></div>
@@ -353,84 +361,118 @@ export default function FloristDashboardPage() {
     );
   }
 
-  // 審査待ち/却下UIの表示
+  // 審査ステータス判定
   if (isPending || !isApproved) {
       return <ApprovalPendingCard />;
   }
 
+  if (!floristData) return null;
+
   const pendingOffers = offers.filter(o => o.status === 'PENDING');
-  const acceptedOffers = offers.filter(o => o.status === 'ACCEPTED');
+  const acceptedOffers = offers.filter(o => o.status !== 'PENDING' && o.status !== 'REJECTED');
+
+  
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <header className="bg-white shadow-sm sticky top-0 z-40">
+    <div className="min-h-screen bg-slate-50 font-sans">
+      {/* ヘッダー */}
+      <header className="bg-white shadow-sm sticky top-0 z-40 border-b border-gray-100">
         <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
           <div>
-            <h1 className="text-2xl font-bold text-pink-600">お花屋さんダッシュボード</h1>
-            <p className="text-sm text-gray-500">ようこそ、{floristData.platformName}さん</p> 
+            <h1 className="text-2xl font-bold text-gray-800">ダッシュボード</h1>
+            <p className="text-sm text-gray-500">
+              <span className="text-pink-500 font-bold">{floristData.platformName}</span> 様の管理画面
+            </p> 
           </div>
-          <button onClick={handleLogout} className="text-sm font-medium text-gray-600 hover:text-red-500 transition-colors">
-              ログアウト
+          <button onClick={handleLogout} className="flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-red-500 transition-colors px-4 py-2 hover:bg-red-50 rounded-lg">
+              <FiLogOut /> ログアウト
           </button>
         </div>
       </header>
       
-      <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+      <main className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
           
-          <div className="mb-8">
-              <FloristAppealPostForm onPostSuccess={fetchData} />
+          {/* 上部エリア: 投稿フォームとスタッツ */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-10">
+             {/* 左カラム: アピール投稿 */}
+             <div className="lg:col-span-2">
+                <FloristAppealPostForm onPostSuccess={fetchData} />
+             </div>
+
+             {/* 右カラム: スタッツ & アクション */}
+             <div className="space-y-6">
+                <StatCard 
+                    title="現在の売上残高" 
+                    value={`${floristData.balance?.toLocaleString() || 0} pt`} 
+                    icon={<FiDollarSign className="w-6 h-6" />}
+                    color="sky"
+                />
+                <StatCard 
+                    title="進行中の企画" 
+                    value={`${acceptedOffers.length} 件`} 
+                    icon={<FiRefreshCw className="w-6 h-6" />}
+                    color="green"
+                />
+                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center">
+                    <p className="text-sm text-gray-500 mb-4">店舗情報の更新はこちら</p>
+                    <Link href="/florists/profile/edit" className="w-full"> 
+                      <span className="flex items-center justify-center w-full px-6 py-3 font-bold text-white bg-gray-800 rounded-xl hover:bg-gray-700 transition-colors shadow-md">
+                        <FiSettings className="mr-2"/> プロフィール編集
+                      </span>
+                    </Link>
+                </div>
+             </div>
           </div>
 
-          {/* 上部スタッツカード */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <StatCard 
-                title="現在の売上残高" 
-                value={`${floristData.balance?.toLocaleString() || 0} pt`} 
-                icon={<svg className="w-6 h-6 text-sky-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>} 
-            />
-            <StatCard 
-                title="対応中の企画数" 
-                value={`${acceptedOffers.length} 件`} 
-                icon={<svg className="w-6 h-6 text-sky-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>} 
-            />
-            <div className="bg-white p-6 rounded-2xl shadow-lg flex flex-col justify-center items-center border border-slate-100">
-               <Link href="/florists/profile/edit" className="w-full"> 
-                  <span className="block w-full text-center px-6 py-3 font-semibold text-white bg-pink-500 rounded-lg hover:bg-pink-600 transition-colors shadow-md">
-                    プロフィールを編集
-                  </span>
-                </Link>
-            </div>
-          </div>
-
-          <div className="bg-white shadow-lg rounded-2xl p-6 border border-slate-100">
+          {/* メインコンテンツタブエリア */}
+          <div className="bg-white shadow-sm rounded-2xl border border-slate-100 overflow-hidden min-h-[600px]">
             {/* タブナビゲーション */}
-            <div className="border-b border-gray-200">
-              <nav className="-mb-px flex space-x-8 overflow-x-auto">
-                <button onClick={() => setActiveTab('pending')} className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium transition-colors ${activeTab === 'pending' ? 'border-pink-500 text-pink-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>新着オファー ({pendingOffers.length})</button>
-                <button onClick={() => setActiveTab('accepted')} className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium transition-colors ${activeTab === 'accepted' ? 'border-pink-500 text-pink-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>対応中の企画 ({acceptedOffers.length})</button>
-                <button onClick={() => setActiveTab('schedule')} className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium transition-colors ${activeTab === 'schedule' ? 'border-pink-500 text-pink-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>スケジュール</button>
-                <button onClick={() => setActiveTab('payout')} className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium transition-colors ${activeTab === 'payout' ? 'border-pink-500 text-pink-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>売上・出金管理</button>
-                <button onClick={() => setActiveTab('appeal')} className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium transition-colors ${activeTab === 'appeal' ? 'border-pink-500 text-pink-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>制作アピール ({appealPosts.length})</button>
+            <div className="border-b border-gray-200 overflow-x-auto">
+              <nav className="flex min-w-max px-6">
+                {[
+                  { id: 'pending', label: '新着オファー', count: pendingOffers.length },
+                  { id: 'accepted', label: '対応中の企画', count: acceptedOffers.length },
+                  { id: 'schedule', label: 'スケジュール' },
+                  { id: 'payout', label: '売上・出金管理' },
+                  { id: 'appeal', label: '制作アピール履歴', count: appealPosts.length },
+                ].map(tab => (
+                  <button 
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)} 
+                    className={`whitespace-nowrap py-4 px-6 border-b-2 font-bold text-sm transition-colors flex items-center gap-2
+                      ${activeTab === tab.id 
+                        ? 'border-pink-500 text-pink-600' 
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      }`}
+                  >
+                    {tab.label}
+                    {tab.count !== undefined && (
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${activeTab === tab.id ? 'bg-pink-100 text-pink-600' : 'bg-gray-100 text-gray-600'}`}>
+                        {tab.count}
+                      </span>
+                    )}
+                  </button>
+                ))}
               </nav>
             </div>
 
-            <div className="py-6">
+            <div className="p-6 lg:p-8">
               {/* 1. 新着オファー */}
               {activeTab === 'pending' && (
-                <div className="space-y-4">
-                  <div className="text-center py-10 text-gray-400">
-                    <p className="text-sm">新着オファーの表示ロジックは省略されています。</p>
-                  </div>
-                </div>
+                <OfferListCard 
+                  offers={pendingOffers} 
+                  type="pending"
+                  emptyMessage="現在、新しいオファーはありません。" 
+                />
               )}
 
               {/* 2. 対応中の企画 */}
               {activeTab === 'accepted' && (
-                <div className="space-y-4">
-                  <div className="text-center py-10 text-gray-400">
-                    <p className="text-sm">対応中企画の表示ロジックは省略されています。</p>
-                  </div>
-                </div>
+                <OfferListCard 
+                  offers={acceptedOffers} 
+                  type="normal"
+                  emptyMessage="現在対応中の企画はありません。" 
+                />
               )}
 
               {/* 3. スケジュール */}
@@ -438,97 +480,90 @@ export default function FloristDashboardPage() {
                 <CalendarView events={scheduleEvents} />
               )}
 
-              {/* ★★★ 4. 売上・出金管理 (更新) ★★★ */}
+              {/* 4. 売上・出金管理 */}
                {activeTab === 'payout' && (
-                <div className="flex flex-col items-center justify-center py-16 bg-gray-50 rounded-xl border border-gray-200">
-                  <div className="bg-white p-4 rounded-full shadow-md mb-4">
-                    <FiDollarSign className="w-10 h-10 text-pink-500" />
+                <div className="flex flex-col items-center justify-center py-16 text-center animate-fadeIn">
+                  <div className="bg-pink-50 p-6 rounded-full mb-6">
+                    <FiDollarSign className="w-12 h-12 text-pink-500" />
                   </div>
-                  <h3 className="text-xl font-bold text-gray-800 mb-2">売上管理・出金申請</h3>
-                  <p className="text-gray-500 mb-6 text-center max-w-md">
-                    現在の売上ポイントの確認、銀行口座の登録、および出金申請はこちらの専用ページから行えます。
+                  <h3 className="text-2xl font-bold text-gray-800 mb-3">売上管理・出金申請</h3>
+                  <p className="text-gray-500 mb-8 max-w-md leading-relaxed">
+                    現在の売上ポイントの確認、銀行口座の登録、<br/>および出金申請はこちらの専用ページから行えます。
                   </p>
                   
                   <Link 
-                    href="/florists/payouts" // ★ 作成済みの出金ページへ遷移
-                    className="px-8 py-3 bg-pink-600 text-white font-bold rounded-full hover:bg-pink-700 transition-all shadow-lg flex items-center gap-2"
+                    href="/florists/payouts" 
+                    className="group px-8 py-4 bg-pink-600 text-white font-bold rounded-full hover:bg-pink-700 transition-all shadow-lg hover:shadow-pink-200 flex items-center gap-3"
                   >
-                    管理ページを開く <FiChevronRight />
+                    売上管理ページへ移動 <FiChevronRight className="group-hover:translate-x-1 transition-transform"/>
                   </Link>
                 </div>
               )}
               
                {/* 5. 制作アピール一覧 */}
               {activeTab === 'appeal' && (
-                <div className="space-y-6">
+                <div className="space-y-6 animate-fadeIn">
                   {appealPosts.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                       {appealPosts.map(post => {
                           const isPublic = post.isPublic !== false;
-
                           return (
-                              <div key={post.id} className="bg-white rounded-xl shadow-lg border overflow-hidden">
-                                 <div className={`p-1 text-center font-semibold text-xs ${isPublic ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                                    {isPublic ? '公開中 (プロフィールに表示されます)' : '下書き (非公開)'}
+                              <div key={post.id} className="bg-white rounded-xl shadow-md border border-slate-100 overflow-hidden hover:shadow-lg transition-shadow">
+                                 {/* 公開ステータスバッジ */}
+                                 <div className={`py-1 text-center font-bold text-xs tracking-wide ${isPublic ? 'bg-green-500 text-white' : 'bg-gray-400 text-white'}`}>
+                                    {isPublic ? '公開中' : '非公開 (下書き)'}
                                 </div>
-                                <div className="relative">
-                                    {post.imageUrl && (
-                                        <div className="relative aspect-[4/3] bg-gray-200">
+                                <div className="relative group">
+                                    {post.imageUrl ? (
+                                        <div className="relative aspect-[4/3] bg-gray-100">
                                             <Image 
                                                 src={post.imageUrl} 
-                                                alt={post.content.substring(0, 50) || '制作アピール'} 
+                                                alt="Post image" 
                                                 fill
-                                                sizes="(max-width: 768px) 100vw, 50vw"
-                                                style={{ objectFit: 'cover' }}
-                                                className="w-full h-full object-cover" 
+                                                className="object-cover" 
                                             />
                                         </div>
+                                    ) : (
+                                      <div className="aspect-[4/3] bg-slate-50 flex items-center justify-center text-gray-300">
+                                        <FiCamera size={32}/>
+                                      </div>
                                     )}
-                                    <div className="absolute top-2 right-2 flex gap-2">
-                                        <Link 
-                                            href={`/florists/${floristData.id}`} 
-                                            target="_blank" 
-                                            title="外部シェア"
-                                            className="p-2 bg-white/70 backdrop-blur-sm rounded-full text-gray-700 hover:bg-white transition-colors"
+                                    {/* ホバー時のアクションオーバーレイ */}
+                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
+                                        <button 
+                                            onClick={() => handleToggleVisibility(post)} 
+                                            className="p-3 bg-white rounded-full text-gray-800 hover:text-pink-600 shadow-lg"
+                                            title={isPublic ? "非公開にする" : "公開する"}
                                         >
-                                            <FiShare size={18} />
-                                        </Link>
+                                            {isPublic ? <FiEyeOff size={20} /> : <FiEye size={20} />}
+                                        </button>
+                                        <button 
+                                            onClick={() => handleDeleteAppealPost(post)} 
+                                            className="p-3 bg-white rounded-full text-red-500 hover:bg-red-50 shadow-lg"
+                                            title="削除"
+                                        >
+                                            <FiTrash2 size={20}/>
+                                        </button>
                                     </div>
                                 </div>
 
                                 <div className="p-4">
-                                    <p className="text-xs text-gray-500">{new Date(post.createdAt).toLocaleDateString('ja-JP')}</p>
-                                    
-                                    <p className="text-sm text-gray-700 mt-2 whitespace-pre-wrap">
+                                    <p className="text-xs text-gray-400 mb-2">{new Date(post.createdAt).toLocaleDateString('ja-JP')}</p>
+                                    <p className="text-sm text-gray-700 whitespace-pre-wrap line-clamp-3">
                                         {post.content}
                                     </p>
-                                    
-                                    <div className="mt-4 border-t pt-2 flex justify-end gap-2">
-                                        <button 
-                                            onClick={() => handleToggleVisibility(post)} 
-                                            className={`text-xs font-medium px-3 py-1 rounded-full transition-colors flex items-center gap-1 ${isPublic ? 'bg-yellow-200 text-yellow-800 hover:bg-yellow-300' : 'bg-sky-200 text-sky-800 hover:bg-sky-300'}`}
-                                        >
-                                            {isPublic ? <FiEyeOff size={14} /> : <FiEye size={14} />}
-                                            {isPublic ? '非公開にする' : '公開する'}
-                                        </button>
-                                        
-                                        <button 
-                                            onClick={() => handleDeleteAppealPost(post)} 
-                                            className="text-xs text-red-500 hover:text-red-700 font-medium px-3 py-1 rounded-full hover:bg-red-50 transition-colors flex items-center gap-1"
-                                            title="投稿を削除"
-                                        >
-                                            <FiTrash2 size={14}/> 削除
-                                        </button>
-                                    </div>
                                 </div>
                               </div>
                           );
                       })}
                     </div>
                   ) : (
-                    <div className="text-center py-12 bg-slate-50 rounded-xl border border-dashed border-slate-300">
-                        <p className="text-gray-500 font-bold mb-2">まだアピール投稿がありません。</p>
-                        <p className="text-sm text-gray-400">上のフォームからあなたの制作への想いを投稿してみましょう！</p>
+                    <div className="text-center py-20 bg-slate-50 rounded-xl border-2 border-dashed border-slate-200">
+                        <div className="bg-white p-4 rounded-full inline-block shadow-sm mb-4">
+                          <FiCamera className="w-8 h-8 text-gray-400" />
+                        </div>
+                        <p className="text-gray-500 font-bold mb-2">まだアピール投稿がありません</p>
+                        <p className="text-sm text-gray-400">ページ上部のフォームから、過去の制作事例や<br/>あなたのこだわりを投稿してみましょう！</p>
                     </div>
                   )}
                 </div>

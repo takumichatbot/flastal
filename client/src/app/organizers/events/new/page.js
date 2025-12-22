@@ -2,10 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useAuth } from '@/app/contexts/AuthContext';
 import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
-import Link from 'next/link';
+import { 
+  FiArrowLeft, FiCalendar, FiMapPin, FiInfo, FiCheck, FiLoader, FiAlertCircle 
+} from 'react-icons/fi';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -18,14 +21,24 @@ const getAuthToken = () => {
 export default function CreateEventPage() {
   const { user, isAuthenticated, loading } = useAuth();
   const router = useRouter();
-  const { register, handleSubmit, watch, formState: { errors, isSubmitting } } = useForm({
+  
+  const { 
+    register, 
+    handleSubmit, 
+    watch, 
+    setValue,
+    formState: { errors, isSubmitting } 
+  } = useForm({
     defaultValues: {
-      isStandAllowed: true
+      isStandAllowed: true,
+      venueId: ''
     }
   });
 
   const [venues, setVenues] = useState([]);
+  const [selectedVenueInfo, setSelectedVenueInfo] = useState(null);
   
+  // 認証チェックと会場リスト取得
   useEffect(() => {
     if (loading) return;
     if (!isAuthenticated || user?.role !== 'ORGANIZER') {
@@ -33,17 +46,28 @@ export default function CreateEventPage() {
       return;
     }
 
-    // 会場リストの取得
     const fetchVenues = async () => {
       try {
         const res = await fetch(`${API_URL}/api/venues`);
         if (res.ok) setVenues(await res.json());
       } catch (e) {
         console.error(e);
+        toast.error('会場リストの読み込みに失敗しました');
       }
     };
     fetchVenues();
   }, [loading, isAuthenticated, user, router]);
+
+  // 会場選択時の処理 (住所などのプレビュー用)
+  const watchedVenueId = watch('venueId');
+  useEffect(() => {
+    if (watchedVenueId) {
+      const venue = venues.find(v => v.id === watchedVenueId);
+      setSelectedVenueInfo(venue || null);
+    } else {
+      setSelectedVenueInfo(null);
+    }
+  }, [watchedVenueId, venues]);
 
   const onSubmit = async (data) => {
     try {
@@ -57,7 +81,10 @@ export default function CreateEventPage() {
         body: JSON.stringify(data),
       });
 
-      if (!res.ok) throw new Error('イベントの作成に失敗しました');
+      if (!res.ok) {
+          const errData = await res.json();
+          throw new Error(errData.message || '作成に失敗しました');
+      }
 
       toast.success('イベントを作成しました！');
       router.push('/organizers/dashboard');
@@ -68,103 +95,176 @@ export default function CreateEventPage() {
 
   const isStandAllowed = watch('isStandAllowed');
 
-  if (loading || !user) return <div className="p-8 text-center">読み込み中...</div>;
+  if (loading || !user) {
+      return (
+        <div className="flex items-center justify-center min-h-screen bg-slate-50">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
+        </div>
+      );
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-2xl mx-auto bg-white p-8 rounded-xl shadow-md border border-gray-200">
-        <div className="mb-8">
-          <Link href="/organizers/dashboard" className="text-sm text-gray-500 hover:text-indigo-600 mb-2 inline-block">
-            ← ダッシュボードに戻る
-          </Link>
-          <h1 className="text-2xl font-bold text-gray-900">新規イベント作成</h1>
-          <p className="text-gray-500 mt-1">開催するイベントの情報を入力してください。</p>
-        </div>
-
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700">イベント名 <span className="text-red-500">*</span></label>
-            <input 
-              type="text" 
-              {...register('title', { required: '必須です' })} 
-              className="mt-1 w-full p-3 border rounded-lg focus:ring-indigo-500 outline-none"
-              placeholder="例: FLASTAL LIVE 2025 -Winter-"
-            />
-            {errors.title && <p className="text-red-500 text-xs mt-1">{errors.title.message}</p>}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700">開催日 <span className="text-red-500">*</span></label>
-            <input 
-              type="date" 
-              {...register('eventDate', { required: '必須です' })} 
-              className="mt-1 w-full p-3 border rounded-lg focus:ring-indigo-500 outline-none"
-            />
-            {errors.eventDate && <p className="text-red-500 text-xs mt-1">{errors.eventDate.message}</p>}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700">会場</label>
-            <select 
-              {...register('venueId')} 
-              className="mt-1 w-full p-3 border rounded-lg focus:ring-indigo-500 outline-none bg-white"
-            >
-              <option value="">会場を選択してください（任意）</option>
-              {venues.map(venue => (
-                <option key={venue.id} value={venue.id}>
-                  {venue.venueName}
-                </option>
-              ))}
-            </select>
-            <p className="text-xs text-gray-500 mt-1">※登録されていない会場の場合は空欄でも構いません。</p>
-          </div>
-
-          <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-100">
-            <h3 className="font-semibold text-indigo-900 mb-3">フラスタ・レギュレーション</h3>
-            
-            <div className="flex items-center mb-4">
-              <input 
-                type="checkbox" 
-                id="isStandAllowed"
-                {...register('isStandAllowed')}
-                className="h-5 w-5 text-indigo-600 rounded"
-              />
-              <label htmlFor="isStandAllowed" className="ml-2 block text-sm text-gray-900 font-medium">
-                スタンド花（フラスタ）の受け入れを許可する
-              </label>
-            </div>
-
-            {isStandAllowed && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700">特記事項・制限事項</label>
-                <textarea 
-                  {...register('regulationNote')}
-                  rows="3"
-                  className="mt-1 w-full p-2 border rounded-lg text-sm"
-                  placeholder="例: 関係者受付宛にお送りください。高さ180cm以内厳守。"
-                ></textarea>
+    <div className="min-h-screen bg-slate-50 font-sans text-gray-800">
+      
+      {/* ヘッダーエリア */}
+      <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
+          <div className="max-w-3xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <Link href="/organizers/dashboard" className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500">
+                    <FiArrowLeft size={20} />
+                </Link>
+                <h1 className="text-xl font-bold text-gray-900">新規イベント作成</h1>
               </div>
-            )}
+          </div>
+      </div>
+
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
+        
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+          
+          {/* 1. 基本情報カード */}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="bg-indigo-50 px-6 py-3 border-b border-indigo-100">
+                <h2 className="font-bold text-indigo-900 flex items-center gap-2">
+                    <FiInfo className="text-indigo-600"/> 基本情報
+                </h2>
+            </div>
+            
+            <div className="p-6 md:p-8 space-y-6">
+                <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">
+                        イベント名 <span className="text-red-500">*</span>
+                    </label>
+                    <input 
+                        type="text" 
+                        {...register('title', { required: 'イベント名は必須です' })} 
+                        className={`w-full p-3 bg-gray-50 border rounded-xl focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none transition-all ${errors.title ? 'border-red-500' : 'border-gray-200'}`}
+                        placeholder="例: FLASTAL LIVE 2025 -Winter-"
+                    />
+                    {errors.title && <p className="text-red-500 text-xs mt-1 flex items-center"><FiAlertCircle className="mr-1"/> {errors.title.message}</p>}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label className="block text-sm font-bold text-gray-700 mb-1">
+                            開催日 <span className="text-red-500">*</span>
+                        </label>
+                        <div className="relative">
+                            <FiCalendar className="absolute top-3.5 left-3 text-gray-400 pointer-events-none"/>
+                            <input 
+                                type="date" 
+                                {...register('eventDate', { required: '開催日は必須です' })} 
+                                className={`w-full pl-10 pr-3 py-3 bg-gray-50 border rounded-xl focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none transition-all ${errors.eventDate ? 'border-red-500' : 'border-gray-200'}`}
+                            />
+                        </div>
+                        {errors.eventDate && <p className="text-red-500 text-xs mt-1">{errors.eventDate.message}</p>}
+                    </div>
+                </div>
+
+                <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">会場</label>
+                    <div className="relative">
+                        <FiMapPin className="absolute top-3.5 left-3 text-gray-400 pointer-events-none"/>
+                        <select 
+                            {...register('venueId')} 
+                            className="w-full pl-10 pr-8 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none transition-all appearance-none cursor-pointer"
+                        >
+                            <option value="">会場を選択してください（未定の場合は空欄）</option>
+                            {venues.map(venue => (
+                                <option key={venue.id} value={venue.id}>
+                                    {venue.venueName}
+                                </option>
+                            ))}
+                        </select>
+                        {/* 選択された会場のプレビュー情報 */}
+                        {selectedVenueInfo && (
+                            <div className="mt-3 p-3 bg-indigo-50 border border-indigo-100 rounded-lg text-sm text-indigo-800 animate-fadeIn">
+                                <p className="font-bold flex items-center gap-1"><FiCheck /> {selectedVenueInfo.venueName}</p>
+                                <p className="text-xs text-indigo-600 ml-5">{selectedVenueInfo.address}</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">イベント詳細・説明</label>
+                    <textarea 
+                        {...register('description')} 
+                        rows="5"
+                        className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none transition-all"
+                        placeholder="イベントの概要、出演者、タイムテーブルなど、ファンに伝えたい情報を記入してください。"
+                    ></textarea>
+                </div>
+            </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700">イベント詳細・説明</label>
-            <textarea 
-              {...register('description')} 
-              rows="5"
-              className="mt-1 w-full p-3 border rounded-lg focus:ring-indigo-500 outline-none"
-              placeholder="イベントの概要や、ファンへのメッセージなどを記入してください。"
-            ></textarea>
+          {/* 2. フラスタ設定カード */}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="bg-yellow-50 px-6 py-3 border-b border-yellow-100">
+                <h2 className="font-bold text-yellow-800 flex items-center gap-2">
+                    <span className="text-xl">💐</span> フラワースタンド受付設定
+                </h2>
+            </div>
+            
+            <div className="p-6 md:p-8 space-y-6">
+                <div className="flex items-start gap-4">
+                    <div className="relative inline-block w-12 mr-2 align-middle select-none transition duration-200 ease-in">
+                        <input 
+                            type="checkbox" 
+                            id="isStandAllowed"
+                            {...register('isStandAllowed')}
+                            className="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer peer checked:right-0 right-6 checked:border-indigo-600 border-gray-300 transition-all duration-300" 
+                        />
+                        <label 
+                            htmlFor="isStandAllowed" 
+                            className={`toggle-label block overflow-hidden h-6 rounded-full cursor-pointer transition-colors duration-300 ${isStandAllowed ? 'bg-indigo-600' : 'bg-gray-300'}`}
+                        ></label>
+                    </div>
+                    <div>
+                        <label htmlFor="isStandAllowed" className="block text-base font-bold text-gray-800 cursor-pointer">
+                            フラワースタンドを受け入れる
+                        </label>
+                        <p className="text-sm text-gray-500 mt-1">
+                            OFFにすると、このイベントに対してファンは企画を作成できなくなります。
+                        </p>
+                    </div>
+                </div>
+
+                {/* トグルがONの時だけ表示 (アニメーション付き) */}
+                <div className={`transition-all duration-300 overflow-hidden ${isStandAllowed ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}`}>
+                    <div className="bg-yellow-50 p-5 rounded-xl border border-yellow-200 mt-2">
+                        <label className="block text-sm font-bold text-yellow-900 mb-2">
+                            レギュレーション・注意事項
+                        </label>
+                        <textarea 
+                            {...register('regulationNote')}
+                            rows="4"
+                            className="w-full p-3 bg-white border border-yellow-300 rounded-lg focus:ring-2 focus:ring-yellow-400 outline-none text-sm"
+                            placeholder="【サイズ規定】高さ180cm以下、底辺40cm×40cm以下&#13;&#10;【搬入時間】当日午前中指定&#13;&#10;【回収】必須 (公演終了後〜翌日午前中)"
+                        ></textarea>
+                        <p className="text-xs text-yellow-700 mt-2">
+                            ※ 会場の規定と異なる独自のルールがある場合は詳細に記述してください。
+                        </p>
+                    </div>
+                </div>
+            </div>
           </div>
 
-          <div className="pt-4">
-            <button 
-              type="submit" 
-              disabled={isSubmitting}
-              className="w-full py-3 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 transition-colors shadow-md disabled:bg-gray-400"
+          {/* 送信ボタンエリア */}
+          <div className="flex flex-col sm:flex-row gap-4 pt-4">
+             <Link href="/organizers/dashboard" className="w-full sm:w-1/3 py-4 text-center font-bold text-gray-500 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors order-2 sm:order-1">
+                キャンセル
+             </Link>
+             <button 
+                type="submit" 
+                disabled={isSubmitting}
+                className="w-full sm:w-2/3 py-4 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all flex items-center justify-center order-1 sm:order-2 disabled:bg-gray-400 disabled:shadow-none"
             >
-              {isSubmitting ? '作成中...' : 'イベントを公開する'}
+                {isSubmitting ? (
+                    <><FiLoader className="animate-spin mr-2"/> 作成中...</>
+                ) : (
+                    'イベントを公開する'
+                )}
             </button>
           </div>
 

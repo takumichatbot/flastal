@@ -1,185 +1,343 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '../../contexts/AuthContext'; // ★ ../../ に修正
+import { FiSearch, FiEye, FiCheckCircle, FiXCircle, FiClock, FiUser, FiMapPin, FiGlobe, FiX } from 'react-icons/fi';
+import { useAuth } from '../../contexts/AuthContext'; 
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
+// --- 詳細確認モーダルコンポーネント ---
+function FloristDetailModal({ florist, onClose, onAction, isProcessing }) {
+  if (!florist) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+        {/* Header */}
+        <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+          <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+            <span className="bg-pink-100 text-pink-700 px-2 py-1 rounded text-xs uppercase">Florist</span>
+            申請内容の詳細
+          </h3>
+          <button onClick={onClose} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
+            <FiX size={24} className="text-gray-500" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="p-6 overflow-y-auto flex-1 space-y-6">
+          {/* 基本情報 */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs font-bold text-gray-400 uppercase">活動名 (ユーザー公開)</label>
+              <p className="font-bold text-lg text-gray-900">{florist.platformName || '未設定'}</p>
+            </div>
+            <div>
+              <label className="text-xs font-bold text-gray-400 uppercase">店舗名/屋号</label>
+              <p className="font-medium text-gray-700">{florist.shopName || '未設定'}</p>
+            </div>
+            <div>
+              <label className="text-xs font-bold text-gray-400 uppercase">担当者名</label>
+              <p className="font-medium text-gray-700">{florist.contactName || '未設定'}</p>
+            </div>
+            <div>
+              <label className="text-xs font-bold text-gray-400 uppercase">メールアドレス</label>
+              <p className="font-medium text-gray-700">{florist.email}</p>
+            </div>
+          </div>
+
+          <hr className="border-gray-100" />
+
+          {/* 詳細情報 */}
+          <div className="space-y-4">
+            <div>
+              <label className="text-xs font-bold text-gray-400 uppercase flex items-center gap-1">
+                <FiMapPin /> 住所・所在地
+              </label>
+              <p className="bg-gray-50 p-3 rounded-lg text-sm text-gray-700 mt-1">
+                {florist.address || '未入力'}
+              </p>
+            </div>
+            
+            <div>
+              <label className="text-xs font-bold text-gray-400 uppercase flex items-center gap-1">
+                <FiGlobe /> ポートフォリオ / 参考URL
+              </label>
+              {florist.portfolio ? (
+                <a href={florist.portfolio} target="_blank" rel="noreferrer" className="text-pink-600 underline text-sm block mt-1 hover:text-pink-800">
+                  {florist.portfolio}
+                </a>
+              ) : (
+                <p className="text-sm text-gray-400 mt-1">なし</p>
+              )}
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-gray-400 uppercase">自己紹介・アピール</label>
+              <p className="bg-gray-50 p-3 rounded-lg text-sm text-gray-700 mt-1 whitespace-pre-wrap">
+                {florist.bio || '未入力'}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer Actions */}
+        <div className="p-6 border-t border-gray-100 bg-gray-50 flex gap-4">
+          <button
+            onClick={() => onAction(florist.id, 'REJECTED')}
+            disabled={isProcessing}
+            className="flex-1 bg-white border border-red-200 text-red-600 font-bold py-3 rounded-xl hover:bg-red-50 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+          >
+            <FiXCircle /> 却下する
+          </button>
+          <button
+            onClick={() => onAction(florist.id, 'APPROVED')}
+            disabled={isProcessing}
+            className="flex-[2] bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold py-3 rounded-xl hover:shadow-lg hover:scale-[1.01] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+          >
+            <FiCheckCircle /> 承認する
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// --- メインページ ---
 export default function AdminFloristApprovalsPage() {
   const [florists, setFlorists] = useState([]);
-  const [loadingData, setLoadingData] = useState(true); // ★ データ取得用ローディング
-  const router = useRouter();
+  const [loadingData, setLoadingData] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedFlorist, setSelectedFlorist] = useState(null); // モーダル用
+  const [isProcessing, setIsProcessing] = useState(false);
   
-  // ★ AuthContext から正しい認証情報を取得
+  const router = useRouter();
   const { user, isAuthenticated, loading, logout } = useAuth();
 
+  // データ取得
   const fetchPendingFlorists = async () => {
-    setLoadingData(true); // ★ データ取得ローディング
+    setLoadingData(true);
     try {
       const token = localStorage.getItem('authToken');
+      if (!token) return;
+
       const res = await fetch(`${API_URL}/api/admin/florists/pending`, {
          headers: { 'Authorization': `Bearer ${token}` }
       });
+      
       if (res.status === 401) throw new Error('管理者権限がありません。');
-      if (!res.ok) throw new Error('審査待ちリストの取得に失敗しました。');
+      if (!res.ok) throw new Error('リストの取得に失敗しました。');
+      
       const data = await res.json();
       setFlorists(Array.isArray(data) ? data : []);
     } catch (error) {
       toast.error(error.message);
       setFlorists([]);
     } finally {
-      setLoadingData(false); // ★ データ取得ローディング
+      setLoadingData(false);
     }
   };
 
+  // 認証チェック & 初期ロード
   useEffect(() => {
-    // ★ 1. AuthContext が読み込み中なら待機
-    if (loading) {
-      return;
-    }
-    // ★ 2. 未ログインの場合
+    if (loading) return;
     if (!isAuthenticated) {
       toast.error('ログインが必要です。');
       router.push('/login');
       return;
     }
-    // ★ 3. ADMINではない場合
     if (!user || user.role !== 'ADMIN') {
       toast.error('管理者権限がありません。');
       router.push('/mypage');
       return;
     }
-    
-    // ★ 4. 認証OK (ADMIN) だったので、データを取得
     fetchPendingFlorists();
-    
-  }, [isAuthenticated, user, router, loading]); // ★ 依存配列を AuthContext に合わせる
+  }, [isAuthenticated, user, router, loading]);
 
+  // ステータス更新処理
   const handleUpdateStatus = async (floristId, status) => {
-    const actionText = status === 'APPROVED' ? '承認' : '拒否';
-    if (!window.confirm(`この申請を「${actionText}」しますか？`)) return;
+    // 確認ダイアログはモーダル側のアクションで代替するため削除、または最終確認として残す
+    const actionText = status === 'APPROVED' ? '承認' : '却下';
+    if (!window.confirm(`${actionText}してもよろしいですか？`)) return;
     
-    const token = localStorage.getItem('authToken'); // トークン取得
+    setIsProcessing(true);
+    const toastId = toast.loading('処理中...');
+    
+    try {
+      const token = localStorage.getItem('authToken');
+      const res = await fetch(`${API_URL}/api/admin/florists/${floristId}/status`, {
+        method: 'PATCH',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ status }),
+      });
 
-    const promise = fetch(`${API_URL}/api/admin/florists/${floristId}/status`, {
-      method: 'PATCH',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}` // ★ここを追加
-      },
-      body: JSON.stringify({ status }),
-    }).then(async res => {
-      if (res.status === 401) throw new Error('管理者権限がありません。');
       if (!res.ok) {
-         let errorMsg = `処理に失敗しました`;
-         try {
-             const errData = await res.json();
-             errorMsg = errData.message || errorMsg;
-         } catch(e) { /* ignore */ }
-         throw new Error(errorMsg);
+        const errData = await res.json();
+        throw new Error(errData.message || '処理に失敗しました');
       }
-      return res.json();
-    });
 
-    toast.promise(promise, {
-      loading: '処理中...',
-      success: () => {
-        setFlorists(prev => prev.filter(f => f.id !== floristId));
-        return `申請を「${actionText}」しました。`;
-      },
-      error: (err) => err.message, // ★ エラー時のリダイレクトはuseEffectに任せる
-    });
+      toast.success(`申請を${actionText}しました`, { id: toastId });
+      setFlorists(prev => prev.filter(f => f.id !== floristId)); // リストから削除
+      setSelectedFlorist(null); // モーダル閉じる
+
+    } catch (error) {
+      toast.error(error.message, { id: toastId });
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
-  // ★ 7. AuthContextの読み込み中、または権限がない場合の表示
+  // 検索フィルタリング
+  const filteredFlorists = useMemo(() => {
+    if (!searchTerm) return florists;
+    const lowerTerm = searchTerm.toLowerCase();
+    return florists.filter(f => 
+      (f.platformName && f.platformName.toLowerCase().includes(lowerTerm)) ||
+      (f.email && f.email.toLowerCase().includes(lowerTerm)) ||
+      (f.contactName && f.contactName.toLowerCase().includes(lowerTerm))
+    );
+  }, [florists, searchTerm]);
+
+  // ロード中表示
   if (loading || !isAuthenticated || !user || user.role !== 'ADMIN') {
     return (
-      <div className="flex justify-center items-center min-h-screen bg-gray-100">
-        <p className="text-gray-700">管理者権限を確認中...</p>
+      <div className="flex justify-center items-center min-h-screen bg-gray-50">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-pink-500"></div>
       </div>
     );
   }
 
-  // ★ 8. 認証済みの場合のページ表示
   return (
-    <div className="min-h-screen bg-gray-100 p-4 sm:p-8">
-      <div className="max-w-4xl mx-auto">
+    <div className="min-h-screen bg-gray-50 p-4 sm:p-8 font-sans text-gray-800">
+      <div className="max-w-6xl mx-auto">
         
-        {/* ★ ヘッダーとログアウトを追加 */}
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold text-gray-900">お花屋さん 登録審査</h1>
-          <button onClick={() => {
-              logout(); 
-              router.push('/login'); 
-            }} className="text-sm font-medium text-gray-600 hover:text-red-500 transition-colors">
+        {/* ヘッダー */}
+        <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
+          <div>
+            <h1 className="text-2xl font-extrabold text-gray-900 flex items-center gap-2">
+              <FiCheckCircle className="text-pink-500"/> お花屋さん 登録審査
+            </h1>
+            <p className="text-sm text-gray-500 mt-1">新規登録申請の確認と承認を行います。</p>
+          </div>
+          
+          <div className="flex items-center gap-4">
+            <span className="text-sm font-bold bg-white px-3 py-1 rounded-full border border-gray-200 shadow-sm">
+              管理者: {user.name || user.email}
+            </span>
+            <button 
+              onClick={() => { logout(); router.push('/login'); }} 
+              className="text-xs font-bold text-gray-500 hover:text-red-600 transition-colors underline"
+            >
               ログアウト
-          </button>
+            </button>
+          </div>
         </div>
 
-        {/* ★ ナビゲーションリンクを追加 */}
-        <nav className="mb-6 flex gap-3 sm:gap-4 flex-wrap">
-          <Link 
-            href="/admin" 
-            className="px-4 py-2 text-sm font-semibold text-slate-700 bg-slate-200 rounded-lg hover:bg-slate-300 transition-colors"
-          >
-            ダッシュボード (収益)
-          </Link>
-          <Link 
-            href="/admin/payouts" 
-            className="px-4 py-2 text-sm font-semibold text-slate-700 bg-slate-200 rounded-lg hover:bg-slate-300 transition-colors"
-          >
-            出金管理
-          </Link>
-          <Link 
-            href="/admin/moderation"
-            className="px-4 py-2 text-sm font-semibold text-slate-700 bg-slate-200 rounded-lg hover:bg-slate-300 transition-colors"
-          >
-            チャット監視
-          </Link>
-          <Link 
-            href="/admin/florist-approval"
-            className="px-4 py-2 text-sm font-semibold text-slate-700 bg-slate-200 rounded-lg hover:bg-slate-300 transition-colors"
-          >
-            お花屋さん審査
-          </Link>
-          <Link 
-            href="/admin/project-approval"
-            className="px-4 py-2 text-sm font-semibold text-white bg-sky-500 rounded-lg shadow-sm hover:bg-sky-600 transition-colors"
-          >
-            プロジェクト審査
-          </Link>
-        </nav>
+        {/* タブナビゲーション (簡易版) */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-1 mb-8 inline-flex flex-wrap gap-1">
+          {[
+            { name: 'ダッシュボード', path: '/admin' },
+            { name: '出金管理', path: '/admin/payouts' },
+            { name: 'チャット監視', path: '/admin/moderation' },
+            { name: '花屋審査', path: '/admin/florist-approval', active: true },
+            { name: '企画審査', path: '/admin/project-approval' },
+          ].map((nav) => (
+            <Link 
+              key={nav.path}
+              href={nav.path}
+              className={`
+                px-4 py-2 text-sm font-bold rounded-lg transition-all
+                ${nav.active 
+                  ? 'bg-pink-500 text-white shadow-md' 
+                  : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'}
+              `}
+            >
+              {nav.name}
+            </Link>
+          ))}
+        </div>
 
-        {/* ★ 以下、元のコンテンツ */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-            {loadingData ? (
-              <p className="text-gray-500 text-center">読み込み中...</p>
-            ) : florists.length === 0 ? (
-              <p className="text-gray-500 text-center">現在、審査待ちの申請はありません。</p>
-            ) : (
-            <div className="space-y-4">
-                {florists.map(florist => (
-                florist && florist.id ? (
-                    <div key={florist.id} className="border rounded-lg p-4 bg-gray-50">
-                        <p className="text-xs text-gray-400">申請日時: {new Date(florist.createdAt).toLocaleString('ja-JP')}</p>
-                        <p><strong>活動名 (公開):</strong> {florist.platformName}</p>
-                        <p><strong>店舗名 (非公開):</strong> {florist.shopName}</p>
-                        <p><strong>担当者名:</strong> {florist.contactName}</p>
-                        <p><strong>Email:</strong> {florist.email}</p>
-                        <div className="mt-4 flex gap-4">
-                        <button onClick={() => handleUpdateStatus(florist.id, 'APPROVED')} className="px-4 py-2 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600">承認する</button>
-                        <button onClick={() => handleUpdateStatus(florist.id, 'REJECTED')} className="px-4 py-2 bg-red-500 text-white font-semibold rounded-lg hover:bg-red-600">拒否する</button>
-                        </div>
-                    </div>
-                 ) : null
-                ))}
+        {/* メインコンテンツエリア */}
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
+            
+            {/* コントロールバー */}
+            <div className="p-6 border-b border-gray-100 flex flex-col sm:flex-row justify-between items-center gap-4 bg-gray-50/50">
+              <h2 className="font-bold text-lg flex items-center gap-2">
+                審査待ちリスト 
+                <span className="bg-pink-100 text-pink-600 text-xs px-2 py-0.5 rounded-full">{filteredFlorists.length}件</span>
+              </h2>
+              <div className="relative w-full sm:w-64">
+                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input 
+                  type="text" 
+                  placeholder="名前やメールで検索..." 
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-pink-500/50 transition-all"
+                />
+              </div>
             </div>
-            )}
+
+            {/* リスト表示 */}
+            <div className="p-6">
+                {loadingData ? (
+                  <div className="flex justify-center py-10 text-gray-400">読み込み中...</div>
+                ) : filteredFlorists.length === 0 ? (
+                  <div className="text-center py-20 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                    <FiCheckCircle className="mx-auto text-4xl text-gray-300 mb-3" />
+                    <p className="text-gray-500 font-medium">現在、審査待ちの申請はありません。</p>
+                    <p className="text-xs text-gray-400 mt-1">すべて処理済みです。</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {filteredFlorists.map(florist => (
+                      <div key={florist.id} className="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md transition-shadow flex flex-col justify-between group">
+                        <div>
+                            <div className="flex justify-between items-start mb-3">
+                                <span className="bg-yellow-100 text-yellow-800 text-[10px] font-bold px-2 py-1 rounded flex items-center gap-1">
+                                    <FiClock /> 審査中
+                                </span>
+                                <span className="text-[10px] text-gray-400">
+                                    {new Date(florist.createdAt).toLocaleDateString()}
+                                </span>
+                            </div>
+                            
+                            <h3 className="font-bold text-lg text-gray-900 mb-1 line-clamp-1" title={florist.platformName}>
+                                {florist.platformName || '名称未設定'}
+                            </h3>
+                            <div className="text-xs text-gray-500 space-y-1 mb-4">
+                                <p className="flex items-center gap-1"><FiUser className="shrink-0"/> {florist.contactName}</p>
+                                <p className="truncate" title={florist.email}>{florist.email}</p>
+                            </div>
+                        </div>
+
+                        <button 
+                            onClick={() => setSelectedFlorist(florist)}
+                            className="w-full py-2.5 px-4 bg-gray-900 text-white text-sm font-bold rounded-lg hover:bg-gray-800 transition-colors flex items-center justify-center gap-2 group-hover:bg-pink-600"
+                        >
+                            <FiEye /> 詳細を確認・審査
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+            </div>
         </div>
       </div>
+
+      {/* 詳細モーダル */}
+      <FloristDetailModal 
+        florist={selectedFlorist} 
+        onClose={() => setSelectedFlorist(null)} 
+        onAction={handleUpdateStatus}
+        isProcessing={isProcessing}
+      />
     </div>
   );
 }

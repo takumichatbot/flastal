@@ -1,105 +1,123 @@
 // components/admin/AdminIndividualChat.js
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { FiLoader, FiSend, FiUser, FiMessageSquare, FiAlertTriangle } from 'react-icons/fi';
+import { useState, useEffect, useRef, useLayoutEffect } from 'react';
+import { 
+  FiLoader, FiSend, FiUser, FiMessageSquare, FiAlertTriangle, 
+  FiCheck, FiCheckCircle, FiInfo, FiImage, FiMoreVertical 
+} from 'react-icons/fi';
 import toast from 'react-hot-toast';
-import { io } from 'socket.io-client'; // Socket.IO クライアントをインポート
+import { io } from 'socket.io-client';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
-// トークン取得ヘルパー
-const getAuthToken = () => {
-    if (typeof window === 'undefined') return null;
-    const rawToken = localStorage.getItem('authToken');
-    return rawToken ? rawToken.replace(/^"|"$/g, '') : null;
+// --- ヘルパー関数 ---
+
+// 日付フォーマット (例: 12:30)
+const formatTime = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
 };
 
-// ロールに応じた色を取得
-const getRoleColor = (role) => {
-    switch (role) {
-        case 'ADMIN': return 'bg-red-500';
-        case 'FLORIST': return 'bg-pink-500';
-        case 'VENUE': return 'bg-purple-500';
-        case 'ORGANIZER': return 'bg-yellow-500';
-        default: return 'bg-sky-500'; // USER (ファン/企画者)
-    }
+// 日付ヘッダー用フォーマット (例: 2024/12/23 (月))
+const formatDateHeader = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' });
 };
 
-let socket; // Socket.IO クライアントインスタンス
+// 日付が変わったか判定
+const isNewDay = (current, prev) => {
+    if (!prev) return true;
+    const currentDate = new Date(current).toDateString();
+    const prevDate = new Date(prev).toDateString();
+    return currentDate !== prevDate;
+};
+
+// ロールごとの色定義
+const getRoleBadge = (role) => {
+    const configs = {
+        ADMIN: { bg: 'bg-red-100', text: 'text-red-700', label: 'Admin' },
+        FLORIST: { bg: 'bg-pink-100', text: 'text-pink-700', label: 'Florist' },
+        VENUE: { bg: 'bg-purple-100', text: 'text-purple-700', label: 'Venue' },
+        ORGANIZER: { bg: 'bg-yellow-100', text: 'text-yellow-700', label: 'Organizer' },
+        USER: { bg: 'bg-sky-100', text: 'text-sky-700', label: 'User' },
+    };
+    return configs[role] || configs.USER;
+};
 
 export default function AdminIndividualChat({ selectedUser, chatRoom, adminUserId }) {
     const [messages, setMessages] = useState([]);
     const [inputContent, setInputContent] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const [socketConnected, setSocketConnected] = useState(false);
-    const chatBottomRef = useRef(null);
+    const [connectionStatus, setConnectionStatus] = useState('disconnected'); // connected, disconnected, error
     
-    // 1. Socket.IO 接続と切断の処理
+    const socketRef = useRef(null);
+    const chatBottomRef = useRef(null);
+    const textareaRef = useRef(null);
+
+    // テキストエリアの高さ自動調整
+    const adjustTextareaHeight = () => {
+        const textarea = textareaRef.current;
+        if (textarea) {
+            textarea.style.height = 'auto';
+            textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`; // 最大120px
+        }
+    };
+
+    // 1. Socket.IO 接続管理
     useEffect(() => {
         if (!chatRoom) return;
 
-        const token = getAuthToken();
+        const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
         if (!token) return;
 
-        // 既存の接続があれば切断
-        if (socket) {
-            socket.off('receiveAdminMessage');
-            socket.disconnect();
-            socket = null;
+        // 切断処理
+        if (socketRef.current) {
+            socketRef.current.disconnect();
         }
 
-        // 新しい接続の作成
-        socket = io(API_URL, {
-            auth: {
-                token: `Bearer ${token}` // トークンを認証ヘッダーとして渡す
-            },
-            transports: ['websocket', 'polling'] // WebSocketを優先
+        // 接続開始
+        const socket = io(API_URL, {
+            auth: { token: `Bearer ${token}` },
+            transports: ['websocket', 'polling'],
+            reconnectionAttempts: 5
         });
 
+        socketRef.current = socket;
+
         socket.on('connect', () => {
-            setSocketConnected(true);
-            console.log(`[AdminChat] Socket Connected: ${socket.id}`);
-            // チャットルームに参加
+            setConnectionStatus('connected');
+            console.log(`[AdminChat] Connected: ${socket.id}`);
             socket.emit('joinRoom', chatRoom.id);
         });
 
         socket.on('disconnect', () => {
-            setSocketConnected(false);
-            console.log('[AdminChat] Socket Disconnected');
+            setConnectionStatus('disconnected');
         });
 
-        socket.on('connect_error', (err) => {
-            console.error('[AdminChat] Connection Error:', err.message);
-            toast.error('チャット接続エラーが発生しました。');
-            setSocketConnected(false);
+        socket.on('connect_error', () => {
+            setConnectionStatus('error');
         });
-        
-        // 2. メッセージ受信リスナー
+
+        // メッセージ受信
         socket.on('receiveAdminMessage', (newMessage) => {
-            setMessages(prevMessages => {
-                // 仮メッセージとの重複を防ぎ、最新メッセージを追加
-                const isDuplicated = prevMessages.some(msg => 
-                    msg.content === newMessage.content && 
-                    msg.senderId === newMessage.senderId && 
-                    (new Date(msg.createdAt).getTime() === new Date(newMessage.createdAt).getTime())
-                );
-                if (!isDuplicated) {
-                    return [...prevMessages.filter(msg => typeof msg.id !== 'string' || !msg.id.startsWith('temp_')), newMessage];
+            setMessages(prev => {
+                // 重複排除ロジック
+                if (prev.some(m => m.id === newMessage.id || (m.isTemp && m.content === newMessage.content))) {
+                    // tempメッセージを正規メッセージに置換する処理があればここに記述
+                    return prev.map(m => (m.isTemp && m.content === newMessage.content) ? newMessage : m);
                 }
-                return prevMessages;
+                return [...prev, newMessage];
             });
         });
 
         return () => {
-            socket.off('receiveAdminMessage');
             socket.disconnect();
-            socket = null;
-            setSocketConnected(false);
+            socketRef.current = null;
         };
     }, [chatRoom]);
 
-    // 3. 履歴のロード処理
+    // 2. 履歴取得
     useEffect(() => {
         if (chatRoom?.id) {
             fetchMessages();
@@ -110,174 +128,242 @@ export default function AdminIndividualChat({ selectedUser, chatRoom, adminUserI
 
     const fetchMessages = async () => {
         setIsLoading(true);
-        const token = getAuthToken();
+        const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
         if (!token) return;
 
         try {
-            // API: /api/admin/chat-rooms/:roomId/messages を呼び出し
             const res = await fetch(`${API_URL}/api/admin/chat-rooms/${chatRoom.id}/messages`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
-
             if (res.ok) {
                 const data = await res.json();
                 setMessages(data);
             } else {
-                const errorData = await res.json();
-                throw new Error(errorData.message || '履歴の取得に失敗しました。');
+                toast.error('履歴の取得に失敗しました');
             }
         } catch (error) {
-            toast.error('チャット履歴のロード中にエラーが発生しました。');
             console.error(error);
         } finally {
             setIsLoading(false);
         }
     };
-    
-    // 4. オートスクロール
-    useEffect(() => {
+
+    // 3. オートスクロール (メッセージ更新時)
+    useLayoutEffect(() => {
         chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [messages, isLoading]);
+    }, [messages, isLoading, chatRoom]);
 
-
-    // 5. メッセージ送信処理
+    // 4. 送信処理
     const handleSendMessage = (e) => {
         e.preventDefault();
-        if (!inputContent.trim() || !socketConnected || !chatRoom) return;
+        if (!inputContent.trim() || connectionStatus !== 'connected' || !chatRoom) return;
 
         const content = inputContent.trim();
         const tempId = `temp_${Date.now()}`;
         
-        // オプティミスティックUI用の仮メッセージ
         const tempMessage = {
-            id: tempId, 
+            id: tempId,
             chatRoomId: chatRoom.id,
-            senderId: adminUserId, 
+            senderId: adminUserId,
             senderRole: 'ADMIN',
             content: content,
-            isRead: false,
             createdAt: new Date().toISOString(),
-            isTemp: true, // 仮メッセージであることを示すフラグ
+            isTemp: true,
         };
 
-        // オプティミスティックにUIを更新
-        setMessages(prevMessages => [...prevMessages, tempMessage]);
+        setMessages(prev => [...prev, tempMessage]);
         
-        // Socket.IO でサーバーに送信
-        socket.emit('sendAdminMessage', {
+        socketRef.current.emit('sendAdminMessage', {
             roomId: chatRoom.id,
             content: content,
         });
 
         setInputContent('');
+        if (textareaRef.current) textareaRef.current.style.height = 'auto';
     };
 
+    // ユーザー未選択時
     if (!selectedUser) {
         return (
-            <div className="flex-grow flex items-center justify-center bg-gray-50">
-                <div className="text-center text-gray-500">
-                    <FiUser size={48} className="mx-auto mb-3" />
-                    <p>左側のリストからチャット相手を選択してください。</p>
+            <div className="flex-grow flex flex-col items-center justify-center bg-gray-50 h-full text-gray-400">
+                <div className="bg-white p-6 rounded-full shadow-sm mb-4">
+                    <FiMessageSquare size={40} className="text-gray-300" />
                 </div>
+                <p className="font-bold text-lg text-gray-600">チャットを選択してください</p>
+                <p className="text-sm">左側のリストからユーザーをクリックして会話を開始します。</p>
             </div>
         );
     }
 
-    const isFloristChat = selectedUser.role === 'FLORIST';
-    
+    const badge = getRoleBadge(selectedUser.role);
+
     return (
-        <div className="flex-grow flex flex-col h-full bg-white">
-            {/* ヘッダー */}
-            <div className="p-4 border-b bg-gray-50">
-                <div className="flex items-center gap-3">
-                    <span className={`w-3 h-3 rounded-full ${getRoleColor(selectedUser.role)} flex-shrink-0`} title={selectedUser.role}></span>
-                    <h3 className="text-lg font-bold text-gray-800">{selectedUser.handleName}</h3>
-                    <span className="text-sm text-gray-500">({selectedUser.email})</span>
-                    {isFloristChat && (
-                        <span className="text-xs text-pink-500 bg-pink-100 px-2 py-0.5 rounded-full ml-auto">
-                            LARUbot連携の可能性あり
+        <div className="flex flex-col h-full bg-white relative overflow-hidden">
+            
+            {/* --- ヘッダーエリア --- */}
+            <div className="px-6 py-4 border-b bg-white flex justify-between items-center shadow-sm z-10">
+                <div className="flex items-center gap-4">
+                    <div className="relative">
+                        <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-inner
+                            ${selectedUser.role === 'FLORIST' ? 'bg-pink-500' : 'bg-gray-400'}`}>
+                            {selectedUser.iconUrl ? 
+                                <img src={selectedUser.iconUrl} alt="" className="w-full h-full rounded-full object-cover"/> : 
+                                <FiUser />
+                            }
+                        </div>
+                        {/* オンラインステータスバッジ (擬似的) */}
+                        <span className={`absolute bottom-0 right-0 w-3.5 h-3.5 border-2 border-white rounded-full ${connectionStatus === 'connected' ? 'bg-green-500' : 'bg-gray-400'}`}></span>
+                    </div>
+                    <div>
+                        <div className="flex items-center gap-2">
+                            <h3 className="text-lg font-bold text-gray-800">{selectedUser.handleName || 'No Name'}</h3>
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${badge.bg} ${badge.text}`}>
+                                {badge.label}
+                            </span>
+                        </div>
+                        <p className="text-xs text-gray-500">{selectedUser.email}</p>
+                    </div>
+                </div>
+
+                {/* 接続ステータス表示 */}
+                <div className="flex items-center gap-2">
+                    {connectionStatus === 'connected' ? (
+                        <span className="flex items-center text-xs text-green-600 bg-green-50 px-2 py-1 rounded-full border border-green-100">
+                            <span className="w-2 h-2 bg-green-500 rounded-full mr-1.5 animate-pulse"></span>
+                            接続中
+                        </span>
+                    ) : (
+                        <span className="flex items-center text-xs text-red-600 bg-red-50 px-2 py-1 rounded-full border border-red-100">
+                            <FiAlertTriangle className="mr-1" /> 切断
                         </span>
                     )}
+                    <button className="p-2 text-gray-400 hover:bg-gray-100 rounded-full transition-colors">
+                        <FiMoreVertical />
+                    </button>
                 </div>
             </div>
 
-            {/* メッセージエリア */}
-            <div className="flex-grow overflow-y-auto p-4 space-y-4 bg-gray-100">
-                {!socketConnected && (
-                     <div className="bg-red-100 border border-red-300 text-red-700 p-3 rounded-lg flex items-center gap-2">
-                        <FiAlertTriangle/> リアルタイム接続が切断されています。
-                     </div>
-                )}
+            {/* --- メッセージエリア --- */}
+            <div className="flex-grow overflow-y-auto p-4 sm:p-6 bg-[#F3F4F6] scroll-smooth">
                 {isLoading ? (
-                    <div className="text-center p-10 text-gray-500 flex items-center justify-center">
-                        <FiLoader className="animate-spin mr-2" /> 履歴をロード中...
+                    <div className="h-full flex flex-col items-center justify-center text-gray-400 space-y-2">
+                        <FiLoader className="animate-spin text-3xl" />
+                        <span className="text-sm">メッセージを読み込み中...</span>
+                    </div>
+                ) : messages.length === 0 ? (
+                    <div className="h-full flex flex-col items-center justify-center text-gray-400 opacity-60">
+                        <FiMessageSquare size={48} className="mb-2" />
+                        <p>メッセージ履歴はありません</p>
+                        <p className="text-xs">最初のメッセージを送信しましょう</p>
                     </div>
                 ) : (
-                    messages.map((msg, index) => {
-                        const isOwn = msg.senderId === adminUserId && msg.senderRole === 'ADMIN';
-                        const isBot = msg.isAutoResponse;
-                        const senderName = isOwn ? '管理者' : selectedUser.handleName;
+                    <div className="space-y-6">
+                        {messages.map((msg, index) => {
+                            const isOwn = msg.senderId === adminUserId && msg.senderRole === 'ADMIN';
+                            const isBot = msg.isAutoResponse;
+                            
+                            // 日付区切り線の判定
+                            const showDateSeparator = isNewDay(msg.createdAt, messages[index - 1]?.createdAt);
 
-                        return (
-                            <div key={msg.id} className={`flex items-end gap-3 ${isOwn ? 'justify-end' : 'justify-start'}`}>
-                                {/* アイコン表示 (相手ユーザーまたはBot) */}
-                                {!isOwn && (
-                                    <div className={`w-8 h-8 rounded-full ${isBot ? 'bg-blue-500' : getRoleColor(selectedUser.role)} flex items-center justify-center text-white text-xs font-bold`} title={isBot ? 'AI Bot' : senderName}>
-                                        {isBot ? 'AI' : (selectedUser.iconUrl ? <img src={selectedUser.iconUrl} alt={selectedUser.handleName} className="w-full h-full rounded-full object-cover" /> : selectedUser.handleName?.[0] || selectedUser.role?.[0])}
-                                    </div>
-                                )}
-                                
-                                <div className={`flex flex-col max-w-[70%] ${isOwn ? 'items-end' : 'items-start'}`}>
-                                    <span className="text-xs text-gray-500 mb-1">
-                                        {senderName} ({new Date(msg.createdAt).toLocaleTimeString()})
-                                        {msg.isTemp && <span className="text-red-500 ml-1">(送信中...)</span>}
-                                    </span>
-                                    <div className={`px-4 py-2 rounded-xl text-sm shadow-md ${
-                                        isOwn ? 'bg-red-500 text-white rounded-br-none' : 
-                                        isBot ? 'bg-indigo-100 text-indigo-800 rounded-tl-none border border-indigo-300' :
-                                        'bg-white text-gray-800 rounded-tl-none border border-gray-300'
-                                    }`}>
-                                        <p className="whitespace-pre-wrap">{msg.content}</p>
+                            return (
+                                <div key={msg.id || index}>
+                                    {/* 日付セパレーター */}
+                                    {showDateSeparator && (
+                                        <div className="flex justify-center my-6">
+                                            <span className="bg-gray-200 text-gray-600 text-[10px] px-3 py-1 rounded-full font-medium">
+                                                {formatDateHeader(msg.createdAt)}
+                                            </span>
+                                        </div>
+                                    )}
+
+                                    {/* メッセージ本体 */}
+                                    <div className={`flex gap-3 ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
+                                        
+                                        {/* アバター (相手のみ) */}
+                                        {!isOwn && (
+                                            <div className="flex-shrink-0 mt-auto">
+                                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs overflow-hidden shadow-sm ${isBot ? 'bg-indigo-500' : 'bg-gray-400'}`}>
+                                                    {isBot ? 'AI' : (selectedUser.iconUrl ? <img src={selectedUser.iconUrl} alt="" className="w-full h-full object-cover"/> : <FiUser />)}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        <div className={`flex flex-col max-w-[70%] sm:max-w-[60%] ${isOwn ? 'items-end' : 'items-start'}`}>
+                                            
+                                            {/* 名前 (Botの場合のみ表示など調整可) */}
+                                            {!isOwn && isBot && <span className="text-[10px] text-gray-500 mb-1 ml-1">自動応答</span>}
+
+                                            {/* 吹き出し */}
+                                            <div className={`
+                                                px-4 py-2.5 shadow-sm text-sm whitespace-pre-wrap break-words leading-relaxed
+                                                ${isOwn 
+                                                    ? 'bg-gradient-to-br from-gray-800 to-gray-900 text-white rounded-2xl rounded-tr-none' 
+                                                    : isBot 
+                                                        ? 'bg-indigo-50 border border-indigo-100 text-indigo-900 rounded-2xl rounded-tl-none'
+                                                        : 'bg-white text-gray-800 border border-gray-100 rounded-2xl rounded-tl-none'
+                                                }
+                                            `}>
+                                                {msg.content}
+                                            </div>
+
+                                            {/* メタ情報 (時間・ステータス) */}
+                                            <div className="flex items-center gap-1 mt-1 text-[10px] text-gray-400 px-1">
+                                                {formatTime(msg.createdAt)}
+                                                {isOwn && (
+                                                    <span>
+                                                        {msg.isTemp ? ' 送信中...' : (msg.isRead ? ' • 既読' : ' • 未読')}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
-                                {/* アイコン表示 (管理者本人) */}
-                                {isOwn && (
-                                    <div className="w-8 h-8 rounded-full bg-red-500 flex items-center justify-center text-white text-xs font-bold" title="管理者">
-                                        管
-                                    </div>
-                                )}
-                            </div>
-                        );
-                    })
+                            );
+                        })}
+                    </div>
                 )}
                 <div ref={chatBottomRef} />
             </div>
 
-            {/* 入力エリア */}
-            <div className="p-4 border-t bg-white">
-                <form onSubmit={handleSendMessage} className="flex gap-3">
+            {/* --- 入力エリア --- */}
+            <div className="p-4 bg-white border-t border-gray-200">
+                <form 
+                    onSubmit={handleSendMessage} 
+                    className={`flex items-end gap-2 p-2 rounded-2xl border transition-all ${connectionStatus === 'connected' ? 'border-gray-300 focus-within:border-sky-500 focus-within:ring-2 focus-within:ring-sky-100' : 'border-gray-200 bg-gray-50 opacity-70 cursor-not-allowed'}`}
+                >
+                    <button type="button" className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors">
+                        <FiImage size={20} />
+                    </button>
+                    
                     <textarea
+                        ref={textareaRef}
                         value={inputContent}
-                        onChange={(e) => setInputContent(e.target.value)}
+                        onChange={(e) => {
+                            setInputContent(e.target.value);
+                            adjustTextareaHeight();
+                        }}
                         onKeyDown={(e) => {
                             if (e.key === 'Enter' && !e.shiftKey) {
                                 e.preventDefault();
                                 handleSendMessage(e);
                             }
                         }}
-                        placeholder="管理者としてメッセージを入力..."
-                        rows="1"
-                        disabled={!socketConnected || !chatRoom}
-                        className="flex-grow p-3 border rounded-lg bg-gray-50 resize-none focus:ring-2 focus:ring-sky-500"
-                        style={{ minHeight: '44px' }}
+                        placeholder={connectionStatus === 'connected' ? "メッセージを入力..." : "接続待機中..."}
+                        rows={1}
+                        disabled={connectionStatus !== 'connected'}
+                        className="flex-grow bg-transparent border-none focus:ring-0 resize-none py-2.5 px-2 max-h-[120px] text-sm text-gray-800 placeholder-gray-400"
                     />
+                    
                     <button
                         type="submit"
-                        disabled={!inputContent.trim() || !socketConnected || !chatRoom}
-                        className="w-12 h-12 flex items-center justify-center bg-sky-500 text-white rounded-full hover:bg-sky-600 transition-colors disabled:bg-gray-400"
-                        title="送信"
+                        disabled={!inputContent.trim() || connectionStatus !== 'connected'}
+                        className={`p-2.5 rounded-xl flex items-center justify-center transition-all ${
+                            inputContent.trim() && connectionStatus === 'connected'
+                                ? 'bg-sky-500 text-white shadow-md hover:bg-sky-600 transform active:scale-95' 
+                                : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                        }`}
                     >
-                        <FiSend size={20} />
+                        <FiSend size={18} />
                     </button>
                 </form>
             </div>

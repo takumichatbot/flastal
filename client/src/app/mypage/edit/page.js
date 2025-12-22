@@ -6,7 +6,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
-import { FiSave, FiCamera, FiArrowLeft, FiTwitter, FiInstagram } from 'react-icons/fi';
+import Image from 'next/image';
+import { FiSave, FiCamera, FiArrowLeft, FiTwitter, FiInstagram, FiUser } from 'react-icons/fi';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -22,9 +23,9 @@ const getAuthToken = () => {
 };
 
 export default function ProfileEditPage() {
-  const { user, login, loading: authLoading } = useAuth(); 
+  const { user, loading: authLoading } = useAuth(); 
   const router = useRouter();
-  const { register, handleSubmit, setValue, watch, formState: { isSubmitting } } = useForm();
+  const { register, handleSubmit, setValue, formState: { isSubmitting } } = useForm();
   
   const [selectedGenres, setSelectedGenres] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
@@ -44,7 +45,6 @@ export default function ProfileEditPage() {
     setValue('bio', user.bio || '');
     setValue('twitterUrl', user.twitterUrl || '');
     setValue('instagramUrl', user.instagramUrl || '');
-    // 公開設定: デフォルトは true (undefinedの場合もtrue扱い)
     setValue('isProfilePublic', user.isProfilePublic !== false);
     
     setSelectedGenres(user.favoriteGenres || []);
@@ -67,25 +67,25 @@ export default function ProfileEditPage() {
     if (!file) return;
     
     setIsUploading(true);
-    const toastId = toast.loading('アイコンをアップロード中...');
+    const toastId = toast.loading('画像を処理中...');
     const token = getAuthToken();
     const formData = new FormData();
     formData.append('image', file);
 
     try {
-      // 画像アップロード
+      // 画像アップロードAPIへ送信
       const uploadRes = await fetch(`${API_URL}/api/upload`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` },
         body: formData
       });
-      if (!uploadRes.ok) throw new Error('アップロード失敗');
+      
+      if (!uploadRes.ok) throw new Error('アップロードに失敗しました');
       const { url } = await uploadRes.json();
       
-      // アイコンURLだけ先に更新
       setPreviewIcon(url);
       
-      // ユーザー情報も更新しておく（保存ボタン忘れ対策）
+      // アイコンだけ先に保存しておく（UX向上）
       await fetch(`${API_URL}/api/users/profile`, {
         method: 'PATCH',
         headers: { 
@@ -95,10 +95,11 @@ export default function ProfileEditPage() {
         body: JSON.stringify({ ...user, iconUrl: url })
       });
       
-      toast.success('アイコンを更新しました', { id: toastId });
+      toast.success('アイコンを変更しました', { id: toastId });
       
     } catch (error) {
-      toast.error('アイコンの更新に失敗しました', { id: toastId });
+      console.error(error);
+      toast.error('画像のアップロードに失敗しました', { id: toastId });
     } finally {
       setIsUploading(false);
     }
@@ -116,15 +117,12 @@ export default function ProfileEditPage() {
         },
         body: JSON.stringify({
           ...data,
-          iconUrl: previewIcon, // アイコンURLも含める
+          iconUrl: previewIcon, 
           favoriteGenres: selectedGenres
         }),
       });
 
       if (!res.ok) throw new Error('更新に失敗しました');
-      
-      // 更新されたユーザー情報を取得（もしトークン再発行が必要な仕様ならここで処理）
-      const updatedUser = await res.json();
       
       toast.success('プロフィールを更新しました！');
       router.push('/mypage?tab=profile');
@@ -138,12 +136,12 @@ export default function ProfileEditPage() {
 
   return (
     <div className="min-h-screen bg-sky-50 py-12 px-4 sm:px-6">
-      <div className="max-w-2xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden">
+      <div className="max-w-2xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden border border-sky-100">
         <div className="p-8">
-          <div className="flex items-center justify-between mb-8">
-            <h1 className="text-2xl font-bold text-gray-900">プロフィール編集</h1>
-            <Link href="/mypage?tab=profile" className="text-sm text-gray-500 hover:text-sky-600 flex items-center">
-              <FiArrowLeft className="mr-1"/> マイページへ戻る
+          <div className="flex items-center justify-between mb-8 pb-4 border-b border-gray-100">
+            <h1 className="text-2xl font-bold text-gray-800">プロフィール編集</h1>
+            <Link href="/mypage?tab=profile" className="text-sm font-bold text-gray-500 hover:text-sky-600 flex items-center transition-colors">
+              <FiArrowLeft className="mr-1"/> 戻る
             </Link>
           </div>
 
@@ -151,46 +149,63 @@ export default function ProfileEditPage() {
             
             {/* アイコン設定 */}
             <div className="flex flex-col items-center">
-                <div className="relative group">
-                    {previewIcon ? (
-                        <img src={previewIcon} className="w-24 h-24 rounded-full object-cover border-4 border-sky-100 shadow-sm"/>
-                    ) : (
-                        <div className="w-24 h-24 rounded-full bg-gray-200 flex items-center justify-center text-gray-400">No Image</div>
-                    )}
-                    <label className="absolute bottom-0 right-0 bg-sky-500 text-white p-2 rounded-full cursor-pointer hover:bg-sky-600 transition-colors shadow-md">
-                        <FiCamera/>
+                <div className="relative group w-32 h-32">
+                    <div className="w-full h-full rounded-full overflow-hidden border-4 border-white shadow-md relative bg-gray-100">
+                        {previewIcon ? (
+                            <Image 
+                                src={previewIcon} 
+                                alt="preview" 
+                                fill 
+                                style={{ objectFit: 'cover' }} 
+                                sizes="128px"
+                            />
+                        ) : (
+                            <div className="w-full h-full flex items-center justify-center text-gray-300">
+                                <FiUser size={48}/>
+                            </div>
+                        )}
+                        {/* オーバーレイ */}
+                        {isUploading && (
+                            <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                                <div className="animate-spin rounded-full h-6 w-6 border-2 border-white border-t-transparent"></div>
+                            </div>
+                        )}
+                    </div>
+                    
+                    <label className="absolute bottom-1 right-1 bg-sky-500 text-white p-2.5 rounded-full cursor-pointer hover:bg-sky-600 transition-colors shadow-lg border-2 border-white group-hover:scale-110">
+                        <FiCamera size={18}/>
                         <input type="file" accept="image/*" className="hidden" onChange={handleIconUpload} disabled={isUploading}/>
                     </label>
                 </div>
-                <p className="text-xs text-gray-500 mt-2">{isUploading ? 'アップロード中...' : 'アイコンを変更'}</p>
+                <p className="text-xs text-gray-400 mt-3">タップしてアイコンを変更</p>
             </div>
 
             {/* 基本情報 */}
-            <div className="space-y-4">
+            <div className="space-y-5">
                 <div>
-                    <label className="block text-sm font-medium text-gray-700">ニックネーム <span className="text-red-500">*</span></label>
-                    <input type="text" {...register('handleName', {required: true})} className="mt-1 w-full p-3 border rounded-lg focus:ring-2 focus:ring-sky-200 outline-none" />
+                    <label className="block text-sm font-bold text-gray-700 mb-1">ニックネーム <span className="text-red-500">*</span></label>
+                    <input type="text" {...register('handleName', {required: true})} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-400 focus:border-transparent outline-none transition" />
                 </div>
                 
                 <div>
-                    <label className="block text-sm font-medium text-gray-700">自己紹介 (推しへの愛などを自由に！)</label>
-                    <textarea {...register('bio')} rows="4" className="mt-1 w-full p-3 border rounded-lg focus:ring-2 focus:ring-sky-200 outline-none" placeholder="例: 〇〇ちゃん推しです！フラスタ企画初心者ですがよろしくお願いします。"></textarea>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">自己紹介</label>
+                    <textarea {...register('bio')} rows="4" className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-400 focus:border-transparent outline-none transition" placeholder="推しへの愛や、活動内容を書きましょう！"></textarea>
                 </div>
             </div>
 
             {/* 推しジャンル */}
             <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">推しジャンル (複数選択可)</label>
+                <label className="block text-sm font-bold text-gray-700 mb-3">推しジャンル (複数選択可)</label>
                 <div className="flex flex-wrap gap-2">
                     {GENRE_OPTIONS.map(genre => (
                         <button
                             key={genre}
                             type="button"
                             onClick={() => toggleGenre(genre)}
-                            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
+                            className={`px-4 py-2 rounded-full text-sm font-bold transition-all border ${
                                 selectedGenres.includes(genre) 
-                                    ? 'bg-pink-500 text-white shadow-md transform scale-105' 
-                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                    ? 'bg-sky-500 text-white border-sky-500 shadow-md' 
+                                    : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
                             }`}
                         >
                             {genre}
@@ -200,23 +215,24 @@ export default function ProfileEditPage() {
             </div>
 
             {/* SNSリンク */}
-            <div className="space-y-4 pt-4 border-t">
-                <h3 className="text-sm font-bold text-gray-500">SNS連携 (任意)</h3>
+            <div className="space-y-4 pt-6 border-t border-gray-100">
+                <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider">SNS連携</h3>
                 <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400"><FiTwitter/></div>
-                    <input type="url" {...register('twitterUrl')} placeholder="X (Twitter) プロフィールURL" className="pl-10 w-full p-3 border rounded-lg focus:ring-2 focus:ring-sky-200 outline-none" />
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-sky-400"><FiTwitter size={20}/></div>
+                    <input type="url" {...register('twitterUrl')} placeholder="X (Twitter) URL" className="pl-10 w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-400 outline-none transition" />
                 </div>
                 <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400"><FiInstagram/></div>
-                    <input type="url" {...register('instagramUrl')} placeholder="Instagram プロフィールURL" className="pl-10 w-full p-3 border rounded-lg focus:ring-2 focus:ring-sky-200 outline-none" />
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-pink-500"><FiInstagram size={20}/></div>
+                    <input type="url" {...register('instagramUrl')} placeholder="Instagram URL" className="pl-10 w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-400 outline-none transition" />
                 </div>
             </div>
 
             {/* 公開設定 */}
-            <div className="flex items-center bg-gray-50 p-4 rounded-lg">
-                <input type="checkbox" id="isProfilePublic" {...register('isProfilePublic')} className="h-5 w-5 text-sky-600 rounded" />
-                <label htmlFor="isProfilePublic" className="ml-2 block text-sm text-gray-700 cursor-pointer">
-                    プロフィールを一般公開する (参加した企画がギャラリーとして表示されます)
+            <div className="flex items-center gap-3 bg-gray-50 p-4 rounded-xl border border-gray-100">
+                <input type="checkbox" id="isProfilePublic" {...register('isProfilePublic')} className="h-5 w-5 text-sky-600 rounded focus:ring-sky-500 border-gray-300" />
+                <label htmlFor="isProfilePublic" className="text-sm text-gray-700 cursor-pointer font-medium select-none">
+                    プロフィールを一般公開する
+                    <p className="text-xs text-gray-400 font-normal mt-0.5">ONにすると、参加した企画が他のユーザーからも見えるようになります。</p>
                 </label>
             </div>
 
@@ -224,9 +240,9 @@ export default function ProfileEditPage() {
               <button 
                 type="submit" 
                 disabled={isSubmitting}
-                className="w-full py-3 bg-gradient-to-r from-sky-500 to-indigo-500 text-white font-bold rounded-xl hover:shadow-lg transition-transform hover:-translate-y-0.5 disabled:opacity-50"
+                className="w-full flex items-center justify-center gap-2 py-4 bg-gradient-to-r from-sky-500 to-indigo-500 text-white font-bold text-lg rounded-xl shadow-lg hover:shadow-xl hover:scale-[1.01] transition-all disabled:opacity-70 disabled:scale-100"
               >
-                {isSubmitting ? '保存中...' : 'プロフィールを更新する'}
+                <FiSave size={20}/> {isSubmitting ? '保存中...' : 'プロフィールを更新する'}
               </button>
             </div>
 

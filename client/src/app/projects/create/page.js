@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect, useCallback, Suspense } from 'react'; // useCallback を追加
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '@/app/contexts/AuthContext';
 import toast from 'react-hot-toast';
 import { FiInfo, FiAlertTriangle, FiCalendar, FiMapPin, FiX, FiImage, FiCpu, FiLoader, FiPlus, FiExternalLink, FiUser, FiAward } from 'react-icons/fi';
 import AiPlanGenerator from '@/app/components/AiPlanGenerator';
@@ -21,7 +21,10 @@ const formatToLocalISO = (dateString) => {
     try {
         const date = new Date(dateString);
         // ISO形式 (YYYY-MM-DDTHH:mm) に整形
-        return date.toISOString().slice(0, 16); 
+        // タイムゾーン補正を行う（日本時間の場合）
+        const offset = date.getTimezoneOffset() * 60000;
+        const localDate = new Date(date.getTime() - offset);
+        return localDate.toISOString().slice(0, 16); 
     } catch (e) {
         return '';
     }
@@ -36,7 +39,7 @@ const formatDisplayDate = (dateString) => {
 };
 
 // ===========================================
-// ★★★ モーダル群 (変更なし。そのまま維持) ★★★
+// モーダルコンポーネント群
 // ===========================================
 
 function AIGenerationModal({ onClose, onGenerate }) {
@@ -74,17 +77,17 @@ function AIGenerationModal({ onClose, onGenerate }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden">
-        <div className="bg-gradient-to-r from-purple-600 to-indigo-600 p-4 flex justify-between items-center">
+    <div className="fixed inset-0 bg-black/70 flex justify-center items-center z-50 p-4 backdrop-blur-sm animate-fadeIn">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden border border-purple-100">
+        <div className="bg-gradient-to-r from-purple-600 to-indigo-600 p-5 flex justify-between items-center">
           <h3 className="text-lg font-bold text-white flex items-center">
             <FiCpu className="mr-2"/> AI ラフ画生成
           </h3>
-          <button onClick={onClose} disabled={isGenerating} className="text-white/80 hover:text-white text-xl">×</button>
+          <button onClick={onClose} disabled={isGenerating} className="text-white/80 hover:text-white text-2xl transition-colors">×</button>
         </div>
         
         <div className="p-6">
-          <p className="text-sm text-gray-600 mb-4">
+          <p className="text-sm text-gray-600 mb-4 font-medium">
             作りたいフラスタのイメージを言葉で入力してください。<br/>
             AIが数秒でデザイン画を生成します。
           </p>
@@ -94,7 +97,7 @@ function AIGenerationModal({ onClose, onGenerate }) {
             onChange={(e) => setPrompt(e.target.value)}
             placeholder="例: 全体的にピンク色、大きなリボン、天使の羽、キラキラした装飾、かわいらしい雰囲気"
             rows="4"
-            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none text-gray-900"
+            className="w-full p-4 border border-purple-200 bg-purple-50/50 rounded-xl focus:ring-2 focus:ring-purple-500 focus:bg-white outline-none text-gray-900 transition-all resize-none"
             disabled={isGenerating}
           ></textarea>
 
@@ -102,14 +105,14 @@ function AIGenerationModal({ onClose, onGenerate }) {
             <button 
               onClick={onClose} 
               disabled={isGenerating}
-              className="px-4 py-2 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium"
+              className="px-5 py-2.5 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl font-bold transition-colors"
             >
               キャンセル
             </button>
             <button 
               onClick={handleGenerate}
               disabled={isGenerating || !prompt.trim()}
-              className="px-6 py-2 bg-purple-600 text-white font-bold rounded-lg hover:bg-purple-700 disabled:bg-gray-400 flex items-center shadow-md transition-all"
+              className="px-6 py-2.5 bg-purple-600 text-white font-bold rounded-xl hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center shadow-md transition-all transform hover:scale-105"
             >
               {isGenerating ? (
                 <>
@@ -123,7 +126,7 @@ function AIGenerationModal({ onClose, onGenerate }) {
             </button>
           </div>
           {isGenerating && (
-            <p className="text-xs text-center text-purple-600 mt-3 animate-pulse">
+            <p className="text-xs text-center text-purple-600 mt-4 animate-pulse font-bold">
               AIが絵を描いています... (約10〜20秒かかります)
             </p>
           )}
@@ -140,7 +143,6 @@ function EventSelectionModal({ onClose, onSelect }) {
   useEffect(() => {
     const fetchEvents = async () => {
       try {
-        // ★ /api/events/public を叩くことを推奨
         const res = await fetch(`${API_URL}/api/events/public`); 
         if (res.ok) {
           const data = await res.json();
@@ -157,70 +159,76 @@ function EventSelectionModal({ onClose, onSelect }) {
   }, []);
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
-        <div className="p-4 border-b flex justify-between items-center bg-indigo-50 rounded-t-lg">
-          <h3 className="text-lg font-bold text-indigo-900">公式イベントを選択</h3>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-700 text-xl">×</button>
+    <div className="fixed inset-0 bg-black/60 flex justify-center items-center z-50 p-4 backdrop-blur-sm animate-fadeIn">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
+        <div className="p-5 border-b flex justify-between items-center bg-indigo-50">
+          <h3 className="text-lg font-bold text-indigo-900 flex items-center gap-2">
+              <FiCalendar className="text-indigo-600"/> 公式イベントを選択
+          </h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl transition-colors">×</button>
         </div>
 
-        <div className="p-4 overflow-y-auto flex-grow bg-gray-50">
+        <div className="p-4 overflow-y-auto flex-grow bg-slate-50 space-y-3">
           {loading ? (
-            <p className="text-center text-gray-500 py-8">イベント情報を読み込み中...</p>
+            <div className="text-center py-10 text-gray-500">
+                <FiLoader className="animate-spin text-3xl mx-auto mb-2 text-indigo-400"/>
+                読み込み中...
+            </div>
           ) : events.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              <p>現在、登録されている公式イベントはありません。</p>
-              <button onClick={onClose} className="mt-4 text-sm text-indigo-600 underline">
-                手動で入力する
+            <div className="text-center py-12 text-gray-500">
+              <p className="font-bold mb-2">現在、登録されている公式イベントはありません。</p>
+              <button onClick={onClose} className="mt-2 text-sm text-indigo-600 underline font-bold hover:text-indigo-800">
+                手動で入力して作成する
               </button>
             </div>
           ) : (
-            <div className="space-y-3">
-              {events.map(event => (
-                <button
-                  key={event.id}
-                  onClick={() => {
-                    onSelect(event);
-                    onClose();
-                  }}
-                  className="w-full text-left p-4 bg-white border border-gray-200 rounded-xl hover:border-indigo-500 hover:shadow-md transition-all group"
-                >
-                  <div className="flex justify-between items-start mb-2">
-                    <span className="bg-indigo-100 text-indigo-700 text-xs px-2 py-1 rounded-full font-bold">
-                      {event.organizer?.name || '公式'}
-                    </span>
-                    <span className="text-xs text-gray-400">
-                      {new Date(event.eventDate).toLocaleDateString('ja-JP', { weekday: 'short' })}
-                    </span>
+            events.map(event => (
+              <button
+                key={event.id}
+                onClick={() => {
+                  onSelect(event);
+                  onClose();
+                }}
+                className="w-full text-left p-5 bg-white border border-gray-200 rounded-xl hover:border-indigo-400 hover:shadow-md transition-all group relative overflow-hidden"
+              >
+                <div className="flex justify-between items-start mb-2 relative z-10">
+                  <span className="bg-indigo-100 text-indigo-700 text-[10px] px-2 py-1 rounded-full font-bold border border-indigo-200">
+                    {event.organizer?.name || 'OFFICIAL'}
+                  </span>
+                  <span className="text-xs text-gray-400 font-mono font-bold">
+                    {new Date(event.eventDate).toLocaleDateString('ja-JP', { weekday: 'short' })}
+                  </span>
+                </div>
+                
+                <h4 className="text-lg font-bold text-gray-800 group-hover:text-indigo-600 mb-3 relative z-10 line-clamp-2">
+                  {event.title}
+                </h4>
+                
+                <div className="text-sm text-gray-500 space-y-1 relative z-10">
+                  <div className="flex items-center">
+                    <FiCalendar className="mr-2 text-indigo-400 shrink-0"/> 
+                    {new Date(event.eventDate).toLocaleString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                   </div>
-                  
-                  <h4 className="text-lg font-bold text-gray-800 group-hover:text-indigo-600 mb-2">
-                    {event.title}
-                  </h4>
-                  
-                  <div className="text-sm text-gray-600 space-y-1">
-                    <div className="flex items-center">
-                      <FiCalendar className="mr-2 text-indigo-400"/> 
-                      {new Date(event.eventDate).toLocaleString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                    </div>
-                    <div className="flex items-center">
-                      <FiMapPin className="mr-2 text-indigo-400"/>
-                      {event.venue ? event.venue.venueName : '会場未定'}
-                    </div>
+                  <div className="flex items-center">
+                    <FiMapPin className="mr-2 text-indigo-400 shrink-0"/>
+                    {event.venue ? event.venue.venueName : '会場未定'}
                   </div>
+                </div>
 
-                  {!event.isStandAllowed && (
-                    <div className="mt-3 text-xs bg-red-50 text-red-600 px-3 py-1 rounded border border-red-100 inline-block font-bold">
-                      🚫 スタンド花禁止
-                    </div>
-                  )}
-                </button>
-              ))}
-            </div>
+                {!event.isStandAllowed && (
+                  <div className="mt-3 text-xs bg-red-50 text-red-600 px-3 py-1 rounded-lg border border-red-100 inline-flex items-center font-bold relative z-10">
+                    <FiAlertTriangle className="mr-1"/> スタンド花禁止
+                  </div>
+                )}
+                
+                {/* Hover Effect Background */}
+                <div className="absolute inset-0 bg-indigo-50 opacity-0 group-hover:opacity-100 transition-opacity z-0"></div>
+              </button>
+            ))
           )}
         </div>
-        <div className="p-3 border-t bg-white text-center">
-            <button onClick={onClose} className="text-sm text-gray-500 hover:text-gray-800">
+        <div className="p-4 border-t bg-white text-center shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+            <button onClick={onClose} className="text-sm font-bold text-gray-500 hover:text-gray-800 transition-colors">
                 キャンセル（手動で入力）
             </button>
         </div>
@@ -252,33 +260,35 @@ function VenueSelectionModal({ onClose, onSelect }) {
   }, []);
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
-        <div className="p-4 border-b flex justify-between items-center">
-          <h3 className="text-lg font-bold text-gray-800">会場を選択</h3>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-700 text-xl">×</button>
+    <div className="fixed inset-0 bg-black/60 flex justify-center items-center z-50 p-4 backdrop-blur-sm animate-fadeIn">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
+        <div className="p-5 border-b flex justify-between items-center bg-gray-50">
+          <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+              <FiMapPin className="text-green-600"/> 会場を選択
+          </h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl transition-colors">×</button>
         </div>
-        <div className="p-4 overflow-y-auto flex-grow">
+        <div className="p-4 overflow-y-auto flex-grow bg-slate-50 space-y-3">
           {loading ? (
-            <p className="text-center text-gray-500">読み込み中...</p>
+            <div className="text-center py-10 text-gray-500">読み込み中...</div>
           ) : (
-            <div className="grid gap-3">
-              {venues.map(venue => (
+            venues.map(venue => (
                 <button
                   key={venue.id}
                   onClick={() => { onSelect(venue); onClose(); }}
-                  className="text-left p-3 border rounded-lg hover:bg-green-500/5 transition-colors group"
+                  className="w-full text-left p-4 bg-white border border-gray-200 rounded-xl hover:border-green-500 hover:shadow-md transition-all group"
                 >
-                  <div className="flex justify-between">
-                      <div className="font-bold text-gray-800 group-hover:text-green-700">{venue.venueName}</div>
+                  <div className="flex justify-between items-center mb-1">
+                      <div className="font-bold text-gray-800 group-hover:text-green-700 text-lg">{venue.venueName}</div>
                       {(venue.isStandAllowed === false) && (
-                          <span className="text-xs bg-red-100 text-red-600 px-2 py-1 rounded">フラスタNG</span>
+                          <span className="text-xs bg-red-100 text-red-600 px-2 py-1 rounded font-bold whitespace-nowrap ml-2">フラスタNG</span>
                       )}
                   </div>
-                  <div className="text-xs text-gray-500">{venue.address}</div>
+                  <div className="text-xs text-gray-500 flex items-center">
+                      <FiMapPin className="mr-1"/> {venue.address}
+                  </div>
                 </button>
-              ))}
-            </div>
+            ))
           )}
         </div>
       </div>
@@ -288,14 +298,13 @@ function VenueSelectionModal({ onClose, onSelect }) {
 
 
 // ===========================================
-// ★★★ メインフォーム (CreateProjectForm) ★★★
+// メインフォーム (CreateProjectForm)
 // ===========================================
 
 function CreateProjectForm() {
   const router = useRouter();
   const searchParams = useSearchParams(); 
   
-  // ★★★ URLから eventId と venueId を取得 ★★★
   const eventIdFromUrl = searchParams.get('eventId');
   const venueIdFromUrl = searchParams.get('venueId');
 
@@ -312,7 +321,6 @@ function CreateProjectForm() {
   const [selectedVenue, setSelectedVenue] = useState(null);
   const [selectedEvent, setSelectedEvent] = useState(null);
   
-  // ★★★ イベント情報読み込み用ステート ★★★
   const [eventLoading, setEventLoading] = useState(true);
 
   const [formData, setFormData] = useState({
@@ -332,7 +340,7 @@ function CreateProjectForm() {
     password: '',
   });
   
-  // ★★★ イベントIDによる自動入力ロジック ★★★
+  // イベント情報の自動取得
   const fetchEventDetails = useCallback(async (id) => {
     if (!id) {
         setEventLoading(false);
@@ -344,7 +352,6 @@ function CreateProjectForm() {
             const data = await res.json();
             setSelectedEvent(data);
             
-            // フォームのフィールドを初期値で埋める (eventId, title, deliveryDateTime)
             const eventDate = data.eventDate ? formatToLocalISO(data.eventDate) : '';
             
             setFormData(prev => ({
@@ -352,7 +359,7 @@ function CreateProjectForm() {
                 title: data.title ? `【企画】${data.title} フラスタ企画` : prev.title, 
                 eventId: data.id,
                 deliveryDateTime: eventDate || prev.deliveryDateTime,
-                ...(data.venue ? { // 会場情報があれば自動でvenueも設定
+                ...(data.venue ? { 
                     venueId: data.venue.id,
                     deliveryAddress: data.venue.address || data.venue.venueName
                 } : {})
@@ -379,11 +386,9 @@ function CreateProjectForm() {
       router.push('/login');
     }
     
-    // 1. URLに eventId がある場合、イベント情報を取得
     if (eventIdFromUrl) {
         fetchEventDetails(eventIdFromUrl);
     } else if (venueIdFromUrl) {
-        // 2. URLに venueId のみがある場合、会場情報を取得 (イベントがない場合)
         fetch(`${API_URL}/api/venues/${venueIdFromUrl}`)
             .then(res => res.json())
             .then(venue => {
@@ -408,7 +413,6 @@ function CreateProjectForm() {
         title: `【企画】${event.title} フラスタ企画`, 
         eventId: event.id,
         deliveryDateTime: eventDate,
-        // イベントに会場情報が紐づいていれば自動設定
         ...(event.venue ? {
             venueId: event.venue.id,
             deliveryAddress: event.venue.address || event.venue.venueName
@@ -542,9 +546,9 @@ function CreateProjectForm() {
         body: JSON.stringify({
           ...formData,
           targetAmount: parseInt(formData.targetAmount, 10),
-          venueId: selectedVenue?.id || null, // ★ selectedVenue からIDを使用
-          eventId: selectedEvent?.id || null,  // ★ selectedEvent からIDを使用
-          deliveryDateTime: new Date(formData.deliveryDateTime).toISOString(), // ISO形式に変換
+          venueId: selectedVenue?.id || null, 
+          eventId: selectedEvent?.id || null, 
+          deliveryDateTime: new Date(formData.deliveryDateTime).toISOString(),
         }),
       });
 
@@ -561,46 +565,51 @@ function CreateProjectForm() {
   };
 
   if (authLoading || !user || eventLoading) {
-    return <div className="min-h-screen flex items-center justify-center"><p>読み込み中...</p></div>;
+    return <div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div></div>;
   }
 
   return (
-    <div className="bg-sky-50 min-h-screen py-12">
-      <div className="max-w-2xl mx-auto p-8 bg-white rounded-xl shadow-lg">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2 text-center">新しい企画を立てる</h1>
-        <p className="text-gray-600 text-center mb-8">あなたの想いを形にする第一歩です。</p>
+    <div className="bg-sky-50 min-h-screen py-12 font-sans text-gray-800">
+      <div className="max-w-3xl mx-auto p-8 bg-white rounded-3xl shadow-xl border border-white/50">
+        <h1 className="text-3xl font-extrabold text-gray-900 mb-2 text-center tracking-tight">新しい企画を立てる</h1>
+        <p className="text-gray-500 text-center mb-10 font-medium">あなたの想いを形にする第一歩です。</p>
         
-        {/* ★★★ イベント選択UI ★★★ */}
+        {/* イベント選択UI */}
         {!selectedEvent && (
             <button 
                 type="button"
                 onClick={() => setIsEventModalOpen(true)}
-                className="w-full mb-8 py-4 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-xl shadow-md hover:shadow-lg transition-all transform hover:-translate-y-1 flex items-center justify-center"
+                className="w-full mb-8 py-5 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-2xl shadow-lg hover:shadow-xl hover:scale-[1.01] transition-all flex items-center justify-center group"
             >
-                <FiCalendar className="w-6 h-6 mr-3" />
+                <div className="p-3 bg-white/20 rounded-full mr-4 group-hover:scale-110 transition-transform">
+                    <FiCalendar className="w-6 h-6" />
+                </div>
                 <div className="text-left">
-                    <p className="text-sm font-light opacity-90">まずはここから！</p>
-                    <p className="font-bold text-lg">公式イベントを選択して作成する</p>
+                    <p className="text-xs font-bold opacity-80 uppercase tracking-widest mb-1">RECOMMENDED</p>
+                    <p className="font-bold text-xl">公式イベントを選択して作成する</p>
                 </div>
             </button>
         )}
 
-        {/* ★★★ 選択されたイベント情報表示 ★★★ */}
+        {/* 選択されたイベント情報 */}
         {selectedEvent && (
-            <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 mb-6 relative">
-                <span className="absolute top-0 right-0 bg-indigo-600 text-white text-xs px-2 py-1 rounded-bl-lg rounded-tr-lg font-bold">公式イベント適用中</span>
-                <h3 className="font-bold text-indigo-900 text-lg mb-1 flex items-center">
+            <div className="bg-gradient-to-r from-indigo-50 to-blue-50 border border-indigo-100 rounded-2xl p-5 mb-8 relative shadow-sm animate-fadeIn">
+                <span className="absolute top-0 right-0 bg-indigo-600 text-white text-[10px] px-3 py-1 rounded-bl-xl rounded-tr-xl font-bold tracking-widest">OFFICIAL EVENT</span>
+                <h3 className="font-bold text-indigo-900 text-lg mb-2 flex items-center">
                     <FiCalendar className="mr-2"/> {selectedEvent.title}
                 </h3>
-                <p className="text-sm text-indigo-700 mb-2">{formatDisplayDate(selectedEvent.eventDate)} @ {selectedEvent.venue?.venueName || '会場未定'}</p>
+                <p className="text-sm text-indigo-700 font-medium mb-3 flex items-center gap-3">
+                    <span className="bg-white/50 px-2 py-1 rounded">{formatDisplayDate(selectedEvent.eventDate)}</span>
+                    <span className="bg-white/50 px-2 py-1 rounded">@ {selectedEvent.venue?.venueName || '会場未定'}</span>
+                </p>
                 
                 {(!selectedEvent.isStandAllowed || selectedEvent.regulationNote) && (
-                    <div className="mt-3 bg-white p-3 rounded border border-indigo-100 text-sm">
+                    <div className="mt-3 bg-white/80 p-4 rounded-xl border border-indigo-100 text-sm shadow-inner">
                         <p className="font-bold text-indigo-800 mb-1 flex items-center">
                             <FiAlertTriangle className="mr-1"/> 主催者からの注意事項
                         </p>
-                        {selectedEvent.isStandAllowed === false && <p className="text-red-600 font-bold mb-1 flex items-center"><FiX className="mr-1"/> スタンド花（フラスタ）の受け入れは不可です。</p>}
-                        {selectedEvent.regulationNote && <p className="text-gray-700 whitespace-pre-wrap">{selectedEvent.regulationNote}</p>}
+                        {selectedEvent.isStandAllowed === false && <p className="text-red-600 font-bold mb-1 flex items-center"><FiX className="mr-1"/> スタンド花（フラスタ）の受け入れ不可</p>}
+                        {selectedEvent.regulationNote && <p className="text-gray-700 whitespace-pre-wrap leading-relaxed">{selectedEvent.regulationNote}</p>}
                     </div>
                 )}
 
@@ -608,181 +617,208 @@ function CreateProjectForm() {
                   type="button" 
                   onClick={() => {
                       setSelectedEvent(null);
-                      setSelectedVenue(null); // イベント解除時は会場も解除
+                      setSelectedVenue(null);
                       setFormData(prev => ({ ...prev, eventId: '', title: '', deliveryDateTime: '', venueId: '', deliveryAddress: '' }));
                   }}
-                  className="text-xs text-gray-500 underline mt-3 hover:text-red-500"
+                  className="text-xs font-bold text-indigo-400 hover:text-red-500 underline mt-3 transition-colors"
                 >
-                  選択を解除する
+                  選択を解除して手動入力へ
                 </button>
             </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-8">
           
-          {/* 公開設定セクション */}
-          <section className="bg-slate-50 p-4 rounded-lg border border-slate-200">
-            <h2 className="text-lg font-bold text-gray-800 mb-3">公開設定</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <button type="button" onClick={() => handleTypeChange('PUBLIC')} className={`p-3 rounded-lg border-2 text-center transition-all ${formData.projectType === 'PUBLIC' ? 'border-sky-500 bg-white shadow-md' : 'border-transparent hover:bg-slate-200'}`}>
-                    <div className="flex justify-center mb-1 text-2xl">🌍</div>
-                    <div className="font-bold text-gray-800 text-sm">みんなで</div>
-                    <div className="text-xs text-gray-500">サイト全体に公開</div>
-                </button>
-                <button type="button" onClick={() => handleTypeChange('PRIVATE')} className={`p-3 rounded-lg border-2 text-center transition-all ${formData.projectType === 'PRIVATE' ? 'border-purple-500 bg-white shadow-md' : 'border-transparent hover:bg-slate-200'}`}>
-                    <div className="flex justify-center mb-1 text-2xl">🔒</div>
-                    <div className="font-bold text-gray-800 text-sm">仲間と</div>
-                    <div className="text-xs text-gray-500">合言葉で限定公開</div>
-                </button>
-                <button type="button" onClick={() => handleTypeChange('SOLO')} className={`p-3 rounded-lg border-2 text-center transition-all ${formData.projectType === 'SOLO' ? 'border-green-500 bg-white shadow-md' : 'border-transparent hover:bg-slate-200'}`}>
-                    <div className="flex justify-center mb-1 text-2xl">👤</div>
-                    <div className="font-bold text-gray-800 text-sm">ひとりで</div>
-                    <div className="text-xs text-gray-500">自分専用の依頼</div>
-                </button>
+          {/* 公開設定 */}
+          <section className="bg-slate-50 p-6 rounded-2xl border border-slate-200">
+            <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2"><FiUser className="text-sky-500"/> 公開設定</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {[
+                    { id: 'PUBLIC', icon: '🌍', title: 'みんなで', desc: 'サイト全体に公開', color: 'sky' },
+                    { id: 'PRIVATE', icon: '🔒', title: '仲間と', desc: '合言葉で限定公開', color: 'purple' },
+                    { id: 'SOLO', icon: '👤', title: 'ひとりで', desc: '自分専用の依頼', color: 'green' },
+                ].map((type) => (
+                    <button 
+                        key={type.id}
+                        type="button" 
+                        onClick={() => handleTypeChange(type.id)} 
+                        className={`p-4 rounded-xl border-2 text-center transition-all ${
+                            formData.projectType === type.id 
+                            ? `border-${type.color}-500 bg-white shadow-md transform scale-105 ring-2 ring-${type.color}-100` 
+                            : 'border-transparent bg-white/50 hover:bg-white hover:border-gray-200'
+                        }`}
+                    >
+                        <div className="flex justify-center mb-2 text-3xl">{type.icon}</div>
+                        <div className={`font-bold text-${type.color}-700 text-sm mb-1`}>{type.title}</div>
+                        <div className="text-[10px] text-gray-400 font-bold">{type.desc}</div>
+                    </button>
+                ))}
             </div>
             {formData.projectType === 'PRIVATE' && (
-                <div className="mt-4">
-                    <label className="block text-sm font-medium text-gray-700">合言葉 (参加者に共有してください)</label>
-                    <input type="text" name="password" value={formData.password} onChange={handleChange} placeholder="例: miku2025" className="mt-1 w-full p-2 border border-purple-300 rounded-md focus:ring-purple-500 focus:border-purple-500"/>
+                <div className="mt-5 bg-white p-4 rounded-xl border border-purple-100 animate-fadeIn">
+                    <label className="block text-sm font-bold text-purple-800 mb-1">合言葉 (参加者に共有してください)</label>
+                    <input type="text" name="password" value={formData.password} onChange={handleChange} placeholder="例: miku2025" className="w-full p-3 border border-purple-200 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none text-purple-900 bg-purple-50 font-bold tracking-widest"/>
                 </div>
             )}
-            {formData.projectType === 'SOLO' && <p className="mt-3 text-xs text-green-700 bg-green-100 p-2 rounded">※「ひとりで」を選択すると、企画一覧には表示されず、あなた専用の管理ページが作成されます。</p>}
+            {formData.projectType === 'SOLO' && <p className="mt-4 text-xs text-green-700 bg-green-50 p-3 rounded-lg border border-green-100 font-bold">※「ひとりで」を選択すると、企画一覧には表示されず、あなた専用の管理ページが作成されます。</p>}
           </section>
 
-          {/* ★★★ AI文章生成ボタン ★★★ */}
-          <div className="flex justify-end mb-2">
+          {/* AI文章生成 */}
+          <div className="flex justify-end">
             <button
               type="button"
               onClick={() => setIsAiPlanModalOpen(true)}
-              className="flex items-center gap-2 text-xs bg-gradient-to-r from-pink-500 to-rose-500 text-white px-4 py-2 rounded-full font-bold shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all"
+              className="flex items-center gap-2 text-xs bg-white text-pink-600 border border-pink-200 px-4 py-2 rounded-full font-bold shadow-sm hover:bg-pink-50 transition-all"
             >
               <FiCpu className="text-lg" /> 
-              <span>AIにタイトルと説明文を書いてもらう</span>
+              <span>AIにタイトルと説明文を考えてもらう</span>
             </button>
           </div>
 
           {/* 基本情報 */}
-          <div>
-            <label htmlFor="title" className="block text-sm font-medium text-gray-700">企画タイトル <span className="text-red-500">*</span></label>
-            <input type="text" name="title" id="title" required value={formData.title} onChange={handleChange} className="input-field" placeholder="例：○○さん出演祝いフラスタ企画"/>
-          </div>
+          <div className="space-y-6">
+            <div>
+                <label htmlFor="title" className="block text-sm font-bold text-gray-700 mb-1">企画タイトル <span className="text-red-500">*</span></label>
+                <input type="text" name="title" id="title" required value={formData.title} onChange={handleChange} className="input-field font-bold" placeholder="例：○○さん出演祝いフラスタ企画"/>
+            </div>
 
-          <div>
-            <label htmlFor="description" className="block text-sm font-medium text-gray-700">企画の詳しい説明 <span className="text-red-500">*</span></label>
-            <textarea name="description" id="description" required value={formData.description} onChange={handleChange} rows="6" className="input-field" placeholder="企画の趣旨や想いを書きましょう。"></textarea>
+            <div>
+                <label htmlFor="description" className="block text-sm font-bold text-gray-700 mb-1">企画の詳しい説明 <span className="text-red-500">*</span></label>
+                <textarea name="description" id="description" required value={formData.description} onChange={handleChange} rows="6" className="input-field" placeholder="企画の趣旨や想いを書きましょう。"></textarea>
+            </div>
           </div>
 
           {/* お届け情報 */}
-          <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-             <div className="flex justify-between items-end mb-1">
-                <label className="block text-sm font-medium text-gray-700">お届け先 (会場) <span className="text-red-500">*</span></label>
-                <button type="button" onClick={() => setIsVenueModalOpen(true)} className="text-xs bg-green-600 text-white px-3 py-1.5 rounded-full hover:bg-green-700 font-semibold transition-colors shadow-sm">
-                  🏢 会場リストから選択
+          <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+             <div className="flex justify-between items-center mb-4">
+                <label className="text-lg font-bold text-gray-800 flex items-center gap-2"><FiMapPin className="text-green-600"/> お届け先</label>
+                <button type="button" onClick={() => setIsVenueModalOpen(true)} className="text-xs bg-green-50 text-green-700 px-3 py-1.5 rounded-full hover:bg-green-100 font-bold transition-colors border border-green-200">
+                  リストから選択
                 </button>
              </div>
+             
              {selectedVenue ? (
-                 <div className="mb-3">
-                     <div className="p-3 bg-white border border-green-300 rounded-lg flex justify-between items-center">
+                 <div className="mb-6">
+                     <div className="p-4 bg-green-50 border border-green-200 rounded-xl flex justify-between items-center group">
                          <div>
-                             <p className="font-bold text-green-800">{selectedVenue.venueName}</p>
-                             <p className="text-xs text-gray-500">{selectedVenue.address}</p>
+                             <p className="font-bold text-green-900 text-lg">{selectedVenue.venueName}</p>
+                             <p className="text-xs text-green-700">{selectedVenue.address}</p>
                          </div>
-                         <button type="button" onClick={() => handleVenueSelect(null)} className="text-xs text-gray-400 hover:text-red-500 underline">変更</button>
+                         <button type="button" onClick={() => handleVenueSelect(null)} className="text-xs text-green-400 font-bold hover:text-red-500 underline opacity-0 group-hover:opacity-100 transition-opacity">解除</button>
                      </div>
                      {(selectedVenue.isStandAllowed === false || selectedVenue.standRegulation) && (
-                         <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-md text-sm">
-                             <div className="font-bold text-yellow-800 mb-1 flex items-center"><FiInfo className="mr-1"/> この会場の注意事項</div>
-                             {selectedVenue.isStandAllowed === false && <p className="text-red-600 font-bold mb-1 flex items-center"><FiAlertTriangle className="mr-1"/> スタンド花（フラスタ）の受け入れ不可</p>}
-                             {selectedVenue.standRegulation && <p className="text-yellow-800 whitespace-pre-wrap">{selectedVenue.standRegulation}</p>}
+                         <div className="mt-3 p-4 bg-yellow-50 border border-yellow-200 rounded-xl text-sm">
+                             <div className="font-bold text-yellow-800 mb-2 flex items-center"><FiAlertTriangle className="mr-1"/> この会場の注意事項</div>
+                             {selectedVenue.isStandAllowed === false && <p className="text-red-600 font-bold mb-1 flex items-center"><FiX className="mr-1"/> スタンド花（フラスタ）の受け入れ不可</p>}
+                             {selectedVenue.standRegulation && <p className="text-yellow-800 whitespace-pre-wrap leading-relaxed">{selectedVenue.standRegulation}</p>}
                          </div>
                      )}
                  </div>
              ) : (
-                 <input type="text" name="deliveryAddress" required value={formData.deliveryAddress} onChange={handleChange} className="input-field mb-3" placeholder="会場名と住所を入力してください" />
+                 <input type="text" name="deliveryAddress" required value={formData.deliveryAddress} onChange={handleChange} className="input-field mb-4" placeholder="会場名と住所を入力してください" />
              )}
-             <label htmlFor="deliveryDateTime" className="block text-sm font-medium text-gray-700">納品希望日時 <span className="text-red-500">*</span></label>
-             <input type="datetime-local" name="deliveryDateTime" id="deliveryDateTime" required value={formData.deliveryDateTime} onChange={handleChange} className="input-field" />
+             
+             <div>
+                <label htmlFor="deliveryDateTime" className="block text-sm font-bold text-gray-700 mb-1">納品希望日時 <span className="text-red-500">*</span></label>
+                <input type="datetime-local" name="deliveryDateTime" id="deliveryDateTime" required value={formData.deliveryDateTime} onChange={handleChange} className="input-field" />
+             </div>
           </div>
 
           {/* 目標金額 */}
-          <div>
-            <label htmlFor="targetAmount" className="block text-sm font-medium text-gray-700">目標金額 (pt) <span className="text-red-500">*</span></label>
-            <div className="relative mt-1">
-                <input type="number" name="targetAmount" id="targetAmount" required value={formData.targetAmount} onChange={handleChange} className="input-field !pl-8" placeholder="30000" />
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">¥</span>
+          <div className="bg-gradient-to-r from-pink-50 to-rose-50 p-6 rounded-2xl border border-pink-100">
+            <label htmlFor="targetAmount" className="block text-lg font-bold text-pink-900 mb-2">目標金額 (pt) <span className="text-red-500">*</span></label>
+            <div className="relative">
+                <input type="number" name="targetAmount" id="targetAmount" required value={formData.targetAmount} onChange={handleChange} className="input-field !pl-8 !border-pink-200 !bg-white text-2xl font-bold text-pink-600 focus:!ring-pink-400" placeholder="30000" />
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-pink-300 text-xl font-bold">¥</span>
             </div>
+            <p className="text-xs text-pink-700 mt-2 font-bold">※ 1,000pt以上で設定してください</p>
           </div>
 
           {/* メイン画像 */}
           <div>
-            <label className="block text-sm font-medium text-gray-700">メイン画像 (一覧に表示されます)</label>
-            {formData.imageUrl && <img src={formData.imageUrl} alt="プレビュー" className="w-full h-48 object-cover rounded-md my-2" />}
-            <input type="file" accept="image/*" onChange={handleImageUpload} disabled={isUploading} className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-sky-100 file:text-sky-700 hover:file:bg-sky-200"/>
-            {isUploading && <p className="text-sm text-blue-500 mt-1">アップロード中...</p>}
+            <label className="block text-sm font-bold text-gray-700 mb-2">メイン画像 (一覧に表示)</label>
+            <div className="border-2 border-dashed border-gray-300 rounded-2xl p-6 text-center hover:bg-gray-50 transition-colors cursor-pointer relative overflow-hidden group">
+                <input type="file" accept="image/*" onChange={handleImageUpload} disabled={isUploading} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"/>
+                {formData.imageUrl ? (
+                    <img src={formData.imageUrl} alt="プレビュー" className="max-h-64 mx-auto rounded-lg shadow-md" />
+                ) : (
+                    <div className="py-8">
+                        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3 text-gray-400 group-hover:text-sky-500 transition-colors">
+                            {isUploading ? <FiLoader className="animate-spin text-2xl"/> : <FiImage className="text-3xl"/>}
+                        </div>
+                        <p className="text-sm font-bold text-gray-500 group-hover:text-gray-700">クリックして画像をアップロード</p>
+                    </div>
+                )}
+            </div>
           </div>
 
           {/* デザイン詳細 */}
-          <div className="border-t pt-6">
-             <h3 className="text-lg font-medium text-gray-900 mb-4">デザイン・お花の希望 (任意)</h3>
-             <div className="space-y-4">
+          <div className="border-t pt-8">
+             <h3 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2"><FiAward className="text-yellow-500"/> デザイン・お花の希望 (任意)</h3>
+             <div className="space-y-6">
+                
                 {/* デザイン画のアップロードエリア */}
-                <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
-                    <div className="flex justify-between items-center mb-2">
-                        <label className="block text-sm font-medium text-gray-700">デザイン画・参考画像 (複数可)</label>
-                        
-                        {/* ★ AI画像生成ボタン ★ */}
+                <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+                    <div className="flex justify-between items-center mb-4">
+                        <label className="block text-sm font-bold text-gray-700">参考画像・ラフ画</label>
                         <button 
                             type="button" 
                             onClick={() => setIsAIModalOpen(true)}
-                            className="text-xs bg-purple-600 text-white px-3 py-1.5 rounded-full hover:bg-purple-700 font-bold shadow-sm flex items-center"
+                            className="text-xs bg-purple-100 text-purple-700 px-3 py-1.5 rounded-full hover:bg-purple-200 font-bold transition-colors flex items-center border border-purple-200"
                         >
-                            <FiCpu className="mr-1"/> AIでイメージを生成
+                            <FiCpu className="mr-1"/> AIでイメージ生成
                         </button>
                     </div>
 
-                    <div className="flex flex-wrap gap-2 mb-2">
+                    <div className="flex flex-wrap gap-3 mb-4">
                         {formData.designImageUrls.map((url, index) => (
-                            <div key={index} className="relative w-20 h-20 group">
-                                <img src={url} alt={`デザイン ${index}`} className="w-full h-full object-cover rounded border border-gray-300" />
+                            <div key={index} className="relative w-24 h-24 group">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={url} alt={`デザイン ${index}`} className="w-full h-full object-cover rounded-xl border border-gray-200 shadow-sm" />
                                 <button
                                     type="button"
                                     onClick={() => removeDesignImage(index)}
-                                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs shadow-md transform scale-0 group-hover:scale-100 transition-transform"
                                 >
                                     <FiX />
                                 </button>
                             </div>
                         ))}
+                        <label className="w-24 h-24 border-2 border-dashed border-gray-300 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-sky-400 hover:bg-sky-50 transition-all text-gray-400 hover:text-sky-500">
+                            {isDesignUploading ? <FiLoader className="animate-spin text-xl"/> : <FiPlus className="text-2xl"/>}
+                            <span className="text-[10px] font-bold mt-1">追加</span>
+                            <input type="file" multiple accept="image/*" onChange={handleDesignImagesUpload} disabled={isDesignUploading} className="hidden" />
+                        </label>
                     </div>
-                    <label className="cursor-pointer inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
-                        <FiImage className="mr-2" />
-                        画像を追加
-                        <input type="file" multiple accept="image/*" onChange={handleDesignImagesUpload} disabled={isDesignUploading} className="hidden" />
-                    </label>
-                    {isDesignUploading && <span className="ml-3 text-sm text-blue-500">アップロード中...</span>}
                 </div>
 
                 <div>
-                    <label htmlFor="designDetails" className="block text-sm font-medium text-gray-700">デザインの雰囲気</label>
+                    <label htmlFor="designDetails" className="block text-sm font-bold text-gray-700 mb-1">デザインの雰囲気</label>
                     <textarea name="designDetails" id="designDetails" value={formData.designDetails} onChange={handleChange} rows="2" className="input-field" placeholder="例：青色をベースに、クールな感じで"></textarea>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <div>
-                        <label htmlFor="size" className="block text-sm font-medium text-gray-700">希望サイズ</label>
+                        <label htmlFor="size" className="block text-sm font-bold text-gray-700 mb-1">希望サイズ</label>
                         <input type="text" name="size" id="size" value={formData.size} onChange={handleChange} className="input-field" placeholder="例：高さ180cm程度"/>
                     </div>
                     <div>
-                        <label htmlFor="flowerTypes" className="block text-sm font-medium text-gray-700">使いたいお花</label>
+                        <label htmlFor="flowerTypes" className="block text-sm font-bold text-gray-700 mb-1">使いたいお花</label>
                         <input type="text" name="flowerTypes" id="flowerTypes" value={formData.flowerTypes} onChange={handleChange} className="input-field" placeholder="例：青いバラ、ユリ"/>
                     </div>
                 </div>
              </div>
           </div>
           
-          <div className="pt-6">
-            <button type="submit" disabled={isSubmitting || isUploading || isDesignUploading} className="w-full px-4 py-3 font-bold text-white bg-sky-500 rounded-lg hover:bg-sky-600 shadow-lg transition-all transform hover:scale-[1.01] disabled:bg-gray-400 disabled:transform-none">
-              {isSubmitting ? '作成中...' : '企画を作成して審査へ'}
+          <div className="pt-8 pb-4">
+            <button type="submit" disabled={isSubmitting || isUploading || isDesignUploading} className="w-full px-4 py-4 font-bold text-white bg-gradient-to-r from-sky-500 to-blue-600 rounded-2xl hover:shadow-lg hover:scale-[1.01] transition-all disabled:bg-gray-400 disabled:from-gray-400 disabled:to-gray-400 disabled:transform-none shadow-md text-lg">
+              {isSubmitting ? (
+                  <span className="flex items-center justify-center"><FiLoader className="animate-spin mr-2"/> 作成中...</span>
+              ) : '企画を作成して審査へ'}
             </button>
+            <p className="text-center text-xs text-gray-400 mt-4">
+                ※ 公開前に運営による審査が行われます。<br/>
+                ※ 規約に違反する内容は公開されません。
+            </p>
           </div>
         </form>
       </div>
@@ -791,12 +827,11 @@ function CreateProjectForm() {
       {isEventModalOpen && <EventSelectionModal onClose={() => setIsEventModalOpen(false)} onSelect={handleEventSelect} />}
       {isAIModalOpen && <AIGenerationModal onClose={() => setIsAIModalOpen(false)} onGenerate={handleAIGenerated} />}
       
-      {/* ★★★ AI文章生成モーダル ★★★ */}
+      {/* AI文章生成モーダル */}
       {isAiPlanModalOpen && (
         <AiPlanGenerator 
           onClose={() => setIsAiPlanModalOpen(false)}
           onGenerated={(title, description) => {
-            // 生成されたテキストをフォームに反映
             setFormData(prev => ({ ...prev, title, description }));
           }}
         />
@@ -805,31 +840,31 @@ function CreateProjectForm() {
       <style jsx>{`
         .input-field {
           width: 100%;
-          margin-top: 4px;
-          padding: 10px 12px;
-          border: 1px solid #d1d5db;
-          border-radius: 8px;
+          padding: 14px 16px;
+          border: 1px solid #e5e7eb;
+          border-radius: 12px;
           color: #111827;
           background-color: #f9fafb;
-          transition: border-color 0.2s, box-shadow 0.2s;
+          transition: all 0.2s;
+          font-size: 0.95rem;
         }
         .input-field:focus {
-          border-color: #0ea5e9;
+          border-color: #3b82f6;
           outline: none;
-          box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
+          box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
           background-color: #ffffff;
+        }
+        .input-field::placeholder {
+            color: #9ca3af;
         }
       `}</style>
     </div>
   );
 }
 
-// ===========================================
-// ★★★ デフォルトエクスポートするページコンポーネント (Suspenseでラップ) ★★★
-// ===========================================
 export default function CreateProjectPage() {
   return (
-    <Suspense fallback={<div className="text-center py-20 text-gray-500">読み込み中...</div>}>
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div></div>}>
       <CreateProjectForm />
     </Suspense>
   );

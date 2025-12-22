@@ -1,86 +1,100 @@
 "use client";
 import { useEffect, useState } from 'react';
+import { FiArrowUp } from 'react-icons/fi';
 
 export default function FlowerScrollIndicator({ collected, target }) {
   const [scrollProgress, setScrollProgress] = useState(0);
   const [isVisible, setIsVisible] = useState(false);
 
-  // 達成率 (0〜100)
-  const percentage = Math.min((collected / target) * 100, 100);
+  // 0除算防止と上限100%
+  const safeTarget = target || 1; 
+  const percentage = Math.min((collected / safeTarget) * 100, 100);
 
   // 達成率に応じたお花のアイコン変化
   const getFlowerIcon = () => {
-    if (percentage >= 100) return "💐"; // 達成！
-    if (percentage >= 80)  return "🌸"; // もう少し
-    if (percentage >= 50)  return "🌹"; // 半分
-    if (percentage >= 20)  return "🌷"; // 咲き始め
-    return "🌱"; // まだまだ
+    if (percentage >= 100) return "💐"; // 満開の花束
+    if (percentage >= 80)  return "🌸"; // 桜（ほぼ満開）
+    if (percentage >= 50)  return "🌹"; // バラ（咲いている）
+    if (percentage >= 20)  return "🌷"; // チューリップ（つぼみ〜咲き始め）
+    return "🌱"; // 双葉（まだこれから）
   };
 
   const getMessage = () => {
-    if (percentage >= 100) return "祝・達成！";
+    if (percentage >= 100) return "目標達成！";
     if (percentage >= 80)  return "あと少し！";
-    if (percentage >= 50)  return "折り返し！";
-    return "成長中...";
+    if (percentage >= 50)  return "折り返し";
+    return "成長中";
   };
 
   useEffect(() => {
+    let ticking = false;
+
     const handleScroll = () => {
-      // 画面の高さに対するスクロール位置の割合 (0.0 〜 1.0)
-      const totalHeight = document.documentElement.scrollHeight - document.documentElement.clientHeight;
-      const currentScroll = window.scrollY;
-      const progress = totalHeight > 0 ? currentScroll / totalHeight : 0;
-      
-      setScrollProgress(progress);
-      
-      // 最初は隠しておいて、少しスクロールしたら表示
-      setIsVisible(currentScroll > 100);
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          const totalHeight = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+          const currentScroll = window.scrollY;
+          const progress = totalHeight > 0 ? currentScroll / totalHeight : 0;
+          
+          setScrollProgress(progress);
+          setIsVisible(currentScroll > 300); // 300pxスクロールしたら表示
+          ticking = false;
+        });
+        ticking = true;
+      }
     };
 
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // スマホでは邪魔になる可能性があるので、md以上（PC/タブレット）のみ表示のスタイルにします
-  // ※スマホも出したい場合は 'hidden md:block' を削除してください
+  const scrollToTop = () => {
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth',
+    });
+  };
+
   return (
-    <div className={`fixed top-0 right-0 h-full w-16 z-40 pointer-events-none transition-opacity duration-500 hidden md:block ${isVisible ? 'opacity-100' : 'opacity-0'}`}>
+    <div className={`fixed right-4 top-0 bottom-0 z-40 w-12 pointer-events-none transition-opacity duration-500 hidden lg:flex flex-col justify-center ${isVisible ? 'opacity-100' : 'opacity-0'}`}>
        
-       {/* 背景のレール */}
-       <div className="absolute top-0 right-6 w-1 h-full bg-slate-100/50 rounded-full backdrop-blur-sm"></div>
+       {/* レール (茎の軌道) */}
+       <div className="absolute top-[10vh] bottom-[10vh] left-1/2 -translate-x-1/2 w-1 bg-slate-200/50 rounded-full backdrop-blur-sm"></div>
        
-       {/* 伸びる茎 (緑色のバー) */}
+       {/* 伸びる茎 (プログレスバー) */}
        <div 
-         className="absolute top-0 right-6 w-1 bg-gradient-to-b from-green-300 to-green-500 rounded-full transition-all duration-100 ease-out shadow-[0_0_10px_rgba(34,197,94,0.5)]"
-         style={{ height: `${scrollProgress * 100}%` }}
+         className="absolute top-[10vh] left-1/2 -translate-x-1/2 w-1 bg-gradient-to-b from-green-300 to-green-600 rounded-full transition-all duration-100 ease-out shadow-[0_0_8px_rgba(34,197,94,0.4)]"
+         style={{ height: `${Math.min(scrollProgress * 80, 80)}vh` }} // 画面の80%分だけ使う
+       ></div>
+
+       {/* 先端のお花 (スクロール位置に合わせて移動) */}
+       <div 
+         className="absolute left-1/2 -translate-x-1/2 transition-all duration-100 ease-out pointer-events-auto"
+         style={{ top: `calc(10vh + ${Math.min(scrollProgress * 80, 80)}vh)` }}
        >
-         {/* 先端のお花 (現在位置) */}
-         <div className="absolute bottom-0 right-1/2 translate-x-1/2 translate-y-1/2 flex items-center justify-center">
-            
-            {/* お花アイコン */}
-            <div className="relative group pointer-events-auto cursor-help">
-                <div className="text-3xl filter drop-shadow-md animate-bounce-slow transform transition-transform hover:scale-125">
-                    {getFlowerIcon()}
-                </div>
-                
-                {/* ホバー時の吹き出し */}
-                <div className="absolute right-10 top-1/2 -translate-y-1/2 bg-white/90 backdrop-blur text-xs font-bold px-2 py-1 rounded shadow-sm opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap text-green-700">
-                    現在 {percentage.toFixed(0)}%
-                </div>
-            </div>
+          <button 
+            onClick={scrollToTop}
+            className="relative -translate-x-1/2 -translate-y-1/2 group w-10 h-10 flex items-center justify-center transition-transform hover:scale-110 active:scale-95"
+          >
+              {/* 通常時：お花アイコン */}
+              <span className="text-3xl filter drop-shadow-md group-hover:opacity-0 transition-opacity duration-200 absolute">
+                  {getFlowerIcon()}
+              </span>
 
-         </div>
+              {/* ホバー時：トップへ戻るアイコン */}
+              <span className="absolute opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-green-500 text-white rounded-full p-2 shadow-lg">
+                  <FiArrowUp size={20} />
+              </span>
+              
+              {/* 吹き出し (常に進捗を表示) */}
+              <div className="absolute right-12 top-1/2 -translate-y-1/2 bg-white/90 backdrop-blur border border-green-100 text-green-800 text-[10px] font-bold px-2 py-1 rounded-lg shadow-sm whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
+                  <p>{getMessage()}</p>
+                  <p className="text-xs">{percentage.toFixed(0)}% 達成</p>
+                  <div className="absolute top-1/2 -right-1 -translate-y-1/2 border-4 border-transparent border-l-white/90"></div>
+              </div>
+          </button>
        </div>
 
-       {/* ゴール地点 (100%の位置) */}
-       {percentage < 100 && (
-           <div className="absolute bottom-10 right-6 translate-x-1/2 w-3 h-3 bg-yellow-400 rounded-full animate-ping"></div>
-       )}
-       
-       {/* 固定メッセージ */}
-       <div className="absolute bottom-4 right-1 text-[10px] font-bold text-gray-400 writing-vertical-rl tracking-widest opacity-50">
-          {getMessage()}
-       </div>
     </div>
   );
 }

@@ -1,50 +1,128 @@
 "use client";
-import { FiTrendingUp, FiGift, FiStar } from 'react-icons/fi';
+import Link from 'next/link';
+import { FiTrendingUp, FiGift, FiStar, FiArrowRight, FiCheckCircle, FiAlertCircle } from 'react-icons/fi';
 
-export default function UpsellAlert({ target, collected }) {
-  const remaining = target - collected;
-  const progress = (collected / target) * 100;
+export default function UpsellAlert({ target, collected, projectId }) {
+  const remaining = Math.max(0, target - collected);
+  const progress = target > 0 ? (collected / target) * 100 : 0;
 
-  // 達成済みなら表示しない（またはネクストゴール案内）
-  if (remaining <= 0) return null;
+  // 1. 全く集まっていない場合 (0〜10%) は、逆にプレッシャーになるので静かに応援モード
+  // 2. 達成済み (100%以上) は、ネクストゴールへの誘導モード
+  // 3. それ以外は、ラストスパートモード
 
-  // まだ全然集まっていない場合も表示しない（プレッシャーになるため）
-  // 目標の50%を超えたあたりから表示するのが効果的
-  if (progress < 50) return null;
+  let config = {
+    theme: "blue",
+    icon: <FiTrendingUp />,
+    title: "",
+    description: "",
+    buttonText: "支援して応援する",
+    animate: false,
+    showButton: true,
+  };
 
-  let message = "";
-  let icon = <FiTrendingUp />;
-  let colorClass = "bg-blue-50 border-blue-200 text-blue-800";
-
-  // 残額に応じたメッセージの出し分け
-  if (remaining <= 3000) {
-    // 超目前！ (緊急度MAX)
-    message = `🔥 あと ${remaining.toLocaleString()} ptで目標達成です！あなたの支援で決めませんか？`;
-    colorClass = "bg-red-50 border-red-200 text-red-800 animate-pulse"; // 赤で点滅
-    icon = <FiStar className="text-xl" />;
-  } else if (remaining <= 10000) {
-    // もう一息
-    message = `✨ あと ${remaining.toLocaleString()} ptで達成！お花をさらに豪華にできます。`;
-    colorClass = "bg-orange-50 border-orange-200 text-orange-800";
-    icon = <FiGift className="text-xl" />;
+  if (progress >= 100) {
+    // ★ 達成済み (ネクストゴール誘導)
+    config = {
+      theme: "green",
+      icon: <FiCheckCircle className="text-2xl" />,
+      title: "🎉 目標達成おめでとうございます！",
+      description: "さらなる高みへ！集まったポイントは全て企画のグレードアップに使用されます。",
+      buttonText: "さらに盛り上げる",
+      animate: false,
+      showButton: true,
+    };
+  } else if (remaining <= 5000) {
+    // ★ 超目前 (緊急度MAX)
+    config = {
+      theme: "rose",
+      icon: <FiStar className="text-2xl animate-spin-slow" />, // ゆっくり回転
+      title: `🔥 あと ${remaining.toLocaleString()} ptで達成です！`,
+      description: "あなたが最後のピースを埋めて、企画を成立させませんか？",
+      buttonText: "今すぐ達成させる！",
+      animate: true, // シマーエフェクト有効
+      showButton: true,
+    };
+  } else if (remaining <= 20000) {
+    // ★ もう一息
+    config = {
+      theme: "orange",
+      icon: <FiGift className="text-2xl" />,
+      title: `あと ${remaining.toLocaleString()} ptで目標達成！`,
+      description: "お花を確実に届けるために、あなたのお力添えが必要です。",
+      buttonText: "支援する",
+      animate: false,
+      showButton: true,
+    };
+  } else if (progress >= 50) {
+    // ★ 折り返し地点
+    config = {
+      theme: "indigo",
+      icon: <FiTrendingUp className="text-2xl" />,
+      title: "現在、目標の50%を突破しました！",
+      description: `達成まであと ${remaining.toLocaleString()} pt。一緒にゴールを目指しましょう！`,
+      buttonText: "支援に参加する",
+      animate: false,
+      showButton: true,
+    };
   } else {
-    // 半分過ぎたあたり
-    message = `あと ${remaining.toLocaleString()} pt！目標達成が見えてきました！`;
-    colorClass = "bg-indigo-50 border-indigo-200 text-indigo-800";
+    // ★ まだ序盤 (10%未満などは非表示にするか、静かな表示)
+    // ここでは「非表示」を選択
+    return null;
   }
 
+  // テーマごとのスタイル定義
+  const styles = {
+    green: "bg-gradient-to-r from-emerald-50 to-green-50 border-emerald-200 text-emerald-900",
+    rose:  "bg-gradient-to-r from-rose-50 to-pink-50 border-rose-200 text-rose-900",
+    orange: "bg-gradient-to-r from-orange-50 to-amber-50 border-orange-200 text-orange-900",
+    indigo: "bg-gradient-to-r from-indigo-50 to-blue-50 border-indigo-200 text-indigo-900",
+  };
+  
+  const buttonStyles = {
+    green: "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200",
+    rose:  "bg-rose-600 hover:bg-rose-700 shadow-rose-200",
+    orange: "bg-orange-500 hover:bg-orange-600 shadow-orange-200",
+    indigo: "bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200",
+  };
+
   return (
-    <div className={`p-4 rounded-xl border-2 shadow-sm flex items-center gap-3 mb-6 transition-all duration-500 ${colorClass}`}>
-      <div className="p-2 bg-white rounded-full shadow-sm shrink-0">
-        {icon}
-      </div>
-      <div>
-        <p className="font-bold text-sm md:text-base">
-          {message}
-        </p>
-        <p className="text-xs opacity-80 mt-0.5">
-          現在 {progress.toFixed(0)}% 達成中
-        </p>
+    <div className={`relative overflow-hidden rounded-xl border-2 shadow-sm p-5 mb-8 transition-all duration-300 ${styles[config.theme]}`}>
+      
+      {/* シマーエフェクト (緊急時のみ光が走る) */}
+      {config.animate && (
+        <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-white/40 to-transparent pointer-events-none z-0"></div>
+      )}
+
+      <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-4">
+        
+        {/* 左側: アイコンとテキスト */}
+        <div className="flex items-center gap-4 text-center md:text-left">
+          <div className="p-3 bg-white/80 backdrop-blur rounded-full shadow-sm shrink-0">
+            {config.icon}
+          </div>
+          <div>
+            <h3 className="font-bold text-lg leading-tight mb-1">
+              {config.title}
+            </h3>
+            <p className="text-sm opacity-90 leading-snug">
+              {config.description}
+            </p>
+          </div>
+        </div>
+
+        {/* 右側: アクションボタン */}
+        {config.showButton && (
+          <Link 
+            href={`/projects/${projectId}/pledge`} // 支援ページへ遷移
+            className={`
+              shrink-0 flex items-center gap-2 px-6 py-3 rounded-full text-white font-bold shadow-lg transition-transform hover:-translate-y-0.5 active:scale-95
+              ${buttonStyles[config.theme]}
+            `}
+          >
+            {config.buttonText} <FiArrowRight />
+          </Link>
+        )}
+
       </div>
     </div>
   );

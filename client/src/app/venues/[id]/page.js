@@ -18,11 +18,29 @@ export default function VenueDetailPage() {
       .then(data => {
         setVenue(data);
         setLoading(false);
+      })
+      .catch(err => {
+        console.error(err);
+        setLoading(false);
       });
   }, [id]);
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center">読み込み中...</div>;
-  if (!venue) return <div className="min-h-screen flex items-center justify-center">会場が見つかりません</div>;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-slate-50">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
+      </div>
+    );
+  }
+
+  if (!venue) {
+    return (
+        <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50">
+            <p className="text-xl font-bold text-gray-400 mb-4">会場が見つかりません</p>
+            <Link href="/" className="text-indigo-600 hover:underline">トップページへ戻る</Link>
+        </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -31,7 +49,7 @@ export default function VenueDetailPage() {
         <div className="max-w-5xl mx-auto px-4">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
             <div>
-              {/* ★★★ 修正: フラスタ可否のバッジ表示ロジック ★★★ */}
+              {/* フラスタ可否バッジ */}
               <span className={`inline-block mb-3 px-3 py-1 rounded-full text-xs font-bold flex items-center w-fit ${venue.isStandAllowed === false ? 'bg-red-500 text-white' : 'bg-green-500 text-white'}`}>
                 {venue.isStandAllowed === false ? <><FiXCircle className="mr-1"/> フラスタ禁止の可能性あり</> : <><FiCheckCircle className="mr-1"/> フラスタ受入実績あり</>}
               </span>
@@ -64,25 +82,23 @@ export default function VenueDetailPage() {
             </h2>
             
             <div className="space-y-4 text-sm">
-              {/* ★★★ 修正: コード表示にならないように修正 ★★★ */}
-              <div className="border-b pb-3">
+              <div className="border-b border-gray-100 pb-3">
                 <p className="text-gray-500 text-xs mb-1">スタンド花</p>
-                <div className="flex items-center gap-2 mb-1">
+                <div className="flex items-center gap-2 mb-2">
                     {venue.isStandAllowed === false ? (
                         <span className="text-red-600 font-bold flex items-center"><FiXCircle className="mr-1"/> 受入不可</span>
                     ) : (
                         <span className="text-green-600 font-bold flex items-center"><FiCheckCircle className="mr-1"/> 受入可 (要確認)</span>
                     )}
                 </div>
-                {/* note: JSON.stringifyなどを通さず、文字列として表示 */}
                 <p className="text-gray-700 bg-gray-50 p-2 rounded border border-gray-100 whitespace-pre-wrap">
-                    {venue.standRegulation || "特記事項なし"}
+                    {typeof venue.standRegulation === 'string' ? venue.standRegulation : (venue.standRegulation?.text || "特記事項なし")}
                 </p>
               </div>
 
-              <div className="border-b pb-3">
+              <div className="border-b border-gray-100 pb-3">
                 <p className="text-gray-500 text-xs mb-1">楽屋花 (アレンジメント)</p>
-                <div className="flex items-center gap-2 mb-1">
+                <div className="flex items-center gap-2 mb-2">
                     {venue.isBowlAllowed === false ? (
                         <span className="text-red-600 font-bold flex items-center"><FiXCircle className="mr-1"/> 受入不可</span>
                     ) : (
@@ -90,7 +106,7 @@ export default function VenueDetailPage() {
                     )}
                 </div>
                 <p className="text-gray-700 bg-gray-50 p-2 rounded border border-gray-100 whitespace-pre-wrap">
-                    {venue.bowlRegulation || "特記事項なし"}
+                    {typeof venue.bowlRegulation === 'string' ? venue.bowlRegulation : (venue.bowlRegulation?.text || "特記事項なし")}
                 </p>
               </div>
 
@@ -109,41 +125,46 @@ export default function VenueDetailPage() {
           </div>
 
           {/* アクション */}
-          <div className="bg-gradient-to-br from-indigo-600 to-purple-600 p-6 rounded-xl shadow-lg text-white">
-            <h3 className="font-bold text-lg mb-2">この会場で企画を立てる</h3>
-            <p className="text-indigo-100 text-sm mb-4">会場情報が自動入力されます。</p>
-            <Link href={`/projects/create?venueId=${venue.id}`} className="block w-full bg-white text-indigo-600 text-center py-3 rounded-lg font-bold hover:bg-indigo-50 transition-colors">
-              企画を作成する
-            </Link>
+          <div className="bg-gradient-to-br from-indigo-600 to-purple-600 p-6 rounded-xl shadow-lg text-white relative overflow-hidden">
+            <div className="relative z-10">
+                <h3 className="font-bold text-lg mb-2">この会場で企画を立てる</h3>
+                <p className="text-indigo-100 text-sm mb-4">会場情報が自動入力されます。</p>
+                <Link href={`/projects/create?venueId=${venue.id}`} className="block w-full bg-white text-indigo-600 text-center py-3 rounded-lg font-bold hover:bg-indigo-50 transition-colors shadow-md">
+                企画を作成する
+                </Link>
+            </div>
+            {/* 装飾 */}
+            <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-white opacity-10 rounded-full blur-2xl"></div>
           </div>
         </div>
 
-        {/* 右カラム: 実績ギャラリー (変更なし) */}
+        {/* 右カラム: 実績ギャラリー */}
         <div className="lg:col-span-2">
           <h2 className="text-xl font-bold text-gray-800 mb-6 flex items-center">
             <FiCheckCircle className="mr-2 text-green-500"/>
             この会場の過去の実績 ({venue.projects?.length || 0}件)
           </h2>
           
-          {venue.projects?.length > 0 ? (
+          {venue.projects && venue.projects.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {venue.projects.map(project => (
-                <Link key={project.id} href={`/projects/${project.id}`} className="group bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-md transition-all">
+                <Link key={project.id} href={`/projects/${project.id}`} className="group bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-lg transition-all hover:-translate-y-1">
                   <div className="h-48 bg-gray-200 relative overflow-hidden">
                     {project.imageUrl ? (
+                      /* eslint-disable-next-line @next/next/no-img-element */
                       <img src={project.imageUrl} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt={project.title}/>
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center text-gray-400">No Image</div>
+                      <div className="w-full h-full flex items-center justify-center text-gray-400 bg-gray-100">No Image</div>
                     )}
                     <div className="absolute bottom-0 left-0 w-full bg-gradient-to-t from-black/70 to-transparent p-4 pt-10">
-                      <p className="text-white text-xs font-bold truncate">{project.planner?.handleName}</p>
+                      <p className="text-white text-xs font-bold truncate">{project.planner?.handleName || '匿名プランナー'}</p>
                     </div>
                   </div>
                   <div className="p-4">
                     <h3 className="font-bold text-gray-800 text-sm mb-1 line-clamp-2 group-hover:text-indigo-600 transition-colors">
                       {project.title}
                     </h3>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-gray-500 line-clamp-1">
                       {project.flowerTypes || 'お花指定なし'}
                     </p>
                   </div>

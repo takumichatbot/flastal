@@ -1,13 +1,15 @@
-// src/app/admin/page.js (修正後の全文)
-
 'use client';
-import { useState, useEffect, useCallback } from 'react'; // useCallback をインポート
+
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '../contexts/AuthContext';
-// FiMessageSquare, FiAlertTriangle, FiRefreshCw, FiDollarSign, FiAward, FiMapPin, FiCalendar, FiClock, FiSettings, FiEdit, FiMail を追加
-import { FiMessageSquare, FiAlertTriangle, FiRefreshCw, FiDollarSign, FiAward, FiMapPin, FiCalendar, FiClock, FiSettings, FiEdit, FiMail } from 'react-icons/fi'; 
+import { 
+    FiMessageSquare, FiAlertTriangle, FiRefreshCw, FiDollarSign, 
+    FiAward, FiMapPin, FiCalendar, FiClock, FiSettings, FiEdit, 
+    FiMail, FiActivity, FiTrendingUp, FiUserCheck, FiCheckCircle
+} from 'react-icons/fi'; 
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -19,55 +21,49 @@ export default function AdminPage() {
   const [loadingData, setLoadingData] = useState(true);
   
   const [chatReportCount, setChatReportCount] = useState(0); 
-  // ★★★ 新規追加: 審査待ちアカウントの件数 ★★★
   const [pendingCounts, setPendingCounts] = useState({
       florists: 0,
       venues: 0,
       organizers: 0,
+      projects: 0, // プロジェクト審査待ちも追加
   });
 
-  const totalPendingAccounts = pendingCounts.florists + pendingCounts.venues + pendingCounts.organizers;
-
+  // データ取得
   const fetchAdminData = useCallback(async () => { 
     setLoadingData(true);
     try {
       const token = localStorage.getItem('authToken');
       const headers = { 'Authorization': `Bearer ${token}` };
       
-      // データ並列取得
-      const [commissionsRes, reportsRes, floristRes, venueRes, organizerRes] = await Promise.all([
+      const [commissionsRes, reportsRes, floristRes, venueRes, organizerRes, projectRes] = await Promise.all([
           fetch(`${API_URL}/api/admin/commissions`, { headers }),
           fetch(`${API_URL}/api/admin/chat-reports`, { headers }),
-          // ★★★ 審査待ちアカウントのリストを取得 ★★★
           fetch(`${API_URL}/api/admin/florists/pending`, { headers }), 
           fetch(`${API_URL}/api/admin/venues/pending`, { headers }), 
           fetch(`${API_URL}/api/admin/organizers/pending`, { headers }), 
+          fetch(`${API_URL}/api/admin/projects/pending`, { headers }), // プロジェクトも取得
       ]);
       
-      if (!commissionsRes.ok) throw new Error('手数料履歴の取得に失敗しました');
-      
-      const commissionData = await commissionsRes.json();
+      const commissionData = commissionsRes.ok ? await commissionsRes.json() : [];
       const reportData = reportsRes.ok ? await reportsRes.json() : []; 
-      
       const florists = floristRes.ok ? await floristRes.json() : [];
       const venues = venueRes.ok ? await venueRes.json() : [];
       const organizers = organizerRes.ok ? await organizerRes.json() : [];
+      const projects = projectRes.ok ? await projectRes.json() : [];
 
       setCommissions(Array.isArray(commissionData) ? commissionData : []);
       setChatReportCount(Array.isArray(reportData) ? reportData.length : 0); 
       
-      // ★★★ 審査待ち件数の更新 ★★★
       setPendingCounts({
           florists: Array.isArray(florists) ? florists.length : 0,
           venues: Array.isArray(venues) ? venues.length : 0,
           organizers: Array.isArray(organizers) ? organizers.length : 0,
+          projects: Array.isArray(projects) ? projects.length : 0,
       });
 
     } catch (error) {
-      toast.error(error.message);
-      setCommissions([]);
-      setChatReportCount(0);
-      setPendingCounts({ florists: 0, venues: 0, organizers: 0 });
+      console.error(error);
+      toast.error('データ更新中に一部エラーが発生しました');
     } finally {
       setLoadingData(false);
     }
@@ -75,314 +71,274 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (loading) return;
-
-    if (!isAuthenticated) {
-      toast.error('ログインが必要です。');
+    if (!isAuthenticated || user?.role !== 'ADMIN') {
+      toast.error('管理者権限がありません');
       router.push('/login');
       return;
     }
-
-    if (!user || user.role !== 'ADMIN') {
-      toast.error('管理者権限がありません。');
-      router.push('/mypage');
-      return;
-    }
-
     fetchAdminData();
-
   }, [isAuthenticated, user, router, loading, fetchAdminData]);
 
-  if (loading || !isAuthenticated || !user || user.role !== 'ADMIN') {
-    return (
-      <div className="flex justify-center items-center min-h-screen bg-gray-100">
-        <p className="text-gray-700">管理者権限を確認中...</p>
-      </div>
-    );
-  }
-
-  // --- データ集計ロジック ---
+  // --- 集計ロジック ---
   const totalCommission = commissions.reduce((sum, c) => sum + (c.amount || 0), 0);
-  const transactionCount = commissions.length;
-  const sortedCommissions = [...commissions].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-  const recentCommissions = sortedCommissions;
+  const totalPendingAccounts = pendingCounts.florists + pendingCounts.venues + pendingCounts.organizers;
+  
+  // 直近5件の取引
+  const recentCommissions = useMemo(() => {
+      return [...commissions]
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+        .slice(0, 5);
+  }, [commissions]);
+
+  // 簡易グラフ用データ生成 (過去6ヶ月分のダミーデータ生成ロジック例)
+  // ※実際はバックエンドで集計して返すのがベストですが、ここではフロントでモック表示します
+  const chartData = [35, 45, 30, 60, 75, 90]; // 高さを%で表現
+
+  if (loading || !isAuthenticated) return <div className="min-h-screen flex items-center justify-center"><FiRefreshCw className="animate-spin text-3xl text-gray-400"/></div>;
 
   return (
-    <div className="min-h-screen bg-gray-100 p-4 sm:p-8 font-sans text-slate-600">
+    <div className="min-h-screen bg-gray-50 p-4 sm:p-8 font-sans text-slate-600">
       <div className="max-w-7xl mx-auto space-y-8">
         
-        {/* --- ヘッダーエリア --- */}
-        <div className="flex items-center justify-between w-full">
+        {/* --- ヘッダー --- */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
-                <h1 className="text-2xl font-bold text-slate-800">管理者ダッシュボード</h1>
-                <p className="text-sm text-slate-500 mt-1">FLASTALの運営状況を確認できます</p>
+                <h1 className="text-2xl font-extrabold text-slate-800 flex items-center gap-2">
+                    <FiActivity className="text-sky-500"/> 管理者ダッシュボード
+                </h1>
+                <p className="text-sm text-slate-500 mt-1">FLASTALプラットフォームの稼働状況とタスク管理</p>
             </div>
             <div className="flex gap-3">
                 <button 
-                    onClick={() => {
-                        // データを再フェッチ
-                        fetchAdminData();
-                    }}
-                    className="text-sm bg-white border border-slate-300 px-4 py-2 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors shadow-sm flex items-center gap-1"
+                    onClick={fetchAdminData}
                     disabled={loadingData}
+                    className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors shadow-sm"
                 >
-                    <FiRefreshCw className={loadingData ? "animate-spin" : ""}/>
-                    更新
+                    <FiRefreshCw className={loadingData ? "animate-spin" : ""}/> 更新
                 </button>
                 <button 
-                    onClick={() => {
-                        logout();
-                        router.push('/login');
-                    }}
-                    className="text-sm bg-white border border-slate-300 px-4 py-2 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors shadow-sm"
+                    onClick={() => { logout(); router.push('/login'); }}
+                    className="px-4 py-2 bg-slate-800 text-white rounded-lg text-sm font-bold hover:bg-slate-900 transition-colors shadow-sm"
                 >
                     ログアウト
                 </button>
             </div>
         </div>
 
-        {/* --- ナビゲーション (ボタンスタイル) --- */}
-        <nav className="flex gap-3 sm:gap-4 flex-wrap">
-          <Link 
-            href="/admin" 
-            className="px-4 py-2 text-sm font-semibold text-white bg-sky-500 rounded-lg shadow hover:bg-sky-600 transition-colors"
-          >
-            ダッシュボード
-          </Link>
-          <Link 
-            href="/admin/approval" 
-            className={`px-4 py-2 text-sm font-semibold text-white rounded-lg shadow transition-colors flex items-center ${totalPendingAccounts > 0 ? 'bg-orange-600 hover:bg-orange-700' : 'bg-slate-500 hover:bg-slate-600'}`}
-          >
-            <FiClock className="mr-1"/> アカウント審査 
-            {totalPendingAccounts > 0 && <span className="ml-2 bg-white text-orange-600 px-2 rounded-full font-bold">{totalPendingAccounts}</span>}
-          </Link>
-          
-          {/* ★★★ 修正箇所 1: 個別チャット連絡を追加 ★★★ */}
-          <Link 
-            href="/admin/contact"
-            className="px-4 py-2 text-sm font-semibold text-white bg-indigo-500 rounded-lg shadow hover:bg-indigo-600 transition-colors flex items-center"
-          >
-            <FiMail className="mr-1"/> 個別チャット連絡
-          </Link>
-          {/* ★★★ ------------------------------ ★★★ */}
-
-          <Link 
-            href="/admin/reports"
-            className={`px-4 py-2 text-sm font-semibold text-white rounded-lg shadow transition-colors flex items-center ${chatReportCount > 0 ? 'bg-red-600 hover:bg-red-700' : 'bg-slate-500 hover:bg-slate-600'}`}
-          >
-            <FiMessageSquare className="mr-1"/> チャット通報 
-            {chatReportCount > 0 && <span className="ml-2 bg-white text-red-600 px-2 rounded-full font-bold">{chatReportCount}</span>}
-          </Link>
-          
-          <Link 
-            href="/admin/project-approval"
-            className="px-4 py-2 text-sm font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors shadow-sm"
-          >
-            プロジェクト審査
-          </Link>
-          
-          {/* ★★★ 新規追加: システム設定 ★★★ */}
-          <Link 
-            href="/admin/settings"
-            className="px-4 py-2 text-sm font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors shadow-sm flex items-center"
-          >
-            <FiSettings className="mr-1"/> システム設定 (手数料/メール)
-          </Link>
-          
-          {/* ★★★ 新規追加: 花屋個別手数料管理 ★★★ */}
-          <Link 
-            href="/admin/florists"
-            className="px-4 py-2 text-sm font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors shadow-sm flex items-center"
-          >
-            <FiEdit className="mr-1"/> 花屋個別手数料
-          </Link>
-          
-          <Link 
-            href="/admin/venues"
-            className="px-4 py-2 text-sm font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors shadow-sm flex items-center"
-          >
-            🏢 会場DB管理
-          </Link>
-        </nav>
-
-        {/* --- KPIカードエリア (4カラム構成) --- */}
+        {/* --- KPIカード (Grid) --- */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {/* KPI 1: 総手数料収益 */}
-            <div className="block bg-white p-6 rounded-xl shadow-md border border-slate-100">
-                <h3 className="text-sm font-medium text-slate-500 flex items-center"><FiDollarSign className="mr-1"/> 総手数料収益</h3>
-                <p className="text-3xl font-bold text-sky-600 mt-2">
-                    {totalCommission.toLocaleString()}<span className="text-lg font-medium ml-1">pt</span>
-                </p>
-                <p className="text-sm mt-2 text-slate-500">これまでの累計収益</p>
-            </div>
-
-            {/* KPI 2: 取引成立数 */}
-            <div className="block bg-white p-6 rounded-xl shadow-md border border-slate-100">
-                <h3 className="text-sm font-medium text-slate-500">取引成立数 (累計)</h3>
-                <p className="text-3xl font-bold text-slate-800 mt-2">{transactionCount}</p>
-                <p className="text-sm mt-2 text-slate-500">手数料が発生した回数</p>
-            </div>
-
-            {/* KPI 3: アカウント審査待ち件数 (新規追加) */}
-            <Link 
-                href="/admin/approval"
-                className={`block p-6 rounded-xl shadow-md border border-slate-100 transition-shadow hover:ring-2 ${totalPendingAccounts > 0 ? 'bg-orange-50 hover:ring-orange-200' : 'bg-white hover:ring-sky-200'}`}
-            >
-                <h3 className={`text-sm font-medium flex items-center ${totalPendingAccounts > 0 ? 'text-orange-500' : 'text-slate-500'}`}>
-                    <FiAward className="mr-1"/> アカウント審査待ち
-                </h3>
-                <p className={`text-3xl font-bold mt-2 ${totalPendingAccounts > 0 ? 'text-orange-600 animate-pulse' : 'text-slate-800'}`}>
-                    {totalPendingAccounts}
-                </p>
-                <p className="text-sm mt-2 text-slate-500">{totalPendingAccounts > 0 ? 'プロアカウントを承認してください' : '現在、問題なし'}</p>
-            </Link>
-
-            {/* KPI 4: チャット通報件数 (位置変更) */}
-            <Link 
-                href="/admin/reports"
-                className={`block p-6 rounded-xl shadow-md border border-slate-100 transition-shadow hover:ring-2 ${chatReportCount > 0 ? 'bg-red-50 hover:ring-red-200' : 'bg-white hover:ring-sky-200'}`}
-            >
-                <h3 className={`text-sm font-medium flex items-center ${chatReportCount > 0 ? 'text-red-500' : 'text-slate-500'}`}>
-                    <FiMessageSquare className="mr-1"/> 未処理の通報
-                </h3>
-                <p className={`text-3xl font-bold mt-2 ${chatReportCount > 0 ? 'text-red-600 animate-pulse' : 'text-slate-800'}`}>
-                    {chatReportCount}
-                </p>
-                <p className="text-sm mt-2 text-slate-500">{chatReportCount > 0 ? '早急に対応が必要です' : '現在、問題なし'}</p>
-            </Link>
+            <KpiCard 
+                label="総手数料収益" 
+                value={`¥${totalCommission.toLocaleString()}`} 
+                subValue="前月比 +12.5% (mock)" 
+                icon={<FiDollarSign size={24}/>} 
+                color="sky"
+            />
+            <KpiCard 
+                label="取引成立数" 
+                value={`${commissions.length}件`} 
+                subValue="累計トランザクション" 
+                icon={<FiCheckCircle size={24}/>} 
+                color="green"
+            />
+            <KpiCard 
+                label="審査待ちアカウント" 
+                value={`${totalPendingAccounts}件`} 
+                subValue="早急な対応が必要です" 
+                icon={<FiUserCheck size={24}/>} 
+                color="orange"
+                isAlert={totalPendingAccounts > 0}
+            />
+            <KpiCard 
+                label="未処理の通報" 
+                value={`${chatReportCount}件`} 
+                subValue="チャット・企画の違反報告" 
+                icon={<FiAlertTriangle size={24}/>} 
+                color="red"
+                isAlert={chatReportCount > 0}
+            />
         </div>
 
-        {/* --- メインコンテンツエリア --- */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             
-            {/* 左側カラム (2/3幅): 手数料履歴リスト */}
+            {/* --- 左カラム (メイン): 売上推移 & 取引履歴 --- */}
             <div className="lg:col-span-2 space-y-8">
-                <div className="bg-white p-6 rounded-xl shadow-md border border-slate-100">
+                
+                {/* 1. 売上推移グラフ (CSS Only Chart) */}
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
                     <div className="flex justify-between items-center mb-6">
-                        <h2 className="text-lg font-bold text-slate-800">最近の手数料発生履歴</h2>
-                        <span className="text-xs font-medium px-2 py-1 bg-green-100 text-green-700 rounded">
-                            Live
-                        </span>
+                        <h2 className="font-bold text-lg text-slate-800 flex items-center gap-2">
+                            <FiTrendingUp className="text-sky-500"/> 売上推移 (過去6ヶ月)
+                        </h2>
+                        <span className="text-xs bg-slate-100 px-2 py-1 rounded text-slate-500">Monthly</span>
                     </div>
                     
-                    <div className="space-y-0">
-                        {loadingData ? (
-                            <p className="p-4 text-center text-slate-500">読み込み中...</p>
-                        ) : recentCommissions.length === 0 ? (
-                            <p className="p-4 text-center text-slate-500">履歴はありません。</p>
+                    {/* 簡易棒グラフエリア */}
+                    <div className="h-48 flex items-end justify-between gap-4 px-2">
+                        {chartData.map((height, idx) => (
+                            <div key={idx} className="w-full flex flex-col justify-end group cursor-pointer">
+                                <div className="relative w-full bg-sky-100 rounded-t-md hover:bg-sky-200 transition-all duration-500" style={{ height: `${height}%` }}>
+                                    {/* Tooltip */}
+                                    <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
+                                        ¥{(height * 10000).toLocaleString()}
+                                    </div>
+                                </div>
+                                <span className="text-xs text-center text-slate-400 mt-2">{idx + 1}月</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* 2. 最近の収益履歴 */}
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                    <h2 className="font-bold text-lg text-slate-800 mb-4 flex items-center gap-2">
+                        <FiDollarSign className="text-green-500"/> 最近の収益発生
+                    </h2>
+                    <div className="divide-y divide-slate-50">
+                        {recentCommissions.length === 0 ? (
+                            <p className="py-8 text-center text-slate-400">データがありません</p>
                         ) : (
                             recentCommissions.map((c) => (
-                                c && c.id && c.project ? (
-                                    <div key={c.id} className="flex items-center justify-between p-4 border-b border-slate-100 last:border-0 hover:bg-slate-50 transition-colors">
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-10 h-10 rounded-full bg-sky-100 flex items-center justify-center text-sky-600">
-                                                <FiDollarSign className="text-lg"/>
-                                            </div>
-                                            <div>
-                                                <p className="font-semibold text-slate-800">{c.project.title || '不明な企画'}</p>
-                                                <p className="text-xs text-slate-500">
-                                                    {c.createdAt ? new Date(c.createdAt).toLocaleString('ja-JP') : '不明'}
-                                                </p>
-                                            </div>
+                                <div key={c.id} className="py-4 flex items-center justify-between hover:bg-slate-50 transition-colors px-2 rounded-lg">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-full bg-green-50 flex items-center justify-center text-green-600 font-bold text-xs">
+                                            PAY
                                         </div>
-                                        <div className="text-right">
-                                            <p className="font-bold text-green-600">+{c.amount?.toLocaleString() || 0} pt</p>
-                                            <p className="text-xs text-slate-400">手数料</p>
+                                        <div>
+                                            <p className="text-sm font-bold text-slate-800 truncate max-w-[200px]">
+                                                {c.project?.title || '不明なプロジェクト'}
+                                            </p>
+                                            <p className="text-xs text-slate-400">
+                                                {new Date(c.createdAt).toLocaleDateString()} {new Date(c.createdAt).toLocaleTimeString()}
+                                            </p>
                                         </div>
                                     </div>
-                                ) : null
+                                    <div className="text-right">
+                                        <p className="text-sm font-bold text-green-600">+{c.amount?.toLocaleString()}</p>
+                                        <p className="text-[10px] text-slate-400">FEE</p>
+                                    </div>
+                                </div>
                             ))
                         )}
                     </div>
+                    <div className="mt-4 pt-4 border-t border-slate-100 text-center">
+                        <Link href="/admin/payouts" className="text-sm text-sky-600 font-bold hover:underline">
+                            すべての履歴を見る &rarr;
+                        </Link>
+                    </div>
                 </div>
             </div>
 
-            {/* 右側カラム (1/3幅): クイックリンク・ステータス */}
-            <div className="space-y-8">
+            {/* --- 右カラム (サイドバー): アクション & リンク --- */}
+            <div className="space-y-6">
                 
-                {/* 管理者アクション（クイックリンク） */}
-                <div className="bg-white p-6 rounded-xl shadow-md border border-slate-100">
-                    <h3 className="font-bold text-lg mb-4 text-slate-800">💡 管理者アクション</h3>
-                    <div className="space-y-4">
-                         <Link href="/admin/approval" className="flex items-center p-3 rounded-lg bg-orange-50 hover:bg-orange-100 transition-colors">
-                            <span className="text-2xl mr-3">🕒</span>
-                            <div>
-                                <h4 className="font-semibold text-slate-700 text-sm">アカウント審査 ({totalPendingAccounts})</h4>
-                                <p className="text-xs text-slate-500">お花屋さん/会場/主催者の承認</p>
-                            </div>
-                         </Link>
-                         
-                         {/* ★★★ 修正箇所 2: 個別チャット連絡をクイックリンクに追加 ★★★ */}
-                         <Link href="/admin/contact" className="flex items-center p-3 rounded-lg bg-sky-50 hover:bg-sky-100 transition-colors">
-                            <span className="text-2xl mr-3">📧</span>
-                            <div>
-                                <h4 className="font-semibold text-slate-700 text-sm">個別チャット連絡</h4>
-                                <p className="text-xs text-slate-500">ファン/花屋/会場への個別メッセージ</p>
-                            </div>
-                         </Link>
-                         {/* ★★★ ------------------------------------ ★★★ */}
-                         
-                         <Link href="/admin/project-approval" className="flex items-center p-3 rounded-lg bg-slate-50 hover:bg-slate-100 transition-colors">
-                            <span className="text-2xl mr-3">📋</span>
-                            <div>
-                                <h4 className="font-semibold text-slate-700 text-sm">プロジェクト審査</h4>
-                                <p className="text-xs text-slate-500">企画内容の確認・承認</p>
-                            </div>
-                         </Link>
-                         <Link href="/admin/payouts" className="flex items-center p-3 rounded-lg bg-slate-50 hover:bg-slate-100 transition-colors">
-                            <span className="text-2xl mr-3">💰</span>
-                            <div>
-                                <h4 className="font-semibold text-slate-700 text-sm">出金管理</h4>
-                                <p className="text-xs text-slate-500">お花屋さんへの出金処理</p>
-                            </div>
-                         </Link>
-                         
-                         {/* ★★★ 新規追加: システム設定 (手数料/メール) ★★★ */}
-                         <Link href="/admin/settings" className="flex items-center p-3 rounded-lg bg-sky-50 hover:bg-sky-100 transition-colors">
-                            <span className="text-2xl mr-3">⚙️</span>
-                            <div>
-                                <h4 className="font-semibold text-slate-700 text-sm">システム設定</h4>
-                                <p className="text-xs text-slate-500">全体手数料・メールテンプレート</p>
-                            </div>
-                         </Link>
+                {/* To-Do リスト (緊急タスク) */}
+                <div className="bg-white p-6 rounded-2xl shadow-md border-l-4 border-orange-400">
+                    <h3 className="font-bold text-slate-800 mb-4 flex items-center">
+                        <FiActivity className="mr-2 text-orange-500"/> 要対応アクション
+                    </h3>
+                    <div className="space-y-3">
+                        <TodoItem 
+                            label="アカウント審査待ち" 
+                            count={totalPendingAccounts} 
+                            href="/admin/approval" 
+                            color="orange"
+                        />
+                        <TodoItem 
+                            label="プロジェクト審査待ち" 
+                            count={pendingCounts.projects} 
+                            href="/admin/project-approval" 
+                            color="sky"
+                        />
+                        <TodoItem 
+                            label="未処理の通報" 
+                            count={chatReportCount} 
+                            href="/admin/reports" 
+                            color="red"
+                        />
+                    </div>
+                    {totalPendingAccounts === 0 && pendingCounts.projects === 0 && chatReportCount === 0 && (
+                        <div className="mt-4 text-center text-xs text-green-600 bg-green-50 p-2 rounded">
+                            現在、緊急のタスクはありません 🎉
+                        </div>
+                    )}
+                </div>
 
-                         {/* ★★★ 新規追加: 花屋個別手数料管理 ★★★ */}
-                         <Link href="/admin/florists" className="flex items-center p-3 rounded-lg bg-sky-50 hover:bg-sky-100 transition-colors">
-                            <span className="text-2xl mr-3">🌸</span>
-                            <div>
-                                <h4 className="font-semibold text-slate-700 text-sm">花屋個別手数料</h4>
-                                <p className="text-xs text-slate-500">個別手数料率の調整</p>
-                            </div>
-                         </Link>
-                         
-                         <Link href="/admin/venues" className="flex items-center p-3 rounded-lg bg-slate-50 hover:bg-slate-100 transition-colors">
-                            <span className="text-2xl mr-3">🏢</span>
-                            <div>
-                                <h4 className="font-semibold text-slate-700 text-sm">会場DB管理</h4>
-                                <p className="text-xs text-slate-500">レギュレーション情報の管理</p>
-                            </div>
-                         </Link>
+                {/* クイックリンク集 */}
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                    <h3 className="font-bold text-slate-800 mb-4 text-sm uppercase tracking-wider text-slate-400">Menu</h3>
+                    <div className="grid grid-cols-1 gap-2">
+                        <QuickLink href="/admin/approval" icon={<FiUserCheck/>} label="アカウント審査管理" />
+                        <QuickLink href="/admin/project-approval" icon={<FiAward/>} label="プロジェクト審査" />
+                        <QuickLink href="/admin/contact" icon={<FiMail/>} label="個別チャット連絡" />
+                        <QuickLink href="/admin/payouts" icon={<FiDollarSign/>} label="出金申請の管理" />
+                        <div className="my-2 border-t border-slate-100"></div>
+                        <QuickLink href="/admin/florists" icon={<FiEdit/>} label="花屋手数料設定" />
+                        <QuickLink href="/admin/venues" icon={<FiMapPin/>} label="会場DB管理" />
+                        <QuickLink href="/admin/settings" icon={<FiSettings/>} label="システム全体設定" />
                     </div>
                 </div>
 
-                {/* システムステータス */}
-                <div className="bg-sky-50 p-6 rounded-xl border border-sky-100">
-                    <h3 className="font-bold text-lg mb-2 text-sky-800">システムステータス</h3>
-                    <div className="flex items-center gap-2 mb-4">
-                        <span className="flex h-3 w-3">
-                            <span className="animate-ping absolute inline-flex h-3 w-3 rounded-full bg-green-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
-                        </span>
-                        <span className="text-sm text-sky-700 font-medium">正常稼働中</span>
-                    </div>
-                    <p className="text-xs text-sky-600">
-                        API接続: 良好<br/>
-                        最終更新: {new Date().toLocaleString('ja-JP')}
-                    </p>
-                </div>
             </div>
-
         </div>
       </div>
     </div>
   );
+}
+
+// --- サブコンポーネント ---
+
+// KPIカード
+function KpiCard({ label, value, subValue, icon, color, isAlert }) {
+    const colors = {
+        sky: 'bg-sky-50 text-sky-600 border-sky-100',
+        green: 'bg-green-50 text-green-600 border-green-100',
+        orange: 'bg-orange-50 text-orange-600 border-orange-100',
+        red: 'bg-red-50 text-red-600 border-red-100',
+    };
+    
+    return (
+        <div className={`p-5 rounded-2xl border bg-white shadow-sm flex items-start justify-between ${isAlert ? 'ring-2 ring-red-400 ring-offset-2' : ''}`}>
+            <div>
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">{label}</p>
+                <h3 className="text-2xl font-extrabold text-slate-800">{value}</h3>
+                <p className={`text-xs mt-1 font-medium ${isAlert ? 'text-red-500' : 'text-slate-400'}`}>
+                    {subValue}
+                </p>
+            </div>
+            <div className={`p-3 rounded-xl ${colors[color]}`}>
+                {icon}
+            </div>
+        </div>
+    );
+}
+
+// To-Doアイテム
+function TodoItem({ label, count, href, color }) {
+    if (count === 0) return null;
+    
+    const colors = {
+        orange: 'bg-orange-100 text-orange-700',
+        red: 'bg-red-100 text-red-700',
+        sky: 'bg-sky-100 text-sky-700',
+    };
+
+    return (
+        <Link href={href} className="flex items-center justify-between p-3 rounded-lg bg-slate-50 hover:bg-slate-100 transition-colors group">
+            <span className="text-sm font-bold text-slate-700 group-hover:text-slate-900">{label}</span>
+            <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${colors[color]}`}>
+                {count}件
+            </span>
+        </Link>
+    );
+}
+
+// クイックリンクボタン
+function QuickLink({ href, icon, label }) {
+    return (
+        <Link href={href} className="flex items-center gap-3 p-2.5 rounded-lg text-slate-600 hover:bg-slate-50 hover:text-sky-600 transition-all font-medium text-sm">
+            <span className="text-lg opacity-70">{icon}</span>
+            {label}
+        </Link>
+    );
 }

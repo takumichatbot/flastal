@@ -1,3 +1,4 @@
+import { Inter, Noto_Sans_JP } from 'next/font/google';
 import { AuthProvider } from './contexts/AuthContext';
 import Header from './components/Header';
 import Footer from './components/Footer';
@@ -6,33 +7,91 @@ import { Toaster } from 'react-hot-toast';
 import PushNotificationManager from './components/PushNotificationManager';
 import ThemeController from './components/ThemeController';
 import FloatingMenu from './components/FloatingMenu';
-// ★ 1. インポート
 import LiveTicker from './components/LiveTicker';
 
+// フォントの設定 (サブセット化して軽量化)
+const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
+const notoSansJP = Noto_Sans_JP({
+  subsets: ['latin'],
+  variable: '--font-noto-sans-jp',
+  weight: ['400', '500', '700'],
+});
+
 export const metadata = {
-  title: 'FLASTAL',
-  description: 'フラスタ専門クラウドファンディング',
+  title: {
+    template: '%s | FLASTAL',
+    default: 'FLASTAL - 推しにフラスタを贈ろう',
+  },
+  description: 'フラスタ専門のクラウドファンディングプラットフォーム。推しのライブやイベントに、ファンのみんなで最高のお花を贈りませんか？',
+  metadataBase: new URL(process.env.NEXT_PUBLIC_API_URL || 'https://flastal.com'),
   manifest: '/manifest.json',
   themeColor: '#0ea5e9',
+  // OGP設定 (SNSシェア用)
+  openGraph: {
+    title: 'FLASTAL - フラスタ専門クラウドファンディング',
+    description: '推しにフラスタを贈ろう！',
+    url: 'https://flastal.com',
+    siteName: 'FLASTAL',
+    locale: 'ja_JP',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'FLASTAL',
+    description: '推しにフラスタを贈ろう！',
+  },
 };
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="ja">
-      <body>
+    <html lang="ja" className={`${inter.variable} ${notoSansJP.variable}`}>
+      <body className="font-sans antialiased text-slate-900 bg-slate-50 min-h-screen flex flex-col">
+        {/* テーマ制御 (ダークモード等) */}
         <ThemeController />
         
         <AuthProvider>
+          {/* ヘッダー */}
           <Header />
           
-          {/* ★ 2. ヘッダーの直下に配置 */}
+          {/* ニュースティッカー (ヘッダー直下) */}
           <LiveTicker />
 
-          <main>{children}</main>
+          {/* メインコンテンツ (画面の高さいっぱいまで伸ばす) */}
+          <main className="flex-grow w-full max-w-[1920px] mx-auto">
+            {children}
+          </main>
           
+          {/* フローティングメニュー (スマホ用) */}
           <FloatingMenu />
+          
+          {/* フッター */}
           <Footer />
-          <Toaster position="top-center" reverseOrder={false} /> 
+          
+          {/* 通知トースト設定 */}
+          <Toaster 
+            position="top-center" 
+            reverseOrder={false}
+            toastOptions={{
+              duration: 4000,
+              style: {
+                background: '#333',
+                color: '#fff',
+                borderRadius: '50px',
+                padding: '12px 24px',
+                fontSize: '14px',
+              },
+              success: {
+                style: { background: '#10B981' },
+                iconTheme: { primary: '#fff', secondary: '#10B981' },
+              },
+              error: {
+                style: { background: '#EF4444' },
+                iconTheme: { primary: '#fff', secondary: '#EF4444' },
+              },
+            }} 
+          /> 
+          
+          {/* PWA/Push通知マネージャー */}
           <PushNotificationManager />
         </AuthProvider>
       </body>
