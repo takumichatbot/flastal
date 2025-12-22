@@ -1,61 +1,45 @@
-import { NextResponse } from 'next/server';
-import { getToken } from 'next-auth/jwt'; // NextAuthを使用している場合
+import jwt from 'jsonwebtoken';
 
-export async function middleware(req) {
-  // NextAuthのセッション（トークン）を取得
-  // NEXTAUTH_SECRET は .env.local に設定されている必要があります
-  const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
-  const { pathname } = req.nextUrl;
-
-  // ★ 公開ページ（ログインしていなくてもアクセスできるページ）のリスト
-  // ここに '/' (トップページ) を必ず含めます
-  const publicPaths = ['/', '/login', '/register', '/api/auth', '/forgot-password', '/reset-password', '/verify-email'];
-
-  // 静的ファイル（画像など）やAPIルートの一部は無視する設定
-  // 認証が必要なAPIルートは別途保護する必要がありますが、ここではページ遷移の制御を主に行います
-  if (pathname.includes('.') || pathname.startsWith('/api')) {
-    return NextResponse.next();
-  }
-
-  // ★ 1. アクセスしているページが公開ページかどうかチェック
-  // 完全一致またはパスの前方一致（例: /login/hoge も許可する場合など）で判定
-  const isPublicPath = publicPaths.some((path) => pathname === path || pathname.startsWith(path + '/'));
-
-  // ★ 2. ログイン済みの場合の処理
-  if (token) {
-    // ログイン済みユーザーが「ログイン画面」や「登録画面」に来たら、ダッシュボード（またはマイページ）へ飛ばす
-    if (pathname === '/login' || pathname === '/register') {
-      return NextResponse.redirect(new URL('/mypage', req.url)); // ダッシュボードまたはマイページへ
+/**
+ * ユーザー認証ミドルウェア
+ * Next.jsの NextResponse などをインポートしてはいけません。
+ * Expressの標準的な書き方 (req, res, next) を使用します。
+ */
+export const authMiddleware = async (req, res, next) => {
+  try {
+    // ヘッダーからトークンを取得
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ message: '認証トークンが必要です。' });
     }
-    // それ以外（トップページ含む）はそのまま表示許可
-    return NextResponse.next();
-  }
 
-  // ★ 3. 未ログインの場合の処理
-  if (!token) {
-    // 公開ページならそのまま表示許可
-    if (isPublicPath) {
-      return NextResponse.next();
+    const token = authHeader.split(' ')[1];
+    if (!token) {
+      return res.status(401).json({ message: 'トークンが不正です。' });
     }
-    // それ以外の保護されたページ（/mypageなど）なら、ログイン画面へリダイレクト
-    // ログイン後に元のページに戻れるように callbackUrl を設定することも一般的です
-    const url = new URL('/login', req.url);
-    url.searchParams.set('callbackUrl', pathname);
-    return NextResponse.redirect(url);
-  }
-}
 
-// 適用するパスの設定
-export const config = {
-  matcher: [
-    /*
-     * 以下のパスを除外してすべてにミドルウェアを適用
-     * - api (API routes) ※ただし認証APIは上記ロジックで許可が必要な場合もあるので注意
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - public folder files (imagesなど)
-     */
-    '/((?!api|_next/static|_next/image|favicon.ico|images|public).*)',
-  ],
+    // JWTの検証
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    // リクエストオブジェクトにユーザー情報を格納
+    req.user = decoded;
+
+    // 次の処理（コントローラーなど）へ進む
+    // 引数の next を呼び出します（パッケージの next ではありません）
+    next();
+  } catch (error) {
+    console.error('Auth Middleware Error:', error);
+    return res.status(401).json({ message: '無効なトークンです。再度ログインしてください。' });
+  }
+};
+
+/**
+ * 管理者権限チェックミドルウェア
+ */
+export const adminMiddleware = (req, res, next) => {
+  if (req.user && req.user.role === 'ADMIN') {
+    next();
+  } else {
+    res.status(403).json({ message: '管理者権限が必要です。' });
+  }
 };
