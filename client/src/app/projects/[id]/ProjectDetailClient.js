@@ -17,8 +17,10 @@ import {
   FiClock, FiMapPin, FiUser, FiHeart, FiShare2, FiMessageCircle, 
   FiCheckCircle, FiAlertTriangle, FiDollarSign, FiCalendar, 
   FiChevronLeft, FiSend, FiImage, 
-  // ★ 追加
-  FiAward, FiPlus, FiSearch, FiLoader, FiX
+  FiAward, FiPlus, FiSearch, FiLoader, FiX,
+  // ★追加分
+  FiFileText, FiPrinter, FiInfo, FiLock, FiTool, FiCheck, FiCpu, 
+  FiMessageSquare, FiTrash2, FiBox, FiUpload, FiRefreshCw
 } from 'react-icons/fi';
 
 // Components
