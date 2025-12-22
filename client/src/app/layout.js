@@ -9,7 +9,7 @@ import ThemeController from './components/ThemeController';
 import FloatingMenu from './components/FloatingMenu';
 import LiveTicker from './components/LiveTicker';
 
-// フォントの設定 (サブセット化して軽量化)
+// フォントの設定
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 const notoSansJP = Noto_Sans_JP({
   subsets: ['latin'],
@@ -17,6 +17,7 @@ const notoSansJP = Noto_Sans_JP({
   weight: ['400', '500', '700'],
 });
 
+// ★修正: themeColor を metadata から削除し、viewport へ移動
 export const metadata = {
   title: {
     template: '%s | FLASTAL',
@@ -25,8 +26,7 @@ export const metadata = {
   description: 'フラスタ専門のクラウドファンディングプラットフォーム。推しのライブやイベントに、ファンのみんなで最高のお花を贈りませんか？',
   metadataBase: new URL(process.env.NEXT_PUBLIC_API_URL || 'https://flastal.com'),
   manifest: '/manifest.json',
-  themeColor: '#0ea5e9',
-  // OGP設定 (SNSシェア用)
+  // OGP設定
   openGraph: {
     title: 'FLASTAL - フラスタ専門クラウドファンディング',
     description: '推しにフラスタを贈ろう！',
@@ -40,6 +40,14 @@ export const metadata = {
     title: 'FLASTAL',
     description: '推しにフラスタを贈ろう！',
   },
+};
+
+// ★追加: Next.js 15 では viewport 設定を独立させる必要があります
+export const viewport = {
+  themeColor: '#0ea5e9',
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
 };
 
 export default function RootLayout({ children }) {
@@ -56,7 +64,7 @@ export default function RootLayout({ children }) {
           {/* ニュースティッカー (ヘッダー直下) */}
           <LiveTicker />
 
-          {/* メインコンテンツ (画面の高さいっぱいまで伸ばす) */}
+          {/* メインコンテンツ */}
           <main className="flex-grow w-full max-w-[1920px] mx-auto">
             {children}
           </main>
