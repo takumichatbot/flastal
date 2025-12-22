@@ -1,10 +1,17 @@
 'use client';
 
-import React, { useRef, useState, useEffect } from 'react';
+// Next.js 15 のビルドエラーを確実に回避する設定
+export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
+
+import React, { useRef, useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useAuth } from './contexts/AuthContext';
 import { 
   motion, useScroll, useTransform, useSpring, useInView, useMotionValue, useMotionTemplate, AnimatePresence 
 } from 'framer-motion';
+// --- 修正箇所：FiLoader, FiShield をここから削除 ---
 import { 
   Heart, Sparkles, Zap, MessageCircle, Gift, 
   Calendar, Users, ShieldCheck, ChevronDown, 
@@ -13,6 +20,9 @@ import {
   CreditCard, Lock, Smartphone, Megaphone, Info, 
   Store, MapPin, Ticket, MousePointer2
 } from 'lucide-react';
+
+// --- 追加：FiLoader と FiShield は react-icons/fi からインポート ---
+import { FiLoader, FiShield } from 'react-icons/fi';
 import { twMerge } from 'tailwind-merge';
 import { clsx } from 'clsx';
 
