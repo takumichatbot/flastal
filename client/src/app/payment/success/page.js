@@ -1,27 +1,26 @@
 'use client';
 
-// Next.jsのビルドエラー（Prerenderエラー）を回避するため、動的レンダリングを強制
-export const dynamic = 'force-dynamic';
-
 import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { FiCheckCircle, FiArrowRight, FiShoppingBag, FiLoader } from 'react-icons/fi';
 import confetti from 'canvas-confetti';
 
+// 強制的に動的レンダリングに設定（ビルド時の静的生成をスキップ）
+export const dynamic = 'force-dynamic';
+
 /**
- * [動的部分] 決済成功の表示とロジック本体
+ * 実際のコンテンツを表示するコンポーネント
  */
-function PaymentSuccessInner() {
+function SuccessContent() {
   const searchParams = useSearchParams();
-  const router = useRouter();
   const [sessionId, setSessionId] = useState(null);
 
   useEffect(() => {
+    // クライアントサイドでのみ実行されることを保証
     const sid = searchParams.get('session_id');
     if (sid) {
       setSessionId(sid);
-      // お祝いの紙吹雪演出
       confetti({
         particleCount: 150,
         spread: 70,
@@ -34,9 +33,6 @@ function PaymentSuccessInner() {
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 font-sans">
       <div className="max-w-md w-full bg-white rounded-[40px] shadow-2xl p-10 text-center border border-slate-100 relative overflow-hidden">
-        {/* 背景装飾 */}
-        <div className="absolute -top-24 -right-24 w-48 h-48 bg-pink-50 rounded-full opacity-50"></div>
-        
         <div className="relative z-10">
           <div className="w-24 h-24 bg-emerald-100 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-8 shadow-inner animate-bounce-short">
             <FiCheckCircle size={48} />
@@ -61,7 +57,7 @@ function PaymentSuccessInner() {
           <div className="space-y-4">
             <Link 
               href="/mypage" 
-              className="flex items-center justify-center gap-2 w-full py-4 bg-slate-800 text-white font-bold rounded-2xl hover:bg-slate-900 transition-all transform hover:-translate-y-1 shadow-lg"
+              className="flex items-center justify-center gap-2 w-full py-4 bg-slate-800 text-white font-bold rounded-2xl hover:bg-slate-900 transition-all shadow-lg"
             >
               マイページで確認する <FiArrowRight />
             </Link>
@@ -75,32 +71,22 @@ function PaymentSuccessInner() {
           </div>
         </div>
       </div>
-
-      <style jsx global>{`
-        @keyframes bounce-short {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-10px); }
-        }
-        .animate-bounce-short {
-          animation: bounce-short 2s ease-in-out infinite;
-        }
-      `}</style>
     </div>
   );
 }
 
 /**
- * [静的部分] メインエクスポート
+ * メインエクスポート: 必ず Suspense でラップする
  */
 export default function PaymentSuccessPage() {
   return (
     <Suspense fallback={
       <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center">
         <FiLoader className="w-10 h-10 text-pink-500 animate-spin mb-4" />
-        <p className="text-slate-400 text-sm font-medium tracking-widest">CONFIRMING PAYMENT...</p>
+        <p className="text-slate-400 text-sm font-medium tracking-widest">LOADING...</p>
       </div>
     }>
-      <PaymentSuccessInner />
+      <SuccessContent />
     </Suspense>
   );
 }
