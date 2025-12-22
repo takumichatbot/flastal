@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/context/AuthContext'; // パスは環境に合わせて調整してください
+import { useAuth } from '@/app/contexts/AuthContext';
 import { 
   FiClock, 
   FiCheck, 

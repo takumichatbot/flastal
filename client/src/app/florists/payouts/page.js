@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useAuth } from '@/context/AuthContext'; // パスは環境に合わせて調整
+import { useAuth } from '@/app/contexts/AuthContext';
 import toast from 'react-hot-toast';
 import { 
   FiDollarSign, 
