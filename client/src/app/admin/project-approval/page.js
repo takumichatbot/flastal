@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, Suspense } from 'react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
@@ -12,14 +12,13 @@ import { useAuth } from '../../contexts/AuthContext';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
-// --- 詳細確認モーダル ---
+// --- 詳細確認モーダル (変更なし) ---
 function ProjectDetailModal({ project, onClose, onAction, isProcessing }) {
   if (!project) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
-        {/* Header */}
         <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
           <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
             <span className="bg-sky-100 text-sky-700 px-2 py-1 rounded text-xs uppercase">Project</span>
@@ -30,10 +29,7 @@ function ProjectDetailModal({ project, onClose, onAction, isProcessing }) {
           </button>
         </div>
 
-        {/* Body */}
         <div className="p-6 overflow-y-auto flex-1 space-y-6">
-          
-          {/* タイトル & 基本情報 */}
           <div>
             <h2 className="text-2xl font-bold text-gray-900 mb-2">{project.title}</h2>
             <div className="flex flex-wrap gap-4 text-sm text-gray-600">
@@ -43,7 +39,6 @@ function ProjectDetailModal({ project, onClose, onAction, isProcessing }) {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* 左カラム: 数値・日程系 */}
             <div className="space-y-4">
               <div className="bg-sky-50 p-4 rounded-xl border border-sky-100">
                 <label className="text-xs font-bold text-sky-600 uppercase flex items-center gap-1 mb-1"><FiTarget/> 目標金額</label>
@@ -62,7 +57,6 @@ function ProjectDetailModal({ project, onClose, onAction, isProcessing }) {
               </div>
             </div>
 
-            {/* 右カラム: 画像 */}
             <div className="border border-gray-200 rounded-xl overflow-hidden bg-gray-100 flex items-center justify-center min-h-[200px]">
               {project.imageUrl ? (
                 /* eslint-disable-next-line @next/next/no-img-element */
@@ -76,17 +70,14 @@ function ProjectDetailModal({ project, onClose, onAction, isProcessing }) {
             </div>
           </div>
 
-          {/* 説明文 */}
           <div>
             <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-1 mb-2"><FiFileText/> 企画説明・詳細</label>
             <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 text-sm text-gray-700 leading-relaxed whitespace-pre-wrap max-h-60 overflow-y-auto">
               {project.description || '説明文がありません。'}
             </div>
           </div>
-
         </div>
 
-        {/* Footer Actions */}
         <div className="p-6 border-t border-gray-100 bg-gray-50 flex gap-4">
           <button
             onClick={() => onAction(project.id, 'REJECTED')}
@@ -108,18 +99,17 @@ function ProjectDetailModal({ project, onClose, onAction, isProcessing }) {
   );
 }
 
-// --- メインページ ---
-export default function AdminProjectApprovalsPage() {
+// --- ロジックを含むメインコンテンツ ---
+function ProjectApprovalInner() {
   const [projects, setProjects] = useState([]);
   const [loadingData, setLoadingData] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedProject, setSelectedProject] = useState(null); // モーダル用
+  const [selectedProject, setSelectedProject] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
   const router = useRouter();
   const { user, isAuthenticated, loading, logout } = useAuth();
 
-  // データ取得
   const fetchPendingProjects = async () => {
     setLoadingData(true);
     try {
@@ -157,7 +147,6 @@ export default function AdminProjectApprovalsPage() {
     fetchPendingProjects();
   }, [isAuthenticated, user, router, loading]);
 
-  // ステータス更新
   const handleUpdateStatus = async (projectId, status) => {
     const actionText = status === 'FUNDRAISING' ? '承認（募集開始）' : '却下';
     if (!window.confirm(`この企画を「${actionText}」しますか？`)) return;
@@ -183,7 +172,7 @@ export default function AdminProjectApprovalsPage() {
 
       toast.success(`企画を${status === 'FUNDRAISING' ? '承認' : '却下'}しました`, { id: toastId });
       setProjects(prev => prev.filter(p => p.id !== projectId));
-      setSelectedProject(null); // モーダル閉じる
+      setSelectedProject(null);
 
     } catch (error) {
       toast.error(error.message, { id: toastId });
@@ -192,7 +181,6 @@ export default function AdminProjectApprovalsPage() {
     }
   };
 
-  // 検索フィルタリング
   const filteredProjects = useMemo(() => {
     if (!searchTerm) return projects;
     const lowerTerm = searchTerm.toLowerCase();
@@ -213,8 +201,6 @@ export default function AdminProjectApprovalsPage() {
   return (
     <div className="min-h-screen bg-gray-50 p-4 sm:p-8 font-sans text-gray-800">
       <div className="max-w-6xl mx-auto">
-        
-        {/* ヘッダー */}
         <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
           <div>
             <h1 className="text-2xl font-extrabold text-gray-900 flex items-center gap-2">
@@ -222,7 +208,6 @@ export default function AdminProjectApprovalsPage() {
             </h1>
             <p className="text-sm text-gray-500 mt-1">申請された企画内容を確認し、募集開始の承認を行います。</p>
           </div>
-          
           <div className="flex items-center gap-4">
              <span className="text-sm font-bold bg-white px-3 py-1 rounded-full border border-gray-200 shadow-sm">
                管理者: {user.name || user.email}
@@ -233,7 +218,6 @@ export default function AdminProjectApprovalsPage() {
           </div>
         </div>
 
-        {/* ナビゲーション */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-1 mb-8 inline-flex flex-wrap gap-1">
           {[
             { name: 'ダッシュボード', path: '/admin' },
@@ -242,25 +226,13 @@ export default function AdminProjectApprovalsPage() {
             { name: '花屋審査', path: '/admin/florist-approval' },
             { name: '企画審査', path: '/admin/project-approval', active: true },
           ].map((nav) => (
-            <Link 
-              key={nav.path}
-              href={nav.path}
-              className={`
-                px-4 py-2 text-sm font-bold rounded-lg transition-all
-                ${nav.active 
-                  ? 'bg-sky-500 text-white shadow-md' 
-                  : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'}
-              `}
-            >
+            <Link key={nav.path} href={nav.path} className={`px-4 py-2 text-sm font-bold rounded-lg transition-all ${nav.active ? 'bg-sky-500 text-white shadow-md' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'}`}>
               {nav.name}
             </Link>
           ))}
         </div>
 
-        {/* メインエリア */}
         <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
-            
-            {/* コントロールバー */}
             <div className="p-6 border-b border-gray-100 flex flex-col sm:flex-row justify-between items-center gap-4 bg-gray-50/50">
               <h2 className="font-bold text-lg flex items-center gap-2">
                 審査待ちリスト 
@@ -278,7 +250,6 @@ export default function AdminProjectApprovalsPage() {
               </div>
             </div>
 
-            {/* リスト表示 */}
             <div className="p-6">
                 {loadingData ? (
                   <div className="flex justify-center py-10 text-gray-400">読み込み中...</div>
@@ -300,29 +271,18 @@ export default function AdminProjectApprovalsPage() {
                                     {new Date(project.createdAt).toLocaleDateString()}
                                 </span>
                             </div>
-                            
-                            {/* サムネイル (あれば) */}
                             {project.imageUrl && (
                                 <div className="w-full h-32 mb-3 rounded-lg overflow-hidden bg-gray-100">
-                                    {/* eslint-disable-next-line @next/next/no-img-element */}
                                     <img src={project.imageUrl} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                                 </div>
                             )}
-
-                            <h3 className="font-bold text-lg text-gray-900 mb-2 line-clamp-2 leading-tight">
-                                {project.title}
-                            </h3>
-                            
+                            <h3 className="font-bold text-lg text-gray-900 mb-2 line-clamp-2 leading-tight">{project.title}</h3>
                             <div className="space-y-1 mb-4 text-xs text-gray-500">
                                 <p className="flex items-center gap-1"><FiUser className="shrink-0"/> {project.planner?.handleName}</p>
                                 <p className="flex items-center gap-1"><FiTarget className="shrink-0"/> 目標: {Number(project.targetAmount).toLocaleString()} pt</p>
                             </div>
                         </div>
-
-                        <button 
-                            onClick={() => setSelectedProject(project)}
-                            className="w-full py-2.5 px-4 bg-gray-900 text-white text-sm font-bold rounded-lg hover:bg-gray-800 transition-colors flex items-center justify-center gap-2 group-hover:bg-sky-600"
-                        >
+                        <button onClick={() => setSelectedProject(project)} className="w-full py-2.5 px-4 bg-gray-900 text-white text-sm font-bold rounded-lg hover:bg-gray-800 transition-colors flex items-center justify-center gap-2 group-hover:bg-sky-600">
                             <FiEye /> 内容を確認して審査
                         </button>
                       </div>
@@ -333,13 +293,16 @@ export default function AdminProjectApprovalsPage() {
         </div>
       </div>
 
-      {/* 詳細モーダル */}
-      <ProjectDetailModal 
-        project={selectedProject} 
-        onClose={() => setSelectedProject(null)} 
-        onAction={handleUpdateStatus}
-        isProcessing={isProcessing}
-      />
+      <ProjectDetailModal project={selectedProject} onClose={() => setSelectedProject(null)} onAction={handleUpdateStatus} isProcessing={isProcessing} />
     </div>
+  );
+}
+
+// --- エクスポート ---
+export default function ProjectApprovalPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-sky-500"></div></div>}>
+      <ProjectApprovalInner />
+    </Suspense>
   );
 }

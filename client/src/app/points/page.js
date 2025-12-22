@@ -54,8 +54,8 @@ const Reveal = ({ children, delay = 0 }) => (
   </motion.div>
 );
 
-// --- ロジックを含むメインコンテンツ ---
-function PointsMain() {
+// --- ロジックを含むメインコンポーネント ---
+function PointsInner() {
   const { user, loading: authLoading } = useAuth();
   const [processingId, setProcessingId] = useState(null);
   const router = useRouter();
@@ -140,7 +140,7 @@ function PointsMain() {
             const isRec = pkg.isRecommended;
             return (
               <Reveal key={pkg.id} delay={0.3 + (index * 0.1)}>
-                <motion.div whileHover={{ y: -10 }} className={`relative h-full flex flex-col p-8 rounded-[40px] border transition-all duration-300 bg-white ${isRec ? 'shadow-2xl shadow-pink-200/50 border-pink-200 z-10 scale-105 md:scale-110' : 'shadow-lg border-slate-100 opacity-90 hover:opacity-100'}`}>
+                <motion.div whileHover={{ y: -10 }} className={`relative h-full flex flex-col p-8 rounded-[40px] border transition-all duration-300 bg-white ${isRec ? 'shadow-2xl border-pink-200 z-10 scale-105 md:scale-110' : 'shadow-lg border-slate-100 opacity-90 hover:opacity-100'}`}>
                   {isRec && <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-pink-500 to-rose-500 text-white px-6 py-1.5 rounded-full text-xs font-bold shadow-lg shadow-pink-200 tracking-wider">MOST POPULAR</div>}
                   <div className="mb-6">
                       <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-4 shadow-sm ${isRec ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white' : pkg.bg}`}>{pkg.icon}</div>
@@ -187,7 +187,7 @@ function PointsMain() {
   );
 }
 
-// --- メインエクスポート (二重 Suspense ガード構造) ---
+// --- メインエクスポート ---
 export default function PointsPage() {
   return (
     <Suspense fallback={
@@ -195,7 +195,7 @@ export default function PointsPage() {
         <Loader2 className="w-10 h-10 text-pink-500 animate-spin" />
       </div>
     }>
-      <PointsMain />
+      <PointsInner />
     </Suspense>
   );
 }
