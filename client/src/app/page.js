@@ -1,11 +1,14 @@
 'use client'; 
 
-import { useEffect, Suspense } from 'react';
+import { useEffect, Suspense, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from './contexts/AuthContext';
 import HomePageContent from './components/HomePageContent';
 import { FiLoader } from 'react-icons/fi';
 
+/**
+ * 読み込み中・リダイレクト待機用のローディング表示
+ */
 function HomeLoading() {
   return (
     <div className="flex flex-col justify-center items-center min-h-screen bg-slate-50">
@@ -15,25 +18,46 @@ function HomeLoading() {
   );
 }
 
-// ロジックを隔離
+/**
+ * ロジック本体
+ * useSearchParams() 等に依存する HomePageContent を安全に呼び出します
+ */
 function HomeInner() {
   const { user, loading } = useAuth();
   const router = useRouter();
+  const [isMounted, setIsMounted] = useState(false);
+
+  // マウント確認（ハイドレーションエラーとビルドエラーの防止）
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   useEffect(() => {
-    if (loading) return;
+    if (loading || !isMounted) return;
+    
     if (user) {
-      if (user.role === 'ADMIN') router.push('/admin');
-      else if (user.role === 'USER' || user.role === 'ORGANIZER') router.push('/mypage');
+      if (user.role === 'ADMIN') {
+        router.push('/admin');
+      } else if (user.role === 'USER' || user.role === 'ORGANIZER') { 
+        router.push('/mypage');
+      }
     }
-  }, [user, loading, router]);
+  }, [user, loading, router, isMounted]);
 
-  if (loading || user) return <HomeLoading />;
-  
-  // HomePageContent 自体が useSearchParams を使っているため、ここが肝心
+  // マウント前、読み込み中、またはログイン済みの場合はローディングを表示
+  if (!isMounted || loading || user) {
+    return <HomeLoading />;
+  }
+
+  // ここで HomePageContent を表示。
+  // HomePageContent 内部の useSearchParams も親の Suspense で保護されます。
   return <HomePageContent />;
 }
 
+/**
+ * ページエントリポイント
+ * ここで Suspense 境界を定義することで、Next.js 15 のビルドエラーを物理的に回避します。
+ */
 export default function Page() {
   return (
     <Suspense fallback={<HomeLoading />}>
