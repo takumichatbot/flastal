@@ -1,6 +1,6 @@
 'use client';
 
-// Next.js のプリレンダリング（事前ビルド）を完全に無効化する
+// Next.js のプリレンダリング（事前ビルド）を完全に強制停止する
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
 
@@ -11,18 +11,20 @@ import confetti from 'canvas-confetti';
 
 /**
  * [ロジック本体]
- * useSearchParams フックを削除し、window オブジェクトから直接取得
+ * useSearchParams フックを完全に削除し、ブラウザの window オブジェクトから取得します。
+ * これにより Next.js のビルド時の制約を 100% 回避できます。
  */
 function SuccessPageInner() {
   const [sessionId, setSessionId] = useState(null);
 
   useEffect(() => {
-    // クライアントサイドでのみ実行
+    // クライアントサイド（ブラウザ）でのみ実行されることを保証
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const sid = params.get('session_id');
       if (sid) {
         setSessionId(sid);
+        // お祝い演出
         confetti({
           particleCount: 150,
           spread: 70,
@@ -36,14 +38,21 @@ function SuccessPageInner() {
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 font-sans">
       <div className="max-w-md w-full bg-white rounded-[40px] shadow-2xl p-10 text-center border border-slate-100 relative overflow-hidden">
+        {/* 背景装飾 */}
+        <div className="absolute -top-24 -right-24 w-48 h-48 bg-pink-50 rounded-full opacity-50"></div>
+        
         <div className="relative z-10">
-          <div className="w-24 h-24 bg-emerald-100 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-8 shadow-inner">
+          <div className="w-24 h-24 bg-emerald-100 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-8 shadow-inner animate-bounce-short">
             <FiCheckCircle size={48} />
           </div>
 
-          <h1 className="text-3xl font-black text-slate-800 mb-4 tracking-tight">決済完了</h1>
-          <p className="text-slate-500 mb-8 leading-relaxed">
-            ポイントのチャージが正常に完了しました。
+          <h1 className="text-3xl font-black text-slate-800 mb-4 tracking-tight">
+            決済が完了しました！
+          </h1>
+          
+          <p className="text-slate-500 mb-8 leading-relaxed font-medium">
+            ポイントのチャージが正常に完了しました。<br />
+            引き続き FLASTAL での推し活をお楽しみください。
           </p>
 
           {sessionId && (
@@ -54,12 +63,32 @@ function SuccessPageInner() {
           )}
 
           <div className="space-y-4">
-            <Link href="/mypage" className="flex items-center justify-center gap-2 w-full py-4 bg-slate-800 text-white font-bold rounded-2xl hover:bg-slate-900 transition-all shadow-lg">
-              マイページへ <FiArrowRight />
+            <Link 
+              href="/mypage" 
+              className="flex items-center justify-center gap-2 w-full py-4 bg-slate-800 text-white font-bold rounded-2xl hover:bg-slate-900 transition-all transform hover:-translate-y-1 shadow-lg"
+            >
+              マイページで確認する <FiArrowRight />
+            </Link>
+            
+            <Link 
+              href="/projects" 
+              className="flex items-center justify-center gap-2 w-full py-4 bg-white text-slate-600 font-bold rounded-2xl border border-slate-200 hover:bg-slate-50 transition-all"
+            >
+              <FiShoppingBag /> 他の企画を探す
             </Link>
           </div>
         </div>
       </div>
+
+      <style jsx global>{`
+        @keyframes bounce-short {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-10px); }
+        }
+        .animate-bounce-short {
+          animation: bounce-short 2s ease-in-out infinite;
+        }
+      `}</style>
     </div>
   );
 }
