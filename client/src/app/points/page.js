@@ -1,11 +1,10 @@
 'use client';
 
-import { useState, Suspense } from 'react';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useAuth } from '@/app/contexts/AuthContext';
 import toast from 'react-hot-toast';
-import { motion } from 'framer-motion'; 
 import { 
   CreditCard, ShieldCheck, Zap, Star, Gem, 
   ArrowRight, Info, Loader2 
@@ -14,22 +13,25 @@ import {
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
 const POINT_PACKAGES = [
-  { id: 'starter', points: 1000, amount: 1000, label: 'Starter', icon: <Zap className="w-6 h-6 text-emerald-500" />, bg: "bg-emerald-50", description: 'まずは少しだけ応援したい方に。' },
-  { id: 'standard', points: 5000, amount: 5000, label: 'Standard', icon: <Star className="w-6 h-6 text-white" />, isRecommended: true, bg: "bg-white", description: '複数の企画に参加できる一番人気のプラン。' },
-  { id: 'premium', points: 10000, amount: 10000, label: 'Premium', icon: <Gem className="w-6 h-6 text-purple-500" />, bg: "bg-purple-50", description: '大きな企画や主催者支援に最適です。' },
+  { id: 'starter', points: 1000, amount: 1000, label: 'Starter', icon: <Zap className="w-6 h-6 text-emerald-500" />, bg: "bg-emerald-50" },
+  { id: 'standard', points: 5000, amount: 5000, label: 'Standard', icon: <Star className="w-6 h-6 text-white" />, isRecommended: true, bg: "bg-white" },
+  { id: 'premium', points: 10000, amount: 10000, label: 'Premium', icon: <Gem className="w-6 h-6 text-purple-500" />, bg: "bg-purple-50" },
 ];
 
-const Reveal = ({ children, delay = 0 }) => (
-  <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay, type: "spring", stiffness: 100 }}>
-    {children}
-  </motion.div>
-);
-
-// --- 動的なロジックを隔離 ---
-function PointsMain() {
+/**
+ * 【動的部分】
+ * ロジック、フック、デザインの本体。
+ */
+function PointsCore() {
+  const searchParams = useSearchParams(); // ビルドエラーの根源
+  const router = useRouter();
   const { user, loading: authLoading } = useAuth();
   const [processingId, setProcessingId] = useState(null);
-  const router = useRouter();
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const handleCheckout = async (pkg) => {
     if (!user) {
@@ -46,76 +48,75 @@ function PointsMain() {
       });
       const data = await response.json();
       if (data.url) window.location.href = data.url;
-      else throw new Error('URL取得失敗');
     } catch (error) {
-      toast.error(`エラー: ${error.message}`);
+      toast.error('エラーが発生しました');
       setProcessingId(null);
     }
   };
 
-  if (authLoading) return <div className="flex items-center justify-center min-h-screen bg-slate-50"><Loader2 className="w-10 h-10 text-pink-500 animate-spin" /></div>;
-
-  if (!user) return (
-    <div className="bg-slate-50 min-h-screen flex items-center justify-center p-4 text-center">
-      <div className="max-w-md w-full p-10 bg-white rounded-[40px] shadow-2xl border border-slate-100">
-        <h2 className="text-2xl font-black text-slate-800 mb-8">ログインが必要です</h2>
-        <Link href="/login" className="block w-full py-4 font-bold text-white bg-gradient-to-r from-pink-500 to-rose-500 rounded-full">ログインページへ</Link>
+  // ビルド時（マウント前）または認証確認中は、何も表示させないことで解析を回避
+  if (!isMounted || authLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-slate-50">
+        <Loader2 className="w-10 h-10 text-pink-500 animate-spin" />
       </div>
-    </div>
-  );
+    );
+  }
 
   return (
-    <div className="bg-slate-50 min-h-screen pb-32 font-sans text-slate-800 overflow-x-hidden">
-      <section className="relative bg-white pt-20 pb-32 overflow-hidden text-center">
-        <Reveal>
-          <span className="inline-block py-1 px-3 rounded-full bg-pink-100 text-pink-600 text-xs font-bold mb-6">POINT CHARGE</span>
-          <h1 className="text-4xl md:text-6xl font-black mb-6">エネルギーチャージ</h1>
-          <div className="inline-block bg-white/80 backdrop-blur-xl p-2 pr-8 rounded-full shadow-xl border border-slate-200">
-            <div className="flex items-center gap-4">
-              <div className="bg-yellow-400 w-12 h-12 rounded-full flex items-center justify-center text-white shadow-md">🪙</div>
-              <div className="text-left">
-                <p className="text-[10px] font-bold text-slate-400 uppercase">Current Balance</p>
-                <p className="text-xl font-black">{(user.points || 0).toLocaleString()} pt</p>
-              </div>
-            </div>
+    <div className="bg-slate-50 min-h-screen pb-32 font-sans text-slate-800">
+      <section className="bg-white pt-20 pb-32 text-center">
+        <div className="container mx-auto px-6">
+          <span className="inline-block py-1 px-3 rounded-full bg-pink-100 text-pink-600 text-xs font-bold mb-6 tracking-wider">POINT CHARGE</span>
+          <h1 className="text-4xl md:text-6xl font-black text-slate-800 mb-6">エネルギーチャージ</h1>
+          <div className="inline-block bg-white shadow-xl border p-4 rounded-full">
+            <p className="text-sm font-bold text-slate-500 uppercase tracking-widest">Current Balance</p>
+            <p className="text-2xl font-black text-slate-800">{(user?.points || 0).toLocaleString()} pt</p>
           </div>
-        </Reveal>
+        </div>
       </section>
 
-      <section className="container mx-auto px-6 -mt-16 relative z-20">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-          {POINT_PACKAGES.map((pkg, index) => (
-            <Reveal key={pkg.id} delay={0.3 + (index * 0.1)}>
-              <div className={`relative h-full flex flex-col p-8 rounded-[40px] border transition-all duration-300 bg-white ${pkg.isRecommended ? 'shadow-2xl border-pink-200 z-10 scale-105' : 'shadow-lg border-slate-100 opacity-90'}`}>
-                {pkg.isRecommended && <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-pink-500 to-rose-500 text-white px-6 py-1.5 rounded-full text-xs font-bold shadow-lg">MOST POPULAR</div>}
-                <div className="mb-6">
-                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-4 ${pkg.isRecommended ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white' : pkg.bg}`}>{pkg.icon}</div>
-                  <h3 className="text-lg font-black">{pkg.label}</h3>
-                  <p className="text-xs text-slate-400 mt-1">{pkg.description}</p>
-                </div>
-                <div className="mb-8">
-                  <div className="flex items-baseline gap-1"><span className="text-4xl font-black">{pkg.points.toLocaleString()}</span><span className="text-sm font-bold text-slate-400">pt</span></div>
-                  <p className="text-sm font-bold text-slate-400 mt-1">¥{pkg.amount.toLocaleString()} (税込)</p>
-                </div>
-                <div className="mt-auto">
-                  <button onClick={() => handleCheckout(pkg)} disabled={!!processingId} className={`w-full py-4 rounded-2xl font-bold shadow-lg transition-all flex items-center justify-center gap-2 ${pkg.isRecommended ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white' : 'bg-slate-800 text-white'}`}>
-                    {processingId === pkg.id ? <Loader2 className="animate-spin" /> : <><span className="relative z-10">購入する</span><ArrowRight size={18} /></>}
-                  </button>
-                </div>
+      <section className="container mx-auto px-6 -mt-16 grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl">
+        {POINT_PACKAGES.map((pkg) => (
+          <div key={pkg.id} className={`p-8 rounded-[40px] border bg-white ${pkg.isRecommended ? 'shadow-2xl border-pink-200 z-10 scale-105 md:scale-110' : 'shadow-lg border-slate-100'}`}>
+            <div className="mb-6">
+              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-4 ${pkg.isRecommended ? 'bg-pink-500 text-white' : pkg.bg}`}>{pkg.icon}</div>
+              <h3 className="text-lg font-black">{pkg.label}</h3>
+            </div>
+            <div className="mb-8">
+              <div className="flex items-baseline gap-1">
+                <span className="text-4xl font-black tracking-tight">{pkg.points.toLocaleString()}</span>
+                <span className="text-sm font-bold text-slate-400">pt</span>
               </div>
-            </Reveal>
-          ))}
-        </div>
+              <p className="text-sm font-bold text-slate-400 mt-1">¥{pkg.amount.toLocaleString()}</p>
+            </div>
+            <button 
+              onClick={() => handleCheckout(pkg)} 
+              disabled={!!processingId} 
+              className={`w-full py-4 rounded-2xl font-bold transition-all flex items-center justify-center gap-2 ${pkg.isRecommended ? 'bg-pink-500 text-white' : 'bg-slate-800 text-white'}`}
+            >
+              {processingId === pkg.id ? <Loader2 className="animate-spin" /> : <>購入する <ArrowRight size={18} /></>}
+            </button>
+          </div>
+        ))}
       </section>
     </div>
   );
 }
 
-// --- メインエクスポート (ここが重要) ---
+/**
+ * 【静的部分】
+ * メインエクスポート。ここを Suspense だけで包むことで
+ * Next.js 15 のビルドエンジンに対して「中身は実行時まで触るな」と指示します。
+ */
 export default function PointsPage() {
   return (
-    <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><Loader2 className="w-10 h-10 text-pink-500 animate-spin" /></div>}>
-      <PointsMain />
+    <Suspense fallback={
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <Loader2 className="w-10 h-10 text-pink-500 animate-spin" />
+      </div>
+    }>
+      <PointsCore />
     </Suspense>
   );
 }
