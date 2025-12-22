@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react'; // ★修正: Suspense追加
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/app/contexts/AuthContext';
@@ -18,7 +18,8 @@ const getAuthToken = () => {
   return rawToken ? rawToken.replace(/^"|"$/g, '') : null;
 };
 
-export default function CreateEventPage() {
+// ★修正: コンテンツ部分を関数として切り出し
+function CreateEventContent() {
   const { user, isAuthenticated, loading } = useAuth();
   const router = useRouter();
   
@@ -38,7 +39,6 @@ export default function CreateEventPage() {
   const [venues, setVenues] = useState([]);
   const [selectedVenueInfo, setSelectedVenueInfo] = useState(null);
   
-  // 認証チェックと会場リスト取得
   useEffect(() => {
     if (loading) return;
     if (!isAuthenticated || user?.role !== 'ORGANIZER') {
@@ -58,7 +58,6 @@ export default function CreateEventPage() {
     fetchVenues();
   }, [loading, isAuthenticated, user, router]);
 
-  // 会場選択時の処理 (住所などのプレビュー用)
   const watchedVenueId = watch('venueId');
   useEffect(() => {
     if (watchedVenueId) {
@@ -106,7 +105,6 @@ export default function CreateEventPage() {
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-gray-800">
       
-      {/* ヘッダーエリア */}
       <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
           <div className="max-w-3xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
               <div className="flex items-center gap-4">
@@ -119,10 +117,8 @@ export default function CreateEventPage() {
       </div>
 
       <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
-        
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
           
-          {/* 1. 基本情報カード */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
             <div className="bg-indigo-50 px-6 py-3 border-b border-indigo-100">
                 <h2 className="font-bold text-indigo-900 flex items-center gap-2">
@@ -176,7 +172,6 @@ export default function CreateEventPage() {
                                 </option>
                             ))}
                         </select>
-                        {/* 選択された会場のプレビュー情報 */}
                         {selectedVenueInfo && (
                             <div className="mt-3 p-3 bg-indigo-50 border border-indigo-100 rounded-lg text-sm text-indigo-800 animate-fadeIn">
                                 <p className="font-bold flex items-center gap-1"><FiCheck /> {selectedVenueInfo.venueName}</p>
@@ -198,7 +193,6 @@ export default function CreateEventPage() {
             </div>
           </div>
 
-          {/* 2. フラスタ設定カード */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
             <div className="bg-yellow-50 px-6 py-3 border-b border-yellow-100">
                 <h2 className="font-bold text-yellow-800 flex items-center gap-2">
@@ -230,7 +224,6 @@ export default function CreateEventPage() {
                     </div>
                 </div>
 
-                {/* トグルがONの時だけ表示 (アニメーション付き) */}
                 <div className={`transition-all duration-300 overflow-hidden ${isStandAllowed ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}`}>
                     <div className="bg-yellow-50 p-5 rounded-xl border border-yellow-200 mt-2">
                         <label className="block text-sm font-bold text-yellow-900 mb-2">
@@ -250,7 +243,6 @@ export default function CreateEventPage() {
             </div>
           </div>
 
-          {/* 送信ボタンエリア */}
           <div className="flex flex-col sm:flex-row gap-4 pt-4">
              <Link href="/organizers/dashboard" className="w-full sm:w-1/3 py-4 text-center font-bold text-gray-500 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors order-2 sm:order-1">
                 キャンセル
@@ -271,5 +263,14 @@ export default function CreateEventPage() {
         </form>
       </div>
     </div>
+  );
+}
+
+// ★修正: デフォルトエクスポートでSuspenseラップ
+export default function CreateEventPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen">Loading...</div>}>
+      <CreateEventContent />
+    </Suspense>
   );
 }

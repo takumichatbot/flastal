@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from 'react';
+// ★修正: FiSparkles を削除し、FiStar を利用
 import { FiCpu, FiLoader, FiCheck, FiX, FiStar, FiEdit3 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
@@ -58,7 +59,6 @@ export default function AiPlanGenerator({ onGenerated, onClose }) {
     }
 
     setLoading(true);
-    // トーストは出さず、UI内でローディングを見せる
 
     try {
       const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
@@ -75,7 +75,6 @@ export default function AiPlanGenerator({ onGenerated, onClose }) {
 
       const data = await res.json();
       
-      // 親コンポーネントにデータを渡す
       onGenerated(data.title, data.description);
       toast.success('AIが文章を作成しました！', { icon: '🤖' });
       onClose();
@@ -96,7 +95,8 @@ export default function AiPlanGenerator({ onGenerated, onClose }) {
         <div className="bg-gradient-to-r from-violet-600 to-indigo-600 p-6 flex justify-between items-center text-white">
             <div>
                 <h3 className="text-xl font-bold flex items-center gap-2">
-                  <FiStar className="text-yellow-300" /> AI アシスタント
+                    {/* ★修正: FiStar に変更 */}
+                    <FiStar className="text-yellow-300" /> AI アシスタント
                 </h3>
                 <p className="text-xs text-indigo-100 mt-1 opacity-90">
                     キーワードから、人を惹きつける企画文を自動生成します。
@@ -113,7 +113,6 @@ export default function AiPlanGenerator({ onGenerated, onClose }) {
 
         <div className="p-6 md:p-8 space-y-6">
           
-          {/* メイン入力フォーム */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold text-gray-600 mb-1.5 ml-1">推しの名前 <span className="text-red-500">*</span></label>
@@ -138,7 +137,6 @@ export default function AiPlanGenerator({ onGenerated, onClose }) {
             </div>
           </div>
 
-          {/* 雰囲気選択 (Chips) */}
           <div>
             <label className="block text-xs font-bold text-gray-600 mb-2 ml-1">文章の雰囲気</label>
             <div className="grid grid-cols-2 gap-2">
@@ -164,7 +162,6 @@ export default function AiPlanGenerator({ onGenerated, onClose }) {
             </div>
           </div>
 
-          {/* 補足情報 */}
           <div>
             <label className="block text-xs font-bold text-gray-600 mb-1.5 ml-1">補足情報 (任意)</label>
             <div className="relative">
@@ -179,7 +176,6 @@ export default function AiPlanGenerator({ onGenerated, onClose }) {
             </div>
           </div>
 
-          {/* アクションボタン */}
           <button 
             onClick={handleGenerate}
             disabled={loading || !formData.targetName || !formData.eventName}
