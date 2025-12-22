@@ -1,4 +1,5 @@
 import { Suspense } from 'react';
+// ↓ ここがファイル名と完全に一致している必要があります
 import MyPageClient from './MyPageClient';
 
 export const metadata = {
@@ -11,7 +12,6 @@ export const viewport = {
 
 export default function MyPage() {
   return (
-    // Next.js 15 のビルド要件を満たすために Suspense でラップ
     <Suspense fallback={
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-sky-500"></div>
