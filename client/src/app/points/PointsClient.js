@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, Suspense } from 'react'; // Suspenseを追加
+import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/app/contexts/AuthContext';
@@ -13,7 +13,6 @@ import {
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
-// --- プラン定義 ---
 const POINT_PACKAGES = [
   { 
     id: 'starter',
@@ -64,8 +63,8 @@ const Reveal = ({ children, delay = 0 }) => (
   </motion.div>
 );
 
-// --- メインコンテンツコンポーネント ---
-function PointsContent() {
+// デフォルトエクスポートの名前を PointsClient に統一
+export default function PointsClient() {
   const { user, loading: authLoading } = useAuth();
   const [processingId, setProcessingId] = useState(null);
   const router = useRouter();
@@ -292,18 +291,5 @@ function PointsContent() {
         </Reveal>
       </section>
     </div>
-  );
-}
-
-// --- メインページエクスポート (Suspenseラップ) ---
-export default function PointsPage() {
-  return (
-    <Suspense fallback={
-      <div className="flex items-center justify-center min-h-screen bg-slate-50">
-        <Loader2 className="w-10 h-10 text-pink-500 animate-spin" />
-      </div>
-    }>
-      <PointsContent />
-    </Suspense>
   );
 }
