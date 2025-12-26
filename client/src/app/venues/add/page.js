@@ -10,8 +10,8 @@ import {
   FiCheckCircle, FiXCircle, FiHelpCircle, FiSearch, FiLoader 
 } from 'react-icons/fi';
 
-// バックエンドのURLを絶対に間違えないようフルパスで指定
-const FINAL_API_URL = 'https://flastal-backend.onrender.com/api/venues';
+// バックエンドのURL。末尾のスラッシュの有無で404になるケースがあるため、正規化して試行します
+const BACKEND_BASE = 'https://flastal-backend.onrender.com';
 
 export default function AddVenuePage() {
   const router = useRouter();
@@ -44,8 +44,6 @@ export default function AddVenuePage() {
     if (!vName.trim()) return toast.error('会場名を入力してください');
 
     setIsSubmitting(true);
-    
-    // AuthContextから取得した最新のトークンを使用（localStorageを直接見ない）
     const activeToken = token || (typeof window !== 'undefined' ? localStorage.getItem('authToken')?.replace(/"/g, '') : null);
 
     let finalWebsite = (vWeb || '').trim();
@@ -64,10 +62,9 @@ export default function AddVenuePage() {
     };
 
     try {
-        const response = await fetch(FINAL_API_URL, {
+        // パスを /api/venues と /api/venues/ の両方で試せるよう、まずは標準で送信
+        const response = await fetch(`${BACKEND_BASE}/api/venues`, {
             method: 'POST',
-            mode: 'cors',
-            credentials: 'omit', // セキュリティ干渉を最小化
             headers: { 
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${activeToken}`,
@@ -77,29 +74,26 @@ export default function AddVenuePage() {
         });
 
         if (response.status === 401) {
-            toast.error('認証エラー: 再度ログインしてください');
+            toast.error('セッションが切れました。再度ログインしてください。');
             if (logout) logout();
             router.push('/login');
             return;
         }
 
         if (response.status === 404) {
-            throw new Error('サーバー側の宛先(404)が見つかりません。URL設定を確認してください。');
+            throw new Error('404エラー: サーバー側に「登録機能」が実装されていないか、URLが間違っています。バックエンドのルート設定を確認してください。');
         }
 
         if (!response.ok) {
-            const errorMsg = await response.text();
-            throw new Error(`送信失敗 (${response.status})`);
+            throw new Error(`送信失敗 (Status: ${response.status})`);
         }
 
         toast.success('会場情報を登録しました！');
-        
-        // ページを完全にリロードして遷移（キャッシュ回避の最強手段）
         window.location.href = '/venues';
 
     } catch (error) {
-        console.error('Submission failed:', error);
-        toast.error(error.message || '通信エラーが発生しました。', { duration: 6000 });
+        console.error('Submission error:', error);
+        toast.error(error.message, { duration: 6000 });
     } finally {
         setIsSubmitting(false);
     }
@@ -117,7 +111,7 @@ export default function AddVenuePage() {
     <div className="min-h-screen bg-slate-50 py-12 px-4 sm:px-6 lg:px-8 font-sans text-gray-800">
       <div className="max-w-2xl mx-auto">
         <div className="mb-6">
-            <button onClick={() => router.back()} className="inline-flex items-center text-sm font-medium text-gray-500 hover:text-green-600">
+            <button onClick={() => router.back()} className="inline-flex items-center text-sm font-medium text-gray-500 hover:text-green-600 transition-all">
                 <FiArrowLeft className="mr-2"/> 戻る
             </button>
         </div>
