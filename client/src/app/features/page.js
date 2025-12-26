@@ -6,7 +6,7 @@ import { motion } from 'framer-motion';
 import { 
   CreditCard, Lock, Palette, MessageCircle, Flower, PiggyBank,
   CheckCircle2, ArrowRight, Zap, ShieldCheck, Heart, Sparkles,
-  Smartphone, Users, Globe, BarChart3, ChevronRight
+  Smartphone, Users, Globe, BarChart3, ChevronRight, Search // Searchを追加
 } from 'lucide-react';
 
 const cn = (...classes) => classes.filter(Boolean).join(' ');
@@ -62,7 +62,6 @@ const FeatureSection = ({ id, title, icon: Icon, color, image, desc, details, re
             <div className="relative">
               <div className={cn("absolute -inset-4 rounded-[40px] opacity-20 blur-2xl", colors[color].split(' ')[2])} />
               <div className="relative bg-white rounded-[40px] border border-slate-100 shadow-2xl overflow-hidden aspect-[4/3] flex items-center justify-center p-8">
-                {/* プレースホルダー画像：実際には各機能を象徴するイラストやスクショが入る想定 */}
                 <div className={cn("w-full h-full rounded-3xl bg-gradient-to-br flex flex-col items-center justify-center gap-6 text-white", colors[color].split(' ').slice(0,2).join(' '))}>
                   <Icon size={80} strokeWidth={1.5} className="animate-bounce-slow" />
                   <div className="text-center">
