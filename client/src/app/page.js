@@ -104,7 +104,7 @@ const TiltCard = ({ children, className, glowColor = "pink" }) => {
       onMouseLeave={() => { x.set(0); y.set(0); }}
       className={cn("relative transition-all duration-300 ease-out group hover:z-10", className)}
     >
-      <div className={cn("transition-shadow duration-300 hover:shadow-2xl h-full", glows[glowColor])}>
+      <div className={cn("transition-shadow duration-300 hover:shadow-2xl h-full rounded-[30px] bg-white", glows[glowColor])}>
         {children}
       </div>
     </motion.div>
@@ -295,7 +295,7 @@ const CultureSection = () => {
     { title: "フラワースタンド", en: "Flower Stand", icon: "💐", desc: "ライブ会場のロビーを彩る定番。バルーンやLEDで派手に装飾し、推しの「メンカラ」一色に染め上げます。" },
     { title: "卓上フラスタ（楽屋花）", en: "Desktop Flasta", icon: "🧺", desc: "楽屋や受付に飾るコンパクトなアレンジメント。会場規制でスタンド不可の場合や、個人的な贈り物に。" },
     { title: "イラストパネル", en: "Illustration Panel", icon: "🎨", desc: "神絵師に依頼した推しの等身大パネルやイラストボードをお花に添えます。二次元・VTuber界隈では必須！" },
-    { title: "祭壇・デコ", en: "Altar & Decor", icon: "🧸", desc: "お花だけでなく、ぬいぐるみ、グッズ、名札パネルなどを大量に盛り込んだ、愛の重さが伝わる独自のデザイン。" }
+    { title: "祭壇・デコ", en: "Altar & Decor", icon: "🧸", desc: "お花だけでなく、ぬいぐるみ、グッズ、名札パネルなどを大量に盛り込んだ、愛の重さが伝わる独自デザイン。" }
   ];
 
   return (
@@ -336,7 +336,7 @@ const ProblemSection = () => (
             </h3>
             <ul className="space-y-6">
               {["DMで一人ひとり口座を教える手間", "未入金の催促が気まずい", "本名や住所がバレるリスク", "収支報告のエクセル管理が地獄"].map((t, i) => (
-                <li key={i} className="flex gap-4 text-slate-500 items-center"><div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center shrink-0 text-slate-400 font-bold">×</div>{t}</li>
+                <li key={i} className="flex gap-4 text-slate-500 items-center"><div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center shrink-0 text-xs font-bold">×</div>{t}</li>
               ))}
             </ul>
           </div>
@@ -478,7 +478,7 @@ const PartnerJoinSection = () => {
                 </p>
                 <div className="flex flex-col gap-3">
                   <Link href="/venues/login" className="w-full py-3 rounded-xl border-2 border-sky-200 text-sky-500 font-bold hover:bg-sky-50 transition-colors text-center">ログイン</Link>
-                  <Link href="/venues/register" className="w-full py-3 rounded-xl bg-sky-500 text-white font-bold hover:bg-sky-600 shadow-md shadow-sky-200 transition-colors text-center">新規登録</Link>
+                  <Link href="/venues/register" className="w-full py-3 rounded-xl bg-pink-500 text-white font-bold hover:bg-pink-600 shadow-md shadow-pink-200 transition-colors text-center">新規登録</Link>
                 </div>
               </div>
             </TiltCard>
@@ -682,7 +682,8 @@ const ContactAndCtaSection = () => (
 // --- 🏠 DASHBOARD WRAPPER ---
 function AuthenticatedHome({ user, logout }) {
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 pt-24">
+    /* 【修正】ここも pt-24 を削除し、m-0 p-0 で隙間をなくす */
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 m-0">
       <div className="max-w-md w-full bg-white rounded-[40px] shadow-2xl p-10 text-center border border-slate-100">
         <div className="w-20 h-20 bg-indigo-100 text-indigo-500 rounded-full flex items-center justify-center mx-auto mb-6">
           <ShieldCheck size={40} />
@@ -694,7 +695,7 @@ function AuthenticatedHome({ user, logout }) {
         <div className="space-y-4">
           <Link 
             href={user?.role === 'ADMIN' ? '/admin' : '/mypage'} 
-            className="flex items-center justify-center gap-2 w-full py-4 bg-slate-800 text-white font-bold rounded-2xl hover:bg-slate-900 transition-all shadow-lg"
+            className="flex items-center justify-center gap-2 w-full py-4 bg-slate-800 text-white font-bold rounded-2xl hover:bg-slate-800 shadow-lg"
           >
             ダッシュボードへ進む <ArrowRight size={18} />
           </Link>
@@ -734,7 +735,8 @@ export default function HomePage() {
   }
 
   return (
-    <div className="bg-white min-h-screen text-slate-800 font-sans selection:bg-pink-100 selection:text-pink-600 overflow-x-hidden pt-16">
+    /* 【修正】 pt-16 を完全に削除。これが空白の犯人でした。 */
+    <div className="bg-white min-h-screen text-slate-800 font-sans selection:bg-pink-100 selection:text-pink-600 overflow-x-hidden m-0 p-0">
       <HeroSection />
       <TickerSection />
       <CultureSection />
@@ -751,4 +753,3 @@ export default function HomePage() {
     </div>
   );
 }
-
