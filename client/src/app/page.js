@@ -27,6 +27,14 @@ function cn(...classes) {
   return classes.filter(Boolean).join(' ');
 }
 
+/**
+ * 日本語の変な改行を防ぐためのコンポーネント
+ * 文章のカタマリを保持しながら、画面端では適切に折り返します
+ */
+const JpText = ({ children, className }) => (
+  <span className={cn("inline-block", className)}>{children}</span>
+);
+
 // --- 🪄 MAGIC UI COMPONENTS 🪄 ---
 
 const ScrollProgress = () => {
@@ -184,17 +192,17 @@ const HeroSection = () => (
         </Reveal>
         <Reveal delay={0.1}>
           <h1 className="text-4xl md:text-7xl lg:text-8xl font-black text-slate-800 leading-tight mb-6 tracking-tight">
-            想いを、<br/>
+            <JpText>想いを、</JpText><br/>
             <span className="relative inline-block px-1">
               <span className="absolute inset-0 bg-pink-200 -rotate-1 rounded-lg blur-sm opacity-40" />
               <span className="relative text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-rose-500">結晶化</span>
             </span>
-            しよう。
+            <JpText>しよう。</JpText>
           </h1>
         </Reveal>
         <Reveal delay={0.2}>
           <p className="text-sm md:text-xl text-slate-500 mb-10 leading-relaxed max-w-2xl mx-auto lg:mx-0 font-medium">
-            FLASTAL（フラスタル）は、アイドル・声優・VTuber・歌い手への「お祝い花（フラスタ）」を、ファンのみんなで贈れる次世代クラウドファンディング・プラットフォームです。
+            <JpText>FLASTAL（フラスタル）は、</JpText><JpText>アイドル・声優・VTuber・歌い手への</JpText><JpText>「お祝い花（フラスタ）」を、</JpText><JpText>ファンのみんなで贈れる</JpText><JpText>次世代クラウドファンディング・プラットフォームです。</JpText>
           </p>
         </Reveal>
         <Reveal delay={0.3}>
@@ -259,18 +267,22 @@ const CultureSection = () => {
   return (
     <section className="py-20 md:py-32 bg-white relative overflow-hidden">
       <div className="container mx-auto px-6">
-        <SectionHeader en="Otaku Culture" ja="どんなお花を贈る？" desc="「フラスタ」と一口に言っても形は様々。会場のレギュレーション（規則）や予算に合わせて、最適な形を選ぼう。" color="pink" />
+        <SectionHeader en="Otaku Culture" ja="どんなお花を贈る？" desc="「フラスタ」と一口に言っても形は様々。会場のレギュレーションや予算に合わせて、最適な形を選ぼう。" color="pink" />
         <div className="flex overflow-x-auto pb-8 md:grid md:grid-cols-2 lg:grid-cols-4 gap-6 snap-x no-scrollbar -mx-6 px-6 md:mx-0 md:px-0">
           {items.map((item, i) => (
-            <div key={i} className="min-w-[280px] md:min-w-0 snap-center">
-              <TiltCard glowColor="pink">
-                <div className="bg-slate-50 rounded-[30px] p-8 text-center border border-slate-100 h-full flex flex-col items-center group">
-                  <div className="text-6xl mb-6 transform group-hover:scale-110 transition-transform duration-300">{item.icon}</div>
-                  <h3 className="font-bold text-slate-800 text-lg mb-1">{item.title}</h3>
-                  <p className="text-[10px] font-bold text-pink-400 uppercase tracking-widest mb-4">{item.en}</p>
-                  <p className="text-sm text-slate-500 leading-relaxed text-left flex-grow">{item.desc}</p>
-                </div>
-              </TiltCard>
+            <div key={i} className="min-w-[280px] md:min-w-0 snap-center h-full">
+              <Reveal key={i} delay={i * 0.1}>
+                <TiltCard glowColor="pink">
+                  <div className="bg-slate-50 rounded-[30px] p-8 text-center border border-slate-100 h-full flex flex-col items-center group min-h-[400px]">
+                    <div className="text-6xl mb-6 transform group-hover:scale-110 transition-transform duration-300">{item.icon}</div>
+                    <h3 className="font-bold text-slate-800 text-lg mb-1">{item.title}</h3>
+                    <p className="text-[10px] font-bold text-pink-400 uppercase tracking-widest mb-4">{item.en}</p>
+                    <p className="text-sm text-slate-500 leading-relaxed text-left flex-grow">
+                      <JpText>{item.desc}</JpText>
+                    </p>
+                  </div>
+                </TiltCard>
+              </Reveal>
             </div>
           ))}
         </div>
@@ -288,11 +300,11 @@ const ProblemSection = () => (
         <Reveal>
           <div className="bg-white p-10 rounded-[40px] border border-slate-200 grayscale opacity-70 hover:grayscale-0 hover:opacity-100 transition-all duration-500 h-full">
             <h3 className="text-xl font-bold text-slate-600 mb-8 flex items-center gap-3">
-              <span className="bg-slate-200 px-3 py-1 rounded-full text-xs">従来のやり方</span> 😰 大変すぎる...
+              <span className="bg-slate-200 px-3 py-1 rounded-full text-xs">従来のやり方</span> 😰 <JpText>大変すぎる...</JpText>
             </h3>
             <ul className="space-y-6">
               {["DMで一人ひとり口座を教える手間", "未入金の催促が気まずい", "本名や住所がバレるリスク", "収支報告のエクセル管理が地獄"].map((t, i) => (
-                <li key={i} className="flex gap-4 text-slate-500 items-center"><div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center shrink-0 text-xs font-bold">×</div>{t}</li>
+                <li key={i} className="flex gap-4 text-slate-500 items-center"><div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center shrink-0 text-xs font-bold">×</div><JpText>{t}</JpText></li>
               ))}
             </ul>
           </div>
@@ -301,12 +313,12 @@ const ProblemSection = () => (
           <TiltCard glowColor="sky" className="h-full">
             <div className="bg-gradient-to-br from-white to-sky-50 p-10 rounded-[40px] border-2 border-sky-100 shadow-xl h-full relative overflow-hidden group">
               <h3 className="text-2xl font-bold text-sky-600 mb-8 flex items-center gap-3">
-                <span className="bg-sky-100 px-3 py-1 rounded-full text-xs">FLASTALなら</span> ✨ 全部おまかせ！
+                <span className="bg-sky-100 px-3 py-1 rounded-full text-xs">FLASTALなら</span> ✨ <JpText>全部おまかせ！</JpText>
               </h3>
               <ul className="space-y-6 relative z-10">
                 {["リンクをシェアするだけで集金完了", "クレカ・コンビニ払いで自動管理", "完全匿名で安心安全", "収支報告もワンクリックで公開"].map((t, i) => (
                   <li key={i} className="flex gap-4 text-slate-700 font-bold items-center">
-                    <div className="w-8 h-8 rounded-full bg-sky-500 text-white flex items-center justify-center shrink-0 shadow-lg shadow-sky-200"><CheckCircle2 size={16} /></div>{t}
+                    <div className="w-8 h-8 rounded-full bg-sky-500 text-white flex items-center justify-center shrink-0 shadow-lg shadow-sky-200"><CheckCircle2 size={16} /></div><JpText>{t}</JpText>
                   </li>
                 ))}
               </ul>
@@ -375,11 +387,11 @@ const FeaturesSection = () => {
         />
         <div className="flex overflow-x-auto pb-8 md:grid md:grid-cols-2 lg:grid-cols-3 gap-8 snap-x no-scrollbar -mx-6 px-6 md:mx-0 md:px-0">
           {features.map((f, i) => (
-            <div key={i} className="min-w-[300px] md:min-w-0 snap-center">
+            <div key={i} className="min-w-[300px] md:min-w-0 snap-center h-full">
               <Reveal delay={i * 0.1}>
                 <Link href={`/features#${f.id}`}>
                   <TiltCard className="h-full" glowColor={f.color === 'emerald' || f.color === 'green' ? 'emerald' : f.color}>
-                    <div className="p-10 flex flex-col h-full relative overflow-hidden group">
+                    <div className="p-10 flex flex-col h-full relative overflow-hidden group min-h-[380px]">
                       <div className={cn("absolute -top-6 -right-6 opacity-5 transform rotate-12 transition-transform group-hover:scale-110 group-hover:rotate-6", `text-${f.color}-500`)}>
                         {f.icon}
                       </div>
@@ -390,7 +402,7 @@ const FeaturesSection = () => {
                         {f.title}
                       </h3>
                       <p className="text-sm text-slate-500 leading-relaxed font-medium">
-                        {f.desc}
+                        <JpText>{f.desc}</JpText>
                       </p>
                       <div className="mt-8 pt-6 border-t border-slate-50 flex items-center gap-2 text-xs font-bold text-slate-400 group-hover:text-purple-400 transition-colors">
                         LEARN MORE <ArrowRight size={14} />
@@ -407,56 +419,63 @@ const FeaturesSection = () => {
   );
 };
 
-const SafetySection = () => (
-  <section className="py-20 bg-emerald-50 border-y border-emerald-100 relative overflow-hidden">
-    <FloatingShape color="bg-emerald-200" bottom="-10%" left="10%" size={300} />
-    <div className="container mx-auto px-6 relative z-10">
-       <SectionHeader en="Trust & Safety" ja="お金のことだから、誠実に" color="green" desc="FLASTALは、すべてのファンが安心して利用できる環境づくりを最優先しています。" />
-       <div className="grid md:grid-cols-3 gap-8">
-          {[
-            { title: "完全匿名配送", icon: Lock, desc: "お花屋さんへの発注はFLASTALが代行. 主催者の個人情報が店舗や第三者に渡ることはありません。" },
-            { title: "安全な決済", icon: CreditCard, desc: "世界基準のStripe決済を採用. クレジットカード情報はサーバーに保存されず、安全に処理されます。" },
-            { title: "運営の審査制", icon: ShieldCheck, desc: "すべての企画は公開前に運営スタッフが目視で審査. 詐欺や不適切な企画を未然に防ぎます。" }
-          ].map((item, i) => (
-            <Reveal key={i} delay={i * 0.1}>
-              <div className="bg-white p-8 rounded-[30px] shadow-sm border border-emerald-100 hover:shadow-lg transition-shadow text-center h-full">
-                <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6 text-emerald-500"><item.icon size={32} /></div>
-                <h3 className="font-bold text-lg mb-4 text-slate-800">{item.title}</h3>
-                <p className="text-sm text-slate-500 leading-relaxed">{item.desc}</p>
+const SafetySection = () => {
+  const safetyItems = [
+    { title: "完全匿名配送", icon: Lock, desc: "お花屋さんへの発注はFLASTALが代行。主催者の個人情報が店舗や第三者に渡ることはありません。" },
+    { title: "安全な決済", icon: CreditCard, desc: "世界基準のStripe決済を採用。クレジットカード情報はサーバーに保存されず、安全に処理されます。" },
+    { title: "運営の審査制", icon: ShieldCheck, desc: "すべての企画は公開前に運営スタッフが目視で審査。詐欺や不適切な企画を未然に防ぎます。" }
+  ];
+
+  return (
+    <section className="py-20 bg-emerald-50 border-y border-emerald-100 relative overflow-hidden">
+      <FloatingShape color="bg-emerald-200" bottom="-10%" left="10%" size={300} />
+      <div className="container mx-auto px-6 relative z-10">
+         <SectionHeader en="Trust & Safety" ja="お金のことだから、誠実に" color="green" desc="FLASTALは、すべてのファンが安心して利用できる環境づくりを最優先しています。" />
+         {/* スマホで横並び（スワイプ）に変更 */}
+         <div className="flex overflow-x-auto pb-8 md:grid md:grid-cols-3 gap-8 snap-x no-scrollbar -mx-6 px-6 md:mx-0 md:px-0">
+            {safetyItems.map((item, i) => (
+              <div key={i} className="min-w-[280px] md:min-w-0 snap-center h-full">
+                <Reveal delay={i * 0.1}>
+                  <div className="bg-white p-8 rounded-[30px] shadow-sm border border-emerald-100 hover:shadow-lg transition-shadow text-center h-full min-h-[320px] flex flex-col justify-center">
+                    <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6 text-emerald-500 shrink-0"><item.icon size={32} /></div>
+                    <h3 className="font-bold text-lg mb-4 text-slate-800"><JpText>{item.title}</JpText></h3>
+                    <p className="text-sm text-slate-500 leading-relaxed"><JpText>{item.desc}</JpText></p>
+                  </div>
+                </Reveal>
               </div>
-            </Reveal>
-          ))}
-       </div>
-    </div>
-  </section>
-);
+            ))}
+         </div>
+      </div>
+    </section>
+  );
+};
 
 const PartnerJoinSection = () => {
   const partners = [
     { title: "お花屋さん", icon: Store, color: "pink", hrefL: "/florists/login", hrefR: "/florists/register", desc: "未払いリスクゼロで、確実に売上を。ファンの熱量が高い「推し花」需要を取り込みませんか？" },
-    { title: "会場・ホール", icon: MapPin, color: "sky", hrefL: "/venues/login", hrefR: "/venues/register", desc: "搬入出のトラブル防止に. 公式のレギュレーションを周知し、許可されたフラスタのみを受け入れ可能。" },
-    { title: "イベント主催者", icon: Ticket, color: "purple", hrefL: "/organizers/login", hrefR: "/organizers/register", desc: "ファンの応援企画を公認・把握. 安全な応援文化を醸成し、イベントの盛り上がりを可視化します。" }
+    { title: "会場・ホール", icon: MapPin, color: "sky", hrefL: "/venues/login", hrefR: "/venues/register", desc: "搬入出のトラブル防止に。公式のレギュレーションを周知し、許可されたフラスタのみを受け入れ可能。" },
+    { title: "イベント主催者", icon: Ticket, color: "purple", hrefL: "/organizers/login", hrefR: "/organizers/register", desc: "ファンの応援企画を公認・把握。安全な応援文化を醸成し、イベントの盛り上がりを可視化します。" }
   ];
 
   return (
     <section className="py-20 bg-white relative overflow-hidden">
       <div className="container mx-auto px-6">
-        <SectionHeader en="For Professionals" ja="FLASTALで広がる可能性" desc="お花屋さん、ライブ会場、イベンターの方へ. FLASTALのエコシステムに参加しませんか？" color="purple" />
+        <SectionHeader en="For Professionals" ja="FLASTALで広がる可能性" desc="お花屋さん、ライブ会場、イベンターの方へ。FLASTALのエコシステムに参加しませんか？" color="purple" />
         <div className="flex overflow-x-auto pb-8 md:grid md:grid-cols-3 gap-8 snap-x no-scrollbar -mx-6 px-6 md:mx-0 md:px-0">
           {partners.map((p, i) => (
-            <div key={i} className="min-w-[300px] md:min-w-0 snap-center">
+            <div key={i} className="min-w-[300px] md:min-w-0 snap-center h-full">
               <Reveal delay={i * 0.1}>
                 <TiltCard className="h-full" glowColor={p.color}>
-                  <div className={cn("p-8 rounded-[40px] border shadow-lg text-center h-full flex flex-col bg-white", 
+                  <div className={cn("p-8 rounded-[40px] border shadow-lg text-center h-full flex flex-col bg-white min-h-[480px]", 
                     p.color === "pink" ? "border-pink-100" : 
                     p.color === "sky" ? "border-sky-100" : 
                     "border-purple-100")}>
-                    <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6 shadow-md text-slate-500">
+                    <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6 shadow-md text-slate-500 shrink-0">
                       <p.icon size={40} />
                     </div>
-                    <h3 className="text-xl font-bold text-slate-800 mb-2">{p.title}</h3>
-                    <p className="text-sm text-slate-500 mb-6 flex-grow leading-relaxed">{p.desc}</p>
-                    <div className="flex flex-col gap-3">
+                    <h3 className="text-xl font-bold text-slate-800 mb-2"><JpText>{p.title}</JpText></h3>
+                    <p className="text-sm text-slate-500 mb-6 flex-grow leading-relaxed"><JpText>{p.desc}</JpText></p>
+                    <div className="flex flex-col gap-3 shrink-0">
                       <Link href={p.hrefL} className={cn("w-full py-3 rounded-xl border-2 font-bold transition-colors text-center", 
                         p.color === "pink" ? "border-pink-200 text-pink-500 hover:bg-pink-50" : 
                         p.color === "sky" ? "border-sky-200 text-sky-500 hover:bg-sky-50" : 
@@ -483,23 +502,27 @@ const ShowcaseSection = () => (
     <div className="container mx-auto px-6 mb-12 relative z-10 text-center">
       <span className="text-pink-500 font-bold tracking-widest text-xs uppercase mb-2 block">Gallery</span>
       <h2 className="text-3xl md:text-5xl font-bold mb-4">Success Stories</h2>
-      <p className="text-slate-400">想いが形になった瞬間</p>
+      <p className="text-slate-400"><JpText>想いが形になった瞬間</JpText></p>
     </div>
-    <div className="flex gap-8 overflow-x-auto px-6 pb-12 snap-x items-center no-scrollbar">
+    <div className="flex gap-8 overflow-x-auto px-6 pb-12 snap-x items-center no-scrollbar -mx-6 px-6 md:mx-0 md:px-0">
       {[1,2,3,4,5].map((i) => (
-        <motion.div key={i} whileHover={{ scale: 1.05, rotate: 1 }} className="snap-center shrink-0 w-[300px] md:w-[400px] bg-slate-800 rounded-[30px] overflow-hidden shadow-2xl border border-slate-700 group cursor-pointer">
-           <div className="h-56 bg-slate-700 relative overflow-hidden">
-             <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent z-10" />
-             <div className="absolute bottom-4 left-4 z-20">
-               <div className="bg-pink-500 px-2 py-1 rounded text-[10px] font-bold inline-block mb-2 shadow-lg">#VTuber</div>
-               <h3 className="font-bold text-lg leading-tight">◯◯ちゃん生誕祭2025</h3>
+        <div key={i} className="min-w-[300px] md:min-w-[400px] snap-center">
+          <motion.div whileHover={{ scale: 1.05, rotate: 1 }} className="w-full bg-slate-800 rounded-[30px] overflow-hidden shadow-2xl border border-slate-700 group cursor-pointer h-full">
+             <div className="h-56 bg-slate-700 relative overflow-hidden">
+               <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent z-10" />
+               <div className="absolute bottom-4 left-4 z-20">
+                 <div className="bg-pink-500 px-2 py-1 rounded text-[10px] font-bold inline-block mb-2 shadow-lg">#VTuber</div>
+                 <h3 className="font-bold text-lg leading-tight"><JpText>◯◯ちゃん生誕祭2025</JpText></h3>
+               </div>
              </div>
-           </div>
-           <div className="p-6">
-             <div className="flex justify-between text-sm text-slate-400 mb-4 font-mono"><span>Total: ¥240,000</span><span>Fans: 85</span></div>
-             <p className="text-xs text-slate-500 line-clamp-2">みんなの協力のおかげで、バルーンアーチ付きの特大フラスタを贈ることができました！本当にありがとうございます！</p>
-           </div>
-        </motion.div>
+             <div className="p-6">
+               <div className="flex justify-between text-sm text-slate-400 mb-4 font-mono"><span>Total: ¥240,000</span><span>Fans: 85</span></div>
+               <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed">
+                 <JpText>みんなの協力のおかげで、バルーンアーチ付きの特大フラスタを贈ることができました！本当にありがとうございます！</JpText>
+               </p>
+             </div>
+          </motion.div>
+        </div>
       ))}
     </div>
   </section>
@@ -515,11 +538,13 @@ const VoiceSection = () => (
           { text: "たった1000円からの支援でも、名前をパネルに載せてもらえて嬉しかったです。", name: "T.Kさん", role: "アイドルファン", bg: "bg-sky-100" },
           { text: "イラストのデータを共有する機能が便利でした。印刷も綺麗にいきました。", name: "M.Mさん", role: "絵師依頼", bg: "bg-purple-100" }
         ].map((v, i) => (
-          <div key={i} className="min-w-[300px] md:min-w-0 snap-center">
+          <div key={i} className="min-w-[300px] md:min-w-0 snap-center h-full">
             <Reveal delay={i * 0.1}>
-              <div className="bg-slate-50 p-8 rounded-[30px] relative border border-slate-100 h-full flex flex-col hover:shadow-lg transition-shadow">
+              <div className="bg-slate-50 p-8 rounded-[30px] relative border border-slate-100 h-full flex flex-col hover:shadow-lg transition-shadow min-h-[260px]">
                 <div className="text-6xl text-slate-200 absolute top-4 left-6 font-serif opacity-30">“</div>
-                <p className="text-slate-600 text-sm leading-relaxed mb-6 pt-6 relative z-10 font-medium italic">「{v.text}」</p>
+                <p className="text-slate-600 text-sm leading-relaxed mb-6 pt-6 relative z-10 font-medium italic">
+                  <JpText>「{v.text}」</JpText>
+                </p>
                 <div className="flex items-center gap-4 mt-auto relative z-10">
                   <div className={cn("w-12 h-12 rounded-full shadow-inner", v.bg)} />
                   <div><p className="font-bold text-sm text-slate-800">{v.name}</p><p className="text-xs text-slate-500">{v.role}</p></div>
@@ -553,10 +578,10 @@ const FlowDetailSection = () => {
                 <div className="absolute left-4 md:left-1/2 -translate-x-1/2 w-10 h-10 rounded-full bg-white border-4 border-sky-400 z-10 flex items-center justify-center text-sm font-bold text-sky-500 shadow-md">{i + 1}</div>
                 <div className={cn("bg-white p-8 rounded-[30px] shadow-lg border border-slate-100 w-[calc(100%-60px)] md:w-[45%] ml-14 md:ml-0 hover:-translate-y-1 transition-transform duration-300", i % 2 === 0 ? "md:mr-12" : "md:ml-12")}>
                   <div className="flex justify-between items-center mb-3">
-                    <h3 className="font-bold text-xl text-slate-800">{step.title}</h3>
+                    <h3 className="font-bold text-xl text-slate-800"><JpText>{step.title}</JpText></h3>
                     <span className="text-[10px] font-bold bg-sky-100 text-sky-600 px-2 py-1 rounded-full">{step.sub}</span>
                   </div>
-                  <p className="text-sm text-slate-600 leading-relaxed">{step.desc}</p>
+                  <p className="text-sm text-slate-600 leading-relaxed"><JpText>{step.desc}</JpText></p>
                 </div>
               </div>
             </Reveal>
@@ -580,10 +605,10 @@ const FaqSection = () => (
           <Reveal key={i} delay={i * 0.05}>
             <details className="group bg-slate-50 rounded-2xl p-6 border border-slate-100 cursor-pointer open:bg-white open:shadow-lg open:border-emerald-100 transition-all duration-300">
               <summary className="flex items-center justify-between font-bold text-slate-800 list-none">
-                <span className="flex items-center gap-3"><HelpCircle className="text-emerald-500 shrink-0" /> {item.q}</span>
+                <span className="flex items-center gap-3"><HelpCircle className="text-emerald-500 shrink-0" /> <JpText>{item.q}</JpText></span>
                 <ChevronDown size={16} className="text-slate-400 group-open:rotate-180 transition-transform duration-300" />
               </summary>
-              <div className="mt-4 text-xs md:text-sm text-slate-500 pl-9 leading-relaxed">{item.a}</div>
+              <div className="mt-4 text-xs md:text-sm text-slate-500 pl-9 leading-relaxed"><JpText>{item.a}</JpText></div>
             </details>
           </Reveal>
         ))}
@@ -604,7 +629,7 @@ const NewsSection = () => (
            <div key={i} className="py-4 flex flex-col md:flex-row md:items-center gap-2 md:gap-6 hover:bg-slate-50 transition-colors cursor-pointer rounded-xl px-4 group">
              <span className="text-slate-400 text-xs font-mono">{n.date}</span>
              <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-[10px] font-bold w-fit group-hover:bg-pink-100 group-hover:text-pink-600 transition-colors">{n.cat}</span>
-             <span className="text-slate-700 font-bold text-sm group-hover:text-pink-500 transition-colors">{n.title}</span>
+             <span className="text-slate-700 font-bold text-sm group-hover:text-pink-500 transition-colors"><JpText>{n.title}</JpText></span>
            </div>
          ))}
        </div>
@@ -620,13 +645,13 @@ const ContactAndCtaSection = () => (
         <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
           <a href="mailto:support@flastal.jp" className="group bg-sky-50 p-8 rounded-[30px] border border-sky-100 text-center hover:shadow-xl hover:-translate-y-1 transition-all h-full flex flex-col items-center">
             <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-sky-500 mb-4 shadow-sm group-hover:scale-110 transition-transform"><Mail size={32} /></div>
-            <h3 className="font-bold text-slate-800 text-xl mb-2">ユーザー・主催者の方</h3>
-            <p className="text-sm text-slate-500 font-medium">企画の立て方や利用トラブルについて</p>
+            <h3 className="font-bold text-slate-800 text-xl mb-2"><JpText>ユーザー・主催者の方</JpText></h3>
+            <p className="text-sm text-slate-500 font-medium"><JpText>企画の立て方や利用トラブルについて</JpText></p>
           </a>
           <a href="mailto:business@flastal.jp" className="group bg-pink-50 p-8 rounded-[30px] border border-pink-100 text-center hover:shadow-xl hover:-translate-y-1 transition-all h-full flex flex-col items-center">
             <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-pink-500 mb-4 shadow-sm group-hover:scale-110 transition-transform"><Gift size={32} /></div>
-            <h3 className="font-bold text-slate-800 text-xl mb-2">お花屋さん・法人の方</h3>
-            <p className="text-sm text-slate-500 font-medium">加盟店登録や提携について</p>
+            <h3 className="font-bold text-slate-800 text-xl mb-2"><JpText>お花屋さん・法人の方</JpText></h3>
+            <p className="text-sm text-slate-500 font-medium"><JpText>加盟店登録や提携について</JpText></p>
           </a>
         </div>
       </Reveal>
@@ -636,8 +661,12 @@ const ContactAndCtaSection = () => (
         <div className="bg-slate-900 rounded-[60px] p-12 md:p-24 text-white shadow-2xl relative overflow-hidden group">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(244,114,182,0.15),transparent)]" />
           <div className="relative z-10">
-            <h2 className="text-4xl md:text-7xl font-black mb-8 leading-tight tracking-tighter">さあ、推しへの愛を<br/>形にしよう。</h2>
-            <p className="text-slate-400 text-lg mb-12 max-w-xl mx-auto font-medium leading-relaxed">企画の作成は無料。あなたの「贈りたい」が、誰かの勇気になります。</p>
+            <h2 className="text-4xl md:text-7xl font-black mb-8 leading-tight tracking-tighter">
+              <JpText>さあ、推しへの愛を</JpText><br/><JpText>形にしよう。</JpText>
+            </h2>
+            <p className="text-slate-400 text-lg mb-12 max-w-xl mx-auto font-medium leading-relaxed">
+              <JpText>企画の作成は無料。</JpText><JpText>あなたの「贈りたい」が、</JpText><JpText>誰かの勇気になります。</JpText>
+            </p>
             <Link href="/projects/create" className="inline-block">
               <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="bg-pink-500 text-white px-12 md:px-20 py-5 md:py-7 rounded-full text-xl md:text-3xl font-black shadow-xl shadow-pink-500/20 hover:bg-pink-400 transition-all">今すぐ企画を立てる</motion.button>
             </Link>
@@ -655,7 +684,9 @@ function AuthenticatedHome({ user, logout }) {
       <div className="max-w-md w-full bg-white rounded-[40px] shadow-2xl p-10 text-center border border-slate-100">
         <div className="w-20 h-20 bg-indigo-50 text-indigo-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner"><ShieldCheck size={40} /></div>
         <h1 className="text-2xl font-black text-slate-800 mb-2 tracking-tight italic uppercase">Welcome Back</h1>
-        <p className="text-slate-400 mb-8 font-bold text-xs uppercase tracking-widest">{user?.handleName || 'FLASTAL MEMBER'} Signed In</p>
+        <p className="text-slate-400 mb-8 font-bold text-xs uppercase tracking-widest leading-relaxed">
+          <JpText>{user?.handleName || 'FLASTAL MEMBER'} Signed In</JpText>
+        </p>
         <div className="space-y-4">
           <Link href={user?.role === 'ADMIN' ? '/admin' : '/mypage'} className="flex items-center justify-center gap-2 w-full py-4 bg-slate-900 text-white font-black rounded-2xl hover:bg-slate-800 transition-all shadow-lg text-sm md:text-base text-center">DASHBOARD <ArrowRight size={18} /></Link>
           <button onClick={logout} className="text-[10px] font-black text-slate-300 hover:text-red-500 transition-colors uppercase tracking-[0.2em] mt-4">Sign Out</button>
