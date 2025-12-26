@@ -100,7 +100,7 @@ const TiltCard = ({ children, className, glowColor = "pink" }) => {
       onMouseLeave={() => { x.set(0); y.set(0); }}
       className={cn("relative transition-all duration-300 ease-out group hover:z-10 h-full", className)}
     >
-      <div className={cn("transition-shadow duration-300 hover:shadow-2xl h-full rounded-[30px]", glows[glowColor])}>
+      <div className={cn("transition-shadow duration-300 hover:shadow-2xl h-full rounded-[30px] bg-white", glows[glowColor])}>
         {children}
       </div>
     </motion.div>
@@ -420,6 +420,7 @@ const VoiceSection = () => (
           { text: "イラストのデータを共有する機能が便利でした。印刷も綺麗！", name: "M.Mさん", bg: "bg-purple-100" }
         ].map((v, i) => (
           <div key={i} className="bg-slate-50 p-8 rounded-[30px] relative border border-slate-100 hover:shadow-md transition-all flex flex-col h-full">
+            {/* 修正箇所: 引用符をエスケープ */}
             <p className="text-slate-600 text-sm leading-relaxed mb-6 font-medium italic">&quot;{v.text}&quot;</p>
             <div className="flex items-center gap-3 mt-auto">
               <div className={cn("w-10 h-10 rounded-full shadow-inner", v.bg)} />
@@ -536,56 +537,41 @@ export default function HomePage() {
     );
   }
 
-  if (isAuthenticated) {
-    return (
-      <div className="w-full">
-        {/* 認証済みの場合もヘッダーとティッカーを表示させるための構造 */}
-        <div className="sticky top-0 z-[100] bg-slate-900">
-          <Header />
-          <LiveTicker />
-        </div>
-        <AuthenticatedHome user={user} logout={logout} />
-      </div>
-    );
-  }
-
+  // 統合されたヘッダーとコンテンツ
   return (
     <div className="bg-white min-h-screen text-slate-800 font-sans selection:bg-pink-100 selection:text-pink-600 m-0 p-0 overflow-x-hidden w-full">
       <ScrollProgress />
       <MagicCursor />
 
-      {/* 統合ユニット: ここでHeaderとTickerをまとめ、下のHero背景(slate-50)と接続させる。
-        bg-slate-900を背景に敷くことで、境界線の隙間問題を物理的に解決する。
-      */}
+      {/* HeaderとTickerをPage内に配置 */}
       <div className="sticky top-0 z-[100] bg-slate-900 flex flex-col m-0 p-0">
         <Header />
         <LiveTicker />
       </div>
 
-      <main className="flex flex-col m-0 p-0">
-        <HeroSection />
-        <TickerSection />
-        <CultureSection />
-        <ProblemSection />
-        <FeaturesSection />
-        <SafetySection />
-        <PartnerJoinSection />
-        <ShowcaseSection />
-        <VoiceSection />
-        <NewsSection />
-        <FaqSection />
-        <ContactAndCtaSection />
-      </main>
-      
+      {isAuthenticated ? (
+        <AuthenticatedHome user={user} logout={logout} />
+      ) : (
+        <main className="flex flex-col m-0 p-0">
+          <HeroSection />
+          <TickerSection />
+          <CultureSection />
+          <ProblemSection />
+          <FeaturesSection />
+          <SafetySection />
+          <PartnerJoinSection />
+          <ShowcaseSection />
+          <VoiceSection />
+          <NewsSection />
+          <FaqSection />
+          <ContactAndCtaSection />
+        </main>
+      )}
+
       {/* 補助CSS */}
       <style jsx global>{`
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        .animate-shine { animation: shine 1.5s ease-in-out infinite; }
-        @keyframes shine {
-          0% { transform: translateX(-100%); }
-          100% { transform: translateX(100%); }
-        }
       `}</style>
     </div>
   );
