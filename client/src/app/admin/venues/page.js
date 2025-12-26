@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/app/contexts/AuthContext';
 import { 
     FiEdit, FiTrash2, FiPlus, FiCheck, FiX, 
-    FiMapPin, FiSearch, FiInfo, FiTruck, FiBox, FiArrowLeft, FiClock, FiCheckCircle
+    FiMapPin, FiSearch, FiInfo, FiTruck, FiBox, FiArrowLeft, FiClock, FiCheckCircle, FiLoader
 } from 'react-icons/fi';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
@@ -25,7 +25,7 @@ function VenueModal({ isOpen, onClose, onSubmit, initialData }) {
     bowlRegulation: '',
     retrievalRequired: true,
     accessInfo: '',
-    isOfficial: false // 承認フラグ
+    isOfficial: false 
   });
 
   useEffect(() => {
@@ -51,7 +51,7 @@ function VenueModal({ isOpen, onClose, onSubmit, initialData }) {
                 bowlRegulation: '',
                 retrievalRequired: true,
                 accessInfo: '',
-                isOfficial: true // 管理者が直接作る場合はデフォルト承認済み
+                isOfficial: true 
             });
         }
     }
@@ -180,7 +180,7 @@ export default function AdminVenuesPage() {
   const fetchVenues = async () => {
     setLoadingData(true);
     try {
-      const token = localStorage.getItem('authToken')?.replace(/"/g, '');
+      const token = typeof window !== 'undefined' ? localStorage.getItem('authToken')?.replace(/"/g, '') : null;
       const res = await fetch(`${API_URL}/api/venues/admin`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -202,10 +202,10 @@ export default function AdminVenuesPage() {
       return;
     }
     fetchVenues();
-  }, [loading, isAuthenticated, user]);
+  }, [loading, isAuthenticated, user, router]);
 
   const handleCreateOrUpdate = async (formData) => {
-    const token = localStorage.getItem('authToken')?.replace(/"/g, '');
+    const token = typeof window !== 'undefined' ? localStorage.getItem('authToken')?.replace(/"/g, '') : null;
     const url = editingVenue 
       ? `${API_URL}/api/venues/${editingVenue.id}`
       : `${API_URL}/api/venues`;
@@ -235,7 +235,7 @@ export default function AdminVenuesPage() {
   };
 
   const handleApprove = async (id) => {
-    const token = localStorage.getItem('authToken')?.replace(/"/g, '');
+    const token = typeof window !== 'undefined' ? localStorage.getItem('authToken')?.replace(/"/g, '') : null;
     try {
       const res = await fetch(`${API_URL}/api/venues/${id}`, {
         method: 'PATCH',
@@ -253,7 +253,7 @@ export default function AdminVenuesPage() {
 
   const handleDelete = async (id) => {
     if (!window.confirm('この会場を削除しますか？')) return;
-    const token = localStorage.getItem('authToken')?.replace(/"/g, '');
+    const token = typeof window !== 'undefined' ? localStorage.getItem('authToken')?.replace(/"/g, '') : null;
     
     const promise = fetch(`${API_URL}/api/venues/${id}`, {
       method: 'DELETE',
@@ -273,8 +273,8 @@ export default function AdminVenuesPage() {
   const filteredVenues = useMemo(() => {
     const lower = searchTerm.toLowerCase();
     return venues.filter(v => 
-        v.venueName.toLowerCase().includes(lower) || 
-        (v.address && v.address.toLowerCase().includes(lower))
+        (v.venueName || '').toLowerCase().includes(lower) || 
+        (v.address || '').toLowerCase().includes(lower)
     ).sort((a, b) => (a.isOfficial === b.isOfficial) ? 0 : a.isOfficial ? 1 : -1);
   }, [venues, searchTerm]);
 
@@ -310,7 +310,7 @@ export default function AdminVenuesPage() {
                 />
             </div>
             <div className="px-8 py-5 bg-slate-50 rounded-[1.5rem] text-sm font-black text-slate-400 whitespace-nowrap">
-                Total <span className="text-slate-900 ml-1">{venues.length}</span> venues
+                登録数: <span className="text-slate-900 ml-1">{venues.length}</span> 件
             </div>
         </div>
 
