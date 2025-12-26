@@ -15,6 +15,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onre
 
 // --- サブコンポーネント ---
 
+// プロフィール項目表示用
 const ProfileItem = ({ icon, label, value, colorClass = "text-pink-500 bg-pink-50" }) => (
     <div className="flex items-start">
         <div className={`${colorClass} p-2 rounded-full mr-4 mt-1 shrink-0`}>
@@ -27,6 +28,7 @@ const ProfileItem = ({ icon, label, value, colorClass = "text-pink-500 bg-pink-5
     </div>
 );
 
+// オファー申請モーダル
 function OfferModal({ floristId, floristName, onClose }) {
     const router = useRouter();
     
@@ -87,10 +89,14 @@ export default function FloristDetailPage() {
     setLoading(true);
     try {
       const floristRes = await fetch(`${API_URL}/api/florists/${id}`);
-      if (!floristRes.ok) throw new Error('お花屋さんの取得に失敗しました');
+      if (!floristRes.ok) {
+          if (floristRes.status === 404) throw new Error('お花屋さんが見つかりませんでした。');
+          throw new Error('情報の取得に失敗しました。');
+      }
       
       const floristData = await floristRes.json();
       
+      // 所在地から都道府県のみを抽出
       if (floristData && floristData.address) {
           const prefMatch = floristData.address.match(/^(?:東京都|道庁所在地|.{2,3}府|.{2,3}県)/);
           floristData.displayPrefecture = prefMatch ? prefMatch[0] : floristData.address;
@@ -145,21 +151,43 @@ export default function FloristDetailPage() {
     }
   };
 
+  // ★修正：エラー回避のための安全なタグ抽出ロジック
   const availableTags = useMemo(() => {
     const tags = new Set();
+    
+    // 制作実績のキャプションからタグを抽出
     appealPosts.forEach(post => {
-        const matches = (post.content || '').match(/#[^\s#]+/g);
-        if (matches) matches.forEach(m => tags.add(m.substring(1)));
+        const content = post.content || '';
+        if (typeof content === 'string') {
+            const matches = content.match(/#[^\s#]+/g);
+            if (matches) matches.forEach(m => tags.add(m.substring(1)));
+        }
     });
-    if (florist?.specialties && florist.specialties !== '未設定') {
-        florist.specialties.split(/[\s,、]+/).forEach(t => tags.add(t.trim()));
+
+    // 「得意な装飾」フィールドからタグを抽出
+    const specs = florist?.specialties;
+    if (specs) {
+        if (typeof specs === 'string' && specs !== '未設定') {
+            specs.split(/[\s,、]+/).forEach(t => {
+                const trimmed = t.trim();
+                if (trimmed) tags.add(trimmed);
+            });
+        } else if (Array.isArray(specs)) {
+            specs.forEach(t => {
+                if (typeof t === 'string' && t.trim()) tags.add(t.trim());
+            });
+        }
     }
+    
     return Array.from(tags).sort();
   }, [appealPosts, florist]);
 
   const filteredPosts = useMemo(() => {
     if (!activeTag) return appealPosts;
-    return appealPosts.filter(p => (p.content || '').includes(`#${activeTag}`));
+    return appealPosts.filter(p => {
+        const content = p.content || '';
+        return typeof content === 'string' && content.includes(`#${activeTag}`);
+    });
   }, [appealPosts, activeTag]);
 
   if (loading) {
@@ -182,7 +210,6 @@ export default function FloristDetailPage() {
 
   const reviews = florist.reviews || [];
   const averageRating = reviews.length > 0 ? reviews.reduce((s, r) => s + (Number(r.rating) || 0), 0) / reviews.length : 0;
-  // 安全なアクセス：user?.id を使用
   const isMyProfile = user && user.role === 'FLORIST' && user.id === florist.id; 
 
   return (
@@ -303,7 +330,7 @@ export default function FloristDetailPage() {
                             <ProfileItem 
                                 icon={<FiAward />} 
                                 label="得意な装飾・スキル" 
-                                value={florist.specialties} 
+                                value={Array.isArray(florist.specialties) ? florist.specialties.join(' / ') : florist.specialties} 
                                 colorClass="text-emerald-500 bg-emerald-50"
                             />
                         </div>
