@@ -788,7 +788,7 @@ export default function HomePage() {
                     <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(244,114,182,0.1),transparent)]" />
                     <div className="relative z-10">
                     <h2 className="text-3xl md:text-6xl font-black mb-6 md:mb-8 leading-tight tracking-tighter">さあ、推しへの愛を<br/>形にしよう。</h2>
-                    <p className="text-slate-400 text-sm md:text-lg mb-8 md:mb-12 max-w-xl mx-auto font-medium">作成は無料。あなたの"贈りたい"が、誰かの勇気になります。</p>
+                    <p className="text-slate-400 text-sm md:text-lg mb-8 md:mb-12 max-w-xl mx-auto font-medium">作成は無料。あなたの&quot;贈りたい&quot;が、誰かの勇気になります。</p>
                     <Link href="/projects/create" className="inline-block">
                         <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="bg-pink-500 text-white px-10 md:px-16 py-4 md:py-6 rounded-full text-lg md:text-2xl font-black shadow-xl shadow-pink-500/20 hover:bg-pink-400 transition-all">
                         今すぐ企画を立てる
