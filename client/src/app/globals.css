@@ -8,7 +8,7 @@
   --primary: 204 89% 53%;
 }
 
-/* ブラウザのデフォルトリセット（必要最低限） */
+/* 1. 標準的なリセット（余白を奪いすぎない） */
 html, body {
   margin: 0;
   padding: 0;
@@ -18,18 +18,15 @@ html, body {
   background-color: #ffffff;
 }
 
-/* ★ 隙間対策：Header, Ticker, Main の間の「改行による隙間」を消す */
+/* 2. ヘッダーとティッカーの接続だけを厳密に管理 */
 .layout-header-group {
   display: flex;
   flex-direction: column;
   width: 100%;
 }
 
-/* 子要素間のマージン干渉をリセット */
-header, .live-ticker-container, main {
-  margin-top: 0 !important;
-  margin-bottom: 0 !important;
-}
+/* ヘッダー周り以外の main 要素や section には自動で margin-top: 0 を強制しない */
+/* これにより HomePage 内の py-20 などのパディングが正常に機能します */
 
 body {
   background: var(--seasonal-bg);
@@ -47,7 +44,6 @@ body {
   .no-scrollbar::-webkit-scrollbar { display: none; }
   .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
   
-  /* ボタンやカードのアニメーション */
   .animate-shine {
     animation: shine 1.5s ease-in-out infinite;
   }

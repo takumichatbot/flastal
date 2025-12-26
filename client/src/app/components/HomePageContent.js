@@ -160,14 +160,14 @@ const KawaiiButton = ({ children, variant = "primary", icon: Icon, className, on
 // --- 🚀 SECTIONS ---
 
 const HeroSection = () => (
-  <section className="relative w-full min-h-[85vh] md:min-h-[95vh] flex items-center justify-center overflow-hidden bg-slate-50 border-none m-0">
+  <section className="relative w-full min-h-[85vh] md:min-h-[95vh] flex items-center justify-center overflow-hidden bg-slate-50 m-0">
     <ScrollProgress />
     <MagicCursor />
     <div className="absolute inset-0 bg-[radial-gradient(#e0f2fe_1px,transparent_1px)] [background-size:24px_24px] opacity-40 pointer-events-none" />
     <FloatingShape color="bg-pink-200" top="-5%" left="-5%" size={500} />
     <FloatingShape color="bg-sky-200" bottom="-5%" right="-5%" size={500} delay={2} />
 
-    <div className="container relative z-10 px-6 pt-20 md:pt-32 pb-10 grid lg:grid-cols-12 gap-10 items-center mx-auto">
+    <div className="container relative z-10 px-6 pt-12 md:pt-20 pb-10 grid lg:grid-cols-12 gap-10 items-center mx-auto">
       <div className="lg:col-span-7 text-center lg:text-left">
         <Reveal>
           <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white rounded-full shadow-md border border-pink-50 mb-6 mx-auto lg:mx-0">
@@ -367,7 +367,7 @@ const PartnerJoinSection = () => {
             <div key={i} className="min-w-[280px] md:min-w-0 snap-center">
               <TiltCard glowColor={p.color}>
                 <div className={cn("p-8 rounded-[30px] border shadow-lg text-center h-full flex flex-col bg-white border-slate-100")}>
-                  <div className={cn("w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6 shadow-md text-slate-600")}>{p.icon}</div>
+                  <div className={cn("w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6 shadow-md text-slate-500")}>{p.icon}</div>
                   <h3 className="text-lg font-bold text-slate-800 mb-2">{p.title}</h3>
                   <p className="text-xs text-slate-400 mb-6 flex-grow leading-relaxed">{p.desc}</p>
                   <div className="flex flex-col gap-2">
@@ -507,9 +507,9 @@ function AuthenticatedHome({ user, logout }) {
         </p>
         <div className="space-y-4">
           <Link href={user?.role === 'ADMIN' ? '/admin' : '/mypage'} className="flex items-center justify-center gap-2 w-full py-4 bg-slate-900 text-white font-black rounded-2xl hover:bg-slate-800 transition-all shadow-lg text-sm md:text-base text-center">
-            DASHBOARD <ArrowRight size={18} />
+            DASHBOARD <ArrowRight size={18} className="inline ml-2" />
           </Link>
-          <button onClick={logout} className="text-[10px] font-black text-slate-300 hover:text-red-500 transition-colors uppercase tracking-[0.2em] block mx-auto">Sign Out</button>
+          <button onClick={logout} className="text-[10px] font-black text-slate-300 hover:text-red-500 transition-colors uppercase tracking-[0.2em] block mx-auto mt-4">Sign Out</button>
         </div>
       </div>
     </div>
@@ -539,7 +539,7 @@ export default function HomePage() {
   }
 
   return (
-    <div className="bg-white min-h-screen text-slate-800 font-sans selection:bg-pink-100 selection:text-pink-600 m-0 p-0 overflow-x-hidden w-full">
+    <div className="bg-white min-h-screen text-slate-800 font-sans selection:bg-pink-100 selection:text-pink-600 overflow-x-hidden w-full">
       <HeroSection />
       <TickerSection />
       <CultureSection />
