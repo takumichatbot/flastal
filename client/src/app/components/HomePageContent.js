@@ -165,8 +165,7 @@ const KawaiiButton = ({ children, variant = "primary", icon: Icon, className, on
 // --- 🚀 HERO & SECTIONS ---
 
 const HeroSection = () => (
-  /* 修正ポイント: mt-[-1px] を追加。 LiveTicker と HeroSection を物理的に 1px 重ねて隙間を消滅させます */
-  <section className="relative w-full min-h-[85vh] md:min-h-[90vh] flex items-center justify-center overflow-hidden bg-white border-none m-0 mt-[-1px] p-0 z-10">
+  <section className="relative w-full min-h-[85vh] md:min-h-[90vh] flex items-center justify-center overflow-hidden bg-white border-none m-0 mt-[-2px] p-0 z-10">
     <div className="absolute inset-0 bg-[radial-gradient(#e0f2fe_1px,transparent_1px)] [background-size:24px_24px] opacity-40 pointer-events-none" />
     <FloatingShape color="bg-pink-200" top="-5%" left="-5%" size={500} />
     <FloatingShape color="bg-sky-200" bottom="-5%" right="-5%" size={500} delay={2} />
@@ -210,7 +209,7 @@ const HeroSection = () => (
                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
                <div className="absolute bottom-6 left-6 text-white">
                  <span className="bg-pink-500 px-2 py-0.5 rounded text-[10px] font-bold mb-2 inline-block uppercase">Now Funding</span>
-                 <h3 className="text-2xl font-bold">銀河一のフラスタを！</h3>
+                 <h3 className="text-2xl font-bold">星街すいせいさんへ銀河一のフラスタを！</h3>
                </div>
              </div>
              <div className="p-6">
@@ -244,14 +243,15 @@ export default function HomePageContent() {
   }
 
   return (
-    <div className="bg-white text-slate-800 font-sans selection:bg-pink-100 selection:text-pink-600 m-0 p-0 w-full relative">
+    /* 修正ポイント：pt-16 を削除。m-0 p-0 を徹底 */
+    <div className="bg-white min-h-screen text-slate-800 font-sans selection:bg-pink-100 selection:text-pink-600 m-0 p-0 w-full relative border-none overflow-x-hidden">
       <ScrollProgress />
       <MagicCursor />
 
       {isAuthenticated ? (
         <AuthenticatedHome user={user} logout={logout} />
       ) : (
-        <main className="flex flex-col m-0 p-0 relative isolate">
+        <main className="flex flex-col m-0 p-0 w-full relative border-none">
           <HeroSection />
 
           {/* --- TICKER GENRES --- */}
@@ -275,7 +275,7 @@ export default function HomePageContent() {
                 <SectionHeader en="Otaku Culture" ja="どんなお花を贈る？" color="pink" />
                 <div className="flex overflow-x-auto pb-8 md:grid md:grid-cols-4 gap-6 snap-x no-scrollbar -mx-6 px-6 md:mx-0 md:px-0">
                 {[
-                    { title: "フラワースタンド", en: "Flower Stand", icon: "💐", desc: "ライブ会場のロビーを彩る定番. 派手に装飾し、推しのメンカラ一色に。" },
+                    { title: "フラワースタンド", en: "Flower Stand", icon: "💐", desc: "ライブ会場のロビーを彩る定番。派手に装飾し、推しのメンカラ一色に。" },
                     { title: "卓上（楽屋花）", en: "Desktop", icon: "🧺", desc: "楽屋や受付に飾るコンパクトな贈り物。個人的な想いを込めて。" },
                     { title: "イラストパネル", en: "Panel", icon: "🎨", desc: "絵師に依頼した等身大パネルをお花に添えます。二次元界隈では必須！" },
                     { title: "祭壇・デコ", en: "Decor", icon: "🧸", desc: "ぬいぐるみやグッズを盛り込んだ、愛の重さが伝わる独自デザイン。" }
