@@ -7,43 +7,27 @@
   --seasonal-bg: #ffffff;
   --primary: 204 89% 53%;
   --primary-foreground: 210 40% 98%; 
-  --primary-h: 204; 
 }
 
-/* 修正ポイント：html/bodyのリセット */
+/* ブラウザのデフォルトを完全に殺す */
 html, body {
   margin: 0 !important;
   padding: 0 !important;
   width: 100%;
   min-height: 100vh;
   overflow-x: hidden;
+  background: var(--seasonal-bg);
 }
 
-/* ★ 解決の鍵: ヘッダー、ティッカー、メインコンテンツの間の隙間をゼロにする */
-header, 
+/* ヘッダー直後の要素に自動で付くマージンを完全に排除 */
+header + *, 
 header + div, 
-header + div + main,
-header + main {
+header + div + main {
   margin-top: 0 !important;
-  margin-bottom: 0 !important;
   padding-top: 0 !important;
 }
 
-body {
-  background: var(--seasonal-bg);
-  color: var(--foreground);
-  transition: background 0.3s ease, color 0.3s ease;
-  background-attachment: fixed;
-}
-
-/* --- 🌙 ダークモード --- */
-.dark-mode {
-  --background: #0f172a;
-  --foreground: #f1f5f9;
-  --seasonal-bg: #0f172a; 
-}
-
-/* --- 🌸 季節のテーマ --- */
+/* --- 季節のテーマ --- */
 body.theme-spring:not(.dark-mode) {
   --seasonal-primary: #f472b6;
   --seasonal-bg: radial-gradient(#fbcfe8 1px, transparent 1px), radial-gradient(#fbcfe8 1px, transparent 1px), #fff1f2;
@@ -51,14 +35,9 @@ body.theme-spring:not(.dark-mode) {
   background-position: 0 0, 10px 10px;
 }
 
-/* --- 🎨 推し色適用 --- */
+/* 🎨 推し色ユーティリティ */
 .oshi-theme-bg { background-color: hsl(var(--primary)) !important; }
 .oshi-theme-text { color: hsl(var(--primary)) !important; }
-.oshi-theme-border { border-color: hsl(var(--primary)) !important; }
-.oshi-theme-bg-light {
-  background-color: color-mix(in srgb, hsl(var(--primary)), white 90%) !important;
-  color: color-mix(in srgb, hsl(var(--primary)), black 20%) !important;
-}
 
 @tailwind utilities;
 
