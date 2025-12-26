@@ -171,7 +171,7 @@ export default function Header() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); 
   const userMenuRef = useRef(null);
 
-  // マウント後に色選択を強制的に適用するためのキー（色が変わらない問題の対策）
+  // マウント後に色選択を強制的に適用するためのキー
   const [pickerKey, setPickerKey] = useState(0);
 
   const unreadCount = useMemo(() => notifications.filter(n => !n.isRead).length, [notifications]);
@@ -224,16 +224,10 @@ export default function Header() {
     { href: '/florists', label: 'お花屋さん', icon: <Store size={18}/> },
   ];
 
-  // ダッシュボード・マイページリンクの生成ロジック修正
   const userMenuItems = useMemo(() => {
     if (!user) return [];
-    
     const items = [];
-    
-    // 全てのロールにおいて「マイページ」へのアクセスを可能にする
     items.push({ href: '/mypage', label: 'マイページ', icon: <User size={16} /> });
-
-    // ロールに応じたダッシュボードを追加
     switch (user.role) {
       case 'ORGANIZER':
         items.push({ href: '/organizers/dashboard', label: '主催者ダッシュボード', icon: <LayoutDashboard size={16} /> });
@@ -248,12 +242,11 @@ export default function Header() {
         items.push({ href: '/admin', label: 'システム管理画面', icon: <ShieldCheck size={16} /> });
         break;
     }
-
     return items;
   }, [user]);
 
   return (
-    <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200/50 shadow-sm transition-all h-16 md:h-20 flex items-center">
+    <header className="sticky top-0 z-[100] w-full bg-white/80 backdrop-blur-md border-b border-slate-200/50 shadow-sm h-16 md:h-20 flex items-center">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
         <div className="flex justify-between items-center">
           
@@ -339,7 +332,6 @@ export default function Header() {
                             </div>
                         </div>
                         <div className="p-2 space-y-1">
-                            {/* 動的に生成したメニューアイテムを表示 */}
                             {userMenuItems.map((item) => (
                                 <Link 
                                     key={item.href}
@@ -351,9 +343,7 @@ export default function Header() {
                                     {item.label}
                                 </Link>
                             ))}
-
                             <div className="h-px bg-slate-100 my-1 mx-2"></div>
-
                             <button onClick={handleLogout} className="flex items-center w-full px-4 py-2.5 text-sm font-bold text-red-500 hover:bg-red-50 rounded-xl transition-colors">
                                 <LogOut className="mr-3" size={16} /> ログアウト
                             </button>
@@ -416,7 +406,6 @@ export default function Header() {
                                     <p className="text-xs text-slate-500 font-bold uppercase tracking-wide">{user.role}</p>
                                 </div>
                             </div>
-                            
                             <div className="grid grid-cols-1 gap-2">
                                 {userMenuItems.map((item) => (
                                     <Link 
@@ -465,7 +454,6 @@ export default function Header() {
                             </Link>
                         </div>
                     )}
-                    
                     <div className="mt-6 pt-6 border-t border-slate-100">
                         <p className="text-xs font-bold text-slate-400 px-2 mb-4 uppercase tracking-widest">Theme</p>
                         <div className="px-2">

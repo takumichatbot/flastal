@@ -9,15 +9,16 @@
   --seasonal-bg: #ffffff;
 
   /* --- 🎨 推し色カスタム用変数 (HSL定義) --- */
-  /* OshiColorPicker.js で制御される変数です。
-     Tailwind v4 / Shadcn UI 形式に合わせて "H S L" (スペース区切り) で定義します。
-     例: 204 89% 53%
-  */
   --primary: 204 89% 53%;
-  --primary-foreground: 210 40% 98%; /* 推し色背景の上の文字色 */
-
-  /* 個別の色相（古いコンポーネントとの互換性のため維持） */
+  --primary-foreground: 210 40% 98%; 
   --primary-h: 204; 
+}
+
+/* ブラウザのデフォルト余白を完全にリセット */
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
 }
 
 /* --- 🌙 ダークモード定義 --- */
@@ -32,14 +33,18 @@ body {
   color: var(--foreground);
   transition: background 0.3s ease, color 0.3s ease;
   min-height: 100vh;
+  /* 背景を固定するか、スクロールに合わせるか調整 */
+  background-attachment: fixed;
 }
 
-/* --- 🌸 季節のテーマ (既存の設定) --- */
+/* --- 🌸 季節のテーマ --- */
+/* 背景パターンの開始位置を調整 */
 body.theme-spring:not(.dark-mode) {
   --seasonal-primary: #f472b6;
   --seasonal-bg: radial-gradient(#fbcfe8 1px, transparent 1px), radial-gradient(#fbcfe8 1px, transparent 1px), #fff1f2;
   background-size: 20px 20px;
   background-position: 0 0, 10px 10px;
+  background-attachment: scroll; /* パターンはスクロールさせる */
 }
 
 body.theme-summer:not(.dark-mode) {
@@ -63,16 +68,10 @@ body.theme-winter:not(.dark-mode) {
 }
 
 /* --- 🎨 推し色適用ユーティリティ --- */
-/* 新しい --primary 変数 (H S L) を使用して色を生成します。
-   color-mix関数を使うことで、JS側で個別に計算しなくても濃淡を自動生成します。
-*/
-
 .oshi-theme-bg {
-  /* hsl(H S L) の形式で展開 */
   background-color: hsl(var(--primary)) !important;
 }
 
-/* ホバー時は少し黒を混ぜて暗くする */
 .oshi-theme-bg:hover {
   background-color: color-mix(in srgb, hsl(var(--primary)), black 10%) !important;
 }
@@ -85,18 +84,15 @@ body.theme-winter:not(.dark-mode) {
   border-color: hsl(var(--primary)) !important;
 }
 
-/* 薄い背景色（白を90%混ぜる＝元の色の10%の濃さ） */
 .oshi-theme-bg-light {
   background-color: color-mix(in srgb, hsl(var(--primary)), white 90%) !important;
-  color: color-mix(in srgb, hsl(var(--primary)), black 20%) !important; /* 文字は少し暗く */
+  color: color-mix(in srgb, hsl(var(--primary)), black 20%) !important;
 }
 
-/* リング（フォーカス枠）の色 */
 .oshi-theme-ring:focus {
   --tw-ring-color: hsl(var(--primary)) !important;
 }
 
-/* ボタンなどの文字色（コントラスト確保） */
 .oshi-theme-fg {
   color: hsl(var(--primary-foreground)) !important;
 }
