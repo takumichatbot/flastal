@@ -33,15 +33,15 @@ export default function RootLayout({ children }) {
       <body className="font-sans antialiased text-slate-900 bg-white min-h-screen flex flex-col m-0 p-0 overflow-x-hidden">
         <ThemeController />
         <AuthProvider>
-          {/* 修正ポイント: sticky と absolute 的な挙動を排除し、通常のブロック配置にする */}
-          <div className="w-full bg-white flex flex-col">
+          {/* 修正ポイント: flex-col で隙間(gap)をゼロにし、背景色を固定して下の要素と繋げる */}
+          <div className="w-full flex flex-col m-0 p-0 border-none bg-slate-900">
             <Header />
             <LiveTicker />
           </div>
           
           <Suspense fallback={null}>
-            {/* main の relative や不要な padding をリセット */}
-            <main className="flex-grow w-full m-0 p-0">
+            {/* main 自体の余白を完全にゼロにする */}
+            <main className="flex-grow w-full m-0 p-0 overflow-visible">
               {children}
             </main>
             <FloatingMenu />
