@@ -128,7 +128,7 @@ export default function AddVenuePage() {
                 <div className="absolute top-0 right-0 w-64 h-64 bg-pink-500/10 rounded-full -mr-20 -mt-20 blur-3xl"></div>
                 <div className="relative z-10">
                     <h2 className="text-3xl md:text-4xl font-black tracking-tighter flex items-center gap-3 italic">
-                        <FiMapPin className="text-pink-500" /> 会場情報を教える
+                        <FiMapPin className="text-pink-500" /> 会場情報を追加
                     </h2>
                     <p className="mt-3 text-slate-400 text-xs font-bold tracking-widest leading-relaxed">
                         あなたの知識が、誰かの「贈りたい」を支える力になります。
