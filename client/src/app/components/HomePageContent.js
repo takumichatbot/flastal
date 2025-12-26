@@ -22,7 +22,7 @@ import {
 import { FiActivity, FiGift, FiTruck, FiCheckCircle, FiTrendingUp, FiInfo } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
-// 既存のコンポーネントインポート（パスが異なる場合は修正してください）
+// 既存のコンポーネントインポート
 import OshiColorPicker from './components/OshiColorPicker'; 
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
@@ -448,14 +448,14 @@ export default function HomePage() {
   const tickerStyle = getLogStyle(currentLog.type);
 
   return (
-    <div className="bg-white min-h-screen text-slate-800 font-sans selection:bg-pink-100 selection:text-pink-600 m-0 p-0 overflow-x-hidden w-full">
+    <div className="bg-white min-h-screen text-slate-800 font-sans selection:bg-pink-100 selection:text-pink-600 m-0 p-0 overflow-x-hidden w-full relative">
       <ScrollProgress />
       <MagicCursor />
 
-      {/* --- INTEGRATED HEADER & TICKER --- */}
-      <div className="sticky top-0 z-[100] bg-slate-900 flex flex-col m-0 p-0 shadow-xl">
+      {/* --- INTEGRATED HEADER & TICKER (Sticky Container) --- */}
+      <div className="sticky top-0 z-[100] w-full flex flex-col shadow-xl">
         {/* HEADER */}
-        <header className="w-full bg-white/95 backdrop-blur-md border-b border-slate-200/50 h-16 md:h-20 flex items-center transition-all">
+        <header className="w-full bg-white/95 backdrop-blur-md border-b border-slate-200/50 h-16 md:h-20 flex items-center shrink-0">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full flex justify-between items-center">
                 <div className="flex items-center gap-8">
                     <Link href="/" className="flex items-center gap-2 group">
@@ -521,9 +521,9 @@ export default function HomePage() {
         </header>
 
         {/* LIVE TICKER */}
-        <div className="bg-slate-900 border-b border-slate-800 h-10 w-full overflow-hidden relative m-0 p-0 block">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-center justify-between">
-                <div className="flex items-center gap-4 flex-1 min-w-0 h-full">
+        <div className="bg-slate-900 border-b border-slate-800 h-10 w-full overflow-hidden flex items-center shrink-0">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full flex items-center justify-between">
+                <div className="flex items-center gap-4 flex-1 min-w-0">
                     <div className="flex items-center gap-2 shrink-0 bg-slate-800 py-1 px-2 rounded-full">
                         <span className="relative flex h-2 w-2">
                             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
@@ -531,7 +531,7 @@ export default function HomePage() {
                         </span>
                         <span className="text-[10px] font-bold tracking-widest text-slate-300">LIVE</span>
                     </div>
-                    <div className="flex-1 overflow-hidden relative h-full flex items-center">
+                    <div className="flex-1 overflow-hidden relative h-10 flex items-center">
                         <Link href={currentLog.href} className={`flex items-center gap-3 text-xs sm:text-sm text-slate-200 hover:text-white transition-all duration-500 transform w-full truncate cursor-pointer ${isTickerAnimating ? 'translate-y-full opacity-0' : 'translate-y-0 opacity-100'}`}>
                             <span className={`flex items-center gap-1 font-bold ${tickerStyle.color} shrink-0`}>
                                 {tickerStyle.icon}
@@ -551,7 +551,7 @@ export default function HomePage() {
       {isAuthenticated ? (
         <AuthenticatedHome user={user} logout={logout} />
       ) : (
-        <main className="flex flex-col m-0 p-0">
+        <main className="flex flex-col m-0 p-0 relative">
           <HeroSection />
 
           {/* --- TICKER GENRES --- */}
