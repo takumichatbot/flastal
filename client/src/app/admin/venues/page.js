@@ -10,8 +10,7 @@ import {
     FiMapPin, FiSearch, FiInfo, FiTruck, FiBox, FiArrowLeft, FiClock, FiCheckCircle, FiLoader
 } from 'react-icons/fi';
 
-// APIのURL。末尾のスラッシュを確実に排除
-const API_BASE_URL = 'https://flastal-backend.onrender.com'.replace(/\/$/, '');
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
 // --- モーダルコンポーネント ---
 function VenueModal({ isOpen, onClose, onSubmit, initialData }) {
@@ -88,6 +87,7 @@ function VenueModal({ isOpen, onClose, onSubmit, initialData }) {
 
         <div className="flex-1 overflow-y-auto p-8">
             <form id="venueForm" onSubmit={handleSubmit} className="space-y-10">
+            
             <section className="space-y-6">
                 <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-b pb-2 flex items-center gap-2">
                     <FiInfo /> 基本情報
@@ -165,7 +165,7 @@ export default function AdminVenuesPage() {
   const [searchTerm, setSearchTerm] = useState('');
 
   const router = useRouter();
-  const { user, isAuthenticated, loading: authLoading } = useAuth();
+  const { user, isAuthenticated, loading: authLoading, logout } = useAuth();
 
   const getCleanToken = useCallback(() => {
     if (typeof window === 'undefined') return null;
@@ -173,15 +173,13 @@ export default function AdminVenuesPage() {
     return t ? t.replace(/"/g, '') : null;
   }, []);
 
-  // 会場データ取得
   const fetchVenues = useCallback(async () => {
     const token = getCleanToken();
     if (!token) return;
 
     setLoadingData(true);
     try {
-      // ログで成功が確認されている正確なパス: /api/venues/admin
-      const res = await fetch(`${API_BASE_URL}/api/venues/admin?t=${Date.now()}`, {
+      const res = await fetch(`${API_URL}/api/venues/admin?t=${Date.now()}`, {
         method: 'GET',
         headers: { 
             'Authorization': `Bearer ${token}`,
@@ -189,23 +187,31 @@ export default function AdminVenuesPage() {
         }
       });
       
+      // 401 (Unauthorized) はトークン切れ
+      if (res.status === 401) {
+          toast.error('セッションが切れました。ログインし直してください。');
+          logout();
+          router.push('/login');
+          return;
+      }
+
       if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
       
       const data = await res.json();
       setVenues(Array.isArray(data) ? data : []);
     } catch (error) {
-      console.error("Fetch Venues Error:", error);
-      toast.error('データの取得に失敗しました。', { id: 'fetch-error' });
+      console.error("Venue Fetch Failed:", error);
+      toast.error('会場リストの読み込みに失敗しました');
     } finally {
       setLoadingData(false);
     }
-  }, [getCleanToken]);
+  }, [getCleanToken, logout, router]);
 
   useEffect(() => {
     if (authLoading) return;
     
-    // 管理者チェック
     if (!isAuthenticated || user?.role !== 'ADMIN') {
+        toast.error('管理者としてログインしてください');
         router.push('/login');
         return;
     }
@@ -216,8 +222,8 @@ export default function AdminVenuesPage() {
   const handleCreateOrUpdate = async (formData) => {
     const token = getCleanToken();
     const url = editingVenue 
-      ? `${API_BASE_URL}/api/venues/${editingVenue.id}`
-      : `${API_BASE_URL}/api/venues`;
+      ? `${API_URL}/api/venues/${editingVenue.id}`
+      : `${API_URL}/api/venues`;
     const method = editingVenue ? 'PATCH' : 'POST';
     
     const bodyData = { ...formData };
@@ -228,16 +234,21 @@ export default function AdminVenuesPage() {
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
       body: JSON.stringify(bodyData),
     }).then(async res => {
+      if (res.status === 401) {
+        logout();
+        router.push('/login');
+        throw new Error('セッション切れ');
+      }
       if (!res.ok) throw new Error('保存に失敗しました');
       return res.json();
     });
 
     toast.promise(promise, {
-      loading: '処理中...',
+      loading: '保存中...',
       success: () => {
         setIsModalOpen(false);
         fetchVenues();
-        return '完了しました';
+        return '保存しました';
       },
       error: (err) => err.message
     });
@@ -246,13 +257,13 @@ export default function AdminVenuesPage() {
   const handleApprove = async (id) => {
     const token = getCleanToken();
     try {
-      const res = await fetch(`${API_BASE_URL}/api/venues/${id}`, {
+      const res = await fetch(`${API_URL}/api/venues/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ isOfficial: true }),
       });
       if (res.ok) {
-        toast.success('承認しました！');
+        toast.success('承認しました');
         fetchVenues();
       }
     } catch (error) {
@@ -264,7 +275,7 @@ export default function AdminVenuesPage() {
     if (!window.confirm('この会場を削除しますか？')) return;
     const token = getCleanToken();
     try {
-      const res = await fetch(`${API_BASE_URL}/api/venues/${id}`, {
+      const res = await fetch(`${API_URL}/api/venues/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -283,14 +294,13 @@ export default function AdminVenuesPage() {
         (v.venueName || '').toLowerCase().includes(lower) || 
         (v.address || '').toLowerCase().includes(lower)
     ).sort((a, b) => {
-        // 承認待ち(isOfficial=false)を上に
         if (a.isOfficial !== b.isOfficial) return a.isOfficial ? 1 : -1;
         return 0;
     });
   }, [venues, searchTerm]);
 
-  if (authLoading) return (
-    <div className="min-h-screen bg-white flex items-center justify-center font-sans">
+  if (authLoading || !isAuthenticated) return (
+    <div className="min-h-screen bg-white flex items-center justify-center">
         <FiLoader className="animate-spin text-pink-500 size-10" />
     </div>
   );
@@ -329,12 +339,12 @@ export default function AdminVenuesPage() {
 
         <div className="space-y-5">
           {loadingData ? (
-            <div className="py-32 flex flex-col items-center justify-center text-slate-200 gap-6 text-center">
+            <div className="py-32 flex flex-col items-center justify-center text-slate-200 gap-6">
                 <FiLoader className="animate-spin size-12 text-pink-500" />
-                <p className="text-[10px] font-black tracking-[0.4em] uppercase text-slate-400">Syncing database...</p>
+                <p className="text-[10px] font-black tracking-widest uppercase text-slate-400">Syncing...</p>
             </div>
           ) : filteredVenues.length === 0 ? (
-            <div className="bg-white rounded-[3rem] py-32 text-center border-2 border-dashed border-slate-50 text-slate-300 font-black">NO DATA FOUND</div>
+            <div className="bg-white rounded-[3rem] py-32 text-center border-2 border-dashed border-slate-50 text-slate-300 font-black">NO DATA</div>
           ) : (
             filteredVenues.map((venue) => (
                 <div key={venue.id} className={`bg-white rounded-[2.5rem] p-8 border-2 transition-all flex flex-col md:flex-row items-center gap-8 group ${!venue.isOfficial ? 'border-pink-100 bg-pink-50/10 shadow-lg shadow-pink-50' : 'border-slate-50 hover:border-pink-50'}`}>
@@ -342,7 +352,7 @@ export default function AdminVenuesPage() {
                         <div className="flex flex-wrap items-center gap-3 mb-3">
                             <h3 className="font-black text-slate-800 text-2xl tracking-tight">{venue.venueName}</h3>
                             {!venue.isOfficial && (
-                                <span className="bg-pink-500 text-white px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-2 animate-pulse shadow-lg shadow-pink-200">
+                                <span className="bg-pink-500 text-white px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-2 animate-pulse">
                                     <FiClock /> 承認待ち
                                 </span>
                             )}
@@ -358,7 +368,7 @@ export default function AdminVenuesPage() {
                                 <FiCheckCircle size={18} /><span>承認する</span>
                             </button>
                         )}
-                        <button onClick={() => { setEditingVenue(venue); setIsModalOpen(true); }} className="p-4 bg-slate-900 text-white rounded-2xl hover:bg-pink-600 transition-all shadow-xl shadow-slate-100">
+                        <button onClick={() => { setEditingVenue(venue); setIsModalOpen(true); }} className="p-4 bg-slate-900 text-white rounded-2xl hover:bg-pink-600 transition-all shadow-lg">
                             <FiEdit size={20} />
                         </button>
                         <button onClick={() => handleDelete(venue.id)} className="p-4 bg-slate-50 text-slate-300 rounded-2xl hover:bg-rose-500 hover:text-white transition-all">
