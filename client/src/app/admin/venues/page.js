@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/app/contexts/AuthContext';
 import { 
     FiEdit, FiTrash2, FiPlus, FiCheck, FiX, 
-    FiMapPin, FiSearch, FiInfo, FiTruck, FiBox, FiArrowLeft, FiClock, FiCheckCircle, FiLoader
+    FiMapPin, FiSearch, FiInfo, FiTruck, FiBox, FiArrowLeft, FiClock, FiCheckCircle, FiLoader, FiAlertTriangle
 } from 'react-icons/fi';
 
 const API_BASE_URL = 'https://flastal-backend.onrender.com'.replace(/\/$/, '');
@@ -102,10 +102,6 @@ function VenueModal({ isOpen, onClose, onSubmit, initialData }) {
                             <input name="address" value={formData.address} onChange={handleChange} className="w-full py-4 pl-12 pr-5 bg-slate-50 border-2 border-slate-50 rounded-2xl focus:bg-white focus:border-pink-200 outline-none transition-all font-bold text-sm" />
                         </div>
                     </div>
-                    <div>
-                        <label className="block text-xs font-black text-slate-500 mb-2 ml-1">管理ID</label>
-                        <input required type="email" name="email" value={formData.email} onChange={handleChange} className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-50 rounded-2xl focus:bg-white focus:border-pink-200 outline-none transition-all font-bold text-sm" />
-                    </div>
                     <div className="flex items-end pb-2">
                         <label className="flex items-center gap-3 cursor-pointer group bg-slate-50 px-6 py-4 rounded-2xl w-full border-2 border-transparent hover:border-blue-100 transition-all">
                             <input type="checkbox" name="isOfficial" checked={formData.isOfficial} onChange={handleChange} className="w-5 h-5 rounded-lg text-blue-500 border-slate-200 focus:ring-blue-500" />
@@ -128,15 +124,6 @@ function VenueModal({ isOpen, onClose, onSubmit, initialData }) {
                             <textarea name="standRegulation" value={formData.standRegulation} onChange={handleChange} rows="3" className="w-full p-4 rounded-xl text-sm bg-white border border-green-100 outline-none font-bold" />
                         )}
                     </div>
-                    <div className={`p-6 rounded-[2rem] border-2 transition-all ${formData.isBowlAllowed ? 'bg-blue-50/50 border-blue-100' : 'bg-slate-50 border-slate-50'}`}>
-                        <div className="flex items-center justify-between mb-4">
-                            <h4 className="font-black text-slate-800 text-sm">🎁 楽屋花</h4>
-                            <input type="checkbox" name="isBowlAllowed" checked={formData.isBowlAllowed} onChange={handleChange} className="w-5 h-5" />
-                        </div>
-                        {formData.isBowlAllowed && (
-                            <textarea name="bowlRegulation" value={formData.bowlRegulation} onChange={handleChange} rows="3" className="w-full p-4 rounded-xl text-sm bg-white border border-blue-100 outline-none font-bold" />
-                        )}
-                    </div>
                 </div>
             </section>
             </form>
@@ -156,6 +143,7 @@ function VenueModal({ isOpen, onClose, onSubmit, initialData }) {
 export default function AdminVenuesPage() {
   const [venues, setVenues] = useState([]);
   const [loadingData, setLoadingData] = useState(true);
+  const [errorInfo, setErrorInfo] = useState(null); // エラー詳細保持用
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingVenue, setEditingVenue] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -166,60 +154,66 @@ export default function AdminVenuesPage() {
   const getCleanToken = useCallback(() => {
     if (typeof window === 'undefined') return null;
     const t = localStorage.getItem('authToken');
-    if (!t) return null;
-    return t.replace(/"/g, '');
+    return t ? t.replace(/"/g, '') : null;
   }, []);
 
   const fetchVenues = useCallback(async () => {
     const token = getCleanToken();
-    if (!token) return;
+    if (!token) {
+        setErrorInfo("認証トークンが見つかりません。再ログインしてください。");
+        setLoadingData(false);
+        return;
+    }
 
     setLoadingData(true);
+    setErrorInfo(null);
+
     try {
       const res = await fetch(`${API_BASE_URL}/api/venues/admin?t=${Date.now()}`, {
         method: 'GET',
         headers: { 
             'Authorization': `Bearer ${token}`,
-            'Cache-Control': 'no-cache'
+            'Cache-Control': 'no-cache',
+            'Accept': 'application/json'
         }
       });
       
-      // トークン切れ(401)の検知
-      if (res.status === 401) {
-          toast.error('セッションの期限が切れました。ログインし直してください。', { id: 'auth-expired' });
-          logout();
-          router.push('/login');
+      if (res.status === 401 || res.status === 403) {
+          const errData = await res.json().catch(() => ({}));
+          setErrorInfo(errData.message || `認証エラー (${res.status}): 管理者権限がないか期限切れです。`);
           return;
       }
 
-      if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
+      if (!res.ok) {
+          throw new Error(`サーバーエラー (${res.status})`);
+      }
       
       const data = await res.json();
       setVenues(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error("Venue Fetch Failed:", error);
-      toast.error('会場リストの読み込みに失敗しました');
+      setErrorInfo("通信に失敗しました。ネットワーク環境を確認してください。");
     } finally {
       setLoadingData(false);
     }
-  }, [getCleanToken, logout, router]);
+  }, [getCleanToken]);
 
   useEffect(() => {
     if (authLoading) return;
+    
     if (!isAuthenticated || user?.role !== 'ADMIN') {
         router.push('/login');
         return;
     }
+    
     fetchVenues();
   }, [authLoading, isAuthenticated, user, fetchVenues, router]);
 
+  // --- ハンドラー群 ---
   const handleCreateOrUpdate = async (formData) => {
     const token = getCleanToken();
-    const url = editingVenue 
-      ? `${API_BASE_URL}/api/venues/${editingVenue.id}`
-      : `${API_BASE_URL}/api/venues`;
+    const url = editingVenue ? `${API_BASE_URL}/api/venues/${editingVenue.id}` : `${API_BASE_URL}/api/venues`;
     const method = editingVenue ? 'PATCH' : 'POST';
-    
     const bodyData = { ...formData };
     if (editingVenue && !bodyData.password) delete bodyData.password;
 
@@ -228,22 +222,13 @@ export default function AdminVenuesPage() {
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
       body: JSON.stringify(bodyData),
     }).then(async res => {
-      if (res.status === 401) {
-        logout();
-        router.push('/login');
-        throw new Error('セッション切れ');
-      }
-      if (!res.ok) throw new Error('保存エラー');
+      if (!res.ok) throw new Error('処理に失敗しました');
       return res.json();
     });
 
     toast.promise(promise, {
-      loading: '処理中...',
-      success: () => {
-        setIsModalOpen(false);
-        fetchVenues();
-        return '完了しました';
-      },
+      loading: '保存中...',
+      success: () => { setIsModalOpen(false); fetchVenues(); return '完了しました'; },
       error: (err) => err.message
     });
   };
@@ -256,18 +241,8 @@ export default function AdminVenuesPage() {
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ isOfficial: true }),
       });
-      if (res.status === 401) {
-          logout();
-          router.push('/login');
-          return;
-      }
-      if (res.ok) {
-        toast.success('承認しました！');
-        fetchVenues();
-      }
-    } catch (error) {
-      toast.error('エラーが発生しました');
-    }
+      if (res.ok) { toast.success('承認しました！'); fetchVenues(); }
+    } catch (error) { toast.error('エラーが発生しました'); }
   };
 
   const handleDelete = async (id) => {
@@ -278,13 +253,8 @@ export default function AdminVenuesPage() {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      if (res.ok) {
-        toast.success('削除しました');
-        setVenues(prev => prev.filter(v => v.id !== id));
-      }
-    } catch (error) {
-      toast.error('削除に失敗しました');
-    }
+      if (res.ok) { toast.success('削除しました'); fetchVenues(); }
+    } catch (error) { toast.error('削除に失敗しました'); }
   };
 
   const filteredVenues = useMemo(() => {
@@ -292,13 +262,10 @@ export default function AdminVenuesPage() {
     return venues.filter(v => 
         (v.venueName || '').toLowerCase().includes(lower) || 
         (v.address || '').toLowerCase().includes(lower)
-    ).sort((a, b) => {
-        if (a.isOfficial !== b.isOfficial) return a.isOfficial ? 1 : -1;
-        return 0;
-    });
+    ).sort((a, b) => (a.isOfficial === b.isOfficial) ? 0 : a.isOfficial ? 1 : -1);
   }, [venues, searchTerm]);
 
-  if (authLoading || !isAuthenticated) return (
+  if (authLoading) return (
     <div className="min-h-screen bg-white flex items-center justify-center">
         <FiLoader className="animate-spin text-pink-500 size-10" />
     </div>
@@ -312,14 +279,33 @@ export default function AdminVenuesPage() {
                 <Link href="/admin" className="inline-flex items-center text-[10px] font-black text-slate-300 hover:text-pink-500 transition-colors uppercase tracking-[0.3em]">
                     <FiArrowLeft className="mr-2"/> Dashboard
                 </Link>
-                <h1 className="text-4xl md:text-5xl font-black text-slate-900 tracking-tighter italic">VENUE MANAGER</h1>
+                <h1 className="text-4xl md:text-5xl font-black text-slate-900 tracking-tighter italic uppercase">Venue Manager</h1>
                 <p className="text-slate-400 font-bold text-xs tracking-[0.2em] uppercase">会場・施設データベース管理</p>
             </div>
             <button onClick={() => { setEditingVenue(null); setIsModalOpen(true); }} className="flex items-center gap-3 bg-slate-900 text-white px-10 py-5 rounded-[2rem] hover:bg-pink-600 shadow-2xl transition-all font-black active:scale-95 group">
               <FiPlus size={20} /><span>新規登録</span>
             </button>
         </div>
-        <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100 mb-10 flex flex-col md:flex-row items-center gap-6 text-slate-800">
+
+        {/* エラー表示エリア */}
+        {errorInfo && (
+            <div className="mb-10 bg-rose-50 border-2 border-rose-100 p-8 rounded-[2rem] flex flex-col md:flex-row items-center justify-between gap-6">
+                <div className="flex items-center gap-4">
+                    <div className="bg-rose-500 text-white p-3 rounded-2xl shadow-lg">
+                        <FiAlertTriangle size={24} />
+                    </div>
+                    <div>
+                        <p className="font-black text-rose-900 text-lg">データの読み込みに制限がかかりました</p>
+                        <p className="text-rose-700/70 text-sm font-bold mt-1">{errorInfo}</p>
+                    </div>
+                </div>
+                <button onClick={() => { logout(); router.push('/login'); }} className="px-8 py-4 bg-rose-500 text-white rounded-2xl font-black text-sm hover:bg-rose-600 transition-all shadow-lg shadow-rose-200">
+                    再ログインして解決
+                </button>
+            </div>
+        )}
+
+        <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100 mb-10 flex flex-col md:flex-row items-center gap-6">
             <div className="relative flex-1 w-full group">
                 <FiSearch className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300 size-5" />
                 <input 
@@ -334,22 +320,23 @@ export default function AdminVenuesPage() {
                 Total <span className="text-slate-900 ml-2">{venues.length}</span>
             </div>
         </div>
+
         <div className="space-y-5">
           {loadingData ? (
             <div className="py-32 flex flex-col items-center justify-center text-slate-200 gap-6">
                 <FiLoader className="animate-spin size-12 text-pink-500" />
-                <p className="text-[10px] font-black tracking-widest uppercase text-slate-400">Syncing...</p>
+                <p className="text-[10px] font-black tracking-widest uppercase text-slate-400">Syncing Database...</p>
             </div>
           ) : filteredVenues.length === 0 ? (
-            <div className="bg-white rounded-[3rem] py-32 text-center border-2 border-dashed border-slate-50 text-slate-300 font-black">NO DATA</div>
+            <div className="bg-white rounded-[3rem] py-32 text-center border-2 border-dashed border-slate-50 text-slate-300 font-black tracking-[0.2em] italic">NO DATA AVAILABLE</div>
           ) : (
             filteredVenues.map((venue) => (
-                <div key={venue.id} className={`bg-white rounded-[2.5rem] p-8 border-2 transition-all flex flex-col md:flex-row items-center gap-8 group ${!venue.isOfficial ? 'border-pink-100 bg-pink-50/10 shadow-lg shadow-pink-50' : 'border-slate-50 hover:border-pink-50'}`}>
-                    <div className="flex-1 w-full text-slate-800">
+                <div key={venue.id} className={`bg-white rounded-[2.5rem] p-8 border-2 transition-all flex flex-col md:flex-row items-center gap-8 group ${!venue.isOfficial ? 'border-pink-200 bg-pink-50/10 shadow-lg shadow-pink-50' : 'border-slate-50 hover:border-pink-50'}`}>
+                    <div className="flex-1 w-full">
                         <div className="flex flex-wrap items-center gap-3 mb-3">
-                            <h3 className="font-black text-slate-800 text-2xl tracking-tight">{venue.venueName}</h3>
+                            <h3 className="font-black text-slate-800 text-2xl tracking-tight italic uppercase">{venue.venueName}</h3>
                             {!venue.isOfficial && (
-                                <span className="bg-pink-500 text-white px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-2 animate-pulse">
+                                <span className="bg-pink-500 text-white px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-2 animate-pulse shadow-lg shadow-pink-200">
                                     <FiClock /> 承認待ち
                                 </span>
                             )}
@@ -358,9 +345,10 @@ export default function AdminVenuesPage() {
                             <FiMapPin className="text-pink-500/40"/> {venue.address || '住所未登録'}
                         </p>
                     </div>
+
                     <div className="flex gap-3">
                         {!venue.isOfficial && (
-                            <button onClick={() => handleApprove(venue.id)} className="flex items-center gap-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white px-8 py-4 rounded-2xl hover:shadow-xl transition-all font-black text-sm active:scale-95">
+                            <button onClick={() => handleApprove(venue.id)} className="flex items-center gap-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white px-8 py-4 rounded-2xl hover:shadow-xl transition-all font-black text-sm active:scale-95 shadow-lg shadow-green-100">
                                 <FiCheckCircle size={18} /><span>承認する</span>
                             </button>
                         )}
@@ -376,6 +364,7 @@ export default function AdminVenuesPage() {
           )}
         </div>
       </div>
+
       <VenueModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSubmit={handleCreateOrUpdate} initialData={editingVenue} />
       <style jsx global>{` body { background-color: #fafafa; } `}</style>
     </div>
