@@ -27,12 +27,11 @@ export default function AddVenuePage() {
     address: '',
     phoneNumber: '',
     website: '',
-    isStandAllowed: true, // デフォルト許可
+    isStandAllowed: true,
     regulations: '',
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // 認証チェック
   useEffect(() => {
     if (!authLoading && !user) {
         toast.error('ログインが必要です');
@@ -48,7 +47,6 @@ export default function AddVenuePage() {
     }));
   };
 
-  // Google検索のヘルパー
   const handleGoogleSearch = () => {
     if (!formData.venueName) return toast.error('会場名を入力してください');
     const query = encodeURIComponent(`${formData.venueName} 公式サイト アクセス`);
@@ -63,7 +61,7 @@ export default function AddVenuePage() {
     setIsSubmitting(true);
     const token = getAuthToken();
 
-    // URLの自動補完 (https:// がない場合に追加)
+    // URLの自動補完ロジック
     let finalWebsite = formData.website.trim();
     if (finalWebsite && !/^https?:\/\//i.test(finalWebsite)) {
         finalWebsite = `https://${finalWebsite}`;
@@ -78,7 +76,7 @@ export default function AddVenuePage() {
             },
             body: JSON.stringify({
                 ...formData,
-                website: finalWebsite, // 補完後のURLを使用
+                website: finalWebsite,
                 submittedBy: user?.id 
             }),
         });
@@ -111,7 +109,6 @@ export default function AddVenuePage() {
     <div className="min-h-screen bg-slate-50 py-12 px-4 sm:px-6 lg:px-8 font-sans text-gray-800">
       <div className="max-w-2xl mx-auto">
         
-        {/* ヘッダーナビ */}
         <div className="mb-6">
             <Link href="/venues" className="inline-flex items-center text-sm font-medium text-gray-500 hover:text-green-600 transition-colors">
                 <FiArrowLeft className="mr-2"/> 会場一覧へ戻る
@@ -119,20 +116,18 @@ export default function AddVenuePage() {
         </div>
 
         <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
-            {/* フォームヘッダー */}
             <div className="bg-gradient-to-r from-green-600 to-teal-600 p-8 text-white">
                 <h2 className="text-2xl font-bold flex items-center gap-2">
                     <FiMapPin /> 新しい会場を登録
                 </h2>
                 <p className="mt-2 text-green-100 text-sm">
-                    あなたが知っている会場の情報を共有して、<br className="hidden sm:block"/>
-                    これから企画を立てるファンや、配送するお花屋さんを助けましょう！
+                    あなたが知っている会場の情報を共有してください。
                 </p>
             </div>
             
-            <form onSubmit={handleSubmit} className="p-8 space-y-8" noValidate={false}>
+            {/* noValidate を追加してブラウザの勝手なチェックを無効化 */}
+            <form onSubmit={handleSubmit} className="p-8 space-y-8" noValidate>
                 
-                {/* 1. 基本情報 */}
                 <section className="space-y-4">
                     <h3 className="text-lg font-bold text-gray-800 border-b pb-2 flex items-center gap-2">
                         <FiInfo className="text-green-500"/> 基本情報
@@ -157,7 +152,6 @@ export default function AddVenuePage() {
                                 type="button"
                                 onClick={handleGoogleSearch}
                                 className="px-4 py-2 bg-gray-100 text-gray-600 rounded-xl hover:bg-gray-200 transition-colors text-xs font-bold flex flex-col items-center justify-center whitespace-nowrap"
-                                title="Googleで検索して情報を確認"
                             >
                                 <FiSearch size={16}/>
                                 <span>検索補助</span>
@@ -176,7 +170,7 @@ export default function AddVenuePage() {
                                     type="text"
                                     value={formData.address}
                                     onChange={handleChange}
-                                    className="pl-10 block w-full rounded-xl border border-gray-300 px-4 py-3 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
+                                    className="pl-10 block w-full rounded-xl border border-gray-300 px-4 py-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500"
                                     placeholder="例：東京都江東区有明2-1-6"
                                 />
                             </div>
@@ -188,11 +182,12 @@ export default function AddVenuePage() {
                                 <input
                                     id="phoneNumber"
                                     name="phoneNumber"
-                                    type="tel"
+                                    // patternによるエラーを防ぐため type="text" に変更
+                                    type="text" 
                                     value={formData.phoneNumber}
                                     onChange={handleChange}
-                                    className="pl-10 block w-full rounded-xl border border-gray-300 px-4 py-3 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
-                                    placeholder="例：03-1234-5678"
+                                    className="pl-10 block w-full rounded-xl border border-gray-300 px-4 py-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500"
+                                    placeholder="例：0312345678"
                                 />
                             </div>
                         </div>
@@ -205,18 +200,17 @@ export default function AddVenuePage() {
                             <input
                                 id="website"
                                 name="website"
-                                // type="url" から "text" に変更してブラウザの厳格なパターンチェックを回避
+                                // URL形式チェックによるエラーを防ぐため type="text" に変更
                                 type="text" 
                                 value={formData.website}
                                 onChange={handleChange}
-                                className="pl-10 block w-full rounded-xl border border-gray-300 px-4 py-3 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
-                                placeholder="example.com (https://は自動補完されます)"
+                                className="pl-10 block w-full rounded-xl border border-gray-300 px-4 py-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500"
+                                placeholder="example.com"
                             />
                         </div>
                     </div>
                 </section>
 
-                {/* 2. レギュレーション */}
                 <section className="space-y-4 pt-4">
                     <h3 className="text-lg font-bold text-gray-800 border-b pb-2 flex items-center gap-2">
                         <FiHelpCircle className="text-green-500"/> レギュレーション情報
@@ -228,10 +222,6 @@ export default function AddVenuePage() {
                         </div>
                         <div>
                             <p className="text-sm font-bold text-yellow-800 mb-1">フラスタ受入可否（目安）</p>
-                            <p className="text-xs text-yellow-700 mb-2">
-                                基本的に受け入れている会場ですか？<br/>
-                                ※イベントごとに異なる場合は「許可（要確認）」としてください。
-                            </p>
                             <div className="flex gap-4 mt-2">
                                 <label className="flex items-center cursor-pointer">
                                     <input 
@@ -241,7 +231,7 @@ export default function AddVenuePage() {
                                         onChange={() => setFormData({...formData, isStandAllowed: true})}
                                         className="sr-only"
                                     />
-                                    <div className={`px-4 py-2 rounded-lg border flex items-center gap-2 transition-all ${formData.isStandAllowed ? 'bg-green-600 text-white border-green-600 shadow-md' : 'bg-white text-gray-500 border-gray-300 hover:bg-gray-50'}`}>
+                                    <div className={`px-4 py-2 rounded-lg border flex items-center gap-2 transition-all ${formData.isStandAllowed ? 'bg-green-600 text-white border-green-600 shadow-md' : 'bg-white text-gray-500 border-gray-300'}`}>
                                         <FiCheckCircle /> 受入可 (要確認)
                                     </div>
                                 </label>
@@ -253,7 +243,7 @@ export default function AddVenuePage() {
                                         onChange={() => setFormData({...formData, isStandAllowed: false})}
                                         className="sr-only"
                                     />
-                                    <div className={`px-4 py-2 rounded-lg border flex items-center gap-2 transition-all ${!formData.isStandAllowed ? 'bg-red-500 text-white border-red-500 shadow-md' : 'bg-white text-gray-500 border-gray-300 hover:bg-gray-50'}`}>
+                                    <div className={`px-4 py-2 rounded-lg border flex items-center gap-2 transition-all ${!formData.isStandAllowed ? 'bg-red-500 text-white border-red-500 shadow-md' : 'bg-white text-gray-500 border-gray-300'}`}>
                                         <FiXCircle /> 全面的に禁止
                                     </div>
                                 </label>
@@ -271,25 +261,22 @@ export default function AddVenuePage() {
                             rows="6"
                             value={formData.regulations}
                             onChange={handleChange}
-                            className="block w-full rounded-xl border border-gray-300 px-4 py-3 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
-                            placeholder="【サイズ規定】底辺40cm×40cm、高さ180cm以下&#13;&#10;【搬入時間】公演当日の午前中&#13;&#10;【回収】必須 (翌日午前中まで)&#13;&#10;【その他】ラメ・砂禁止、など"
+                            className="block w-full rounded-xl border border-gray-300 px-4 py-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500"
+                            placeholder="サイズ規定、搬入時間など..."
                         ></textarea>
-                        <p className="text-xs text-gray-500 mt-2">
-                            公式サイトに記載されている内容や、過去に参加した際の実績などを記入してください。
-                        </p>
                     </div>
                 </section>
 
                 <div className="pt-6 border-t border-gray-100 flex flex-col sm:flex-row gap-4">
-                    <Link href="/venues" className="w-full sm:w-1/3 order-2 sm:order-1" prefetch={false}>
-                        <button type="button" className="w-full py-3.5 px-4 border border-gray-300 rounded-xl shadow-sm text-sm font-bold text-gray-600 bg-white hover:bg-gray-50 transition-colors">
+                    <Link href="/venues" className="w-full sm:w-1/3 order-2 sm:order-1">
+                        <button type="button" className="w-full py-3.5 px-4 border border-gray-300 rounded-xl text-gray-600 bg-white hover:bg-gray-50">
                             キャンセル
                         </button>
                     </Link>
                     <button
                         type="submit"
                         disabled={isSubmitting}
-                        className="w-full sm:w-2/3 order-1 sm:order-2 flex justify-center items-center py-3.5 px-4 border border-transparent rounded-xl shadow-lg text-sm font-bold text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all"
+                        className="w-full sm:w-2/3 order-1 sm:order-2 flex justify-center items-center py-3.5 px-4 border border-transparent rounded-xl shadow-lg text-sm font-bold text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-400 transition-all"
                     >
                         {isSubmitting ? (
                             <><FiLoader className="animate-spin mr-2"/> 登録処理中...</>
