@@ -165,16 +165,16 @@ const KawaiiButton = ({ children, variant = "primary", icon: Icon, className, on
 // --- 🚀 HERO & SECTIONS ---
 
 const HeroSection = () => (
-  /* 修正ポイント: 
-     1. mt-[-1px] でLiveTickerの境界線との微妙な隙間を強制的に上書き
-     2. pt-8 md:pt-12 で LiveTicker 直後の余白を最小化
+  /* 修正ポイント：
+     1. mt-[-4px] でティッカーの下に強制的に潜り込ませ、隙間をなくす
+     2. pt-4 md:pt-8 でコンテンツをティッカーに密着させる
   */
-  <section className="relative w-full min-h-[85vh] md:min-h-[90vh] flex items-center justify-center overflow-hidden bg-white border-none m-0 mt-[-1px] pt-8 md:pt-12 z-10">
+  <section className="relative w-full min-h-[85vh] md:min-h-[90vh] flex items-center justify-center overflow-hidden bg-white border-none m-0 mt-[-4px] pt-4 md:pt-8 z-10">
     <div className="absolute inset-0 bg-[radial-gradient(#e0f2fe_1px,transparent_1px)] [background-size:24px_24px] opacity-40 pointer-events-none" />
     <FloatingShape color="bg-pink-200" top="-5%" left="-5%" size={500} />
     <FloatingShape color="bg-sky-200" bottom="-5%" right="-5%" size={500} delay={2} />
 
-    <div className="container relative z-10 px-6 py-6 md:py-12 grid lg:grid-cols-12 gap-10 items-center mx-auto">
+    <div className="container relative z-10 px-6 py-4 md:py-8 grid lg:grid-cols-12 gap-10 items-center mx-auto">
       <div className="lg:col-span-7 text-center lg:text-left">
         <Reveal>
           <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white rounded-full shadow-md border border-pink-50 mb-6 mx-auto lg:mx-0">
@@ -213,7 +213,7 @@ const HeroSection = () => (
                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
                <div className="absolute bottom-6 left-6 text-white">
                  <span className="bg-pink-500 px-2 py-0.5 rounded text-[10px] font-bold mb-2 inline-block uppercase">Now Funding</span>
-                 <h3 className="text-2xl font-bold">銀河一のフラスタを！</h3>
+                 <h3 className="text-2xl font-bold">星街すいせいさんへ銀河一のフラスタを！</h3>
                </div>
              </div>
              <div className="p-6">
@@ -247,15 +247,13 @@ export default function HomePageContent() {
   }
 
   return (
-    /* 修正ポイント: m-0 p-0 overflow-hidden で内部の浮きを完全に封じ込める */
-    <div className="m-0 p-0 w-full flex flex-col bg-white overflow-hidden relative border-none">
+    <div className="m-0 p-0 w-full flex flex-col bg-white overflow-visible relative border-none">
       <ScrollProgress />
       <MagicCursor />
 
       {isAuthenticated ? (
         <AuthenticatedHome user={user} logout={logout} />
       ) : (
-        /* 修正ポイント: margin を強制排除 */
         <main className="flex flex-col m-0 p-0 w-full relative border-none">
           <HeroSection />
 
