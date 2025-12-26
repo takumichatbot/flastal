@@ -1,5 +1,13 @@
 @import "tailwindcss";
 
+/* 1. 究極のリセット：すべての要素からマージンと隙間を奪う */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-font-smoothing: antialiased;
+}
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
@@ -7,51 +15,53 @@
   --seasonal-bg: #ffffff;
   --primary: 204 89% 53%;
   --primary-foreground: 210 40% 98%; 
+  --primary-h: 204; 
 }
 
-/* ブラウザのデフォルト余白を徹底リセット */
+/* 2. html/body の完全固定 */
 html, body {
   margin: 0 !important;
   padding: 0 !important;
   width: 100% !important;
   min-height: 100vh;
   overflow-x: hidden;
-  /* 隙間から漏れる色をHeroSectionの背景色(slate-50)と一致させる */
-  background-color: #f8fafc !important; 
+  background-color: #ffffff; /* 下地を白にして隙間を同化させる */
 }
 
-/* ★ 隙間撲滅の最終奥義：要素を「吸着」させる */
-header {
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  margin-bottom: 0 !important;
-}
-
-/* LiveTickerを確実に配置 */
-header + div {
-  position: relative;
-  z-index: 90;
-  margin-top: 0 !important;
-  margin-bottom: -2px !important; /* 物理的に2px下に潜り込ませる */
-}
-
-/* mainコンテンツをティッカーの背後に2px潜り込ませて密着 */
+/* 3. 要素間の吸着設定：display: block と vertical-align で微細な隙間を消す */
+header, 
+nav, 
+section, 
+div, 
 main {
-  position: relative;
-  z-index: 80;
-  margin-top: 0 !important;
-  padding-top: 0 !important;
   display: block;
+  vertical-align: top;
 }
 
-/* 🎨 推し色適用 */
-.oshi-theme-bg { background-color: hsl(var(--primary)) !important; }
-.oshi-theme-text { color: hsl(var(--primary)) !important; }
+/* 4. 季節テーマの調整 */
+body.theme-spring:not(.dark-mode) {
+  --seasonal-primary: #f472b6;
+  --seasonal-bg: radial-gradient(#fbcfe8 1px, transparent 1px), #fff1f2;
+  background-size: 20px 20px;
+}
+
+/* 5. 推し色ユーティリティ */
+.oshi-theme-bg {
+  background-color: hsl(var(--primary)) !important;
+}
+.oshi-theme-text {
+  color: hsl(var(--primary)) !important;
+}
 
 @tailwind utilities;
 
 @layer utilities {
   .no-scrollbar::-webkit-scrollbar { display: none; }
   .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  
+  /* 強制吸着クラス */
+  .snap-top {
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+  }
 }

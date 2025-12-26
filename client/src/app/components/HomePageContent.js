@@ -26,7 +26,7 @@ const ScrollProgress = () => {
   const { scrollYProgress } = useScroll();
   const scaleX = useSpring(scrollYProgress, { stiffness: 100, damping: 30, restDelta: 0.001 });
   return (
-    <motion.div className="fixed top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-pink-400 via-purple-400 to-sky-400 origin-left z-[2000] shadow-[0_0_20px_rgba(244,114,182,0.6)]" style={{ scaleX }} />
+    <motion.div className="fixed top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-pink-400 via-purple-400 to-sky-400 origin-left z-[1000] shadow-[0_0_20px_rgba(244,114,182,0.6)]" style={{ scaleX }} />
   );
 };
 
@@ -160,16 +160,16 @@ const KawaiiButton = ({ children, variant = "primary", icon: Icon, className, on
 // --- 🚀 SECTIONS ---
 
 const HeroSection = () => (
-  /* 修正: z-indexを下げ、上部に余裕を持たせる（ティッカーの背後に潜り込むため） */
-  <section className="relative block w-full min-h-[85vh] md:min-h-[95vh] flex items-center justify-center overflow-hidden bg-slate-50 m-0 p-0 z-0">
+  /* 物理的な最終解決: -mt-[1px] でティッカーの下端に 1px 被せる */
+  <section className="relative w-full min-h-[85vh] md:min-h-[95vh] flex items-center justify-center overflow-hidden bg-slate-50 m-0 p-0 border-none -mt-[1px]">
     <ScrollProgress />
     <MagicCursor />
     <div className="absolute inset-0 bg-[radial-gradient(#e0f2fe_1px,transparent_1px)] [background-size:24px_24px] opacity-60 pointer-events-none" />
     <FloatingShape color="bg-pink-200" top="-5%" left="-5%" size={500} />
     <FloatingShape color="bg-sky-200" bottom="-5%" right="-5%" size={500} delay={2} />
 
-    {/* 重要: pt を多めに取ることで、ティッカーの背後に潜り込んでも重ならないようにする */}
-    <div className="container relative z-10 px-6 pt-24 md:pt-32 pb-10 grid lg:grid-cols-12 gap-10 items-center mx-auto">
+    {/* コンテンツ内部の pt を確保 */}
+    <div className="container relative z-10 px-6 pt-20 md:pt-32 pb-10 grid lg:grid-cols-12 gap-10 items-center mx-auto">
       <div className="lg:col-span-7 text-center lg:text-left">
         <Reveal>
           <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white rounded-full shadow-md border border-pink-50 mb-6 mx-auto lg:mx-0">

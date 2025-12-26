@@ -49,18 +49,20 @@ export const viewport = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="ja" className={`${inter.variable} ${notoSansJP.variable}`}>
-      {/* 修正ポイント: bg-slate-50 を bg-white に変更し、隙間が目立たないようにします */}
-      <body className="font-sans antialiased text-slate-900 bg-white min-h-screen flex flex-col m-0 p-0">
+    <html lang="ja" className={`${inter.variable} ${notoSansJP.variable}`} style={{ margin: 0, padding: 0 }}>
+      <body className="font-sans antialiased text-slate-900 bg-white min-h-screen flex flex-col m-0 p-0 border-none">
         <ThemeController />
         
         <AuthProvider>
           <Suspense fallback={null}>
-            <Header />
-            <LiveTicker />
+            {/* 修正ポイント1: ヘッダーとティッカーを一つの sticky グループにする */}
+            <div className="sticky top-0 z-[100] w-full m-0 p-0 border-none leading-[0] flex flex-col">
+              <Header />
+              <LiveTicker />
+            </div>
 
-            {/* 修正ポイント: mx-auto を削除し、w-full で横幅いっぱいに広げ、マージンを排除します */}
-            <main className="flex-grow w-full m-0 p-0">
+            {/* 修正ポイント2: mainに強制的にマイナスマージンをかけ、上の要素に1px潜り込ませる */}
+            <main className="flex-grow w-full m-0 p-0 relative z-10 -mt-[1px]">
               {children}
             </main>
             
