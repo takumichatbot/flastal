@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { FiActivity, FiGift, FiTruck, FiCheckCircle, FiTrendingUp, FiInfo } from 'react-icons/fi';
 
-// ダミーデータ (本番ではAPIから取得することを想定)
 const TICKER_LOGS = [
   { id: 1, type: 'pledge', text: 'たった今、Aさんが『星野アイ生誕祭2025』に 10,000pt 支援しました！🎉', href: '/projects/1' },
   { id: 2, type: 'production', text: 'お花屋さんが『武道館ライブ』の制作を開始しました💐', href: '/projects/2' },
@@ -17,23 +16,18 @@ export default function LiveTicker() {
   const [isAnimating, setIsAnimating] = useState(false);
 
   useEffect(() => {
-    // 5秒ごとに切り替え
     const interval = setInterval(() => {
-      setIsAnimating(true); // アニメーション開始 (退場)
-      
+      setIsAnimating(true);
       setTimeout(() => {
         setCurrentIndex((prev) => (prev + 1) % TICKER_LOGS.length);
-        setIsAnimating(false); // アニメーション終了 (入場)
-      }, 500); // CSSのtransition時間と合わせる
-
+        setIsAnimating(false);
+      }, 500);
     }, 5000);
-
     return () => clearInterval(interval);
   }, []);
 
   const currentLog = TICKER_LOGS[currentIndex];
 
-  // アイコンと色の定義
   const getLogStyle = (type) => {
     switch(type) {
       case 'pledge': return { icon: <FiGift />, color: 'text-pink-400', label: '支援' };
@@ -48,14 +42,13 @@ export default function LiveTicker() {
   const style = getLogStyle(currentLog.type);
 
   return (
-    <div className="bg-slate-900 border-b border-slate-800 h-10 overflow-hidden relative shadow-sm z-40">
-      <div className="container mx-auto px-4 h-full flex items-center justify-between">
+    /* 修正ポイント: h-10 を維持しつつ、マージン・パディングを強制リセット */
+    <div className="bg-slate-900 border-b border-slate-800 h-10 w-full overflow-hidden relative shadow-sm z-40 m-0 p-0 block">
+      {/* 修正ポイント: container を廃止し、w-full max-w-7xl mx-auto でレイアウトを制御 */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-center justify-between">
         
-        {/* 左側: LIVEインジケーター & テキスト */}
-        <div className="flex items-center gap-4 flex-1 min-w-0">
-          
-          {/* LIVE バッジ */}
-          <div className="flex items-center gap-2 shrink-0 bg-slate-800 py-1 px-2 rounded-full">
+        <div className="flex items-center gap-4 flex-1 min-w-0 h-full">
+          <div className="flex items-center gap-2 shrink-0 bg-slate-800 py-1 px-2 rounded-full h-fit">
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
@@ -63,7 +56,6 @@ export default function LiveTicker() {
             <span className="text-[10px] font-bold tracking-widest text-slate-300 leading-none">LIVE</span>
           </div>
 
-          {/* 流れるコンテンツ */}
           <div className="flex-1 overflow-hidden relative h-full flex items-center">
             <Link 
                 href={currentLog.href}
@@ -80,8 +72,7 @@ export default function LiveTicker() {
           </div>
         </div>
 
-        {/* 右側: リンク (PCのみ) */}
-        <div className="hidden md:block shrink-0 ml-4 border-l border-slate-700 pl-4">
+        <div className="hidden md:flex shrink-0 ml-4 border-l border-slate-700 pl-4 h-4 items-center">
             <Link href="/projects" className="text-[10px] text-slate-400 hover:text-white transition-colors flex items-center gap-1">
                 View All <FiTrendingUp />
             </Link>

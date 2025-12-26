@@ -9,33 +9,41 @@
   --primary-foreground: 210 40% 98%; 
 }
 
-/* ブラウザのデフォルトを完全に殺す */
+/* ブラウザのデフォルト余白を完全に抹殺 */
 html, body {
   margin: 0 !important;
   padding: 0 !important;
-  width: 100%;
-  min-height: 100vh;
+  width: 100% !important;
   overflow-x: hidden;
-  background: var(--seasonal-bg);
 }
 
-/* ヘッダー直後の要素に自動で付くマージンを完全に排除 */
-header + *, 
+/* ★ 重要修正: 縦並びの全要素を隙間なく密着させる */
+header, 
 header + div, 
-header + div + main {
+header + div + main,
+main {
   margin-top: 0 !important;
+  margin-bottom: 0 !important;
   padding-top: 0 !important;
+  display: block; /* 隙間の原因になる inline-block 的な挙動を防ぐ */
 }
 
-/* --- 季節のテーマ --- */
+body {
+  background: var(--seasonal-bg);
+  color: var(--foreground);
+  transition: background 0.3s ease, color 0.3s ease;
+  min-height: 100vh;
+  background-attachment: fixed;
+}
+
+/* --- 🌸 季節のテーマ --- */
 body.theme-spring:not(.dark-mode) {
   --seasonal-primary: #f472b6;
   --seasonal-bg: radial-gradient(#fbcfe8 1px, transparent 1px), radial-gradient(#fbcfe8 1px, transparent 1px), #fff1f2;
   background-size: 20px 20px;
-  background-position: 0 0, 10px 10px;
 }
 
-/* 🎨 推し色ユーティリティ */
+/* 🎨 推し色適用 */
 .oshi-theme-bg { background-color: hsl(var(--primary)) !important; }
 .oshi-theme-text { color: hsl(var(--primary)) !important; }
 
