@@ -12,14 +12,14 @@ import {
   motion, useScroll, useTransform, useSpring, useInView, useMotionValue, useMotionTemplate, AnimatePresence 
 } from 'framer-motion';
 
-// --- すべて lucide-react に統一 (Fi...系を排除) ---
+// --- すべて lucide-react に統一 ---
 import { 
   Heart, Sparkles, Zap, MessageCircle, Gift, 
   Calendar, Users, ShieldCheck, ChevronDown, 
-  Star, Palette, Music, Camera, Mail, HelpCircle,
-  ArrowRight, CheckCircle2, Search, Flower, Smile,
-  CreditCard, Lock, Smartphone, Megaphone, Info, 
-  Store, MapPin, Ticket, MousePointer2, Loader2, Shield
+  Star, Palette, HelpCircle, Mail,
+  ArrowRight, CheckCircle2, Search, Flower,
+  CreditCard, Lock, Store, MapPin, Ticket, Loader2,
+  Image as ImageIcon, Share2, Award, PiggyBank
 } from 'lucide-react';
 
 // --- Utility ---
@@ -95,6 +95,7 @@ const TiltCard = ({ children, className, glowColor = "pink" }) => {
     sky: "group-hover:shadow-sky-200/60",
     purple: "group-hover:shadow-purple-200/60",
     emerald: "group-hover:shadow-emerald-200/60",
+    amber: "group-hover:shadow-amber-200/60",
   };
 
   return (
@@ -102,9 +103,9 @@ const TiltCard = ({ children, className, glowColor = "pink" }) => {
       style={{ rotateX, rotateY, perspective: 1000 }}
       onMouseMove={handleMouseMove}
       onMouseLeave={() => { x.set(0); y.set(0); }}
-      className={cn("relative transition-all duration-300 ease-out group hover:z-10", className)}
+      className={cn("relative transition-all duration-300 ease-out group hover:z-10 h-full", className)}
     >
-      <div className={cn("transition-shadow duration-300 hover:shadow-2xl h-full rounded-[30px] bg-white", glows[glowColor])}>
+      <div className={cn("transition-shadow duration-300 hover:shadow-2xl h-full rounded-[30px] bg-white border border-slate-100", glows[glowColor])}>
         {children}
       </div>
     </motion.div>
@@ -115,11 +116,7 @@ const FloatingShape = ({ color, top, left, right, bottom, size, delay = 0 }) => 
   <motion.div 
     style={{ top, left, right, bottom, width: size, height: size }}
     className={cn("absolute rounded-full blur-[80px] opacity-40 pointer-events-none mix-blend-multiply z-0", color)}
-    animate={{ 
-      y: [0, -40, 0],
-      scale: [1, 1.1, 0.9, 1],
-      rotate: [0, 20, -20, 0]
-    }}
+    animate={{ y: [0, -40, 0], scale: [1, 1.1, 0.9, 1], rotate: [0, 20, -20, 0] }}
     transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", delay }}
   />
 );
@@ -133,7 +130,7 @@ const SectionHeader = ({ en, ja, desc, color = "pink" }) => {
   };
   
   return (
-    <div className="text-center mb-24 relative z-10">
+    <div className="text-center mb-24 relative z-10 px-4">
       <Reveal>
         <span className={cn("inline-block font-bold tracking-[0.2em] uppercase text-sm mb-4 font-mono px-4 py-1.5 rounded-full bg-white border shadow-sm", colors[color].split(" ")[0], colors[color].split(" ")[3])}>
           ✨ {en}
@@ -169,111 +166,72 @@ const KawaiiButton = ({ children, variant = "primary", icon: Icon, className, on
   );
 };
 
-// --- 🚀 SECTIONS 🚀 ---
+// --- 🚀 HERO & SECTIONS ---
 
 const HeroSection = () => (
-  <section className="relative w-full min-h-[95vh] flex items-center justify-center overflow-hidden bg-slate-50">
-    <ScrollProgress />
-    <MagicCursor />
-    <div className="absolute inset-0 bg-[radial-gradient(#e0f2fe_1px,transparent_1px)] [background-size:24px_24px] opacity-60" />
-    <FloatingShape color="bg-pink-300" top="-10%" left="-10%" size={600} />
-    <FloatingShape color="bg-sky-300" bottom="-10%" right="-10%" size={600} delay={2} />
-    <FloatingShape color="bg-yellow-200" top="40%" right="10%" size={300} delay={4} />
+  <section className="relative w-full min-h-[85vh] md:min-h-[90vh] flex items-center justify-center overflow-hidden bg-white border-none m-0 mt-[-2px] p-0 z-10 isolate">
+    <div className="absolute inset-0 bg-[radial-gradient(#e0f2fe_1px,transparent_1px)] [background-size:24px_24px] opacity-40 pointer-events-none" />
+    <FloatingShape color="bg-pink-200" top="-5%" left="-5%" size={500} />
+    <FloatingShape color="bg-sky-200" bottom="-5%" right="-5%" size={500} delay={2} />
 
-    <div className="container relative z-10 px-6 pt-20 grid lg:grid-cols-12 gap-12 items-center">
+    <div className="container relative z-10 px-6 py-12 md:py-24 grid lg:grid-cols-12 gap-10 items-center mx-auto">
       <div className="lg:col-span-7 text-center lg:text-left">
         <Reveal>
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-white rounded-full shadow-lg border border-pink-100 mb-8 mx-auto lg:mx-0 animate-bounce-slow">
-            <span className="flex h-2 w-2 rounded-full bg-pink-500 animate-ping" />
-            <span className="text-xs font-bold text-slate-600 tracking-wide">推し活アップデート 2.0</span>
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white rounded-full shadow-md border border-pink-50 mb-6 mx-auto lg:mx-0">
+            <span className="flex h-2 w-2 rounded-full bg-pink-500 animate-pulse" />
+            <span className="text-[10px] md:text-xs font-bold text-slate-500 tracking-wide uppercase">Oshikatsu Update 2.0</span>
           </div>
         </Reveal>
         <Reveal delay={0.1}>
-          <h1 className="text-5xl md:text-7xl lg:text-8xl font-black text-slate-800 leading-[1.1] mb-8 tracking-tight">
+          <h1 className="text-4xl md:text-7xl lg:text-8xl font-black text-slate-800 leading-tight mb-6 tracking-tight">
             想いを、<br/>
-            <span className="relative inline-block px-2">
-              <span className="absolute inset-0 bg-pink-200 -rotate-2 rounded-lg blur-sm opacity-50" />
+            <span className="relative inline-block px-1">
+              <span className="absolute inset-0 bg-pink-200 -rotate-1 rounded-lg blur-sm opacity-40" />
               <span className="relative text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-rose-500">結晶化</span>
             </span>
             しよう。
           </h1>
         </Reveal>
         <Reveal delay={0.2}>
-          <p className="text-lg md:text-xl text-slate-600 mb-10 leading-relaxed max-w-2xl mx-auto lg:mx-0 font-medium">
+          <p className="text-sm md:text-xl text-slate-500 mb-10 leading-relaxed max-w-2xl mx-auto lg:mx-0 font-medium">
             FLASTAL（フラスタル）は、アイドル・声優・VTuber・歌い手への「お祝い花（フラスタ）」を、ファンのみんなで贈れる次世代クラウドファンディング・プラットフォームです。
           </p>
         </Reveal>
         <Reveal delay={0.3}>
-          <div className="flex flex-col sm:flex-row gap-5 justify-center lg:justify-start mb-12">
-            <Link href="/projects/create">
-              <KawaiiButton variant="primary" icon={Sparkles}>無料で企画を立てる</KawaiiButton>
-            </Link>
-            <Link href="/projects">
-              <KawaiiButton variant="secondary" icon={Search}>企画を探す</KawaiiButton>
-            </Link>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
+            <Link href="/projects/create" className="w-full sm:w-auto"><KawaiiButton variant="primary" icon={Sparkles} className="w-full">無料で企画を立てる</KawaiiButton></Link>
+            <Link href="/projects" className="w-full sm:w-auto"><KawaiiButton variant="secondary" icon={Search} className="w-full">企画を探す</KawaiiButton></Link>
           </div>
         </Reveal>
       </div>
 
-      <div className="lg:col-span-5 relative h-[500px] lg:h-[600px] hidden md:block perspective-1000">
-        <TiltCard className="w-full h-full">
-          <motion.div 
-            initial={{ rotateY: 30, opacity: 0 }}
-            animate={{ rotateY: -10, opacity: 1 }}
-            transition={{ duration: 1.5, ease: "easeOut" }}
-            className="relative w-full h-full bg-white rounded-[40px] shadow-2xl border-[6px] border-white overflow-hidden"
-          >
-             <div className="h-2/3 bg-gradient-to-br from-indigo-500 to-purple-600 relative group overflow-hidden">
-               <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1501004318641-b39e6451bec6?q=80&w=1000&auto=format&fit=crop')] bg-cover bg-center opacity-80 mix-blend-overlay group-hover:scale-110 transition-transform duration-700" />
-               <div className="absolute bottom-6 left-6 text-white z-10">
-                 <div className="flex gap-2 mb-2">
-                   <span className="bg-pink-500 px-2 py-0.5 rounded text-[10px] font-bold shadow-lg animate-pulse">募集中</span>
-                   <span className="bg-sky-500 px-2 py-0.5 rounded text-[10px] font-bold shadow-lg">#VTuber</span>
-                 </div>
-                 <h3 className="text-2xl font-bold leading-tight drop-shadow-md">星街すいせいさんへ<br/>銀河一のフラスタを！</h3>
+      <div className="lg:col-span-5 relative hidden lg:block">
+        <TiltCard>
+          <motion.div initial={{ rotateY: 20, opacity: 0 }} animate={{ rotateY: -5, opacity: 1 }} transition={{ duration: 1.2 }} className="bg-white rounded-[40px] shadow-2xl border-4 border-white overflow-hidden">
+             <div className="h-80 bg-slate-200 relative overflow-hidden">
+               <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1501004318641-b39e6451bec6?q=80&w=1000&auto=format&fit=crop')] bg-cover bg-center" />
+               <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+               <div className="absolute bottom-6 left-6 text-white">
+                 <span className="bg-pink-500 px-2 py-0.5 rounded text-[10px] font-bold mb-2 inline-block uppercase">Now Funding</span>
+                 <h3 className="text-2xl font-bold">星街すいせいさんへ銀河一のフラスタを！</h3>
                </div>
              </div>
-             <div className="p-6 bg-white h-1/3 relative z-20">
-               <div className="flex justify-between items-end mb-2">
-                 <span className="text-3xl font-bold text-slate-800">¥125,000</span>
-                 <span className="text-pink-500 font-bold bg-pink-50 px-2 py-1 rounded">125% 達成!</span>
-               </div>
-               <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden mb-4 border border-slate-100">
-                 <motion.div 
-                   initial={{ width: 0 }}
-                   animate={{ width: "100%" }}
-                   transition={{ duration: 1.5, delay: 1 }}
-                   className="h-full bg-gradient-to-r from-pink-400 to-rose-500"
-                 />
-               </div>
-               <div className="flex justify-between text-xs text-slate-400 font-bold">
-                 <span className="flex items-center gap-1"><Users size={14}/> 48人</span>
-                 <span className="flex items-center gap-1"><Calendar size={14}/> 残り5日</span>
-               </div>
+             <div className="p-6">
+               <div className="flex justify-between items-end mb-4"><span className="text-2xl font-black text-slate-800">¥125,000</span><span className="text-pink-500 font-bold text-sm bg-pink-50 px-2 py-1 rounded">125% 達成!</span></div>
+               <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden mb-4"><motion.div initial={{ width: 0 }} animate={{ width: "100%" }} transition={{ duration: 2, delay: 0.5 }} className="h-full bg-gradient-to-r from-pink-400 to-rose-500" /></div>
+               <div className="flex justify-between text-[10px] text-slate-400 font-bold uppercase tracking-widest"><span><Users size={12} className="inline mr-1"/> 48 Supporters</span><span><Calendar size={12} className="inline mr-1"/> 5 Days Left</span></div>
              </div>
-          </motion.div>
-          <motion.div animate={{ y: [-10, 10, -10] }} transition={{ repeat: Infinity, duration: 4 }} className="absolute -top-6 -right-6 bg-white p-4 rounded-2xl shadow-xl flex items-center gap-3 z-30 border border-slate-50">
-            <div className="bg-sky-100 p-2 rounded-full text-sky-500"><Palette size={20} /></div>
-            <div>
-              <p className="text-xs text-slate-400 font-bold">Illustrator</p>
-              <p className="font-bold text-slate-700">神絵師決定！</p>
-            </div>
           </motion.div>
         </TiltCard>
       </div>
     </div>
-    
-    <motion.div animate={{ y: [0, 10, 0] }} transition={{ repeat: Infinity, duration: 1.5 }} className="absolute bottom-10 left-1/2 -translate-x-1/2 text-slate-400 flex flex-col items-center gap-2">
-      <span className="text-[10px] font-bold tracking-widest uppercase">Scroll</span>
-      <ChevronDown size={20} />
-    </motion.div>
   </section>
 );
 
 const TickerSection = () => {
   const genres = ["#地下アイドル", "#VTuber", "#歌い手", "#コンカフェ", "#声優イベント", "#2.5次元舞台", "#K-POP", "#e-Sports大会", "#生誕祭", "#周年ライブ", "#卒業公演"];
   return (
-    <div className="bg-slate-900 py-4 overflow-hidden relative border-y-4 border-pink-500 z-20 shadow-xl rotate-1 scale-105 my-10">
+    <div className="bg-slate-900 py-4 overflow-hidden relative border-y-4 border-pink-500 z-20 shadow-xl rotate-[-1deg] scale-[1.02] my-12">
       <motion.div className="flex gap-12 whitespace-nowrap" animate={{ x: [0, -1000] }} transition={{ repeat: Infinity, duration: 40, ease: "linear" }}>
         {[...Array(4)].map((_, i) => (
           <div key={i} className="flex gap-12">
@@ -299,23 +257,21 @@ const CultureSection = () => {
   ];
 
   return (
-    <section className="py-32 bg-white relative">
+    <section className="py-20 md:py-32 bg-white relative overflow-hidden">
       <div className="container mx-auto px-6">
         <SectionHeader en="Otaku Culture" ja="どんなお花を贈る？" desc="「フラスタ」と一口に言っても形は様々。会場のレギュレーション（規則）や予算に合わせて、最適な形を選ぼう。" color="pink" />
-        <div className="grid md:grid-cols-4 gap-6">
+        <div className="flex overflow-x-auto pb-8 md:grid md:grid-cols-4 gap-6 snap-x no-scrollbar -mx-6 px-6 md:mx-0 md:px-0">
           {items.map((item, i) => (
-            <Reveal key={i} delay={i * 0.1}>
-              <TiltCard className="h-full">
-                <div className="bg-slate-50 rounded-[30px] p-6 text-center border border-slate-100 h-full flex flex-col items-center group">
-                  <div className="text-6xl mb-6 transform group-hover:scale-125 transition-transform duration-300 drop-shadow-md">{item.icon}</div>
+            <div key={i} className="min-w-[280px] md:min-w-0 snap-center">
+              <TiltCard glowColor="pink">
+                <div className="bg-slate-50 rounded-[30px] p-8 text-center border border-slate-100 h-full flex flex-col items-center group">
+                  <div className="text-6xl mb-6 transform group-hover:scale-110 transition-transform duration-300">{item.icon}</div>
                   <h3 className="font-bold text-slate-800 text-lg mb-1">{item.title}</h3>
                   <p className="text-[10px] font-bold text-pink-400 uppercase tracking-widest mb-4">{item.en}</p>
-                  <p className="text-sm text-slate-600 leading-relaxed text-left bg-white p-4 rounded-xl shadow-inner flex-grow">
-                    {item.desc}
-                  </p>
+                  <p className="text-sm text-slate-500 leading-relaxed text-left flex-grow">{item.desc}</p>
                 </div>
               </TiltCard>
-            </Reveal>
+            </div>
           ))}
         </div>
       </div>
@@ -324,11 +280,11 @@ const CultureSection = () => {
 };
 
 const ProblemSection = () => (
-  <section className="py-32 bg-slate-50 relative overflow-hidden">
+  <section className="py-20 md:py-32 bg-slate-50 relative overflow-hidden">
     <FloatingShape color="bg-slate-200" top="10%" left="-10%" size={400} />
     <div className="container mx-auto px-6 relative z-10">
-      <SectionHeader en="Pain & Solution" ja="フラスタ企画の「大変」をゼロに" desc="DMでの集金、個人情報の管理、お花屋さんへのオーダー...。主催者の負担をFLASTALがすべて引き受けます。" color="blue" />
-      <div className="grid md:grid-cols-2 gap-12 max-w-5xl mx-auto items-center">
+      <SectionHeader en="Pain & Solution" ja="企画の「大変」をゼロに" desc="DMでの集金、個人情報の管理、お花屋さんへのオーダー...。主催者の負担をFLASTALがすべて引き受けます。" color="blue" />
+      <div className="grid lg:grid-cols-2 gap-8 md:gap-12 max-w-5xl mx-auto items-stretch">
         <Reveal>
           <div className="bg-white p-10 rounded-[40px] border border-slate-200 grayscale opacity-70 hover:grayscale-0 hover:opacity-100 transition-all duration-500">
             <h3 className="text-xl font-bold text-slate-600 mb-8 flex items-center gap-3">
@@ -343,8 +299,7 @@ const ProblemSection = () => (
         </Reveal>
         <Reveal delay={0.2}>
           <TiltCard glowColor="sky">
-            <div className="bg-gradient-to-br from-white to-sky-50 p-10 rounded-[40px] border-4 border-sky-100 shadow-2xl relative overflow-hidden group">
-              <div className="absolute top-0 right-0 bg-sky-500 text-white text-xs font-bold px-4 py-2 rounded-bl-2xl shadow-md">SOLUTION</div>
+            <div className="bg-gradient-to-br from-white to-sky-50 p-10 rounded-[40px] border-2 border-sky-100 shadow-xl h-full relative overflow-hidden group">
               <h3 className="text-2xl font-bold text-sky-600 mb-8 flex items-center gap-3">
                 <span className="bg-sky-100 px-3 py-1 rounded-full text-xs">FLASTALなら</span> ✨ 全部おまかせ！
               </h3>
@@ -363,62 +318,92 @@ const ProblemSection = () => (
   </section>
 );
 
-const FeaturesSection = () => (
-  <section className="py-32 bg-white relative">
-    <div className="container mx-auto px-6">
-      <SectionHeader en="Features" ja="推し活専用の最強機能" color="purple" />
-      <div className="grid grid-cols-1 md:grid-cols-3 md:grid-rows-2 gap-6 h-auto md:h-[800px]">
-        <div className="md:col-span-2 md:row-span-2">
-          <Reveal className="h-full">
-            <TiltCard className="h-full" glowColor="purple">
-              <div className="h-full bg-gradient-to-br from-slate-50 to-white border border-slate-200 rounded-[40px] p-10 flex flex-col relative overflow-hidden group hover:border-purple-200 transition-colors">
-                <div className="absolute top-0 right-0 p-10 opacity-10 group-hover:opacity-20 transition-opacity transform rotate-12"><CreditCard size={250} /></div>
-                <div className="relative z-10">
-                  <span className="bg-purple-100 text-purple-600 px-3 py-1 rounded-full text-xs font-bold mb-4 inline-block shadow-sm">CORE SYSTEM</span>
-                  <h3 className="text-3xl font-bold text-slate-800 mb-4">選べる2つの開催方式</h3>
-                  <p className="text-slate-600 mb-8 max-w-md leading-relaxed">企画の規模や確実性に合わせて、クラウドファンディングの方式を選択できます。</p>
-                  <div className="grid sm:grid-cols-2 gap-4">
-                    <div className="bg-white p-6 rounded-3xl shadow-lg border border-slate-100 hover:scale-105 transition-transform">
-                      <h4 className="font-bold text-slate-800 mb-2 flex items-center gap-2"><Zap size={18} className="text-yellow-500"/> All-in 方式</h4>
-                      <p className="text-xs text-slate-500 leading-relaxed">目標金額に届かなくても、集まった分だけで実施. 少額でも必ず贈りたい時に。</p>
-                    </div>
-                    <div className="bg-white p-6 rounded-3xl shadow-lg border border-slate-100 hover:scale-105 transition-transform">
-                      <h4 className="font-bold text-slate-800 mb-2 flex items-center gap-2"><Lock size={18} className="text-red-500"/> All-or-Nothing</h4>
-                      <p className="text-xs text-slate-500 leading-relaxed">目標達成時のみ実施。未達なら全額返金。豪華なフラスタを目指す時に。</p>
-                    </div>
+const FeaturesSection = () => {
+  const features = [
+    {
+      title: "ハイブリッド集金システム",
+      icon: <CreditCard size={28} />,
+      color: "purple",
+      desc: "All-in方式とAll-or-Nothing方式を自由に選択。クレカ、コンビニ、銀行振込など多様な決済に対応し、集金の「未払い」をゼロにします。"
+    },
+    {
+      title: "匿名・プライバシー保護",
+      icon: <Lock size={28} />,
+      color: "emerald",
+      desc: "参加者はハンドルネームで支援可能。主催者の住所や本名がお花屋さんに伝わることもなく、安全な「匿名配送」を実現しました。"
+    },
+    {
+      title: "神絵師イラスト公募",
+      icon: <Palette size={28} />,
+      color: "pink",
+      desc: "フラスタに添えるパネルのイラストをサイト内で公募・依頼可能。絵師とのマッチングから謝礼の支払いまで一括管理できます。"
+    },
+    {
+      title: "参加者限定・密談チャット",
+      icon: <MessageCircle size={28} />,
+      color: "sky",
+      desc: "支援者だけが入室できるチャットルーム。サプライズの演出相談や、お花屋さんとの進捗共有をクローズドな空間で行えます。"
+    },
+    {
+      title: "全国対応・花屋マッチング",
+      icon: <Flower size={28} />,
+      color: "amber",
+      desc: "「推し活」に特化した提携フローリストを検索。バルーン、LED、装飾品の持ち込みなど、わがままなオーダーにも柔軟に応えます。"
+    },
+    {
+      title: "自動収支・透明性レポート",
+      icon: <PiggyBank size={28} />,
+      color: "green",
+      desc: "集まった金額と使用した内訳を自動計算。領収書画像をアップロードするだけで、参加者全員にクリアな収支報告書を公開できます。"
+    }
+  ];
+
+  return (
+    <section className="py-20 md:py-32 bg-white relative">
+      <div className="container mx-auto px-6">
+        <SectionHeader 
+          en="Powerful Features" 
+          ja="推し活専用の最強機能" 
+          desc="フラスタ文化を愛するスタッフが開発。痒い所に手が届く、企画を成功させるための全ての武器がここに。"
+          color="purple" 
+        />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          {features.map((f, i) => (
+            <Reveal key={i} delay={i * 0.1}>
+              <TiltCard className="h-full" glowColor={f.color === 'emerald' || f.color === 'green' ? 'emerald' : f.color}>
+                <div className="p-10 flex flex-col h-full relative overflow-hidden group">
+                  {/* 背景の装飾用アイコン */}
+                  <div className={cn("absolute -top-6 -right-6 opacity-5 transform rotate-12 transition-transform group-hover:scale-110 group-hover:rotate-6", `text-${f.color}-500`)}>
+                    {f.icon}
+                  </div>
+                  
+                  <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center mb-8 shadow-sm transition-all group-hover:scale-110 group-hover:rotate-3", `bg-${f.color}-50 text-${f.color}-500`)}>
+                    {f.icon}
+                  </div>
+                  
+                  <h3 className="text-xl font-black text-slate-800 mb-4 group-hover:text-purple-600 transition-colors">
+                    {f.title}
+                  </h3>
+                  
+                  <p className="text-sm text-slate-500 leading-relaxed font-medium">
+                    {f.desc}
+                  </p>
+
+                  <div className="mt-8 pt-6 border-t border-slate-50 flex items-center gap-2 text-xs font-bold text-slate-400 group-hover:text-purple-400 transition-colors">
+                    LEARN MORE <ArrowRight size={14} />
                   </div>
                 </div>
-              </div>
-            </TiltCard>
-          </Reveal>
+              </TiltCard>
+            </Reveal>
+          ))}
         </div>
-        <Reveal delay={0.2} className="h-full">
-          <TiltCard className="h-full" glowColor="sky">
-            <div className="h-full bg-sky-50 rounded-[40px] p-8 relative overflow-hidden group border border-sky-100">
-              <MessageCircle className="text-sky-200 absolute -bottom-4 -right-4 w-40 h-40 group-hover:scale-110 transition-transform rotate-12" />
-              <div className="bg-white w-12 h-12 rounded-2xl flex items-center justify-center text-sky-500 mb-4 shadow-sm"><MessageCircle size={24} /></div>
-              <h3 className="text-xl font-bold text-slate-800 mb-2">参加者限定チャット</h3>
-              <p className="text-sm text-slate-600 leading-relaxed">企画参加者だけの秘密の会議室. サプライズの相談もSNSでバレずに進行可能。</p>
-            </div>
-          </TiltCard>
-        </Reveal>
-        <Reveal delay={0.3} className="h-full">
-          <TiltCard className="h-full" glowColor="pink">
-            <div className="h-full bg-pink-50 rounded-[40px] p-8 relative overflow-hidden group border border-pink-100">
-              <Flower className="text-pink-200 absolute -bottom-4 -right-4 w-40 h-40 group-hover:scale-110 transition-transform rotate-12" />
-              <div className="bg-white w-12 h-12 rounded-2xl flex items-center justify-center text-pink-500 mb-4 shadow-sm"><Flower size={24} /></div>
-              <h3 className="text-xl font-bold text-slate-800 mb-2">花屋マッチング</h3>
-              <p className="text-sm text-slate-600 leading-relaxed">オタク文化に理解のある提携フローリストを検索。「痛い」オーダーもプロが形にします。</p>
-            </div>
-          </TiltCard>
-        </Reveal>
       </div>
-    </div>
-  </section>
-);
+    </section>
+  );
+};
 
 const SafetySection = () => (
-  <section className="py-24 bg-emerald-50 border-y border-emerald-100 relative overflow-hidden">
+  <section className="py-20 bg-emerald-50 border-y border-emerald-100 relative overflow-hidden">
     <FloatingShape color="bg-emerald-200" bottom="-10%" left="10%" size={300} />
     <div className="container mx-auto px-6 relative z-10">
        <SectionHeader en="Trust & Safety" ja="お金のことだから、誠実に" color="green" desc="FLASTALは、すべてのファンが安心して利用できる環境づくりを最優先しています。" />
@@ -443,7 +428,7 @@ const SafetySection = () => (
 
 const PartnerJoinSection = () => {
   return (
-    <section className="py-24 bg-white relative">
+    <section className="py-20 bg-white relative">
       <div className="container mx-auto px-6">
         <SectionHeader en="For Professionals" ja="FLASTALで広がる可能性" desc="お花屋さん、ライブ会場、イベンターの方へ. FLASTALのエコシステムに参加しませんか？" color="purple" />
         
@@ -455,7 +440,7 @@ const PartnerJoinSection = () => {
                   <Store size={40} />
                 </div>
                 <h3 className="text-xl font-bold text-slate-800 mb-2">お花屋さん</h3>
-                <p className="text-sm text-slate-500 mb-6 flex-grow">
+                <p className="text-sm text-slate-500 mb-6 flex-grow leading-relaxed">
                   未払いリスクゼロで、確実に売上を。ファンの熱量が高い「推し花」需要を取り込みませんか？
                 </p>
                 <div className="flex flex-col gap-3">
@@ -473,12 +458,12 @@ const PartnerJoinSection = () => {
                   <MapPin size={40} />
                 </div>
                 <h3 className="text-xl font-bold text-slate-800 mb-2">会場・ホール</h3>
-                <p className="text-sm text-slate-500 mb-6 flex-grow">
+                <p className="text-sm text-slate-500 mb-6 flex-grow leading-relaxed">
                   搬入出のトラブル防止に. 公式のレギュレーションを周知し、許可されたフラスタのみを受け入れ可能。
                 </p>
                 <div className="flex flex-col gap-3">
                   <Link href="/venues/login" className="w-full py-3 rounded-xl border-2 border-sky-200 text-sky-500 font-bold hover:bg-sky-50 transition-colors text-center">ログイン</Link>
-                  <Link href="/venues/register" className="w-full py-3 rounded-xl bg-pink-500 text-white font-bold hover:bg-pink-600 shadow-md shadow-pink-200 transition-colors text-center">新規登録</Link>
+                  <Link href="/venues/register" className="w-full py-3 rounded-xl bg-sky-500 text-white font-bold hover:bg-sky-600 shadow-md shadow-sky-200 transition-colors text-center">新規登録</Link>
                 </div>
               </div>
             </TiltCard>
@@ -491,7 +476,7 @@ const PartnerJoinSection = () => {
                   <Ticket size={40} />
                 </div>
                 <h3 className="text-xl font-bold text-slate-800 mb-2">イベント主催者</h3>
-                <p className="text-sm text-slate-500 mb-6 flex-grow">
+                <p className="text-sm text-slate-500 mb-6 flex-grow leading-relaxed">
                   ファンの応援企画を公認・把握. 安全な応援文化を醸成し、イベントの盛り上がりを可視化します。
                 </p>
                 <div className="flex flex-col gap-3">
@@ -536,7 +521,7 @@ const ShowcaseSection = () => (
 );
 
 const VoiceSection = () => (
-  <section className="py-32 bg-white">
+  <section className="py-20 md:py-32 bg-white">
     <div className="container mx-auto px-6">
       <SectionHeader en="Voices" ja="みんなの感想" color="pink" />
       <div className="grid md:grid-cols-3 gap-8">
@@ -547,10 +532,10 @@ const VoiceSection = () => (
         ].map((v, i) => (
           <Reveal key={i} delay={i * 0.1}>
             <div className="bg-slate-50 p-8 rounded-[30px] relative border border-slate-100 h-full flex flex-col hover:shadow-lg transition-shadow">
-              <div className="text-6xl text-slate-200 absolute top-4 left-6 font-serif">“</div>
-              <p className="text-slate-600 text-sm leading-relaxed mb-6 pt-6 relative z-10 font-medium">{v.text}</p>
-              <div className="flex items-center gap-4 mt-auto">
-                <div className={cn("w-12 h-12 rounded-full", v.bg)} />
+              <div className="text-6xl text-slate-200 absolute top-4 left-6 font-serif opacity-30 group-hover:scale-110 transition-transform">“</div>
+              <p className="text-slate-600 text-sm leading-relaxed mb-6 pt-6 relative z-10 font-medium italic">「{v.text}」</p>
+              <div className="flex items-center gap-4 mt-auto relative z-10">
+                <div className={cn("w-12 h-12 rounded-full shadow-inner", v.bg)} />
                 <div><p className="font-bold text-sm text-slate-800">{v.name}</p><p className="text-xs text-slate-500">{v.role}</p></div>
               </div>
             </div>
@@ -569,7 +554,7 @@ const FlowDetailSection = () => {
     { title: "制作・納品", sub: "進捗共有", desc: "お花屋さんから完成写真が届きます。サイト上で参加者に報告！" }
   ];
   return (
-    <section className="py-32 bg-gradient-to-b from-white to-slate-50">
+    <section className="py-20 md:py-32 bg-gradient-to-b from-white to-slate-50">
       <div className="container mx-auto px-6">
         <SectionHeader en="Process" ja="ご利用の流れ" color="blue" />
         <div className="relative max-w-4xl mx-auto">
@@ -596,7 +581,7 @@ const FlowDetailSection = () => {
 };
 
 const FaqSection = () => (
-  <section className="py-32 bg-white">
+  <section className="py-20 md:py-32 bg-white">
     <div className="container mx-auto px-6 max-w-3xl">
       <SectionHeader en="Q&A" ja="よくある質問" color="green" />
       <div className="space-y-4">
@@ -624,15 +609,18 @@ const FaqSection = () => (
 );
 
 const NewsSection = () => (
-  <section className="py-24 bg-slate-50">
+  <section className="py-20 bg-slate-50">
     <div className="container mx-auto px-6 max-w-4xl">
-       <div className="flex justify-between items-end mb-8"><h2 className="text-2xl font-bold text-slate-800">News</h2><Link href="/news" className="text-sm text-pink-500 font-bold hover:underline">一覧を見る</Link></div>
-       <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 divide-y divide-slate-100">
+       <div className="flex justify-between items-end mb-8 px-2">
+         <h2 className="text-2xl font-black text-slate-800 tracking-tighter italic uppercase">News</h2>
+         <Link href="/news" className="text-xs text-pink-500 font-bold hover:underline tracking-widest uppercase">View All</Link>
+       </div>
+       <div className="bg-white rounded-[30px] p-6 shadow-sm border border-slate-100 divide-y divide-slate-100">
          {[{ date: "2025.12.20", cat: "Feature", title: "新機能「イラスト公募機能」をリリースしました" }, { date: "2025.12.15", cat: "Event", title: "コミックマーケット107開催に伴うお花の受付について" }, { date: "2025.12.01", cat: "Info", title: "年末年始のサポート対応について" }].map((n, i) => (
-           <div key={i} className="py-4 flex flex-col md:flex-row md:items-center gap-2 md:gap-6 hover:bg-slate-50 transition-colors cursor-pointer rounded-lg px-2 group">
-             <span className="text-slate-400 text-sm font-mono">{n.date}</span>
-             <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-xs font-bold w-fit group-hover:bg-pink-100 group-hover:text-pink-600 transition-colors">{n.cat}</span>
-             <span className="text-slate-700 font-medium group-hover:text-pink-500 transition-colors">{n.title}</span>
+           <div key={i} className="py-4 flex flex-col md:flex-row md:items-center gap-2 md:gap-6 hover:bg-slate-50 transition-colors cursor-pointer rounded-xl px-4 group">
+             <span className="text-slate-400 text-xs font-mono">{n.date}</span>
+             <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-[10px] font-bold w-fit group-hover:bg-pink-100 group-hover:text-pink-600 transition-colors">{n.cat}</span>
+             <span className="text-slate-700 font-bold text-sm group-hover:text-pink-500 transition-colors">{n.title}</span>
            </div>
          ))}
        </div>
@@ -646,30 +634,37 @@ const ContactAndCtaSection = () => (
       <SectionHeader en="Contact" ja="お問い合わせ" color="blue" />
       <Reveal>
         <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-          <a href="mailto:support@flastal.jp" className="group bg-sky-50 p-8 rounded-[30px] border border-sky-100 text-center hover:shadow-xl hover:-translate-y-1 transition-all">
-            <Mail className="mx-auto text-sky-500 mb-4 group-hover:scale-110 transition-transform" size={40} />
+          <a href="mailto:support@flastal.jp" className="group bg-sky-50 p-8 rounded-[30px] border border-sky-100 text-center hover:shadow-xl hover:-translate-y-1 transition-all h-full flex flex-col items-center">
+            <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-sky-500 mb-4 shadow-sm group-hover:scale-110 transition-transform">
+              <Mail size={32} />
+            </div>
             <h3 className="font-bold text-slate-800 text-xl mb-2">ユーザー・主催者の方</h3>
-            <p className="text-sm text-slate-500">企画の立て方や利用トラブルについて</p>
+            <p className="text-sm text-slate-500 font-medium">企画の立て方や利用トラブルについて</p>
           </a>
-          <a href="mailto:business@flastal.jp" className="group bg-pink-50 p-8 rounded-[30px] border border-pink-100 text-center hover:shadow-xl hover:-translate-y-1 transition-all">
-            <Gift className="mx-auto text-pink-500 mb-4 group-hover:scale-110 transition-transform" size={40} />
+          <a href="mailto:business@flastal.jp" className="group bg-pink-50 p-8 rounded-[30px] border border-pink-100 text-center hover:shadow-xl hover:-translate-y-1 transition-all h-full flex flex-col items-center">
+            <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-pink-500 mb-4 shadow-sm group-hover:scale-110 transition-transform">
+              <Gift size={32} />
+            </div>
             <h3 className="font-bold text-slate-800 text-xl mb-2">お花屋さん・法人の方</h3>
-            <p className="text-sm text-slate-500">加盟店登録や提携について</p>
+            <p className="text-sm text-slate-500 font-medium">加盟店登録や提携について</p>
           </a>
         </div>
       </Reveal>
     </div>
     <div className="container mx-auto px-6 text-center relative z-10">
       <Reveal>
-        <div className="bg-gradient-to-r from-pink-500 via-rose-500 to-pink-600 rounded-[60px] p-12 md:p-24 text-white shadow-2xl shadow-pink-200 relative overflow-hidden group">
-          <FloatingShape color="bg-white" top="-20%" right="-10%" size={400} />
+        <div className="bg-slate-900 rounded-[60px] p-12 md:p-24 text-white shadow-2xl relative overflow-hidden group">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(244,114,182,0.15),transparent)]" />
           <div className="relative z-10">
-            <h2 className="text-4xl md:text-6xl font-black mb-8 leading-tight drop-shadow-md">さあ、推しへの愛を<br/>形にしよう。</h2>
-            <p className="text-pink-100 text-lg mb-12 max-w-xl mx-auto font-medium">企画の作成は無料です。<br/>あなたの「やりたい」という気持ちが、誰かの勇気になります。</p>
-            <Link href="/projects/create">
-              <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="bg-white text-pink-600 px-16 py-6 rounded-full text-2xl font-bold shadow-xl hover:shadow-2xl transition-all relative overflow-hidden group">
-                <span className="relative z-10">今すぐ始める</span>
-                <div className="absolute inset-0 bg-pink-50 opacity-0 group-hover:opacity-100 transition-opacity" />
+            <h2 className="text-4xl md:text-7xl font-black mb-8 leading-tight tracking-tighter">さあ、推しへの愛を<br/>形にしよう。</h2>
+            <p className="text-slate-400 text-lg mb-12 max-w-xl mx-auto font-medium leading-relaxed">企画の作成は無料。あなたの「贈りたい」が、誰かの勇気になります。</p>
+            <Link href="/projects/create" className="inline-block">
+              <motion.button 
+                whileHover={{ scale: 1.05 }} 
+                whileTap={{ scale: 0.95 }} 
+                className="bg-pink-500 text-white px-12 md:px-20 py-5 md:py-7 rounded-full text-xl md:text-3xl font-black shadow-xl shadow-pink-500/20 hover:bg-pink-400 transition-all"
+              >
+                今すぐ企画を立てる
               </motion.button>
             </Link>
           </div>
@@ -682,28 +677,27 @@ const ContactAndCtaSection = () => (
 // --- 🏠 DASHBOARD WRAPPER ---
 function AuthenticatedHome({ user, logout }) {
   return (
-    /* 【修正】ここも pt-24 を削除し、m-0 p-0 で隙間をなくす */
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 m-0">
       <div className="max-w-md w-full bg-white rounded-[40px] shadow-2xl p-10 text-center border border-slate-100">
-        <div className="w-20 h-20 bg-indigo-100 text-indigo-500 rounded-full flex items-center justify-center mx-auto mb-6">
+        <div className="w-20 h-20 bg-indigo-50 text-indigo-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
           <ShieldCheck size={40} />
         </div>
-        <h1 className="text-2xl font-black text-slate-800 mb-2">おかえりなさい</h1>
-        <p className="text-slate-500 mb-8 font-medium">
-          {user?.handleName || 'FLASTAL 会員'} 様として認証されています。
+        <h1 className="text-2xl font-black text-slate-800 mb-2 tracking-tight italic uppercase">Welcome Back</h1>
+        <p className="text-slate-400 mb-8 font-bold text-xs uppercase tracking-widest leading-relaxed">
+          {user?.handleName || 'FLASTAL MEMBER'} Signed In
         </p>
         <div className="space-y-4">
           <Link 
             href={user?.role === 'ADMIN' ? '/admin' : '/mypage'} 
-            className="flex items-center justify-center gap-2 w-full py-4 bg-slate-800 text-white font-bold rounded-2xl hover:bg-slate-800 shadow-lg"
+            className="flex items-center justify-center gap-2 w-full py-4 bg-slate-900 text-white font-black rounded-2xl hover:bg-slate-800 transition-all shadow-lg text-sm md:text-base"
           >
-            ダッシュボードへ進む <ArrowRight size={18} />
+            DASHBOARD <ArrowRight size={18} />
           </Link>
           <button 
             onClick={logout}
-            className="text-sm font-bold text-slate-400 hover:text-red-500 transition-colors"
+            className="text-[10px] font-black text-slate-300 hover:text-red-500 transition-colors uppercase tracking-[0.2em] mt-4"
           >
-            ログアウト
+            Sign Out
           </button>
         </div>
       </div>
@@ -722,21 +716,19 @@ export default function HomePage() {
 
   if (!isMounted || loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
+      <div className="min-h-screen bg-white flex flex-col items-center justify-center p-4">
         <Loader2 className="w-10 h-10 text-pink-500 animate-spin mb-4" />
-        <p className="text-slate-400 text-sm font-bold tracking-widest uppercase">Initializing...</p>
+        <p className="text-slate-400 text-[10px] font-black tracking-widest uppercase animate-pulse">Initializing System...</p>
       </div>
     );
   }
 
-  // ログイン済みなら専用画面を、未ログインならオシャレな紹介ページを出す
   if (isAuthenticated) {
     return <AuthenticatedHome user={user} logout={logout} />;
   }
 
   return (
-    /* 【修正】 pt-16 を完全に削除。これが空白の犯人でした。 */
-    <div className="bg-white min-h-screen text-slate-800 font-sans selection:bg-pink-100 selection:text-pink-600 overflow-x-hidden m-0 p-0">
+    <div className="bg-white min-h-screen text-slate-800 font-sans selection:bg-pink-100 selection:text-pink-600 m-0 p-0 w-full relative border-none overflow-x-hidden">
       <HeroSection />
       <TickerSection />
       <CultureSection />
@@ -750,6 +742,23 @@ export default function HomePage() {
       <FaqSection />
       <NewsSection />
       <ContactAndCtaSection />
+
+      <style jsx global>{`
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .animate-shine { animation: shine 1.5s ease-in-out infinite; }
+        @keyframes shine {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(100%); }
+        }
+        .animate-bounce-slow {
+          animation: bounce 3s infinite;
+        }
+        @keyframes bounce {
+          0%, 100% { transform: translateY(-5%); animation-timing-function: cubic-bezier(0.8,0,1,1); }
+          50% { transform: translateY(0); animation-timing-function: cubic-bezier(0,0,0.2,1); }
+        }
+      `}</style>
     </div>
   );
 }
