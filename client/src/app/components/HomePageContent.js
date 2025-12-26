@@ -19,11 +19,6 @@ import {
 import { FiActivity, FiGift, FiTruck, FiCheckCircle, FiTrendingUp, FiInfo } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
-// 個別コンポーネントのインポート
-import Header from './Header';
-import LiveTicker from './LiveTicker';
-import OshiColorPicker from './OshiColorPicker'; 
-
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
 function cn(...classes) {
@@ -248,17 +243,11 @@ export default function HomePageContent() {
   }
 
   return (
-    <div className="bg-white min-h-screen text-slate-800 font-sans selection:bg-pink-100 selection:text-pink-600 m-0 p-0 w-full relative">
+    <div className="bg-white text-slate-800 font-sans selection:bg-pink-100 selection:text-pink-600 m-0 p-0 w-full relative">
       <ScrollProgress />
       <MagicCursor />
 
-      {/* HeaderとLiveTickerを sticky (固定) かつ z-index 最前面に配置。
-        CSSの .layout-header-group クラスを使用。
-      */}
-      <div className="layout-header-group sticky top-0 z-[10000] bg-white">
-        <Header />
-        <LiveTicker />
-      </div>
+      {/* HeaderとLiveTickerはlayout.js側で読み込むため削除 */}
 
       {isAuthenticated ? (
         <AuthenticatedHome user={user} logout={logout} />

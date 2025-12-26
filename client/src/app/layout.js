@@ -8,6 +8,10 @@ import ThemeController from './components/ThemeController';
 import FloatingMenu from './components/FloatingMenu';
 import { Suspense } from 'react';
 
+// コンポーネントをインポート
+import Header from './components/Header';
+import LiveTicker from './components/LiveTicker';
+
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 const notoSansJP = Noto_Sans_JP({
   subsets: ['latin'],
@@ -26,16 +30,22 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="ja" className={`${inter.variable} ${notoSansJP.variable}`}>
-      <body className="font-sans antialiased text-slate-900 bg-white min-h-screen flex flex-col m-0 p-0">
+      <body className="font-sans antialiased text-slate-900 bg-white min-h-screen flex flex-col m-0 p-0 overflow-x-hidden">
         <ThemeController />
         <AuthProvider>
+          {/* HeaderとTickerをlayout側で管理。stickyコンテナで確実に表示 */}
+          <div className="layout-header-group sticky top-0 z-[9999] w-full bg-white">
+            <Header />
+            <LiveTicker />
+          </div>
+          
           <Suspense fallback={null}>
-            {/* HeaderとLiveTickerはHomePage.js側で管理するため、ここからは削除 */}
             <main className="flex-grow w-full relative">
               {children}
             </main>
             <FloatingMenu />
           </Suspense>
+          
           <Footer />
           <Toaster position="top-center" /> 
           <PushNotificationManager />
