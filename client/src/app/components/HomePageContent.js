@@ -165,7 +165,8 @@ const KawaiiButton = ({ children, variant = "primary", icon: Icon, className, on
 // --- 🚀 HERO & SECTIONS ---
 
 const HeroSection = () => (
-  <section className="relative w-full min-h-[85vh] md:min-h-[90vh] flex items-center justify-center overflow-hidden bg-white border-none m-0 mt-[-2px] p-0 z-10">
+  /* 【修正】mt-[-2px] を設定。LiveTickerとの境界を物理的に重ねて隙間を消します */
+  <section className="relative w-full min-h-[85vh] md:min-h-[90vh] flex items-center justify-center overflow-hidden bg-white border-none m-0 mt-[-2px] p-0 z-10 isolate">
     <div className="absolute inset-0 bg-[radial-gradient(#e0f2fe_1px,transparent_1px)] [background-size:24px_24px] opacity-40 pointer-events-none" />
     <FloatingShape color="bg-pink-200" top="-5%" left="-5%" size={500} />
     <FloatingShape color="bg-sky-200" bottom="-5%" right="-5%" size={500} delay={2} />
@@ -243,7 +244,7 @@ export default function HomePageContent() {
   }
 
   return (
-    /* 修正ポイント：pt-16 を削除。m-0 p-0 を徹底 */
+    /* 【重要】pt-16 を削除。m-0 p-0 で隙間をなくし、bg-white で季節背景を覆い隠します */
     <div className="bg-white min-h-screen text-slate-800 font-sans selection:bg-pink-100 selection:text-pink-600 m-0 p-0 w-full relative border-none overflow-x-hidden">
       <ScrollProgress />
       <MagicCursor />
@@ -251,7 +252,7 @@ export default function HomePageContent() {
       {isAuthenticated ? (
         <AuthenticatedHome user={user} logout={logout} />
       ) : (
-        <main className="flex flex-col m-0 p-0 w-full relative border-none">
+        <main className="flex flex-col m-0 p-0 w-full relative border-none bg-white">
           <HeroSection />
 
           {/* --- TICKER GENRES --- */}
