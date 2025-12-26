@@ -1,13 +1,10 @@
 'use client';
 
-export const dynamic = 'force-dynamic';
-export const fetchCache = 'force-no-store';
-
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { useAuth } from './contexts/AuthContext';
+import { useAuth } from '../contexts/AuthContext';
 import { 
   motion, useScroll, useSpring, useMotionValue, useTransform, AnimatePresence 
 } from 'framer-motion';
@@ -23,9 +20,9 @@ import { FiActivity, FiGift, FiTruck, FiCheckCircle, FiTrendingUp, FiInfo } from
 import toast from 'react-hot-toast';
 
 // 個別コンポーネントのインポート
-import Header from './components/Header';
-import LiveTicker from './components/LiveTicker';
-import OshiColorPicker from './components/OshiColorPicker'; 
+import Header from './Header';
+import LiveTicker from './LiveTicker';
+import OshiColorPicker from './OshiColorPicker'; 
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -39,7 +36,7 @@ const ScrollProgress = () => {
   const { scrollYProgress } = useScroll();
   const scaleX = useSpring(scrollYProgress, { stiffness: 100, damping: 30, restDelta: 0.001 });
   return (
-    <motion.div className="fixed top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-pink-400 via-purple-400 to-sky-400 origin-left z-[10000] shadow-[0_0_20px_rgba(244,114,182,0.6)]" style={{ scaleX }} />
+    <motion.div className="fixed top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-pink-400 via-purple-400 to-sky-400 origin-left z-[100000] shadow-[0_0_20px_rgba(244,114,182,0.6)]" style={{ scaleX }} />
   );
 };
 
@@ -217,7 +214,7 @@ const HeroSection = () => (
                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
                <div className="absolute bottom-6 left-6 text-white">
                  <span className="bg-pink-500 px-2 py-0.5 rounded text-[10px] font-bold mb-2 inline-block uppercase">Now Funding</span>
-                 <h3 className="text-2xl font-bold">星街すいせいさんへ銀河一のフラスタを！</h3>
+                 <h3 className="text-2xl font-bold">銀河一のフラスタを！</h3>
                </div>
              </div>
              <div className="p-6">
@@ -232,8 +229,8 @@ const HeroSection = () => (
   </section>
 );
 
-// --- 🏠 MAIN EXPORT PAGE ---
-export default function HomePage() {
+// --- 🏠 MAIN EXPORT COMPONENT ---
+export default function HomePageContent() {
   const { user, loading, isAuthenticated, logout } = useAuth();
   const [isMounted, setIsMounted] = useState(false);
 
@@ -255,9 +252,13 @@ export default function HomePage() {
       <ScrollProgress />
       <MagicCursor />
 
-      {/* 個別コンポーネントを配置 */}
-      <Header />
-      <LiveTicker />
+      {/* HeaderとLiveTickerを sticky (固定) かつ z-index 最前面に配置。
+        CSSの .layout-header-group クラスを使用。
+      */}
+      <div className="layout-header-group sticky top-0 z-[10000] bg-white">
+        <Header />
+        <LiveTicker />
+      </div>
 
       {isAuthenticated ? (
         <AuthenticatedHome user={user} logout={logout} />
@@ -348,7 +349,7 @@ export default function HomePage() {
                         <div className="bg-slate-50 rounded-[30px] p-8 border border-slate-100 h-full flex flex-col">
                         <div className="bg-white w-12 h-12 rounded-2xl flex items-center justify-center text-purple-500 mb-6 shadow-sm">{f.icon}</div>
                         <h3 className="text-xl font-bold text-slate-800 mb-3">{f.title}</h3>
-                        <p className="text-sm text-slate-500 leading-relaxed flex-grow">{f.desc}</p>
+                        <p className="text-sm text-slate-500 leading-relaxed text-left flex-grow">{f.desc}</p>
                         </div>
                     </TiltCard>
                     </div>
