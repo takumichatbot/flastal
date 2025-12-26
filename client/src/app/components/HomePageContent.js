@@ -94,9 +94,9 @@ const TiltCard = ({ children, className, glowColor = "pink" }) => {
       style={{ rotateX, rotateY, perspective: 1000 }}
       onMouseMove={handleMouseMove}
       onMouseLeave={() => { x.set(0); y.set(0); }}
-      className={cn("relative transition-all duration-300 ease-out group hover:z-10", className)}
+      className={cn("relative transition-all duration-300 ease-out group hover:z-10 h-full", className)}
     >
-      <div className={cn("transition-shadow duration-300 hover:shadow-2xl h-full rounded-3xl", glows[glowColor])}>
+      <div className={cn("transition-shadow duration-300 hover:shadow-2xl h-full rounded-[30px]", glows[glowColor])}>
         {children}
       </div>
     </motion.div>
@@ -160,15 +160,14 @@ const KawaiiButton = ({ children, variant = "primary", icon: Icon, className, on
 // --- 🚀 SECTIONS ---
 
 const HeroSection = () => (
-  /* ネガティブマージンを排除し、標準的なブロックとして配置 */
-  <section className="relative w-full min-h-[85vh] md:min-h-[95vh] flex items-center justify-center overflow-hidden bg-slate-50 m-0 p-0 border-none">
+  <section className="relative w-full min-h-[85vh] md:min-h-[95vh] flex items-center justify-center overflow-hidden bg-slate-50 border-none m-0">
     <ScrollProgress />
     <MagicCursor />
     <div className="absolute inset-0 bg-[radial-gradient(#e0f2fe_1px,transparent_1px)] [background-size:24px_24px] opacity-40 pointer-events-none" />
     <FloatingShape color="bg-pink-200" top="-5%" left="-5%" size={500} />
     <FloatingShape color="bg-sky-200" bottom="-5%" right="-5%" size={500} delay={2} />
 
-    <div className="container relative z-10 px-6 pt-16 md:pt-24 pb-10 grid lg:grid-cols-12 gap-10 items-center mx-auto">
+    <div className="container relative z-10 px-6 pt-20 md:pt-32 pb-10 grid lg:grid-cols-12 gap-10 items-center mx-auto">
       <div className="lg:col-span-7 text-center lg:text-left">
         <Reveal>
           <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white rounded-full shadow-md border border-pink-50 mb-6 mx-auto lg:mx-0">
@@ -194,8 +193,8 @@ const HeroSection = () => (
         </Reveal>
         <Reveal delay={0.3}>
           <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
-            <Link href="/projects/create"><KawaiiButton variant="primary" icon={Sparkles} className="w-full sm:w-auto">企画を立てる</KawaiiButton></Link>
-            <Link href="/projects"><KawaiiButton variant="secondary" icon={Search} className="w-full sm:w-auto">企画を探す</KawaiiButton></Link>
+            <Link href="/projects/create" className="w-full sm:w-auto"><KawaiiButton variant="primary" icon={Sparkles} className="w-full">企画を立てる</KawaiiButton></Link>
+            <Link href="/projects" className="w-full sm:w-auto"><KawaiiButton variant="secondary" icon={Search} className="w-full">企画を探す</KawaiiButton></Link>
           </div>
         </Reveal>
       </div>
@@ -226,10 +225,10 @@ const HeroSection = () => (
 const TickerSection = () => {
   const genres = ["#地下アイドル", "#VTuber", "#歌い手", "#コンカフェ", "#生誕祭", "#周年ライブ", "#e-Sports", "#K-POP", "#2.5次元"];
   return (
-    <div className="bg-slate-900 py-3 md:py-4 overflow-hidden relative border-y-2 border-pink-500 z-20 shadow-xl rotate-[-1deg] scale-[1.02] my-8">
-      <motion.div className="flex gap-8 md:gap-12 whitespace-nowrap" animate={{ x: [0, -1000] }} transition={{ repeat: Infinity, duration: 30, ease: "linear" }}>
+    <div className="bg-slate-900 py-4 overflow-hidden relative border-y-2 border-pink-500 z-20 shadow-xl rotate-[-1deg] scale-[1.02] my-12">
+      <motion.div className="flex gap-8 whitespace-nowrap" animate={{ x: [0, -1000] }} transition={{ repeat: Infinity, duration: 30, ease: "linear" }}>
         {[...Array(4)].map((_, i) => (
-          <div key={i} className="flex gap-8 md:gap-12">
+          <div key={i} className="flex gap-12 items-center">
             {genres.map((g, j) => (
               <span key={j} className="text-sm md:text-lg font-bold text-slate-300 flex items-center gap-2">
                 <Star size={14} className="text-yellow-400 fill-current" /> {g}
@@ -256,8 +255,8 @@ const CultureSection = () => {
         <SectionHeader en="Otaku Culture" ja="どんなお花を贈る？" color="pink" />
         <div className="flex overflow-x-auto pb-8 md:grid md:grid-cols-4 gap-6 snap-x no-scrollbar -mx-6 px-6 md:mx-0 md:px-0">
           {items.map((item, i) => (
-            <div key={i} className="min-w-[280px] md:min-w-0 snap-center h-full">
-              <TiltCard className="h-full">
+            <div key={i} className="min-w-[280px] md:min-w-0 snap-center">
+              <TiltCard glowColor="pink">
                 <div className="bg-slate-50 rounded-[30px] p-8 text-center border border-slate-100 h-full flex flex-col items-center group">
                   <div className="text-6xl mb-6 transform group-hover:scale-110 transition-transform duration-300">{item.icon}</div>
                   <h3 className="font-bold text-slate-800 text-lg mb-1">{item.title}</h3>
@@ -278,11 +277,11 @@ const ProblemSection = () => (
     <div className="container mx-auto px-6 relative z-10">
       <SectionHeader en="Pain & Solution" ja="企画の「大変」をゼロに" color="blue" />
       <div className="grid lg:grid-cols-2 gap-8 md:gap-12 max-w-5xl mx-auto items-stretch">
-        <div className="bg-white p-8 md:p-10 rounded-[30px] border border-slate-200 opacity-80">
+        <div className="bg-white p-8 md:p-10 rounded-[30px] border border-slate-200 opacity-80 h-full">
           <h3 className="text-lg font-bold text-slate-400 mb-6 flex items-center gap-2">従来のやり方 😰</h3>
           <ul className="space-y-4 md:space-y-6">
             {["DMでの集金・口座管理の手間", "未入金の催促が気まずい", "本名や住所がバレるリスク"].map((t, i) => (
-              <li key={i} className="flex gap-3 text-slate-400 text-sm md:text-base items-center"><div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center shrink-0 text-xs">×</div>{t}</li>
+              <li key={i} className="flex gap-3 text-slate-400 text-sm md:text-base items-center"><div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center shrink-0 text-xs font-bold">×</div>{t}</li>
             ))}
           </ul>
         </div>
@@ -315,11 +314,11 @@ const FeaturesSection = () => {
         <div className="flex overflow-x-auto pb-8 md:grid md:grid-cols-3 gap-6 snap-x no-scrollbar -mx-6 px-6 md:mx-0 md:px-0">
           {feats.map((f, i) => (
             <div key={i} className="min-w-[280px] md:min-w-0 snap-center">
-              <TiltCard className="h-full" glowColor="purple">
-                <div className="bg-slate-50 rounded-[30px] p-8 border border-slate-100 h-full">
+              <TiltCard glowColor="purple">
+                <div className="bg-slate-50 rounded-[30px] p-8 border border-slate-100 h-full flex flex-col">
                   <div className="bg-white w-12 h-12 rounded-2xl flex items-center justify-center text-purple-500 mb-6 shadow-sm">{f.icon}</div>
                   <h3 className="text-xl font-bold text-slate-800 mb-3">{f.title}</h3>
-                  <p className="text-sm text-slate-500 leading-relaxed">{f.desc}</p>
+                  <p className="text-sm text-slate-500 leading-relaxed flex-grow">{f.desc}</p>
                 </div>
               </TiltCard>
             </div>
@@ -366,9 +365,9 @@ const PartnerJoinSection = () => {
         <div className="flex overflow-x-auto pb-8 md:grid md:grid-cols-3 gap-6 snap-x no-scrollbar -mx-6 px-6 md:mx-0 md:px-0">
           {partners.map((p, i) => (
             <div key={i} className="min-w-[280px] md:min-w-0 snap-center">
-              <TiltCard className="h-full" glowColor={p.color}>
+              <TiltCard glowColor={p.color}>
                 <div className={cn("p-8 rounded-[30px] border shadow-lg text-center h-full flex flex-col bg-white border-slate-100")}>
-                  <div className={cn("w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6 shadow-md text-slate-500")}>{p.icon}</div>
+                  <div className={cn("w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6 shadow-md text-slate-600")}>{p.icon}</div>
                   <h3 className="text-lg font-bold text-slate-800 mb-2">{p.title}</h3>
                   <p className="text-xs text-slate-400 mb-6 flex-grow leading-relaxed">{p.desc}</p>
                   <div className="flex flex-col gap-2">
@@ -389,9 +388,9 @@ const ShowcaseSection = () => (
   <section className="py-20 bg-slate-900 text-white overflow-hidden relative">
     <div className="container mx-auto px-6 mb-10 text-center">
       <h2 className="text-2xl md:text-4xl font-bold mb-2 uppercase tracking-tighter italic">Success Stories</h2>
-      <p className="text-slate-500 text-xs font-bold">想いが形になった瞬間</p>
+      <p className="text-slate-500 text-xs font-bold uppercase tracking-widest">想いが形になった瞬間</p>
     </div>
-    <div className="flex gap-6 overflow-x-auto px-6 pb-10 snap-x no-scrollbar">
+    <div className="flex gap-6 overflow-x-auto px-6 pb-10 snap-x no-scrollbar max-w-7xl mx-auto">
       {[1,2,3].map((i) => (
         <motion.div key={i} whileHover={{ y: -5 }} className="snap-center shrink-0 w-[280px] md:w-[350px] bg-slate-800 rounded-[30px] overflow-hidden border border-slate-700">
            <div className="h-48 bg-slate-700 relative overflow-hidden">
@@ -418,7 +417,7 @@ const VoiceSection = () => (
           { text: "少額からでも支援できて、名前をパネルに載せてもらえて嬉しかったです。", name: "T.Kさん", bg: "bg-sky-100" },
           { text: "イラストのデータを共有する機能が便利でした。印刷も綺麗！", name: "M.Mさん", bg: "bg-purple-100" }
         ].map((v, i) => (
-          <div key={i} className="bg-slate-50 p-8 rounded-[30px] relative border border-slate-100 hover:shadow-md transition-all">
+          <div key={i} className="bg-slate-50 p-8 rounded-[30px] relative border border-slate-100 hover:shadow-md transition-all flex flex-col h-full">
             <p className="text-slate-600 text-sm leading-relaxed mb-6 font-medium italic">&quot;{v.text}&quot;</p>
             <div className="flex items-center gap-3 mt-auto">
               <div className={cn("w-10 h-10 rounded-full shadow-inner", v.bg)} />
@@ -457,11 +456,14 @@ const FaqSection = () => (
 const NewsSection = () => (
   <section className="py-20 bg-slate-50">
     <div className="container mx-auto px-6 max-w-4xl">
-       <div className="flex justify-between items-end mb-8 px-2"><h2 className="text-xl md:text-2xl font-black text-slate-800 uppercase italic">News</h2><Link href="/news" className="text-xs text-pink-500 font-bold hover:underline tracking-widest uppercase">View All</Link></div>
+       <div className="flex justify-between items-end mb-8 px-2">
+         <h2 className="text-xl md:text-2xl font-black text-slate-800 uppercase italic">News</h2>
+         <Link href="/news" className="text-xs text-pink-500 font-bold hover:underline tracking-widest uppercase">View All</Link>
+       </div>
        <div className="bg-white rounded-[30px] p-4 md:p-6 shadow-sm border border-slate-100 divide-y divide-slate-100">
          {[{ date: "2025.12.20", title: "「イラスト公募機能」をリリースしました" }, { date: "2025.12.15", title: "コミケ107開催に伴うお花の受付について" }].map((n, i) => (
            <div key={i} className="py-4 flex items-center gap-4 md:gap-8 hover:bg-slate-50 transition-colors cursor-pointer rounded-xl px-4 group">
-             <span className="text-slate-300 text-[10px] md:text-xs font-mono font-bold">{n.date}</span>
+             <span className="text-slate-300 text-[10px] md:text-xs font-mono font-bold shrink-0">{n.date}</span>
              <span className="text-slate-600 font-bold text-xs md:text-sm line-clamp-1 group-hover:text-pink-500 transition-colors">{n.title}</span>
            </div>
          ))}
@@ -479,7 +481,7 @@ const ContactAndCtaSection = () => (
           <div className="relative z-10">
             <h2 className="text-3xl md:text-6xl font-black mb-6 md:mb-8 leading-tight tracking-tighter">さあ、推しへの愛を<br/>形にしよう。</h2>
             <p className="text-slate-400 text-sm md:text-lg mb-8 md:mb-12 max-w-xl mx-auto font-medium">作成は無料。あなたの&quot;贈りたい&quot;が、誰かの勇気になります。</p>
-            <Link href="/projects/create">
+            <Link href="/projects/create" className="inline-block">
               <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="bg-pink-500 text-white px-10 md:px-16 py-4 md:py-6 rounded-full text-lg md:text-2xl font-black shadow-xl shadow-pink-500/20 hover:bg-pink-400 transition-all">
                 今すぐ企画を立てる
               </motion.button>
@@ -494,7 +496,7 @@ const ContactAndCtaSection = () => (
 // --- 🏠 DASHBOARD WRAPPER ---
 function AuthenticatedHome({ user, logout }) {
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 w-full">
       <div className="max-w-md w-full bg-white rounded-[40px] shadow-2xl p-10 text-center border border-slate-100">
         <div className="w-20 h-20 bg-indigo-50 text-indigo-500 rounded-full flex items-center justify-center mx-auto mb-6">
           <ShieldCheck size={40} />
@@ -505,7 +507,7 @@ function AuthenticatedHome({ user, logout }) {
         </p>
         <div className="space-y-4">
           <Link href={user?.role === 'ADMIN' ? '/admin' : '/mypage'} className="flex items-center justify-center gap-2 w-full py-4 bg-slate-900 text-white font-black rounded-2xl hover:bg-slate-800 transition-all shadow-lg text-sm md:text-base text-center">
-            DASHBOARD <ArrowRight size={18} className="inline ml-2" />
+            DASHBOARD <ArrowRight size={18} />
           </Link>
           <button onClick={logout} className="text-[10px] font-black text-slate-300 hover:text-red-500 transition-colors uppercase tracking-[0.2em] block mx-auto">Sign Out</button>
         </div>
@@ -525,7 +527,7 @@ export default function HomePage() {
 
   if (!isMounted || loading) {
     return (
-      <div className="min-h-screen bg-white flex flex-col items-center justify-center p-4">
+      <div className="min-h-screen bg-white flex flex-col items-center justify-center p-4 w-full">
         <Loader2 className="w-10 h-10 text-pink-500 animate-spin mb-4" />
         <p className="text-slate-400 text-[10px] font-black tracking-widest uppercase animate-pulse">Initializing System...</p>
       </div>
@@ -537,7 +539,7 @@ export default function HomePage() {
   }
 
   return (
-    <div className="bg-white min-h-screen text-slate-800 font-sans selection:bg-pink-100 selection:text-pink-600 m-0 p-0 overflow-x-hidden">
+    <div className="bg-white min-h-screen text-slate-800 font-sans selection:bg-pink-100 selection:text-pink-600 m-0 p-0 overflow-x-hidden w-full">
       <HeroSection />
       <TickerSection />
       <CultureSection />

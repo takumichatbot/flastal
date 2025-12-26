@@ -1,12 +1,5 @@
 @import "tailwindcss";
 
-/* 標準的なリセット */
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
 :root {
   --background: #ffffff;
   --foreground: #171717;
@@ -15,10 +8,27 @@
   --primary: 204 89% 53%;
 }
 
+/* ブラウザのデフォルトリセット（必要最低限） */
 html, body {
+  margin: 0;
+  padding: 0;
   width: 100%;
   min-height: 100vh;
   overflow-x: hidden;
+  background-color: #ffffff;
+}
+
+/* ★ 隙間対策：Header, Ticker, Main の間の「改行による隙間」を消す */
+.layout-header-group {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+/* 子要素間のマージン干渉をリセット */
+header, .live-ticker-container, main {
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
 }
 
 body {
@@ -36,4 +46,13 @@ body {
 @layer utilities {
   .no-scrollbar::-webkit-scrollbar { display: none; }
   .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  
+  /* ボタンやカードのアニメーション */
+  .animate-shine {
+    animation: shine 1.5s ease-in-out infinite;
+  }
+  @keyframes shine {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
 }

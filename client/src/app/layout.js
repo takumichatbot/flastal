@@ -28,20 +28,17 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="ja" className={`${inter.variable} ${notoSansJP.variable}`}>
-      <body className="font-sans antialiased text-slate-900 bg-white min-h-screen flex flex-col m-0 p-0">
+      <body className="font-sans antialiased text-slate-900 bg-white min-h-screen flex flex-col">
         <ThemeController />
         <AuthProvider>
           <Suspense fallback={null}>
-            {/* 【隙間対策の決定打】
-              HeaderとTickerをラップし、Tickerの下地の色(bg-slate-900)を背景に敷きます。
-              これで、ブラウザの計算で1pxの隙間が出ても「黒い線」となり、違和感が消えます。
-            */}
-            <div className="sticky top-0 z-[100] bg-slate-900">
+            {/* ヘッダーグループを一体化して背景色で隙間を埋める */}
+            <div className="layout-header-group sticky top-0 z-[100] bg-slate-900">
               <Header />
               <LiveTicker />
             </div>
 
-            <main className="flex-grow w-full relative z-10">
+            <main className="flex-grow w-full relative">
               {children}
             </main>
             
