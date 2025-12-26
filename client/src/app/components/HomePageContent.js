@@ -37,7 +37,7 @@ const getAuthToken = () => {
     return rawToken ? rawToken.replace(/^"|"$/g, '') : null;
 };
 
-// --- 🔔 Notification Dropdown (Internal) ---
+// --- 🔔 Notification Dropdown ---
 function NotificationDropdown({ notifications, fetchNotifications, unreadCount }) {
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef(null);
