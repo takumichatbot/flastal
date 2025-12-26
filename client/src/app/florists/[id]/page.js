@@ -8,16 +8,13 @@ import toast from 'react-hot-toast';
 import { useAuth } from '@/app/contexts/AuthContext';
 import { 
     FiMapPin, FiCamera, FiAward, FiClock, FiCheckCircle, 
-    FiUser, FiHeart, FiStar, FiX, FiShield, FiZap,
-    // ★修正箇所：不足していたアイコンを追加
-    FiAlertCircle
+    FiUser, FiHeart, FiStar, FiX, FiShield, FiZap, FiAlertCircle
 } from 'react-icons/fi'; 
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
 // --- サブコンポーネント ---
 
-// プロフィール項目表示用
 const ProfileItem = ({ icon, label, value, colorClass = "text-pink-500 bg-pink-50" }) => (
     <div className="flex items-start">
         <div className={`${colorClass} p-2 rounded-full mr-4 mt-1 shrink-0`}>
@@ -30,7 +27,6 @@ const ProfileItem = ({ icon, label, value, colorClass = "text-pink-500 bg-pink-5
     </div>
 );
 
-// オファー申請モーダル
 function OfferModal({ floristId, floristName, onClose }) {
     const router = useRouter();
     
@@ -91,14 +87,10 @@ export default function FloristDetailPage() {
     setLoading(true);
     try {
       const floristRes = await fetch(`${API_URL}/api/florists/${id}`);
-      if (!floristRes.ok) {
-          if (floristRes.status === 404) throw new Error('お花屋さんが見つかりませんでした。');
-          throw new Error('情報の取得に失敗しました。');
-      }
+      if (!floristRes.ok) throw new Error('お花屋さんの取得に失敗しました');
       
       const floristData = await floristRes.json();
       
-      // 所在地から都道府県のみを抽出
       if (floristData && floristData.address) {
           const prefMatch = floristData.address.match(/^(?:東京都|道庁所在地|.{2,3}府|.{2,3}県)/);
           floristData.displayPrefecture = prefMatch ? prefMatch[0] : floristData.address;
@@ -119,7 +111,7 @@ export default function FloristDetailPage() {
   }, [fetchFlorist]);
 
   const handleLikeToggle = async (post) => {
-    if (!token) {
+    if (!token || !user) {
         toast.error("ログインが必要です。");
         return;
     }
@@ -130,28 +122,26 @@ export default function FloristDetailPage() {
         });
 
         if (res.status === 401) {
-            toast.error("セッションが切れました。再ログインしてください。");
+            toast.error("セッションが切れました。再度ログインしてください。");
             logout();
-            router.push('/login');
             return;
         }
 
         if (!res.ok) throw new Error('失敗');
         const data = await res.json();
-        
         setAppealPosts(prev => prev.map(p => {
             if (p.id === post.id) {
                 const isLiked = data.liked;
-                const newCount = isLiked ? (p._count?.likes || 0) + 1 : (p._count?.likes || 1) - 1;
+                const newCount = isLiked ? (p._count?.likes || 0) + 1 : Math.max(0, (p._count?.likes || 0) - 1);
                 const newLikes = isLiked 
-                    ? [...(p.likes || []), { userId: user?.id }] 
-                    : (p.likes || []).filter(l => l.userId !== user?.id);
-                return { ...p, _count: { ...p._count, likes: Math.max(0, newCount) }, likes: newLikes };
+                    ? [...(p.likes || []), { userId: user.id }] 
+                    : (p.likes || []).filter(l => l.userId !== user.id);
+                return { ...p, _count: { ...p._count, likes: newCount }, likes: newLikes };
             }
             return p;
         }));
     } catch (error) {
-        toast.error('いいねの更新に失敗しました');
+        toast.error('エラーが発生しました');
     }
   };
 
@@ -192,6 +182,7 @@ export default function FloristDetailPage() {
 
   const reviews = florist.reviews || [];
   const averageRating = reviews.length > 0 ? reviews.reduce((s, r) => s + (Number(r.rating) || 0), 0) / reviews.length : 0;
+  // 安全なアクセス：user?.id を使用
   const isMyProfile = user && user.role === 'FLORIST' && user.id === florist.id; 
 
   return (
@@ -201,7 +192,6 @@ export default function FloristDetailPage() {
           
           <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-pink-400 via-purple-400 to-sky-400"></div>
 
-          {/* 1. ヘッダーセクション */}
           <header className="mb-12 flex flex-col md:flex-row items-center md:items-end gap-8 text-center md:text-left">
               <div className="relative w-40 h-40 shrink-0 rounded-[2rem] overflow-hidden border-4 border-white shadow-2xl bg-white md:rotate-3">
                   {florist.iconUrl ? (
@@ -249,7 +239,6 @@ export default function FloristDetailPage() {
               </div>
           </header>
 
-          {/* 2. タブナビゲーション */}
           <div className="border-b border-gray-100 mb-10">
               <nav className="flex space-x-10 overflow-x-auto no-scrollbar pb-1">
                   {[
@@ -272,9 +261,7 @@ export default function FloristDetailPage() {
               </nav>
           </div>
 
-          {/* 3. タブコンテンツ */}
           <div className="min-h-[500px]">
-              
               {activeTab === 'profile' && (
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-12 animate-fadeIn">
                       <div className="lg:col-span-2 space-y-8">
@@ -301,21 +288,18 @@ export default function FloristDetailPage() {
                                 value={florist.displayPrefecture || '全国対応'} 
                                 colorClass="text-sky-500 bg-sky-50"
                             />
-                            
                             <ProfileItem 
                                 icon={<FiClock />} 
                                 label="オーダー受付時間" 
                                 value={florist.businessHours} 
                                 colorClass="text-purple-500 bg-purple-50"
                             />
-                            
                             <ProfileItem 
                                 icon={<FiZap />} 
                                 label="特急注文 (1週間以内)" 
                                 value={florist.acceptsRushOrders ? '対応可能' : '要相談'} 
                                 colorClass="text-amber-500 bg-amber-50"
                             />
-                            
                             <ProfileItem 
                                 icon={<FiAward />} 
                                 label="得意な装飾・スキル" 
@@ -366,7 +350,7 @@ export default function FloristDetailPage() {
                                   return (
                                       <div key={post.id} className="group relative aspect-square bg-gray-100 rounded-[2rem] overflow-hidden shadow-sm hover:shadow-2xl transition-all duration-500">
                                           {post.imageUrl && (
-                                              <Image src={post.imageUrl} alt="作品" fill sizes="33vw" style={{objectFit: 'cover'}} className="transition-transform duration-700 group-hover:scale-110" />
+                                              <Image src={post.imageUrl} alt="作品" fill sizes="(max-width: 768px) 33vw, 50vw" style={{objectFit: 'cover'}} className="transition-transform duration-700 group-hover:scale-110" />
                                           )}
                                           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-6">
                                               <p className="text-white text-xs font-bold leading-relaxed line-clamp-3">{post.content}</p>
@@ -426,7 +410,6 @@ export default function FloristDetailPage() {
               )}
           </div>
 
-          {/* モバイル用アクションボタン */}
           <div className="md:hidden sticky bottom-4 z-30 mt-12">
             {(!user || user.role === 'USER') && !isMyProfile ? ( 
               <button
