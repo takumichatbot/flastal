@@ -37,7 +37,7 @@ const getAuthToken = () => {
     return rawToken ? rawToken.replace(/^"|"$/g, '') : null;
 };
 
-// --- 🔔 Notification Dropdown ---
+// --- 🔔 Notification Dropdown (Internal) ---
 function NotificationDropdown({ notifications, fetchNotifications, unreadCount }) {
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef(null);
@@ -124,7 +124,7 @@ function NotificationDropdown({ notifications, fetchNotifications, unreadCount }
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 10, scale: 0.95 }}
               transition={{ duration: 0.2 }}
-              className="absolute right-0 mt-4 w-80 bg-white/95 backdrop-blur-xl border border-white/50 rounded-3xl shadow-2xl shadow-purple-100/50 z-[9999] overflow-hidden ring-1 ring-slate-100"
+              className="absolute right-0 mt-4 w-80 bg-white/95 backdrop-blur-xl border border-white/50 rounded-3xl shadow-2xl shadow-purple-100/50 z-[99999] overflow-hidden ring-1 ring-slate-100"
             >
               <div className="flex justify-between items-center px-5 py-4 border-b border-slate-100/50 bg-slate-50/50">
                 <h3 className="font-bold text-sm text-slate-700 flex items-center gap-2">通知</h3>
@@ -157,7 +157,7 @@ const ScrollProgress = () => {
   const { scrollYProgress } = useScroll();
   const scaleX = useSpring(scrollYProgress, { stiffness: 100, damping: 30, restDelta: 0.001 });
   return (
-    <motion.div className="fixed top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-pink-400 via-purple-400 to-sky-400 origin-left z-[10000] shadow-[0_0_20px_rgba(244,114,182,0.6)]" style={{ scaleX }} />
+    <motion.div className="fixed top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-pink-400 via-purple-400 to-sky-400 origin-left z-[100000] shadow-[0_0_20px_rgba(244,114,182,0.6)]" style={{ scaleX }} />
   );
 };
 
@@ -291,7 +291,8 @@ const KawaiiButton = ({ children, variant = "primary", icon: Icon, className, on
 // --- 🚀 HERO & SECTIONS ---
 
 const HeroSection = () => (
-  <section className="relative w-full min-h-[85vh] md:min-h-[95vh] flex items-center justify-center overflow-hidden bg-white border-none m-0 p-0 z-10">
+  /* 修正：padding-top を追加してヘッダーの高さ分だけ下に下げる */
+  <section className="relative w-full min-h-[85vh] md:min-h-[95vh] flex items-center justify-center overflow-hidden bg-white border-none m-0 pt-24 md:pt-32 z-10">
     <div className="absolute inset-0 bg-[radial-gradient(#e0f2fe_1px,transparent_1px)] [background-size:24px_24px] opacity-40 pointer-events-none" />
     <FloatingShape color="bg-pink-200" top="-5%" left="-5%" size={500} />
     <FloatingShape color="bg-sky-200" bottom="-5%" right="-5%" size={500} delay={2} />
@@ -447,13 +448,14 @@ export default function HomePage() {
   const tickerStyle = getLogStyle(currentLog.type);
 
   return (
-    /* 親要素に relative を指定し、他からの overflow の影響を断ち切る */
     <div className="bg-white min-h-screen text-slate-800 font-sans selection:bg-pink-100 selection:text-pink-600 m-0 p-0 w-full relative">
       <ScrollProgress />
       <MagicCursor />
 
-      {/* --- INTEGRATED HEADER & TICKER (Absolute/Sticky Control) --- */}
-      <div className="sticky top-0 z-[9999] w-full flex flex-col shadow-xl bg-white isolate">
+      {/* --- INTEGRATED HEADER & TICKER ---
+          修正：z-indexを最強(z-[999999])にし、fixedで物理的に固定 
+      */}
+      <div className="fixed top-0 left-0 w-full flex flex-col shadow-xl bg-white z-[999999] isolate">
         {/* HEADER */}
         <header className="w-full bg-white/95 backdrop-blur-md border-b border-slate-200/50 h-16 md:h-20 flex items-center shrink-0">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full flex justify-between items-center">
@@ -487,7 +489,7 @@ export default function HomePage() {
                                 </button>
                                 <AnimatePresence>
                                     {isUserMenuOpen && (
-                                        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className="absolute right-0 mt-3 w-64 bg-white border border-slate-100 rounded-2xl shadow-2xl z-[9999] overflow-hidden">
+                                        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className="absolute right-0 mt-3 w-64 bg-white border border-slate-100 rounded-2xl shadow-2xl z-[99999] overflow-hidden">
                                             <div className="px-6 py-4 border-b border-slate-50 bg-slate-50/30">
                                                 <p className="text-sm font-bold text-slate-800 truncate">{user.handleName}</p>
                                                 <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-100 text-indigo-600 uppercase mt-1 inline-block">{user.role}</span>
@@ -818,7 +820,8 @@ export default function HomePage() {
 // --- 🏠 DASHBOARD WRAPPER ---
 function AuthenticatedHome({ user, logout }) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 w-full relative z-[100]">
+      /* 修正：padding-top を追加 */
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 w-full pt-32">
         <div className="max-w-md w-full bg-white rounded-[40px] shadow-2xl p-10 text-center border border-slate-100">
           <div className="w-20 h-20 bg-indigo-50 text-indigo-500 rounded-full flex items-center justify-center mx-auto mb-6">
             <ShieldCheck size={40} />
