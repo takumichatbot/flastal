@@ -80,7 +80,12 @@ export default function AddVenuePage() {
             throw new Error(`エラー (${response.status})`);
         }
 
-        toast.success('会場情報を登録しました！');
+        // ★修正：承認待ちであることを伝えるメッセージ
+        toast.success('会場情報を送信しました！運営の承認をお待ちください🎉', {
+            duration: 6000,
+            icon: '📩'
+        });
+        
         window.location.href = '/venues';
 
     } catch (error) {
@@ -109,16 +114,23 @@ export default function AddVenuePage() {
         </div>
 
         <div className="bg-white rounded-[32px] shadow-2xl overflow-hidden border border-slate-200">
-            <div className="bg-slate-900 p-10 text-white relative">
-                <h2 className="text-3xl font-black flex items-center gap-3 tracking-tighter italic uppercase">
+            <div className="bg-slate-900 p-10 text-white relative text-center md:text-left">
+                <h2 className="text-3xl font-black flex items-center justify-center md:justify-start gap-3 tracking-tighter italic uppercase">
                     <FiMapPin className="text-green-400" /> New Venue
                 </h2>
-                <p className="mt-2 text-slate-400 text-xs font-bold tracking-widest uppercase tracking-widest">Register Venue</p>
+                <p className="mt-2 text-slate-400 text-xs font-bold tracking-widest uppercase">会場情報を教える</p>
             </div>
             
-            <div className="p-8 md:p-12 space-y-12">
+            <div className="p-8 md:p-12 space-y-10">
+                <div className="bg-amber-50 border border-amber-100 p-4 rounded-2xl flex items-start gap-3">
+                    <FiInfo className="text-amber-500 mt-1 shrink-0" />
+                    <p className="text-xs text-amber-800 leading-relaxed font-bold">
+                        ご投稿いただいた情報は運営チームで内容を確認した後、一覧に掲載されます。反映まで少しお時間をいただく場合がございます。
+                    </p>
+                </div>
+
                 <section className="space-y-8">
-                    <div className="space-y-6">
+                    <div className="grid grid-cols-1 gap-8">
                         <div>
                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block ml-1">会場名 *</label>
                             <div className="flex gap-2">
@@ -153,13 +165,13 @@ export default function AddVenuePage() {
                                     value={vPhone}
                                     onChange={(e) => setVPhone(e.target.value)}
                                     className="w-full rounded-2xl border-2 border-slate-100 bg-slate-50 px-6 py-5 focus:bg-white focus:border-green-500 outline-none transition-all font-bold"
-                                    placeholder="ハイフンなし"
+                                    placeholder="0300000000"
                                 />
                             </div>
                         </div>
 
                         <div>
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block ml-1">URL</label>
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block ml-1">公式サイトURL</label>
                             <input
                                 type="text" 
                                 value={vWeb}
@@ -179,14 +191,14 @@ export default function AddVenuePage() {
                             onClick={() => setIsStandAllowed(true)}
                             className={`flex-1 py-5 rounded-2xl border-2 flex items-center justify-center gap-3 font-black transition-all ${isStandAllowed ? 'bg-green-600 border-green-600 text-white shadow-xl shadow-green-100' : 'bg-white border-slate-100 text-slate-300'}`}
                         >
-                            <FiCheckCircle size={20}/> OK
+                            <FiCheckCircle size={20}/> 受入OK
                         </button>
                         <button
                             type="button"
                             onClick={() => setIsStandAllowed(false)}
                             className={`flex-1 py-5 rounded-2xl border-2 flex items-center justify-center gap-3 font-black transition-all ${!isStandAllowed ? 'bg-red-500 border-red-500 text-white shadow-xl shadow-red-100' : 'bg-white border-slate-100 text-slate-300'}`}
                         >
-                            <FiXCircle size={20}/> NG
+                            <FiXCircle size={20}/> 受入NG
                         </button>
                     </div>
                     <textarea
@@ -194,7 +206,7 @@ export default function AddVenuePage() {
                         value={vRegs}
                         onChange={(e) => setVRegs(e.target.value)}
                         className="w-full rounded-2xl border-2 border-slate-100 bg-slate-50 px-6 py-5 focus:bg-white focus:border-green-500 outline-none transition-all font-bold"
-                        placeholder="搬入ルールなど"
+                        placeholder="サイズ規定、回収ルールなど"
                     ></textarea>
                 </section>
 
@@ -203,9 +215,9 @@ export default function AddVenuePage() {
                         type="button"
                         onClick={handleFinalSubmit}
                         disabled={isSubmitting}
-                        className="w-full py-6 bg-green-600 text-white rounded-2xl font-black text-xl shadow-2xl shadow-green-200 disabled:bg-slate-200 active:scale-95 transition-all flex justify-center items-center"
+                        className="w-full py-6 bg-green-600 text-white rounded-2xl font-black text-xl shadow-2xl active:scale-95 transition-all flex justify-center items-center disabled:bg-slate-200"
                     >
-                        {isSubmitting ? <FiLoader className="animate-spin mr-3"/> : <><FiSave className="mr-3"/> 会場を登録する</>}
+                        {isSubmitting ? <FiLoader className="animate-spin mr-3"/> : <><FiSave className="mr-3"/> 会場情報を送信する</>}
                     </button>
                 </div>
             </div>

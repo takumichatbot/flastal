@@ -1,6 +1,5 @@
 'use client';
 
-// Next.jsのビルドエラー回避設定
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
 
@@ -11,7 +10,7 @@ import { useAuth } from '@/app/contexts/AuthContext';
 import toast from 'react-hot-toast';
 import { 
   FiMapPin, FiCheckCircle, FiInfo, FiSearch, FiEdit2, 
-  FiTrash2, FiPlus, FiArrowLeft, FiFilter, FiLoader, FiExternalLink
+  FiTrash2, FiPlus, FiArrowLeft, FiFilter, FiLoader, FiClock
 } from 'react-icons/fi';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
@@ -24,15 +23,14 @@ function VenuesListInner() {
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     
-    // 管理者かどうか
     const isAdmin = user?.role === 'ADMIN';
 
     const fetchVenues = async () => {
         setLoading(true);
         try {
-            // 一般ユーザーもアクセス可能なエンドポイント、または管理者はadmin用を叩く
-            const endpoint = isAdmin ? `${API_URL}/api/venues/admin` : `${API_URL}/api/venues`;
-            const res = await fetch(endpoint, {
+            // 管理者は全件取得、一般は公開分（＋自分の未承認分）を取得
+            // バックエンドが対応していれば admin エンドポイント、していなければ通常エンドポイント
+            const res = await fetch(`${API_URL}/api/venues/admin`, {
                 headers: token ? { 'Authorization': `Bearer ${token}` } : {}
             });
             if (res.ok) {
@@ -67,20 +65,23 @@ function VenuesListInner() {
         }
     };
 
-    // フィルタリング: 一般ユーザーには承認済み(isOfficial)のみ見せる（管理者は全て）
+    // ★重要：表示ロジックの修正
     const filteredVenues = venues.filter(v => {
         const matchesSearch = v.venueName.toLowerCase().includes(searchTerm.toLowerCase()) || 
                              (v.address && v.address.toLowerCase().includes(searchTerm.toLowerCase()));
         
+        // 管理者はすべて表示
         if (isAdmin) return matchesSearch;
-        return matchesSearch && v.isOfficial; // 一般ユーザーは承認済みのみ
+
+        // 一般ユーザー：承認済み(isOfficial) OR 自分が投稿したもの(submittedBy) を表示
+        const isMySubmission = user && v.submittedBy === user.id;
+        return matchesSearch && (v.isOfficial || isMySubmission);
     });
 
     return (
         <div className="min-h-screen bg-slate-50 p-4 md:p-8 font-sans pt-24">
             <div className="max-w-6xl mx-auto">
                 
-                {/* ヘッダーセクション */}
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
                     <div>
                         <h1 className="text-3xl md:text-4xl font-black text-slate-800 tracking-tighter flex items-center gap-3">
@@ -94,15 +95,9 @@ function VenuesListInner() {
                         <Link href="/venues/add" className="bg-slate-900 text-white px-6 py-3 rounded-2xl font-black flex items-center gap-2 hover:bg-slate-800 transition-all shadow-xl active:scale-95">
                             <FiPlus /> 新しい会場を教える
                         </Link>
-                        {isAdmin && (
-                            <div className="px-4 py-2 bg-amber-100 text-amber-700 rounded-lg text-xs font-bold flex items-center">
-                                管理者モード
-                            </div>
-                        )}
                     </div>
                 </div>
 
-                {/* 検索バー */}
                 <div className="relative mb-10">
                     <FiSearch className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 size-5" />
                     <input 
@@ -114,27 +109,25 @@ function VenuesListInner() {
                     />
                 </div>
 
-                {/* メインコンテンツ */}
                 {loading ? (
                     <div className="py-20 text-center">
                         <FiLoader className="animate-spin text-slate-300 size-10 mx-auto mb-4" />
-                        <p className="text-slate-400 font-bold tracking-widest uppercase text-sm">Loading Database...</p>
+                        <p className="text-slate-400 font-bold">読み込み中...</p>
                     </div>
                 ) : filteredVenues.length === 0 ? (
                     <div className="bg-white rounded-[3rem] py-20 text-center border-2 border-dashed border-slate-200">
                         <FiInfo className="size-12 text-slate-200 mx-auto mb-4" />
                         <p className="text-slate-400 font-bold">該当する会場が見つかりませんでした。</p>
-                        <p className="text-slate-300 text-sm mt-1">新しい情報の追加をご検討ください。</p>
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {filteredVenues.map(venue => (
                             <div key={venue.id} className="bg-white rounded-[2.5rem] p-8 border-2 border-slate-50 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all group relative overflow-hidden">
                                 
-                                {/* 管理用バッジ */}
-                                {!venue.isOfficial && isAdmin && (
-                                    <div className="absolute top-0 right-0 bg-amber-500 text-white px-4 py-1 rounded-bl-2xl text-[10px] font-black uppercase tracking-widest">
-                                        Pending Approval
+                                {/* 承認待ちバッジ (自分にだけ見える、または管理者にだけ見える) */}
+                                {!venue.isOfficial && (
+                                    <div className="absolute top-0 right-0 bg-amber-500 text-white px-4 py-1 rounded-bl-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-1">
+                                        <FiClock /> Pending Approval
                                     </div>
                                 )}
 
@@ -166,13 +159,12 @@ function VenuesListInner() {
                                         詳細を見る
                                     </Link>
                                     
-                                    {/* 管理者のみに表示されるボタン */}
                                     {isAdmin && (
                                         <>
-                                            <Link href={`/venues/${venue.id}/edit`} className="p-3 bg-slate-900 text-white rounded-xl hover:bg-teal-600 transition-all" title="編集">
+                                            <Link href={`/venues/${venue.id}/edit`} className="p-3 bg-slate-900 text-white rounded-xl hover:bg-teal-600 transition-all">
                                                 <FiEdit2 size={16} />
                                             </Link>
-                                            <button onClick={() => handleDelete(venue.id)} className="p-3 bg-slate-900 text-white rounded-xl hover:bg-red-600 transition-all" title="削除">
+                                            <button onClick={() => handleDelete(venue.id)} className="p-3 bg-slate-900 text-white rounded-xl hover:bg-red-600 transition-all">
                                                 <FiTrash2 size={16} />
                                             </button>
                                         </>
@@ -182,14 +174,6 @@ function VenuesListInner() {
                         ))}
                     </div>
                 )}
-                
-                {/* 補足メッセージ */}
-                <div className="mt-16 text-center bg-white p-8 rounded-[2rem] border border-slate-100 shadow-inner">
-                    <p className="text-slate-500 text-sm font-medium leading-relaxed">
-                        ※会場のレギュレーションはイベント毎に異なる場合があります。<br/>
-                        最新情報は必ず各公演の公式サイトをご確認ください。
-                    </p>
-                </div>
             </div>
         </div>
     );
