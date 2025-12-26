@@ -8,7 +8,7 @@ import PushNotificationManager from './components/PushNotificationManager';
 import ThemeController from './components/ThemeController';
 import FloatingMenu from './components/FloatingMenu';
 import LiveTicker from './components/LiveTicker';
-import { Suspense } from 'react'; // ★追加
+import { Suspense } from 'react';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 const notoSansJP = Noto_Sans_JP({
@@ -50,20 +50,17 @@ export const viewport = {
 export default function RootLayout({ children }) {
   return (
     <html lang="ja" className={`${inter.variable} ${notoSansJP.variable}`}>
-      <body className="font-sans antialiased text-slate-900 bg-slate-50 min-h-screen flex flex-col">
+      {/* 修正ポイント: bg-slate-50 を bg-white に変更し、隙間が目立たないようにします */}
+      <body className="font-sans antialiased text-slate-900 bg-white min-h-screen flex flex-col m-0 p-0">
         <ThemeController />
         
         <AuthProvider>
-          {/* ★重要修正: 
-            HeaderやTicker、および各ページのコンテンツ(children)を 
-            Suspense で一括ラップします。これにより内部コンポーネントの
-            useSearchParams によるビルドエラーを一網打尽にします。
-          */}
           <Suspense fallback={null}>
             <Header />
             <LiveTicker />
 
-            <main className="flex-grow w-full max-w-[1920px] mx-auto">
+            {/* 修正ポイント: mx-auto を削除し、w-full で横幅いっぱいに広げ、マージンを排除します */}
+            <main className="flex-grow w-full m-0 p-0">
               {children}
             </main>
             

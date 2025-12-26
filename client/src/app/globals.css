@@ -1,5 +1,12 @@
 @import "tailwindcss";
 
+/* --- ⚡ 全要素の余白リセット (空白除去の要) --- */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
@@ -16,9 +23,18 @@
 
 /* ブラウザのデフォルト余白を完全にリセット */
 html, body {
-  margin: 0;
-  padding: 0;
+  margin: 0 !important;
+  padding: 0 !important;
   width: 100%;
+  min-height: 100vh;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Next.js のルート要素等の余白も徹底排除 */
+body > div, main {
+  margin: 0 !important;
+  padding: 0 !important;
 }
 
 /* --- 🌙 ダークモード定義 --- */
@@ -32,19 +48,16 @@ body {
   background: var(--seasonal-bg);
   color: var(--foreground);
   transition: background 0.3s ease, color 0.3s ease;
-  min-height: 100vh;
-  /* 背景を固定するか、スクロールに合わせるか調整 */
   background-attachment: fixed;
 }
 
 /* --- 🌸 季節のテーマ --- */
-/* 背景パターンの開始位置を調整 */
 body.theme-spring:not(.dark-mode) {
   --seasonal-primary: #f472b6;
   --seasonal-bg: radial-gradient(#fbcfe8 1px, transparent 1px), radial-gradient(#fbcfe8 1px, transparent 1px), #fff1f2;
   background-size: 20px 20px;
   background-position: 0 0, 10px 10px;
-  background-attachment: scroll; /* パターンはスクロールさせる */
+  background-attachment: scroll;
 }
 
 body.theme-summer:not(.dark-mode) {
@@ -112,4 +125,7 @@ body.theme-winter:not(.dark-mode) {
     from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
   }
+
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 }

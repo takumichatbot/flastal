@@ -7,15 +7,13 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from './contexts/AuthContext';
 import { 
-  motion, useScroll, useSpring, useMotionValue, useTransform, AnimatePresence 
+  motion, useScroll, useSpring, useMotionValue, useTransform 
 } from 'framer-motion';
 
 import { 
-  Heart, Sparkles, MessageCircle, 
-  Calendar, Users, ShieldCheck, ChevronDown, 
-  Star, Search, Flower,
-  CreditCard, Lock, ArrowRight, CheckCircle2,
-  HelpCircle, Store, MapPin, Ticket, Loader2
+  Sparkles, MessageCircle, Calendar, Users, ShieldCheck, 
+  ChevronDown, Star, Search, Flower, CreditCard, Lock, 
+  ArrowRight, CheckCircle2, HelpCircle, Store, MapPin, Ticket, Loader2
 } from 'lucide-react';
 
 function cn(...classes) {
@@ -28,7 +26,7 @@ const ScrollProgress = () => {
   const { scrollYProgress } = useScroll();
   const scaleX = useSpring(scrollYProgress, { stiffness: 100, damping: 30, restDelta: 0.001 });
   return (
-    <motion.div className="fixed top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-pink-400 via-purple-400 to-sky-400 origin-left z-[100] shadow-[0_0_20px_rgba(244,114,182,0.6)]" style={{ scaleX }} />
+    <motion.div className="fixed top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-pink-400 via-purple-400 to-sky-400 origin-left z-[101] shadow-[0_0_20px_rgba(244,114,182,0.6)]" style={{ scaleX }} />
   );
 };
 
@@ -165,10 +163,10 @@ const HeroSection = () => (
   <section className="relative w-full min-h-[85vh] md:min-h-[95vh] flex items-center justify-center overflow-hidden bg-slate-50 m-0 p-0 border-none">
     <ScrollProgress />
     <MagicCursor />
-    {/* 背景ドットの開始位置がずれないように調整 */}
-    <div className="absolute inset-0 bg-[radial-gradient(#e0f2fe_1px,transparent_1px)] [background-size:24px_24px] opacity-60 pointer-events-none" />
+    <div className="absolute inset-0 bg-[radial-gradient(#e0f2fe_1px,transparent_1px)] [background-size:24px_24px] opacity-60" />
     <FloatingShape color="bg-pink-200" top="-5%" left="-5%" size={500} />
     <FloatingShape color="bg-sky-200" bottom="-5%" right="-5%" size={500} delay={2} />
+
     <div className="container relative z-10 px-6 pt-10 md:pt-20 grid lg:grid-cols-12 gap-10 items-center mx-auto">
       <div className="lg:col-span-7 text-center lg:text-left">
         <Reveal>
@@ -358,7 +356,7 @@ const PartnerJoinSection = () => {
   const partners = [
     { title: "お花屋さん", icon: <Store />, color: "pink", hrefL: "/florists/login", hrefR: "/florists/register", desc: "未払いリスクゼロで売上UP。推し花需要を取り込みませんか？" },
     { title: "会場・ホール", icon: <MapPin />, color: "sky", hrefL: "/venues/login", hrefR: "/venues/register", desc: "トラブル防止に。公式規定を周知し、許可された花のみ受取。" },
-    { title: "イベント主催", icon: <Ticket />, color: "purple", hrefL: "/organizers/login", hrefR: "/organizers/register", desc: "ファンの応援企画を公認。安全な応援 culture を醸成します。" }
+    { title: "イベント主催", icon: <Ticket />, color: "purple", hrefL: "/organizers/login", hrefR: "/organizers/register", desc: "ファンの応援企画を公認。安全な応援文化を醸成します。" }
   ];
   return (
     <section className="py-20 md:py-32 bg-white overflow-hidden">
@@ -526,7 +524,7 @@ export default function HomePage() {
 
   if (!isMounted || loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
+      <div className="min-h-screen bg-white flex flex-col items-center justify-center p-4">
         <Loader2 className="w-10 h-10 text-pink-500 animate-spin mb-4" />
         <p className="text-slate-400 text-[10px] font-black tracking-widest uppercase animate-pulse">Initializing System...</p>
       </div>
@@ -538,7 +536,7 @@ export default function HomePage() {
   }
 
   return (
-    <div className="bg-white min-h-screen text-slate-800 font-sans selection:bg-pink-100 selection:text-pink-600 overflow-x-hidden pt-0">
+    <div className="bg-white min-h-screen text-slate-800 font-sans selection:bg-pink-100 selection:text-pink-600 pt-0 m-0">
       <HeroSection />
       <TickerSection />
       <CultureSection />
@@ -551,11 +549,6 @@ export default function HomePage() {
       <NewsSection />
       <FaqSection />
       <ContactAndCtaSection />
-      
-      <style jsx global>{`
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-      `}</style>
     </div>
   );
 }
