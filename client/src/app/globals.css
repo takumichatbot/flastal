@@ -1,32 +1,24 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-  --seasonal-primary: #0ea5e9;
-  --seasonal-bg: #ffffff;
-  --primary: 204 89% 53%;
-  --primary-foreground: 210 40% 98%; 
-}
-
-/* 1. 標準的なリセットに戻す */
+/* 標準的なリセット */
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+  --seasonal-primary: #0ea5e9;
+  --seasonal-bg: #ffffff;
+  --primary: 204 89% 53%;
+}
+
 html, body {
   width: 100%;
   min-height: 100vh;
   overflow-x: hidden;
-  background-color: #ffffff;
-}
-
-/* 2. ヘッダーとティッカー、メインの間で隙間が生まれないようにブロック化 */
-header, main, section {
-  display: block;
-  width: 100%;
 }
 
 body {
@@ -35,7 +27,7 @@ body {
   transition: background 0.3s ease, color 0.3s ease;
 }
 
-/* 🎨 推し色適用 */
+/* 🎨 推し色適用ユーティリティ */
 .oshi-theme-bg { background-color: hsl(var(--primary)) !important; }
 .oshi-theme-text { color: hsl(var(--primary)) !important; }
 

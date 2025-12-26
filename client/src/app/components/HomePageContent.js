@@ -160,14 +160,15 @@ const KawaiiButton = ({ children, variant = "primary", icon: Icon, className, on
 // --- 🚀 SECTIONS ---
 
 const HeroSection = () => (
-  <section className="relative w-full min-h-[85vh] md:min-h-[95vh] flex items-center justify-center overflow-hidden bg-slate-50 m-0 p-0 border-none -mt-[1px]">
+  /* ネガティブマージンを排除し、標準的なブロックとして配置 */
+  <section className="relative w-full min-h-[85vh] md:min-h-[95vh] flex items-center justify-center overflow-hidden bg-slate-50 m-0 p-0 border-none">
     <ScrollProgress />
     <MagicCursor />
-    <div className="absolute inset-0 bg-[radial-gradient(#e0f2fe_1px,transparent_1px)] [background-size:24px_24px] opacity-60 pointer-events-none" />
+    <div className="absolute inset-0 bg-[radial-gradient(#e0f2fe_1px,transparent_1px)] [background-size:24px_24px] opacity-40 pointer-events-none" />
     <FloatingShape color="bg-pink-200" top="-5%" left="-5%" size={500} />
     <FloatingShape color="bg-sky-200" bottom="-5%" right="-5%" size={500} delay={2} />
 
-    <div className="container relative z-10 px-6 pt-20 md:pt-32 pb-10 grid lg:grid-cols-12 gap-10 items-center mx-auto">
+    <div className="container relative z-10 px-6 pt-16 md:pt-24 pb-10 grid lg:grid-cols-12 gap-10 items-center mx-auto">
       <div className="lg:col-span-7 text-center lg:text-left">
         <Reveal>
           <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white rounded-full shadow-md border border-pink-50 mb-6 mx-auto lg:mx-0">
@@ -225,7 +226,7 @@ const HeroSection = () => (
 const TickerSection = () => {
   const genres = ["#地下アイドル", "#VTuber", "#歌い手", "#コンカフェ", "#生誕祭", "#周年ライブ", "#e-Sports", "#K-POP", "#2.5次元"];
   return (
-    <div className="bg-slate-900 py-3 md:py-4 overflow-hidden relative border-y-2 md:border-y-4 border-pink-500 z-20 shadow-xl rotate-[-1deg] scale-[1.02] my-8">
+    <div className="bg-slate-900 py-3 md:py-4 overflow-hidden relative border-y-2 border-pink-500 z-20 shadow-xl rotate-[-1deg] scale-[1.02] my-8">
       <motion.div className="flex gap-8 md:gap-12 whitespace-nowrap" animate={{ x: [0, -1000] }} transition={{ repeat: Infinity, duration: 30, ease: "linear" }}>
         {[...Array(4)].map((_, i) => (
           <div key={i} className="flex gap-8 md:gap-12">
@@ -366,13 +367,13 @@ const PartnerJoinSection = () => {
           {partners.map((p, i) => (
             <div key={i} className="min-w-[280px] md:min-w-0 snap-center">
               <TiltCard className="h-full" glowColor={p.color}>
-                <div className={cn("p-8 rounded-[30px] border shadow-lg text-center h-full flex flex-col", `bg-white border-${p.color}-100`)}>
-                  <div className={cn("w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6 shadow-md", `text-${p.color}-500`)}>{p.icon}</div>
+                <div className={cn("p-8 rounded-[30px] border shadow-lg text-center h-full flex flex-col bg-white border-slate-100")}>
+                  <div className={cn("w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6 shadow-md text-slate-500")}>{p.icon}</div>
                   <h3 className="text-lg font-bold text-slate-800 mb-2">{p.title}</h3>
                   <p className="text-xs text-slate-400 mb-6 flex-grow leading-relaxed">{p.desc}</p>
                   <div className="flex flex-col gap-2">
-                    <Link href={p.hrefR} className={cn("py-2.5 rounded-xl text-white text-sm font-bold shadow-md transition-all", p.color === 'pink' ? 'bg-pink-500 hover:bg-pink-600' : p.color === 'sky' ? 'bg-sky-500 hover:bg-sky-600' : 'bg-purple-500 hover:bg-purple-600')}>無料登録</Link>
-                    <Link href={p.hrefL} className="py-2.5 rounded-xl border border-slate-100 text-slate-400 text-xs font-bold hover:bg-slate-50">ログイン</Link>
+                    <Link href={p.hrefR} className="py-2.5 rounded-xl bg-slate-900 text-white text-sm font-bold shadow-md hover:bg-slate-800 transition-all text-center">無料登録</Link>
+                    <Link href={p.hrefL} className="py-2.5 rounded-xl border border-slate-100 text-slate-400 text-xs font-bold hover:bg-slate-50 text-center">ログイン</Link>
                   </div>
                 </div>
               </TiltCard>
@@ -437,7 +438,7 @@ const FaqSection = () => (
       <div className="space-y-4">
         {[
           { q: "目標未達の場合は？", a: "All-in(そのまま実施)かAll-or-Nothing(返金中止)かを選べます。" },
-          { q: "手数料は？", a: "企画作成は無料。達成時のみ、決済手数料等として計10%を頂戴します。" },
+          { q: "手数料は？", a: "企画作成は無料。達成時のみ、計10%を頂戴します。" },
           { q: "匿名支援は可能？", a: "はい。主催者に本名や住所が伝わることはありません。" }
         ].map((item, i) => (
           <details key={i} className="group bg-slate-50 rounded-2xl p-5 border border-slate-100 cursor-pointer open:bg-white open:shadow-lg transition-all">
@@ -503,10 +504,10 @@ function AuthenticatedHome({ user, logout }) {
           {user?.handleName || 'FLASTAL MEMBER'} Signed In
         </p>
         <div className="space-y-4">
-          <Link href={user?.role === 'ADMIN' ? '/admin' : '/mypage'} className="flex items-center justify-center gap-2 w-full py-4 bg-slate-900 text-white font-black rounded-2xl hover:bg-slate-800 transition-all shadow-lg text-sm md:text-base">
-            DASHBOARD <ArrowRight size={18} />
+          <Link href={user?.role === 'ADMIN' ? '/admin' : '/mypage'} className="flex items-center justify-center gap-2 w-full py-4 bg-slate-900 text-white font-black rounded-2xl hover:bg-slate-800 transition-all shadow-lg text-sm md:text-base text-center">
+            DASHBOARD <ArrowRight size={18} className="inline ml-2" />
           </Link>
-          <button onClick={logout} className="text-[10px] font-black text-slate-300 hover:text-red-500 transition-colors uppercase tracking-[0.2em]">Sign Out</button>
+          <button onClick={logout} className="text-[10px] font-black text-slate-300 hover:text-red-500 transition-colors uppercase tracking-[0.2em] block mx-auto">Sign Out</button>
         </div>
       </div>
     </div>
