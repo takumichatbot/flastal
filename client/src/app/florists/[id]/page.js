@@ -23,7 +23,7 @@ const ProfileItem = ({ icon, label, value, colorClass = "text-pink-500 bg-pink-5
         </div>
         <div>
             <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">{label}</p>
-            <p className="text-base text-gray-800 font-bold break-words mt-0.5">{value}</p>
+            <p className="text-base text-gray-800 font-bold break-words mt-0.5">{value || '未設定'}</p>
         </div>
     </div>
 );
@@ -33,7 +33,7 @@ function OfferModal({ floristId, floristName, onClose }) {
     const router = useRouter();
     
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fadeIn">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm p-4 animate-fadeIn z-[9999] flex items-center justify-center">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-white">
                 <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50">
                     <h3 className="text-lg font-bold text-gray-800">制作オファーを出す</h3>
@@ -45,7 +45,7 @@ function OfferModal({ floristId, floristName, onClose }) {
                     <div className="w-16 h-16 bg-pink-50 text-pink-500 rounded-full flex items-center justify-center mx-auto mb-4">
                         <FiAward size={32} />
                     </div>
-                    <p className="text-gray-600 mb-8 leading-relaxed">
+                    <p className="text-gray-600 mb-8 leading-relaxed text-sm">
                         <span className="font-bold text-gray-900">{floristName}</span> さんに<br/>
                         あなたの応援企画への参加を依頼します。<br/>
                         <span className="text-xs text-gray-400">※決済や進行はFLASTALが仲介し、安全を担保します</span>
@@ -74,7 +74,8 @@ function OfferModal({ floristId, floristName, onClose }) {
 
 export default function FloristDetailPage() { 
   const { id } = useParams();
-  const { user, token } = useAuth(); 
+  const { user, token, logout } = useAuth(); 
+  const router = useRouter();
   
   const [florist, setFlorist] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -88,12 +89,15 @@ export default function FloristDetailPage() {
     setLoading(true);
     try {
       const floristRes = await fetch(`${API_URL}/api/florists/${id}`);
-      if (!floristRes.ok) throw new Error('花屋情報の取得に失敗しました');
+      if (!floristRes.ok) {
+          if (floristRes.status === 404) throw new Error('お花屋さんが見つかりませんでした。');
+          throw new Error('情報の取得に失敗しました。');
+      }
       
       const floristData = await floristRes.json();
       
-      // 住所から都道府県のみを抽出するロジック
-      if (floristData.address) {
+      // 所在地から都道府県のみを抽出
+      if (floristData && floristData.address) {
           const prefMatch = floristData.address.match(/^(?:東京都|道庁所在地|.{2,3}府|.{2,3}県)/);
           floristData.displayPrefecture = prefMatch ? prefMatch[0] : floristData.address;
       }
@@ -122,19 +126,30 @@ export default function FloristDetailPage() {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${token}` },
         });
+
+        if (res.status === 401) {
+            toast.error("セッションが切れました。再ログインしてください。");
+            logout();
+            router.push('/login');
+            return;
+        }
+
         if (!res.ok) throw new Error('失敗');
         const data = await res.json();
+        
         setAppealPosts(prev => prev.map(p => {
             if (p.id === post.id) {
                 const isLiked = data.liked;
-                const newCount = isLiked ? p._count.likes + 1 : p._count.likes - 1;
-                const newLikes = isLiked ? [...(p.likes || []), { userId: user.id }] : (p.likes || []).filter(l => l.userId !== user.id);
-                return { ...p, _count: { likes: newCount }, likes: newLikes };
+                const newCount = isLiked ? (p._count?.likes || 0) + 1 : (p._count?.likes || 1) - 1;
+                const newLikes = isLiked 
+                    ? [...(p.likes || []), { userId: user?.id }] 
+                    : (p.likes || []).filter(l => l.userId !== user?.id);
+                return { ...p, _count: { ...p._count, likes: Math.max(0, newCount) }, likes: newLikes };
             }
             return p;
         }));
     } catch (error) {
-        toast.error('エラーが発生しました');
+        toast.error('いいねの更新に失敗しました');
     }
   };
 
@@ -155,12 +170,22 @@ export default function FloristDetailPage() {
     return appealPosts.filter(p => (p.content || '').includes(`#${activeTag}`));
   }, [appealPosts, activeTag]);
 
-  if (loading || !florist) {
+  if (loading) {
       return (
           <div className="flex items-center justify-center min-h-screen bg-slate-50">
               <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-pink-500"></div>
           </div>
       );
+  }
+
+  if (!florist) {
+    return (
+        <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 text-center p-6">
+            <FiAlertCircle size={48} className="text-gray-300 mb-4" />
+            <h2 className="text-xl font-bold text-gray-800 mb-2">Florist Not Found</h2>
+            <Link href="/florists" className="text-pink-500 font-bold hover:underline">お花屋さん一覧へ戻る</Link>
+        </div>
+    );
   }
 
   const reviews = florist.reviews || [];
@@ -176,7 +201,7 @@ export default function FloristDetailPage() {
 
           {/* 1. ヘッダーセクション */}
           <header className="mb-12 flex flex-col md:flex-row items-center md:items-end gap-8 text-center md:text-left">
-              <div className="relative w-40 h-40 shrink-0 rounded-[2rem] overflow-hidden border-4 border-white shadow-2xl bg-white rotate-3">
+              <div className="relative w-40 h-40 shrink-0 rounded-[2rem] overflow-hidden border-4 border-white shadow-2xl bg-white md:rotate-3">
                   {florist.iconUrl ? (
                       <Image src={florist.iconUrl} alt="アイコン" fill style={{objectFit: 'cover'}} />
                   ) : (
@@ -192,7 +217,7 @@ export default function FloristDetailPage() {
                           <FiShield size={12}/> Verified Artist
                       </span>
                   </div>
-                  <h1 className="text-4xl font-black text-gray-900 break-words tracking-tight">{florist.platformName}</h1>
+                  <h1 className="text-4xl font-black text-gray-900 break-words tracking-tight leading-tight">{florist.platformName || florist.shopName}</h1>
                   <p className="text-lg text-slate-400 font-bold mt-1">Professional Florist Partner</p>
                   
                   <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 mt-6">
@@ -211,7 +236,7 @@ export default function FloristDetailPage() {
               </div>
 
               <div className="hidden md:block">
-                 {user && !isMyProfile ? (
+                 {(!user || user.role === 'USER') && !isMyProfile ? (
                      <button
                         onClick={() => setIsModalOpen(true)}
                         className="px-8 py-4 font-black text-white bg-pink-600 rounded-2xl hover:bg-pink-700 transition-all transform hover:-translate-y-1 shadow-xl shadow-pink-200 flex items-center gap-2"
@@ -255,7 +280,7 @@ export default function FloristDetailPage() {
                             <h2 className="text-xl font-black text-gray-800 mb-6 flex items-center gap-3">
                                 <FiUser className="text-pink-500"/> 自己紹介 / コンセプト
                             </h2>
-                            <p className="text-gray-600 whitespace-pre-wrap leading-relaxed font-medium">
+                            <p className="text-gray-600 whitespace-pre-wrap leading-relaxed font-medium text-sm md:text-base">
                                 {florist.portfolio || '自己紹介文がまだ設定されていません。'}
                             </p>
                             <div className="absolute top-8 right-8 opacity-5 text-gray-900 pointer-events-none">
@@ -271,14 +296,14 @@ export default function FloristDetailPage() {
                             <ProfileItem 
                                 icon={<FiMapPin />} 
                                 label="主な活動エリア" 
-                                value={`${florist.displayPrefecture || '全国対応'}`} 
+                                value={florist.displayPrefecture || '全国対応'} 
                                 colorClass="text-sky-500 bg-sky-50"
                             />
                             
                             <ProfileItem 
                                 icon={<FiClock />} 
                                 label="オーダー受付時間" 
-                                value={florist.businessHours || '10:00 - 18:00'} 
+                                value={florist.businessHours} 
                                 colorClass="text-purple-500 bg-purple-50"
                             />
                             
@@ -292,7 +317,7 @@ export default function FloristDetailPage() {
                             <ProfileItem 
                                 icon={<FiAward />} 
                                 label="得意な装飾・スキル" 
-                                value={florist.specialties || '未設定'} 
+                                value={florist.specialties} 
                                 colorClass="text-emerald-500 bg-emerald-50"
                             />
                         </div>
@@ -339,14 +364,17 @@ export default function FloristDetailPage() {
                                   return (
                                       <div key={post.id} className="group relative aspect-square bg-gray-100 rounded-[2rem] overflow-hidden shadow-sm hover:shadow-2xl transition-all duration-500">
                                           {post.imageUrl && (
-                                              <Image src={post.imageUrl} alt="作品" fill sizes="33vw" style={{objectFit: 'cover'}} className="transition-transform duration-700 group-hover:scale-110" />
+                                              <Image src={post.imageUrl} alt="作品" fill sizes="(max-width: 768px) 50vw, 33vw" style={{objectFit: 'cover'}} className="transition-transform duration-700 group-hover:scale-110" />
                                           )}
                                           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-6">
                                               <p className="text-white text-xs font-bold leading-relaxed line-clamp-3">{post.content}</p>
                                           </div>
                                           <button 
-                                              onClick={() => handleLikeToggle(post)}
-                                              className={`absolute top-4 right-4 p-3 rounded-2xl backdrop-blur-md transition-all ${
+                                              onClick={(e) => {
+                                                  e.preventDefault();
+                                                  handleLikeToggle(post);
+                                              }}
+                                              className={`absolute top-4 right-4 p-3 rounded-2xl backdrop-blur-md transition-all z-20 ${
                                                   isLiked ? 'bg-red-500 text-white shadow-lg' : 'bg-white/80 text-gray-400 hover:text-red-500'
                                               }`}
                                           >
@@ -398,7 +426,7 @@ export default function FloristDetailPage() {
 
           {/* モバイル用アクションボタン */}
           <div className="md:hidden sticky bottom-4 z-30 mt-12">
-            {user && !isMyProfile ? ( 
+            {(!user || user.role === 'USER') && !isMyProfile ? ( 
               <button
                 onClick={() => setIsModalOpen(true)}
                 className="w-full py-5 font-black text-white bg-pink-600 rounded-3xl shadow-2xl shadow-pink-200 active:scale-95 transition-all flex items-center justify-center gap-3"
@@ -420,7 +448,7 @@ export default function FloristDetailPage() {
       {isModalOpen && (
           <OfferModal 
             floristId={id} 
-            floristName={florist.platformName} 
+            floristName={florist.platformName || florist.shopName} 
             onClose={() => setIsModalOpen(false)} 
           />
       )}
