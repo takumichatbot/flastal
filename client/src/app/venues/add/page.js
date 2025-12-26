@@ -41,7 +41,6 @@ export default function AddVenuePage() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    // name属性を変えたので、ステートへのマッピングを調整
     const fieldMap = {
         venueName: 'venueName',
         v_addr: 'address',
@@ -59,17 +58,18 @@ export default function AddVenuePage() {
     window.open(`https://www.google.com/search?q=${query}`, '_blank');
   };
 
-  // onSubmitではなく独立した関数として定義
   const execSubmit = async () => {
     if (isSubmitting) return;
 
-    if (!formData.venueName || !formData.venueName.trim()) {
+    const vName = formData.venueName.trim();
+    if (!vName) {
         return toast.error('会場名を入力してください');
     }
 
     setIsSubmitting(true);
     const token = getAuthToken();
 
+    // URLの自動補完
     let finalWebsite = (formData.website || '').trim();
     if (finalWebsite && !finalWebsite.toLowerCase().startsWith('http')) {
         finalWebsite = `https://${finalWebsite}`;
@@ -77,12 +77,12 @@ export default function AddVenuePage() {
 
     try {
         const payload = {
-            venueName: formData.venueName.trim(),
-            address: formData.address.trim(),
-            phoneNumber: formData.phoneNumber.trim(),
+            venueName: vName,
+            address: (formData.address || '').trim(),
+            phoneNumber: (formData.phoneNumber || '').trim(),
             website: finalWebsite,
             isStandAllowed: formData.isStandAllowed,
-            regulations: formData.regulations.trim(),
+            regulations: (formData.regulations || '').trim(),
             submittedBy: user?.id 
         };
 
@@ -95,16 +95,36 @@ export default function AddVenuePage() {
             body: JSON.stringify(payload),
         });
 
-        const data = await res.json();
+        // ★修正ポイント：JSONとして解析する前にステータスをチェックし、中身があるか確認
+        let data = {};
+        const contentType = res.headers.get("content-type");
+        if (contentType && contentType.indexOf("application/json") !== -1) {
+            data = await res.json();
+        } else {
+            // JSONじゃない場合（HTMLエラーページなど）はテキストとして取得を試みる
+            const text = await res.text();
+            console.error('Non-JSON response received:', text);
+        }
 
-        if (!res.ok) throw new Error(data.message || '登録に失敗しました。');
+        if (!res.ok) {
+            throw new Error(data.message || `サーバーエラーが発生しました (Status: ${res.status})`);
+        }
 
-        toast.success('会場情報を共有しました！');
-        setTimeout(() => router.push('/venues'), 500);
+        toast.success('会場情報を共有しました！ご協力ありがとうございます🎉');
+        
+        // 成功後、一覧へ
+        setTimeout(() => {
+            router.push('/venues'); 
+        }, 800);
 
     } catch (error) {
-        console.error('Submit Error:', error);
-        toast.error(error.message || 'エラーが発生しました');
+        console.error('Submit Error Details:', error);
+        // SyntaxError (JSON解析失敗) の場合は、わかりやすいメッセージに変える
+        if (error.name === 'SyntaxError') {
+            toast.error('サーバーからの応答が正しくありません。しばらく時間をおいて再度お試しください。');
+        } else {
+            toast.error(error.message || '通信エラーが発生しました');
+        }
     } finally {
         setIsSubmitting(false);
     }
@@ -121,6 +141,7 @@ export default function AddVenuePage() {
   return (
     <div className="min-h-screen bg-slate-50 py-12 px-4 sm:px-6 lg:px-8 font-sans text-gray-800">
       <div className="max-w-2xl mx-auto">
+        
         <div className="mb-6">
             <Link href="/venues" className="inline-flex items-center text-sm font-medium text-gray-500 hover:text-green-600 transition-colors">
                 <FiArrowLeft className="mr-2"/> 会場一覧へ戻る
@@ -135,7 +156,6 @@ export default function AddVenuePage() {
                 <p className="mt-2 text-green-100 text-sm font-medium">情報を共有して推し活を盛り上げましょう</p>
             </div>
             
-            {/* formタグのonSubmitを無効化 */}
             <div className="p-8 space-y-8">
                 <section className="space-y-4">
                     <h3 className="text-lg font-bold text-gray-800 border-b pb-2 flex items-center gap-2">
@@ -150,10 +170,10 @@ export default function AddVenuePage() {
                                 type="text"
                                 value={formData.venueName}
                                 onChange={handleChange}
-                                className="flex-1 rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500 transition-all"
+                                className="flex-1 rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500 transition-all bg-gray-50 focus:bg-white"
                                 placeholder="例：東京ガーデンシアター"
                             />
-                            <button type="button" onClick={handleGoogleSearch} className="px-4 py-2 bg-gray-100 text-gray-600 rounded-xl hover:bg-gray-200 text-xs font-bold">
+                            <button type="button" onClick={handleGoogleSearch} className="px-4 py-2 bg-gray-100 text-gray-600 rounded-xl hover:bg-gray-200 text-xs font-bold shrink-0">
                                 <FiSearch size={16}/>
                             </button>
                         </div>
@@ -167,8 +187,8 @@ export default function AddVenuePage() {
                                 type="text"
                                 value={formData.address}
                                 onChange={handleChange}
-                                className="w-full rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500"
-                                placeholder="東京都..."
+                                className="w-full rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 focus:bg-white"
+                                placeholder="都道府県から入力"
                             />
                         </div>
                         <div>
@@ -178,8 +198,8 @@ export default function AddVenuePage() {
                                 type="text" 
                                 value={formData.phoneNumber}
                                 onChange={handleChange}
-                                className="w-full rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500"
-                                placeholder="0312345678"
+                                className="w-full rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 focus:bg-white"
+                                placeholder="例：0312345678"
                             />
                         </div>
                     </div>
@@ -191,7 +211,7 @@ export default function AddVenuePage() {
                             type="text" 
                             value={formData.website}
                             onChange={handleChange}
-                            className="w-full rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500"
+                            className="w-full rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 focus:bg-white"
                             placeholder="example.com"
                         />
                     </div>
@@ -205,14 +225,14 @@ export default function AddVenuePage() {
                         <button
                             type="button"
                             onClick={() => setFormData({...formData, isStandAllowed: true})}
-                            className={`flex-1 py-3 rounded-lg border flex items-center justify-center gap-2 font-bold ${formData.isStandAllowed ? 'bg-green-600 text-white' : 'bg-white text-gray-400 border-gray-300'}`}
+                            className={`flex-1 py-3 rounded-xl border flex items-center justify-center gap-2 font-bold transition-all ${formData.isStandAllowed ? 'bg-green-600 text-white border-green-600 shadow-md' : 'bg-white text-gray-400 border-gray-300'}`}
                         >
                             <FiCheckCircle /> 受入可
                         </button>
                         <button
                             type="button"
                             onClick={() => setFormData({...formData, isStandAllowed: false})}
-                            className={`flex-1 py-3 rounded-lg border flex items-center justify-center gap-2 font-bold ${!formData.isStandAllowed ? 'bg-red-500 text-white' : 'bg-white text-gray-400 border-gray-300'}`}
+                            className={`flex-1 py-3 rounded-xl border flex items-center justify-center gap-2 font-bold transition-all ${!formData.isStandAllowed ? 'bg-red-500 text-white border-red-500 shadow-md' : 'bg-white text-gray-400 border-gray-300'}`}
                         >
                             <FiXCircle /> 禁止
                         </button>
@@ -222,20 +242,22 @@ export default function AddVenuePage() {
                         rows="4"
                         value={formData.regulations}
                         onChange={handleChange}
-                        className="w-full rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500"
-                        placeholder="サイズ規定など..."
+                        className="w-full rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 focus:bg-white"
+                        placeholder="搬入時間、サイズ指定、回収規定など..."
                     ></textarea>
                 </section>
 
                 <div className="pt-6 border-t flex flex-col sm:flex-row gap-4">
                     <Link href="/venues" className="w-full sm:w-1/3">
-                        <button className="w-full py-4 border border-gray-300 rounded-xl text-gray-600 font-bold">キャンセル</button>
+                        <button type="button" className="w-full py-4 border border-gray-300 rounded-2xl text-gray-600 font-bold hover:bg-gray-50">
+                            キャンセル
+                        </button>
                     </Link>
                     <button
                         type="button"
                         onClick={execSubmit}
                         disabled={isSubmitting}
-                        className="w-full sm:w-2/3 py-4 bg-green-600 text-white rounded-xl font-black shadow-lg disabled:bg-gray-400 active:scale-95 transition-all flex justify-center items-center"
+                        className="w-full sm:w-2/3 py-4 bg-green-600 text-white rounded-2xl font-black shadow-lg shadow-green-100 disabled:bg-gray-300 active:scale-95 transition-all flex justify-center items-center"
                     >
                         {isSubmitting ? <FiLoader className="animate-spin mr-2"/> : <><FiSave className="mr-2"/> 情報を登録する</>}
                     </button>
