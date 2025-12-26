@@ -9,30 +9,41 @@
   --primary-foreground: 210 40% 98%; 
 }
 
-/* ブラウザのデフォルト余白を完全に抹殺 */
+/* ブラウザのデフォルトを完全にリセット */
 html, body {
   margin: 0 !important;
   padding: 0 !important;
   width: 100% !important;
+  min-height: 100vh;
   overflow-x: hidden;
 }
 
-/* ★ 重要修正: 縦並びの全要素を隙間なく密着させる */
-header, 
-header + div, 
-header + div + main,
+/* ★ 最終解決：要素を「1pxずつ重ねる」ことで隙間を物理的に消滅させる */
+header {
+  margin-bottom: -1px !important;
+  position: relative;
+  z-index: 50;
+}
+
+/* LiveTickerをヘッダーの下に潜り込ませ、かつ下とも重ねる */
+header + div {
+  margin-top: 0 !important;
+  margin-bottom: -1px !important;
+  position: relative;
+  z-index: 40;
+}
+
+/* main（HomePage）をティッカーの下に潜り込ませる */
 main {
   margin-top: 0 !important;
-  margin-bottom: 0 !important;
-  padding-top: 0 !important;
-  display: block; /* 隙間の原因になる inline-block 的な挙動を防ぐ */
+  position: relative;
+  z-index: 30;
 }
 
 body {
   background: var(--seasonal-bg);
   color: var(--foreground);
   transition: background 0.3s ease, color 0.3s ease;
-  min-height: 100vh;
   background-attachment: fixed;
 }
 
@@ -43,7 +54,7 @@ body.theme-spring:not(.dark-mode) {
   background-size: 20px 20px;
 }
 
-/* 🎨 推し色適用 */
+/* 🎨 推し色適用ユーティリティ */
 .oshi-theme-bg { background-color: hsl(var(--primary)) !important; }
 .oshi-theme-text { color: hsl(var(--primary)) !important; }
 

@@ -26,7 +26,7 @@ const ScrollProgress = () => {
   const { scrollYProgress } = useScroll();
   const scaleX = useSpring(scrollYProgress, { stiffness: 100, damping: 30, restDelta: 0.001 });
   return (
-    <motion.div className="fixed top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-pink-400 via-purple-400 to-sky-400 origin-left z-[1000] shadow-[0_0_20px_rgba(244,114,182,0.6)]" style={{ scaleX }} />
+    <motion.div className="fixed top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-pink-400 via-purple-400 to-sky-400 origin-left z-[2000] shadow-[0_0_20px_rgba(244,114,182,0.6)]" style={{ scaleX }} />
   );
 };
 
@@ -160,10 +160,11 @@ const KawaiiButton = ({ children, variant = "primary", icon: Icon, className, on
 // --- 🚀 SECTIONS ---
 
 const HeroSection = () => (
-  <section className="relative w-full min-h-[85vh] md:min-h-[95vh] flex items-center justify-center overflow-hidden bg-slate-50 m-0 p-0 block border-none">
+  /* 修正: p-0 m-0 を明示し、z-index でティッカーの下に確実に配置 */
+  <section className="relative w-full min-h-[85vh] md:min-h-[95vh] flex items-center justify-center overflow-hidden bg-slate-50 m-0 p-0 z-10">
     <ScrollProgress />
     <MagicCursor />
-    <div className="absolute inset-0 bg-[radial-gradient(#e0f2fe_1px,transparent_1px)] [background-size:24px_24px] opacity-60" />
+    <div className="absolute inset-0 bg-[radial-gradient(#e0f2fe_1px,transparent_1px)] [background-size:24px_24px] opacity-60 pointer-events-none" />
     <FloatingShape color="bg-pink-200" top="-5%" left="-5%" size={500} />
     <FloatingShape color="bg-sky-200" bottom="-5%" right="-5%" size={500} delay={2} />
 
@@ -356,7 +357,7 @@ const PartnerJoinSection = () => {
   const partners = [
     { title: "お花屋さん", icon: <Store />, color: "pink", hrefL: "/florists/login", hrefR: "/florists/register", desc: "未払いリスクゼロで売上UP。推し花需要を取り込みませんか？" },
     { title: "会場・ホール", icon: <MapPin />, color: "sky", hrefL: "/venues/login", hrefR: "/venues/register", desc: "トラブル防止に。公式規定を周知し、許可された花のみ受取。" },
-    { title: "イベント主催", icon: <Ticket />, color: "purple", hrefL: "/organizers/login", hrefR: "/organizers/register", desc: "ファンの応援企画を公認。安全な応援文化を醸成します。" }
+    { title: "イベント主催", icon: <Ticket />, color: "purple", hrefL: "/organizers/login", hrefR: "/organizers/register", desc: "ファンの応援企画を公認.安全な応援文化を醸成します。" }
   ];
   return (
     <section className="py-20 md:py-32 bg-white overflow-hidden">
@@ -437,7 +438,7 @@ const FaqSection = () => (
       <div className="space-y-4">
         {[
           { q: "目標未達の場合は？", a: "All-in(そのまま実施)かAll-or-Nothing(返金中止)かを選べます。" },
-          { q: "手数料は？", a: "企画作成は無料。達成時のみ、決済手数料等として計10%を頂戴します。" },
+          { q: "手数料は？", a: "企画作成は無料.達成時のみ、決済手数料等として計10%を頂戴します。" },
           { q: "匿名支援は可能？", a: "はい。主催者に本名や住所が伝わることはありません。" }
         ].map((item, i) => (
           <details key={i} className="group bg-slate-50 rounded-2xl p-5 border border-slate-100 cursor-pointer open:bg-white open:shadow-lg transition-all">
