@@ -9,47 +9,43 @@
   --primary-foreground: 210 40% 98%; 
 }
 
-/* ブラウザのデフォルトを完全にリセット */
+/* ブラウザのデフォルト余白を徹底リセット */
 html, body {
   margin: 0 !important;
   padding: 0 !important;
   width: 100% !important;
   min-height: 100vh;
   overflow-x: hidden;
-  background-color: #ffffff; /* 隙間の色を白で隠す */
+  /* 隙間から漏れる色をHeroSectionの背景色(slate-50)と一致させる */
+  background-color: #f8fafc !important; 
 }
 
-/* ★ 隙間撲滅の決定打：要素同士を強制的に1px重ねる */
+/* ★ 隙間撲滅の最終奥義：要素を「吸着」させる */
 header {
-  position: relative;
+  position: sticky;
+  top: 0;
   z-index: 100;
-  margin-bottom: -1px !important;
+  margin-bottom: 0 !important;
 }
 
-/* ティッカーをヘッダーの下に1px、メインの上に1px重ねる */
+/* LiveTickerを確実に配置 */
 header + div {
   position: relative;
   z-index: 90;
   margin-top: 0 !important;
-  margin-bottom: -1px !important;
+  margin-bottom: -2px !important; /* 物理的に2px下に潜り込ませる */
 }
 
-/* HomePage(main)をティッカーの下に潜り込ませる */
+/* mainコンテンツをティッカーの背後に2px潜り込ませて密着 */
 main {
   position: relative;
   z-index: 80;
   margin-top: 0 !important;
+  padding-top: 0 !important;
   display: block;
 }
 
-body {
-  background: var(--seasonal-bg);
-  color: var(--foreground);
-  transition: background 0.3s ease, color 0.3s ease;
-  background-attachment: fixed;
-}
-
-/* 🎨 推し色適用ユーティリティ */
+/* 🎨 推し色適用 */
 .oshi-theme-bg { background-color: hsl(var(--primary)) !important; }
 .oshi-theme-text { color: hsl(var(--primary)) !important; }
 

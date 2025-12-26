@@ -160,16 +160,16 @@ const KawaiiButton = ({ children, variant = "primary", icon: Icon, className, on
 // --- 🚀 SECTIONS ---
 
 const HeroSection = () => (
-  /* 修正: display: block を明示し、余白を完全に排除 */
-  <section className="relative block w-full min-h-[85vh] md:min-h-[95vh] flex items-center justify-center overflow-hidden bg-slate-50 m-0 p-0">
+  /* 修正: z-indexを下げ、上部に余裕を持たせる（ティッカーの背後に潜り込むため） */
+  <section className="relative block w-full min-h-[85vh] md:min-h-[95vh] flex items-center justify-center overflow-hidden bg-slate-50 m-0 p-0 z-0">
     <ScrollProgress />
     <MagicCursor />
     <div className="absolute inset-0 bg-[radial-gradient(#e0f2fe_1px,transparent_1px)] [background-size:24px_24px] opacity-60 pointer-events-none" />
     <FloatingShape color="bg-pink-200" top="-5%" left="-5%" size={500} />
     <FloatingShape color="bg-sky-200" bottom="-5%" right="-5%" size={500} delay={2} />
 
-    {/* コンテンツの開始位置を微調整 */}
-    <div className="container relative z-10 px-6 pt-16 md:pt-24 pb-10 grid lg:grid-cols-12 gap-10 items-center mx-auto">
+    {/* 重要: pt を多めに取ることで、ティッカーの背後に潜り込んでも重ならないようにする */}
+    <div className="container relative z-10 px-6 pt-24 md:pt-32 pb-10 grid lg:grid-cols-12 gap-10 items-center mx-auto">
       <div className="lg:col-span-7 text-center lg:text-left">
         <Reveal>
           <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white rounded-full shadow-md border border-pink-50 mb-6 mx-auto lg:mx-0">
