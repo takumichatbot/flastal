@@ -1,13 +1,5 @@
 @import "tailwindcss";
 
-/* 1. 究極のリセット：すべての要素からマージンと隙間を奪う */
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-  -webkit-font-smoothing: antialiased;
-}
-
 :root {
   --background: #ffffff;
   --foreground: #171717;
@@ -15,53 +7,41 @@
   --seasonal-bg: #ffffff;
   --primary: 204 89% 53%;
   --primary-foreground: 210 40% 98%; 
-  --primary-h: 204; 
 }
 
-/* 2. html/body の完全固定 */
+/* 1. 標準的なリセットに戻す */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
 html, body {
-  margin: 0 !important;
-  padding: 0 !important;
-  width: 100% !important;
+  width: 100%;
   min-height: 100vh;
   overflow-x: hidden;
-  background-color: #ffffff; /* 下地を白にして隙間を同化させる */
+  background-color: #ffffff;
 }
 
-/* 3. 要素間の吸着設定：display: block と vertical-align で微細な隙間を消す */
-header, 
-nav, 
-section, 
-div, 
-main {
+/* 2. ヘッダーとティッカー、メインの間で隙間が生まれないようにブロック化 */
+header, main, section {
   display: block;
-  vertical-align: top;
+  width: 100%;
 }
 
-/* 4. 季節テーマの調整 */
-body.theme-spring:not(.dark-mode) {
-  --seasonal-primary: #f472b6;
-  --seasonal-bg: radial-gradient(#fbcfe8 1px, transparent 1px), #fff1f2;
-  background-size: 20px 20px;
+body {
+  background: var(--seasonal-bg);
+  color: var(--foreground);
+  transition: background 0.3s ease, color 0.3s ease;
 }
 
-/* 5. 推し色ユーティリティ */
-.oshi-theme-bg {
-  background-color: hsl(var(--primary)) !important;
-}
-.oshi-theme-text {
-  color: hsl(var(--primary)) !important;
-}
+/* 🎨 推し色適用 */
+.oshi-theme-bg { background-color: hsl(var(--primary)) !important; }
+.oshi-theme-text { color: hsl(var(--primary)) !important; }
 
 @tailwind utilities;
 
 @layer utilities {
   .no-scrollbar::-webkit-scrollbar { display: none; }
   .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-  
-  /* 強制吸着クラス */
-  .snap-top {
-    margin-top: 0 !important;
-    padding-top: 0 !important;
-  }
 }

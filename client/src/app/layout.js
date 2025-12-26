@@ -1,5 +1,5 @@
 import { Inter, Noto_Sans_JP } from 'next/font/google';
-import { AuthProvider } from './contexts/AuthContext';
+import { AuthProvider } from './contexts/AuthProvider'; // パスがAuthProviderの場合は修正してください
 import Header from './components/Header';
 import Footer from './components/Footer';
 import './globals.css';
@@ -23,66 +23,31 @@ export const metadata = {
     default: 'FLASTAL - 推しにフラスタを贈ろう',
   },
   description: 'フラスタ専門のクラウドファンディングプラットフォーム。',
-  metadataBase: new URL(process.env.NEXT_PUBLIC_API_URL || 'https://flastal.com'),
-  manifest: '/manifest.json',
-  openGraph: {
-    title: 'FLASTAL - フラスタ専門クラウドファンディング',
-    description: '推しにフラスタを贈ろう！',
-    url: 'https://flastal.com',
-    siteName: 'FLASTAL',
-    locale: 'ja_JP',
-    type: 'website',
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'FLASTAL',
-    description: '推しにフラスタを贈ろう！',
-  },
 };
 
 export const viewport = {
   themeColor: '#0ea5e9',
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
 };
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="ja" className={`${inter.variable} ${notoSansJP.variable}`} style={{ margin: 0, padding: 0 }}>
-      <body className="font-sans antialiased text-slate-900 bg-white min-h-screen flex flex-col m-0 p-0 border-none">
+    <html lang="ja" className={`${inter.variable} ${notoSansJP.variable}`}>
+      <body className="font-sans antialiased text-slate-900 bg-white min-h-screen flex flex-col m-0 p-0">
         <ThemeController />
-        
         <AuthProvider>
           <Suspense fallback={null}>
-            {/* 修正ポイント1: ヘッダーとティッカーを一つの sticky グループにする */}
-            <div className="sticky top-0 z-[100] w-full m-0 p-0 border-none leading-[0] flex flex-col">
-              <Header />
-              <LiveTicker />
-            </div>
-
-            {/* 修正ポイント2: mainに強制的にマイナスマージンをかけ、上の要素に1px潜り込ませる */}
-            <main className="flex-grow w-full m-0 p-0 relative z-10 -mt-[1px]">
+            {/* 修正：HeaderとTickerを独立させ、変なラップを解除 */}
+            <Header />
+            <LiveTicker />
+            <main className="flex-grow w-full">
               {children}
             </main>
-            
             <FloatingMenu />
           </Suspense>
-          
           <Footer />
-          
-          <Toaster 
-            position="top-center" 
-            toastOptions={{
-              duration: 4000,
-              style: {
-                background: '#333',
-                color: '#fff',
-                borderRadius: '50px',
-              },
-            }} 
-          /> 
-          
+          <Toaster position="top-center" /> 
           <PushNotificationManager />
         </AuthProvider>
       </body>
