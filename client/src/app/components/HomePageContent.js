@@ -162,13 +162,13 @@ const KawaiiButton = ({ children, variant = "primary", icon: Icon, className, on
 // --- 🚀 SECTIONS ---
 
 const HeroSection = () => (
-  <section className="relative w-full min-h-[85vh] md:min-h-[95vh] flex items-center justify-center overflow-hidden bg-slate-50 mt-[-1px]">
+  <section className="relative w-full min-h-[85vh] md:min-h-[95vh] flex items-center justify-center overflow-hidden bg-slate-50 m-0 p-0 border-none">
     <ScrollProgress />
     <MagicCursor />
-    <div className="absolute inset-0 bg-[radial-gradient(#e0f2fe_1px,transparent_1px)] [background-size:24px_24px] opacity-60" />
+    {/* 背景ドットの開始位置がずれないように調整 */}
+    <div className="absolute inset-0 bg-[radial-gradient(#e0f2fe_1px,transparent_1px)] [background-size:24px_24px] opacity-60 pointer-events-none" />
     <FloatingShape color="bg-pink-200" top="-5%" left="-5%" size={500} />
     <FloatingShape color="bg-sky-200" bottom="-5%" right="-5%" size={500} delay={2} />
-
     <div className="container relative z-10 px-6 pt-10 md:pt-20 grid lg:grid-cols-12 gap-10 items-center mx-auto">
       <div className="lg:col-span-7 text-center lg:text-left">
         <Reveal>
