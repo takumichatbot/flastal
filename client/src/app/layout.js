@@ -33,14 +33,15 @@ export default function RootLayout({ children }) {
       <body className="font-sans antialiased text-slate-900 bg-white min-h-screen flex flex-col m-0 p-0 overflow-x-hidden">
         <ThemeController />
         <AuthProvider>
-          {/* HeaderとTickerをlayout側で管理。stickyコンテナで確実に表示 */}
-          <div className="layout-header-group sticky top-0 z-[9999] w-full bg-white">
+          {/* 修正ポイント: sticky と absolute 的な挙動を排除し、通常のブロック配置にする */}
+          <div className="w-full bg-white flex flex-col">
             <Header />
             <LiveTicker />
           </div>
           
           <Suspense fallback={null}>
-            <main className="flex-grow w-full relative">
+            {/* main の relative や不要な padding をリセット */}
+            <main className="flex-grow w-full m-0 p-0">
               {children}
             </main>
             <FloatingMenu />
