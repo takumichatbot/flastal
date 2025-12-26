@@ -20,16 +20,16 @@ const getAuthToken = () => {
 
 export default function AddVenuePage() {
   const router = useRouter();
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, logout } = useAuth();
   
-  const [formData, setFormData] = useState({
-    venueName: '',
-    address: '',
-    phoneNumber: '',
-    website: '',
-    isStandAllowed: true,
-    regulations: '',
-  });
+  // ブラウザの自動補完やバリデーションを避けるため、内部ステートと入力欄の名前を完全に切り離します
+  const [vName, setVName] = useState('');
+  const [vAddr, setVAddr] = useState('');
+  const [vPhone, setVPhone] = useState('');
+  const [vWeb, setVWeb] = useState('');
+  const [vRegs, setVRegs] = useState('');
+  const [isStandAllowed, setIsStandAllowed] = useState(true);
+
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -39,30 +39,17 @@ export default function AddVenuePage() {
     }
   }, [user, authLoading, router]);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    const fieldMap = {
-        venueName: 'venueName',
-        v_addr: 'address',
-        v_phone: 'phoneNumber',
-        v_web: 'website',
-        v_regs: 'regulations'
-    };
-    const targetField = fieldMap[name] || name;
-    setFormData(prev => ({ ...prev, [targetField]: value }));
-  };
-
   const handleGoogleSearch = () => {
-    if (!formData.venueName) return toast.error('会場名を入力してください');
-    const query = encodeURIComponent(`${formData.venueName} 公式サイト アクセス`);
+    if (!vName) return toast.error('会場名を入力してください');
+    const query = encodeURIComponent(`${vName} 公式サイト アクセス`);
     window.open(`https://www.google.com/search?q=${query}`, '_blank');
   };
 
-  const execSubmit = async () => {
+  // ボタンから直接呼び出す「純粋なJavaScript」としての送信処理
+  const handleFinalSubmit = async () => {
     if (isSubmitting) return;
 
-    const vName = formData.venueName.trim();
-    if (!vName) {
+    if (!vName || !vName.trim()) {
         return toast.error('会場名を入力してください');
     }
 
@@ -70,19 +57,19 @@ export default function AddVenuePage() {
     const token = getAuthToken();
 
     // URLの自動補完
-    let finalWebsite = (formData.website || '').trim();
+    let finalWebsite = (vWeb || '').trim();
     if (finalWebsite && !finalWebsite.toLowerCase().startsWith('http')) {
         finalWebsite = `https://${finalWebsite}`;
     }
 
     try {
         const payload = {
-            venueName: vName,
-            address: (formData.address || '').trim(),
-            phoneNumber: (formData.phoneNumber || '').trim(),
+            venueName: vName.trim(),
+            address: vAddr.trim(),
+            phoneNumber: vPhone.trim(),
             website: finalWebsite,
-            isStandAllowed: formData.isStandAllowed,
-            regulations: (formData.regulations || '').trim(),
+            isStandAllowed: isStandAllowed,
+            regulations: vRegs.trim(),
             submittedBy: user?.id 
         };
 
@@ -95,36 +82,31 @@ export default function AddVenuePage() {
             body: JSON.stringify(payload),
         });
 
-        // ★修正ポイント：JSONとして解析する前にステータスをチェックし、中身があるか確認
-        let data = {};
-        const contentType = res.headers.get("content-type");
-        if (contentType && contentType.indexOf("application/json") !== -1) {
-            data = await res.json();
-        } else {
-            // JSONじゃない場合（HTMLエラーページなど）はテキストとして取得を試みる
-            const text = await res.text();
-            console.error('Non-JSON response received:', text);
+        // 通信レベルのチェック
+        if (res.status === 401) {
+            toast.error('ログイン期限が切れました。再ログインしてください。');
+            logout();
+            router.push('/login');
+            return;
         }
+
+        // 成功・失敗の判定
+        const responseData = await res.json().catch(() => ({}));
 
         if (!res.ok) {
-            throw new Error(data.message || `サーバーエラーが発生しました (Status: ${res.status})`);
+            throw new Error(responseData.message || `登録に失敗しました (Status: ${res.status})`);
         }
 
-        toast.success('会場情報を共有しました！ご協力ありがとうございます🎉');
+        toast.success('会場情報を登録しました！');
         
-        // 成功後、一覧へ
+        // リダイレクト
         setTimeout(() => {
-            router.push('/venues'); 
-        }, 800);
+            window.location.href = '/venues';
+        }, 500);
 
     } catch (error) {
-        console.error('Submit Error Details:', error);
-        // SyntaxError (JSON解析失敗) の場合は、わかりやすいメッセージに変える
-        if (error.name === 'SyntaxError') {
-            toast.error('サーバーからの応答が正しくありません。しばらく時間をおいて再度お試しください。');
-        } else {
-            toast.error(error.message || '通信エラーが発生しました');
-        }
+        console.error('Submission error:', error);
+        toast.error(error.message || '通信エラーが発生しました。');
     } finally {
         setIsSubmitting(false);
     }
@@ -141,125 +123,129 @@ export default function AddVenuePage() {
   return (
     <div className="min-h-screen bg-slate-50 py-12 px-4 sm:px-6 lg:px-8 font-sans text-gray-800">
       <div className="max-w-2xl mx-auto">
-        
         <div className="mb-6">
-            <Link href="/venues" className="inline-flex items-center text-sm font-medium text-gray-500 hover:text-green-600 transition-colors">
+            <Link href="/venues" className="inline-flex items-center text-sm font-medium text-gray-500 hover:text-green-600">
                 <FiArrowLeft className="mr-2"/> 会場一覧へ戻る
             </Link>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
-            <div className="bg-gradient-to-r from-green-600 to-teal-600 p-8 text-white">
-                <h2 className="text-2xl font-bold flex items-center gap-2">
-                    <FiMapPin /> 新しい会場を登録
+        <div className="bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-200">
+            <div className="bg-slate-900 p-8 text-white">
+                <h2 className="text-2xl font-bold flex items-center gap-2 tracking-tight">
+                    <FiMapPin className="text-green-400" /> 会場情報を登録
                 </h2>
-                <p className="mt-2 text-green-100 text-sm font-medium">情報を共有して推し活を盛り上げましょう</p>
+                <p className="mt-2 text-slate-400 text-xs font-bold uppercase tracking-widest">Register New Venue</p>
             </div>
             
-            <div className="p-8 space-y-8">
-                <section className="space-y-4">
-                    <h3 className="text-lg font-bold text-gray-800 border-b pb-2 flex items-center gap-2">
-                        <FiInfo className="text-green-500"/> 基本情報
+            {/* FORMタグを使わず、DIVで構成することでブラウザの「期待されるパターン」機能を完全に無力化します */}
+            <div className="p-8 space-y-10">
+                
+                {/* 1. 基本情報 */}
+                <section className="space-y-6">
+                    <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest border-b pb-2 flex items-center gap-2">
+                        <FiInfo /> Information
                     </h3>
                     
                     <div>
-                        <label className="block text-sm font-bold text-gray-700 mb-1">会場名</label>
+                        <label className="block text-xs font-black text-slate-500 uppercase mb-2">会場名</label>
                         <div className="flex gap-2">
                             <input
-                                name="venueName"
                                 type="text"
-                                value={formData.venueName}
-                                onChange={handleChange}
-                                className="flex-1 rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500 transition-all bg-gray-50 focus:bg-white"
+                                value={vName}
+                                onChange={(e) => setVName(e.target.value)}
+                                className="flex-1 rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4 focus:bg-white focus:ring-4 focus:ring-green-100 outline-none transition-all"
                                 placeholder="例：東京ガーデンシアター"
+                                autoComplete="off"
                             />
-                            <button type="button" onClick={handleGoogleSearch} className="px-4 py-2 bg-gray-100 text-gray-600 rounded-xl hover:bg-gray-200 text-xs font-bold shrink-0">
-                                <FiSearch size={16}/>
+                            <button type="button" onClick={handleGoogleSearch} className="px-5 bg-slate-100 text-slate-500 rounded-2xl hover:bg-slate-200 transition-all">
+                                <FiSearch size={20}/>
                             </button>
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
-                            <label className="block text-sm font-bold text-gray-700 mb-1">住所</label>
+                            <label className="block text-xs font-black text-slate-500 uppercase mb-2">住所</label>
                             <input
-                                name="v_addr"
                                 type="text"
-                                value={formData.address}
-                                onChange={handleChange}
-                                className="w-full rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 focus:bg-white"
+                                value={vAddr}
+                                onChange={(e) => setVAddr(e.target.value)}
+                                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4 focus:bg-white focus:ring-4 focus:ring-green-100 outline-none transition-all"
                                 placeholder="都道府県から入力"
+                                autoComplete="off"
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-bold text-gray-700 mb-1">電話番号</label>
+                            <label className="block text-xs font-black text-slate-500 uppercase mb-2">電話番号</label>
                             <input
-                                name="v_phone"
                                 type="text" 
-                                value={formData.phoneNumber}
-                                onChange={handleChange}
-                                className="w-full rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 focus:bg-white"
-                                placeholder="例：0312345678"
+                                value={vPhone}
+                                onChange={(e) => setVPhone(e.target.value)}
+                                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4 focus:bg-white focus:ring-4 focus:ring-green-100 outline-none transition-all"
+                                placeholder="例：0300000000"
+                                autoComplete="off"
                             />
                         </div>
                     </div>
 
                     <div>
-                        <label className="block text-sm font-bold text-gray-700 mb-1">公式サイトURL</label>
+                        <label className="block text-xs font-black text-slate-500 uppercase mb-2">公式サイトURL</label>
                         <input
-                            name="v_web"
                             type="text" 
-                            value={formData.website}
-                            onChange={handleChange}
-                            className="w-full rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 focus:bg-white"
+                            value={vWeb}
+                            onChange={(e) => setVWeb(e.target.value)}
+                            className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4 focus:bg-white focus:ring-4 focus:ring-green-100 outline-none transition-all"
                             placeholder="example.com"
+                            autoComplete="off"
                         />
                     </div>
                 </section>
 
-                <section className="space-y-4 pt-4">
-                    <h3 className="text-lg font-bold text-gray-800 border-b pb-2 flex items-center gap-2">
-                        <FiHelpCircle className="text-green-500"/> レギュレーション
+                {/* 2. レギュレーション */}
+                <section className="space-y-6">
+                    <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest border-b pb-2 flex items-center gap-2">
+                        <FiHelpCircle /> Regulation
                     </h3>
                     <div className="flex gap-4">
                         <button
                             type="button"
-                            onClick={() => setFormData({...formData, isStandAllowed: true})}
-                            className={`flex-1 py-3 rounded-xl border flex items-center justify-center gap-2 font-bold transition-all ${formData.isStandAllowed ? 'bg-green-600 text-white border-green-600 shadow-md' : 'bg-white text-gray-400 border-gray-300'}`}
+                            onClick={() => setIsStandAllowed(true)}
+                            className={`flex-1 py-4 rounded-2xl border-2 flex items-center justify-center gap-2 font-black transition-all ${isStandAllowed ? 'bg-green-600 border-green-600 text-white shadow-xl shadow-green-100' : 'bg-white border-slate-100 text-slate-300'}`}
                         >
                             <FiCheckCircle /> 受入可
                         </button>
                         <button
                             type="button"
-                            onClick={() => setFormData({...formData, isStandAllowed: false})}
-                            className={`flex-1 py-3 rounded-xl border flex items-center justify-center gap-2 font-bold transition-all ${!formData.isStandAllowed ? 'bg-red-500 text-white border-red-500 shadow-md' : 'bg-white text-gray-400 border-gray-300'}`}
+                            onClick={() => setIsStandAllowed(false)}
+                            className={`flex-1 py-4 rounded-2xl border-2 flex items-center justify-center gap-2 font-black transition-all ${!isStandAllowed ? 'bg-red-500 border-red-500 text-white shadow-xl shadow-red-100' : 'bg-white border-slate-100 text-slate-300'}`}
                         >
                             <FiXCircle /> 禁止
                         </button>
                     </div>
                     <textarea
-                        name="v_regs"
-                        rows="4"
-                        value={formData.regulations}
-                        onChange={handleChange}
-                        className="w-full rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 focus:bg-white"
-                        placeholder="搬入時間、サイズ指定、回収規定など..."
+                        rows="5"
+                        value={vRegs}
+                        onChange={(e) => setVRegs(e.target.value)}
+                        className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4 focus:bg-white focus:ring-4 focus:ring-green-100 outline-none transition-all"
+                        placeholder="搬入時間、サイズ規定、回収の要否などを入力してください"
                     ></textarea>
                 </section>
 
-                <div className="pt-6 border-t flex flex-col sm:flex-row gap-4">
-                    <Link href="/venues" className="w-full sm:w-1/3">
-                        <button type="button" className="w-full py-4 border border-gray-300 rounded-2xl text-gray-600 font-bold hover:bg-gray-50">
-                            キャンセル
-                        </button>
-                    </Link>
+                <div className="pt-8 border-t flex flex-col sm:flex-row gap-4">
+                    <button 
+                        type="button" 
+                        onClick={() => router.back()}
+                        className="w-full sm:w-1/3 py-5 rounded-2xl text-slate-400 font-bold hover:bg-slate-50 transition-all"
+                    >
+                        キャンセル
+                    </button>
                     <button
                         type="button"
-                        onClick={execSubmit}
+                        onClick={handleFinalSubmit}
                         disabled={isSubmitting}
-                        className="w-full sm:w-2/3 py-4 bg-green-600 text-white rounded-2xl font-black shadow-lg shadow-green-100 disabled:bg-gray-300 active:scale-95 transition-all flex justify-center items-center"
+                        className="w-full sm:w-2/3 py-5 bg-green-600 text-white rounded-2xl font-black shadow-2xl shadow-green-200 disabled:bg-slate-200 active:scale-95 transition-all flex justify-center items-center"
                     >
-                        {isSubmitting ? <FiLoader className="animate-spin mr-2"/> : <><FiSave className="mr-2"/> 情報を登録する</>}
+                        {isSubmitting ? <FiLoader className="animate-spin mr-2"/> : <><FiSave className="mr-2"/> 会場を登録する</>}
                     </button>
                 </div>
             </div>
