@@ -160,14 +160,15 @@ const KawaiiButton = ({ children, variant = "primary", icon: Icon, className, on
 // --- 🚀 SECTIONS ---
 
 const HeroSection = () => (
-  <section className="relative w-full min-h-[85vh] md:min-h-[95vh] flex items-center justify-center overflow-hidden bg-slate-50 m-0 p-0 border-none">
+  /* 修正ポイント: m-0 p-0 でヘッダーに密着させつつ、コンテンツ自体の pt は確保 */
+  <section className="relative w-full min-h-[85vh] md:min-h-[95vh] flex items-center justify-center overflow-hidden bg-slate-50 m-0">
     <ScrollProgress />
     <MagicCursor />
     <div className="absolute inset-0 bg-[radial-gradient(#e0f2fe_1px,transparent_1px)] [background-size:24px_24px] opacity-60" />
     <FloatingShape color="bg-pink-200" top="-5%" left="-5%" size={500} />
     <FloatingShape color="bg-sky-200" bottom="-5%" right="-5%" size={500} delay={2} />
 
-    <div className="container relative z-10 px-6 pt-10 md:pt-20 grid lg:grid-cols-12 gap-10 items-center mx-auto">
+    <div className="container relative z-10 px-6 pt-20 md:pt-32 pb-10 grid lg:grid-cols-12 gap-10 items-center mx-auto">
       <div className="lg:col-span-7 text-center lg:text-left">
         <Reveal>
           <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white rounded-full shadow-md border border-pink-50 mb-6 mx-auto lg:mx-0">
@@ -536,7 +537,7 @@ export default function HomePage() {
   }
 
   return (
-    <div className="bg-white min-h-screen text-slate-800 font-sans selection:bg-pink-100 selection:text-pink-600 pt-0 m-0">
+    <div className="bg-white min-h-screen text-slate-800 font-sans selection:bg-pink-100 selection:text-pink-600 m-0">
       <HeroSection />
       <TickerSection />
       <CultureSection />
