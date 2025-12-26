@@ -124,7 +124,7 @@ function NotificationDropdown({ notifications, fetchNotifications, unreadCount }
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 10, scale: 0.95 }}
               transition={{ duration: 0.2 }}
-              className="absolute right-0 mt-4 w-80 bg-white/95 backdrop-blur-xl border border-white/50 rounded-3xl shadow-2xl shadow-purple-100/50 z-50 overflow-hidden ring-1 ring-slate-100"
+              className="absolute right-0 mt-4 w-80 bg-white/95 backdrop-blur-xl border border-white/50 rounded-3xl shadow-2xl shadow-purple-100/50 z-[9999] overflow-hidden ring-1 ring-slate-100"
             >
               <div className="flex justify-between items-center px-5 py-4 border-b border-slate-100/50 bg-slate-50/50">
                 <h3 className="font-bold text-sm text-slate-700 flex items-center gap-2">通知</h3>
@@ -157,7 +157,7 @@ const ScrollProgress = () => {
   const { scrollYProgress } = useScroll();
   const scaleX = useSpring(scrollYProgress, { stiffness: 100, damping: 30, restDelta: 0.001 });
   return (
-    <motion.div className="fixed top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-pink-400 via-purple-400 to-sky-400 origin-left z-[3000] shadow-[0_0_20px_rgba(244,114,182,0.6)]" style={{ scaleX }} />
+    <motion.div className="fixed top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-pink-400 via-purple-400 to-sky-400 origin-left z-[10000] shadow-[0_0_20px_rgba(244,114,182,0.6)]" style={{ scaleX }} />
   );
 };
 
@@ -291,7 +291,7 @@ const KawaiiButton = ({ children, variant = "primary", icon: Icon, className, on
 // --- 🚀 HERO & SECTIONS ---
 
 const HeroSection = () => (
-  <section className="relative w-full min-h-[85vh] md:min-h-[95vh] flex items-center justify-center overflow-hidden bg-slate-50 border-none m-0 p-0 z-10">
+  <section className="relative w-full min-h-[85vh] md:min-h-[95vh] flex items-center justify-center overflow-hidden bg-white border-none m-0 p-0 z-10">
     <div className="absolute inset-0 bg-[radial-gradient(#e0f2fe_1px,transparent_1px)] [background-size:24px_24px] opacity-40 pointer-events-none" />
     <FloatingShape color="bg-pink-200" top="-5%" left="-5%" size={500} />
     <FloatingShape color="bg-sky-200" bottom="-5%" right="-5%" size={500} delay={2} />
@@ -316,13 +316,12 @@ const HeroSection = () => (
         </Reveal>
         <Reveal delay={0.2}>
           <p className="text-sm md:text-xl text-slate-500 mb-10 leading-relaxed max-w-2xl mx-auto lg:mx-0 font-medium">
-            FLASTAL（フラスタル）は、みんなでお祝い花（フラスタ）を贈れる<br className="hidden md:block" />
-            次世代クラウドファンディング・プラットフォームです。
+            FLASTAL（フラスタル）は、アイドル・声優・VTuber・歌い手への「お祝い花（フラスタ）」を、ファンのみんなで贈れる次世代クラウドファンディング・プラットフォームです。
           </p>
         </Reveal>
         <Reveal delay={0.3}>
           <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
-            <Link href="/projects/create" className="w-full sm:w-auto"><KawaiiButton variant="primary" icon={Sparkles} className="w-full">企画を立てる</KawaiiButton></Link>
+            <Link href="/projects/create" className="w-full sm:w-auto"><KawaiiButton variant="primary" icon={Sparkles} className="w-full">無料で企画を立てる</KawaiiButton></Link>
             <Link href="/projects" className="w-full sm:w-auto"><KawaiiButton variant="secondary" icon={Search} className="w-full">企画を探す</KawaiiButton></Link>
           </div>
         </Reveal>
@@ -336,7 +335,7 @@ const HeroSection = () => (
                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
                <div className="absolute bottom-6 left-6 text-white">
                  <span className="bg-pink-500 px-2 py-0.5 rounded text-[10px] font-bold mb-2 inline-block uppercase">Now Funding</span>
-                 <h3 className="text-2xl font-bold">銀河一のフラスタを！</h3>
+                 <h3 className="text-2xl font-bold">星街すいせいさんへ銀河一のフラスタを！</h3>
                </div>
              </div>
              <div className="p-6">
@@ -448,16 +447,15 @@ export default function HomePage() {
   const tickerStyle = getLogStyle(currentLog.type);
 
   return (
-    <div className="bg-white min-h-screen text-slate-800 font-sans selection:bg-pink-100 selection:text-pink-600 m-0 p-0 overflow-x-hidden w-full relative">
+    /* 親要素に relative を指定し、他からの overflow の影響を断ち切る */
+    <div className="bg-white min-h-screen text-slate-800 font-sans selection:bg-pink-100 selection:text-pink-600 m-0 p-0 w-full relative">
       <ScrollProgress />
       <MagicCursor />
 
-      {/* 修正ポイント: Header と LiveTicker のコンテナ
-          h-fit (コンテンツに合わせる) + min-h-24 (スマホ) / min-h-32 (PC) で高さを強制確保
-      */}
-      <div className="sticky top-0 z-[1000] w-full flex flex-col shadow-xl bg-white min-h-[104px] md:min-h-[120px]">
+      {/* --- INTEGRATED HEADER & TICKER (Absolute/Sticky Control) --- */}
+      <div className="sticky top-0 z-[9999] w-full flex flex-col shadow-xl bg-white isolate">
         {/* HEADER */}
-        <header className="w-full bg-white border-b border-slate-200/50 h-16 md:h-20 flex items-center shrink-0">
+        <header className="w-full bg-white/95 backdrop-blur-md border-b border-slate-200/50 h-16 md:h-20 flex items-center shrink-0">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full flex justify-between items-center">
                 <div className="flex items-center gap-8">
                     <Link href="/" className="flex items-center gap-2 group">
@@ -489,7 +487,7 @@ export default function HomePage() {
                                 </button>
                                 <AnimatePresence>
                                     {isUserMenuOpen && (
-                                        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className="absolute right-0 mt-3 w-64 bg-white border border-slate-100 rounded-2xl shadow-2xl z-[1001] overflow-hidden">
+                                        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className="absolute right-0 mt-3 w-64 bg-white border border-slate-100 rounded-2xl shadow-2xl z-[9999] overflow-hidden">
                                             <div className="px-6 py-4 border-b border-slate-50 bg-slate-50/30">
                                                 <p className="text-sm font-bold text-slate-800 truncate">{user.handleName}</p>
                                                 <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-100 text-indigo-600 uppercase mt-1 inline-block">{user.role}</span>
@@ -531,7 +529,7 @@ export default function HomePage() {
                             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
                             <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
                         </span>
-                        <span className="text-[10px] font-bold tracking-widest text-slate-300">LIVE</span>
+                        <span className="text-[10px] font-bold tracking-widest text-slate-300 uppercase">Live</span>
                     </div>
                     <div className="flex-1 overflow-hidden relative h-full flex items-center">
                         <Link href={currentLog.href} className={`flex items-center gap-3 text-xs sm:text-sm text-slate-200 hover:text-white transition-all duration-500 transform w-full truncate cursor-pointer ${isTickerAnimating ? 'translate-y-full opacity-0' : 'translate-y-0 opacity-100'}`}>
@@ -553,8 +551,7 @@ export default function HomePage() {
       {isAuthenticated ? (
         <AuthenticatedHome user={user} logout={logout} />
       ) : (
-        /* 主なコンテンツ。ヘッダーの高さ分だけ隙間を空ける必要がないように HeroSection のマージンを確認 */
-        <main className="flex flex-col m-0 p-0 relative">
+        <main className="flex flex-col m-0 p-0 relative isolate">
           <HeroSection />
 
           {/* --- TICKER GENRES --- */}
@@ -791,7 +788,7 @@ export default function HomePage() {
                     <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(244,114,182,0.1),transparent)]" />
                     <div className="relative z-10">
                     <h2 className="text-3xl md:text-6xl font-black mb-6 md:mb-8 leading-tight tracking-tighter">さあ、推しへの愛を<br/>形にしよう。</h2>
-                    <p className="text-slate-400 text-sm md:text-lg mb-8 md:mb-12 max-w-xl mx-auto font-medium">作成は無料。あなたの&quot;贈りたい&quot;が、誰かの勇気になります。</p>
+                    <p className="text-slate-400 text-sm md:text-lg mb-8 md:mb-12 max-w-xl mx-auto font-medium">作成は無料。あなたの"贈りたい"が、誰かの勇気になります。</p>
                     <Link href="/projects/create" className="inline-block">
                         <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="bg-pink-500 text-white px-10 md:px-16 py-4 md:py-6 rounded-full text-lg md:text-2xl font-black shadow-xl shadow-pink-500/20 hover:bg-pink-400 transition-all">
                         今すぐ企画を立てる
@@ -821,7 +818,7 @@ export default function HomePage() {
 // --- 🏠 DASHBOARD WRAPPER ---
 function AuthenticatedHome({ user, logout }) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 w-full">
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 w-full relative z-[100]">
         <div className="max-w-md w-full bg-white rounded-[40px] shadow-2xl p-10 text-center border border-slate-100">
           <div className="w-20 h-20 bg-indigo-50 text-indigo-500 rounded-full flex items-center justify-center mx-auto mb-6">
             <ShieldCheck size={40} />
