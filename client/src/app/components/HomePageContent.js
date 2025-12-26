@@ -166,10 +166,10 @@ const KawaiiButton = ({ children, variant = "primary", icon: Icon, className, on
 
 const HeroSection = () => (
   /* 修正ポイント：
-     1. mt-[-4px] でティッカーの下に強制的に潜り込ませ、隙間をなくす
-     2. pt-4 md:pt-8 でコンテンツをティッカーに密着させる
+     - mt-[-8px] : ティッカーの下に大幅に潜り込ませ、サブピクセルの隙間を物理的に消します。
+     - pt-2 md:pt-4 : 潜り込ませた分、中のコンテンツ位置を微調整します。
   */
-  <section className="relative w-full min-h-[85vh] md:min-h-[90vh] flex items-center justify-center overflow-hidden bg-white border-none m-0 mt-[-4px] pt-4 md:pt-8 z-10">
+  <section className="relative w-full min-h-[85vh] md:min-h-[90vh] flex items-center justify-center overflow-hidden bg-white border-none m-0 mt-[-8px] pt-2 md:pt-4 z-10">
     <div className="absolute inset-0 bg-[radial-gradient(#e0f2fe_1px,transparent_1px)] [background-size:24px_24px] opacity-40 pointer-events-none" />
     <FloatingShape color="bg-pink-200" top="-5%" left="-5%" size={500} />
     <FloatingShape color="bg-sky-200" bottom="-5%" right="-5%" size={500} delay={2} />
