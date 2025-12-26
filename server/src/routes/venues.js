@@ -5,38 +5,70 @@ import { authenticateToken } from '../middleware/auth.js';
 const router = express.Router();
 
 // ==========================================
-// 会場関連 ( app.js で /api/venues としてマウントされている前提 )
+// 会場関連 ( Base Path: /api/venues )
 // ==========================================
 
-// GET /api/venues (一覧取得)
-router.get('/', venueController.getVenues); 
+/**
+ * 会場一覧取得
+ * GET /api/venues
+ */
+router.get('/', venueController.getVenues);
 
-// POST /api/venues (新規登録) ★ここを修正（/venues/add から / へ）
+/**
+ * 新しい会場を登録（一般ユーザー用）
+ * POST /api/venues
+ * フロントエンドからの POST https://.../api/venues をここで受け取ります
+ */
 router.post('/', authenticateToken, venueController.addVenueByUser);
 
-// GET /api/venues/:id (詳細取得)
+/**
+ * 特定の会場詳細取得
+ * GET /api/venues/:id
+ */
 router.get('/:id', venueController.getVenueById);
 
-// PATCH /api/venues/profile (プロフィール更新)
+/**
+ * 会場プロフィールの更新
+ * PATCH /api/venues/profile
+ */
 router.patch('/profile', authenticateToken, venueController.updateVenueProfile); 
 
-// 物流情報関連
+/**
+ * 会場への物流・搬入情報の投稿
+ * POST /api/venues/:venueId/logistics
+ */
 router.post('/:venueId/logistics', authenticateToken, venueController.postLogisticsInfo);
-router.get('/:venueId/logistics', venueController.postLogisticsInfo); // 必要に応じて
+
+/**
+ * 会場の物流・搬入情報の取得
+ * GET /api/venues/:venueId/logistics
+ */
+router.get('/:venueId/logistics', authenticateToken, venueController.postLogisticsInfo);
+
+/**
+ * 物流情報への「役に立った」評価
+ * PATCH /api/venues/logistics/:infoId/helpful
+ */
 router.patch('/logistics/:infoId/helpful', authenticateToken, venueController.markLogisticsHelpful);
 
 // ==========================================
-// イベント関連 ( /api/events... )
+// イベント関連 ( Base Path: /api/events への振り分け用 )
 // ==========================================
-// ※ もし app.js でこの router が /api/venues に紐付いているなら、
-// 以下のパスは /api/venues/events になってしまいます。
-// 本来は個別の eventRoutes.js を作るのが理想ですが、現状の構成を維持します。
+// ※本来は個別の routes/events.js に分けるべきですが、現状の依存関係を維持します
 
-router.get('/events/list', venueController.getEvents); // パス重複を避けるため変更案
+router.get('/events', venueController.getEvents);
 router.get('/events/public', venueController.getEvents);
 router.get('/events/:id', venueController.getEventById);
 router.post('/events', authenticateToken, venueController.createEvent);
 router.post('/events/:id/interest', authenticateToken, venueController.toggleInterest);
 router.post('/events/:id/report', authenticateToken, venueController.reportEvent);
+router.post('/events/user-submit', authenticateToken, venueController.createEvent);
+
+// 主催者用イベント取得
+router.get('/organizers/events', authenticateToken, venueController.getOrganizerEvents); 
+
+// イベント編集・削除
+router.patch('/events/:id', authenticateToken, venueController.updateEvent);
+router.delete('/events/:id', authenticateToken, venueController.deleteEvent);
 
 export default router;
