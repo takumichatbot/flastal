@@ -10,21 +10,13 @@ import {
   FiCheckCircle, FiXCircle, FiHelpCircle, FiSearch, FiLoader 
 } from 'react-icons/fi';
 
-// APIのURLを確実に固定
-const BACKEND_API_URL = 'https://flastal-backend.onrender.com/api/venues';
-
-const getAuthToken = () => {
-  if (typeof window === 'undefined') return null;
-  const rawToken = localStorage.getItem('authToken');
-  if (!rawToken) return null;
-  return rawToken.replace(/^"|"$/g, '');
-};
+// バックエンドのURLを絶対に間違えないようフルパスで指定
+const FINAL_API_URL = 'https://flastal-backend.onrender.com/api/venues';
 
 export default function AddVenuePage() {
   const router = useRouter();
-  const { user, loading: authLoading, logout } = useAuth();
+  const { user, token, loading: authLoading, logout } = useAuth();
   
-  // ブラウザのバリデーションを避けるため個別のStateで管理
   const [vName, setVName] = useState('');
   const [vAddr, setVAddr] = useState('');
   const [vPhone, setVPhone] = useState('');
@@ -47,27 +39,22 @@ export default function AddVenuePage() {
     window.open(`https://www.google.com/search?q=${query}`, '_blank');
   };
 
-  // ★重要：FormのSubmitイベントを使わず、独立した非同期関数として定義
-  const handleFinalAction = async () => {
+  const handleFinalSubmit = async () => {
     if (isSubmitting) return;
-
-    const cleanName = vName.trim();
-    if (!cleanName) {
-        toast.error('会場名を入力してください');
-        return;
-    }
+    if (!vName.trim()) return toast.error('会場名を入力してください');
 
     setIsSubmitting(true);
-    const token = getAuthToken();
+    
+    // AuthContextから取得した最新のトークンを使用（localStorageを直接見ない）
+    const activeToken = token || (typeof window !== 'undefined' ? localStorage.getItem('authToken')?.replace(/"/g, '') : null);
 
-    // URLの自動補完
     let finalWebsite = (vWeb || '').trim();
     if (finalWebsite && !finalWebsite.toLowerCase().startsWith('http')) {
         finalWebsite = `https://${finalWebsite}`;
     }
 
     const payload = {
-        venueName: cleanName,
+        venueName: vName.trim(),
         address: vAddr.trim(),
         phoneNumber: vPhone.trim(),
         website: finalWebsite,
@@ -77,37 +64,42 @@ export default function AddVenuePage() {
     };
 
     try {
-        const response = await fetch(BACKEND_API_URL, {
+        const response = await fetch(FINAL_API_URL, {
             method: 'POST',
+            mode: 'cors',
+            credentials: 'omit', // セキュリティ干渉を最小化
             headers: { 
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`,
+                'Authorization': `Bearer ${activeToken}`,
                 'Accept': 'application/json'
             },
             body: JSON.stringify(payload),
         });
 
-        // 成功判定 (200, 201)
-        if (response.ok || response.status === 201 || response.status === 200) {
-            toast.success('会場情報を登録しました！');
-            // キャッシュを無視して一覧へ強制遷移
-            window.location.assign('/venues');
-            return;
-        }
-
         if (response.status === 401) {
-            toast.error('セッションが切れました。ログインし直してください。');
+            toast.error('認証エラー: 再度ログインしてください');
             if (logout) logout();
             router.push('/login');
             return;
         }
 
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `エラー (${response.status})`);
+        if (response.status === 404) {
+            throw new Error('サーバー側の宛先(404)が見つかりません。URL設定を確認してください。');
+        }
+
+        if (!response.ok) {
+            const errorMsg = await response.text();
+            throw new Error(`送信失敗 (${response.status})`);
+        }
+
+        toast.success('会場情報を登録しました！');
+        
+        // ページを完全にリロードして遷移（キャッシュ回避の最強手段）
+        window.location.href = '/venues';
 
     } catch (error) {
-        console.error('Final Submission Error:', error);
-        toast.error(error.message || '通信エラーが発生しました。');
+        console.error('Submission failed:', error);
+        toast.error(error.message || '通信エラーが発生しました。', { duration: 6000 });
     } finally {
         setIsSubmitting(false);
     }
@@ -125,7 +117,7 @@ export default function AddVenuePage() {
     <div className="min-h-screen bg-slate-50 py-12 px-4 sm:px-6 lg:px-8 font-sans text-gray-800">
       <div className="max-w-2xl mx-auto">
         <div className="mb-6">
-            <button onClick={() => router.back()} className="inline-flex items-center text-sm font-medium text-gray-500 hover:text-green-600 transition-all">
+            <button onClick={() => router.back()} className="inline-flex items-center text-sm font-medium text-gray-500 hover:text-green-600">
                 <FiArrowLeft className="mr-2"/> 戻る
             </button>
         </div>
@@ -135,11 +127,10 @@ export default function AddVenuePage() {
                 <h2 className="text-3xl font-black flex items-center gap-3 tracking-tighter italic uppercase">
                     <FiMapPin className="text-green-400" /> New Venue
                 </h2>
-                <p className="mt-2 text-slate-400 text-xs font-bold tracking-widest">Registering Venue Data</p>
+                <p className="mt-2 text-slate-400 text-xs font-bold tracking-widest uppercase">Database Registration</p>
             </div>
             
-            {/* FORMタグを使用せず、独立した入力フィールドの集合として構成 */}
-            <div className="p-8 md:p-12 space-y-10">
+            <div className="p-8 md:p-12 space-y-12">
                 <section className="space-y-8">
                     <div className="grid grid-cols-1 gap-8">
                         <div>
@@ -150,9 +141,9 @@ export default function AddVenuePage() {
                                     value={vName}
                                     onChange={(e) => setVName(e.target.value)}
                                     className="flex-1 rounded-2xl border-2 border-slate-100 bg-slate-50 px-6 py-5 focus:bg-white focus:border-green-500 outline-none transition-all font-bold text-lg"
-                                    placeholder="例：東京ガーデンシアター"
+                                    placeholder="東京ガーデンシアター"
                                 />
-                                <button type="button" onClick={handleGoogleSearch} className="px-6 bg-slate-100 text-slate-400 rounded-2xl hover:bg-slate-200 shrink-0">
+                                <button type="button" onClick={handleGoogleSearch} className="px-6 bg-slate-100 text-slate-400 rounded-2xl hover:bg-slate-200 transition-all shrink-0">
                                     <FiSearch size={22}/>
                                 </button>
                             </div>
@@ -166,7 +157,7 @@ export default function AddVenuePage() {
                                     value={vAddr}
                                     onChange={(e) => setVAddr(e.target.value)}
                                     className="w-full rounded-2xl border-2 border-slate-100 bg-slate-50 px-6 py-5 focus:bg-white focus:border-green-500 outline-none transition-all font-bold"
-                                    placeholder="都道府県から入力"
+                                    placeholder="都道府県〜"
                                 />
                             </div>
                             <div>
@@ -182,7 +173,7 @@ export default function AddVenuePage() {
                         </div>
 
                         <div>
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block ml-1">公式サイトURL</label>
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block ml-1">URL</label>
                             <input
                                 type="text" 
                                 value={vWeb}
@@ -202,14 +193,14 @@ export default function AddVenuePage() {
                             onClick={() => setIsStandAllowed(true)}
                             className={`flex-1 py-5 rounded-2xl border-2 flex items-center justify-center gap-3 font-black transition-all ${isStandAllowed ? 'bg-green-600 border-green-600 text-white shadow-xl shadow-green-100' : 'bg-white border-slate-100 text-slate-300'}`}
                         >
-                            <FiCheckCircle size={20}/> OK
+                            <FiCheckCircle size={20}/> 受入OK
                         </button>
                         <button
                             type="button"
                             onClick={() => setIsStandAllowed(false)}
                             className={`flex-1 py-5 rounded-2xl border-2 flex items-center justify-center gap-3 font-black transition-all ${!isStandAllowed ? 'bg-red-500 border-red-500 text-white shadow-xl shadow-red-100' : 'bg-white border-slate-100 text-slate-300'}`}
                         >
-                            <FiXCircle size={20}/> NG
+                            <FiXCircle size={20}/> 受入NG
                         </button>
                     </div>
                     <textarea
@@ -217,14 +208,14 @@ export default function AddVenuePage() {
                         value={vRegs}
                         onChange={(e) => setVRegs(e.target.value)}
                         className="w-full rounded-2xl border-2 border-slate-100 bg-slate-50 px-6 py-5 focus:bg-white focus:border-green-500 outline-none transition-all font-bold"
-                        placeholder="搬入ルールなど"
+                        placeholder="サイズ規定、回収ルールなど"
                     ></textarea>
                 </section>
 
                 <div className="pt-10 border-t">
                     <button
                         type="button"
-                        onClick={handleFinalAction}
+                        onClick={handleFinalSubmit}
                         disabled={isSubmitting}
                         className="w-full py-6 bg-green-600 text-white rounded-2xl font-black text-xl shadow-2xl shadow-green-200 disabled:bg-slate-200 active:scale-95 transition-all flex justify-center items-center"
                     >
