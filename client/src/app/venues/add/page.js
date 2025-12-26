@@ -10,8 +10,8 @@ import {
   FiCheckCircle, FiXCircle, FiHelpCircle, FiSearch, FiLoader 
 } from 'react-icons/fi';
 
-// バックエンドのURL。末尾のスラッシュの有無で404になるケースがあるため、正規化して試行します
-const BACKEND_BASE = 'https://flastal-backend.onrender.com';
+// バックエンドのURLをフルパスで確実に指定。末尾のスラッシュなしが標準
+const BACKEND_POST_URL = 'https://flastal-backend.onrender.com/api/venues';
 
 export default function AddVenuePage() {
   const router = useRouter();
@@ -44,7 +44,9 @@ export default function AddVenuePage() {
     if (!vName.trim()) return toast.error('会場名を入力してください');
 
     setIsSubmitting(true);
-    const activeToken = token || (typeof window !== 'undefined' ? localStorage.getItem('authToken')?.replace(/"/g, '') : null);
+    
+    // トークンをクリーンアップ
+    const activeToken = token || localStorage.getItem('authToken')?.replace(/"/g, '');
 
     let finalWebsite = (vWeb || '').trim();
     if (finalWebsite && !finalWebsite.toLowerCase().startsWith('http')) {
@@ -62,38 +64,39 @@ export default function AddVenuePage() {
     };
 
     try {
-        // パスを /api/venues と /api/venues/ の両方で試せるよう、まずは標準で送信
-        const response = await fetch(`${BACKEND_BASE}/api/venues`, {
+        const response = await fetch(BACKEND_POST_URL, {
             method: 'POST',
             headers: { 
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${activeToken}`,
-                'Accept': 'application/json'
+                'Authorization': `Bearer ${activeToken}`
             },
             body: JSON.stringify(payload),
         });
 
         if (response.status === 401) {
-            toast.error('セッションが切れました。再度ログインしてください。');
+            toast.error('ログインの期限が切れました。再度ログインしてください。');
             if (logout) logout();
             router.push('/login');
             return;
         }
 
         if (response.status === 404) {
-            throw new Error('404エラー: サーバー側に「登録機能」が実装されていないか、URLが間違っています。バックエンドのルート設定を確認してください。');
+            // ここで404が出る場合はバックエンド側の routes/venues.js の定義ミス確定
+            throw new Error('サーバー側の宛先が見つかりません(404)。バックエンドのデプロイ状況を確認してください。');
         }
 
         if (!response.ok) {
-            throw new Error(`送信失敗 (Status: ${response.status})`);
+            throw new Error(`送信失敗: Status ${response.status}`);
         }
 
         toast.success('会場情報を登録しました！');
+        
+        // ページを完全にリロードして一覧へ（キャッシュ対策）
         window.location.href = '/venues';
 
     } catch (error) {
-        console.error('Submission error:', error);
-        toast.error(error.message, { duration: 6000 });
+        console.error('Submit Error:', error);
+        toast.error(error.message || '通信エラーが発生しました。', { duration: 5000 });
     } finally {
         setIsSubmitting(false);
     }
@@ -117,16 +120,16 @@ export default function AddVenuePage() {
         </div>
 
         <div className="bg-white rounded-[32px] shadow-2xl overflow-hidden border border-slate-200">
-            <div className="bg-slate-900 p-10 text-white relative">
-                <h2 className="text-3xl font-black flex items-center gap-3 tracking-tighter italic uppercase">
+            <div className="bg-slate-900 p-10 text-white">
+                <h2 className="text-2xl font-bold flex items-center gap-3 tracking-tighter italic uppercase">
                     <FiMapPin className="text-green-400" /> New Venue
                 </h2>
-                <p className="mt-2 text-slate-400 text-xs font-bold tracking-widest uppercase">Database Registration</p>
+                <p className="mt-2 text-slate-400 text-xs font-bold tracking-widest uppercase">Venue Registration</p>
             </div>
             
             <div className="p-8 md:p-12 space-y-12">
                 <section className="space-y-8">
-                    <div className="grid grid-cols-1 gap-8">
+                    <div className="space-y-6">
                         <div>
                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block ml-1">会場名 *</label>
                             <div className="flex gap-2">
@@ -161,13 +164,13 @@ export default function AddVenuePage() {
                                     value={vPhone}
                                     onChange={(e) => setVPhone(e.target.value)}
                                     className="w-full rounded-2xl border-2 border-slate-100 bg-slate-50 px-6 py-5 focus:bg-white focus:border-green-500 outline-none transition-all font-bold"
-                                    placeholder="0300000000"
+                                    placeholder="ハイフンなし"
                                 />
                             </div>
                         </div>
 
                         <div>
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block ml-1">URL</label>
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block ml-1">公式サイト URL</label>
                             <input
                                 type="text" 
                                 value={vWeb}
@@ -187,14 +190,14 @@ export default function AddVenuePage() {
                             onClick={() => setIsStandAllowed(true)}
                             className={`flex-1 py-5 rounded-2xl border-2 flex items-center justify-center gap-3 font-black transition-all ${isStandAllowed ? 'bg-green-600 border-green-600 text-white shadow-xl shadow-green-100' : 'bg-white border-slate-100 text-slate-300'}`}
                         >
-                            <FiCheckCircle size={20}/> 受入OK
+                            <FiCheckCircle size={20}/> OK
                         </button>
                         <button
                             type="button"
                             onClick={() => setIsStandAllowed(false)}
                             className={`flex-1 py-5 rounded-2xl border-2 flex items-center justify-center gap-3 font-black transition-all ${!isStandAllowed ? 'bg-red-500 border-red-500 text-white shadow-xl shadow-red-100' : 'bg-white border-slate-100 text-slate-300'}`}
                         >
-                            <FiXCircle size={20}/> 受入NG
+                            <FiXCircle size={20}/> NG
                         </button>
                     </div>
                     <textarea
@@ -202,7 +205,7 @@ export default function AddVenuePage() {
                         value={vRegs}
                         onChange={(e) => setVRegs(e.target.value)}
                         className="w-full rounded-2xl border-2 border-slate-100 bg-slate-50 px-6 py-5 focus:bg-white focus:border-green-500 outline-none transition-all font-bold"
-                        placeholder="サイズ規定、回収ルールなど"
+                        placeholder="搬入ルールなど、わかる範囲でご記入ください"
                     ></textarea>
                 </section>
 
