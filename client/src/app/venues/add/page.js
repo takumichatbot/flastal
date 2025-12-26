@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useAuth } from '@/app/contexts/AuthContext'; // パス調整
+import { useAuth } from '@/app/contexts/AuthContext'; 
 import toast from 'react-hot-toast';
 import { 
   FiMapPin, FiInfo, FiGlobe, FiPhone, FiSave, FiArrowLeft, 
@@ -63,16 +63,23 @@ export default function AddVenuePage() {
     setIsSubmitting(true);
     const token = getAuthToken();
 
+    // URLの自動補完 (https:// がない場合に追加)
+    let finalWebsite = formData.website.trim();
+    if (finalWebsite && !/^https?:\/\//i.test(finalWebsite)) {
+        finalWebsite = `https://${finalWebsite}`;
+    }
+
     try {
-        const res = await fetch(`${API_URL}/api/venues`, { // RESTful的には POST /venues が一般的
+        const res = await fetch(`${API_URL}/api/venues`, {
             method: 'POST',
             headers: { 
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}` // トークン付与
+                'Authorization': `Bearer ${token}`
             },
             body: JSON.stringify({
                 ...formData,
-                submittedBy: user.id 
+                website: finalWebsite, // 補完後のURLを使用
+                submittedBy: user?.id 
             }),
         });
 
@@ -82,7 +89,7 @@ export default function AddVenuePage() {
         }
 
         toast.success('会場情報を共有しました！ご協力ありがとうございます🎉');
-        router.push('/venues'); // 一覧へ戻る
+        router.push('/venues'); 
 
     } catch (error) {
         console.error(error);
@@ -123,7 +130,7 @@ export default function AddVenuePage() {
                 </p>
             </div>
             
-            <form onSubmit={handleSubmit} className="p-8 space-y-8">
+            <form onSubmit={handleSubmit} className="p-8 space-y-8" noValidate={false}>
                 
                 {/* 1. 基本情報 */}
                 <section className="space-y-4">
@@ -198,11 +205,12 @@ export default function AddVenuePage() {
                             <input
                                 id="website"
                                 name="website"
-                                type="url"
+                                // type="url" から "text" に変更してブラウザの厳格なパターンチェックを回避
+                                type="text" 
                                 value={formData.website}
                                 onChange={handleChange}
                                 className="pl-10 block w-full rounded-xl border border-gray-300 px-4 py-3 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
-                                placeholder="https://..."
+                                placeholder="example.com (https://は自動補完されます)"
                             />
                         </div>
                     </div>
@@ -273,7 +281,7 @@ export default function AddVenuePage() {
                 </section>
 
                 <div className="pt-6 border-t border-gray-100 flex flex-col sm:flex-row gap-4">
-                    <Link href="/venues" className="w-full sm:w-1/3 order-2 sm:order-1">
+                    <Link href="/venues" className="w-full sm:w-1/3 order-2 sm:order-1" prefetch={false}>
                         <button type="button" className="w-full py-3.5 px-4 border border-gray-300 rounded-xl shadow-sm text-sm font-bold text-gray-600 bg-white hover:bg-gray-50 transition-colors">
                             キャンセル
                         </button>
