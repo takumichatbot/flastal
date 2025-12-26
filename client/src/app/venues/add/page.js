@@ -14,7 +14,8 @@ const BACKEND_URL = 'https://flastal-backend.onrender.com/api/venues';
 
 export default function AddVenuePage() {
   const router = useRouter();
-  const { user, token, loading: authLoading, logout } = useAuth();
+  // token を直接取り出さず、必要な時に localStorage から取得する安全な方法に変更
+  const { user, loading: authLoading, logout } = useAuth();
   
   const [vName, setVName] = useState('');
   const [vAddr, setVAddr] = useState('');
@@ -42,7 +43,13 @@ export default function AddVenuePage() {
     if (!vName.trim()) return toast.error('会場名を入力してください');
 
     setIsSubmitting(true);
-    const activeToken = token || localStorage.getItem('authToken')?.replace(/"/g, '');
+    
+    // トークン取得の安全な処理
+    let activeToken = '';
+    if (typeof window !== 'undefined') {
+        const rawToken = localStorage.getItem('authToken');
+        activeToken = rawToken ? rawToken.replace(/"/g, '') : '';
+    }
 
     let finalWebsite = (vWeb || '').trim();
     if (finalWebsite && !finalWebsite.toLowerCase().startsWith('http')) {
@@ -85,15 +92,14 @@ export default function AddVenuePage() {
             icon: '📩'
         });
         
-        // 遷移前に少しだけ待機して体験を向上
         setTimeout(() => {
+            // router.push ではなく物理的なリフレッシュを伴う移動で不整合をリセット
             window.location.href = '/venues';
         }, 1000);
 
     } catch (error) {
         console.error('Submit Error:', error);
         toast.error(error.message || '通信エラーが発生しました');
-    } finally {
         setIsSubmitting(false);
     }
   };
@@ -110,21 +116,19 @@ export default function AddVenuePage() {
     <div className="min-h-screen bg-[#fafafa] py-12 px-4 sm:px-6 lg:px-8 font-sans text-slate-800 pt-28">
       <div className="max-w-2xl mx-auto">
         
-        {/* ナビゲーション */}
         <div className="mb-8 flex justify-between items-center px-2">
             <button onClick={() => router.back()} className="group flex items-center text-sm font-bold text-slate-400 hover:text-pink-500 transition-all">
                 <FiArrowLeft className="mr-2 group-hover:-translate-x-1 transition-transform"/> 戻る
             </button>
-            <span className="text-[10px] font-black tracking-[0.2em] text-slate-300 uppercase">Step into the Light</span>
+            <span className="text-[10px] font-black tracking-[0.2em] text-slate-300 uppercase">Venue Submission</span>
         </div>
 
         <div className="bg-white rounded-[40px] shadow-[0_20px_50px_rgba(0,0,0,0.05)] overflow-hidden border border-slate-100">
-            {/* ヒーローヘッダー */}
             <div className="bg-slate-900 p-10 text-white relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-pink-500/10 rounded-full -mr-20 -mt-20 blur-3xl"></div>
                 <div className="relative z-10">
                     <h2 className="text-3xl md:text-4xl font-black tracking-tighter flex items-center gap-3 italic">
-                        <FiMapPin className="text-pink-500" /> 会場情報を追加する
+                        <FiMapPin className="text-pink-500" /> 会場情報を教える
                     </h2>
                     <p className="mt-3 text-slate-400 text-xs font-bold tracking-widest leading-relaxed">
                         あなたの知識が、誰かの「贈りたい」を支える力になります。
@@ -133,17 +137,15 @@ export default function AddVenuePage() {
             </div>
             
             <div className="p-8 md:p-14 space-y-12">
-                {/* インフォメーション */}
                 <div className="bg-pink-50/50 border border-pink-100/50 p-6 rounded-[2rem] flex items-start gap-4">
                     <div className="bg-white p-2 rounded-xl shadow-sm text-pink-500">
                         <FiInfo size={20} />
                     </div>
                     <p className="text-xs text-pink-900/70 leading-relaxed font-bold">
-                        ご投稿いただいた情報は運営チームにて内容を確認（承認）した後、公式データベースへ掲載されます。反映までにお時間をいただく場合がありますが、ご了承ください。
+                        ご投稿いただいた情報は運営チームにて内容を確認（承認）した後、公式データベースへ掲載されます。
                     </p>
                 </div>
 
-                {/* セクション：基本情報 */}
                 <section className="space-y-8">
                     <div className="flex items-center gap-3 text-slate-400">
                         <span className="h-px flex-1 bg-slate-100"></span>
@@ -153,7 +155,7 @@ export default function AddVenuePage() {
                     
                     <div className="space-y-6">
                         <div className="group">
-                            <label className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3 block ml-1 group-focus-within:text-pink-500 transition-colors">会場・施設名 <span className="text-pink-500 ml-1">●</span></label>
+                            <label className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3 block ml-1 transition-colors">会場・施設名 <span className="text-pink-500 ml-1">●</span></label>
                             <div className="flex gap-3">
                                 <input
                                     type="text"
@@ -166,7 +168,6 @@ export default function AddVenuePage() {
                                     type="button" 
                                     onClick={handleGoogleSearch} 
                                     className="px-6 bg-slate-900 text-white rounded-2xl hover:bg-pink-600 transition-all shadow-lg active:scale-95"
-                                    title="規約を検索"
                                 >
                                     <FiSearch size={22}/>
                                 </button>
@@ -209,7 +210,6 @@ export default function AddVenuePage() {
                     </div>
                 </section>
 
-                {/* セクション：規約 */}
                 <section className="space-y-8">
                     <div className="flex items-center gap-3 text-slate-400">
                         <span className="h-px flex-1 bg-slate-100"></span>
@@ -243,38 +243,32 @@ export default function AddVenuePage() {
                                 value={vRegs}
                                 onChange={(e) => setVRegs(e.target.value)}
                                 className="w-full rounded-[2rem] border-2 border-slate-50 bg-slate-50 px-8 py-6 focus:bg-white focus:border-pink-200 outline-none transition-all font-bold leading-relaxed"
-                                placeholder="搬入・回収の時間指定、サイズ制限、楽屋花の可否などをご記入ください。"
+                                placeholder="搬入・回収の時間指定、サイズ制限などをご記入ください。"
                             ></textarea>
                         </div>
                     </div>
                 </section>
 
-                {/* 送信ボタン */}
                 <div className="pt-10 border-t border-slate-50">
                     <button
                         type="button"
                         onClick={handleFinalSubmit}
                         disabled={isSubmitting}
-                        className="group w-full py-7 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-[2rem] font-black text-xl shadow-[0_20px_40px_rgba(244,114,182,0.3)] active:scale-[0.98] hover:scale-[1.02] transition-all flex justify-center items-center disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed"
+                        className="group w-full py-7 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-[2rem] font-black text-xl shadow-[0_20px_40px_rgba(244,114,182,0.3)] active:scale-[0.98] transition-all flex justify-center items-center disabled:opacity-50"
                     >
                         {isSubmitting ? (
                             <FiLoader className="animate-spin mr-3 size-6"/>
                         ) : (
-                            <><FiSend className="mr-3 group-hover:rotate-12 transition-transform"/> 会場情報を送信する</>
+                            <><FiSend className="mr-3 transition-transform"/> 会場情報を送信する</>
                         )}
                     </button>
-                    <p className="text-center mt-6 text-[10px] font-bold text-slate-300 tracking-widest">
-                        送信することで、フラスタルのコミュニティガイドラインに同意したことになります。
-                    </p>
                 </div>
             </div>
         </div>
       </div>
       
       <style jsx global>{`
-        body {
-            background-color: #fafafa;
-        }
+        body { background-color: #fafafa; }
       `}</style>
     </div>
   );
