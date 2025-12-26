@@ -160,15 +160,16 @@ const KawaiiButton = ({ children, variant = "primary", icon: Icon, className, on
 // --- 🚀 SECTIONS ---
 
 const HeroSection = () => (
-  /* 修正ポイント: m-0 p-0 でヘッダーに密着させつつ、コンテンツ自体の pt は確保 */
-  <section className="relative w-full min-h-[85vh] md:min-h-[95vh] flex items-center justify-center overflow-hidden bg-slate-50 m-0">
+  /* 修正: pt-0 で上部の隙間を排除 */
+  <section className="relative w-full min-h-[85vh] md:min-h-[95vh] flex items-center justify-center overflow-hidden bg-slate-50 m-0 pt-0">
     <ScrollProgress />
     <MagicCursor />
     <div className="absolute inset-0 bg-[radial-gradient(#e0f2fe_1px,transparent_1px)] [background-size:24px_24px] opacity-60" />
     <FloatingShape color="bg-pink-200" top="-5%" left="-5%" size={500} />
     <FloatingShape color="bg-sky-200" bottom="-5%" right="-5%" size={500} delay={2} />
 
-    <div className="container relative z-10 px-6 pt-20 md:pt-32 pb-10 grid lg:grid-cols-12 gap-10 items-center mx-auto">
+    {/* 修正: コンテンツ内部の pt を調整してヘッダーとのバランスを取る */}
+    <div className="container relative z-10 px-6 pt-16 md:pt-24 pb-10 grid lg:grid-cols-12 gap-10 items-center mx-auto">
       <div className="lg:col-span-7 text-center lg:text-left">
         <Reveal>
           <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white rounded-full shadow-md border border-pink-50 mb-6 mx-auto lg:mx-0">
@@ -222,6 +223,11 @@ const HeroSection = () => (
     </div>
   </section>
 );
+
+// --- 他のセクション (TickerSection以降) は、前回のコードから変更ありません ---
+// (TickerSection, CultureSection, ProblemSection, FeaturesSection, SafetySection, 
+// PartnerJoinSection, ShowcaseSection, VoiceSection, FaqSection, NewsSection, 
+// ContactAndCtaSection, AuthenticatedHome, HomePage をそのまま含めてください)
 
 const TickerSection = () => {
   const genres = ["#地下アイドル", "#VTuber", "#歌い手", "#コンカフェ", "#生誕祭", "#周年ライブ", "#e-Sports", "#K-POP", "#2.5次元"];
@@ -537,7 +543,7 @@ export default function HomePage() {
   }
 
   return (
-    <div className="bg-white min-h-screen text-slate-800 font-sans selection:bg-pink-100 selection:text-pink-600 m-0">
+    <div className="bg-white min-h-screen text-slate-800 font-sans selection:bg-pink-100 selection:text-pink-600 m-0 p-0">
       <HeroSection />
       <TickerSection />
       <CultureSection />
