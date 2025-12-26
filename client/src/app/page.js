@@ -4,21 +4,22 @@
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
 
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from './contexts/AuthContext';
 import { 
-  motion, useScroll, useTransform, useSpring, useInView, useMotionValue, AnimatePresence 
+  motion, useScroll, useTransform, useSpring, useInView, useMotionValue, useMotionTemplate, AnimatePresence 
 } from 'framer-motion';
 
+// --- すべて lucide-react に統一 ---
 import { 
   Heart, Sparkles, Zap, MessageCircle, Gift, 
   Calendar, Users, ShieldCheck, ChevronDown, 
   Star, Palette, HelpCircle, Mail,
   ArrowRight, CheckCircle2, Search, Flower,
   CreditCard, Lock, Store, MapPin, Ticket, Loader2,
-  PiggyBank
+  Image as ImageIcon, Share2, Award, PiggyBank
 } from 'lucide-react';
 
 // --- Utility ---
@@ -259,7 +260,7 @@ const CultureSection = () => {
     <section className="py-20 md:py-32 bg-white relative overflow-hidden">
       <div className="container mx-auto px-6">
         <SectionHeader en="Otaku Culture" ja="どんなお花を贈る？" desc="「フラスタ」と一口に言っても形は様々。会場のレギュレーション（規則）や予算に合わせて、最適な形を選ぼう。" color="pink" />
-        <div className="flex overflow-x-auto pb-8 md:grid md:grid-cols-4 gap-6 snap-x no-scrollbar -mx-6 px-6 md:mx-0 md:px-0">
+        <div className="flex overflow-x-auto pb-8 md:grid md:grid-cols-2 lg:grid-cols-4 gap-6 snap-x no-scrollbar -mx-6 px-6 md:mx-0 md:px-0">
           {items.map((item, i) => (
             <div key={i} className="min-w-[280px] md:min-w-0 snap-center">
               <TiltCard glowColor="pink">
@@ -285,7 +286,7 @@ const ProblemSection = () => (
       <SectionHeader en="Pain & Solution" ja="企画の「大変」をゼロに" desc="DMでの集金、個人情報の管理、お花屋さんへのオーダー...。主催者の負担をFLASTALがすべて引き受けます。" color="blue" />
       <div className="grid lg:grid-cols-2 gap-8 md:gap-12 max-w-5xl mx-auto items-stretch">
         <Reveal>
-          <div className="bg-white p-10 rounded-[40px] border border-slate-200 grayscale opacity-70 hover:grayscale-0 hover:opacity-100 transition-all duration-500">
+          <div className="bg-white p-10 rounded-[40px] border border-slate-200 grayscale opacity-70 hover:grayscale-0 hover:opacity-100 transition-all duration-500 h-full">
             <h3 className="text-xl font-bold text-slate-600 mb-8 flex items-center gap-3">
               <span className="bg-slate-200 px-3 py-1 rounded-full text-xs">従来のやり方</span> 😰 大変すぎる...
             </h3>
@@ -297,7 +298,7 @@ const ProblemSection = () => (
           </div>
         </Reveal>
         <Reveal delay={0.2}>
-          <TiltCard glowColor="sky">
+          <TiltCard glowColor="sky" className="h-full">
             <div className="bg-gradient-to-br from-white to-sky-50 p-10 rounded-[40px] border-2 border-sky-100 shadow-xl h-full relative overflow-hidden group">
               <h3 className="text-2xl font-bold text-sky-600 mb-8 flex items-center gap-3">
                 <span className="bg-sky-100 px-3 py-1 rounded-full text-xs">FLASTALなら</span> ✨ 全部おまかせ！
@@ -364,7 +365,7 @@ const FeaturesSection = () => {
   ];
 
   return (
-    <section className="py-20 md:py-32 bg-white relative">
+    <section className="py-20 md:py-32 bg-white relative overflow-hidden">
       <div className="container mx-auto px-6">
         <SectionHeader 
           en="Powerful Features" 
@@ -372,31 +373,33 @@ const FeaturesSection = () => {
           desc="フラスタ文化を愛するスタッフが開発。痒い所に手が届く、企画を成功させるための全ての武器がここに。"
           color="purple" 
         />
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div className="flex overflow-x-auto pb-8 md:grid md:grid-cols-2 lg:grid-cols-3 gap-8 snap-x no-scrollbar -mx-6 px-6 md:mx-0 md:px-0">
           {features.map((f, i) => (
-            <Reveal key={i} delay={i * 0.1}>
-              <Link href={`/features#${f.id}`}>
-                <TiltCard className="h-full" glowColor={f.color === 'emerald' || f.color === 'green' ? 'emerald' : f.color}>
-                  <div className="p-10 flex flex-col h-full relative overflow-hidden group">
-                    <div className={cn("absolute -top-6 -right-6 opacity-5 transform rotate-12 transition-transform group-hover:scale-110 group-hover:rotate-6", `text-${f.color}-500`)}>
-                      {f.icon}
+            <div key={i} className="min-w-[300px] md:min-w-0 snap-center">
+              <Reveal delay={i * 0.1}>
+                <Link href={`/features#${f.id}`}>
+                  <TiltCard className="h-full" glowColor={f.color === 'emerald' || f.color === 'green' ? 'emerald' : f.color}>
+                    <div className="p-10 flex flex-col h-full relative overflow-hidden group">
+                      <div className={cn("absolute -top-6 -right-6 opacity-5 transform rotate-12 transition-transform group-hover:scale-110 group-hover:rotate-6", `text-${f.color}-500`)}>
+                        {f.icon}
+                      </div>
+                      <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center mb-8 shadow-sm transition-all group-hover:scale-110 group-hover:rotate-3", `bg-${f.color}-50 text-${f.color}-500`)}>
+                        {f.icon}
+                      </div>
+                      <h3 className="text-xl font-black text-slate-800 mb-4 group-hover:text-purple-600 transition-colors">
+                        {f.title}
+                      </h3>
+                      <p className="text-sm text-slate-500 leading-relaxed font-medium">
+                        {f.desc}
+                      </p>
+                      <div className="mt-8 pt-6 border-t border-slate-50 flex items-center gap-2 text-xs font-bold text-slate-400 group-hover:text-purple-400 transition-colors">
+                        LEARN MORE <ArrowRight size={14} />
+                      </div>
                     </div>
-                    <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center mb-8 shadow-sm transition-all group-hover:scale-110 group-hover:rotate-3", `bg-${f.color}-50 text-${f.color}-500`)}>
-                      {f.icon}
-                    </div>
-                    <h3 className="text-xl font-black text-slate-800 mb-4 group-hover:text-purple-600 transition-colors">
-                      {f.title}
-                    </h3>
-                    <p className="text-sm text-slate-500 leading-relaxed font-medium">
-                      {f.desc}
-                    </p>
-                    <div className="mt-8 pt-6 border-t border-slate-50 flex items-center gap-2 text-xs font-bold text-slate-400 group-hover:text-purple-400 transition-colors">
-                      LEARN MORE <ArrowRight size={14} />
-                    </div>
-                  </div>
-                </TiltCard>
-              </Link>
-            </Reveal>
+                  </TiltCard>
+                </Link>
+              </Reveal>
+            </div>
           ))}
         </div>
       </div>
@@ -417,7 +420,7 @@ const SafetySection = () => (
           ].map((item, i) => (
             <Reveal key={i} delay={i * 0.1}>
               <div className="bg-white p-8 rounded-[30px] shadow-sm border border-emerald-100 hover:shadow-lg transition-shadow text-center h-full">
-                <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6 text-emerald-600"><item.icon size={32} /></div>
+                <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6 text-emerald-500"><item.icon size={32} /></div>
                 <h3 className="font-bold text-lg mb-4 text-slate-800">{item.title}</h3>
                 <p className="text-sm text-slate-500 leading-relaxed">{item.desc}</p>
               </div>
@@ -436,35 +439,37 @@ const PartnerJoinSection = () => {
   ];
 
   return (
-    <section className="py-20 bg-white relative">
+    <section className="py-20 bg-white relative overflow-hidden">
       <div className="container mx-auto px-6">
         <SectionHeader en="For Professionals" ja="FLASTALで広がる可能性" desc="お花屋さん、ライブ会場、イベンターの方へ. FLASTALのエコシステムに参加しませんか？" color="purple" />
-        <div className="grid md:grid-cols-3 gap-8">
+        <div className="flex overflow-x-auto pb-8 md:grid md:grid-cols-3 gap-8 snap-x no-scrollbar -mx-6 px-6 md:mx-0 md:px-0">
           {partners.map((p, i) => (
-            <Reveal key={i} delay={i * 0.1}>
-              <TiltCard className="h-full" glowColor={p.color}>
-                <div className={cn("bg-gradient-to-b p-8 rounded-[40px] border shadow-lg text-center h-full flex flex-col", 
-                  p.color === "pink" ? "from-pink-50 to-white border-pink-100" : 
-                  p.color === "sky" ? "from-sky-50 to-white border-sky-100" : 
-                  "from-purple-50 to-white border-purple-100")}>
-                  <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-6 shadow-md text-slate-500">
-                    <p.icon size={40} />
+            <div key={i} className="min-w-[300px] md:min-w-0 snap-center">
+              <Reveal delay={i * 0.1}>
+                <TiltCard className="h-full" glowColor={p.color}>
+                  <div className={cn("p-8 rounded-[40px] border shadow-lg text-center h-full flex flex-col bg-white", 
+                    p.color === "pink" ? "border-pink-100" : 
+                    p.color === "sky" ? "border-sky-100" : 
+                    "border-purple-100")}>
+                    <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6 shadow-md text-slate-500">
+                      <p.icon size={40} />
+                    </div>
+                    <h3 className="text-xl font-bold text-slate-800 mb-2">{p.title}</h3>
+                    <p className="text-sm text-slate-500 mb-6 flex-grow leading-relaxed">{p.desc}</p>
+                    <div className="flex flex-col gap-3">
+                      <Link href={p.hrefL} className={cn("w-full py-3 rounded-xl border-2 font-bold transition-colors text-center", 
+                        p.color === "pink" ? "border-pink-200 text-pink-500 hover:bg-pink-50" : 
+                        p.color === "sky" ? "border-sky-200 text-sky-500 hover:bg-sky-50" : 
+                        "border-purple-200 text-purple-500 hover:bg-purple-50")}>ログイン</Link>
+                      <Link href={p.hrefR} className={cn("w-full py-3 rounded-xl text-white font-bold shadow-md transition-colors text-center", 
+                        p.color === "pink" ? "bg-pink-500 hover:bg-pink-600 shadow-pink-200" : 
+                        p.color === "sky" ? "bg-sky-500 hover:bg-sky-600 shadow-sky-200" : 
+                        "bg-purple-500 hover:bg-purple-600 shadow-purple-200")}>新規登録</Link>
+                    </div>
                   </div>
-                  <h3 className="text-xl font-bold text-slate-800 mb-2">{p.title}</h3>
-                  <p className="text-sm text-slate-500 mb-6 flex-grow leading-relaxed">{p.desc}</p>
-                  <div className="flex flex-col gap-3">
-                    <Link href={p.hrefL} className={cn("w-full py-3 rounded-xl border-2 font-bold transition-colors text-center", 
-                      p.color === "pink" ? "border-pink-200 text-pink-500 hover:bg-pink-50" : 
-                      p.color === "sky" ? "border-sky-200 text-sky-500 hover:bg-sky-50" : 
-                      "border-purple-200 text-purple-500 hover:bg-purple-50")}>ログイン</Link>
-                    <Link href={p.hrefR} className={cn("w-full py-3 rounded-xl text-white font-bold shadow-md transition-colors text-center", 
-                      p.color === "pink" ? "bg-pink-500 hover:bg-pink-600 shadow-pink-200" : 
-                      p.color === "sky" ? "bg-sky-500 hover:bg-sky-600 shadow-sky-200" : 
-                      "bg-purple-500 hover:bg-purple-600 shadow-purple-200")}>新規登録</Link>
-                  </div>
-                </div>
-              </TiltCard>
-            </Reveal>
+                </TiltCard>
+              </Reveal>
+            </div>
           ))}
         </div>
       </div>
@@ -501,25 +506,27 @@ const ShowcaseSection = () => (
 );
 
 const VoiceSection = () => (
-  <section className="py-20 md:py-32 bg-white">
+  <section className="py-20 md:py-32 bg-white relative overflow-hidden">
     <div className="container mx-auto px-6">
       <SectionHeader en="Voices" ja="みんなの感想" color="pink" />
-      <div className="grid md:grid-cols-3 gap-8">
+      <div className="flex overflow-x-auto pb-8 md:grid md:grid-cols-3 gap-8 snap-x no-scrollbar -mx-6 px-6 md:mx-0 md:px-0">
         {[
           { text: "初めての主催で不安でしたが、集金管理が自動なのでデザインの相談に集中できました。", name: "A.Sさん", role: "VTuberファン", bg: "bg-pink-100" },
           { text: "たった1000円からの支援でも、名前をパネルに載せてもらえて嬉しかったです。", name: "T.Kさん", role: "アイドルファン", bg: "bg-sky-100" },
           { text: "イラストのデータを共有する機能が便利でした。印刷も綺麗にいきました。", name: "M.Mさん", role: "絵師依頼", bg: "bg-purple-100" }
         ].map((v, i) => (
-          <Reveal key={i} delay={i * 0.1}>
-            <div className="bg-slate-50 p-8 rounded-[30px] relative border border-slate-100 h-full flex flex-col hover:shadow-lg transition-shadow">
-              <div className="text-6xl text-slate-200 absolute top-4 left-6 font-serif opacity-30">“</div>
-              <p className="text-slate-600 text-sm leading-relaxed mb-6 pt-6 relative z-10 font-medium italic">「{v.text}」</p>
-              <div className="flex items-center gap-4 mt-auto relative z-10">
-                <div className={cn("w-12 h-12 rounded-full shadow-inner", v.bg)} />
-                <div><p className="font-bold text-sm text-slate-800">{v.name}</p><p className="text-xs text-slate-500">{v.role}</p></div>
+          <div key={i} className="min-w-[300px] md:min-w-0 snap-center">
+            <Reveal delay={i * 0.1}>
+              <div className="bg-slate-50 p-8 rounded-[30px] relative border border-slate-100 h-full flex flex-col hover:shadow-lg transition-shadow">
+                <div className="text-6xl text-slate-200 absolute top-4 left-6 font-serif opacity-30">“</div>
+                <p className="text-slate-600 text-sm leading-relaxed mb-6 pt-6 relative z-10 font-medium italic">「{v.text}」</p>
+                <div className="flex items-center gap-4 mt-auto relative z-10">
+                  <div className={cn("w-12 h-12 rounded-full shadow-inner", v.bg)} />
+                  <div><p className="font-bold text-sm text-slate-800">{v.name}</p><p className="text-xs text-slate-500">{v.role}</p></div>
+                </div>
               </div>
-            </div>
-          </Reveal>
+            </Reveal>
+          </div>
         ))}
       </div>
     </div>
@@ -572,8 +579,8 @@ const FaqSection = () => (
         ].map((item, i) => (
           <Reveal key={i} delay={i * 0.05}>
             <details className="group bg-slate-50 rounded-2xl p-6 border border-slate-100 cursor-pointer open:bg-white open:shadow-lg open:border-emerald-100 transition-all duration-300">
-              <summary className="flex items-center justify-between font-bold text-slate-800 list-none text-sm md:text-base">
-                <span className="flex items-center gap-3"><HelpCircle className="text-emerald-500 shrink-0" size={18} /> {item.q}</span>
+              <summary className="flex items-center justify-between font-bold text-slate-800 list-none">
+                <span className="flex items-center gap-3"><HelpCircle className="text-emerald-500 shrink-0" /> {item.q}</span>
                 <ChevronDown size={16} className="text-slate-400 group-open:rotate-180 transition-transform duration-300" />
               </summary>
               <div className="mt-4 text-xs md:text-sm text-slate-500 pl-9 leading-relaxed">{item.a}</div>
