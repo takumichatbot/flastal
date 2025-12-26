@@ -157,7 +157,7 @@ const ScrollProgress = () => {
   const { scrollYProgress } = useScroll();
   const scaleX = useSpring(scrollYProgress, { stiffness: 100, damping: 30, restDelta: 0.001 });
   return (
-    <motion.div className="fixed top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-pink-400 via-purple-400 to-sky-400 origin-left z-[2000] shadow-[0_0_20px_rgba(244,114,182,0.6)]" style={{ scaleX }} />
+    <motion.div className="fixed top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-pink-400 via-purple-400 to-sky-400 origin-left z-[3000] shadow-[0_0_20px_rgba(244,114,182,0.6)]" style={{ scaleX }} />
   );
 };
 
@@ -291,7 +291,7 @@ const KawaiiButton = ({ children, variant = "primary", icon: Icon, className, on
 // --- 🚀 HERO & SECTIONS ---
 
 const HeroSection = () => (
-  <section className="relative w-full min-h-[85vh] md:min-h-[95vh] flex items-center justify-center overflow-hidden bg-slate-50 border-none m-0">
+  <section className="relative w-full min-h-[85vh] md:min-h-[95vh] flex items-center justify-center overflow-hidden bg-slate-50 border-none m-0 p-0 z-10">
     <div className="absolute inset-0 bg-[radial-gradient(#e0f2fe_1px,transparent_1px)] [background-size:24px_24px] opacity-40 pointer-events-none" />
     <FloatingShape color="bg-pink-200" top="-5%" left="-5%" size={500} />
     <FloatingShape color="bg-sky-200" bottom="-5%" right="-5%" size={500} delay={2} />
@@ -452,10 +452,12 @@ export default function HomePage() {
       <ScrollProgress />
       <MagicCursor />
 
-      {/* --- INTEGRATED HEADER & TICKER (Sticky Container) --- */}
-      <div className="sticky top-0 z-[100] w-full flex flex-col shadow-xl">
+      {/* 修正ポイント: Header と LiveTicker のコンテナ
+          h-fit (コンテンツに合わせる) + min-h-24 (スマホ) / min-h-32 (PC) で高さを強制確保
+      */}
+      <div className="sticky top-0 z-[1000] w-full flex flex-col shadow-xl bg-white min-h-[104px] md:min-h-[120px]">
         {/* HEADER */}
-        <header className="w-full bg-white/95 backdrop-blur-md border-b border-slate-200/50 h-16 md:h-20 flex items-center shrink-0">
+        <header className="w-full bg-white border-b border-slate-200/50 h-16 md:h-20 flex items-center shrink-0">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full flex justify-between items-center">
                 <div className="flex items-center gap-8">
                     <Link href="/" className="flex items-center gap-2 group">
@@ -487,7 +489,7 @@ export default function HomePage() {
                                 </button>
                                 <AnimatePresence>
                                     {isUserMenuOpen && (
-                                        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className="absolute right-0 mt-3 w-64 bg-white border border-slate-100 rounded-2xl shadow-2xl z-50 overflow-hidden">
+                                        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className="absolute right-0 mt-3 w-64 bg-white border border-slate-100 rounded-2xl shadow-2xl z-[1001] overflow-hidden">
                                             <div className="px-6 py-4 border-b border-slate-50 bg-slate-50/30">
                                                 <p className="text-sm font-bold text-slate-800 truncate">{user.handleName}</p>
                                                 <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-100 text-indigo-600 uppercase mt-1 inline-block">{user.role}</span>
@@ -522,16 +524,16 @@ export default function HomePage() {
 
         {/* LIVE TICKER */}
         <div className="bg-slate-900 border-b border-slate-800 h-10 w-full overflow-hidden flex items-center shrink-0">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full flex items-center justify-between">
-                <div className="flex items-center gap-4 flex-1 min-w-0">
-                    <div className="flex items-center gap-2 shrink-0 bg-slate-800 py-1 px-2 rounded-full">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full h-full flex items-center justify-between">
+                <div className="flex items-center gap-4 flex-1 min-w-0 h-full">
+                    <div className="flex items-center gap-2 shrink-0 bg-slate-800 py-1 px-2 rounded-full h-fit">
                         <span className="relative flex h-2 w-2">
                             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
                             <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
                         </span>
                         <span className="text-[10px] font-bold tracking-widest text-slate-300">LIVE</span>
                     </div>
-                    <div className="flex-1 overflow-hidden relative h-10 flex items-center">
+                    <div className="flex-1 overflow-hidden relative h-full flex items-center">
                         <Link href={currentLog.href} className={`flex items-center gap-3 text-xs sm:text-sm text-slate-200 hover:text-white transition-all duration-500 transform w-full truncate cursor-pointer ${isTickerAnimating ? 'translate-y-full opacity-0' : 'translate-y-0 opacity-100'}`}>
                             <span className={`flex items-center gap-1 font-bold ${tickerStyle.color} shrink-0`}>
                                 {tickerStyle.icon}
@@ -551,6 +553,7 @@ export default function HomePage() {
       {isAuthenticated ? (
         <AuthenticatedHome user={user} logout={logout} />
       ) : (
+        /* 主なコンテンツ。ヘッダーの高さ分だけ隙間を空ける必要がないように HeroSection のマージンを確認 */
         <main className="flex flex-col m-0 p-0 relative">
           <HeroSection />
 
