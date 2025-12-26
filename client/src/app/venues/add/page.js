@@ -10,7 +10,7 @@ import {
   FiCheckCircle, FiXCircle, FiHelpCircle, FiSearch, FiLoader 
 } from 'react-icons/fi';
 
-// バックエンドのURLをフルパスで確実に固定
+// APIのURLを確実に固定
 const BACKEND_API_URL = 'https://flastal-backend.onrender.com/api/venues';
 
 const getAuthToken = () => {
@@ -24,6 +24,7 @@ export default function AddVenuePage() {
   const router = useRouter();
   const { user, loading: authLoading, logout } = useAuth();
   
+  // ブラウザのバリデーションを避けるため個別のStateで管理
   const [vName, setVName] = useState('');
   const [vAddr, setVAddr] = useState('');
   const [vPhone, setVPhone] = useState('');
@@ -46,15 +47,20 @@ export default function AddVenuePage() {
     window.open(`https://www.google.com/search?q=${query}`, '_blank');
   };
 
-  const handleFinalSubmit = async () => {
+  // ★重要：FormのSubmitイベントを使わず、独立した非同期関数として定義
+  const handleFinalAction = async () => {
     if (isSubmitting) return;
 
     const cleanName = vName.trim();
-    if (!cleanName) return toast.error('会場名を入力してください');
+    if (!cleanName) {
+        toast.error('会場名を入力してください');
+        return;
+    }
 
     setIsSubmitting(true);
     const token = getAuthToken();
 
+    // URLの自動補完
     let finalWebsite = (vWeb || '').trim();
     if (finalWebsite && !finalWebsite.toLowerCase().startsWith('http')) {
         finalWebsite = `https://${finalWebsite}`;
@@ -81,19 +87,14 @@ export default function AddVenuePage() {
             body: JSON.stringify(payload),
         });
 
-        // 成功ステータス（200番台）であれば、中身が404を返していても無視して成功扱いにする
-        // ※バックエンドのログで responseBytes=516 が確認できているため
+        // 成功判定 (200, 201)
         if (response.ok || response.status === 201 || response.status === 200) {
-            toast.success('会場情報を登録しました！ご協力ありがとうございます🎉');
-            
-            // 確実に会場一覧へ移動（ブラウザレベルで移動）
-            setTimeout(() => {
-                window.location.href = '/venues';
-            }, 1000);
+            toast.success('会場情報を登録しました！');
+            // キャッシュを無視して一覧へ強制遷移
+            window.location.assign('/venues');
             return;
         }
 
-        // 認証エラー
         if (response.status === 401) {
             toast.error('セッションが切れました。ログインし直してください。');
             if (logout) logout();
@@ -101,19 +102,12 @@ export default function AddVenuePage() {
             return;
         }
 
-        // それ以外の本当のエラー
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.message || `エラー (${response.status})`);
 
     } catch (error) {
-        console.error('Submission error:', error);
-        // バックエンドのログで516バイト返っている場合、実際には成功している可能性が高い
-        // そのため、メッセージを少し柔らかくします
-        toast.error('通信の状態により登録状況を確認できません。会場一覧を確認してください。');
-        
-        setTimeout(() => {
-            window.location.href = '/venues';
-        }, 2000);
+        console.error('Final Submission Error:', error);
+        toast.error(error.message || '通信エラーが発生しました。');
     } finally {
         setIsSubmitting(false);
     }
@@ -141,9 +135,10 @@ export default function AddVenuePage() {
                 <h2 className="text-3xl font-black flex items-center gap-3 tracking-tighter italic uppercase">
                     <FiMapPin className="text-green-400" /> New Venue
                 </h2>
-                <p className="mt-2 text-slate-400 text-xs font-bold tracking-widest">Registering Venue to Flastal Database</p>
+                <p className="mt-2 text-slate-400 text-xs font-bold tracking-widest">Registering Venue Data</p>
             </div>
             
+            {/* FORMタグを使用せず、独立した入力フィールドの集合として構成 */}
             <div className="p-8 md:p-12 space-y-10">
                 <section className="space-y-8">
                     <div className="grid grid-cols-1 gap-8">
@@ -157,7 +152,7 @@ export default function AddVenuePage() {
                                     className="flex-1 rounded-2xl border-2 border-slate-100 bg-slate-50 px-6 py-5 focus:bg-white focus:border-green-500 outline-none transition-all font-bold text-lg"
                                     placeholder="例：東京ガーデンシアター"
                                 />
-                                <button type="button" onClick={handleGoogleSearch} className="px-6 bg-slate-100 text-slate-400 rounded-2xl hover:bg-slate-200 transition-all border-2 border-transparent shrink-0">
+                                <button type="button" onClick={handleGoogleSearch} className="px-6 bg-slate-100 text-slate-400 rounded-2xl hover:bg-slate-200 shrink-0">
                                     <FiSearch size={22}/>
                                 </button>
                             </div>
@@ -229,7 +224,7 @@ export default function AddVenuePage() {
                 <div className="pt-10 border-t">
                     <button
                         type="button"
-                        onClick={handleFinalSubmit}
+                        onClick={handleFinalAction}
                         disabled={isSubmitting}
                         className="w-full py-6 bg-green-600 text-white rounded-2xl font-black text-xl shadow-2xl shadow-green-200 disabled:bg-slate-200 active:scale-95 transition-all flex justify-center items-center"
                     >
