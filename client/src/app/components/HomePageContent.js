@@ -165,13 +165,16 @@ const KawaiiButton = ({ children, variant = "primary", icon: Icon, className, on
 // --- 🚀 HERO & SECTIONS ---
 
 const HeroSection = () => (
-  /* 修正ポイント: section の m-0 p-0 を徹底し、背景色を繋げる。上部の不要なマージンを排除 */
-  <section className="relative w-full min-h-[85vh] md:min-h-[90vh] flex items-center justify-center overflow-hidden bg-white border-none m-0 p-0 z-10">
+  /* 修正ポイント: 
+     1. mt-[-1px] でLiveTickerの境界線との微妙な隙間を強制的に上書き
+     2. pt-8 md:pt-12 で LiveTicker 直後の余白を最小化
+  */
+  <section className="relative w-full min-h-[85vh] md:min-h-[90vh] flex items-center justify-center overflow-hidden bg-white border-none m-0 mt-[-1px] pt-8 md:pt-12 z-10">
     <div className="absolute inset-0 bg-[radial-gradient(#e0f2fe_1px,transparent_1px)] [background-size:24px_24px] opacity-40 pointer-events-none" />
     <FloatingShape color="bg-pink-200" top="-5%" left="-5%" size={500} />
     <FloatingShape color="bg-sky-200" bottom="-5%" right="-5%" size={500} delay={2} />
 
-    <div className="container relative z-10 px-6 py-12 md:py-24 grid lg:grid-cols-12 gap-10 items-center mx-auto">
+    <div className="container relative z-10 px-6 py-6 md:py-12 grid lg:grid-cols-12 gap-10 items-center mx-auto">
       <div className="lg:col-span-7 text-center lg:text-left">
         <Reveal>
           <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white rounded-full shadow-md border border-pink-50 mb-6 mx-auto lg:mx-0">
@@ -244,16 +247,16 @@ export default function HomePageContent() {
   }
 
   return (
-    /* 修正ポイント: 外部コンテナを m-0 p-0 に。flex-col の隙間を排除 */
-    <div className="m-0 p-0 w-full flex flex-col bg-white overflow-hidden relative">
+    /* 修正ポイント: m-0 p-0 overflow-hidden で内部の浮きを完全に封じ込める */
+    <div className="m-0 p-0 w-full flex flex-col bg-white overflow-hidden relative border-none">
       <ScrollProgress />
       <MagicCursor />
 
       {isAuthenticated ? (
         <AuthenticatedHome user={user} logout={logout} />
       ) : (
-        /* 主なコンテンツ。余計な margin-top を排除 */
-        <main className="flex flex-col m-0 p-0 w-full relative">
+        /* 修正ポイント: margin を強制排除 */
+        <main className="flex flex-col m-0 p-0 w-full relative border-none">
           <HeroSection />
 
           {/* --- TICKER GENRES --- */}

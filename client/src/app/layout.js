@@ -33,15 +33,15 @@ export default function RootLayout({ children }) {
       <body className="font-sans antialiased text-slate-900 bg-white min-h-screen flex flex-col m-0 p-0 overflow-x-hidden">
         <ThemeController />
         <AuthProvider>
-          {/* 修正ポイント: flex-col で隙間(gap)をゼロにし、背景色を固定して下の要素と繋げる */}
-          <div className="w-full flex flex-col m-0 p-0 border-none bg-slate-900">
+          {/* 修正：bg-white を明示し、季節背景が隙間から見えないようにする */}
+          <div className="w-full flex flex-col m-0 p-0 border-none bg-white relative z-[100]">
             <Header />
             <LiveTicker />
           </div>
           
           <Suspense fallback={null}>
-            {/* main 自体の余白を完全にゼロにする */}
-            <main className="flex-grow w-full m-0 p-0 overflow-visible">
+            {/* 修正：main の余白をゼロにし、コンテンツをLiveTicker直後に密着させる */}
+            <main className="flex-grow w-full m-0 p-0 flex flex-col">
               {children}
             </main>
             <FloatingMenu />
