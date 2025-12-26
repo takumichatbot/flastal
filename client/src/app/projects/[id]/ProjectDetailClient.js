@@ -18,9 +18,10 @@ import {
   FiCheckCircle, FiAlertTriangle, FiDollarSign, FiCalendar, 
   FiChevronLeft, FiSend, FiImage, 
   FiAward, FiPlus, FiSearch, FiLoader, FiX,
-  // ★追加分（エラーログにあった不足分を全て網羅）
   FiFileText, FiPrinter, FiInfo, FiLock, FiTool, FiCheck, FiCpu, 
-  FiMessageSquare, FiTrash2, FiBox, FiUpload, FiRefreshCw, FiEdit3
+  FiMessageSquare, FiTrash2, FiBox, FiUpload, FiRefreshCw, FiEdit3,
+  // ★修正箇所：不足していたアイコンを追加
+  FiBookOpen 
 } from 'react-icons/fi';
 
 // Components
@@ -79,8 +80,6 @@ const useIsMounted = () => {
 // ===========================================
 
 function InstructionSheetModal({ project, onClose }) {
-  const [loading, setLoading] = useState(false);
-  
   const images = [
     project.designImageUrls?.[0] || project.imageUrl, 
     project.designImageUrls?.[1], 
@@ -188,11 +187,7 @@ function InstructionSheetModal({ project, onClose }) {
         </h3>
         
         <div className="flex-grow p-4 border rounded bg-gray-50 text-sm mb-4 overflow-y-auto">
-          {loading ? (
-            <div className="flex-grow flex items-center justify-center p-10">読み込み中...</div>
-          ) : (
              <div dangerouslySetInnerHTML={{ __html: contentHtml }} />
-          )}
         </div>
         
         <div className="mt-auto flex justify-end gap-3 pt-4 border-t">
@@ -515,7 +510,6 @@ const ProgressTracker = ({ project, isAssignedFlorist, fetchProject }) => {
 
     return (
         <div className="bg-white p-6 rounded-2xl shadow-md border border-pink-100 mb-8 overflow-hidden relative">
-            {/* 装飾 */}
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-pink-300 to-purple-300"></div>
 
             <h2 className="text-lg font-bold text-gray-800 mb-6 flex items-center">
@@ -523,9 +517,7 @@ const ProgressTracker = ({ project, isAssignedFlorist, fetchProject }) => {
             </h2>
             
             <div className="relative px-2">
-                {/* プログレスバー背景 */}
                 <div className="absolute top-4 left-0 right-0 h-1 bg-gray-100 rounded-full -z-10"></div>
-                {/* アクティブバー */}
                 <div 
                     className="absolute top-4 left-0 h-1 bg-pink-500 rounded-full transition-all duration-700 ease-out -z-10" 
                     style={{ width: `${(currentOrder / (PROGRESS_STEPS.length - 1)) * 100}%` }}
@@ -596,6 +588,7 @@ const ProgressTracker = ({ project, isAssignedFlorist, fetchProject }) => {
 // ===========================================
 export default function ProjectDetailClient() {
   const params = useParams();
+  const router = useRouter();
   const { id } = params;
   const [activeTab, setActiveTab] = useState('overview'); 
   const [aiSummary, setAiSummary] = useState(null);
@@ -641,13 +634,8 @@ export default function ProjectDetailClient() {
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskAssignedUserId, setNewTaskAssignedUserId] = useState('');
 
-  const [recommendations, setRecommendations] = useState(null); 
-  const [loadingRecommendations, setLoadingRecommendations] = useState(false);
-
-    // Payment Callback Logic
     useEffect(() => {
         const urlParams = new URLSearchParams(window.location.search);
-        
         if (urlParams.get('payment') === 'success') {
             toast.success("決済が完了しました！ご支援ありがとうございます。", { duration: 6000 });
             history.replaceState(null, '', `${window.location.pathname}`);
@@ -679,6 +667,7 @@ export default function ProjectDetailClient() {
   useEffect(() => {
     if (!user || !id) return;
     const token = getAuthToken();
+    if (!token) return;
     const newSocket = io(API_URL, { transports: ['polling'], auth: { token: `Bearer ${token}` } });
     setSocket(newSocket);
     newSocket.emit('joinProjectRoom', id);
@@ -775,9 +764,9 @@ export default function ProjectDetailClient() {
   };
 
   const isAssignedFlorist = user && user.role === 'FLORIST' && project?.offer?.floristId === user.id;
-  const isFlorist = user && user.role === 'FLORIST'; 
   const isPledger = user && (project?.pledges || []).some(p => p.userId === user.id);
   const isPlanner = user && user.id === project?.planner?.id;
+  const isFlorist = user && user.role === 'FLORIST';
 
   const onPledgeSubmit = (data) => {
     if (!user) return toast.error('ログインが必要です。');
@@ -806,9 +795,7 @@ export default function ProjectDetailClient() {
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-sky-500"></div></div>;
   if (!project) return <div className="text-center mt-20 text-gray-500 font-bold text-lg">企画が見つかりませんでした。</div>;
 
-  if (!isMounted) {
-      return <div className="flex items-center justify-center min-h-screen bg-slate-50"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-sky-500"></div></div>;
-  }
+  if (!isMounted) return null;
 
   const totalExpense = (project.expenses || []).reduce((sum, exp) => sum + exp.amount, 0);
   const balance = project.collectedAmount - totalExpense;
@@ -818,41 +805,26 @@ export default function ProjectDetailClient() {
     <>
       <div className="min-h-screen bg-gray-50 pb-20 font-sans text-gray-800">
         
-        {/* Progress Tracker (Sticky) */}
         {(isAssignedFlorist || project.status === 'SUCCESSFUL' || project.status === 'COMPLETED' || project.status === 'FUNDRAISING') && (
           <div className="bg-white/90 backdrop-blur-md border-b border-gray-200 sticky top-0 z-30 shadow-sm">
             <div className="max-w-6xl mx-auto px-4 py-4">
-              <ProgressTracker 
-                project={project} 
-                isAssignedFlorist={isAssignedFlorist}
-                fetchProject={fetchProject}
-              />
+              <ProgressTracker project={project} isAssignedFlorist={isAssignedFlorist} fetchProject={fetchProject} />
             </div>
           </div>
         )}
 
         <div className="max-w-6xl mx-auto p-4 sm:p-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
           
-          {/* Main Content (Left) */}
           <div className="lg:col-span-2 space-y-8">
             <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
             
-            {/* Main Image */}
             {project.status !== 'COMPLETED' && project.imageUrl && (
               <div className="h-80 md:h-96 bg-gray-200 relative group cursor-pointer" onClick={() => { setModalImageSrc(project.imageUrl); setIsImageModalOpen(true); }}>
-                <Image 
-                  src={project.imageUrl} 
-                  alt={project.title} 
-                  fill 
-                  sizes="(max-width: 1024px) 100vw, 66vw"
-                  style={{ objectFit: 'cover' }}
-                  className="transition-transform duration-500 group-hover:scale-105"
-                />
+                <Image src={project.imageUrl} alt={project.title} fill sizes="(max-width: 1024px) 100vw, 66vw" style={{ objectFit: 'cover' }} className="transition-transform duration-500 group-hover:scale-105" />
                 <div className="absolute inset-0 bg-black/10 group-hover:bg-black/20 transition-colors"></div>
               </div>
             )}
 
-            {/* Completion Report Header */}
             {project.status === 'COMPLETED' && (
                 <div className="p-8 bg-gradient-to-br from-orange-50 to-amber-50 border-b border-orange-100">
                     <div className="text-center mb-6">
@@ -863,13 +835,7 @@ export default function ProjectDetailClient() {
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
                             {project.completionImageUrls.map((url, i) => (
                               <div key={i} className="relative aspect-square rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow cursor-pointer" onClick={() => { setModalImageSrc(url); setIsImageModalOpen(true); }}>
-                                <Image 
-                                  src={url} 
-                                  alt={`完了写真 ${i}`} 
-                                  fill 
-                                  sizes="(max-width: 768px) 50vw, 33vw"
-                                  style={{ objectFit: 'cover' }}
-                                />
+                                <Image src={url} alt={`完了写真 ${i}`} fill sizes="(max-width: 768px) 50vw, 33vw" style={{ objectFit: 'cover' }} />
                               </div>
                             ))}
                         </div>
@@ -882,22 +848,16 @@ export default function ProjectDetailClient() {
             )}
 
             <div className="p-6 md:p-10">
-
-              <div className="mb-4">
-                  <OfficialBadge projectId={project.id} isPlanner={isPlanner} />
-              </div>
+              <div className="mb-4"><OfficialBadge projectId={project.id} isPlanner={isPlanner} /></div>
               <h1 className="text-2xl md:text-4xl font-extrabold text-gray-900 mb-2 leading-tight">{project.title}</h1>
-
               <div className="flex items-center gap-3 text-gray-500 mb-8">
                   <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center overflow-hidden">
                       {project.planner?.iconUrl ? <Image src={project.planner.iconUrl} width={32} height={32} alt=""/> : <FiUser />}
                   </div>
                   <span className="font-medium">企画者: {project.planner?.handleName}</span>
               </div>
-              
               <UpsellAlert target={project.targetAmount} collected={project.collectedAmount} />
 
-              {/* Digital Nameboard Link */}
               <div className="my-8">
                 <Link href={`/projects/${id}/board`} className="block group">
                     <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 to-slate-800 p-8 shadow-xl border border-slate-700 text-center transform transition-all hover:scale-[1.01]">
@@ -907,15 +867,12 @@ export default function ProjectDetailClient() {
                             <h3 className="text-xl md:text-2xl font-bold text-white mb-2 group-hover:text-yellow-200 transition-colors flex items-center justify-center gap-2">
                                 <FiAward className="text-yellow-400"/> デジタル・ネームボードを見る
                             </h3>
-                            <p className="text-slate-400 text-sm">
-                                支援者全員の名前が刻まれた、Web限定の記念プレートです。
-                            </p>
+                            <p className="text-slate-400 text-sm">支援者全員の名前が刻まれた、Web限定の記念プレートです。</p>
                         </div>
                     </div>
                 </Link>
               </div>
 
-              {/* Tab Navigation */}
               <div className="border-b border-gray-100 mb-8">
                 <nav className="flex space-x-8 overflow-x-auto pb-1">
                     {[
@@ -923,44 +880,21 @@ export default function ProjectDetailClient() {
                         { id: 'collaboration', label: '共同作業・デザイン', icon: FiTool },
                         { id: 'finance', label: '収支・報告', icon: FiDollarSign }
                     ].map(tab => (
-                        <button 
-                            key={tab.id}
-                            onClick={() => setActiveTab(tab.id)}
-                            className={`whitespace-nowrap py-4 px-2 border-b-2 font-bold text-sm transition-colors flex items-center gap-2 ${
-                                activeTab === tab.id 
-                                ? 'border-pink-500 text-pink-600' 
-                                : 'border-transparent text-gray-400 hover:text-gray-600 hover:border-gray-200'
-                            }`}
-                        >
+                        <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`whitespace-nowrap py-4 px-2 border-b-2 font-bold text-sm transition-colors flex items-center gap-2 ${activeTab === tab.id ? 'border-pink-500 text-pink-600' : 'border-transparent text-gray-400 hover:text-gray-600 hover:border-gray-200'}`}>
                             <tab.icon size={16}/> {tab.label}
                         </button>
                     ))}
                 </nav>
               </div>
               
-              {/* Tab: Overview */}
               {activeTab === 'overview' && (
                   <div className="space-y-8 animate-fadeIn">
-                      
-                      {project.venue && (
-                          <VenueRegulationCard venue={project.venue} />
-                      )}
-                      
-                      {project.venueId && (
-                          <VenueLogisticsWiki 
-                              venueId={project.venueId} 
-                              venueName={project.venue?.venueName} 
-                              isFloristView={isAssignedFlorist}
-                          />
-                      )}
-                      
+                      {project.venue && <VenueRegulationCard venue={project.venue} />}
+                      {project.venueId && <VenueLogisticsWiki venueId={project.venueId} venueName={project.venue?.venueName} isFloristView={isAssignedFlorist} />}
                       <div>
                           <h2 className="text-lg font-bold text-gray-800 mb-3 border-l-4 border-pink-500 pl-3">詳細</h2>
-                          <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 text-gray-700 whitespace-pre-wrap leading-relaxed">
-                              {project.description}
-                          </div>
+                          <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 text-gray-700 whitespace-pre-wrap leading-relaxed">{project.description}</div>
                       </div>
-
                       {(project.designDetails || project.size || project.flowerTypes) && (
                           <div>
                               <h2 className="text-lg font-bold text-gray-800 mb-3 border-l-4 border-pink-500 pl-3">デザインの希望</h2>
@@ -971,18 +905,14 @@ export default function ProjectDetailClient() {
                               </div>
                           </div>
                       )}
-
                       {(project.announcements?.length > 0 || isPlanner) && (
                           <div>
                               <div className="flex justify-between items-center mb-4">
                                   <h2 className="text-lg font-bold text-gray-800 border-l-4 border-pink-500 pl-3">お知らせ・活動報告</h2>
                                   {isPlanner && (
-                                      <button onClick={() => setShowAnnouncementForm(!showAnnouncementForm)} className="text-xs bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-full font-bold hover:bg-indigo-100 transition-colors">
-                                          + 投稿する
-                                      </button>
+                                      <button onClick={() => setShowAnnouncementForm(!showAnnouncementForm)} className="text-xs bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-full font-bold hover:bg-indigo-100 transition-colors">+ 投稿する</button>
                                   )}
                               </div>
-                              
                               {isPlanner && showAnnouncementForm && (
                                   <form onSubmit={handleAnnouncementSubmit} className="mb-6 p-5 bg-indigo-50 rounded-2xl border border-indigo-100 animate-fadeIn">
                                       <input value={announcementTitle} onChange={(e)=>setAnnouncementTitle(e.target.value)} placeholder="タイトル" className="w-full p-3 mb-3 border border-indigo-200 rounded-xl focus:ring-2 focus:ring-indigo-300 outline-none"/>
@@ -993,7 +923,6 @@ export default function ProjectDetailClient() {
                                       </div>
                                   </form>
                               )}
-
                               {project.announcements?.length > 0 ? (
                                   <div className="space-y-4">
                                       {project.announcements.map(a=>(
@@ -1012,54 +941,31 @@ export default function ProjectDetailClient() {
                   </div>
               )}
 
-              {/* Tab: Collaboration */}
               {activeTab === 'collaboration' && (
                 <div className="space-y-10 animate-fadeIn">
-
                     {aiSummary && (
                         <div className="bg-gradient-to-r from-yellow-50 to-amber-50 p-6 rounded-2xl border border-yellow-200 shadow-sm">
-                            <h2 className="text-lg font-bold text-yellow-800 mb-3 flex items-center">
-                                <FiCpu className="mr-2"/> AIまとめ (最新の決定事項)
-                            </h2>
-                            <div className="text-sm text-gray-800 prose prose-sm max-w-none">
-                                <Markdown>{aiSummary}</Markdown> 
-                            </div>
+                            <h2 className="text-lg font-bold text-yellow-800 mb-3 flex items-center"><FiCpu className="mr-2"/> AIまとめ (最新の決定事項)</h2>
+                            <div className="text-sm text-gray-800 prose prose-sm max-w-none"><Markdown>{aiSummary}</Markdown></div>
                         </div>
                     )}
-
                     {(isPlanner || isPledger || isFlorist) && (
                         <div>
-                            <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                                <FiImage className="text-pink-500"/> ムードボード (アイデア共有)
-                            </h2>
+                            <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2"><FiImage className="text-pink-500"/> ムードボード (アイデア共有)</h2>
                             <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200">
                                 <MoodboardPostForm projectId={project.id} onPostSuccess={fetchProject} /> 
-                                <div className="mt-6">
-                                    <MoodboardDisplay projectId={project.id} />
-                                </div>
+                                <div className="mt-6"><MoodboardDisplay projectId={project.id} /></div>
                             </div>
                         </div>
                     )}
-
                     {(isPlanner || isPledger || isFlorist) && (
                         <div>
-                            <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                                <FiMessageSquare className="text-sky-500"/> 企画チャット
-                            </h2>
+                            <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2"><FiMessageSquare className="text-sky-500"/> 企画チャット</h2>
                             <div className="border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
-                                <GroupChat 
-                                    project={project} 
-                                    user={user} 
-                                    isPlanner={isPlanner} 
-                                    isPledger={isPledger} 
-                                    socket={socket} 
-                                    onSummaryUpdate={setAiSummary} 
-                                    summary={aiSummary} 
-                                />
+                                <GroupChat project={project} user={user} isPlanner={isPlanner} isPledger={isPledger} socket={socket} onSummaryUpdate={setAiSummary} summary={aiSummary} />
                             </div>
                         </div>
                     )}
-
                     {isPlanner && (
                         <div>
                             <h2 className="text-lg font-bold text-gray-800 mb-4">タスク管理</h2>
@@ -1083,7 +989,6 @@ export default function ProjectDetailClient() {
                             </div>
                         </div>
                     )}
-
                     <div>
                         <h2 className="text-lg font-bold text-gray-800 mb-4">確認ツール</h2>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1092,14 +997,8 @@ export default function ProjectDetailClient() {
                                     <h3 className="font-bold text-gray-700 mb-2 flex items-center"><FiBox className="mr-2"/> ARシミュレーター</h3>
                                     <p className="text-xs text-gray-500 mb-4">パネルやフラスタのサイズ感をARで確認できます。</p>
                                 </div>
-                                <button 
-                                    onClick={() => setIsArModalOpen(true)}
-                                    className="w-full py-2.5 bg-gray-900 text-white text-sm font-bold rounded-xl hover:bg-gray-800 transition-colors shadow-md"
-                                >
-                                    ARを起動する
-                                </button>
+                                <button onClick={() => setIsArModalOpen(true)} className="w-full py-2.5 bg-gray-900 text-white text-sm font-bold rounded-xl hover:bg-gray-800 transition-colors shadow-md">ARを起動する</button>
                             </div>
-                            
                             {(isPlanner || isFlorist) && (
                                 <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm">
                                     <h3 className="font-bold text-gray-700 mb-2 flex items-center"><FiUpload className="mr-2"/> データ提出</h3>
@@ -1112,7 +1011,6 @@ export default function ProjectDetailClient() {
                                 </div>
                             )}
                         </div>
-
                         {((isPlanner || isFlorist) || project.productionStatus === 'PRE_COMPLETION') && (
                             <div className="mt-6 bg-indigo-50 p-6 rounded-2xl border border-indigo-100">
                                 <h3 className="font-bold text-indigo-900 mb-4 flex items-center"><FiCheckCircle className="mr-2"/> 仕上がり確認 (前日写真)</h3>
@@ -1141,38 +1039,20 @@ export default function ProjectDetailClient() {
                 </div> 
               )}
 
-
-              {/* Tab: Finance */}
               {activeTab === 'finance' && (
                 <div className="space-y-8 animate-fadeIn">
-                    
                     <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
                         <div className="flex justify-between items-center mb-6">
                             <h2 className="text-lg font-bold text-gray-800 flex items-center"><FiDollarSign className="mr-2"/> 収支報告</h2>
-                            <button 
-                                onClick={handlePrint}
-                                className="flex items-center gap-2 text-xs font-bold bg-gray-100 hover:bg-gray-200 text-gray-600 px-4 py-2 rounded-full transition-colors"
-                            >
-                                <FiPrinter /> PDF発行
-                            </button>
+                            <button onClick={handlePrint} className="flex items-center gap-2 text-xs font-bold bg-gray-100 hover:bg-gray-200 text-gray-600 px-4 py-2 rounded-full transition-colors"><FiPrinter /> PDF発行</button>
                         </div>
                         <div className="bg-slate-50 p-5 rounded-xl text-sm space-y-3 border border-slate-100">
-                            <div className="flex justify-between">
-                                <span className="text-gray-500">収入 (支援総額)</span>
-                                <span className="font-bold text-gray-800">{project.collectedAmount.toLocaleString()} pt</span>
-                            </div>
-                            <div className="flex justify-between text-red-600">
-                                <span>支出合計</span>
-                                <span>- {totalExpense.toLocaleString()} pt</span>
-                            </div>
+                            <div className="flex justify-between"><span className="text-gray-500">収入 (支援総額)</span><span className="font-bold text-gray-800">{project.collectedAmount.toLocaleString()} pt</span></div>
+                            <div className="flex justify-between text-red-600"><span>支出合計</span><span>- {totalExpense.toLocaleString()} pt</span></div>
                             <div className="h-px bg-gray-200 my-2"></div>
-                            <div className="flex justify-between font-bold text-lg">
-                                <span>残高 (余剰金)</span>
-                                <span className="text-indigo-600">{balance.toLocaleString()} pt</span>
-                            </div>
+                            <div className="flex justify-between font-bold text-lg"><span>残高 (余剰金)</span><span className="text-indigo-600">{balance.toLocaleString()} pt</span></div>
                         </div>
                     </div>
-
                     <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
                         <h3 className="font-bold text-gray-700 mb-4">支出詳細</h3>
                         {isPlanner && (
@@ -1195,19 +1075,14 @@ export default function ProjectDetailClient() {
                             {(!project.expenses || project.expenses.length === 0) && <p className="text-center text-gray-400 text-sm py-4">支出は登録されていません</p>}
                         </div>
                     </div>
-
                     <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
                         <div className="flex justify-between items-center mb-4">
                             <h2 className="text-lg font-bold text-gray-800">支援者メッセージ ({project.messages?.length || 0})</h2>
                             {isPlanner && project.messages?.length > 0 && <button onClick={handleCopyMessages} className="text-blue-500 text-xs font-bold hover:underline">すべてコピー</button>}
                         </div>
-                        
                         {isPledger && !isPlanner && !hasPostedMessage && (
-                            <div className="mb-6 bg-pink-50 p-4 rounded-xl border border-pink-100">
-                                <MessageForm projectId={id} onMessagePosted={fetchProject} />
-                            </div>
+                            <div className="mb-6 bg-pink-50 p-4 rounded-xl border border-pink-100"><MessageForm projectId={id} onMessagePosted={fetchProject} /></div>
                         )}
-                        
                         <div className="space-y-3 max-h-80 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-200">
                             {project.messages?.map(m=>(
                                 <div key={m.id} className="bg-gray-50 p-4 rounded-xl border border-gray-100">
@@ -1218,66 +1093,37 @@ export default function ProjectDetailClient() {
                             {(!project.messages || project.messages.length === 0) && <p className="text-center text-gray-400 text-sm py-4">メッセージはまだありません</p>}
                         </div>
                     </div>
-
                     <div className="border-t pt-6">
                         <h3 className="text-lg font-bold text-gray-800 mb-3">完了報告</h3>
                         {project.status === 'COMPLETED' ? (
-                            <div className="bg-green-50 p-5 rounded-xl border border-green-200 text-green-800 font-bold flex items-center justify-center">
-                                <FiCheckCircle className="mr-2 text-xl"/> 報告書提出済みです
-                            </div>
+                            <div className="bg-green-50 p-5 rounded-xl border border-green-200 text-green-800 font-bold flex items-center justify-center"><FiCheckCircle className="mr-2 text-xl"/> 報告書提出済みです</div>
                         ) : (
                             isPlanner && project.status === 'SUCCESSFUL' && (
-                                <button onClick={()=>setIsCompletionModalOpen(true)} className="w-full mt-2 bg-green-600 text-white py-4 rounded-xl font-bold hover:bg-green-700 shadow-md transition-transform hover:scale-[1.01]">
-                                    完了報告を作成する
-                                </button>
+                                <button onClick={()=>setIsCompletionModalOpen(true)} className="w-full mt-2 bg-green-600 text-white py-4 rounded-xl font-bold hover:bg-green-700 shadow-md transition-transform hover:scale-[1.01]">完了報告を作成する</button>
                             )
                         )}
                     </div>
-
                 </div>
               )}
-
             </div>
             </div>
           </div>
 
-          {/* Right Sidebar */}
           <div className="lg:col-span-1 space-y-6">
              <div className="bg-white rounded-3xl shadow-xl p-6 sticky top-24 border border-gray-100">
                 {user ? (
                     <PledgeForm project={project} user={user} onPledgeSubmit={onPledgeSubmit} isPledger={isPledger} />
                 ) : (
                     <div className="text-center">
-                        <div className="w-16 h-16 bg-pink-100 rounded-full flex items-center justify-center mx-auto mb-4 text-pink-500 shadow-sm">
-                            <FiHeart size={32} fill="currentColor" />
-                        </div>
+                        <div className="w-16 h-16 bg-pink-100 rounded-full flex items-center justify-center mx-auto mb-4 text-pink-500 shadow-sm"><FiHeart size={32} fill="currentColor" /></div>
                         <h3 className="text-xl font-extrabold mb-3 text-gray-900">この企画を支援する</h3>
-                        <p className="text-sm text-gray-500 mb-6 leading-relaxed">
-                            ログインして支援すると、<br/>ポイントが貯まり履歴が残ります。
-                        </p>
-                        
-                        <button 
-                            onClick={() => window.location.href = `/login?redirect=/projects/${id}`}
-                            className="w-full bg-gradient-to-r from-sky-500 to-blue-500 text-white font-bold py-3.5 rounded-xl hover:shadow-lg hover:scale-[1.02] transition-all mb-4 shadow-md"
-                        >
-                            ログインして支援する
-                        </button>
-                        
-                        <div className="relative my-6">
-                            <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-gray-200"></span></div>
-                            <div className="relative flex justify-center text-xs uppercase font-bold tracking-widest"><span className="bg-white px-3 text-gray-400">OR</span></div>
-                        </div>
-
-                        <button 
-                            onClick={() => setShowGuestPledgeModal(true)} 
-                            className="w-full bg-white border-2 border-pink-100 text-pink-600 font-bold py-3.5 rounded-xl hover:bg-pink-50 hover:border-pink-200 transition-all flex items-center justify-center gap-2"
-                        >
-                            <FiUser /> ゲストとして支援する
-                        </button>
+                        <p className="text-sm text-gray-500 mb-6 leading-relaxed">ログインして支援すると、<br/>ポイントが貯まり履歴が残ります。</p>
+                        <button onClick={() => window.location.href = `/login?redirect=/projects/${id}`} className="w-full bg-gradient-to-r from-sky-500 to-blue-500 text-white font-bold py-3.5 rounded-xl hover:shadow-lg hover:scale-[1.02] transition-all mb-4 shadow-md">ログインして支援する</button>
+                        <div className="relative my-6"><div className="absolute inset-0 flex items-center"><span className="w-full border-t border-gray-200"></span></div><div className="relative flex justify-center text-xs uppercase font-bold tracking-widest"><span className="bg-white px-3 text-gray-400">OR</span></div></div>
+                        <button onClick={() => setShowGuestPledgeModal(true)} className="w-full bg-white border-2 border-pink-100 text-pink-600 font-bold py-3.5 rounded-xl hover:bg-pink-50 hover:border-pink-200 transition-all flex items-center justify-center gap-2"><FiUser /> ゲストとして支援する</button>
                         <p className="text-[10px] text-gray-400 mt-2">※ 会員登録なしで今すぐ支援できます</p>
                     </div>
                 )}
-                
                 {isPlanner && (
                     <div className="mt-8 pt-6 border-t border-gray-100">
                         <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3">Planner Menu</h3>
@@ -1286,40 +1132,21 @@ export default function ProjectDetailClient() {
                             <Link href={`/projects/edit/${id}`} className="block w-full text-left p-3 hover:bg-gray-50 rounded-xl text-sm font-bold text-gray-700 transition-colors flex items-center"><FiTool className="mr-2 text-gray-400"/> 企画内容の編集</Link>
                             <Link href={`/florists?projectId=${id}`} className="block w-full text-left p-3 hover:bg-gray-50 rounded-xl text-sm font-bold text-pink-600 transition-colors flex items-center"><FiSearch className="mr-2"/> お花屋さんを探す</Link>
                             {project.status==='SUCCESSFUL' && <button onClick={()=>setIsCompletionModalOpen(true)} className="w-full mt-2 bg-green-500 text-white p-3 rounded-xl font-bold shadow-md hover:bg-green-600 transition-colors">完了報告する</button>}
-                            
                             {project.status !== 'CANCELED' && project.status !== 'COMPLETED' && (
-                                <button onClick={() => setIsCancelModalOpen(true)} className="w-full mt-4 text-red-400 text-xs text-center hover:text-red-600 hover:underline py-2">
-                                    企画を中止する...
-                                </button>
+                                <button onClick={() => setIsCancelModalOpen(true)} className="w-full mt-4 text-red-400 text-xs text-center hover:text-red-600 hover:underline py-2">企画を中止する...</button>
                             )}
                         </div>
                     </div>
                 )}
-
                 {isAssignedFlorist && (
                     <div className="mt-8 bg-indigo-50 p-5 rounded-2xl border border-indigo-100 relative overflow-hidden">
                         <div className="absolute top-0 right-0 p-2 opacity-10 pointer-events-none"><FiTool size={80}/></div>
                         <span className="text-[10px] font-bold bg-indigo-600 text-white px-2 py-1 rounded-full mb-3 inline-block">FLORIST ONLY</span>
                         <h3 className="font-bold text-indigo-900 mb-4">お花屋さんメニュー</h3>
                         <div className="space-y-3 relative z-10">
-                            <button 
-                                onClick={() => setIsInstructionModalOpen(true)}
-                                className="w-full py-2.5 bg-white border border-indigo-200 text-indigo-700 font-bold rounded-xl shadow-sm hover:bg-indigo-50 flex items-center justify-center transition-all"
-                            >
-                                <FiFileText className="mr-2"/> 指示書作成
-                            </button>
-                            
-                            <button 
-                                onClick={() => setIsMaterialModalOpen(true)}
-                                className="w-full py-2.5 bg-white border border-yellow-300 text-yellow-700 font-bold rounded-xl shadow-sm hover:bg-yellow-50 flex items-center justify-center transition-all"
-                            >
-                                <FiDollarSign className="mr-2"/> 資材費・実費の報告
-                            </button>
-                            {project.materialCost > 0 && (
-                                <p className="text-xs text-indigo-400 text-center font-bold">
-                                    報告済み: {project.materialCost.toLocaleString()}円
-                                </p>
-                            )}
+                            <button onClick={() => setIsInstructionModalOpen(true)} className="w-full py-2.5 bg-white border border-indigo-200 text-indigo-700 font-bold rounded-xl shadow-sm hover:bg-indigo-50 flex items-center justify-center transition-all"><FiFileText className="mr-2"/> 指示書作成</button>
+                            <button onClick={() => setIsMaterialModalOpen(true)} className="w-full py-2.5 bg-white border border-yellow-300 text-yellow-700 font-bold rounded-xl shadow-sm hover:bg-yellow-50 flex items-center justify-center transition-all"><FiDollarSign className="mr-2"/> 資材費・実費の報告</button>
+                            {project.materialCost > 0 && <p className="text-xs text-indigo-400 text-center font-bold">報告済み: {project.materialCost.toLocaleString()}円</p>}
                         </div>
                     </div>
                 )}
@@ -1328,121 +1155,59 @@ export default function ProjectDetailClient() {
         </div>
       </div> 
       
-      {/* Modals */}
       {isImageModalOpen && <ImageModal src={modalImageSrc} onClose={() => setIsImageModalOpen(false)} />}
       {isReportModalOpen && <ReportModal projectId={id} user={user} onClose={() => setReportModalOpen(false)} />}
       {isCompletionModalOpen && <CompletionReportModal project={project} user={user} onClose={() => setIsCompletionModalOpen(false)} onReportSubmitted={fetchProject} />}
       {isTargetAmountModalOpen && <TargetAmountModal project={project} user={user} onClose={() => setIsTargetAmountModalOpen(false)} onUpdate={fetchProject} />}
       {isInstructionModalOpen && <InstructionSheetModal project={project} onClose={() => setIsInstructionModalOpen(false)} />}
       
-      <FloristMaterialModal 
-        isOpen={isMaterialModalOpen} 
-        onClose={() => setIsMaterialModalOpen(false)} 
-        project={project} 
-        onUpdate={setProject} 
-      />
-      <ProjectCancelModal 
-        isOpen={isCancelModalOpen} 
-        onClose={() => setIsCancelModalOpen(false)} 
-        project={project} 
-        onCancelComplete={() => {
-            fetchProject();
-            router.push('/mypage'); 
-        }} 
-      />
+      <FloristMaterialModal isOpen={isMaterialModalOpen} onClose={() => setIsMaterialModalOpen(false)} project={project} onUpdate={setProject} />
+      <ProjectCancelModal isOpen={isCancelModalOpen} onClose={() => setIsCancelModalOpen(false)} project={project} onCancelComplete={() => { fetchProject(); router.push('/mypage'); }} />
 
-      {/* AR Modal */}
       {isArModalOpen && (
         <div className="fixed inset-0 bg-black/80 flex justify-center items-center z-50 p-4 backdrop-blur-md animate-fadeIn">
           <div className="bg-white rounded-3xl w-full max-w-lg overflow-hidden relative shadow-2xl flex flex-col max-h-[90vh]">
-            
             <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-                <h3 className="font-bold text-lg text-gray-800 flex items-center">
-                    <FiBox className="mr-2 text-indigo-600"/> ARシミュレーター
-                </h3>
-                <button onClick={() => setIsArModalOpen(false)} className="bg-gray-200 hover:bg-gray-300 rounded-full p-2 transition-colors">
-                  <FiX />
-                </button>
+                <h3 className="font-bold text-lg text-gray-800 flex items-center"><FiBox className="mr-2 text-indigo-600"/> ARシミュレーター</h3>
+                <button onClick={() => setIsArModalOpen(false)} className="bg-gray-200 hover:bg-gray-300 rounded-full p-2 transition-colors"><FiX /></button>
             </div>
-
             <div className="p-6 overflow-y-auto">
               {!arSrc ? (
                   <div className="space-y-8">
                       <div className="text-center">
-                          <p className="text-sm text-gray-600 mb-6 leading-relaxed">
-                              お持ちの画像や完了写真をアップロードして、<br/>
-                              実際のサイズ感で部屋に配置してみましょう。
-                          </p>
-                      
+                          <p className="text-sm text-gray-600 mb-6 leading-relaxed">お持ちの画像や完了写真をアップロードして、<br/>実際のサイズ感で部屋に配置してみましょう。</p>
                           {project.status === 'COMPLETED' && (isPledger || isPlanner || isFlorist) && project.completionImageUrls?.length > 0 && (
                               <div className="bg-green-50 border border-green-200 p-4 rounded-xl mb-6 text-left">
-                                <h4 className="font-bold text-green-800 mb-2 flex items-center text-sm">
-                                   <FiCheckCircle className="mr-2"/> 完成写真から作成
-                                </h4>
+                                <h4 className="font-bold text-green-800 mb-2 flex items-center text-sm"><FiCheckCircle className="mr-2"/> 完成写真から作成</h4>
                                 <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none">
                                     {project.completionImageUrls.map((url, i) => (
-                                        <div key={i} className="flex-shrink-0 cursor-pointer group relative w-20 h-20 rounded-lg overflow-hidden border-2 border-transparent hover:border-green-500 transition-all" onClick={() => handleSelectCompletedImage(url)}>
-                                            <Image src={url} alt="" fill style={{ objectFit: 'cover' }} />
-                                        </div>
+                                        <div key={i} className="flex-shrink-0 cursor-pointer group relative w-20 h-20 rounded-lg overflow-hidden border-2 border-transparent hover:border-green-500 transition-all" onClick={() => handleSelectCompletedImage(url)}><Image src={url} alt="" fill style={{ objectFit: 'cover' }} /></div>
                                     ))}
                                 </div>
                               </div>
                           )}
                       </div>
-
                       <div className="space-y-4">
                           <div className="p-4 border-2 border-dashed border-gray-300 rounded-2xl hover:bg-gray-50 transition-colors text-center cursor-pointer relative" onClick={() => document.getElementById('ar-upload').click()}>
                               {arImageFile ? (
-                                  <div>
-                                      <p className="text-sm font-bold text-green-600 mb-1 flex items-center justify-center"><FiCheck className="mr-1"/> 選択済み</p>
-                                      <p className="text-xs text-gray-500">{arImageFile.name}</p>
-                                  </div>
+                                  <div><p className="text-sm font-bold text-green-600 mb-1 flex items-center justify-center"><FiCheck className="mr-1"/> 選択済み</p><p className="text-xs text-gray-500">{arImageFile.name}</p></div>
                               ) : (
-                                  <div className="py-4">
-                                      <FiUpload className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-                                      <p className="text-sm font-bold text-gray-600">画像をアップロード</p>
-                                      <p className="text-xs text-gray-400">またはドラッグ＆ドロップ</p>
-                                  </div>
+                                  <div className="py-4"><FiUpload className="w-8 h-8 text-gray-300 mx-auto mb-2" /><p className="text-sm font-bold text-gray-600">画像をアップロード</p><p className="text-xs text-gray-400">またはドラッグ＆ドロップ</p></div>
                               )}
                               <input id="ar-upload" type="file" className="hidden" accept="image/*" onChange={(e) => setArImageFile(e.target.files[0])} />
                           </div>
-
                           <div className="bg-gray-50 p-4 rounded-xl flex items-center gap-4">
                               <span className="text-sm font-bold text-gray-700 whitespace-nowrap">高さ (cm)</span>
-                              <input 
-                                  type="number" 
-                                  value={arHeight} 
-                                  onChange={(e) => setArHeight(e.target.value)} 
-                                  className="w-full p-2 bg-white border border-gray-200 rounded-lg text-center font-bold outline-none focus:ring-2 focus:ring-indigo-500"
-                              />
+                              <input type="number" value={arHeight} onChange={(e) => setArHeight(e.target.value)} className="w-full p-2 bg-white border border-gray-200 rounded-lg text-center font-bold outline-none focus:ring-2 focus:ring-indigo-500"/>
                           </div>
                       </div>
-
-                      <button 
-                          onClick={handleGenerateAr}
-                          disabled={arGenLoading || !arImageFile}
-                          className="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-xl hover:shadow-lg disabled:opacity-50 disabled:shadow-none transition-all flex justify-center items-center"
-                      >
-                          {arGenLoading ? <><FiLoader className="animate-spin mr-2"/> 生成中...</> : 'ARモデルを生成する'}
-                      </button>
+                      <button onClick={handleGenerateAr} disabled={arGenLoading || !arImageFile} className="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-xl hover:shadow-lg disabled:opacity-50 disabled:shadow-none transition-all flex justify-center items-center">{arGenLoading ? <><FiLoader className="animate-spin mr-2"/> 生成中...</> : 'ARモデルを生成する'}</button>
                   </div>
               ) : (
                   <div className="flex flex-col items-center">
-                      <p className="text-sm text-center text-gray-600 mb-6 font-medium">
-                        カメラを起動して、平らな床に向けてください。<br/>
-                        高さ <strong>{arHeight}cm</strong> のパネルが表示されます。
-                      </p>
-                      
-                      <div className="w-full aspect-[3/4] bg-black rounded-2xl overflow-hidden shadow-lg border border-gray-800">
-                          <ArViewer src={arSrc} alt="AR" />
-                      </div>
-
-                      <button 
-                        onClick={() => { setArSrc(null); setArImageFile(null); }}
-                        className="mt-6 text-sm font-bold text-gray-500 flex items-center hover:text-indigo-600 transition-colors"
-                      >
-                        <FiRefreshCw className="mr-2"/> 別の画像で試す
-                      </button>
+                      <p className="text-sm text-center text-gray-600 mb-6 font-medium">カメラを起動して、平らな床に向けてください。<br/>高さ <strong>{arHeight}cm</strong> のパネルが表示されます。</p>
+                      <div className="w-full aspect-[3/4] bg-black rounded-2xl overflow-hidden shadow-lg border border-gray-800"><ArViewer src={arSrc} alt="AR" /></div>
+                      <button onClick={() => { setArSrc(null); setArImageFile(null); }} className="mt-6 text-sm font-bold text-gray-500 flex items-center hover:text-indigo-600 transition-colors"><FiRefreshCw className="mr-2"/> 別の画像で試す</button>
                   </div>
               )}
             </div>
@@ -1450,41 +1215,21 @@ export default function ProjectDetailClient() {
         </div>
       )}
       
-      {/* Guest Pledge Modal */}
       {showGuestPledgeModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm animate-fadeIn">
           <div className="bg-white rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl relative flex flex-col max-h-[90vh]">
-            
             <div className="p-5 border-b flex justify-between items-center bg-gray-50">
-              <h3 className="font-bold text-lg text-gray-800 flex items-center gap-2">
-                  <FiUser className="text-pink-500"/> ゲスト支援
-              </h3>
-              <button onClick={() => setShowGuestPledgeModal(false)} className="text-gray-400 hover:text-gray-600 p-2 rounded-full hover:bg-gray-200 transition-colors">
-                <FiX size={20} />
-              </button>
+              <h3 className="font-bold text-lg text-gray-800 flex items-center gap-2"><FiUser className="text-pink-500"/> ゲスト支援</h3>
+              <button onClick={() => setShowGuestPledgeModal(false)} className="text-gray-400 hover:text-gray-600 p-2 rounded-full hover:bg-gray-200 transition-colors"><FiX size={20} /></button>
             </div>
-            
             <div className="p-6 overflow-y-auto">
-              <GuestPledgeForm 
-                projectId={project.id}
-                projectTitle={project.title}
-                onCancel={() => setShowGuestPledgeModal(false)}
-                onSuccess={() => {
-                  setShowGuestPledgeModal(false);
-                  fetchProject();
-                }}
-              />
+              <GuestPledgeForm projectId={project.id} projectTitle={project.title} onCancel={() => setShowGuestPledgeModal(false)} onSuccess={() => { setShowGuestPledgeModal(false); fetchProject(); }} />
             </div>
           </div>
         </div>
       )}
 
-      {/* Scroll Indicator */}
-      <FlowerScrollIndicator 
-          collected={project.collectedAmount} 
-          target={project.targetAmount} 
-      />
-
+      <FlowerScrollIndicator collected={project.collectedAmount} target={project.targetAmount} />
     </>
   );
 }
