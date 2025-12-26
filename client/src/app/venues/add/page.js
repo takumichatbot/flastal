@@ -10,8 +10,7 @@ import {
   FiCheckCircle, FiXCircle, FiHelpCircle, FiSearch, FiLoader 
 } from 'react-icons/fi';
 
-// バックエンドのURLをフルパスで確実に指定。末尾のスラッシュなしが標準
-const BACKEND_POST_URL = 'https://flastal-backend.onrender.com/api/venues';
+const BACKEND_URL = 'https://flastal-backend.onrender.com/api/venues';
 
 export default function AddVenuePage() {
   const router = useRouter();
@@ -23,7 +22,6 @@ export default function AddVenuePage() {
   const [vWeb, setVWeb] = useState('');
   const [vRegs, setVRegs] = useState('');
   const [isStandAllowed, setIsStandAllowed] = useState(true);
-
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -44,8 +42,6 @@ export default function AddVenuePage() {
     if (!vName.trim()) return toast.error('会場名を入力してください');
 
     setIsSubmitting(true);
-    
-    // トークンをクリーンアップ
     const activeToken = token || localStorage.getItem('authToken')?.replace(/"/g, '');
 
     let finalWebsite = (vWeb || '').trim();
@@ -64,7 +60,7 @@ export default function AddVenuePage() {
     };
 
     try {
-        const response = await fetch(BACKEND_POST_URL, {
+        const response = await fetch(BACKEND_URL, {
             method: 'POST',
             headers: { 
                 'Content-Type': 'application/json',
@@ -74,29 +70,22 @@ export default function AddVenuePage() {
         });
 
         if (response.status === 401) {
-            toast.error('ログインの期限が切れました。再度ログインしてください。');
+            toast.error('セッションが切れました。ログインし直してください。');
             if (logout) logout();
             router.push('/login');
             return;
         }
 
-        if (response.status === 404) {
-            // ここで404が出る場合はバックエンド側の routes/venues.js の定義ミス確定
-            throw new Error('サーバー側の宛先が見つかりません(404)。バックエンドのデプロイ状況を確認してください。');
-        }
-
         if (!response.ok) {
-            throw new Error(`送信失敗: Status ${response.status}`);
+            throw new Error(`エラー (${response.status})`);
         }
 
         toast.success('会場情報を登録しました！');
-        
-        // ページを完全にリロードして一覧へ（キャッシュ対策）
         window.location.href = '/venues';
 
     } catch (error) {
         console.error('Submit Error:', error);
-        toast.error(error.message || '通信エラーが発生しました。', { duration: 5000 });
+        toast.error(error.message || '通信エラーが発生しました');
     } finally {
         setIsSubmitting(false);
     }
@@ -120,11 +109,11 @@ export default function AddVenuePage() {
         </div>
 
         <div className="bg-white rounded-[32px] shadow-2xl overflow-hidden border border-slate-200">
-            <div className="bg-slate-900 p-10 text-white">
-                <h2 className="text-2xl font-bold flex items-center gap-3 tracking-tighter italic uppercase">
+            <div className="bg-slate-900 p-10 text-white relative">
+                <h2 className="text-3xl font-black flex items-center gap-3 tracking-tighter italic uppercase">
                     <FiMapPin className="text-green-400" /> New Venue
                 </h2>
-                <p className="mt-2 text-slate-400 text-xs font-bold tracking-widest uppercase">Venue Registration</p>
+                <p className="mt-2 text-slate-400 text-xs font-bold tracking-widest uppercase tracking-widest">Register Venue</p>
             </div>
             
             <div className="p-8 md:p-12 space-y-12">
@@ -170,7 +159,7 @@ export default function AddVenuePage() {
                         </div>
 
                         <div>
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block ml-1">公式サイト URL</label>
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block ml-1">URL</label>
                             <input
                                 type="text" 
                                 value={vWeb}
@@ -205,7 +194,7 @@ export default function AddVenuePage() {
                         value={vRegs}
                         onChange={(e) => setVRegs(e.target.value)}
                         className="w-full rounded-2xl border-2 border-slate-100 bg-slate-50 px-6 py-5 focus:bg-white focus:border-green-500 outline-none transition-all font-bold"
-                        placeholder="搬入ルールなど、わかる範囲でご記入ください"
+                        placeholder="搬入ルールなど"
                     ></textarea>
                 </section>
 
