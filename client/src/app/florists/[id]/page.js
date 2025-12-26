@@ -8,7 +8,9 @@ import toast from 'react-hot-toast';
 import { useAuth } from '@/app/contexts/AuthContext';
 import { 
     FiMapPin, FiCamera, FiAward, FiClock, FiCheckCircle, 
-    FiUser, FiHeart, FiStar, FiX, FiShield, FiZap
+    FiUser, FiHeart, FiStar, FiX, FiShield, FiZap,
+    // ★修正箇所：不足していたアイコンを追加
+    FiAlertCircle
 } from 'react-icons/fi'; 
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
@@ -364,7 +366,7 @@ export default function FloristDetailPage() {
                                   return (
                                       <div key={post.id} className="group relative aspect-square bg-gray-100 rounded-[2rem] overflow-hidden shadow-sm hover:shadow-2xl transition-all duration-500">
                                           {post.imageUrl && (
-                                              <Image src={post.imageUrl} alt="作品" fill sizes="(max-width: 768px) 50vw, 33vw" style={{objectFit: 'cover'}} className="transition-transform duration-700 group-hover:scale-110" />
+                                              <Image src={post.imageUrl} alt="作品" fill sizes="33vw" style={{objectFit: 'cover'}} className="transition-transform duration-700 group-hover:scale-110" />
                                           )}
                                           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-6">
                                               <p className="text-white text-xs font-bold leading-relaxed line-clamp-3">{post.content}</p>
