@@ -22,7 +22,9 @@ import {
 import { FiActivity, FiGift, FiTruck, FiCheckCircle, FiTrendingUp, FiInfo } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
-// 既存のコンポーネントインポート
+// 個別コンポーネントのインポート
+import Header from './components/Header';
+import LiveTicker from './components/LiveTicker';
 import OshiColorPicker from './components/OshiColorPicker'; 
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
@@ -31,133 +33,13 @@ function cn(...classes) {
   return classes.filter(Boolean).join(' ');
 }
 
-const getAuthToken = () => {
-    if (typeof window === 'undefined') return null;
-    const rawToken = localStorage.getItem('authToken'); 
-    return rawToken ? rawToken.replace(/^"|"$/g, '') : null;
-};
-
-// --- 🔔 Notification Dropdown (Internal) ---
-function NotificationDropdown({ notifications, fetchNotifications, unreadCount }) {
-    const [isOpen, setIsOpen] = useState(false);
-    const dropdownRef = useRef(null);
-  
-    useEffect(() => {
-      const handleClickOutside = (event) => {
-        if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-          setIsOpen(false);
-        }
-      };
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
-  
-    const handleMarkAllAsRead = async () => {
-      if (unreadCount === 0) return;
-      try {
-        const token = getAuthToken(); 
-        if (!token) return;
-        const response = await fetch(`${API_URL}/api/notifications/readall`, {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-          },
-        });
-        if (response.ok) {
-          toast.success('全ての通知を既読にしました');
-          fetchNotifications();
-        }
-      } catch (error) {
-        toast.error('既読処理に失敗しました');
-      }
-    };
-  
-    const handleRead = async (notificationId, linkUrl) => {
-      setIsOpen(false);
-      try {
-        const token = getAuthToken(); 
-        if (token) {
-          await fetch(`${API_URL}/api/notifications/${notificationId}/read`, {
-            method: 'PATCH',
-            headers: { 'Authorization': `Bearer ${token}` },
-          });
-          fetchNotifications();
-        }
-      } catch (error) {
-        console.error('Failed to mark as read:', error);
-      }
-      if (linkUrl) window.location.href = linkUrl;
-    };
-  
-    const getNotificationIcon = (type) => {
-      switch (type) {
-        case 'NEW_PLEDGE': return <Heart className="text-pink-500" size={18} />;
-        case 'NEW_ANNOUNCEMENT': return <Bell className="text-indigo-500" size={18} />;
-        case 'TASK_ASSIGNED': return <CheckCircle2 className="text-sky-500" size={18} />;
-        case 'OFFER_ACCEPTED': return <CheckCircle2 className="text-green-500" size={18} />;
-        case 'OFFER_REJECTED': return <X className="text-red-500" size={18} />;
-        default: return <Bell className="text-gray-400" size={18} />;
-      }
-    };
-  
-    return (
-      <div className="relative" ref={dropdownRef}>
-        <motion.button 
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.9 }}
-          onClick={() => { setIsOpen(!isOpen); if (!isOpen) fetchNotifications(); }} 
-          className="relative p-2.5 rounded-full hover:bg-pink-50 text-slate-600 hover:text-pink-500 transition-colors"
-        >
-          <Bell size={22} />
-          {unreadCount > 0 && (
-            <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-sm ring-2 ring-white animate-pulse">
-              {unreadCount > 9 ? '9+' : unreadCount}
-            </span>
-          )}
-        </motion.button>
-  
-        <AnimatePresence>
-          {isOpen && (
-            <motion.div
-              initial={{ opacity: 0, y: 10, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 10, scale: 0.95 }}
-              transition={{ duration: 0.2 }}
-              className="absolute right-0 mt-4 w-80 bg-white/95 backdrop-blur-xl border border-white/50 rounded-3xl shadow-2xl shadow-purple-100/50 z-[99999] overflow-hidden ring-1 ring-slate-100"
-            >
-              <div className="flex justify-between items-center px-5 py-4 border-b border-slate-100/50 bg-slate-50/50">
-                <h3 className="font-bold text-sm text-slate-700 flex items-center gap-2">通知</h3>
-                <button onClick={handleMarkAllAsRead} disabled={unreadCount === 0} className="text-xs font-bold text-sky-500 hover:text-sky-600 disabled:text-slate-300">既読にする</button>
-              </div>
-              <div className="max-h-[400px] overflow-y-auto">
-                {notifications.length > 0 ? (
-                  notifications.map((notif) => (
-                    <div key={notif.id} onClick={() => handleRead(notif.id, notif.linkUrl)} className={`px-5 py-4 flex gap-4 cursor-pointer border-b border-slate-50 hover:bg-slate-50 ${!notif.isRead ? 'bg-sky-50/40' : ''}`}>
-                      <div className="shrink-0">{getNotificationIcon(notif.type)}</div>
-                      <div className="flex-1 min-w-0">
-                        <p className={`text-sm leading-snug ${!notif.isRead ? 'text-slate-800 font-bold' : 'text-slate-500'}`}>{notif.message}</p>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="py-12 text-center text-slate-400 text-xs">新しい通知はありません</div>
-                )}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-    );
-}
-
 // --- 🪄 MAGIC UI COMPONENTS ---
 
 const ScrollProgress = () => {
   const { scrollYProgress } = useScroll();
   const scaleX = useSpring(scrollYProgress, { stiffness: 100, damping: 30, restDelta: 0.001 });
   return (
-    <motion.div className="fixed top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-pink-400 via-purple-400 to-sky-400 origin-left z-[100000] shadow-[0_0_20px_rgba(244,114,182,0.6)]" style={{ scaleX }} />
+    <motion.div className="fixed top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-pink-400 via-purple-400 to-sky-400 origin-left z-[10000] shadow-[0_0_20px_rgba(244,114,182,0.6)]" style={{ scaleX }} />
   );
 };
 
@@ -291,8 +173,7 @@ const KawaiiButton = ({ children, variant = "primary", icon: Icon, className, on
 // --- 🚀 HERO & SECTIONS ---
 
 const HeroSection = () => (
-  /* 修正：padding-top を追加してヘッダーの高さ分だけ下に下げる */
-  <section className="relative w-full min-h-[85vh] md:min-h-[95vh] flex items-center justify-center overflow-hidden bg-white border-none m-0 pt-24 md:pt-32 z-10">
+  <section className="relative w-full min-h-[85vh] md:min-h-[95vh] flex items-center justify-center overflow-hidden bg-white border-none m-0 p-0 z-10">
     <div className="absolute inset-0 bg-[radial-gradient(#e0f2fe_1px,transparent_1px)] [background-size:24px_24px] opacity-40 pointer-events-none" />
     <FloatingShape color="bg-pink-200" top="-5%" left="-5%" size={500} />
     <FloatingShape color="bg-sky-200" bottom="-5%" right="-5%" size={500} delay={2} />
@@ -355,86 +236,10 @@ const HeroSection = () => (
 export default function HomePage() {
   const { user, loading, isAuthenticated, logout } = useAuth();
   const [isMounted, setIsMounted] = useState(false);
-  const [notifications, setNotifications] = useState([]);
-  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); 
-  const [pickerKey] = useState(0);
-  const userMenuRef = useRef(null);
-
-  // Ticker State
-  const [tickerIndex, setTickerIndex] = useState(0);
-  const [isTickerAnimating, setIsTickerAnimating] = useState(false);
-
-  const TICKER_LOGS = [
-    { id: 1, type: 'pledge', text: 'たった今、Aさんが『星野アイ生誕祭2025』に 10,000pt 支援しました！🎉', href: '/projects/1' },
-    { id: 2, type: 'production', text: 'お花屋さんが『武道館ライブ』の制作を開始しました💐', href: '/projects/2' },
-    { id: 3, type: 'goal', text: '🔥『デビュー5周年記念』が目標金額100%を達成しました！おめでとうございます！', href: '/projects/3' },
-    { id: 4, type: 'new', text: '新着企画『夏の野外フェス祝い』が公開されました✨ 参加者募集中！', href: '/projects/4' },
-    { id: 5, type: 'delivery', text: '『Zepp Tour Final』のフラスタが設置完了しました📸 現地写真公開中', href: '/projects/5' },
-  ];
 
   useEffect(() => {
     setIsMounted(true);
-    const interval = setInterval(() => {
-        setIsTickerAnimating(true);
-        setTimeout(() => {
-          setTickerIndex((prev) => (prev + 1) % TICKER_LOGS.length);
-          setIsTickerAnimating(false);
-        }, 500);
-      }, 5000);
-      return () => clearInterval(interval);
   }, []);
-
-  const fetchNotifications = useCallback(async () => {
-    if (!user) return;
-    try {
-      const token = getAuthToken(); 
-      if (!token) return;
-      const response = await fetch(`${API_URL}/api/notifications`, {
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setNotifications(data);
-      }
-    } catch (error) {
-      console.error('Failed to fetch notifications:', error);
-    }
-  }, [user]);
-
-  useEffect(() => {
-    if (user) {
-      fetchNotifications();
-      const interval = setInterval(fetchNotifications, 60000); 
-      return () => clearInterval(interval); 
-    }
-  }, [user, fetchNotifications]);
-
-  const unreadCount = useMemo(() => notifications.filter(n => !n.isRead).length, [notifications]);
-  const currentLog = TICKER_LOGS[tickerIndex];
-
-  const getLogStyle = (type) => {
-    switch(type) {
-      case 'pledge': return { icon: <FiGift />, color: 'text-pink-400', label: '支援' };
-      case 'goal': return { icon: <FiTrendingUp />, color: 'text-orange-400', label: '達成' };
-      case 'production': return { icon: <FiCheckCircle />, color: 'text-green-400', label: '進捗' };
-      case 'delivery': return { icon: <FiTruck />, color: 'text-sky-400', label: '納品' };
-      case 'new': return { icon: <FiActivity />, color: 'text-yellow-400', label: '新着' };
-      default: return { icon: <FiInfo />, color: 'text-gray-400', label: '情報' };
-    }
-  };
-
-  const userMenuItems = useMemo(() => {
-    if (!user) return [];
-    const items = [{ href: '/mypage', label: 'マイページ', icon: <User size={16} /> }];
-    switch (user.role) {
-      case 'ORGANIZER': items.push({ href: '/organizers/dashboard', label: '主催者ダッシュボード', icon: <LayoutDashboard size={16} /> }); break;
-      case 'FLORIST': items.push({ href: '/florists/dashboard', label: '花屋ダッシュボード', icon: <LayoutDashboard size={16} /> }); break;
-      case 'VENUE': items.push({ href: `/venues/dashboard/${user.id}`, label: '会場ダッシュボード', icon: <LayoutDashboard size={16} /> }); break;
-      case 'ADMIN': items.push({ href: '/admin', label: 'システム管理画面', icon: <ShieldCheck size={16} /> }); break;
-    }
-    return items;
-  }, [user]);
 
   if (!isMounted || loading) {
     return (
@@ -445,110 +250,14 @@ export default function HomePage() {
     );
   }
 
-  const tickerStyle = getLogStyle(currentLog.type);
-
   return (
     <div className="bg-white min-h-screen text-slate-800 font-sans selection:bg-pink-100 selection:text-pink-600 m-0 p-0 w-full relative">
       <ScrollProgress />
       <MagicCursor />
 
-      {/* --- INTEGRATED HEADER & TICKER ---
-          修正：z-indexを最強(z-[999999])にし、fixedで物理的に固定 
-      */}
-      <div className="fixed top-0 left-0 w-full flex flex-col shadow-xl bg-white z-[999999] isolate">
-        {/* HEADER */}
-        <header className="w-full bg-white/95 backdrop-blur-md border-b border-slate-200/50 h-16 md:h-20 flex items-center shrink-0">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full flex justify-between items-center">
-                <div className="flex items-center gap-8">
-                    <Link href="/" className="flex items-center gap-2 group">
-                        <div className="relative w-8 h-8 md:w-9 md:h-9 overflow-hidden rounded-xl shadow-sm">
-                            <Image src="/icon-512x512.png" alt="FLASTAL" fill className="object-cover" priority />
-                        </div>
-                        <span className="text-xl md:text-2xl font-black bg-clip-text text-transparent bg-gradient-to-r from-slate-800 to-slate-600 group-hover:from-pink-500 group-hover:to-purple-500 transition-all">FLASTAL</span>
-                    </Link>
-                    <nav className="hidden lg:flex items-center space-x-1">
-                        {[{ href: '/projects', label: '企画一覧', icon: <Heart size={18}/> }, { href: '/events', label: 'イベント', icon: <Calendar size={18}/> }, { href: '/venues', label: '会場', icon: <MapPin size={18}/> }, { href: '/florists', label: 'お花屋さん', icon: <Store size={18}/> }].map((link) => (
-                            <Link key={link.href} href={link.href} className="px-4 py-2 rounded-full text-sm font-bold text-slate-500 hover:text-slate-800 hover:bg-slate-50 transition-all flex items-center gap-2">
-                                {link.label}
-                            </Link>
-                        ))}
-                    </nav>
-                </div>
-                <div className="flex items-center space-x-2 md:space-x-4">
-                    <div className="hidden md:block scale-90"><OshiColorPicker key={pickerKey} /></div>
-                    {isAuthenticated ? (
-                        <>
-                            <NotificationDropdown notifications={notifications} fetchNotifications={fetchNotifications} unreadCount={unreadCount} />
-                            <div className="relative" ref={userMenuRef}>
-                                <button onClick={() => setIsUserMenuOpen(!isUserMenuOpen)} className="flex items-center gap-2 pl-1 pr-3 py-1 rounded-full border border-slate-200 bg-white hover:bg-slate-50 transition-all">
-                                    <div className="relative w-8 h-8 rounded-full overflow-hidden bg-indigo-50">
-                                        {user.iconUrl ? <Image src={user.iconUrl} alt="User" fill className="object-cover" /> : <div className="w-full h-full flex items-center justify-center text-indigo-400"><User size={16}/></div>}
-                                    </div>
-                                    <span className="text-sm font-bold hidden sm:block text-slate-700 max-w-[100px] truncate">{user.handleName}</span>
-                                    <ChevronDown size={14} className={`text-slate-400 transition-transform ${isUserMenuOpen ? 'rotate-180' : ''}`} />
-                                </button>
-                                <AnimatePresence>
-                                    {isUserMenuOpen && (
-                                        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className="absolute right-0 mt-3 w-64 bg-white border border-slate-100 rounded-2xl shadow-2xl z-[99999] overflow-hidden">
-                                            <div className="px-6 py-4 border-b border-slate-50 bg-slate-50/30">
-                                                <p className="text-sm font-bold text-slate-800 truncate">{user.handleName}</p>
-                                                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-100 text-indigo-600 uppercase mt-1 inline-block">{user.role}</span>
-                                            </div>
-                                            <div className="p-2 space-y-1">
-                                                {userMenuItems.map((item) => (
-                                                    <Link key={item.href} href={item.href} onClick={() => setIsUserMenuOpen(false)} className="flex items-center px-4 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-50 hover:text-indigo-600 rounded-xl transition-colors">
-                                                        <span className="mr-3 text-slate-400">{item.icon}</span>{item.label}
-                                                    </Link>
-                                                ))}
-                                                <button onClick={() => { logout(); setIsUserMenuOpen(false); toast.success('ログアウトしました'); }} className="flex items-center w-full px-4 py-2.5 text-sm font-bold text-red-500 hover:bg-red-50 rounded-xl transition-colors">
-                                                    <LogOut className="mr-3" size={16} /> ログアウト
-                                                </button>
-                                            </div>
-                                        </motion.div>
-                                    )}
-                                </AnimatePresence>
-                            </div>
-                        </>
-                    ) : (
-                        <div className="flex items-center gap-3">
-                            <Link href="/login" className="hidden md:block text-sm font-bold text-slate-600">ログイン</Link>
-                            <Link href="/register"><KawaiiButton variant="primary" className="!px-5 !py-2 !text-sm">登録</KawaiiButton></Link>
-                        </div>
-                    )}
-                    <button className="lg:hidden p-2 text-slate-600" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
-                        {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-                    </button>
-                </div>
-            </div>
-        </header>
-
-        {/* LIVE TICKER */}
-        <div className="bg-slate-900 border-b border-slate-800 h-10 w-full overflow-hidden flex items-center shrink-0">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full h-full flex items-center justify-between">
-                <div className="flex items-center gap-4 flex-1 min-w-0 h-full">
-                    <div className="flex items-center gap-2 shrink-0 bg-slate-800 py-1 px-2 rounded-full h-fit">
-                        <span className="relative flex h-2 w-2">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
-                        </span>
-                        <span className="text-[10px] font-bold tracking-widest text-slate-300 uppercase">Live</span>
-                    </div>
-                    <div className="flex-1 overflow-hidden relative h-full flex items-center">
-                        <Link href={currentLog.href} className={`flex items-center gap-3 text-xs sm:text-sm text-slate-200 hover:text-white transition-all duration-500 transform w-full truncate cursor-pointer ${isTickerAnimating ? 'translate-y-full opacity-0' : 'translate-y-0 opacity-100'}`}>
-                            <span className={`flex items-center gap-1 font-bold ${tickerStyle.color} shrink-0`}>
-                                {tickerStyle.icon}
-                                <span className="hidden sm:inline text-[10px] border border-current px-1 rounded uppercase opacity-80">{tickerStyle.label}</span>
-                            </span>
-                            <span className="truncate">{currentLog.text}</span>
-                        </Link>
-                    </div>
-                </div>
-                <div className="hidden md:flex shrink-0 ml-4 border-l border-slate-700 pl-4 h-4 items-center">
-                    <Link href="/projects" className="text-[10px] text-slate-400 hover:text-white transition-colors flex items-center gap-1">View All <FiTrendingUp /></Link>
-                </div>
-            </div>
-        </div>
-      </div>
+      {/* 個別コンポーネントを配置 */}
+      <Header />
+      <LiveTicker />
 
       {isAuthenticated ? (
         <AuthenticatedHome user={user} logout={logout} />
@@ -820,8 +529,7 @@ export default function HomePage() {
 // --- 🏠 DASHBOARD WRAPPER ---
 function AuthenticatedHome({ user, logout }) {
     return (
-      /* 修正：padding-top を追加 */
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 w-full pt-32">
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 w-full relative z-[100]">
         <div className="max-w-md w-full bg-white rounded-[40px] shadow-2xl p-10 text-center border border-slate-100">
           <div className="w-20 h-20 bg-indigo-50 text-indigo-500 rounded-full flex items-center justify-center mx-auto mb-6">
             <ShieldCheck size={40} />
