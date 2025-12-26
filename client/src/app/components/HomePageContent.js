@@ -16,6 +16,10 @@ import {
   ArrowRight, CheckCircle2, HelpCircle, Store, MapPin, Ticket, Loader2
 } from 'lucide-react';
 
+// コンポーネントをインポート
+import Header from './components/Header';
+import LiveTicker from './components/LiveTicker';
+
 function cn(...classes) {
   return classes.filter(Boolean).join(' ');
 }
@@ -26,7 +30,7 @@ const ScrollProgress = () => {
   const { scrollYProgress } = useScroll();
   const scaleX = useSpring(scrollYProgress, { stiffness: 100, damping: 30, restDelta: 0.001 });
   return (
-    <motion.div className="fixed top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-pink-400 via-purple-400 to-sky-400 origin-left z-[1000] shadow-[0_0_20px_rgba(244,114,182,0.6)]" style={{ scaleX }} />
+    <motion.div className="fixed top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-pink-400 via-purple-400 to-sky-400 origin-left z-[2000] shadow-[0_0_20px_rgba(244,114,182,0.6)]" style={{ scaleX }} />
   );
 };
 
@@ -160,14 +164,12 @@ const KawaiiButton = ({ children, variant = "primary", icon: Icon, className, on
 // --- 🚀 SECTIONS ---
 
 const HeroSection = () => (
-  <section className="relative w-full min-h-[85vh] md:min-h-[95vh] flex items-center justify-center overflow-hidden bg-slate-50 m-0">
-    <ScrollProgress />
-    <MagicCursor />
+  <section className="relative w-full min-h-[85vh] md:min-h-[95vh] flex items-center justify-center overflow-hidden bg-slate-50 border-none m-0">
     <div className="absolute inset-0 bg-[radial-gradient(#e0f2fe_1px,transparent_1px)] [background-size:24px_24px] opacity-40 pointer-events-none" />
     <FloatingShape color="bg-pink-200" top="-5%" left="-5%" size={500} />
     <FloatingShape color="bg-sky-200" bottom="-5%" right="-5%" size={500} delay={2} />
 
-    <div className="container relative z-10 px-6 pt-12 md:pt-20 pb-10 grid lg:grid-cols-12 gap-10 items-center mx-auto">
+    <div className="container relative z-10 px-6 pt-16 md:pt-24 pb-10 grid lg:grid-cols-12 gap-10 items-center mx-auto">
       <div className="lg:col-span-7 text-center lg:text-left">
         <Reveal>
           <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white rounded-full shadow-md border border-pink-50 mb-6 mx-auto lg:mx-0">
@@ -507,7 +509,7 @@ function AuthenticatedHome({ user, logout }) {
         </p>
         <div className="space-y-4">
           <Link href={user?.role === 'ADMIN' ? '/admin' : '/mypage'} className="flex items-center justify-center gap-2 w-full py-4 bg-slate-900 text-white font-black rounded-2xl hover:bg-slate-800 transition-all shadow-lg text-sm md:text-base text-center">
-            DASHBOARD <ArrowRight size={18} className="inline ml-2" />
+            DASHBOARD <ArrowRight size={18} />
           </Link>
           <button onClick={logout} className="text-[10px] font-black text-slate-300 hover:text-red-500 transition-colors uppercase tracking-[0.2em] block mx-auto mt-4">Sign Out</button>
         </div>
@@ -535,23 +537,56 @@ export default function HomePage() {
   }
 
   if (isAuthenticated) {
-    return <AuthenticatedHome user={user} logout={logout} />;
+    return (
+      <div className="w-full">
+        {/* 認証済みの場合もヘッダーとティッカーを表示させるための構造 */}
+        <div className="sticky top-0 z-[100] bg-slate-900">
+          <Header />
+          <LiveTicker />
+        </div>
+        <AuthenticatedHome user={user} logout={logout} />
+      </div>
+    );
   }
 
   return (
-    <div className="bg-white min-h-screen text-slate-800 font-sans selection:bg-pink-100 selection:text-pink-600 overflow-x-hidden w-full">
-      <HeroSection />
-      <TickerSection />
-      <CultureSection />
-      <ProblemSection />
-      <FeaturesSection />
-      <SafetySection />
-      <PartnerJoinSection />
-      <ShowcaseSection />
-      <VoiceSection />
-      <NewsSection />
-      <FaqSection />
-      <ContactAndCtaSection />
+    <div className="bg-white min-h-screen text-slate-800 font-sans selection:bg-pink-100 selection:text-pink-600 m-0 p-0 overflow-x-hidden w-full">
+      <ScrollProgress />
+      <MagicCursor />
+
+      {/* 統合ユニット: ここでHeaderとTickerをまとめ、下のHero背景(slate-50)と接続させる。
+        bg-slate-900を背景に敷くことで、境界線の隙間問題を物理的に解決する。
+      */}
+      <div className="sticky top-0 z-[100] bg-slate-900 flex flex-col m-0 p-0">
+        <Header />
+        <LiveTicker />
+      </div>
+
+      <main className="flex flex-col m-0 p-0">
+        <HeroSection />
+        <TickerSection />
+        <CultureSection />
+        <ProblemSection />
+        <FeaturesSection />
+        <SafetySection />
+        <PartnerJoinSection />
+        <ShowcaseSection />
+        <VoiceSection />
+        <NewsSection />
+        <FaqSection />
+        <ContactAndCtaSection />
+      </main>
+      
+      {/* 補助CSS */}
+      <style jsx global>{`
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .animate-shine { animation: shine 1.5s ease-in-out infinite; }
+        @keyframes shine {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(100%); }
+        }
+      `}</style>
     </div>
   );
 }
