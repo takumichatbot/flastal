@@ -33,17 +33,14 @@ export default function RootLayout({ children }) {
       <body className="font-sans antialiased text-slate-900 bg-white min-h-screen flex flex-col m-0 p-0 overflow-x-hidden">
         <ThemeController />
         <AuthProvider>
-          {/* 修正ポイント：コンテナを bg-white に固定し、季節背景の入り込みを遮断 */}
+          {/* 修正ポイント: bg-white を適用し、かつ z-index を固定して季節背景の入り込みを防ぐ */}
           <div className="w-full flex flex-col m-0 p-0 border-none bg-white relative z-[100]">
             <Header />
             <LiveTicker />
-            {/* ティッカーのすぐ下に白い土台を1px敷き、微細な隙間も白で埋める */}
-            <div className="h-[1px] w-full bg-white -mt-[1px]" />
           </div>
           
           <Suspense fallback={null}>
-            {/* 修正ポイント：main の余白を排除 */}
-            <main className="flex-grow w-full m-0 p-0 flex flex-col relative z-0">
+            <main className="flex-grow w-full m-0 p-0 overflow-visible relative z-0">
               {children}
             </main>
             <FloatingMenu />
