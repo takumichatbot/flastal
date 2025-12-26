@@ -16,28 +16,30 @@ html, body {
   width: 100% !important;
   min-height: 100vh;
   overflow-x: hidden;
+  background-color: #ffffff; /* 隙間の色を白で隠す */
 }
 
-/* ★ 最終解決：要素を「1pxずつ重ねる」ことで隙間を物理的に消滅させる */
+/* ★ 隙間撲滅の決定打：要素同士を強制的に1px重ねる */
 header {
-  margin-bottom: -1px !important;
   position: relative;
-  z-index: 50;
+  z-index: 100;
+  margin-bottom: -1px !important;
 }
 
-/* LiveTickerをヘッダーの下に潜り込ませ、かつ下とも重ねる */
+/* ティッカーをヘッダーの下に1px、メインの上に1px重ねる */
 header + div {
+  position: relative;
+  z-index: 90;
   margin-top: 0 !important;
   margin-bottom: -1px !important;
-  position: relative;
-  z-index: 40;
 }
 
-/* main（HomePage）をティッカーの下に潜り込ませる */
+/* HomePage(main)をティッカーの下に潜り込ませる */
 main {
-  margin-top: 0 !important;
   position: relative;
-  z-index: 30;
+  z-index: 80;
+  margin-top: 0 !important;
+  display: block;
 }
 
 body {
@@ -45,13 +47,6 @@ body {
   color: var(--foreground);
   transition: background 0.3s ease, color 0.3s ease;
   background-attachment: fixed;
-}
-
-/* --- 🌸 季節のテーマ --- */
-body.theme-spring:not(.dark-mode) {
-  --seasonal-primary: #f472b6;
-  --seasonal-bg: radial-gradient(#fbcfe8 1px, transparent 1px), radial-gradient(#fbcfe8 1px, transparent 1px), #fff1f2;
-  background-size: 20px 20px;
 }
 
 /* 🎨 推し色適用ユーティリティ */
