@@ -11,20 +11,22 @@ export const authenticateToken = async (req, res, next) => {
       return res.status(401).json({ message: '認証トークンが必要です。' });
     }
 
-    const token = authHeader.split(' ')[1];
+    // 修正ポイント：トークン前後の引用符 " や ' をバックエンド側で完全に除去
+    const token = authHeader.split(' ')[1].replace(/^["']|["']$/g, '').trim();
+    
     if (!token) {
       return res.status(401).json({ message: 'トークンが不正です。' });
     }
 
     // 1. JWTの検証
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    
-    if (!decoded.id && !decoded.sub) {
-        return res.status(401).json({ message: 'トークンにIDが含まれていません。' });
+    const userId = decoded.id || decoded.sub;
+
+    if (!userId) {
+        return res.status(401).json({ message: 'トークンに有効なIDが含まれていません。' });
     }
 
-    // 2. データベースから最新のユーザー情報を取得（roleを確実に取得）
-    const userId = decoded.id || decoded.sub;
+    // 2. データベースから最新のユーザー情報を取得
     const latestUser = await prisma.user.findUnique({
       where: { id: userId },
       select: { id: true, email: true, role: true }
@@ -34,13 +36,13 @@ export const authenticateToken = async (req, res, next) => {
       return res.status(404).json({ message: 'ユーザーが見つかりません。' });
     }
 
-    // 3. 【救済ロジック】メールアドレスが一致すれば強制的にロールをセット
+    // 3. 救済ロジック
     const adminEmails = ["takuminsitou946@gmail.com", "hana87kaori@gmail.com"];
     if (adminEmails.includes(latestUser.email.toLowerCase())) {
         latestUser.role = 'ADMIN';
     }
 
-    // リクエストオブジェクトに格納（ここが undefined だと requireAdmin で落ちる）
+    // リクエストオブジェクトに情報をセット
     req.user = {
         id: latestUser.id,
         email: latestUser.email,
@@ -64,8 +66,7 @@ export const requireAdmin = (req, res, next) => {
   if (req.user && req.user.role === 'ADMIN') {
     next();
   } else {
-    // ログに出力して原因を追跡しやすくする
-    console.error(`[Access Denied] User: ${req.user?.email}, Role: ${req.user?.role}`);
+    console.error(`[Access Denied] User: ${req.user?.email || 'Unknown'}, Role: ${req.user?.role || 'Undefined'}`);
     res.status(403).json({ message: '管理者権限が必要です。' });
   }
 };
