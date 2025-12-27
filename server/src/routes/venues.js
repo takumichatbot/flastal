@@ -5,27 +5,26 @@ import { authenticateToken } from '../middleware/auth.js';
 const router = express.Router();
 
 // ==========================================
-// 会場関連 (Base Path: /api)
+// 会場関連 ( app.js で /api にマウントされている前提 )
 // ==========================================
 
-// 一般：会場一覧
+// 会場一覧取得（一般用）
 router.get('/venues', venueController.getVenues);
 
-// 管理者：全会場取得（未承認含む）
-// GET /api/venues/admin
+// 会場一覧取得（管理者用：未承認含む）
 router.get('/venues/admin', authenticateToken, venueController.getVenues);
 
-// 管理者・一般：特定の会場詳細
+// 会場詳細取得
 router.get('/venues/:id', venueController.getVenueById);
 
-// 会場登録 (POST /api/venues)
+// 会場登録（POST /api/venues）
 router.post('/venues', authenticateToken, venueController.addVenueByUser);
 
-// プロフィール更新 / 会場承認 (PATCH /api/venues/:id)
-// ★ ここを venueController.updateVenueProfile に統一します
-router.patch('/venues/:id', authenticateToken, venueController.updateVenueProfile);
+// 会場情報の更新・承認（PATCH /api/venues/:id）
+// ★ venues/ を重ねず、マウントされた /api から見て /venues/:id になるよう修正
+router.patch('/venues/:id', authenticateToken, venueController.updateVenueProfile); 
 
-// 会場削除 (DELETE /api/venues/:id)
+// 会場削除
 router.delete('/venues/:id', authenticateToken, venueController.deleteEvent || venueController.deleteVenue);
 
 // 物流情報
@@ -34,7 +33,7 @@ router.get('/venues/:venueId/logistics', venueController.postLogisticsInfo);
 router.patch('/logistics/:infoId/helpful', authenticateToken, venueController.markLogisticsHelpful);
 
 // ==========================================
-// イベント関連 (Base Path: /api)
+// イベント関連
 // ==========================================
 router.get('/events', venueController.getEvents);
 router.get('/events/public', venueController.getEvents);

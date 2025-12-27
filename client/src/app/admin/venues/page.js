@@ -61,19 +61,19 @@ function VenueModal({ isOpen, onClose, onSubmit, initialData }) {
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex justify-center items-center z-50 p-4 font-sans">
       <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col border border-slate-100 text-slate-800">
         <div className="px-10 py-8 border-b border-slate-50 flex justify-between items-center bg-slate-50/50">
-            <h2 className="text-2xl font-black text-slate-800 italic uppercase">
+            <h2 className="text-2xl font-black text-slate-800 italic">
                 {initialData ? '会場情報を編集' : '新規会場を登録'}
             </h2>
             <button onClick={onClose} className="p-3 hover:bg-white rounded-full text-slate-400 shadow-sm"><FiX size={24} /></button>
         </div>
-        <div className="flex-1 overflow-y-auto p-10 space-y-10">
+        <div className="flex-1 overflow-y-auto p-10 space-y-10 text-slate-800">
             <form id="venueForm" onSubmit={handleSubmit} className="space-y-10">
-                <section className="space-y-6">
+                <section className="space-y-6 text-slate-800">
                     <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1">会場名</label>
-                    <input required name="venueName" value={formData.venueName} onChange={handleChange} className="w-full px-6 py-5 bg-slate-50 border-2 border-slate-50 rounded-2xl focus:bg-white focus:border-pink-200 outline-none font-bold text-lg" />
+                    <input required name="venueName" value={formData.venueName} onChange={handleChange} className="w-full px-6 py-5 bg-slate-50 border-2 border-slate-50 rounded-2xl focus:bg-white focus:border-pink-200 outline-none font-bold text-lg text-slate-800" />
                     
                     <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1">所在地</label>
-                    <input name="address" value={formData.address} onChange={handleChange} className="w-full px-6 py-5 bg-slate-50 border-2 border-slate-50 rounded-2xl focus:bg-white focus:border-pink-200 outline-none font-bold" />
+                    <input name="address" value={formData.address} onChange={handleChange} className="w-full px-6 py-5 bg-slate-50 border-2 border-slate-50 rounded-2xl focus:bg-white focus:border-pink-200 outline-none font-bold text-slate-800" />
                     
                     <label className="flex items-center gap-4 cursor-pointer bg-slate-50 p-6 rounded-2xl border-2 border-transparent hover:border-blue-100 transition-all">
                         <input type="checkbox" name="isOfficial" checked={formData.isOfficial} onChange={handleChange} className="w-6 h-6 rounded-lg text-blue-500 border-slate-200" />
@@ -110,7 +110,9 @@ export default function AdminVenuesPage() {
 
   const getCleanToken = useCallback(() => {
     if (typeof window === 'undefined') return null;
-    return localStorage.getItem('authToken')?.replace(/"/g, '');
+    const t = localStorage.getItem('authToken');
+    if (!t) return null;
+    return t.replace(/"/g, '');
   }, []);
 
   const fetchVenues = useCallback(async () => {
@@ -130,8 +132,12 @@ export default function AdminVenuesPage() {
         headers: { 'Authorization': `Bearer ${token}`, 'Cache-Control': 'no-cache' }
       });
       
-      if (res.status === 401 || res.status === 403) {
-          setErrorInfo("管理者権限が確認できませんでした。再ログインしてください。");
+      if (res.status === 401) {
+          setErrorInfo("セッションの期限が切れました。一度ログアウトして再ログインしてください。");
+          return;
+      }
+      if (res.status === 403) {
+          setErrorInfo("管理者権限がありません。");
           return;
       }
       if (!res.ok) throw new Error(`エラー (${res.status})`);
@@ -139,7 +145,8 @@ export default function AdminVenuesPage() {
       const data = await res.json();
       setVenues(Array.isArray(data) ? data : []);
     } catch (error) {
-      setErrorInfo("サーバーとの通信に失敗しました。");
+      console.error("Fetch failed:", error);
+      setErrorInfo("サーバーとの通信に失敗しました。URL設定を確認してください。");
     } finally {
       setLoadingData(false);
     }
@@ -158,20 +165,29 @@ export default function AdminVenuesPage() {
     const token = getCleanToken();
     const loadingToast = toast.loading('承認しています...');
     try {
-      // バックエンドの /api/venues/:id に対して PATCH を送る
+      // パスを /api/venues/:id に修正
       const res = await fetch(`${API_BASE_URL}/venues/${id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        headers: { 
+            'Content-Type': 'application/json', 
+            'Authorization': `Bearer ${token}` 
+        },
         body: JSON.stringify({ isOfficial: true }),
       });
       
       toast.dismiss(loadingToast);
+      
+      if (res.status === 401) {
+          toast.error("ログインの期限が切れています。再ログインしてください。");
+          return;
+      }
+
       if (res.ok) {
         toast.success('会場を承認しました！');
         fetchVenues();
       } else {
-        const err = await res.json();
-        toast.error(`承認失敗: ${err.message || '権限なし'}`);
+        const err = await res.json().catch(() => ({}));
+        toast.error(`承認失敗: ${err.message || '権限がありません'}`);
       }
     } catch (error) {
       toast.dismiss(loadingToast);
@@ -189,7 +205,10 @@ export default function AdminVenuesPage() {
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
       body: JSON.stringify(formData),
     }).then(async res => {
-      if (!res.ok) throw new Error('処理に失敗しました');
+      if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.message || '処理に失敗しました');
+      }
       return res.json();
     });
 
@@ -227,11 +246,11 @@ export default function AdminVenuesPage() {
         </div>
 
         {errorInfo && (
-            <div className="mb-12 bg-rose-50 border-2 border-rose-100 p-10 rounded-[3rem] flex flex-col md:flex-row items-center justify-between gap-8">
+            <div className="mb-12 bg-rose-50 border-2 border-rose-100 p-10 rounded-[3rem] flex flex-col md:flex-row items-center justify-between gap-8 text-slate-800">
                 <div className="flex items-center gap-6">
                     <div className="bg-rose-500 text-white p-4 rounded-[1.5rem] shadow-xl shadow-rose-200"><FiAlertTriangle size={32} /></div>
                     <div>
-                        <p className="font-black text-rose-900 text-xl tracking-tight">エラーが発生しました</p>
+                        <p className="font-black text-rose-900 text-xl tracking-tight">セッションエラー</p>
                         <p className="text-rose-700/60 text-sm font-bold mt-1 uppercase tracking-widest">{errorInfo}</p>
                     </div>
                 </div>
@@ -247,7 +266,7 @@ export default function AdminVenuesPage() {
                     placeholder="会場名や所在地で検索..." 
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-20 pr-10 py-6 bg-slate-50 border-2 border-transparent rounded-[2rem] focus:bg-white focus:border-pink-100 outline-none transition-all font-bold text-xl placeholder:text-slate-200"
+                    className="w-full pl-20 pr-10 py-6 bg-slate-50 border-2 border-transparent rounded-[2rem] focus:bg-white focus:border-pink-100 outline-none transition-all font-bold text-xl placeholder:text-slate-200 text-slate-800"
                 />
             </div>
             <div className="px-12 py-6 bg-slate-50 rounded-[2rem] text-[10px] font-black text-slate-300 tracking-[0.3em] border border-slate-100/50 whitespace-nowrap uppercase">
@@ -261,12 +280,12 @@ export default function AdminVenuesPage() {
                 <FiLoader className="animate-spin size-16 text-pink-500" />
                 <p className="text-[10px] font-black tracking-[0.5em] uppercase">読み込み中...</p>
             </div>
-          ) : filteredVenues.length === 0 ? (
+          ) : filteredVenues.length === 0 && !errorInfo ? (
             <div className="bg-white rounded-[3rem] py-40 text-center border-2 border-dashed border-slate-50 text-slate-300 font-black italic uppercase">データが見つかりません</div>
           ) : (
             filteredVenues.map((venue) => (
                 <div key={venue.id} className={`bg-white rounded-[3rem] p-10 border-2 transition-all flex flex-col md:flex-row items-center gap-10 group ${!venue.isOfficial ? 'border-pink-200 bg-pink-50/10 shadow-pink-50' : 'border-slate-50 hover:border-pink-50'}`}>
-                    <div className="flex-1 w-full">
+                    <div className="flex-1 w-full text-slate-800">
                         <div className="flex flex-wrap items-center gap-4 mb-4">
                             <h3 className="font-black text-slate-800 text-2xl tracking-tighter uppercase">{venue.venueName}</h3>
                             {!venue.isOfficial && (
