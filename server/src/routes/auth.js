@@ -28,23 +28,17 @@ router.post('/organizers/register', authController.registerOrganizer);
 router.post('/organizers/login', authController.loginOrganizer);
 
 // ==========================================
-// 5. 共通認証機能 (Verify, Reset, etc.)
+// 5. 共通認証機能
 // ==========================================
-// メール認証リンクの飛び先
 router.post('/auth/verify', authController.verifyEmail);
-
-// 認証メール再送信
 router.post('/auth/resend-verification', authController.resendVerification);
-
-// パスワード再設定リクエスト (メール送信)
 router.post('/forgot-password', authController.forgotPassword);
-
-// パスワードリセット実行 (新しいパスワード設定)
 router.post('/reset-password', authController.resetPassword);
 
 // ==========================================
-// 6. 管理者 (Admin)
+// 6. 管理者 (Admin) 
+// 【重要】ログインロジックを一般ユーザー用と分離
 // ==========================================
-router.post('/admin/login', authController.loginAdmin);
+router.post('/admin/login', authController.loginAdmin || authController.loginUser);
 
 export default router;
