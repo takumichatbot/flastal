@@ -13,10 +13,12 @@ import { useAuth } from '@/app/contexts/AuthContext';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
+// 認証トークンを確実に取得する関数（修正ポイント）
 const getAuthToken = () => {
     if (typeof window === 'undefined') return null;
     const rawToken = localStorage.getItem('authToken');
-    return rawToken ? rawToken.replace(/^"|"$/g, '') : null;
+    // 前後の引用符を確実に削除
+    return rawToken ? rawToken.replace(/^"|"$/g, '').trim() : null;
 };
 
 // --- 詳細確認モーダル ---
@@ -28,7 +30,6 @@ function DetailModal({ isOpen, onClose, item, type, onAction }) {
         { label: 'メールアドレス', value: item.email },
         { label: '登録日', value: new Date(item.createdAt).toLocaleString() },
         { label: 'ステータス', value: item.status, isBadge: true },
-        // タイプ別項目
         ...(type === 'Florist' ? [
             { label: 'ショップ名', value: item.shopName },
             { label: '屋号/活動名', value: item.platformName },
@@ -50,19 +51,17 @@ function DetailModal({ isOpen, onClose, item, type, onAction }) {
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
-                {/* Header */}
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col font-sans">
                 <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
                     <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
                         <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs uppercase">{type}</span>
-                        詳細情報確認
+                        申請情報の確認
                     </h3>
                     <button onClick={onClose} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
                         <FiX size={24} className="text-gray-500" />
                     </button>
                 </div>
 
-                {/* Body */}
                 <div className="p-6 overflow-y-auto flex-1 space-y-4">
                     <div className="grid grid-cols-1 gap-4">
                         {details.map((detail, idx) => (
@@ -92,7 +91,6 @@ function DetailModal({ isOpen, onClose, item, type, onAction }) {
                     </div>
                 </div>
 
-                {/* Footer Actions */}
                 <div className="p-6 border-t border-gray-100 bg-gray-50 flex gap-4">
                     <button
                         onClick={() => onAction('REJECTED')}
@@ -102,7 +100,7 @@ function DetailModal({ isOpen, onClose, item, type, onAction }) {
                     </button>
                     <button
                         onClick={() => onAction('APPROVED')}
-                        className="flex-[2] bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold py-3 rounded-xl hover:shadow-lg hover:scale-[1.01] transition-all flex items-center justify-center gap-2"
+                        className="flex-[2] bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold py-3 rounded-xl hover:shadow-lg transition-all flex items-center justify-center gap-2"
                     >
                         <FiCheckCircle /> 承認する
                     </button>
@@ -112,7 +110,7 @@ function DetailModal({ isOpen, onClose, item, type, onAction }) {
     );
 }
 
-// --- 審査カードコンポーネント ---
+// --- 審査カード ---
 function ReviewCard({ item, type, onOpenDetail }) {
     const getIcon = () => {
         switch (type) {
@@ -131,7 +129,7 @@ function ReviewCard({ item, type, onOpenDetail }) {
     };
 
     return (
-        <div className="bg-white p-5 rounded-xl shadow-sm hover:shadow-md border border-gray-200 transition-all duration-200 group">
+        <div className="bg-white p-5 rounded-xl shadow-sm hover:shadow-md border border-gray-200 transition-all group">
             <div className="flex justify-between items-start mb-3">
                 <div className="flex items-center gap-2">
                     <div className="p-2 bg-gray-50 rounded-lg group-hover:bg-gray-100 transition-colors">
@@ -148,14 +146,8 @@ function ReviewCard({ item, type, onOpenDetail }) {
             </div>
 
             <div className="text-xs text-gray-500 space-y-1 mb-4">
-                <p className="flex items-center gap-1 overflow-hidden">
-                    <span className="font-semibold min-w-[40px]">Email:</span> 
-                    <span className="truncate">{item.email}</span>
-                </p>
-                <p className="flex items-center gap-1">
-                    <span className="font-semibold min-w-[40px]">日付:</span> 
-                    {new Date(item.createdAt).toLocaleDateString()}
-                </p>
+                <p className="truncate"><span className="font-semibold">Email:</span> {item.email}</p>
+                <p><span className="font-semibold">日付:</span> {new Date(item.createdAt).toLocaleDateString()}</p>
             </div>
 
             <button
@@ -170,33 +162,39 @@ function ReviewCard({ item, type, onOpenDetail }) {
 
 // --- メインページ ---
 export default function AdminApprovalPage() {
-    const { user, loading: authLoading } = useAuth();
+    const { user, loading: authLoading, logout } = useAuth();
     const router = useRouter();
 
     const [pendingData, setPendingData] = useState({ florists: [], venues: [], organizers: [] });
     const [loading, setLoading] = useState(true);
+    const [errorInfo, setErrorInfo] = useState(null);
     const [activeTab, setActiveTab] = useState('florists');
     const [searchTerm, setSearchTerm] = useState('');
-    
-    // モーダル管理用
     const [selectedItem, setSelectedItem] = useState(null);
-    const [isProcessing, setIsProcessing] = useState(false);
 
-    // データ取得
     const fetchPendingData = useCallback(async () => {
         setLoading(true);
+        setErrorInfo(null);
         const token = getAuthToken();
         if (!token) {
+            setErrorInfo("認証トークンが見つかりません。");
             setLoading(false);
             return;
         }
 
         try {
+            const fetchOptions = { headers: { 'Authorization': `Bearer ${token}` } };
             const [floristRes, venueRes, organizerRes] = await Promise.all([
-                fetch(`${API_URL}/api/admin/florists/pending`, { headers: { 'Authorization': `Bearer ${token}` } }),
-                fetch(`${API_URL}/api/admin/venues/pending`, { headers: { 'Authorization': `Bearer ${token}` } }),
-                fetch(`${API_URL}/api/admin/organizers/pending`, { headers: { 'Authorization': `Bearer ${token}` } }),
+                fetch(`${API_URL}/api/admin/florists/pending`, fetchOptions),
+                fetch(`${API_URL}/api/admin/venues/pending`, fetchOptions),
+                fetch(`${API_URL}/api/admin/organizers/pending`, fetchOptions),
             ]);
+
+            // 認証エラーのチェック
+            if (floristRes.status === 401 || floristRes.status === 403) {
+                setErrorInfo("管理者権限が確認できませんでした。再ログインしてください。");
+                return;
+            }
 
             const florists = floristRes.ok ? await floristRes.json() : [];
             const venues = venueRes.ok ? await venueRes.json() : [];
@@ -210,36 +208,30 @@ export default function AdminApprovalPage() {
             
         } catch (error) {
             console.error('Error fetching pending data:', error);
-            toast.error('データの取得に失敗しました');
+            setErrorInfo("データの取得に失敗しました。サーバーの接続を確認してください。");
         } finally {
             setLoading(false);
         }
     }, []);
 
-    // 認証チェック
     useEffect(() => {
         if (!authLoading) {
             if (user?.role !== 'ADMIN') {
-                toast.error('アクセス権限がありません');
-                router.push('/');
+                router.push('/login');
             } else {
                 fetchPendingData();
             }
         }
     }, [authLoading, user, router, fetchPendingData]);
 
-    // 審査アクション実行
     const handleAction = async (status) => {
         if (!selectedItem) return;
-
-        setIsProcessing(true);
-        const toastId = toast.loading('処理中...');
+        const toastId = toast.loading('処理を実行中...');
         const token = getAuthToken();
         
-        // APIエンドポイントの決定
         let apiUrl = '';
         let typeLabel = '';
-        if (activeTab === 'florists') { apiUrl = `${API_URL}/api/admin/florists/${selectedItem.id}/status`; typeLabel = '花屋'; }
+        if (activeTab === 'florists') { apiUrl = `${API_URL}/api/admin/florists/${selectedItem.id}/status`; typeLabel = 'お花屋さん'; }
         else if (activeTab === 'venues') { apiUrl = `${API_URL}/api/admin/venues/${selectedItem.id}/status`; typeLabel = '会場'; }
         else if (activeTab === 'organizers') { apiUrl = `${API_URL}/api/admin/organizers/${selectedItem.id}/status`; typeLabel = '主催者'; }
 
@@ -253,26 +245,21 @@ export default function AdminApprovalPage() {
                 body: JSON.stringify({ status })
             });
 
-            if (!res.ok) throw new Error('更新に失敗しました');
+            if (!res.ok) throw new Error('更新に失敗しました。権限を確認してください。');
 
             toast.success(`${typeLabel}を${status === 'APPROVED' ? '承認' : '却下'}しました`, { id: toastId });
-            
-            setSelectedItem(null); // モーダル閉じる
-            fetchPendingData();    // リスト更新
+            setSelectedItem(null);
+            fetchPendingData();
 
         } catch (error) {
             toast.error(error.message, { id: toastId });
-        } finally {
-            setIsProcessing(false);
         }
     };
 
-    // フィルタリング処理
     const filteredList = useMemo(() => {
         const list = pendingData[activeTab] || [];
         if (!searchTerm) return list;
         const lowerTerm = searchTerm.toLowerCase();
-        
         return list.filter(item => 
             (item.email && item.email.toLowerCase().includes(lowerTerm)) ||
             (item.shopName && item.shopName.toLowerCase().includes(lowerTerm)) ||
@@ -283,41 +270,50 @@ export default function AdminApprovalPage() {
 
     const totalPending = pendingData.florists.length + pendingData.venues.length + pendingData.organizers.length;
     
-    // UIタイプ定数
     const TAB_CONFIG = {
-        florists: { label: 'お花屋さん', icon: <FiAward />, color: 'text-pink-600', border: 'border-pink-500', typeStr: 'Florist' },
-        venues: { label: '会場', icon: <FiMapPin />, color: 'text-blue-600', border: 'border-blue-500', typeStr: 'Venue' },
-        organizers: { label: '主催者', icon: <FiCalendar />, color: 'text-purple-600', border: 'border-purple-500', typeStr: 'Organizer' },
+        florists: { label: 'お花屋さん', icon: <FiAward />, typeStr: 'Florist' },
+        venues: { label: '会場', icon: <FiMapPin />, typeStr: 'Venue' },
+        organizers: { label: '主催者', icon: <FiCalendar />, typeStr: 'Organizer' },
     };
 
-    if (authLoading || loading) return <div className="min-h-screen flex items-center justify-center"><FiLoader className="animate-spin text-3xl text-gray-400"/></div>;
-    if (user?.role !== 'ADMIN') return null;
+    if (authLoading || loading && !errorInfo) return <div className="min-h-screen flex items-center justify-center"><FiLoader className="animate-spin text-3xl text-gray-400"/></div>;
 
     return (
-        <div className="min-h-screen bg-gray-50 font-sans text-gray-900">
-            {/* ヘッダー */}
-            <header className="bg-white border-b border-gray-200 sticky top-0 z-30">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex justify-between items-center">
-                    <h1 className="text-xl font-bold flex items-center text-gray-800">
-                        <FiAlertTriangle className="mr-2 text-orange-500"/> 審査管理ダッシュボード
+        <div className="min-h-screen bg-gray-50 font-sans text-gray-900 pt-24">
+            <header className="bg-white border-b border-gray-200 fixed top-0 w-full z-30">
+                <div className="max-w-7xl mx-auto px-4 h-16 flex justify-between items-center">
+                    <h1 className="text-xl font-bold flex items-center text-gray-800 italic">
+                        <FiAlertTriangle className="mr-2 text-orange-500"/> APPROVAL SYSTEM
                     </h1>
                     <div className="flex items-center gap-4">
-                        <div className="text-sm font-bold bg-orange-100 text-orange-700 px-3 py-1 rounded-full border border-orange-200">
+                        <div className="text-xs font-black bg-orange-500 text-white px-3 py-1 rounded-full animate-pulse">
                             未対応: {totalPending}件
                         </div>
-                        <Link href="/admin" className="text-sm text-gray-500 hover:text-gray-800 flex items-center transition-colors">
+                        <Link href="/admin" className="text-sm text-gray-400 hover:text-gray-800 flex items-center font-bold">
                             <FiLogOut className="mr-1"/> 戻る
                         </Link>
                     </div>
                 </div>
             </header>
 
-            <main className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-                
-                {/* コントロールバー */}
-                <div className="flex flex-col md:flex-row justify-between items-end md:items-center gap-4 mb-6">
-                    {/* タブ */}
-                    <nav className="flex space-x-1 bg-gray-200 p-1 rounded-lg">
+            <main className="max-w-7xl mx-auto py-8 px-4">
+                {errorInfo && (
+                    <div className="mb-10 bg-rose-50 border-2 border-rose-100 p-8 rounded-3xl flex flex-col md:flex-row items-center justify-between gap-6">
+                        <div className="flex items-center gap-4">
+                            <div className="bg-rose-500 text-white p-3 rounded-2xl shadow-lg"><FiAlertTriangle size={24} /></div>
+                            <div>
+                                <p className="font-black text-rose-900">アクセス権限エラー</p>
+                                <p className="text-rose-700/70 text-sm font-bold">{errorInfo}</p>
+                            </div>
+                        </div>
+                        <button onClick={() => { logout(); router.push('/login'); }} className="px-8 py-4 bg-rose-500 text-white rounded-2xl font-black text-sm hover:bg-rose-600 transition-all shadow-lg shadow-rose-200">
+                            再ログインして解決
+                        </button>
+                    </div>
+                )}
+
+                <div className="flex flex-col md:flex-row justify-between items-end md:items-center gap-4 mb-8">
+                    <nav className="flex space-x-1 bg-gray-200 p-1 rounded-xl">
                         {Object.keys(TAB_CONFIG).map((key) => {
                             const isActive = activeTab === key;
                             const config = TAB_CONFIG[key];
@@ -325,14 +321,10 @@ export default function AdminApprovalPage() {
                                 <button
                                     key={key}
                                     onClick={() => { setActiveTab(key); setSearchTerm(''); }}
-                                    className={`
-                                        flex items-center gap-2 px-4 py-2 rounded-md text-sm font-bold transition-all
-                                        ${isActive ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}
-                                    `}
+                                    className={`flex items-center gap-2 px-6 py-3 rounded-lg text-sm font-black transition-all ${isActive ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
                                 >
-                                    {config.icon}
-                                    {config.label}
-                                    <span className={`ml-1 text-xs px-1.5 py-0.5 rounded-full ${isActive ? 'bg-gray-100' : 'bg-gray-300 text-white'}`}>
+                                    {config.icon} {config.label}
+                                    <span className={`ml-1 text-[10px] px-2 py-0.5 rounded-full ${isActive ? 'bg-orange-500 text-white' : 'bg-gray-300 text-white'}`}>
                                         {pendingData[key].length}
                                     </span>
                                 </button>
@@ -340,30 +332,24 @@ export default function AdminApprovalPage() {
                         })}
                     </nav>
 
-                    {/* 検索と更新 */}
                     <div className="flex items-center gap-3 w-full md:w-auto">
-                        <div className="relative flex-1 md:w-64">
-                            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"/>
+                        <div className="relative flex-1 md:w-64 group">
+                            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-pink-500"/>
                             <input 
                                 type="text"
                                 placeholder="名前やメールで検索..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full pl-9 pr-4 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-pink-500/20 focus:border-pink-500 transition-all"
                             />
                         </div>
-                        <button 
-                            onClick={fetchPendingData} 
-                            className="p-2 bg-white border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50 hover:text-indigo-600 transition-colors"
-                            title="リスト更新"
-                        >
+                        <button onClick={fetchPendingData} className="p-3 bg-white border border-gray-200 rounded-xl text-gray-400 hover:text-pink-500 transition-all shadow-sm">
                             <FiRefreshCw className={loading ? 'animate-spin' : ''}/>
                         </button>
                     </div>
                 </div>
 
-                {/* リスト表示エリア */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 animate-fadeIn">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                     {filteredList.length > 0 ? (
                         filteredList.map(item => (
                             <ReviewCard 
@@ -374,20 +360,15 @@ export default function AdminApprovalPage() {
                             />
                         ))
                     ) : (
-                        <div className="col-span-full py-20 text-center">
-                            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 mb-4">
-                                <FiCheckCircle className="text-3xl text-gray-300" />
-                            </div>
-                            <h3 className="text-lg font-bold text-gray-600">審査待ちはありません</h3>
-                            <p className="text-gray-400 text-sm mt-1">
-                                {searchTerm ? '検索条件に一致する申請はありません。' : '現在、このカテゴリの新規申請はすべて処理済みです。'}
-                            </p>
+                        <div className="col-span-full py-32 text-center bg-white rounded-[3rem] border-2 border-dashed border-gray-100">
+                            <FiCheckCircle className="text-5xl text-gray-100 mx-auto mb-4" />
+                            <h3 className="text-xl font-black text-gray-400 italic uppercase">All Cleared</h3>
+                            <p className="text-gray-300 text-sm mt-2 font-bold">現在、承認待ちの申請はありません</p>
                         </div>
                     )}
                 </div>
             </main>
 
-            {/* 詳細モーダル */}
             {selectedItem && (
                 <DetailModal 
                     isOpen={!!selectedItem}
@@ -397,6 +378,7 @@ export default function AdminApprovalPage() {
                     onAction={handleAction}
                 />
             )}
+            <style jsx global>{` body { background-color: #f9fafb; } `}</style>
         </div>
     );
 }
