@@ -11,14 +11,15 @@ import {
 } from 'react-icons/fi';
 import { useAuth } from '@/app/contexts/AuthContext';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
+const API_URL = 'https://flastal-backend.onrender.com';
 
 // 認証トークンを確実に取得する関数
 const getAuthToken = () => {
     if (typeof window === 'undefined') return null;
     const rawToken = localStorage.getItem('authToken');
     if (!rawToken) return null;
-    return rawToken.replace(/^"|"$/g, '').trim();
+    // トークンの前後にある引用符を徹底的に削除
+    return rawToken.replace(/^["']|["']$/g, '').trim();
 };
 
 // --- 詳細確認モーダル ---
@@ -39,7 +40,6 @@ function DetailModal({ isOpen, onClose, item, type, onAction }) {
         ...(type === 'Venue' ? [
             { label: '会場名', value: item.venueName },
             { label: '所在地', value: item.address },
-            { label: '収容人数', value: item.capacity },
             { label: '搬入・物流情報', value: item.accessInfo, isLongText: true },
         ] : []),
         ...(type === 'Organizer' ? [
@@ -52,8 +52,8 @@ function DetailModal({ isOpen, onClose, item, type, onAction }) {
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
             <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col font-sans">
-                <div className="px-8 py-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-                    <h3 className="text-xl font-black text-gray-800 flex items-center gap-2 italic">
+                <div className="px-8 py-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 text-slate-800">
+                    <h3 className="text-xl font-black flex items-center gap-2 italic">
                         <span className="bg-blue-500 text-white px-3 py-1 rounded-lg text-[10px] uppercase font-black tracking-widest">
                             {type === 'Florist' ? '花屋' : type === 'Venue' ? '会場' : '主催者'}
                         </span>
@@ -81,7 +81,7 @@ function DetailModal({ isOpen, onClose, item, type, onAction }) {
                                             {detail.value}
                                         </a>
                                     ) : detail.isBadge ? (
-                                        <span className="bg-orange-100 text-orange-700 text-[10px] px-3 py-1 rounded-full font-black uppercase tracking-widest">
+                                        <span className="bg-orange-100 text-orange-700 text-[10px] px-3 py-1 rounded-full font-black uppercase tracking-widest text-slate-800">
                                             {detail.value}
                                         </span>
                                     ) : (
@@ -98,7 +98,7 @@ function DetailModal({ isOpen, onClose, item, type, onAction }) {
                         onClick={() => onAction('REJECTED')}
                         className="flex-1 bg-white border-2 border-gray-200 text-gray-500 font-black py-4 rounded-2xl hover:bg-rose-50 hover:text-rose-500 hover:border-rose-100 transition-all flex items-center justify-center gap-2 text-sm"
                     >
-                        <FiXCircle /> 却下
+                        <FiXCircle /> 申請を却下
                     </button>
                     <button
                         onClick={() => onAction('APPROVED')}
@@ -122,9 +122,9 @@ function ReviewCard({ item, type, onOpenDetail }) {
     };
 
     return (
-        <div className="bg-white p-6 rounded-3xl shadow-sm hover:shadow-xl border border-gray-100 transition-all duration-300 group relative overflow-hidden">
+        <div className="bg-white p-6 rounded-3xl shadow-sm hover:shadow-xl border border-gray-100 transition-all duration-300 group relative overflow-hidden text-slate-800">
             <div className="flex justify-between items-start mb-4">
-                <div className="space-y-1 text-slate-800">
+                <div className="space-y-1">
                     <span className="text-[10px] font-black uppercase text-pink-500 tracking-widest block">
                         {type === 'Florist' ? 'お花屋さん' : type === 'Venue' ? '会場施設' : '主催者'}
                     </span>
@@ -136,15 +136,15 @@ function ReviewCard({ item, type, onOpenDetail }) {
             </div>
 
             <div className="text-[11px] text-gray-400 space-y-2 mb-6 font-bold">
-                <p className="truncate flex items-center gap-2"><span className="text-gray-200 uppercase">Email</span> {item.email}</p>
-                <p className="flex items-center gap-2"><span className="text-gray-200 uppercase">Date</span> {new Date(item.createdAt).toLocaleDateString()}</p>
+                <p className="truncate flex items-center gap-2 font-black text-slate-800"><span className="text-gray-200 uppercase">Email</span> {item.email}</p>
+                <p className="flex items-center gap-2 font-black text-slate-800"><span className="text-gray-200 uppercase">Date</span> {new Date(item.createdAt).toLocaleDateString()}</p>
             </div>
 
             <button
                 onClick={() => onOpenDetail(item)}
-                className="w-full py-4 bg-gray-50 text-gray-900 text-xs font-black rounded-2xl hover:bg-slate-900 hover:text-white transition-all flex items-center justify-center gap-2 border border-gray-100 uppercase tracking-widest"
+                className="w-full py-4 bg-gray-50 text-gray-900 text-xs font-black rounded-2xl hover:bg-slate-900 hover:text-white transition-all flex items-center justify-center gap-2 border border-gray-100 uppercase tracking-widest shadow-sm"
             >
-                <FiEye /> 詳細を確認
+                <FiEye /> 内容を確認
             </button>
         </div>
     );
@@ -168,7 +168,7 @@ export default function AdminApprovalPage() {
         const token = getAuthToken();
         
         if (!token) {
-            setErrorInfo("セッションが見つかりません。");
+            setErrorInfo("認証トークンが見つかりません。再ログインしてください。");
             setLoading(false);
             return;
         }
@@ -180,6 +180,7 @@ export default function AdminApprovalPage() {
                     'Cache-Control': 'no-cache'
                 } 
             };
+            
             const [floristRes, venueRes, organizerRes] = await Promise.all([
                 fetch(`${API_URL}/api/admin/florists/pending`, fetchOptions),
                 fetch(`${API_URL}/api/admin/venues/pending`, fetchOptions),
@@ -187,7 +188,7 @@ export default function AdminApprovalPage() {
             ]);
 
             if (floristRes.status === 401 || floristRes.status === 403) {
-                setErrorInfo("管理者権限が確認できません。再ログインしてください。");
+                setErrorInfo("管理者権限エラーです。一度ログアウトし、再ログインしてください。");
                 return;
             }
 
@@ -202,7 +203,7 @@ export default function AdminApprovalPage() {
             });
             
         } catch (error) {
-            setErrorInfo("データの取得に失敗しました。");
+            setErrorInfo("データの取得に失敗しました。接続を確認してください。");
         } finally {
             setLoading(false);
         }
@@ -220,7 +221,7 @@ export default function AdminApprovalPage() {
 
     const handleAction = async (status) => {
         if (!selectedItem) return;
-        const toastId = toast.loading('処理を実行中...');
+        const toastId = toast.loading('処理中...');
         const token = getAuthToken();
         
         let apiUrl = '';
@@ -238,7 +239,7 @@ export default function AdminApprovalPage() {
                 body: JSON.stringify({ status })
             });
 
-            if (!res.ok) throw new Error('更新に失敗しました。');
+            if (!res.ok) throw new Error('承認処理に失敗しました。');
 
             toast.success(`申請を${status === 'APPROVED' ? '承認' : '却下'}しました`, { id: toastId });
             setSelectedItem(null);
@@ -263,7 +264,7 @@ export default function AdminApprovalPage() {
 
     const totalPending = pendingData.florists.length + pendingData.venues.length + pendingData.organizers.length;
     
-    if (authLoading || (loading && !errorInfo)) return <div className="min-h-screen bg-white flex items-center justify-center font-sans"><FiLoader className="animate-spin text-pink-500 size-12"/></div>;
+    if (authLoading || (loading && !errorInfo)) return <div className="min-h-screen bg-white flex items-center justify-center"><FiLoader className="animate-spin text-pink-500 size-12"/></div>;
 
     return (
         <div className="min-h-screen bg-[#fafafa] font-sans text-slate-800 pt-28">
@@ -271,12 +272,12 @@ export default function AdminApprovalPage() {
                 <div className="max-w-7xl mx-auto px-6 h-20 flex justify-between items-center text-slate-800">
                     <div className="flex items-center gap-3">
                         <div className="bg-slate-900 text-white p-2 rounded-xl italic font-black text-xs shadow-lg">FL</div>
-                        <h1 className="text-xl font-black text-slate-900 tracking-tighter italic uppercase">Admin Approval</h1>
+                        <h1 className="text-xl font-black text-slate-900 tracking-tighter italic uppercase">審査管理</h1>
                     </div>
-                    <div className="flex items-center gap-6">
-                        <div className="hidden md:flex items-center gap-2 bg-orange-50 px-4 py-2 rounded-2xl border border-orange-100">
-                            <span className="text-[10px] font-black text-orange-400 uppercase tracking-widest">未処理</span>
-                            <span className="text-sm font-black text-orange-600">{totalPending}件</span>
+                    <div className="flex items-center gap-6 text-slate-800">
+                        <div className="hidden md:flex items-center gap-2 bg-orange-50 px-4 py-2 rounded-2xl border border-orange-100 text-slate-800">
+                            <span className="text-[10px] font-black text-orange-400 uppercase tracking-widest text-slate-800">未処理</span>
+                            <span className="text-sm font-black text-orange-600 text-slate-800">{totalPending}件</span>
                         </div>
                         <Link href="/admin" className="text-xs font-black text-slate-400 hover:text-slate-900 transition-all uppercase tracking-widest flex items-center gap-2">
                             <FiArrowLeft /> 戻る
@@ -288,11 +289,11 @@ export default function AdminApprovalPage() {
             <main className="max-w-7xl mx-auto py-12 px-6">
                 {errorInfo && (
                     <div className="mb-12 bg-rose-50 border-2 border-rose-100 p-10 rounded-[2.5rem] flex flex-col md:flex-row items-center justify-between gap-8 shadow-xl shadow-rose-500/5 text-slate-800">
-                        <div className="flex items-center gap-6">
+                        <div className="flex items-center gap-6 text-slate-800">
                             <div className="bg-rose-500 text-white p-4 rounded-2xl shadow-xl"><FiAlertTriangle size={32} /></div>
-                            <div className="space-y-1">
-                                <p className="font-black text-rose-900 text-xl tracking-tight italic">権限エラー</p>
-                                <p className="text-rose-700/60 text-sm font-bold uppercase tracking-widest">{errorInfo}</p>
+                            <div className="space-y-1 text-slate-800">
+                                <p className="font-black text-rose-900 text-xl tracking-tight italic text-slate-800">アクセスエラー</p>
+                                <p className="text-rose-700/60 text-sm font-bold uppercase tracking-widest text-slate-800">{errorInfo}</p>
                             </div>
                         </div>
                         <button onClick={() => { logout(); router.push('/login'); }} className="px-10 py-5 bg-rose-500 text-white rounded-2xl font-black text-xs uppercase hover:bg-rose-600 transition-all shadow-lg shadow-rose-200 active:scale-95">再ログインして修復</button>
@@ -351,8 +352,8 @@ export default function AdminApprovalPage() {
                             <div className="bg-slate-50 size-24 rounded-full flex items-center justify-center mx-auto mb-6 text-slate-200 shadow-inner">
                                 <FiCheckCircle size={48} />
                             </div>
-                            <h3 className="text-2xl font-black text-slate-300 italic uppercase tracking-widest text-slate-800">All Cleared</h3>
-                            <p className="text-slate-300 text-sm mt-3 font-bold uppercase tracking-widest">現在、承認待ちの申請はありません</p>
+                            <h3 className="text-2xl font-black text-slate-300 italic uppercase tracking-widest text-slate-800">未処理の申請はありません</h3>
+                            <p className="text-slate-300 text-sm mt-3 font-bold uppercase tracking-widest">現在、すべての申請が処理済みです</p>
                         </div>
                     )}
                 </div>
