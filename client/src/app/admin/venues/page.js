@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/app/contexts/AuthContext';
 import { 
     FiEdit, FiTrash2, FiPlus, FiCheck, FiX, 
-    FiMapPin, FiSearch, FiInfo, FiArrowLeft, FiClock, FiCheckCircle, FiLoader, FiAlertTriangle, FiRefreshCw
+    FiMapPin, FiSearch, FiInfo, FiArrowLeft, FiClock, FiCheckCircle, FiLoader, FiAlertTriangle, FiRefreshCw, FiSlash
 } from 'react-icons/fi';
 
 const API_BASE_URL = 'https://flastal-backend.onrender.com/api';
@@ -176,12 +176,40 @@ export default function AdminVenuesPage() {
         toast.success('会場を承認しました！');
         fetchVenues();
       } else {
-        // 失敗した理由を詳しく表示
         toast.error(`承認失敗: ${resData.message || 'サーバー側で拒否されました'}`, { duration: 6000 });
       }
     } catch (error) {
       toast.dismiss(loadingToast);
       toast.error('ネットワークエラーが発生しました');
+    }
+  };
+
+  // 否認（削除）処理
+  const handleReject = async (id, name) => {
+    if (!window.confirm(`「${name}」の申請を否認（削除）しますか？この操作は取り消せません。`)) return;
+    
+    const token = getCleanToken();
+    const loadingToast = toast.loading('削除しています...');
+    try {
+      const res = await fetch(`${API_BASE_URL}/venues/${id}`, {
+        method: 'DELETE',
+        headers: { 
+            'Authorization': `Bearer ${token}` 
+        }
+      });
+      
+      toast.dismiss(loadingToast);
+      
+      if (res.ok) {
+        toast.success('申請を否認・削除しました。');
+        fetchVenues();
+      } else {
+        const resData = await res.json().catch(() => ({}));
+        toast.error(`削除失敗: ${resData.message || '権限がありません'}`);
+      }
+    } catch (error) {
+      toast.dismiss(loadingToast);
+      toast.error('通信エラーが発生しました');
     }
   };
 
@@ -227,7 +255,7 @@ export default function AdminVenuesPage() {
                 <Link href="/admin" className="inline-flex items-center text-[10px] font-black text-slate-300 hover:text-pink-500 transition-colors uppercase tracking-[0.3em]">
                     <FiArrowLeft className="mr-2"/> ダッシュボードに戻る
                 </Link>
-                <h1 className="text-5xl md:text-6xl font-black text-slate-900 tracking-tighter italic uppercase">会場管理</h1>
+                <h1 className="text-5xl md:text-6xl font-black text-slate-900 tracking-tighter italic">会場管理</h1>
                 <p className="text-slate-400 font-bold text-sm tracking-[0.2em] uppercase">承認済みおよび未承認の会場リスト</p>
             </div>
             <div className="flex gap-4">
@@ -275,7 +303,7 @@ export default function AdminVenuesPage() {
                 <FiLoader className="animate-spin size-16 text-pink-500" />
                 <p className="text-[10px] font-black tracking-[0.5em] uppercase">サーバーと同期中...</p>
             </div>
-          ) : filteredVenues.length === 0 ? (
+          ) : filteredVenues.length === 0 && !errorInfo ? (
             <div className="bg-white rounded-[3rem] py-40 text-center border-2 border-dashed border-slate-50 text-slate-300 font-black italic">該当データなし</div>
           ) : (
             filteredVenues.map((venue) => (
@@ -293,9 +321,18 @@ export default function AdminVenuesPage() {
                     </div>
 
                     <div className="flex gap-4">
-                        {!venue.isOfficial && (
-                            <button onClick={() => handleApprove(venue.id)} className="flex items-center gap-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white px-10 py-5 rounded-[1.5rem] hover:shadow-2xl hover:scale-[1.02] transition-all font-black text-xs uppercase active:scale-95 shadow-lg shadow-green-100">
-                                <FiCheckCircle size={20} /><span>今すぐ承認</span>
+                        {!venue.isOfficial ? (
+                            <>
+                                <button onClick={() => handleApprove(venue.id)} className="flex items-center gap-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white px-10 py-5 rounded-[1.5rem] hover:shadow-2xl hover:scale-[1.02] transition-all font-black text-xs uppercase active:scale-95 shadow-lg shadow-green-100">
+                                    <FiCheckCircle size={20} /><span>承認する</span>
+                                </button>
+                                <button onClick={() => handleReject(venue.id, venue.venueName)} className="flex items-center gap-3 bg-white border-2 border-rose-100 text-rose-500 px-10 py-5 rounded-[1.5rem] hover:bg-rose-500 hover:text-white transition-all font-black text-xs uppercase active:scale-95 shadow-sm">
+                                    <FiSlash size={20} /><span>否認</span>
+                                </button>
+                            </>
+                        ) : (
+                            <button onClick={() => handleReject(venue.id, venue.venueName)} className="p-5 bg-slate-100 text-slate-300 rounded-[1.5rem] hover:bg-rose-500 hover:text-white transition-all shadow-sm group-hover:text-slate-400">
+                                <FiTrash2 size={22} />
                             </button>
                         )}
                         <button onClick={() => { setEditingVenue(venue); setIsModalOpen(true); }} className="p-5 bg-slate-900 text-white rounded-[1.5rem] hover:bg-pink-600 transition-all shadow-xl active:scale-95">
