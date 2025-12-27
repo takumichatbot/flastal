@@ -13,12 +13,13 @@ import { useAuth } from '@/app/contexts/AuthContext';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
-// 認証トークンを確実に取得する関数（修正ポイント）
+// 認証トークンを確実に取得する関数（修正ポイント：引用符の完全除去）
 const getAuthToken = () => {
     if (typeof window === 'undefined') return null;
     const rawToken = localStorage.getItem('authToken');
-    // 前後の引用符を確実に削除
-    return rawToken ? rawToken.replace(/^"|"$/g, '').trim() : null;
+    if (!rawToken) return null;
+    // 前後の引用符を確実に削除し、余白をトリミング
+    return rawToken.replace(/^"|"$/g, '').trim();
 };
 
 // --- 詳細確認モーダル ---
@@ -26,64 +27,66 @@ function DetailModal({ isOpen, onClose, item, type, onAction }) {
     if (!isOpen || !item) return null;
 
     const details = [
-        { label: 'ID', value: item.id },
+        { label: '登録ID', value: item.id },
         { label: 'メールアドレス', value: item.email },
-        { label: '登録日', value: new Date(item.createdAt).toLocaleString() },
-        { label: 'ステータス', value: item.status, isBadge: true },
+        { label: '申請日時', value: new Date(item.createdAt).toLocaleString() },
+        { label: '現在の状態', value: item.status, isBadge: true },
         ...(type === 'Florist' ? [
-            { label: 'ショップ名', value: item.shopName },
-            { label: '屋号/活動名', value: item.platformName },
-            { label: 'ポートフォリオ', value: item.portfolio, isLink: true },
-            { label: '自己紹介', value: item.bio, isLongText: true },
+            { label: '店舗名', value: item.shopName },
+            { label: '屋号・活動名', value: item.platformName },
+            { label: 'ポートフォリオURL', value: item.portfolio, isLink: true },
+            { label: '紹介文', value: item.bio, isLongText: true },
         ] : []),
         ...(type === 'Venue' ? [
             { label: '会場名', value: item.venueName },
-            { label: '住所', value: item.address },
-            { label: 'キャパシティ', value: item.capacity },
-            { label: '搬入ルール', value: item.accessInfo, isLongText: true },
+            { label: '所在地', value: item.address },
+            { label: '収容人数', value: item.capacity },
+            { label: '搬入・物流情報', value: item.accessInfo, isLongText: true },
         ] : []),
         ...(type === 'Organizer' ? [
-            { label: '主催者名', value: item.name },
-            { label: '団体名', value: item.organization },
-            { label: '活動実績', value: item.history, isLongText: true },
+            { label: '主催者・氏名', value: item.name },
+            { label: '所属団体', value: item.organization },
+            { label: '過去の活動実績', value: item.history, isLongText: true },
         ] : []),
     ];
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col font-sans">
-                <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-                    <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                        <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs uppercase">{type}</span>
-                        申請情報の確認
+            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col font-sans">
+                <div className="px-8 py-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                    <h3 className="text-xl font-black text-gray-800 flex items-center gap-2 italic">
+                        <span className="bg-blue-500 text-white px-3 py-1 rounded-lg text-[10px] uppercase font-black tracking-widest">
+                            {type === 'Florist' ? '花屋' : type === 'Venue' ? '会場' : '主催者'}
+                        </span>
+                        申請内容の確認
                     </h3>
-                    <button onClick={onClose} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
-                        <FiX size={24} className="text-gray-500" />
+                    <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-400">
+                        <FiX size={24} />
                     </button>
                 </div>
 
-                <div className="p-6 overflow-y-auto flex-1 space-y-4">
-                    <div className="grid grid-cols-1 gap-4">
+                <div className="p-8 overflow-y-auto flex-1 space-y-6">
+                    <div className="grid grid-cols-1 gap-6">
                         {details.map((detail, idx) => (
                             detail.value && (
-                                <div key={idx} className="border-b border-gray-50 pb-2 last:border-0">
-                                    <span className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1">
+                                <div key={idx} className="border-b border-gray-50 pb-4 last:border-0">
+                                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">
                                         {detail.label}
                                     </span>
                                     {detail.isLongText ? (
-                                        <p className="text-sm text-gray-800 whitespace-pre-wrap bg-gray-50 p-3 rounded-lg border border-gray-100">
+                                        <p className="text-sm text-gray-800 whitespace-pre-wrap bg-gray-50 p-4 rounded-2xl border border-gray-100 font-medium leading-relaxed">
                                             {detail.value}
                                         </p>
                                     ) : detail.isLink ? (
-                                        <a href={detail.value} target="_blank" rel="noreferrer" className="text-pink-600 hover:underline break-all">
+                                        <a href={detail.value} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline break-all font-bold text-sm">
                                             {detail.value}
                                         </a>
                                     ) : detail.isBadge ? (
-                                        <span className="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded-full font-bold">
+                                        <span className="bg-orange-100 text-orange-700 text-[10px] px-3 py-1 rounded-full font-black uppercase tracking-widest">
                                             {detail.value}
                                         </span>
                                     ) : (
-                                        <p className="text-sm text-gray-800 font-medium">{detail.value}</p>
+                                        <p className="text-sm text-gray-900 font-bold">{detail.value}</p>
                                     )}
                                 </div>
                             )
@@ -91,18 +94,18 @@ function DetailModal({ isOpen, onClose, item, type, onAction }) {
                     </div>
                 </div>
 
-                <div className="p-6 border-t border-gray-100 bg-gray-50 flex gap-4">
+                <div className="p-8 border-t border-gray-100 bg-gray-50 flex gap-4">
                     <button
                         onClick={() => onAction('REJECTED')}
-                        className="flex-1 bg-white border border-red-200 text-red-600 font-bold py-3 rounded-xl hover:bg-red-50 transition-colors flex items-center justify-center gap-2"
+                        className="flex-1 bg-white border-2 border-gray-200 text-gray-500 font-black py-4 rounded-2xl hover:bg-rose-50 hover:text-rose-500 hover:border-rose-100 transition-all flex items-center justify-center gap-2 text-sm"
                     >
-                        <FiXCircle /> 却下する
+                        <FiXCircle /> 却下
                     </button>
                     <button
                         onClick={() => onAction('APPROVED')}
-                        className="flex-[2] bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold py-3 rounded-xl hover:shadow-lg transition-all flex items-center justify-center gap-2"
+                        className="flex-[2] bg-slate-900 text-white font-black py-4 rounded-2xl hover:bg-pink-600 shadow-xl transition-all flex items-center justify-center gap-2 text-sm"
                     >
-                        <FiCheckCircle /> 承認する
+                        <FiCheckCircle /> 承認して登録
                     </button>
                 </div>
             </div>
@@ -110,17 +113,8 @@ function DetailModal({ isOpen, onClose, item, type, onAction }) {
     );
 }
 
-// --- 審査カード ---
+// --- リストカード ---
 function ReviewCard({ item, type, onOpenDetail }) {
-    const getIcon = () => {
-        switch (type) {
-            case 'Florist': return <FiAward className="w-5 h-5 text-pink-500"/>;
-            case 'Venue': return <FiMapPin className="w-5 h-5 text-blue-500"/>;
-            case 'Organizer': return <FiCalendar className="w-5 h-5 text-purple-500"/>;
-            default: return <FiUsers className="w-5 h-5 text-gray-500"/>;
-        }
-    };
-
     const getDisplayName = () => {
         if (type === 'Florist') return item.platformName || item.shopName || '名称未設定';
         if (type === 'Venue') return item.venueName || '名称未設定';
@@ -129,32 +123,29 @@ function ReviewCard({ item, type, onOpenDetail }) {
     };
 
     return (
-        <div className="bg-white p-5 rounded-xl shadow-sm hover:shadow-md border border-gray-200 transition-all group">
-            <div className="flex justify-between items-start mb-3">
-                <div className="flex items-center gap-2">
-                    <div className="p-2 bg-gray-50 rounded-lg group-hover:bg-gray-100 transition-colors">
-                        {getIcon()}
-                    </div>
-                    <div>
-                        <span className="text-[10px] font-bold uppercase text-gray-400 tracking-wider block">{type}</span>
-                        <h3 className="text-base font-bold text-gray-900 line-clamp-1">{getDisplayName()}</h3>
-                    </div>
+        <div className="bg-white p-6 rounded-3xl shadow-sm hover:shadow-xl border border-gray-100 transition-all duration-300 group relative overflow-hidden">
+            <div className="flex justify-between items-start mb-4">
+                <div className="space-y-1">
+                    <span className="text-[10px] font-black uppercase text-pink-500 tracking-widest block">
+                        {type === 'Florist' ? 'お花屋さん' : type === 'Venue' ? '会場施設' : '主催者'}
+                    </span>
+                    <h3 className="text-lg font-black text-gray-900 line-clamp-1 italic">{getDisplayName()}</h3>
                 </div>
-                <span className="px-2 py-0.5 bg-yellow-50 text-yellow-700 text-[10px] font-bold rounded border border-yellow-200 flex items-center gap-1">
-                    <FiClock size={10} /> 審査待ち
-                </span>
+                <div className="bg-orange-50 text-orange-500 p-2 rounded-xl">
+                    <FiClock size={18} className="animate-pulse" />
+                </div>
             </div>
 
-            <div className="text-xs text-gray-500 space-y-1 mb-4">
-                <p className="truncate"><span className="font-semibold">Email:</span> {item.email}</p>
-                <p><span className="font-semibold">日付:</span> {new Date(item.createdAt).toLocaleDateString()}</p>
+            <div className="text-[11px] text-gray-400 space-y-2 mb-6 font-bold">
+                <p className="truncate flex items-center gap-2"><span className="text-gray-200 uppercase">Email</span> {item.email}</p>
+                <p className="flex items-center gap-2"><span className="text-gray-200 uppercase">Date</span> {new Date(item.createdAt).toLocaleDateString()}</p>
             </div>
 
             <button
                 onClick={() => onOpenDetail(item)}
-                className="w-full py-2.5 px-4 bg-gray-900 text-white text-sm font-bold rounded-lg hover:bg-gray-800 transition-all flex items-center justify-center gap-2"
+                className="w-full py-4 bg-gray-50 text-gray-900 text-xs font-black rounded-2xl hover:bg-slate-900 hover:text-white transition-all flex items-center justify-center gap-2 border border-gray-100 uppercase tracking-widest"
             >
-                <FiEye className="w-4 h-4" /> 詳細・審査へ
+                <FiEye /> 詳細を確認
             </button>
         </div>
     );
@@ -176,23 +167,28 @@ export default function AdminApprovalPage() {
         setLoading(true);
         setErrorInfo(null);
         const token = getAuthToken();
+        
         if (!token) {
-            setErrorInfo("認証トークンが見つかりません。");
+            setErrorInfo("セッションが見つかりません。");
             setLoading(false);
             return;
         }
 
         try {
-            const fetchOptions = { headers: { 'Authorization': `Bearer ${token}` } };
+            const fetchOptions = { 
+                headers: { 
+                    'Authorization': `Bearer ${token}`,
+                    'Cache-Control': 'no-cache'
+                } 
+            };
             const [floristRes, venueRes, organizerRes] = await Promise.all([
                 fetch(`${API_URL}/api/admin/florists/pending`, fetchOptions),
                 fetch(`${API_URL}/api/admin/venues/pending`, fetchOptions),
                 fetch(`${API_URL}/api/admin/organizers/pending`, fetchOptions),
             ]);
 
-            // 認証エラーのチェック
             if (floristRes.status === 401 || floristRes.status === 403) {
-                setErrorInfo("管理者権限が確認できませんでした。再ログインしてください。");
+                setErrorInfo("管理者権限が確認できませんでした。再度ログインしてください。");
                 return;
             }
 
@@ -207,8 +203,7 @@ export default function AdminApprovalPage() {
             });
             
         } catch (error) {
-            console.error('Error fetching pending data:', error);
-            setErrorInfo("データの取得に失敗しました。サーバーの接続を確認してください。");
+            setErrorInfo("データの取得に失敗しました。ネットワークを確認してください。");
         } finally {
             setLoading(false);
         }
@@ -230,10 +225,9 @@ export default function AdminApprovalPage() {
         const token = getAuthToken();
         
         let apiUrl = '';
-        let typeLabel = '';
-        if (activeTab === 'florists') { apiUrl = `${API_URL}/api/admin/florists/${selectedItem.id}/status`; typeLabel = 'お花屋さん'; }
-        else if (activeTab === 'venues') { apiUrl = `${API_URL}/api/admin/venues/${selectedItem.id}/status`; typeLabel = '会場'; }
-        else if (activeTab === 'organizers') { apiUrl = `${API_URL}/api/admin/organizers/${selectedItem.id}/status`; typeLabel = '主催者'; }
+        if (activeTab === 'florists') apiUrl = `${API_URL}/api/admin/florists/${selectedItem.id}/status`;
+        else if (activeTab === 'venues') apiUrl = `${API_URL}/api/admin/venues/${selectedItem.id}/status`;
+        else if (activeTab === 'organizers') apiUrl = `${API_URL}/api/admin/organizers/${selectedItem.id}/status`;
 
         try {
             const res = await fetch(apiUrl, {
@@ -245,9 +239,9 @@ export default function AdminApprovalPage() {
                 body: JSON.stringify({ status })
             });
 
-            if (!res.ok) throw new Error('更新に失敗しました。権限を確認してください。');
+            if (!res.ok) throw new Error('サーバーエラーにより更新できませんでした。');
 
-            toast.success(`${typeLabel}を${status === 'APPROVED' ? '承認' : '却下'}しました`, { id: toastId });
+            toast.success(`申請を${status === 'APPROVED' ? '承認' : '却下'}しました`, { id: toastId });
             setSelectedItem(null);
             fetchPendingData();
 
@@ -270,100 +264,96 @@ export default function AdminApprovalPage() {
 
     const totalPending = pendingData.florists.length + pendingData.venues.length + pendingData.organizers.length;
     
-    const TAB_CONFIG = {
-        florists: { label: 'お花屋さん', icon: <FiAward />, typeStr: 'Florist' },
-        venues: { label: '会場', icon: <FiMapPin />, typeStr: 'Venue' },
-        organizers: { label: '主催者', icon: <FiCalendar />, typeStr: 'Organizer' },
-    };
-
-    if (authLoading || loading && !errorInfo) return <div className="min-h-screen flex items-center justify-center"><FiLoader className="animate-spin text-3xl text-gray-400"/></div>;
+    if (authLoading || (loading && !errorInfo)) return <div className="min-h-screen bg-white flex items-center justify-center"><FiLoader className="animate-spin text-pink-500 size-12"/></div>;
 
     return (
-        <div className="min-h-screen bg-gray-50 font-sans text-gray-900 pt-24">
-            <header className="bg-white border-b border-gray-200 fixed top-0 w-full z-30">
-                <div className="max-w-7xl mx-auto px-4 h-16 flex justify-between items-center">
-                    <h1 className="text-xl font-bold flex items-center text-gray-800 italic">
-                        <FiAlertTriangle className="mr-2 text-orange-500"/> APPROVAL SYSTEM
-                    </h1>
-                    <div className="flex items-center gap-4">
-                        <div className="text-xs font-black bg-orange-500 text-white px-3 py-1 rounded-full animate-pulse">
-                            未対応: {totalPending}件
+        <div className="min-h-screen bg-[#fafafa] font-sans text-slate-800 pt-28">
+            <header className="bg-white/80 backdrop-blur-md border-b border-slate-100 fixed top-0 w-full z-40">
+                <div className="max-w-7xl mx-auto px-6 h-20 flex justify-between items-center">
+                    <div className="flex items-center gap-3">
+                        <div className="bg-slate-900 text-white p-2 rounded-xl italic font-black text-xs shadow-lg">FL</div>
+                        <h1 className="text-xl font-black text-slate-900 tracking-tighter italic uppercase">Regist Approval</h1>
+                    </div>
+                    <div className="flex items-center gap-6">
+                        <div className="hidden md:flex items-center gap-2 bg-orange-50 px-4 py-2 rounded-2xl border border-orange-100">
+                            <span className="text-[10px] font-black text-orange-400 uppercase tracking-widest">未処理</span>
+                            <span className="text-sm font-black text-orange-600">{totalPending}件</span>
                         </div>
-                        <Link href="/admin" className="text-sm text-gray-400 hover:text-gray-800 flex items-center font-bold">
-                            <FiLogOut className="mr-1"/> 戻る
+                        <Link href="/admin" className="text-xs font-black text-slate-400 hover:text-slate-900 transition-all uppercase tracking-widest flex items-center gap-2">
+                            <FiArrowLeft /> 戻る
                         </Link>
                     </div>
                 </div>
             </header>
 
-            <main className="max-w-7xl mx-auto py-8 px-4">
+            <main className="max-w-7xl mx-auto py-12 px-6">
                 {errorInfo && (
-                    <div className="mb-10 bg-rose-50 border-2 border-rose-100 p-8 rounded-3xl flex flex-col md:flex-row items-center justify-between gap-6">
-                        <div className="flex items-center gap-4">
-                            <div className="bg-rose-500 text-white p-3 rounded-2xl shadow-lg"><FiAlertTriangle size={24} /></div>
-                            <div>
-                                <p className="font-black text-rose-900">アクセス権限エラー</p>
-                                <p className="text-rose-700/70 text-sm font-bold">{errorInfo}</p>
+                    <div className="mb-12 bg-rose-50 border-2 border-rose-100 p-10 rounded-[2.5rem] flex flex-col md:flex-row items-center justify-between gap-8 shadow-xl shadow-rose-500/5">
+                        <div className="flex items-center gap-6 text-slate-800">
+                            <div className="bg-rose-500 text-white p-4 rounded-2xl shadow-xl"><FiAlertTriangle size={32} /></div>
+                            <div className="space-y-1">
+                                <p className="font-black text-rose-900 text-xl tracking-tight italic">同期エラーが発生しました</p>
+                                <p className="text-rose-700/60 text-sm font-bold uppercase tracking-widest">{errorInfo}</p>
                             </div>
                         </div>
-                        <button onClick={() => { logout(); router.push('/login'); }} className="px-8 py-4 bg-rose-500 text-white rounded-2xl font-black text-sm hover:bg-rose-600 transition-all shadow-lg shadow-rose-200">
-                            再ログインして解決
-                        </button>
+                        <button onClick={() => { logout(); router.push('/login'); }} className="px-10 py-5 bg-rose-500 text-white rounded-2xl font-black text-xs uppercase hover:bg-rose-600 transition-all shadow-lg shadow-rose-200 active:scale-95">再ログインして修復</button>
                     </div>
                 )}
 
-                <div className="flex flex-col md:flex-row justify-between items-end md:items-center gap-4 mb-8">
-                    <nav className="flex space-x-1 bg-gray-200 p-1 rounded-xl">
-                        {Object.keys(TAB_CONFIG).map((key) => {
-                            const isActive = activeTab === key;
-                            const config = TAB_CONFIG[key];
-                            return (
-                                <button
-                                    key={key}
-                                    onClick={() => { setActiveTab(key); setSearchTerm(''); }}
-                                    className={`flex items-center gap-2 px-6 py-3 rounded-lg text-sm font-black transition-all ${isActive ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-                                >
-                                    {config.icon} {config.label}
-                                    <span className={`ml-1 text-[10px] px-2 py-0.5 rounded-full ${isActive ? 'bg-orange-500 text-white' : 'bg-gray-300 text-white'}`}>
-                                        {pendingData[key].length}
-                                    </span>
-                                </button>
-                            );
-                        })}
+                <div className="flex flex-col lg:flex-row justify-between items-end lg:items-center gap-8 mb-12">
+                    <nav className="flex space-x-2 bg-white p-2 rounded-[2rem] shadow-sm border border-slate-100">
+                        {[
+                            { id: 'florists', label: 'お花屋さん', icon: <FiAward /> },
+                            { id: 'venues', label: '会場施設', icon: <FiMapPin /> },
+                            { id: 'organizers', label: 'イベント主催者', icon: <FiCalendar /> }
+                        ].map((tab) => (
+                            <button
+                                key={tab.id}
+                                onClick={() => { setActiveTab(tab.id); setSearchTerm(''); }}
+                                className={`flex items-center gap-3 px-8 py-4 rounded-[1.5rem] text-xs font-black transition-all uppercase tracking-widest ${activeTab === tab.id ? 'bg-slate-900 text-white shadow-xl scale-105' : 'text-slate-400 hover:bg-slate-50'}`}
+                            >
+                                {tab.icon} {tab.label}
+                                <span className={`ml-1 px-2 py-0.5 rounded-lg text-[10px] ${activeTab === tab.id ? 'bg-pink-500 text-white' : 'bg-slate-100 text-slate-400'}`}>
+                                    {pendingData[tab.id].length}
+                                </span>
+                            </button>
+                        ))}
                     </nav>
 
-                    <div className="flex items-center gap-3 w-full md:w-auto">
-                        <div className="relative flex-1 md:w-64 group">
-                            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-pink-500"/>
+                    <div className="flex items-center gap-4 w-full lg:w-auto">
+                        <div className="relative flex-1 lg:w-80 group">
+                            <FiSearch className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-pink-500 transition-colors" size={20}/>
                             <input 
                                 type="text"
                                 placeholder="名前やメールで検索..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-pink-500/20 focus:border-pink-500 transition-all"
+                                className="w-full pl-14 pr-6 py-5 bg-white border border-slate-100 rounded-[1.5rem] text-sm font-bold shadow-sm outline-none focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 transition-all placeholder:text-slate-200"
                             />
                         </div>
-                        <button onClick={fetchPendingData} className="p-3 bg-white border border-gray-200 rounded-xl text-gray-400 hover:text-pink-500 transition-all shadow-sm">
-                            <FiRefreshCw className={loading ? 'animate-spin' : ''}/>
+                        <button onClick={fetchPendingData} className="p-5 bg-slate-900 text-white rounded-[1.5rem] hover:bg-pink-600 transition-all shadow-xl active:scale-90">
+                            <FiRefreshCw className={loading ? 'animate-spin' : ''} size={22}/>
                         </button>
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
                     {filteredList.length > 0 ? (
                         filteredList.map(item => (
                             <ReviewCard 
                                 key={item.id} 
                                 item={item} 
-                                type={TAB_CONFIG[activeTab].typeStr} 
+                                type={tabTypeToStr(activeTab)} 
                                 onOpenDetail={setSelectedItem}
                             />
                         ))
                     ) : (
-                        <div className="col-span-full py-32 text-center bg-white rounded-[3rem] border-2 border-dashed border-gray-100">
-                            <FiCheckCircle className="text-5xl text-gray-100 mx-auto mb-4" />
-                            <h3 className="text-xl font-black text-gray-400 italic uppercase">All Cleared</h3>
-                            <p className="text-gray-300 text-sm mt-2 font-bold">現在、承認待ちの申請はありません</p>
+                        <div className="col-span-full py-40 text-center bg-white rounded-[4rem] border-2 border-dashed border-slate-100 shadow-[0_20px_50px_rgba(0,0,0,0.02)]">
+                            <div className="bg-slate-50 size-24 rounded-full flex items-center justify-center mx-auto mb-6 text-slate-200 shadow-inner">
+                                <FiCheckCircle size={48} />
+                            </div>
+                            <h3 className="text-2xl font-black text-slate-300 italic uppercase tracking-widest">No Requests Pending</h3>
+                            <p className="text-slate-300 text-sm mt-3 font-bold uppercase tracking-widest">現在、すべての申請が処理済みです</p>
                         </div>
                     )}
                 </div>
@@ -374,11 +364,18 @@ export default function AdminApprovalPage() {
                     isOpen={!!selectedItem}
                     onClose={() => setSelectedItem(null)}
                     item={selectedItem}
-                    type={TAB_CONFIG[activeTab].typeStr}
+                    type={tabTypeToStr(activeTab)}
                     onAction={handleAction}
                 />
             )}
-            <style jsx global>{` body { background-color: #f9fafb; } `}</style>
+            <style jsx global>{` body { background-color: #fafafa; } `}</style>
         </div>
     );
+}
+
+// ヘルパー
+function tabTypeToStr(tab) {
+    if (tab === 'florists') return 'Florist';
+    if (tab === 'venues') return 'Venue';
+    return 'Organizer';
 }
