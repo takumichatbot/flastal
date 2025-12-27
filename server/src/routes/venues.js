@@ -5,24 +5,30 @@ import { authenticateToken } from '../middleware/auth.js';
 const router = express.Router();
 
 // ==========================================
-// 会場関連 ( app.js で /api にマウントされている前提 )
+// 会場関連 ( Base Path: /api )
 // ==========================================
 
-// 会場一覧取得（一般用）
+// 一般公開用一覧
 router.get('/venues', venueController.getVenues);
 
-// 会場一覧取得（管理者用：未承認含む）
+// 管理者用一覧（未承認含む）
 router.get('/venues/admin', authenticateToken, venueController.getVenues);
 
-// 会場詳細取得
+// 詳細取得
 router.get('/venues/:id', venueController.getVenueById);
 
-// 会場登録（POST /api/venues）
+// 新規登録
 router.post('/venues', authenticateToken, venueController.addVenueByUser);
 
-// 会場情報の更新・承認（PATCH /api/venues/:id）
-// ★ venues/ を重ねず、マウントされた /api から見て /venues/:id になるよう修正
-router.patch('/venues/:id', authenticateToken, venueController.updateVenueProfile); 
+/**
+ * 会場承認・更新
+ * PATCH /api/venues/:id
+ * 【重要】既存の venues/profile ルートと衝突しないよう、IDパラメータを優先
+ */
+router.patch('/venues/:id', authenticateToken, venueController.updateVenueProfile);
+
+// プロフィール更新（自分用）
+router.patch('/venues/profile', authenticateToken, venueController.updateVenueProfile); 
 
 // 会場削除
 router.delete('/venues/:id', authenticateToken, venueController.deleteEvent || venueController.deleteVenue);
