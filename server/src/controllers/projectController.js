@@ -551,17 +551,33 @@ export const updateProductionStatus = async (req, res) => {
 };
 
 // 汎用ステータス更新 (Florist/Admin)
+// 【修正】審査承認用の FUNDRAISING と却下用の REJECTED を許可リストに追加
 export const updateProjectStatus = async (req, res) => {
     const { projectId } = req.params;
     const { status } = req.body;
-    const VALID_STATUSES = ['OFFER_ACCEPTED', 'DESIGN_FIXED', 'MATERIAL_PREP', 'PRODUCTION_IN_PROGRESS', 'READY_FOR_DELIVERY', 'DELIVERED_OR_FINISHED'];
+    
+    // 許可リストに承認後の募集開始状態を追加
+    const VALID_STATUSES = [
+        'PENDING', 
+        'FUNDRAISING', // 承認
+        'REJECTED',    // 却下
+        'OFFER_ACCEPTED', 
+        'DESIGN_FIXED', 
+        'MATERIAL_PREP', 
+        'PRODUCTION_IN_PROGRESS', 
+        'READY_FOR_DELIVERY', 
+        'DELIVERED_OR_FINISHED'
+    ];
 
-    if (!VALID_STATUSES.includes(status)) return res.status(400).json({ message: '無効なステータスです。' });
+    if (!VALID_STATUSES.includes(status)) {
+        return res.status(400).json({ message: `無効なステータスです: ${status}` });
+    }
 
     try {
         const project = await prisma.project.findUnique({ where: { id: projectId }, include: { offer: true } });
         if (!project) return res.status(404).json({ message: '企画なし' });
 
+        // 管理者または担当花屋のみ許可
         const isFlorist = project.offer?.floristId === req.user.id;
         if (req.user.role !== 'ADMIN' && !isFlorist) return res.status(403).json({ message: '権限なし' });
 
@@ -569,9 +585,19 @@ export const updateProjectStatus = async (req, res) => {
             where: { id: projectId },
             data: { status },
         });
-        await createNotification(project.plannerId, 'PROJECT_STATUS_UPDATE', `進捗が「${status}」に更新されました。`, projectId, `/projects/${projectId}`);
+        
+        // 企画者に通知
+        await createNotification(
+            project.plannerId, 
+            'PROJECT_STATUS_UPDATE', 
+            `企画「${project.title}」のステータスが「${status}」に更新されました。`, 
+            projectId, 
+            `/projects/${projectId}`
+        );
+        
         res.json(updated);
     } catch (error) {
+        console.error('Status Update Error:', error);
         res.status(500).json({ message: 'エラーが発生しました。' });
     }
 };
@@ -595,9 +621,7 @@ export const getInstructionSheet = async (req, res) => {
             amount: project.collectedAmount ? `${project.collectedAmount.toLocaleString()}円` : '',
             date: new Date(project.deliveryDateTime).toLocaleDateString('ja-JP'),
             place: project.venue ? project.venue.venueName : project.deliveryAddress,
-            // ... (必要なデータを整形)
         };
-        // 簡易テキスト生成
         const text = `【指示書】\n名前: ${d.name}\n日時: ${d.date}\n場所: ${d.place}\n予算: ${d.amount}`;
         res.status(200).json({ text });
     } catch (error) {
@@ -652,12 +676,10 @@ export const getProjectPosts = async (req, res) => {
 // 追加分: メモリ実装機能 & チャット取得
 // ==========================================
 
-// 簡易メモリDB (サーバー再起動で消えます)
 let MOOD_BOARDS = [];
 let OFFICIAL_REACTIONS = {};
 let DIGITAL_FLOWERS = [];
 
-// チャットルーム情報取得
 export const getChatRoomInfo = async (req, res) => {
     const { roomId } = req.params;
     try {
@@ -673,7 +695,6 @@ export const getChatRoomInfo = async (req, res) => {
     } catch(e) { res.status(500).json({ message: 'Error' }); }
 };
 
-// 企画通報
 export const reportProject = async (req, res) => {
     const { projectId, reporterId, reason, details } = req.body;
     try {
@@ -682,7 +703,6 @@ export const reportProject = async (req, res) => {
     } catch(e) { res.status(500).json({ message: 'Error' }); }
 };
 
-// ギャラリーフィード取得
 export const getGalleryFeed = async (req, res) => {
     try {
         const projects = await prisma.project.findMany({
@@ -695,7 +715,6 @@ export const getGalleryFeed = async (req, res) => {
     } catch(e) { res.status(500).json({ message: 'Error' }); }
 };
 
-// --- ムードボード ---
 export const addToMoodBoard = (req, res) => {
     const { id } = req.params;
     const { imageUrl, comment } = req.body;
@@ -722,7 +741,6 @@ export const deleteMoodBoardItem = (req, res) => {
     res.status(204).send();
 };
 
-// --- 推しリアクション ---
 export const officialReact = (req, res) => {
     const { id } = req.params;
     OFFICIAL_REACTIONS[id] = { timestamp: new Date(), comment: "Thank you!!" };
@@ -732,7 +750,6 @@ export const getOfficialStatus = (req, res) => {
     res.json(OFFICIAL_REACTIONS[req.params.id] || null);
 };
 
-// --- デジタルフラスタ ---
 export const sendDigitalFlower = (req, res) => {
     const { id } = req.params;
     const { senderName, color, message, style } = req.body;
