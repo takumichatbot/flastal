@@ -10,7 +10,8 @@ import {
     FiMapPin, FiSearch, FiInfo, FiTruck, FiBox, FiArrowLeft, FiClock, FiCheckCircle, FiLoader, FiAlertTriangle, FiRefreshCw
 } from 'react-icons/fi';
 
-const API_BASE_URL = 'https://flastal-backend.onrender.com'.replace(/\/$/, '');
+// APIのURL。末尾のスラッシュを確実に排除
+const API_BASE_URL = 'https://flastal-backend.onrender.com/api';
 
 // --- モーダルコンポーネント ---
 function VenueModal({ isOpen, onClose, onSubmit, initialData }) {
@@ -78,7 +79,7 @@ function VenueModal({ isOpen, onClose, onSubmit, initialData }) {
       <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col border border-slate-100 font-sans text-slate-800">
         <div className="px-10 py-8 border-b border-slate-50 bg-slate-50/50 flex justify-between items-center">
             <h2 className="text-2xl font-black text-slate-800 flex items-center gap-3 italic uppercase tracking-tighter">
-                {initialData ? 'Edit Venue' : 'New Venue'}
+                {initialData ? '会場情報の編集' : '新規会場の登録'}
             </h2>
             <button onClick={onClose} className="p-3 hover:bg-white rounded-full transition-colors text-slate-400 shadow-sm">
                 <FiX size={24} />
@@ -88,7 +89,7 @@ function VenueModal({ isOpen, onClose, onSubmit, initialData }) {
             <form id="venueForm" onSubmit={handleSubmit} className="space-y-12">
             <section className="space-y-6">
                 <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] border-b pb-3 flex items-center gap-2">
-                    <FiInfo className="text-pink-500" /> Basic / 基本情報
+                    <FiInfo className="text-pink-500" /> 基本情報
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div className="md:col-span-2">
@@ -115,7 +116,7 @@ function VenueModal({ isOpen, onClose, onSubmit, initialData }) {
             </section>
             <section className="space-y-6">
                 <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] border-b pb-3 flex items-center gap-2">
-                    <FiBox className="text-pink-500" /> Regulations / 規約目安
+                    <FiBox className="text-pink-500" /> 規約目安
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div className={`p-8 rounded-[2rem] border-2 transition-all ${formData.isStandAllowed ? 'bg-green-50/30 border-green-100' : 'bg-slate-50 border-slate-50'}`}>
@@ -127,23 +128,14 @@ function VenueModal({ isOpen, onClose, onSubmit, initialData }) {
                             <textarea name="standRegulation" value={formData.standRegulation} onChange={handleChange} rows="4" className="w-full p-5 rounded-2xl text-sm bg-white border border-green-100 outline-none font-bold leading-relaxed" placeholder="サイズ制限などを記入..." />
                         )}
                     </div>
-                    <div className={`p-8 rounded-[2rem] border-2 transition-all ${formData.isBowlAllowed ? 'bg-blue-50/30 border-blue-100' : 'bg-slate-50 border-slate-50'}`}>
-                        <div className="flex items-center justify-between mb-6">
-                            <h4 className="font-black text-slate-800 text-sm uppercase tracking-widest">🎁 楽屋花</h4>
-                            <input type="checkbox" name="isBowlAllowed" checked={formData.isBowlAllowed} onChange={handleChange} className="w-6 h-6" />
-                        </div>
-                        {formData.isBowlAllowed && (
-                            <textarea name="bowlRegulation" value={formData.bowlRegulation} onChange={handleChange} rows="4" className="w-full p-5 rounded-2xl text-sm bg-white border border-blue-100 outline-none font-bold leading-relaxed" placeholder="卓上サイズ規定など..." />
-                        )}
-                    </div>
                 </div>
             </section>
             </form>
         </div>
         <div className="p-10 border-t border-slate-50 bg-slate-50/30 flex justify-end gap-5">
-            <button type="button" onClick={onClose} className="px-10 py-5 bg-white text-slate-400 font-black rounded-2xl hover:bg-slate-100 transition-all text-sm uppercase tracking-widest">Cancel</button>
+            <button type="button" onClick={onClose} className="px-10 py-5 bg-white text-slate-400 font-black rounded-2xl hover:bg-slate-100 transition-all text-sm uppercase tracking-widest">キャンセル</button>
             <button type="submit" form="venueForm" className="px-12 py-5 bg-slate-900 text-white font-black rounded-2xl hover:bg-pink-600 shadow-2xl transition-all text-sm uppercase tracking-[0.2em]">
-                {initialData ? 'Save Changes' : 'Register Venue'}
+                {initialData ? '変更を保存' : '会場を登録'}
             </button>
         </div>
       </div>
@@ -181,8 +173,8 @@ export default function AdminVenuesPage() {
     setErrorInfo(null);
 
     try {
-      // ログで成功している正確なパス: /api/venues/admin
-      const res = await fetch(`${API_BASE_URL}/api/venues/admin?t=${Date.now()}`, {
+      // app.use('/api', venueRoutes) に合わせ、 venues/admin を指定
+      const res = await fetch(`${API_BASE_URL}/venues/admin?t=${Date.now()}`, {
         method: 'GET',
         headers: { 
             'Authorization': `Bearer ${token}`,
@@ -196,7 +188,7 @@ export default function AdminVenuesPage() {
           return;
       }
 
-      if (!res.ok) throw new Error(`Fetch Failed (${res.status})`);
+      if (!res.ok) throw new Error(`データ取得失敗 (${res.status})`);
       
       const data = await res.json();
       setVenues(Array.isArray(data) ? data : []);
@@ -219,8 +211,10 @@ export default function AdminVenuesPage() {
 
   const handleCreateOrUpdate = async (formData) => {
     const token = getCleanToken();
-    const url = editingVenue ? `${API_BASE_URL}/api/venues/${editingVenue.id}` : `${API_BASE_URL}/api/venues`;
+    // venues.js の定義 (router.post('/venues', ...)) に合わせる
+    const url = editingVenue ? `${API_BASE_URL}/venues/${editingVenue.id}` : `${API_BASE_URL}/venues`;
     const method = editingVenue ? 'PATCH' : 'POST';
+    
     const bodyData = { ...formData };
     if (editingVenue && !bodyData.password) delete bodyData.password;
 
@@ -229,12 +223,12 @@ export default function AdminVenuesPage() {
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
       body: JSON.stringify(bodyData),
     }).then(async res => {
-      if (!res.ok) throw new Error('保存エラー');
+      if (!res.ok) throw new Error('保存に失敗しました');
       return res.json();
     });
 
     toast.promise(promise, {
-      loading: 'Saving...',
+      loading: '保存中...',
       success: () => { setIsModalOpen(false); fetchVenues(); return '保存しました'; },
       error: (err) => err.message
     });
@@ -242,18 +236,31 @@ export default function AdminVenuesPage() {
 
   const handleApprove = async (id) => {
     const token = getCleanToken();
+    const loadingToast = toast.loading('承認処理中...');
+    
     try {
-      const res = await fetch(`${API_BASE_URL}/api/venues/${id}`, {
+      // 修正: エンドポイントを /api/venues/${id} に固定
+      const res = await fetch(`${API_BASE_URL}/venues/${id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        headers: { 
+          'Content-Type': 'application/json', 
+          'Authorization': `Bearer ${token}` 
+        },
         body: JSON.stringify({ isOfficial: true }),
       });
+      
+      toast.dismiss(loadingToast);
+
       if (res.ok) {
-        toast.success('承認が完了しました！');
+        toast.success('会場を承認しました！一覧に公開されます。');
         fetchVenues();
+      } else {
+        const err = await res.json();
+        toast.error(`承認に失敗しました: ${err.message || res.status}`);
       }
     } catch (error) {
-      toast.error('承認エラー');
+      toast.dismiss(loadingToast);
+      toast.error('通信エラーが発生しました');
     }
   };
 
@@ -261,16 +268,16 @@ export default function AdminVenuesPage() {
     if (!window.confirm('この会場を削除しますか？')) return;
     const token = getCleanToken();
     try {
-      const res = await fetch(`${API_BASE_URL}/api/venues/${id}`, {
+      const res = await fetch(`${API_BASE_URL}/venues/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
-        toast.success('削除完了');
+        toast.success('削除しました');
         setVenues(prev => prev.filter(v => v.id !== id));
       }
     } catch (error) {
-      toast.error('削除できませんでした');
+      toast.error('削除に失敗しました');
     }
   };
 
@@ -283,7 +290,7 @@ export default function AdminVenuesPage() {
   }, [venues, searchTerm]);
 
   if (authLoading) return (
-    <div className="min-h-screen bg-white flex items-center justify-center font-sans">
+    <div className="min-h-screen bg-white flex items-center justify-center font-sans text-slate-800">
         <FiLoader className="animate-spin text-pink-500 size-10" />
     </div>
   );
@@ -292,36 +299,36 @@ export default function AdminVenuesPage() {
     <div className="min-h-screen bg-[#fafafa] p-6 sm:p-12 font-sans text-slate-800 pt-28">
       <div className="max-w-7xl mx-auto">
         <div className="flex flex-col md:flex-row justify-between items-end mb-12 gap-8 px-2">
-            <div className="space-y-4">
+            <div className="space-y-4 text-slate-800">
                 <Link href="/admin" className="inline-flex items-center text-[10px] font-black text-slate-300 hover:text-pink-500 transition-colors uppercase tracking-[0.3em]">
-                    <FiArrowLeft className="mr-2"/> Back to Admin
+                    <FiArrowLeft className="mr-2"/> 管理画面に戻る
                 </Link>
-                <h1 className="text-5xl md:text-6xl font-black text-slate-900 tracking-tighter italic uppercase">Venues</h1>
-                <p className="text-slate-400 font-bold text-sm tracking-[0.2em] uppercase">会場データベース管理</p>
+                <h1 className="text-5xl md:text-6xl font-black text-slate-900 tracking-tighter italic uppercase">会場管理</h1>
+                <p className="text-slate-400 font-bold text-sm tracking-[0.2em] uppercase">データベースの承認と整理</p>
             </div>
             <div className="flex gap-4">
                 <button onClick={fetchVenues} className="p-5 bg-white border border-slate-100 rounded-2xl hover:bg-slate-50 transition-all shadow-sm text-slate-400 hover:text-pink-500">
                     <FiRefreshCw className={loadingData ? 'animate-spin' : ''} size={24} />
                 </button>
                 <button onClick={() => { setEditingVenue(null); setIsModalOpen(true); }} className="flex items-center gap-3 bg-slate-900 text-white px-10 py-5 rounded-[2rem] hover:bg-pink-600 shadow-2xl transition-all font-black active:scale-95 group uppercase tracking-widest text-sm">
-                  <FiPlus size={20} className="group-hover:rotate-90 transition-transform" /><span>Add New</span>
+                  <FiPlus size={20} className="group-hover:rotate-90 transition-transform" /><span>新規追加</span>
                 </button>
             </div>
         </div>
 
         {errorInfo && (
-            <div className="mb-12 bg-rose-50 border-2 border-rose-100 p-10 rounded-[3rem] flex flex-col md:flex-row items-center justify-between gap-8">
-                <div className="flex items-center gap-6">
+            <div className="mb-12 bg-rose-50 border-2 border-rose-100 p-10 rounded-[3rem] flex flex-col md:flex-row items-center justify-between gap-8 text-slate-800">
+                <div className="flex items-center gap-6 text-slate-800">
                     <div className="bg-rose-500 text-white p-4 rounded-[1.5rem] shadow-xl shadow-rose-200">
                         <FiAlertTriangle size={32} />
                     </div>
                     <div>
-                        <p className="font-black text-rose-900 text-xl tracking-tight">データの同期に問題が発生しました</p>
+                        <p className="font-black text-rose-900 text-xl tracking-tight">同期エラーが発生しました</p>
                         <p className="text-rose-700/60 text-sm font-bold mt-1 uppercase tracking-widest">{errorInfo}</p>
                     </div>
                 </div>
                 <button onClick={() => { logout(); router.push('/login'); }} className="px-10 py-5 bg-rose-500 text-white rounded-[1.5rem] font-black text-xs uppercase tracking-widest hover:bg-rose-600 transition-all shadow-lg shadow-rose-100">
-                    Reconnect Now
+                    再ログインする
                 </button>
             </div>
         )}
@@ -338,7 +345,7 @@ export default function AdminVenuesPage() {
                 />
             </div>
             <div className="px-12 py-6 bg-slate-50 rounded-[2rem] text-[10px] font-black text-slate-300 tracking-[0.3em] uppercase border border-slate-100/50 whitespace-nowrap">
-                Database count <span className="text-slate-900 text-base ml-2 tracking-tighter">{venues.length}</span>
+                登録件数 <span className="text-slate-900 text-base ml-2 tracking-tighter">{venues.length}</span>
             </div>
         </div>
 
@@ -346,14 +353,14 @@ export default function AdminVenuesPage() {
           {loadingData && !errorInfo ? (
             <div className="py-40 flex flex-col items-center justify-center text-slate-200 gap-8">
                 <FiLoader className="animate-spin size-16 text-pink-500" />
-                <p className="text-[10px] font-black tracking-[0.5em] uppercase animate-pulse">Syncing with Flastal Server...</p>
+                <p className="text-[10px] font-black tracking-[0.5em] uppercase animate-pulse">読み込み中...</p>
             </div>
           ) : filteredVenues.length === 0 ? (
-            <div className="bg-white rounded-[3rem] py-40 text-center border-2 border-dashed border-slate-50 text-slate-300 font-black tracking-widest italic uppercase">No Database Records Found</div>
+            <div className="bg-white rounded-[3rem] py-40 text-center border-2 border-dashed border-slate-50 text-slate-300 font-black tracking-widest italic uppercase">データが見つかりませんでした</div>
           ) : (
             filteredVenues.map((venue) => (
                 <div key={venue.id} className={`bg-white rounded-[3rem] p-10 border-2 transition-all flex flex-col md:flex-row items-center gap-10 group ${!venue.isOfficial ? 'border-pink-200 bg-pink-50/10 shadow-[0_20px_40px_rgba(244,114,182,0.08)]' : 'border-slate-50 hover:border-pink-50 hover:shadow-[0_20px_50px_rgba(0,0,0,0.03)]'}`}>
-                    <div className="flex-1 w-full">
+                    <div className="flex-1 w-full text-slate-800">
                         <div className="flex flex-wrap items-center gap-4 mb-4">
                             <h3 className="font-black text-slate-800 text-3xl tracking-tighter uppercase">{venue.venueName}</h3>
                             {!venue.isOfficial && (
@@ -373,7 +380,7 @@ export default function AdminVenuesPage() {
                     <div className="flex gap-4">
                         {!venue.isOfficial && (
                             <button onClick={() => handleApprove(venue.id)} className="flex items-center gap-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white px-10 py-5 rounded-[1.5rem] hover:shadow-2xl hover:scale-[1.02] transition-all font-black text-xs uppercase tracking-widest active:scale-95">
-                                <FiCheckCircle size={20} /><span>Approve</span>
+                                <FiCheckCircle size={20} /><span>承認する</span>
                             </button>
                         )}
                         <button onClick={() => { setEditingVenue(venue); setIsModalOpen(true); }} className="p-5 bg-slate-900 text-white rounded-[1.5rem] hover:bg-pink-600 transition-all shadow-xl active:scale-95">
