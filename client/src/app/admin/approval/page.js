@@ -7,18 +7,17 @@ import toast from 'react-hot-toast';
 import { 
     FiCheckCircle, FiXCircle, FiClock, FiUsers, FiAward, 
     FiMapPin, FiCalendar, FiLogOut, FiRefreshCw, FiLoader, 
-    FiSearch, FiEye, FiX, FiAlertTriangle 
+    FiSearch, FiEye, FiX, FiAlertTriangle, FiArrowLeft
 } from 'react-icons/fi';
 import { useAuth } from '@/app/contexts/AuthContext';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
-// 認証トークンを確実に取得する関数（修正ポイント：引用符の完全除去）
+// 認証トークンを確実に取得する関数
 const getAuthToken = () => {
     if (typeof window === 'undefined') return null;
     const rawToken = localStorage.getItem('authToken');
     if (!rawToken) return null;
-    // 前後の引用符を確実に削除し、余白をトリミング
     return rawToken.replace(/^"|"$/g, '').trim();
 };
 
@@ -125,7 +124,7 @@ function ReviewCard({ item, type, onOpenDetail }) {
     return (
         <div className="bg-white p-6 rounded-3xl shadow-sm hover:shadow-xl border border-gray-100 transition-all duration-300 group relative overflow-hidden">
             <div className="flex justify-between items-start mb-4">
-                <div className="space-y-1">
+                <div className="space-y-1 text-slate-800">
                     <span className="text-[10px] font-black uppercase text-pink-500 tracking-widest block">
                         {type === 'Florist' ? 'お花屋さん' : type === 'Venue' ? '会場施設' : '主催者'}
                     </span>
@@ -188,7 +187,7 @@ export default function AdminApprovalPage() {
             ]);
 
             if (floristRes.status === 401 || floristRes.status === 403) {
-                setErrorInfo("管理者権限が確認できませんでした。再度ログインしてください。");
+                setErrorInfo("管理者権限が確認できません。再ログインしてください。");
                 return;
             }
 
@@ -203,7 +202,7 @@ export default function AdminApprovalPage() {
             });
             
         } catch (error) {
-            setErrorInfo("データの取得に失敗しました。ネットワークを確認してください。");
+            setErrorInfo("データの取得に失敗しました。");
         } finally {
             setLoading(false);
         }
@@ -239,7 +238,7 @@ export default function AdminApprovalPage() {
                 body: JSON.stringify({ status })
             });
 
-            if (!res.ok) throw new Error('サーバーエラーにより更新できませんでした。');
+            if (!res.ok) throw new Error('更新に失敗しました。');
 
             toast.success(`申請を${status === 'APPROVED' ? '承認' : '却下'}しました`, { id: toastId });
             setSelectedItem(null);
@@ -264,15 +263,15 @@ export default function AdminApprovalPage() {
 
     const totalPending = pendingData.florists.length + pendingData.venues.length + pendingData.organizers.length;
     
-    if (authLoading || (loading && !errorInfo)) return <div className="min-h-screen bg-white flex items-center justify-center"><FiLoader className="animate-spin text-pink-500 size-12"/></div>;
+    if (authLoading || (loading && !errorInfo)) return <div className="min-h-screen bg-white flex items-center justify-center font-sans"><FiLoader className="animate-spin text-pink-500 size-12"/></div>;
 
     return (
         <div className="min-h-screen bg-[#fafafa] font-sans text-slate-800 pt-28">
             <header className="bg-white/80 backdrop-blur-md border-b border-slate-100 fixed top-0 w-full z-40">
-                <div className="max-w-7xl mx-auto px-6 h-20 flex justify-between items-center">
+                <div className="max-w-7xl mx-auto px-6 h-20 flex justify-between items-center text-slate-800">
                     <div className="flex items-center gap-3">
                         <div className="bg-slate-900 text-white p-2 rounded-xl italic font-black text-xs shadow-lg">FL</div>
-                        <h1 className="text-xl font-black text-slate-900 tracking-tighter italic uppercase">Regist Approval</h1>
+                        <h1 className="text-xl font-black text-slate-900 tracking-tighter italic uppercase">Admin Approval</h1>
                     </div>
                     <div className="flex items-center gap-6">
                         <div className="hidden md:flex items-center gap-2 bg-orange-50 px-4 py-2 rounded-2xl border border-orange-100">
@@ -288,11 +287,11 @@ export default function AdminApprovalPage() {
 
             <main className="max-w-7xl mx-auto py-12 px-6">
                 {errorInfo && (
-                    <div className="mb-12 bg-rose-50 border-2 border-rose-100 p-10 rounded-[2.5rem] flex flex-col md:flex-row items-center justify-between gap-8 shadow-xl shadow-rose-500/5">
-                        <div className="flex items-center gap-6 text-slate-800">
+                    <div className="mb-12 bg-rose-50 border-2 border-rose-100 p-10 rounded-[2.5rem] flex flex-col md:flex-row items-center justify-between gap-8 shadow-xl shadow-rose-500/5 text-slate-800">
+                        <div className="flex items-center gap-6">
                             <div className="bg-rose-500 text-white p-4 rounded-2xl shadow-xl"><FiAlertTriangle size={32} /></div>
                             <div className="space-y-1">
-                                <p className="font-black text-rose-900 text-xl tracking-tight italic">同期エラーが発生しました</p>
+                                <p className="font-black text-rose-900 text-xl tracking-tight italic">権限エラー</p>
                                 <p className="text-rose-700/60 text-sm font-bold uppercase tracking-widest">{errorInfo}</p>
                             </div>
                         </div>
@@ -301,7 +300,7 @@ export default function AdminApprovalPage() {
                 )}
 
                 <div className="flex flex-col lg:flex-row justify-between items-end lg:items-center gap-8 mb-12">
-                    <nav className="flex space-x-2 bg-white p-2 rounded-[2rem] shadow-sm border border-slate-100">
+                    <nav className="flex space-x-2 bg-white p-2 rounded-[2rem] shadow-sm border border-slate-100 text-slate-800">
                         {[
                             { id: 'florists', label: 'お花屋さん', icon: <FiAward /> },
                             { id: 'venues', label: '会場施設', icon: <FiMapPin /> },
@@ -321,14 +320,14 @@ export default function AdminApprovalPage() {
                     </nav>
 
                     <div className="flex items-center gap-4 w-full lg:w-auto">
-                        <div className="relative flex-1 lg:w-80 group">
+                        <div className="relative flex-1 lg:w-80 group text-slate-800">
                             <FiSearch className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-pink-500 transition-colors" size={20}/>
                             <input 
                                 type="text"
                                 placeholder="名前やメールで検索..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full pl-14 pr-6 py-5 bg-white border border-slate-100 rounded-[1.5rem] text-sm font-bold shadow-sm outline-none focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 transition-all placeholder:text-slate-200"
+                                className="w-full pl-14 pr-6 py-5 bg-white border border-slate-100 rounded-[1.5rem] text-sm font-bold shadow-sm outline-none focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 transition-all placeholder:text-slate-200 text-slate-800"
                             />
                         </div>
                         <button onClick={fetchPendingData} className="p-5 bg-slate-900 text-white rounded-[1.5rem] hover:bg-pink-600 transition-all shadow-xl active:scale-90">
@@ -352,8 +351,8 @@ export default function AdminApprovalPage() {
                             <div className="bg-slate-50 size-24 rounded-full flex items-center justify-center mx-auto mb-6 text-slate-200 shadow-inner">
                                 <FiCheckCircle size={48} />
                             </div>
-                            <h3 className="text-2xl font-black text-slate-300 italic uppercase tracking-widest">No Requests Pending</h3>
-                            <p className="text-slate-300 text-sm mt-3 font-bold uppercase tracking-widest">現在、すべての申請が処理済みです</p>
+                            <h3 className="text-2xl font-black text-slate-300 italic uppercase tracking-widest text-slate-800">All Cleared</h3>
+                            <p className="text-slate-300 text-sm mt-3 font-bold uppercase tracking-widest">現在、承認待ちの申請はありません</p>
                         </div>
                     )}
                 </div>
@@ -373,7 +372,6 @@ export default function AdminApprovalPage() {
     );
 }
 
-// ヘルパー
 function tabTypeToStr(tab) {
     if (tab === 'florists') return 'Florist';
     if (tab === 'venues') return 'Venue';
