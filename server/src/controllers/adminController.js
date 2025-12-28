@@ -14,7 +14,7 @@ export const getPendingItems = async (req, res) => {
         if (type === 'projects') {
             data = await prisma.project.findMany({ 
                 where: { status: 'PENDING_APPROVAL' }, 
-                include: { planner: { select: { handleName: true } } },
+                include: { planner: { select: { handleName: true, email: true } } },
                 orderBy: { createdAt: 'asc' }
             });
         } else if (type === 'florists') {
@@ -23,9 +23,14 @@ export const getPendingItems = async (req, res) => {
             data = await prisma.venue.findMany({ where: { status: 'PENDING' }, orderBy: { createdAt: 'asc' } });
         } else if (type === 'organizers') {
             data = await prisma.organizer.findMany({ where: { status: 'PENDING' }, orderBy: { createdAt: 'asc' } });
+        } else {
+            return res.status(400).json({ message: 'Invalid type' });
         }
         res.json(data);
-    } catch (e) { res.status(500).json({ message: '取得失敗' }); }
+    } catch (e) { 
+        console.error('getPendingItems Error:', e);
+        res.status(500).json({ message: '取得に失敗しました' }); 
+    }
 };
 
 // 審査実行 (プロジェクト・花屋・会場・主催者)
@@ -44,27 +49,31 @@ export const approveItem = async (req, res) => {
                 include: { planner: true }
             });
 
-            if (projectStatus === 'FUNDRAISING') {
-                // 承認通知 & メール
-                await createNotification(project.plannerId, 'PROJECT_APPROVED', '企画が承認され、公開されました！', id, `/projects/${id}`);
-                if (project.planner?.email) {
-                    await sendDynamicEmail(project.planner.email, 'PROJECT_APPROVAL', {
-                        userName: project.planner.handleName,
-                        projectTitle: project.title,
-                        projectUrl: `${process.env.FRONTEND_URL}/projects/${id}`
-                    });
+            // 非同期で通知とメールを処理（メインのレスポンスを妨げない）
+            try {
+                if (projectStatus === 'FUNDRAISING') {
+                    await createNotification(project.plannerId, 'PROJECT_APPROVED', '企画が承認され、公開されました！', id, `/projects/${id}`);
+                    if (project.planner?.email) {
+                        await sendDynamicEmail(project.planner.email, 'PROJECT_APPROVAL', {
+                            userName: project.planner.handleName,
+                            projectTitle: project.title,
+                            projectUrl: `${process.env.FRONTEND_URL}/projects/${id}`
+                        });
+                    }
+                } else {
+                    await createNotification(project.plannerId, 'PROJECT_REJECTED', '企画が承認されませんでした。', id, `/mypage`);
+                    if (project.planner?.email) {
+                        await sendDynamicEmail(project.planner.email, 'PROJECT_REJECTED', {
+                            userName: project.planner.handleName,
+                            projectTitle: project.title,
+                            reason: adminComment || 'ガイドライン不適合のため'
+                        });
+                    }
                 }
-            } else {
-                // 却下通知 & メール
-                await createNotification(project.plannerId, 'PROJECT_REJECTED', '企画が承認されませんでした。', id, `/mypage`);
-                if (project.planner?.email) {
-                    await sendDynamicEmail(project.planner.email, 'PROJECT_REJECTED', {
-                        userName: project.planner.handleName,
-                        projectTitle: project.title,
-                        reason: adminComment || 'ガイドライン不適合のため'
-                    });
-                }
+            } catch (notifyErr) {
+                console.error('Notification Error after Approval:', notifyErr);
             }
+
             return res.json(project);
         } 
         
@@ -95,8 +104,8 @@ export const approveItem = async (req, res) => {
         res.json(updated);
 
     } catch (e) { 
-        console.error(e);
-        res.status(500).json({ message: '更新エラー' }); 
+        console.error('approveItem Error:', e);
+        res.status(500).json({ message: '更新エラーが発生しました' }); 
     }
 };
 
@@ -104,27 +113,35 @@ export const approveItem = async (req, res) => {
 // ★★★ 2. システム設定・手数料 (System Settings) ★★★
 // ==========================================
 
-// システム設定取得
 export const getSystemSettings = async (req, res) => {
     try {
-        const settings = await prisma.systemSettings.findFirst() || await prisma.systemSettings.create({ data: {} });
+        let settings = await prisma.systemSettings.findFirst();
+        if (!settings) {
+            settings = await prisma.systemSettings.create({ data: {} });
+        }
         res.json(settings);
     } catch (e) { res.status(500).json({ message: '取得失敗' }); }
 };
 
-// システム設定更新
 export const updateSystemSettings = async (req, res) => {
     const { platformFeeRate } = req.body;
     try {
-        await prisma.systemSettings.updateMany({
-            data: { platformFeeRate: platformFeeRate !== undefined ? parseFloat(platformFeeRate) : undefined }
-        });
         const settings = await prisma.systemSettings.findFirst();
-        res.json(settings);
+        if (settings) {
+            const updated = await prisma.systemSettings.update({
+                where: { id: settings.id },
+                data: { platformFeeRate: platformFeeRate !== undefined ? parseFloat(platformFeeRate) : undefined }
+            });
+            res.json(updated);
+        } else {
+            const created = await prisma.systemSettings.create({
+                data: { platformFeeRate: platformFeeRate !== undefined ? parseFloat(platformFeeRate) : 0.10 }
+            });
+            res.json(created);
+        }
     } catch (e) { res.status(500).json({ message: '更新失敗' }); }
 };
 
-// お花屋さん個別手数料の取得
 export const getFloristFee = async (req, res) => {
     const { floristId } = req.params;
     try {
@@ -137,7 +154,6 @@ export const getFloristFee = async (req, res) => {
     } catch (e) { res.status(500).json({ message: 'Error' }); }
 };
 
-// お花屋さん個別手数料の更新
 export const updateFloristFee = async (req, res) => {
     const { floristId } = req.params;
     const { customFeeRate } = req.body; 
@@ -152,7 +168,6 @@ export const updateFloristFee = async (req, res) => {
     } catch (e) { res.status(500).json({ message: '更新失敗' }); }
 };
 
-// 手数料(売上)履歴一覧
 export const getCommissions = async (req, res) => {
     try {
         const commissions = await prisma.commission.findMany({
@@ -212,7 +227,6 @@ export const updateAdminPayoutStatus = async (req, res) => {
             }
             res.json(result);
         } else {
-            // Florist
             const updated = await prisma.payoutRequest.update({ where: { id }, data: { status } });
             if (status === 'REJECTED') {
                 await prisma.florist.update({ where: { id: updated.floristId }, data: { balance: { increment: updated.amount } } });
@@ -227,8 +241,10 @@ export const updateAdminPayoutStatus = async (req, res) => {
 // ==========================================
 
 export const getEmailTemplates = async (req, res) => {
-    const data = await prisma.emailTemplate.findMany({ orderBy: { name: 'asc' } });
-    res.json(data);
+    try {
+        const data = await prisma.emailTemplate.findMany({ orderBy: { name: 'asc' } });
+        res.json(data);
+    } catch (e) { res.status(500).json({ message: '取得失敗' }); }
 };
 
 export const saveEmailTemplate = async (req, res) => {
@@ -252,16 +268,15 @@ export const saveEmailTemplate = async (req, res) => {
 export const sendIndividualEmail = async (req, res) => {
     const { userId, targetRole, templateId, customSubject, customBody } = req.body;
     try {
-        let user;
-        const select = { id: true, email: true, handleName: true }; 
+        let targetUser;
         if (targetRole === 'FLORIST') {
             const f = await prisma.florist.findUnique({ where: { id: userId } });
-            if (f) user = { ...f, handleName: f.platformName };
+            if (f) targetUser = { email: f.email, handleName: f.platformName };
         } else {
-            user = await prisma.user.findUnique({ where: { id: userId }, select });
+            targetUser = await prisma.user.findUnique({ where: { id: userId }, select: { email: true, handleName: true } });
         }
 
-        if (!user || !user.email) return res.status(404).json({ message: 'User not found' });
+        if (!targetUser || !targetUser.email) return res.status(404).json({ message: 'User not found' });
 
         let subject = customSubject;
         let body = customBody;
@@ -270,7 +285,7 @@ export const sendIndividualEmail = async (req, res) => {
             const t = await prisma.emailTemplate.findUnique({ where: { id: templateId } });
             if (t) { subject = t.subject; body = t.body; } 
         }
-        await sendEmail(user.email, subject, body);
+        await sendEmail(targetUser.email, subject, body);
         res.json({ message: 'Sent' });
     } catch (e) { res.status(500).json({ message: 'Error' }); }
 };
@@ -319,8 +334,8 @@ export const getAdminChatMessages = async (req, res) => {
 export const searchAllUsers = async (req, res) => {
     const { keyword } = req.query;
     try {
-        const users = await prisma.user.findMany({ where: { OR: [{ email: { contains: keyword } }, { handleName: { contains: keyword } }] }, select: { id: true, email: true, handleName: true, role: true, iconUrl: true } });
-        const florists = await prisma.florist.findMany({ where: { OR: [{ email: { contains: keyword } }, { platformName: { contains: keyword } }] }, select: { id: true, email: true, platformName: true, iconUrl: true } });
+        const users = await prisma.user.findMany({ where: { OR: [{ email: { contains: keyword, mode: 'insensitive' } }, { handleName: { contains: keyword, mode: 'insensitive' } }] }, select: { id: true, email: true, handleName: true, role: true, iconUrl: true } });
+        const florists = await prisma.florist.findMany({ where: { OR: [{ email: { contains: keyword, mode: 'insensitive' } }, { platformName: { contains: keyword, mode: 'insensitive' } }] }, select: { id: true, email: true, platformName: true, iconUrl: true } });
         const formattedFlorists = florists.map(f => ({ id: f.id, email: f.email, handleName: f.platformName, role: 'FLORIST', iconUrl: f.iconUrl }));
         res.json([...users, ...formattedFlorists]);
     } catch (e) { res.status(500).json({ message: 'Error' }); }
@@ -345,16 +360,14 @@ export const getProjectChatLogs = async (req, res) => {
 export const updateProjectVisibility = async (req, res) => {
     const { isVisible } = req.body;
     try {
-        const p = await prisma.project.update({ where: { id: req.params.projectId }, data: { isVisible } });
+        const p = await prisma.project.update({ where: { id: req.params.projectId }, data: { visibility: isVisible ? 'PUBLIC' : 'UNLISTED' } });
         res.json(p);
     } catch (e) { res.status(500).json({ message: 'Error' }); }
 };
 
-// 通報ステータス更新 (レビュー済みなど)
 export const reviewReport = async (req, res) => {
     const { reportId } = req.params;
     try {
-        // ProjectReportと仮定 (type等で分岐が必要なら拡張してください)
         const updated = await prisma.projectReport.update({
             where: { id: reportId },
             data: { status: 'REVIEWED' }
@@ -363,7 +376,6 @@ export const reviewReport = async (req, res) => {
     } catch (e) { res.status(500).json({ message: '更新失敗' }); }
 };
 
-// Venue Admin CRUD
 export const createVenueAdmin = async (req, res) => {
     try { const v = await prisma.venue.create({ data: req.body }); res.status(201).json(v); } catch(e) { res.status(500).json({message:'Error'}); }
 };
@@ -374,7 +386,6 @@ export const deleteVenueAdmin = async (req, res) => {
     try { await prisma.venue.delete({ where: {id:req.params.id} }); res.status(204).send(); } catch(e) { res.status(500).json({message:'Error'}); }
 };
 
-// Event BAN
 export const banEvent = async (req, res) => {
     const { isBanned } = req.body;
     try {
