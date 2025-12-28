@@ -108,21 +108,41 @@ export function AuthProvider({ children }) {
     return setSession(newToken);
   }, [setSession]);
 
+  /**
+   * ログアウト処理
+   * 状態をクリアする前にリダイレクト先を決定し、確実な遷移を行います。
+   */
   const logout = useCallback(() => {
+    // 1. リダイレクト先の決定 (状態を消す前にRoleを確認)
     const currentRole = user?.role;
-    setUser(null);
-    setToken(null);
+    let redirectPath = '/login';
+    
+    if (currentRole === 'FLORIST') {
+      redirectPath = '/florists/login';
+    } else if (currentRole === 'ADMIN') {
+      redirectPath = '/admin/login';
+    } else if (currentRole === 'VENUE') {
+      redirectPath = '/login'; // または会場用ログインがあればそこへ
+    } else {
+      // 一般ユーザーの場合はトップページへ戻すのが最も安全（404回避）
+      redirectPath = '/';
+    }
+
+    // 2. ローカルストレージと状態のクリア
     if (typeof window !== 'undefined') {
       localStorage.removeItem('authToken');
       localStorage.removeItem('flastal-florist');
+      // セッションストレージなど他に使っているものがあればここに追加
     }
+    
+    setUser(null);
+    setToken(null);
 
-    let redirectPath = '/login';
-    if (currentRole === 'FLORIST') redirectPath = '/florists/login';
-    else if (currentRole === 'ADMIN') redirectPath = '/admin/login';
-
+    // 3. ユーザーへの通知
     toast.success('ログアウトしました');
-    router.push(redirectPath);
+
+    // 4. 強制的なリダイレクト (404回避のため replace を使用)
+    router.replace(redirectPath);
   }, [user, router]);
 
   const register = useCallback(async (email, password, handleName) => {
@@ -163,9 +183,6 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider value={contextValue}>
-      {/* Hydration Error (サーバーとクライアントの不一致) を防ぐため、
-          マウントが完了するまで（isLoadingが正確に判定されるまで）の挙動を安定させます。
-      */}
       {children}
     </AuthContext.Provider>
   );
