@@ -4,11 +4,11 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '@/app/contexts/AuthContext';
-// アイコン (Lucide React)
+// アイコン (Lucide React) - ★ Truck を追加
 import { 
   Bell, ChevronDown, User, LogOut, Heart, CheckCircle2, Menu, X, 
   Calendar, MapPin, LayoutDashboard, Settings, Sparkles, Store, ShieldCheck, Briefcase, FileText,
-  UserCheck, ClipboardList, BarChart3, Building2, Package
+  UserCheck, ClipboardList, BarChart3, Building2, Package, Truck
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
@@ -370,7 +370,7 @@ export default function Header() {
                   >
                     <div className="relative w-8 h-8 rounded-full overflow-hidden bg-indigo-50 border border-indigo-100">
                         {user.iconUrl ? (
-                            <Image src={user.iconUrl} alt="User" fill className="object-cover" />
+                            <Image src={user.iconUrl} alt="User Icon" fill className="object-cover" />
                         ) : (
                             <div className="w-full h-full flex items-center justify-center text-indigo-400"><User size={16}/></div>
                         )}
@@ -439,6 +439,7 @@ export default function Header() {
             <button 
                 className="lg:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                aria-label="Toggle menu"
             >
                 {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
@@ -462,7 +463,7 @@ export default function Header() {
                             <Link href={getPrimaryLink} onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-3 mb-4">
                                 <div className="relative w-12 h-12 rounded-full overflow-hidden bg-white border border-slate-200 shadow-sm">
                                     {user.iconUrl ? (
-                                        <Image src={user.iconUrl} alt="User" fill className="object-cover" />
+                                        <Image src={user.iconUrl} alt="User Avatar" fill className="object-cover" />
                                     ) : (
                                         <div className="w-full h-full flex items-center justify-center text-slate-300"><User size={24}/></div>
                                     )}
