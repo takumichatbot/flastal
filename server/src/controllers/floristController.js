@@ -8,11 +8,15 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 // ★★★ 1. お花屋さん検索・取得 ★★★
 // ==========================================
 
-// ★ 追加: お花屋さん自身のプロフィールを返す (404/ぐるぐる解消の鍵)
+/**
+ * ログイン中のお花屋さん自身の情報を取得
+ * 404エラーおよびローディング停止の解決策
+ */
 export const getFloristProfile = async (req, res) => {
     try {
-        const floristId = req.user.id; // authenticateTokenでセットされたID
+        const floristId = req.user.id;
 
+        // Floristテーブルには role カラムがないため、roleを抜いて取得
         const florist = await prisma.florist.findUnique({
             where: { id: floristId },
             include: {
@@ -26,14 +30,14 @@ export const getFloristProfile = async (req, res) => {
             return res.status(404).json({ message: 'お花屋さんの情報が見つかりませんでした。' });
         }
 
-        // パスワード等の機密情報を除外
+        // パスワードやAPIキーなどの機密情報を除外して返却
         const { password, laruBotApiKey, ...safeData } = florist;
         
-        // フロントエンドの期待する構造に合わせる
+        // 統計データなどを統合して返却
         res.status(200).json(safeData);
     } catch (error) {
         console.error('getFloristProfile Error:', error);
-        res.status(500).json({ message: 'サーバー内部エラーが発生しました。' });
+        res.status(500).json({ message: 'プロフィールの取得中にエラーが発生しました。' });
     }
 };
 

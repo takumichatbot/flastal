@@ -8,21 +8,26 @@ const router = express.Router();
 // ★ 最優先ルート (静的パスを一番上に置く)
 // ==========================================
 
-// 1. ログイン中のお花屋さんのプロフィール取得
-// フロントエンドのリクエスト /api/florists/profile に対応
+// ログイン中のお花屋さん自身のプロフィール取得
+// フロントのリクエスト `${API_URL}/api/florists/profile` に対応
 router.get('/profile', authenticateToken, floristController.getFloristProfile);
 
-// 2. お花屋さんダッシュボード用 (profileと同じ関数を流用)
-// フロントエンドのリクエスト /api/florists/dashboard に対応
+// オファー一覧 (dashboardで使用)
+// フロントのリクエスト `${API_URL}/api/florists/offers` に対応
+router.get('/offers', authenticateToken, floristController.getSchedule); // スケジュール関数を流用
+
+// ダッシュボード用データ (profileと同じ情報を返す)
 router.get('/dashboard', authenticateToken, floristController.getFloristProfile);
 
-// ==========================================
-// お花屋さん検索・詳細・AI
-// ==========================================
-router.get('/', floristController.getFlorists);
+// マッチングAI
 router.post('/match-ai', authenticateToken, floristController.matchFloristsByAi);
 
-// 動的パスは必ず最後に置く
+// ==========================================
+// お花屋さん検索・詳細
+// ==========================================
+router.get('/', floristController.getFlorists);
+
+// 個別詳細 (動的パスは必ず静的パスより後に置くこと)
 router.get('/:id', floristController.getFloristById);
 
 // ==========================================
@@ -34,7 +39,6 @@ router.get('/schedule', authenticateToken, floristController.getSchedule);
 // ==========================================
 // ★ オファー・見積もり・出金
 // ==========================================
-router.get('/offers', authenticateToken, floristController.getSchedule); // 仮：必要に応じて適切な関数へ
 router.post('/offers', authenticateToken, floristController.createOffer);
 router.patch('/offers/:offerId', authenticateToken, floristController.respondToOffer);
 router.post('/quotations', authenticateToken, floristController.createQuotation);
