@@ -7,12 +7,8 @@ import { sendDynamicEmail, sendEmail } from '../utils/email.js';
 // ==========================================
 // ★★★ 共通ヘルパー: トークン発行 ★★★
 // ==========================================
-/**
- * JWTトークンを生成します。
- * 全てのユーザー種別で有効期限を7日間に設定し、利便性を向上させます。
- */
 const generateToken = (payload) => {
-    // 頻繁な期限切れを防ぐため、一律7日間(7d)に設定
+    // expiresInを7dに固定し、セッション切れを防ぐ
     return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '7d' });
 };
 
@@ -75,11 +71,9 @@ export const loginUser = async (req, res) => {
         }
 
         let userRole = user.role;
-        // 管理者メールアドレスのハードコード救済判定
         const ADMIN_EMAILS = ["takuminsitou946@gmail.com", "hana87kaori@gmail.com"];
         if (ADMIN_EMAILS.includes(lowerEmail)) {
             userRole = 'ADMIN';
-            console.log(`[ADMIN LOGIN] ${lowerEmail} logged in with ADMIN privileges via User Login.`);
         }
 
         const tokenPayload = {
@@ -87,6 +81,7 @@ export const loginUser = async (req, res) => {
             email: user.email,
             handleName: user.handleName,
             role: userRole,
+            status: 'APPROVED', // 一般ユーザーは常にAPPROVED扱い
             sub: user.id
         };
 
@@ -149,7 +144,18 @@ export const loginFlorist = async (req, res) => {
             return res.status(403).json({ message: 'アカウントが承認されていないか、未認証です。' });
         }
         
-        const token = generateToken({ id: florist.id, email: florist.email, role: 'FLORIST', sub: florist.id });
+        // ★AuthContextが必要とする情報をすべて含める
+        const token = generateToken({ 
+            id: florist.id, 
+            email: florist.email, 
+            role: 'FLORIST', 
+            status: florist.status, 
+            shopName: florist.shopName,
+            handleName: florist.platformName,
+            iconUrl: florist.iconUrl,
+            sub: florist.id 
+        });
+
         const { password: _, ...data } = florist;
         res.status(200).json({ message: 'ログインに成功しました。', token, florist: data });
     } catch (error) {
@@ -193,7 +199,15 @@ export const loginVenue = async (req, res) => {
         if (!venue || !(await bcrypt.compare(password, venue.password))) return res.status(401).json({ message: '認証失敗' });
         if (!venue.isVerified || venue.status !== 'APPROVED') return res.status(403).json({ message: 'アカウントが承認されていません。' });
         
-        const token = generateToken({ id: venue.id, email: venue.email, role: 'VENUE', sub: venue.id });
+        const token = generateToken({ 
+            id: venue.id, 
+            email: venue.email, 
+            role: 'VENUE', 
+            status: venue.status,
+            venueName: venue.venueName,
+            sub: venue.id 
+        });
+
         const { password: _, ...data } = venue;
         res.status(200).json({ message: '成功', token, venue: data });
     } catch (error) { 
@@ -237,7 +251,14 @@ export const loginOrganizer = async (req, res) => {
         if (!org || !(await bcrypt.compare(password, org.password))) return res.status(401).json({ message: '認証失敗' });
         if (!org.isVerified || org.status !== 'APPROVED') return res.status(403).json({ message: '未承認のアカウントです。' });
         
-        const token = generateToken({ id: org.id, email: org.email, role: 'ORGANIZER', sub: org.id });
+        const token = generateToken({ 
+            id: org.id, 
+            email: org.email, 
+            role: 'ORGANIZER', 
+            status: org.status,
+            name: org.name,
+            sub: org.id 
+        });
         res.status(200).json({ message: '成功', token });
     } catch (error) { 
         console.error('Organizer Login Error:', error);
@@ -257,7 +278,6 @@ export const verifyEmail = async (req, res) => {
         let userType = null; 
         let record = null;
 
-        // 各テーブルを横断してトークンを検索
         record = await prisma.user.findFirst({ where: { verificationToken: token } });
         if (record) userType = 'user';
 
@@ -321,7 +341,6 @@ export const forgotPassword = async (req, res) => {
         
         const user = await prisma[modelName].findUnique({ where: { email: email.toLowerCase() } });
         if (user) {
-            // パスワード再設定用トークン（1時間有効）
             const token = jwt.sign({ id: user.id, type: userType }, process.env.JWT_SECRET, { expiresIn: '1h' });
             const resetLink = `${process.env.FRONTEND_URL}/reset-password/${token}`;
             await sendEmail(email, 'パスワード再設定', `<p>パスワード再設定の依頼を受け付けました。</p><a href="${resetLink}">こちらをクリックして再設定してください。</a>`);
@@ -361,12 +380,10 @@ export const loginAdmin = async (req, res) => {
         const { email, password } = req.body;
         const lowerEmail = email.toLowerCase();
         
-        // パスワードが環境変数と一致するか確認
         if (password !== process.env.ADMIN_PASSWORD) {
             return res.status(401).json({ message: '管理者パスワードが違います。' });
         }
 
-        // DBから管理者ユーザー（あなたの指定アドレス）を探す
         const adminUser = await prisma.user.findUnique({
             where: { email: "takuminsitou946@gmail.com" }
         });
@@ -375,12 +392,12 @@ export const loginAdmin = async (req, res) => {
             return res.status(404).json({ message: '指定された管理者アカウントがシステムに存在しません。' });
         }
 
-        // あなたのIDを紐づけたADMINトークンを発行（7日間有効）
         const token = jwt.sign(
             { 
                 id: adminUser.id, 
                 email: adminUser.email, 
                 role: 'ADMIN',
+                status: 'APPROVED',
                 sub: adminUser.id 
             },
             process.env.JWT_SECRET,
