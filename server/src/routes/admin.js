@@ -1,208 +1,69 @@
 import express from 'express';
-import cors from 'cors';
-import Stripe from 'stripe'; 
-import webpush from 'web-push';
-import prisma from './config/prisma.js';
-import { sendEmail } from './utils/email.js';
-import { createNotification } from './utils/notification.js';
+import * as adminController from '../controllers/adminController.js';
+import { authenticateToken, requireAdmin } from '../middleware/auth.js';
 
-// --- ルーティングファイルのインポート ---
-import authRoutes from './routes/auth.js';
-import projectRoutes from './routes/projects.js';
-import userRoutes from './routes/users.js';
-import floristRoutes from './routes/florists.js';
-import venueRoutes from './routes/venues.js';
-import toolRoutes from './routes/tools.js';
-import adminRoutes from './routes/admin.js';
-import paymentRoutes from './routes/payment.js';
-import projectDetailRoutes from './routes/projectDetails.js';
+const router = express.Router();
 
-const app = express();
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+/**
+ * 全ての管理ルートに認証とAdmin権限を強制
+ * ※ app.js で /api/admin にマウントされているため、
+ * ここでの '/' は実質 '/api/admin/' となります。
+ */
+router.use(authenticateToken);
+router.use(requireAdmin);
 
-// ==========================================
-// ★★★ Push通知 (VAPID) 設定 ★★★
-// ==========================================
-if (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
-    webpush.setVapidDetails(
-        'mailto:info@flastal.com',
-        process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
-        process.env.VAPID_PRIVATE_KEY
-    );
-}
+// --- 審査・承認ルート ---
+// 形式A: /api/admin/pending/:type
+router.get('/pending/:type', adminController.getPendingItems);
 
-// ==========================================
-// ★★★ CORS設定 ★★★
-// ==========================================
-const allowedOrigins = [
-    'http://localhost:3000',
-    process.env.FRONTEND_URL,
-    'https://www.flastal.com',
-    'https://flastal.com',
-    'https://flastal-frontend.onrender.com'
-].filter(Boolean);
+// 形式B: /api/admin/:type/pending (フロントエンドの現在の挙動に合わせる)
+router.get('/projects/pending', (req, res) => { req.params.type = 'projects'; adminController.getPendingItems(req, res); });
+router.get('/florists/pending', (req, res) => { req.params.type = 'florists'; adminController.getPendingItems(req, res); });
+router.get('/venues/pending', (req, res) => { req.params.type = 'venues'; adminController.getPendingItems(req, res); });
+router.get('/organizers/pending', (req, res) => { req.params.type = 'organizers'; adminController.getPendingItems(req, res); });
 
-app.use(cors({
-    origin: (origin, callback) => {
-        if (!origin || allowedOrigins.includes(origin)) {
-            callback(null, true);
-        } else {
-            callback(new Error('Not allowed by CORS'));
-        }
-    },
-    credentials: true,
-    methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: [
-        "Content-Type", 
-        "Authorization", 
-        "X-Requested-With", 
-        "Accept", 
-        "Origin",
-        "Cache-Control"
-    ]
-}));
+// 承認実行
+router.post('/approve/:type/:id', adminController.approveItem);
 
-// ==========================================
-// ★★★ ヘルパー関数 (Webhook用) ★★★
-// ==========================================
-const LEVEL_CONFIG = { 'Bronze': 10000, 'Silver': 50000, 'Gold': 100000 };
+// --- システム設定 ---
+router.get('/settings', adminController.getSystemSettings);
+router.patch('/settings', adminController.updateSystemSettings);
 
-async function checkUserLevelAndBadges(tx, userId) {
-    const user = await tx.user.findUnique({ where: { id: userId } });
-    if (!user) return;
+// --- 手数料・売上 ---
+router.get('/commissions', adminController.getCommissions);
+router.get('/florists/:floristId/fee', adminController.getFloristFee);
+router.patch('/florists/:floristId/fee', adminController.updateFloristFee);
 
-    let newLevel = user.supportLevel;
-    let levelChanged = false;
+// --- 出金管理 ---
+router.get('/payouts', adminController.getAdminPayouts);
+router.patch('/payouts/:id', adminController.updateAdminPayoutStatus);
 
-    for (const [levelName, threshold] of Object.entries(LEVEL_CONFIG)) {
-        if (user.totalPledgedAmount >= threshold && 
-           (user.supportLevel === null || LEVEL_CONFIG[user.supportLevel] < threshold)) {
-            newLevel = levelName;
-            levelChanged = true;
-        }
-    }
+// --- メール・テンプレート ---
+router.get('/email-templates', adminController.getEmailTemplates);
+router.post('/email-templates', adminController.saveEmailTemplate);
+router.post('/send-email', adminController.sendIndividualEmail);
 
-    if (levelChanged) {
-        await tx.user.update({
-            where: { id: userId },
-            data: { supportLevel: newLevel },
-        });
-    }
-}
+// --- 通報管理 ---
+router.get('/reports/:type', adminController.getReports);
+router.get('/chat-reports', (req, res) => { req.params.type = 'chat'; adminController.getReports(req, res); });
+router.get('/event-reports', (req, res) => { req.params.type = 'events'; adminController.getReports(req, res); });
+router.patch('/reports/:reportId/review', adminController.reviewReport);
 
-// ==========================================
-// ★★★ Stripe Webhook ★★★
-// ==========================================
-app.post('/api/webhooks/stripe', express.raw({type: 'application/json'}), async (req, res) => {
-    const sig = req.headers['stripe-signature'];
-    const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
-    let event;
-    
-    try {
-        event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
-    } catch (err) {
-        return res.status(400).send(`Webhook Error: ${err.message}`);
-    }
-    
-    const session = event.data.object;
-    
-    if (event.type === 'checkout.session.completed') {
-        const userId = session.client_reference_id;
-        const amount = session.amount_total;
+// --- チャット・ログ ---
+router.post('/chat-rooms', adminController.createAdminChatRoom);
+router.get('/chat-rooms/:roomId/messages', adminController.getAdminChatMessages);
+router.get('/projects/:projectId/chat-logs', adminController.getProjectChatLogs);
 
-        if (session.metadata && session.metadata.isGuestPledge === 'true') {
-            const { projectId, tierId, comment, guestName, guestEmail } = session.metadata;
+// --- ユーザー・企画検索 ---
+router.get('/users/search', adminController.searchAllUsers);
+router.get('/projects/all', adminController.getAllProjectsAdmin);
+router.patch('/projects/:projectId/visibility', adminController.updateProjectVisibility);
 
-            try {
-                await prisma.$transaction(async (tx) => {
-                    const newPledge = await tx.pledge.create({
-                        data: {
-                            amount: amount, 
-                            projectId: projectId,
-                            userId: null,
-                            guestName: guestName,
-                            guestEmail: guestEmail,
-                            comment: comment,
-                            pledgeTierId: tierId !== 'none' ? tierId : null,
-                            stripePaymentIntentId: session.payment_intent
-                        },
-                    });
+// --- 会場・イベント管理 ---
+router.post('/venues', adminController.createVenueAdmin);
+router.patch('/venues/:id', adminController.updateVenueAdmin);
+router.delete('/venues/:id', adminController.deleteVenueAdmin);
+router.patch('/events/:eventId/ban', adminController.banEvent);
+router.delete('/event-reports/:reportId', adminController.dismissEventReport);
 
-                    const updatedProject = await tx.project.update({
-                        where: { id: projectId },
-                        data: { collectedAmount: { increment: amount } },
-                        include: { planner: true }
-                    });
-
-                    await createNotification(
-                        updatedProject.plannerId,
-                        'NEW_PLEDGE',
-                        `ゲストの ${guestName} 様から ${amount.toLocaleString()}円 の支援がありました！`,
-                        projectId,
-                        `/projects/${projectId}`
-                    );
-
-                    if (updatedProject.collectedAmount >= updatedProject.targetAmount && updatedProject.status !== 'SUCCESSFUL') {
-                        await tx.project.update({
-                            where: { id: projectId },
-                            data: { status: 'SUCCESSFUL' },
-                        });
-                        sendEmail(updatedProject.planner.email, '【FLASTAL】目標金額達成のお祝い', `<p>企画「${updatedProject.title}」が目標を達成しました！</p>`);
-                    }
-                });
-            } catch (error) {
-                console.error(`[Webhook Error] Guest pledge failed:`, error);
-            }
-        } 
-        else if (userId) { 
-            const pointsPurchased = parseInt(session.metadata.points) || amount;
-            try {
-                await prisma.$transaction(async (tx) => {
-                    const purchaser = await tx.user.findUnique({ where: { id: userId } });
-                    if (purchaser) {
-                        await tx.user.update({ where: { id: userId }, data: { points: { increment: pointsPurchased } } });
-                        if (!purchaser.hasMadeFirstPurchase && purchaser.referredById) {
-                            await tx.user.update({ where: { id: purchaser.referredById }, data: { points: { increment: 500 } } });
-                            await tx.user.update({ where: { id: userId }, data: { hasMadeFirstPurchase: true } });
-                        }
-                        await checkUserLevelAndBadges(tx, userId);
-                    }
-                });
-            } catch(error) {
-                console.error(`[Webhook Error] Point purchase failed:`, error);
-            }
-        }
-    }
-    res.json({ received: true });
-});
-
-// ==========================================
-// ★★★ 標準ミドルウェア ★★★
-// ==========================================
-app.use(express.json());
-
-app.get('/', (req, res) => {
-    res.send('FLASTAL API Server is running (v2)');
-});
-
-// ==========================================
-// ★★★ ルーティングのマウント ★★★
-// ==========================================
-
-// 注意: フロントエンドが `/api/admin/projects/pending` を叩いている場合、
-// 以下の adminRoutes のマウント位置により `/api/admin/admin/projects/pending` になるのを防ぎます。
-
-app.use('/api', authRoutes);
-app.use('/api', projectRoutes);
-app.use('/api', userRoutes);
-app.use('/api', floristRoutes);
-app.use('/api', venueRoutes);
-app.use('/api/tools', toolRoutes);
-app.use('/api', paymentRoutes);
-app.use('/api', projectDetailRoutes);
-
-// ★ adminRoutes のマウント位置を修正
-// admin.js 内で自らパスを定義しているため、階層の重複に注意します。
-app.use('/api/admin', adminRoutes);
-
-export default app;
+export default router;
