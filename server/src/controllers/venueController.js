@@ -47,10 +47,10 @@ export const addVenueByUser = async (req, res) => {
             data: {
                 venueName, address, accessInfo: regulations,
                 email: `temp_${randomId}@flastal.user`,
-                password: 'temp_password_not_for_login', // ログイン用ではないことを明示
+                password: 'temp_password_not_for_login',
                 isOfficial: false,
                 isStandAllowed: true, isBowlAllowed: true, retrievalRequired: true,
-                addedById: req.user.id // 誰が追加したか記録
+                addedById: req.user.id 
             }
         });
         res.status(201).json(newVenue);
@@ -66,7 +66,6 @@ export const updateVenueProfile = async (req, res) => {
         const venueId = req.params.id || req.user.id;
         const data = req.body;
         
-        // ADMIN か、自分自身の VENUE アカウントである必要がある
         if (req.user.role !== 'ADMIN' && (req.user.role !== 'VENUE' || req.user.id !== venueId)) {
             return res.status(403).json({ message: 'この操作を行う権限がありません。' });
         }
@@ -125,7 +124,8 @@ export const getEvents = async (req, res) => {
             include: { 
                 venue: true,
                 creator: { select: { id: true, handleName: true, iconUrl: true } },
-                lastEditor: { select: { id: true, handleName: true, iconUrl: true } }
+                lastEditor: { select: { id: true, handleName: true, iconUrl: true } },
+                _count: { select: { interests: true } }
             },
             orderBy: { eventDate: 'asc' }
         });
@@ -160,8 +160,8 @@ export const createEvent = async (req, res) => {
             data: { 
                 ...req.body, 
                 eventDate: new Date(req.body.eventDate),
-                creatorId: req.user.id, // 投稿者を記録
-                lastEditorId: req.user.id, // 初期編集者として記録
+                creatorId: req.user.id, 
+                lastEditorId: req.user.id, 
                 sourceType: 'USER'
             } 
         });
@@ -189,7 +189,11 @@ export const updateEvent = async (req, res) => {
             data: {
                 ...req.body,
                 eventDate: req.body.eventDate ? new Date(req.body.eventDate) : undefined,
-                lastEditorId: req.user.id // 最終編集者を更新（アイコン表示用）
+                lastEditorId: req.user.id // ★ 最終編集者を更新
+            },
+            include: {
+                creator: { select: { id: true, handleName: true, iconUrl: true } },
+                lastEditor: { select: { id: true, handleName: true, iconUrl: true } }
             }
         });
         res.json(updated);
@@ -206,7 +210,6 @@ export const deleteEvent = async (req, res) => {
 
         if (!event) return res.status(404).json({ message: 'イベントが見つかりません。' });
 
-        // ADMIN または 投稿者本人のみが削除可能
         if (req.user.role !== 'ADMIN' && event.creatorId !== req.user.id) {
             return res.status(403).json({ message: '削除権限がありません。' });
         }
