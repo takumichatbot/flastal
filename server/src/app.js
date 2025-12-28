@@ -52,7 +52,14 @@ app.use(cors({
     },
     credentials: true,
     methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"]
+    allowedHeaders: [
+        "Content-Type", 
+        "Authorization", 
+        "X-Requested-With", 
+        "Accept", 
+        "Origin",
+        "Cache-Control"
+    ]
 }));
 
 // ==========================================
@@ -181,6 +188,10 @@ app.get('/', (req, res) => {
 // ==========================================
 // ★★★ ルーティングのマウント ★★★
 // ==========================================
+
+// 注意: フロントエンドが `/api/admin/projects/pending` を叩いている場合、
+// 以下の adminRoutes のマウント位置により `/api/admin/admin/projects/pending` になるのを防ぎます。
+
 app.use('/api', authRoutes);
 app.use('/api', projectRoutes);
 app.use('/api', userRoutes);
@@ -189,6 +200,9 @@ app.use('/api', venueRoutes);
 app.use('/api/tools', toolRoutes);
 app.use('/api', paymentRoutes);
 app.use('/api', projectDetailRoutes);
+
+// ★ adminRoutes のマウント位置を修正
+// admin.js 内で自らパスを定義しているため、階層の重複に注意します。
 app.use('/api/admin', adminRoutes);
 
 export default app;
