@@ -7,7 +7,7 @@ import { useAuth } from '@/app/contexts/AuthContext';
 // アイコン (Lucide React)
 import { 
   Bell, ChevronDown, User, LogOut, Heart, CheckCircle2, Menu, X, 
-  Calendar, MapPin, LayoutDashboard, Settings, Sparkles, Store, ShieldCheck
+  Calendar, MapPin, LayoutDashboard, Settings, Sparkles, Store, ShieldCheck, Briefcase
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
@@ -171,9 +171,6 @@ export default function Header() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); 
   const userMenuRef = useRef(null);
 
-  // マウント後に色選択を強制的に適用するためのキー
-  const [pickerKey, setPickerKey] = useState(0);
-
   const unreadCount = useMemo(() => notifications.filter(n => !n.isRead).length, [notifications]);
 
   const fetchNotifications = useCallback(async () => {
@@ -204,7 +201,6 @@ export default function Header() {
   const handleLogout = () => {
     logout();
     setIsUserMenuOpen(false);
-    toast.success('ログアウトしました');
   };
 
   useEffect(() => {
@@ -224,19 +220,40 @@ export default function Header() {
     { href: '/florists', label: 'お花屋さん', icon: <Store size={18}/> },
   ];
 
+  /**
+   * Roleに基づいたメインリンク（Signed in as の遷移先）を取得
+   */
+  const getPrimaryLink = useMemo(() => {
+    if (!user) return '/login';
+    switch (user.role) {
+      case 'ADMIN': return '/admin';
+      case 'FLORIST': return '/florists/dashboard';
+      case 'VENUE': return `/dashboard/${user.id}`;
+      case 'ORGANIZER': return '/organizers/dashboard';
+      default: return '/mypage';
+    }
+  }, [user]);
+
+  /**
+   * Roleに基づいたメニュー項目を生成
+   */
   const userMenuItems = useMemo(() => {
     if (!user) return [];
     const items = [];
-    items.push({ href: '/mypage', label: 'マイページ', icon: <User size={16} /> });
+    
+    // 全Role共通: 基本的なマイページ
+    items.push({ href: '/mypage', label: 'プロフィール設定', icon: <Settings size={16} /> });
+
+    // Role別の専門ダッシュボード
     switch (user.role) {
       case 'ORGANIZER':
-        items.push({ href: '/organizers/dashboard', label: '主催者ダッシュボード', icon: <LayoutDashboard size={16} /> });
+        items.push({ href: '/organizers/dashboard', label: '主催者管理画面', icon: <LayoutDashboard size={16} /> });
         break;
       case 'FLORIST':
-        items.push({ href: '/florists/dashboard', label: '花屋ダッシュボード', icon: <LayoutDashboard size={16} /> });
+        items.push({ href: '/florists/dashboard', label: '受注管理画面', icon: <Briefcase size={16} /> });
         break;
       case 'VENUE':
-        items.push({ href: `/venues/dashboard/${user.id}`, label: '会場ダッシュボード', icon: <LayoutDashboard size={16} /> });
+        items.push({ href: `/dashboard/${user.id}`, label: '会場ダッシュボード', icon: <MapPin size={16} /> });
         break;
       case 'ADMIN':
         items.push({ href: '/admin', label: 'システム管理画面', icon: <ShieldCheck size={16} /> });
@@ -286,7 +303,7 @@ export default function Header() {
           <div className="flex items-center space-x-2 md:space-x-4">
             
             <div className="hidden md:block scale-90">
-                <OshiColorPicker key={pickerKey} />
+                <OshiColorPicker />
             </div>
 
             {user ? (
@@ -322,7 +339,7 @@ export default function Header() {
                             transition={{ duration: 0.2 }}
                             className="absolute right-0 mt-3 w-64 bg-white/95 backdrop-blur-xl border border-white/50 rounded-2xl shadow-2xl shadow-slate-200/50 z-50 overflow-hidden ring-1 ring-slate-100 origin-top-right"
                         >
-                        <div className="px-6 py-4 border-b border-slate-50 bg-slate-50/30">
+                        <Link href={getPrimaryLink} onClick={() => setIsUserMenuOpen(false)} className="block px-6 py-4 border-b border-slate-50 bg-slate-50/30 hover:bg-slate-50 transition-colors">
                             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">Signed in as</p>
                             <p className="text-sm font-bold text-slate-800 truncate">{user.handleName}</p>
                             <div className="mt-1">
@@ -330,7 +347,7 @@ export default function Header() {
                                     {user.role}
                                 </span>
                             </div>
-                        </div>
+                        </Link>
                         <div className="p-2 space-y-1">
                             {userMenuItems.map((item) => (
                                 <Link 
@@ -393,7 +410,7 @@ export default function Header() {
                 <nav className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
                     {user && (
                         <div className="bg-slate-50 p-4 rounded-xl mb-4">
-                            <div className="flex items-center gap-3 mb-4">
+                            <Link href={getPrimaryLink} onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-3 mb-4">
                                 <div className="relative w-12 h-12 rounded-full overflow-hidden bg-white border border-slate-200 shadow-sm">
                                     {user.iconUrl ? (
                                         <Image src={user.iconUrl} alt="User" fill className="object-cover" />
@@ -405,7 +422,7 @@ export default function Header() {
                                     <p className="font-bold text-lg text-slate-800">{user.handleName}</p>
                                     <p className="text-xs text-slate-500 font-bold uppercase tracking-wide">{user.role}</p>
                                 </div>
-                            </div>
+                            </Link>
                             <div className="grid grid-cols-1 gap-2">
                                 {userMenuItems.map((item) => (
                                     <Link 
@@ -460,6 +477,11 @@ export default function Header() {
                             <OshiColorPicker />
                         </div>
                     </div>
+                    {user && (
+                        <button onClick={handleLogout} className="w-full py-4 text-red-500 font-bold border border-red-100 rounded-xl hover:bg-red-50 transition-colors flex items-center justify-center gap-2 mt-4">
+                            <LogOut size={18} /> ログアウト
+                        </button>
+                    )}
                 </nav>
             </motion.div>
         )}
