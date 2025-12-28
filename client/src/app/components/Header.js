@@ -7,7 +7,8 @@ import { useAuth } from '@/app/contexts/AuthContext';
 // アイコン (Lucide React)
 import { 
   Bell, ChevronDown, User, LogOut, Heart, CheckCircle2, Menu, X, 
-  Calendar, MapPin, LayoutDashboard, Settings, Sparkles, Store, ShieldCheck, Briefcase
+  Calendar, MapPin, LayoutDashboard, Settings, Sparkles, Store, ShieldCheck, Briefcase, FileText,
+  UserCheck, ClipboardList, BarChart3, Building2, Package
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
@@ -213,15 +214,51 @@ export default function Header() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const navLinks = [
-    { href: '/projects', label: '企画一覧', icon: <Heart size={18}/> },
-    { href: '/events', label: 'イベント', icon: <Calendar size={18}/> },
-    { href: '/venues', label: '会場', icon: <MapPin size={18}/> },
-    { href: '/florists', label: 'お花屋さん', icon: <Store size={18}/> },
-  ];
+  /**
+   * Roleに基づいたメインナビゲーション
+   */
+  const navLinks = useMemo(() => {
+    const baseLinks = [
+      { href: '/projects', label: '企画一覧', icon: <Heart size={18}/> },
+      { href: '/events', label: 'イベント', icon: <Calendar size={18}/> },
+      { href: '/venues', label: '会場', icon: <MapPin size={18}/> },
+      { href: '/florists', label: 'お花屋さん', icon: <Store size={18}/> },
+    ];
+
+    if (!user) return baseLinks;
+
+    switch (user.role) {
+      case 'FLORIST':
+        return [
+          { href: '/florists/dashboard', label: '受注管理', icon: <ClipboardList size={18}/> },
+          { href: '/florists/offers', label: '届いたオファー', icon: <FileText size={18}/> },
+          { href: '/venues', label: '配送先会場', icon: <MapPin size={18}/> },
+        ];
+      case 'VENUE':
+        return [
+          { href: `/dashboard/${user.id}`, label: '予約状況', icon: <Calendar size={18}/> },
+          { href: `/venues/${user.id}/logistics`, label: '搬入設定', icon: <Truck size={18}/> },
+          { href: '/projects', label: '実施企画一覧', icon: <Heart size={18}/> },
+        ];
+      case 'ORGANIZER':
+        return [
+          { href: '/organizers/dashboard', label: '主催企画', icon: <LayoutDashboard size={18}/> },
+          { href: '/projects/create', label: '企画を立てる', icon: <Sparkles size={18}/> },
+          { href: '/florists', label: '花屋を探す', icon: <Store size={18}/> },
+        ];
+      case 'ADMIN':
+        return [
+          { href: '/admin', label: 'ダッシュボード', icon: <BarChart3 size={18}/> },
+          { href: '/admin/project-approval', label: '企画審査', icon: <UserCheck size={18}/> },
+          { href: '/admin/settings', label: 'システム設定', icon: <Settings size={18}/> },
+        ];
+      default:
+        return baseLinks;
+    }
+  }, [user]);
 
   /**
-   * Roleに基づいたメインリンク（Signed in as の遷移先）を取得
+   * Roleに基づいたメインリンク（Signed in as の遷移先）
    */
   const getPrimaryLink = useMemo(() => {
     if (!user) return '/login';
@@ -235,36 +272,43 @@ export default function Header() {
   }, [user]);
 
   /**
-   * Roleに基づいたメニュー項目を生成
-   * 各Roleに合わせたプロフィール設定画面へのパスを割り当てます
+   * Roleに基づいたメニュー項目（Dropdown内）
    */
   const userMenuItems = useMemo(() => {
     if (!user) return [];
-    const items = [];
     
-    // Role別の専門ダッシュボード
     switch (user.role) {
-      case 'ORGANIZER':
-        items.push({ href: '/organizers/dashboard', label: '主催者管理画面', icon: <LayoutDashboard size={16} /> });
-        items.push({ href: '/organizers/profile', label: '主催者プロフィール', icon: <Settings size={16} /> });
-        break;
-      case 'FLORIST':
-        items.push({ href: '/florists/dashboard', label: '受注管理画面', icon: <Briefcase size={16} /> });
-        items.push({ href: '/florists/profile', label: '花屋プロフィール', icon: <Settings size={16} /> });
-        break;
-      case 'VENUE':
-        items.push({ href: `/dashboard/${user.id}`, label: '会場ダッシュボード', icon: <MapPin size={16} /> });
-        items.push({ href: `/venues/${user.id}/edit`, label: '会場レギュレーション設定', icon: <Settings size={16} /> });
-        break;
       case 'ADMIN':
-        items.push({ href: '/admin', label: 'システム管理画面', icon: <ShieldCheck size={16} /> });
-        items.push({ href: '/admin/settings', label: 'システム設定', icon: <Settings size={16} /> });
-        break;
-      default:
-        items.push({ href: '/mypage', label: 'マイページ', icon: <LayoutDashboard size={16} /> });
-        items.push({ href: '/mypage/settings', label: 'プロフィール設定', icon: <Settings size={16} /> });
+        return [
+          { href: '/admin', label: '管理ホーム', icon: <ShieldCheck size={16} /> },
+          { href: '/admin/email-templates', label: 'メール設定', icon: <FileText size={16} /> },
+          { href: '/admin/settings', label: 'システム設定', icon: <Settings size={16} /> },
+        ];
+      case 'FLORIST':
+        return [
+          { href: '/florists/dashboard', label: '受注管理画面', icon: <Briefcase size={16} /> },
+          { href: '/florists/profile', label: '店舗プロフィール', icon: <Store size={16} /> },
+          { href: '/florists/payouts', label: '売上・出金', icon: <BarChart3 size={16} /> },
+        ];
+      case 'VENUE':
+        return [
+          { href: `/dashboard/${user.id}`, label: '会場ダッシュボード', icon: <LayoutDashboard size={16} /> },
+          { href: `/venues/${user.id}/edit`, label: 'レギュレーション設定', icon: <Building2 size={16} /> },
+          { href: `/venues/${user.id}/logistics`, label: '搬入・物流設定', icon: <Package size={16} /> },
+        ];
+      case 'ORGANIZER':
+        return [
+          { href: '/organizers/dashboard', label: '企画管理ホーム', icon: <LayoutDashboard size={16} /> },
+          { href: '/organizers/profile', label: '主催者情報設定', icon: <User size={16} /> },
+          { href: '/organizers/messages', label: '参加者メッセージ', icon: <Bell size={16} /> },
+        ];
+      default: // FAN / USER
+        return [
+          { href: '/mypage', label: 'マイページ', icon: <LayoutDashboard size={16} /> },
+          { href: '/mypage/pledges', label: '支援履歴', icon: <Heart size={16} /> },
+          { href: '/mypage/settings', label: 'プロフィール設定', icon: <Settings size={16} /> },
+        ];
     }
-    return items;
   }, [user]);
 
   return (
@@ -289,7 +333,7 @@ export default function Header() {
               </span>
             </Link>
 
-            {/* Desktop Nav */}
+            {/* Desktop Nav (Role-based) */}
             <nav className="hidden lg:flex items-center space-x-1">
               {navLinks.map((link) => (
                 <Link 
@@ -297,7 +341,7 @@ export default function Header() {
                   href={link.href}
                   className="px-4 py-2 rounded-full text-sm font-bold text-slate-500 hover:text-slate-800 hover:bg-slate-50 transition-all flex items-center gap-2 group"
                 >
-                  <span className="text-slate-400 group-hover:text-pink-400 transition-colors">{link.icon}</span>
+                  <span className="text-slate-400 group-hover:text-indigo-400 transition-colors">{link.icon}</span>
                   {link.label}
                 </Link>
               ))}
@@ -348,7 +392,7 @@ export default function Header() {
                             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">Signed in as</p>
                             <p className="text-sm font-bold text-slate-800 truncate">{user.handleName}</p>
                             <div className="mt-1">
-                                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-100 text-indigo-600 border border-indigo-200 inline-block">
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-100 text-indigo-600 border border-indigo-200 inline-block uppercase">
                                     {user.role}
                                 </span>
                             </div>
@@ -402,7 +446,7 @@ export default function Header() {
         </div>
       </div>
 
-      {/* Mobile Menu Drawer */}
+      {/* Mobile Menu Drawer (Role-based) */}
       <AnimatePresence>
         {isMobileMenuOpen && (
             <motion.div
