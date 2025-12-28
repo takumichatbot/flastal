@@ -8,6 +8,32 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 // ★★★ 1. お花屋さん検索・取得 ★★★
 // ==========================================
 
+// ★ 追加: ログイン中のお花屋さん自身のプロフィール取得
+export const getFloristProfile = async (req, res) => {
+    try {
+        const floristId = req.user.id;
+        const florist = await prisma.florist.findUnique({
+            where: { id: floristId },
+            include: {
+                _count: {
+                    select: { offers: true, reviews: true }
+                }
+            }
+        });
+
+        if (!florist) {
+            return res.status(404).json({ message: 'お花屋さんの情報が見つかりませんでした。' });
+        }
+
+        // 機密情報の除外
+        const { password, laruBotApiKey, ...safeData } = florist;
+        res.status(200).json(safeData);
+    } catch (error) {
+        console.error('getFloristProfile Error:', error);
+        res.status(500).json({ message: 'プロフィールの取得中にエラーが発生しました。' });
+    }
+};
+
 export const getFlorists = async (req, res) => {
     try {
         const { keyword, prefecture, rush, tag } = req.query;
@@ -34,7 +60,7 @@ export const getFlorists = async (req, res) => {
             select: {
                 id: true, platformName: true, portfolio: true, address: true,
                 iconUrl: true, portfolioImages: true, specialties: true, acceptsRushOrders: true,
-                _count: { select: { reviews: true } } // レビュー件数を一括取得
+                _count: { select: { reviews: true } }
             },
             orderBy: { createdAt: 'desc' },
         });
@@ -42,7 +68,7 @@ export const getFlorists = async (req, res) => {
         const floristsWithRating = florists.map(florist => ({
             ...florist,
             reviewCount: florist._count.reviews,
-            averageRating: 0, // 必要に応じて集計ロジックを追加可能
+            averageRating: 0,
             _count: undefined
         }));
 
@@ -65,7 +91,6 @@ export const getFloristById = async (req, res) => {
             orderBy: { createdAt: 'desc' }
         });
 
-        // 機密情報の除外
         const { password, laruBotApiKey, ...publicData } = florist;
         publicData.appealPosts = appealPosts;
         res.status(200).json(publicData);
