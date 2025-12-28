@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { useAuth } from '@/app/contexts/AuthContext';
 import { 
   FiCalendar, FiMapPin, FiSearch, FiAlertTriangle, FiCheckCircle, 
-  FiPlus, FiCpu, FiLink, FiX, FiInfo, FiFilter, FiHeart, FiLoader 
+  FiPlus, FiCpu, FiLink, FiX, FiInfo, FiFilter, FiHeart, FiLoader,
+  FiEdit3, FiTrash2, FiUser
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
@@ -35,6 +36,7 @@ export default function EventListClient() {
   // モーダル状態
   const [showAiModal, setShowAiModal] = useState(false);
   const [showManualModal, setShowManualModal] = useState(false);
+  const [editTargetEvent, setEditTargetEvent] = useState(null); // 編集用
   const [reportTargetId, setReportTargetId] = useState(null);
 
   // データ取得関数
@@ -74,19 +76,38 @@ export default function EventListClient() {
     fetchEvents();
   };
 
+  // イベント削除
+  const handleDeleteEvent = async (e, eventId) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!confirm('このイベント情報を削除しますか？')) return;
+
+    try {
+      const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+      const res = await fetch(`${API_URL}/api/events/${eventId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        toast.success('イベントを削除しました');
+        fetchEvents();
+      } else {
+        throw new Error('削除に失敗しました');
+      }
+    } catch (error) {
+      toast.error(error.message);
+    }
+  };
+
   // 興味ありボタン
   const handleInterest = async (e, eventId) => {
     e.preventDefault(); 
-    e.stopPropagation(); // 親リンクへの伝播防止
+    e.stopPropagation(); 
     if (!isAuthenticated) return toast.error('ログインが必要です');
 
-    // 楽観的UI更新
     setEvents(prev => prev.map(ev => {
       if (ev.id === eventId) {
-        // 注: APIレスポンスに合わせてデータ構造を調整してください
-        // ここでは interests 配列に自分のIDが含まれているかで判定するロジックを想定
         const isInterested = ev.interests && ev.interests.some(i => i.userId === user.id);
-        
         const newCount = isInterested ? (ev._count.interests - 1) : (ev._count.interests + 1);
         const newInterests = isInterested 
             ? ev.interests.filter(i => i.userId !== user.id)
@@ -111,7 +132,7 @@ export default function EventListClient() {
     } catch (error) {
       console.error(error);
       toast.error('操作に失敗しました');
-      fetchEvents(); // ロールバック
+      fetchEvents(); 
     }
   };
 
@@ -136,7 +157,6 @@ export default function EventListClient() {
 
             {/* フィルター＆検索 */}
             <div className="flex flex-wrap gap-2 w-full lg:w-auto items-center justify-end">
-                {/* 検索 */}
                 <div className="relative flex-grow lg:flex-grow-0 w-full sm:w-auto min-w-[200px]">
                     <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"/>
                     <input 
@@ -148,7 +168,6 @@ export default function EventListClient() {
                     />
                 </div>
                 
-                {/* ジャンル */}
                 <div className="relative">
                     <select 
                         value={selectedGenre}
@@ -160,7 +179,6 @@ export default function EventListClient() {
                     <FiFilter className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={14}/>
                 </div>
 
-                {/* 並び替え */}
                 <select 
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value)}
@@ -212,54 +230,63 @@ export default function EventListClient() {
             </div>
             <p className="text-gray-600 font-bold text-lg mb-2">イベントが見つかりませんでした</p>
             <p className="text-sm text-gray-400 mb-6">条件を変更するか、新しいイベントを追加してください。</p>
-            {isAuthenticated && (
-                <button 
-                    onClick={() => setShowAiModal(true)} 
-                    className="text-indigo-600 font-bold hover:underline flex items-center"
-                >
-                    <FiCpu className="mr-1"/> AI解析でイベントを追加する
-                </button>
-            )}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-fadeIn">
             {events.map(event => {
                 const isInterested = user && event.interests?.some(i => i.userId === user.id);
-                // ジャンルに応じたグラデーションを取得
+                const isCreator = user && event.creatorId === user.id;
+                const isAdmin = user && user.role === 'ADMIN';
                 const genreColor = GENRES.find(g => g.id === event.genre)?.color || 'from-gray-400 to-slate-500';
 
                 return (
                   <div key={event.id} className="group bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-xl transition-all hover:-translate-y-1 flex flex-col h-full relative">
                     
+                    {/* 作成者・編集者アイコン (承認欲求セクション) */}
+                    {(event.creator || event.lastEditor) && (
+                      <div className="absolute top-2 right-2 z-20 flex -space-x-2">
+                         {event.creator && (
+                           <div className="relative group/user" title={`投稿者: ${event.creator.handleName}`}>
+                              {event.creator.iconUrl ? (
+                                <img src={event.creator.iconUrl} alt="creator" className="w-8 h-8 rounded-full border-2 border-white shadow-sm object-cover" />
+                              ) : (
+                                <div className="w-8 h-8 rounded-full border-2 border-white bg-indigo-100 text-indigo-500 flex items-center justify-center shadow-sm">
+                                  <FiUser size={14} />
+                                </div>
+                              )}
+                              <span className="absolute -bottom-8 right-0 bg-gray-800 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover/user:opacity-100 whitespace-nowrap transition-opacity">
+                                投稿者: {event.creator.handleName}
+                              </span>
+                           </div>
+                         )}
+                         {event.lastEditor && event.lastEditorId !== event.creatorId && (
+                           <div className="relative group/user" title={`更新者: ${event.lastEditor.handleName}`}>
+                              {event.lastEditor.iconUrl ? (
+                                <img src={event.lastEditor.iconUrl} alt="editor" className="w-8 h-8 rounded-full border-2 border-white shadow-sm object-cover" />
+                              ) : (
+                                <div className="w-8 h-8 rounded-full border-2 border-white bg-emerald-100 text-emerald-500 flex items-center justify-center shadow-sm">
+                                  <FiEdit3 size={14} />
+                                </div>
+                              )}
+                              <span className="absolute -bottom-8 right-0 bg-gray-800 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover/user:opacity-100 whitespace-nowrap transition-opacity">
+                                更新者: {event.lastEditor.handleName}
+                              </span>
+                           </div>
+                         )}
+                      </div>
+                    )}
+
                     <Link href={`/events/${event.id}`} className="flex-grow flex flex-col">
-                        {/* サムネイル */}
                         <div className={`h-40 flex items-center justify-center relative bg-gradient-to-r ${genreColor} transition-all`}>
-                            
-                            {/* ジャンルバッジ */}
                             <div className="absolute top-3 left-3 bg-black/30 backdrop-blur-md text-white text-[10px] font-bold px-2.5 py-1 rounded-full border border-white/20">
                                 {GENRES.find(g => g.id === event.genre)?.label || event.genre}
                             </div>
-
-                            {/* 中央アイコン */}
                             <span className="text-6xl filter drop-shadow-lg opacity-90 transform group-hover:scale-110 transition-transform duration-500">
                                 {event.sourceType === 'AI' ? '🤖' : event.sourceType === 'USER' ? '👤' : '🎤'}
                             </span>
-                            
-                            {/* 興味あり数バッジ */}
                             {(event._count?.interests > 0) && (
                                 <div className="absolute bottom-3 right-3 flex items-center bg-white/90 backdrop-blur px-2.5 py-1 rounded-full text-xs font-bold text-pink-600 shadow-sm">
                                     <FiHeart className="mr-1 fill-pink-600"/> {event._count.interests}
-                                </div>
-                            )}
-
-                            {/* フラスタOK/NGバッジ (公式のみ) */}
-                            {event.sourceType === 'OFFICIAL' && (
-                                <div className="absolute bottom-3 left-3">
-                                    {event.isStandAllowed ? (
-                                        <span className="bg-green-500/90 text-white text-[10px] font-bold px-2 py-1 rounded-full shadow flex items-center backdrop-blur-sm border border-green-400"><FiCheckCircle className="mr-1"/> スタンドOK</span>
-                                    ) : (
-                                        <span className="bg-red-500/90 text-white text-[10px] font-bold px-2 py-1 rounded-full shadow flex items-center backdrop-blur-sm border border-red-400"><FiAlertTriangle className="mr-1"/> スタンドNG</span>
-                                    )}
                                 </div>
                             )}
                         </div>
@@ -291,34 +318,53 @@ export default function EventListClient() {
                     </Link>
 
                     {/* アクションフッター */}
-                    <div className="px-5 pb-5 pt-0 flex justify-between items-center">
-                        <button 
-                            onClick={(e) => handleInterest(e, event.id)}
-                            className={`flex items-center text-xs font-bold px-4 py-2 rounded-full transition-all border shadow-sm active:scale-95 ${
-                                isInterested 
-                                ? 'bg-pink-50 border-pink-200 text-pink-600' 
-                                : 'bg-white border-gray-200 text-gray-500 hover:bg-pink-50 hover:text-pink-500 hover:border-pink-200'
-                            }`}
-                        >
-                            <FiHeart className={`mr-1.5 ${isInterested ? 'fill-pink-600' : ''}`}/>
-                            {isInterested ? '気になる!' : '気になる'}
-                        </button>
-
-                        <div className="flex gap-3 text-xs text-gray-400 font-medium">
-                            {event.sourceUrl && (
-                                <a href={event.sourceUrl} target="_blank" rel="noreferrer" className="hover:text-blue-500 flex items-center hover:underline">
-                                    <FiLink className="mr-1"/>元記事
-                                </a>
-                            )}
+                    <div className="px-5 pb-5 pt-0 flex flex-col gap-3">
+                        <div className="flex justify-between items-center">
                             <button 
-                                onClick={() => isAuthenticated ? setReportTargetId(event.id) : toast.error('ログインが必要です')}
-                                className="hover:text-red-500 flex items-center hover:underline"
+                                onClick={(e) => handleInterest(e, event.id)}
+                                className={`flex items-center text-xs font-bold px-4 py-2 rounded-full transition-all border shadow-sm active:scale-95 ${
+                                    isInterested 
+                                    ? 'bg-pink-50 border-pink-200 text-pink-600' 
+                                    : 'bg-white border-gray-200 text-gray-500 hover:bg-pink-50 hover:text-pink-500 hover:border-pink-200'
+                                }`}
                             >
-                                <FiAlertTriangle className="mr-1"/>通報
+                                <FiHeart className={`mr-1.5 ${isInterested ? 'fill-pink-600' : ''}`}/>
+                                {isInterested ? '気になる!' : '気になる'}
                             </button>
-                        </div>
-                    </div>
 
+                            <div className="flex gap-3 text-xs text-gray-400 font-medium">
+                                {event.sourceUrl && (
+                                    <a href={event.sourceUrl} target="_blank" rel="noreferrer" className="hover:text-blue-500 flex items-center hover:underline">
+                                        <FiLink className="mr-1"/>元記事
+                                    </a>
+                                )}
+                                <button 
+                                    onClick={() => isAuthenticated ? setReportTargetId(event.id) : toast.error('ログインが必要です')}
+                                    className="hover:text-red-500 flex items-center hover:underline"
+                                >
+                                    <FiAlertTriangle className="mr-1"/>通報
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* 編集・削除ボタン (投稿者または管理者のみ) */}
+                        {(isCreator || isAdmin) && (
+                          <div className="flex gap-2 pt-2 border-t border-gray-100">
+                             <button 
+                               onClick={(e) => { e.preventDefault(); setEditTargetEvent(event); }}
+                               className="flex-grow flex items-center justify-center py-2 bg-indigo-50 text-indigo-600 rounded-lg text-xs font-bold hover:bg-indigo-100 transition-colors"
+                             >
+                                <FiEdit3 className="mr-1"/> 編集
+                             </button>
+                             <button 
+                               onClick={(e) => handleDeleteEvent(e, event.id)}
+                               className="flex items-center justify-center px-3 py-2 bg-red-50 text-red-500 rounded-lg text-xs font-bold hover:bg-red-100 transition-colors"
+                             >
+                                <FiTrash2 />
+                             </button>
+                          </div>
+                        )}
+                    </div>
                   </div>
                 );
             })}
@@ -329,6 +375,13 @@ export default function EventListClient() {
       {/* モーダルコンポーネント */}
       {showAiModal && <AiAddModal onClose={() => setShowAiModal(false)} onAdded={handleEventAdded} />}
       {showManualModal && <ManualAddModal onClose={() => setShowManualModal(false)} onAdded={handleEventAdded} />}
+      {editTargetEvent && (
+        <ManualAddModal 
+          editData={editTargetEvent} 
+          onClose={() => setEditTargetEvent(null)} 
+          onAdded={handleEventAdded} 
+        />
+      )}
       {reportTargetId && <ReportModal eventId={reportTargetId} onClose={() => setReportTargetId(null)} />}
 
     </div>
@@ -359,7 +412,6 @@ function AiAddModal({ onClose, onAdded }) {
       if (!res.ok) throw new Error('解析に失敗しました');
       
       const data = await res.json();
-      // data.event が返ってくることを想定
       const newEvent = data.event || data; 
       
       toast.success(`「${newEvent.title || 'イベント'}」を追加しました！`, { id: toastId });
@@ -432,33 +484,60 @@ function AiAddModal({ onClose, onAdded }) {
 }
 
 // ----------------------------------------------
-// サブコンポーネント: 手動追加モーダル
+// サブコンポーネント: 手動追加・編集モーダル
 // ----------------------------------------------
-function ManualAddModal({ onClose, onAdded }) {
-  const [formData, setFormData] = useState({ title: '', eventDate: '', description: '', sourceUrl: '', genre: 'OTHER' });
+function ManualAddModal({ onClose, onAdded, editData = null }) {
+  const [formData, setFormData] = useState({ 
+    title: '', 
+    eventDate: '', 
+    description: '', 
+    sourceUrl: '', 
+    genre: 'OTHER' 
+  });
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // 編集モードの場合の初期化
+  useEffect(() => {
+    if (editData) {
+      // 日時をdatetime-local形式に変換
+      const d = new Date(editData.eventDate);
+      const formattedDate = d.toISOString().slice(0, 16);
+      
+      setFormData({
+        title: editData.title || '',
+        eventDate: formattedDate,
+        description: editData.description || '',
+        sourceUrl: editData.sourceUrl || '',
+        genre: editData.genre || 'OTHER'
+      });
+    }
+  }, [editData]);
+
   const isFormValid = formData.title.trim() !== '' && formData.eventDate !== '';
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!isFormValid) return;
     setIsSubmitting(true);
-    const toastId = toast.loading('登録中...');
+    const toastId = toast.loading(editData ? '更新中...' : '登録中...');
     
     try {
       const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
-      const res = await fetch(`${API_URL}/api/events/user-submit`, {
-        method: 'POST',
+      const url = editData ? `${API_URL}/api/events/${editData.id}` : `${API_URL}/api/events/user-submit`;
+      const method = editData ? 'PATCH' : 'POST';
+
+      const res = await fetch(url, {
+        method: method,
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(formData)
       });
       
       if (res.ok) {
-        toast.success('イベントを登録しました！', { id: toastId });
+        toast.success(editData ? '更新しました！' : 'イベントを登録しました！', { id: toastId });
         onAdded();
         onClose();
       } else {
-        throw new Error('登録失敗');
+        throw new Error('処理に失敗しました');
       }
     } catch (e) { 
         toast.error('エラーが発生しました', { id: toastId }); 
@@ -473,10 +552,10 @@ function ManualAddModal({ onClose, onAdded }) {
         <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 p-2 rounded-full hover:bg-gray-100 transition-colors"><FiX size={24}/></button>
         
         <div className="flex items-center gap-3 mb-6">
-            <div className="p-3 bg-gray-100 text-gray-600 rounded-full">
-                <FiPlus size={24}/>
+            <div className={`p-3 rounded-full ${editData ? 'bg-indigo-100 text-indigo-600' : 'bg-gray-100 text-gray-600'}`}>
+                {editData ? <FiEdit3 size={24}/> : <FiPlus size={24}/>}
             </div>
-            <h3 className="text-xl font-bold text-gray-800">手動でイベントを追加</h3>
+            <h3 className="text-xl font-bold text-gray-800">{editData ? 'イベント情報を編集' : '手動でイベントを追加'}</h3>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
@@ -514,7 +593,7 @@ function ManualAddModal({ onClose, onAdded }) {
             <button type="button" onClick={onClose} className="px-6 py-3 text-gray-600 hover:bg-gray-100 rounded-xl font-bold text-sm transition-colors">キャンセル</button>
             <button type="submit" disabled={isSubmitting || !isFormValid} 
                 className={`px-8 py-3 font-bold rounded-xl transition-all shadow-md text-sm ${isSubmitting || !isFormValid ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-gray-900 text-white hover:bg-gray-800 hover:shadow-lg'}`}>
-                {isSubmitting ? '登録中...' : '登録する'}
+                {isSubmitting ? '処理中...' : (editData ? '更新する' : '登録する')}
             </button>
           </div>
         </form>

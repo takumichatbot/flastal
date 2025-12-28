@@ -26,15 +26,10 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isMounted, setIsMounted] = useState(false); // ★マウント状態を追加
+  const [isMounted, setIsMounted] = useState(false);
   
   const router = useRouter();
   const pathname = usePathname();
-
-  // マウント確認
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
 
   const parseUserFromToken = useCallback((rawToken) => {
     if (!rawToken || rawToken === 'null' || rawToken === 'undefined') return null;
@@ -65,6 +60,7 @@ export function AuthProvider({ children }) {
         _token: cleanToken 
       };
     } catch (error) {
+      console.error("Auth: Token decode failed", error);
       return null;
     }
   }, []);
@@ -90,14 +86,20 @@ export function AuthProvider({ children }) {
   }, [parseUserFromToken]);
 
   useEffect(() => {
+    setIsMounted(true);
     const initAuth = () => {
-      if (typeof window !== 'undefined') {
-        const storedToken = localStorage.getItem('authToken');
-        if (storedToken) {
-          setSession(storedToken);
+      try {
+        if (typeof window !== 'undefined') {
+          const storedToken = localStorage.getItem('authToken');
+          if (storedToken) {
+            setSession(storedToken);
+          }
         }
+      } catch (e) {
+        console.error("Auth: Initialization failed", e);
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     };
     initAuth();
   }, [setSession]);
@@ -138,7 +140,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   const updateUser = useCallback((newUserData) => {
-    setUser(prev => ({ ...prev, ...newUserData }));
+    setUser(prev => (prev ? { ...prev, ...newUserData } : null));
   }, []);
 
   const contextValue = useMemo(() => {
@@ -161,9 +163,9 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider value={contextValue}>
-      {/* ★重要: マウントされるまでは children を隠すことでビルドエラーを回避する手法もありますが、
-          まずは Suspense ラップの効果を最大化するため、そのまま children を返します。
-          もしエラーが続く場合は {isMounted ? children : null} に切り替えます */}
+      {/* Hydration Error (サーバーとクライアントの不一致) を防ぐため、
+          マウントが完了するまで（isLoadingが正確に判定されるまで）の挙動を安定させます。
+      */}
       {children}
     </AuthContext.Provider>
   );

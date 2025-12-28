@@ -157,7 +157,7 @@ const SectionHeader = ({ en, ja, desc, color = "pink" }) => {
   );
 };
 
-const KawaiiButton = ({ children, variant = "primary", icon: Icon, className, onClick }) => {
+const KawaiiButton = ({ children, variant = "primary", icon: Icon, className, onClick, ariaLabel }) => {
   const base = "relative px-8 py-4 rounded-full font-bold text-lg shadow-lg transition-all overflow-hidden group flex items-center justify-center gap-2 active:scale-95";
   const styles = {
     primary: "bg-gradient-to-r from-pink-400 via-rose-400 to-pink-500 text-white shadow-pink-200 hover:shadow-pink-300 hover:scale-105",
@@ -166,8 +166,14 @@ const KawaiiButton = ({ children, variant = "primary", icon: Icon, className, on
   };
 
   return (
-    <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className={cn(base, styles[variant], className)} onClick={onClick}>
-      {Icon && <Icon size={20} className="transition-transform group-hover:rotate-12" />}
+    <motion.button 
+      whileHover={{ scale: 1.05 }} 
+      whileTap={{ scale: 0.95 }} 
+      className={cn(base, styles[variant], className)} 
+      onClick={onClick}
+      aria-label={ariaLabel || (typeof children === 'string' ? children : 'button')}
+    >
+      {Icon && <Icon size={20} className="transition-transform group-hover:rotate-12" aria-hidden="true" />}
       <span className="relative z-10">{children}</span>
       {variant === 'primary' && <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:animate-shine" />}
     </motion.button>
@@ -207,8 +213,12 @@ const HeroSection = () => (
         </Reveal>
         <Reveal delay={0.3}>
           <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
-            <Link href="/projects/create" className="w-full sm:w-auto"><KawaiiButton variant="primary" icon={Sparkles} className="w-full">無料で企画を立てる</KawaiiButton></Link>
-            <Link href="/projects" className="w-full sm:w-auto"><KawaiiButton variant="secondary" icon={Search} className="w-full">企画を探す</KawaiiButton></Link>
+            <Link href="/projects/create" className="w-full sm:w-auto" aria-label="無料でフラスタ企画を立てる">
+              <KawaiiButton variant="primary" icon={Sparkles} className="w-full">無料で企画を立てる</KawaiiButton>
+            </Link>
+            <Link href="/projects" className="w-full sm:w-auto" aria-label="実施中のフラスタ企画を探す">
+              <KawaiiButton variant="secondary" icon={Search} className="w-full">企画を探す</KawaiiButton>
+            </Link>
           </div>
         </Reveal>
       </div>
@@ -217,7 +227,7 @@ const HeroSection = () => (
         <TiltCard>
           <motion.div initial={{ rotateY: 20, opacity: 0 }} animate={{ rotateY: -5, opacity: 1 }} transition={{ duration: 1.2 }} className="bg-white rounded-[40px] shadow-2xl border-4 border-white overflow-hidden">
              <div className="h-80 bg-slate-200 relative overflow-hidden">
-               <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1501004318641-b39e6451bec6?q=80&w=1000&auto=format&fit=crop')] bg-cover bg-center" />
+               <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1501004318641-b39e6451bec6?q=80&w=1000&auto=format&fit=crop')] bg-cover bg-center" role="img" aria-label="フラスタのイメージ画像" />
                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
                <div className="absolute bottom-6 left-6 text-white">
                  <span className="bg-pink-500 px-2 py-0.5 rounded text-[10px] font-bold mb-2 inline-block uppercase">Now Funding</span>
@@ -227,7 +237,7 @@ const HeroSection = () => (
              <div className="p-6">
                <div className="flex justify-between items-end mb-4"><span className="text-2xl font-black text-slate-800">¥125,000</span><span className="text-pink-500 font-bold text-sm bg-pink-50 px-2 py-1 rounded">125% 達成!</span></div>
                <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden mb-4"><motion.div initial={{ width: 0 }} animate={{ width: "100%" }} transition={{ duration: 2, delay: 0.5 }} className="h-full bg-gradient-to-r from-pink-400 to-rose-500" /></div>
-               <div className="flex justify-between text-[10px] text-slate-400 font-bold uppercase tracking-widest"><span><Users size={12} className="inline mr-1"/> 48 Supporters</span><span><Calendar size={12} className="inline mr-1"/> 5 Days Left</span></div>
+               <div className="flex justify-between text-[10px] text-slate-400 font-bold uppercase tracking-widest"><span><Users size={12} className="inline mr-1" aria-hidden="true"/> 48 Supporters</span><span><Calendar size={12} className="inline mr-1" aria-hidden="true"/> 5 Days Left</span></div>
              </div>
           </motion.div>
         </TiltCard>
@@ -245,7 +255,7 @@ const TickerSection = () => {
           <div key={i} className="flex gap-12">
             {genres.map((g, j) => (
               <span key={j} className="text-lg font-bold text-slate-300 flex items-center gap-2">
-                <Star size={14} className="text-yellow-400 fill-current" />
+                <Star size={14} className="text-yellow-400 fill-current" aria-hidden="true" />
                 {g}
               </span>
             ))}
@@ -274,7 +284,7 @@ const CultureSection = () => {
               <Reveal key={i} delay={i * 0.1}>
                 <TiltCard glowColor="pink">
                   <div className="bg-slate-50 rounded-[30px] p-8 text-center border border-slate-100 h-full flex flex-col items-center group min-h-[400px]">
-                    <div className="text-6xl mb-6 transform group-hover:scale-110 transition-transform duration-300">{item.icon}</div>
+                    <div className="text-6xl mb-6 transform group-hover:scale-110 transition-transform duration-300" aria-hidden="true">{item.icon}</div>
                     <h3 className="font-bold text-slate-800 text-lg mb-1">{item.title}</h3>
                     <p className="text-[10px] font-bold text-pink-400 uppercase tracking-widest mb-4">{item.en}</p>
                     <p className="text-sm text-slate-500 leading-relaxed text-left flex-grow">
@@ -304,7 +314,7 @@ const ProblemSection = () => (
             </h3>
             <ul className="space-y-6">
               {["DMで一人ひとり口座を教える手間", "未入金の催促が気まずい", "本名や住所がバレるリスク", "収支報告のエクセル管理が地獄"].map((t, i) => (
-                <li key={i} className="flex gap-4 text-slate-500 items-center"><div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center shrink-0 text-xs font-bold">×</div><JpText>{t}</JpText></li>
+                <li key={i} className="flex gap-4 text-slate-500 items-center"><div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center shrink-0 text-xs font-bold" aria-hidden="true">×</div><JpText>{t}</JpText></li>
               ))}
             </ul>
           </div>
@@ -318,7 +328,7 @@ const ProblemSection = () => (
               <ul className="space-y-6 relative z-10">
                 {["リンクをシェアするだけで集金完了", "クレカ・コンビニ払いで自動管理", "完全匿名で安心安全", "収支報告もワンクリックで公開"].map((t, i) => (
                   <li key={i} className="flex gap-4 text-slate-700 font-bold items-center">
-                    <div className="w-8 h-8 rounded-full bg-sky-500 text-white flex items-center justify-center shrink-0 shadow-lg shadow-sky-200"><CheckCircle2 size={16} /></div><JpText>{t}</JpText>
+                    <div className="w-8 h-8 rounded-full bg-sky-500 text-white flex items-center justify-center shrink-0 shadow-lg shadow-sky-200"><CheckCircle2 size={16} aria-hidden="true" /></div><JpText>{t}</JpText>
                   </li>
                 ))}
               </ul>
@@ -335,42 +345,42 @@ const FeaturesSection = () => {
     {
       id: "payment",
       title: "ハイブリッド集金システム",
-      icon: <CreditCard size={28} />,
+      icon: <CreditCard size={28} aria-hidden="true" />,
       color: "purple",
       desc: "All-in方式とAll-or-Nothing方式を自由に選択。クレカ、コンビニ、銀行振込など多様な決済に対応し、集金の「未払い」をゼロにします。"
     },
     {
       id: "privacy",
       title: "匿名・プライバシー保護",
-      icon: <Lock size={28} />,
+      icon: <Lock size={28} aria-hidden="true" />,
       color: "emerald",
       desc: "参加者はハンドルネームで支援可能。主催者の住所や本名がお花屋さんに伝わることもなく、安全な「匿名配送」を実現しました。"
     },
     {
       id: "illust",
       title: "神絵師イラスト公募",
-      icon: <Palette size={28} />,
+      icon: <Palette size={28} aria-hidden="true" />,
       color: "pink",
       desc: "フラスタに添えるパネルのイラストをサイト内で公募・依頼可能。絵師とのマッチングから謝礼の支払いまで一括管理できます。"
     },
     {
       id: "chat",
       title: "参加者限定・密談チャット",
-      icon: <MessageCircle size={28} />,
+      icon: <MessageCircle size={28} aria-hidden="true" />,
       color: "sky",
       desc: "支援者だけが入室できるチャットルーム。サプライズの演出相談や、お花屋さんとの進捗共有をクローズドな空間で行えます。"
     },
     {
       id: "matching",
       title: "全国対応・花屋マッチング",
-      icon: <Flower size={28} />,
+      icon: <Flower size={28} aria-hidden="true" />,
       color: "amber",
       desc: "「推し活」に特化した提携フローリストを検索。バルーン、LED、装飾品の持ち込みなど、わがままなオーダーにも柔軟に応えます。"
     },
     {
       id: "report",
       title: "自動収支・透明性レポート",
-      icon: <PiggyBank size={28} />,
+      icon: <PiggyBank size={28} aria-hidden="true" />,
       color: "green",
       desc: "集まった金額と使用した内訳を自動計算。領収書画像をアップロードするだけで、参加者全員にクリアな収支報告書を公開できます。"
     }
@@ -389,10 +399,10 @@ const FeaturesSection = () => {
           {features.map((f, i) => (
             <div key={i} className="min-w-[300px] md:min-w-0 snap-center h-full">
               <Reveal delay={i * 0.1}>
-                <Link href={`/features#${f.id}`}>
+                <Link href={`/features#${f.id}`} aria-label={`${f.title}の詳細を見る`}>
                   <TiltCard className="h-full" glowColor={f.color === 'emerald' || f.color === 'green' ? 'emerald' : f.color}>
                     <div className="p-10 flex flex-col h-full relative overflow-hidden group min-h-[380px]">
-                      <div className={cn("absolute -top-6 -right-6 opacity-5 transform rotate-12 transition-transform group-hover:scale-110 group-hover:rotate-6", `text-${f.color}-500`)}>
+                      <div className={cn("absolute -top-6 -right-6 opacity-5 transform rotate-12 transition-transform group-hover:scale-110 group-hover:rotate-6", `text-${f.color}-500`)} aria-hidden="true">
                         {f.icon}
                       </div>
                       <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center mb-8 shadow-sm transition-all group-hover:scale-110 group-hover:rotate-3", `bg-${f.color}-50 text-${f.color}-500`)}>
@@ -405,7 +415,7 @@ const FeaturesSection = () => {
                         <JpText>{f.desc}</JpText>
                       </p>
                       <div className="mt-8 pt-6 border-t border-slate-50 flex items-center gap-2 text-xs font-bold text-slate-400 group-hover:text-purple-400 transition-colors">
-                        LEARN MORE <ArrowRight size={14} />
+                        LEARN MORE <ArrowRight size={14} aria-hidden="true" />
                       </div>
                     </div>
                   </TiltCard>
@@ -431,13 +441,12 @@ const SafetySection = () => {
       <FloatingShape color="bg-emerald-200" bottom="-10%" left="10%" size={300} />
       <div className="container mx-auto px-6 relative z-10">
          <SectionHeader en="Trust & Safety" ja="お金のことだから、誠実に" color="green" desc="FLASTALは、すべてのファンが安心して利用できる環境づくりを最優先しています。" />
-         {/* スマホで横並び（スワイプ）に変更 */}
          <div className="flex overflow-x-auto pb-8 md:grid md:grid-cols-3 gap-8 snap-x no-scrollbar -mx-6 px-6 md:mx-0 md:px-0">
             {safetyItems.map((item, i) => (
               <div key={i} className="min-w-[280px] md:min-w-0 snap-center h-full">
                 <Reveal delay={i * 0.1}>
                   <div className="bg-white p-8 rounded-[30px] shadow-sm border border-emerald-100 hover:shadow-lg transition-shadow text-center h-full min-h-[320px] flex flex-col justify-center">
-                    <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6 text-emerald-500 shrink-0"><item.icon size={32} /></div>
+                    <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6 text-emerald-500 shrink-0"><item.icon size={32} aria-hidden="true" /></div>
                     <h3 className="font-bold text-lg mb-4 text-slate-800"><JpText>{item.title}</JpText></h3>
                     <p className="text-sm text-slate-500 leading-relaxed"><JpText>{item.desc}</JpText></p>
                   </div>
@@ -453,7 +462,7 @@ const SafetySection = () => {
 const PartnerJoinSection = () => {
   const partners = [
     { title: "お花屋さん", icon: Store, color: "pink", hrefL: "/florists/login", hrefR: "/florists/register", desc: "未払いリスクゼロで、確実に売上を。ファンの熱量が高い「推し花」需要を取り込みませんか？" },
-    { title: "会場・ホール", icon: MapPin, color: "sky", hrefL: "/venues/login", hrefR: "/venues/register", desc: "搬入出のトラブル防止に。公式のレギュレーションを周知し、許可されたフラスタのみを受け入れ可能。" },
+    { title: "会場・ホール", icon: MapPin, color: "sky", hrefL: "/venues/login", hrefR: "/venues/register", desc: "搬入出のトラブル防止に. 公式のレギュレーションを周知し、許可されたフラスタのみを受け入れ可能。" },
     { title: "イベント主催者", icon: Ticket, color: "purple", hrefL: "/organizers/login", hrefR: "/organizers/register", desc: "ファンの応援企画を公認・把握。安全な応援文化を醸成し、イベントの盛り上がりを可視化します。" }
   ];
 
@@ -471,7 +480,7 @@ const PartnerJoinSection = () => {
                     p.color === "sky" ? "border-sky-100" : 
                     "border-purple-100")}>
                     <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6 shadow-md text-slate-500 shrink-0">
-                      <p.icon size={40} />
+                      <p.icon size={40} aria-hidden="true" />
                     </div>
                     <h3 className="text-xl font-bold text-slate-800 mb-2"><JpText>{p.title}</JpText></h3>
                     <p className="text-sm text-slate-500 mb-6 flex-grow leading-relaxed"><JpText>{p.desc}</JpText></p>
@@ -541,7 +550,7 @@ const VoiceSection = () => (
           <div key={i} className="min-w-[300px] md:min-w-0 snap-center h-full">
             <Reveal delay={i * 0.1}>
               <div className="bg-slate-50 p-8 rounded-[30px] relative border border-slate-100 h-full flex flex-col hover:shadow-lg transition-shadow min-h-[260px]">
-                <div className="text-6xl text-slate-200 absolute top-4 left-6 font-serif opacity-30">“</div>
+                <div className="text-6xl text-slate-200 absolute top-4 left-6 font-serif opacity-30" aria-hidden="true">“</div>
                 <p className="text-slate-600 text-sm leading-relaxed mb-6 pt-6 relative z-10 font-medium italic">
                   <JpText>「{v.text}」</JpText>
                 </p>
@@ -570,8 +579,8 @@ const FlowDetailSection = () => {
       <div className="container mx-auto px-6">
         <SectionHeader en="Process" ja="ご利用の流れ" color="blue" />
         <div className="relative max-w-4xl mx-auto">
-          <div className="absolute left-4 md:left-1/2 top-0 bottom-0 w-0.5 bg-slate-200 -translate-x-1/2 hidden md:block" />
-          <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-slate-200 md:hidden" />
+          <div className="absolute left-4 md:left-1/2 top-0 bottom-0 w-0.5 bg-slate-200 -translate-x-1/2 hidden md:block" aria-hidden="true" />
+          <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-slate-200 md:hidden" aria-hidden="true" />
           {steps.map((step, i) => (
             <Reveal key={i} width="100%">
               <div className={cn("relative flex items-center mb-16 last:mb-0", i % 2 === 0 ? "md:justify-start" : "md:justify-end")}>
@@ -605,8 +614,8 @@ const FaqSection = () => (
           <Reveal key={i} delay={i * 0.05}>
             <details className="group bg-slate-50 rounded-2xl p-6 border border-slate-100 cursor-pointer open:bg-white open:shadow-lg open:border-emerald-100 transition-all duration-300">
               <summary className="flex items-center justify-between font-bold text-slate-800 list-none">
-                <span className="flex items-center gap-3"><HelpCircle className="text-emerald-500 shrink-0" /> <JpText>{item.q}</JpText></span>
-                <ChevronDown size={16} className="text-slate-400 group-open:rotate-180 transition-transform duration-300" />
+                <span className="flex items-center gap-3"><HelpCircle className="text-emerald-500 shrink-0" aria-hidden="true" /> <JpText>{item.q}</JpText></span>
+                <ChevronDown size={16} className="text-slate-400 group-open:rotate-180 transition-transform duration-300" aria-hidden="true" />
               </summary>
               <div className="mt-4 text-xs md:text-sm text-slate-500 pl-9 leading-relaxed"><JpText>{item.a}</JpText></div>
             </details>
@@ -644,12 +653,12 @@ const ContactAndCtaSection = () => (
       <Reveal>
         <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
           <a href="mailto:support@flastal.jp" className="group bg-sky-50 p-8 rounded-[30px] border border-sky-100 text-center hover:shadow-xl hover:-translate-y-1 transition-all h-full flex flex-col items-center">
-            <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-sky-500 mb-4 shadow-sm group-hover:scale-110 transition-transform"><Mail size={32} /></div>
+            <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-sky-500 mb-4 shadow-sm group-hover:scale-110 transition-transform"><Mail size={32} aria-hidden="true" /></div>
             <h3 className="font-bold text-slate-800 text-xl mb-2"><JpText>ユーザー・主催者の方</JpText></h3>
             <p className="text-sm text-slate-500 font-medium"><JpText>企画の立て方や利用トラブルについて</JpText></p>
           </a>
           <a href="mailto:business@flastal.jp" className="group bg-pink-50 p-8 rounded-[30px] border border-pink-100 text-center hover:shadow-xl hover:-translate-y-1 transition-all h-full flex flex-col items-center">
-            <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-pink-500 mb-4 shadow-sm group-hover:scale-110 transition-transform"><Gift size={32} /></div>
+            <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-pink-500 mb-4 shadow-sm group-hover:scale-110 transition-transform"><Gift size={32} aria-hidden="true" /></div>
             <h3 className="font-bold text-slate-800 text-xl mb-2"><JpText>お花屋さん・法人の方</JpText></h3>
             <p className="text-sm text-slate-500 font-medium"><JpText>加盟店登録や提携について</JpText></p>
           </a>
@@ -659,7 +668,7 @@ const ContactAndCtaSection = () => (
     <div className="container mx-auto px-6 text-center relative z-10">
       <Reveal>
         <div className="bg-slate-900 rounded-[60px] p-12 md:p-24 text-white shadow-2xl relative overflow-hidden group">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(244,114,182,0.15),transparent)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(244,114,182,0.15),transparent)]" aria-hidden="true" />
           <div className="relative z-10">
             <h2 className="text-4xl md:text-7xl font-black mb-8 leading-tight tracking-tighter">
               <JpText>さあ、推しへの愛を</JpText><br/><JpText>形にしよう。</JpText>
@@ -667,7 +676,7 @@ const ContactAndCtaSection = () => (
             <p className="text-slate-400 text-lg mb-12 max-w-xl mx-auto font-medium leading-relaxed">
               <JpText>企画の作成は無料。</JpText><JpText>あなたの「贈りたい」が、</JpText><JpText>誰かの勇気になります。</JpText>
             </p>
-            <Link href="/projects/create" className="inline-block">
+            <Link href="/projects/create" className="inline-block" aria-label="今すぐ無料でフラスタ企画を作成する">
               <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="bg-pink-500 text-white px-12 md:px-20 py-5 md:py-7 rounded-full text-xl md:text-3xl font-black shadow-xl shadow-pink-500/20 hover:bg-pink-400 transition-all">今すぐ企画を立てる</motion.button>
             </Link>
           </div>
@@ -678,23 +687,22 @@ const ContactAndCtaSection = () => (
 );
 
 // --- 🏠 DASHBOARD WRAPPER ---
-function AuthenticatedHome({ user, logout }) {
-  return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 m-0">
-      <div className="max-w-md w-full bg-white rounded-[40px] shadow-2xl p-10 text-center border border-slate-100">
-        <div className="w-20 h-20 bg-indigo-50 text-indigo-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner"><ShieldCheck size={40} /></div>
-        <h1 className="text-2xl font-black text-slate-800 mb-2 tracking-tight italic uppercase">Welcome Back</h1>
-        <p className="text-slate-400 mb-8 font-bold text-xs uppercase tracking-widest leading-relaxed">
-          <JpText>{user?.handleName || 'FLASTAL MEMBER'} Signed In</JpText>
-        </p>
-        <div className="space-y-4">
-          <Link href={user?.role === 'ADMIN' ? '/admin' : '/mypage'} className="flex items-center justify-center gap-2 w-full py-4 bg-slate-900 text-white font-black rounded-2xl hover:bg-slate-800 transition-all shadow-lg text-sm md:text-base text-center">DASHBOARD <ArrowRight size={18} /></Link>
-          <button onClick={logout} className="text-[10px] font-black text-slate-300 hover:text-red-500 transition-colors uppercase tracking-[0.2em] mt-4">Sign Out</button>
-        </div>
+// 外部コンポーネント化し、より安定したレンダリングを確保
+const AuthenticatedHome = ({ user, logout }) => (
+  <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 m-0">
+    <div className="max-w-md w-full bg-white rounded-[40px] shadow-2xl p-10 text-center border border-slate-100">
+      <div className="w-20 h-20 bg-indigo-50 text-indigo-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner"><ShieldCheck size={40} aria-hidden="true" /></div>
+      <h1 className="text-2xl font-black text-slate-800 mb-2 tracking-tight italic uppercase">Welcome Back</h1>
+      <p className="text-slate-400 mb-8 font-bold text-xs uppercase tracking-widest leading-relaxed">
+        <JpText>{user?.handleName || 'FLASTAL MEMBER'} Signed In</JpText>
+      </p>
+      <div className="space-y-4">
+        <Link href={user?.role === 'ADMIN' ? '/admin' : '/mypage'} className="flex items-center justify-center gap-2 w-full py-4 bg-slate-900 text-white font-black rounded-2xl hover:bg-slate-800 transition-all shadow-lg text-sm md:text-base text-center">DASHBOARD <ArrowRight size={18} aria-hidden="true" /></Link>
+        <button onClick={logout} className="text-[10px] font-black text-slate-300 hover:text-red-500 transition-colors uppercase tracking-[0.2em] mt-4">Sign Out</button>
       </div>
     </div>
-  );
-}
+  </div>
+);
 
 // --- 👑 MAIN EXPORT ---
 export default function HomePage() {
@@ -705,10 +713,17 @@ export default function HomePage() {
     setIsMounted(true);
   }, []);
 
+  // SEOメタデータの最適化（Next.js 13+ metadata API への適応準備。本来は別ファイル定義推奨だが、クライアントコンポーネント内ではタグで対応）
+  useEffect(() => {
+    if (isMounted) {
+      document.title = "FLASTAL（フラスタル）| 推し活特化型クラウドファンディング";
+    }
+  }, [isMounted]);
+
   if (!isMounted || loading) {
     return (
       <div className="min-h-screen bg-white flex flex-col items-center justify-center p-4">
-        <Loader2 className="w-10 h-10 text-pink-500 animate-spin mb-4" />
+        <Loader2 className="w-10 h-10 text-pink-500 animate-spin mb-4" aria-hidden="true" />
         <p className="text-slate-400 text-[10px] font-black tracking-widest uppercase animate-pulse">Initializing System...</p>
       </div>
     );
@@ -720,6 +735,8 @@ export default function HomePage() {
 
   return (
     <div className="bg-white min-h-screen text-slate-800 font-sans selection:bg-pink-100 selection:text-pink-600 m-0 p-0 w-full relative border-none overflow-x-hidden">
+      <ScrollProgress />
+      <MagicCursor />
       <HeroSection />
       <TickerSection />
       <CultureSection />
@@ -746,6 +763,11 @@ export default function HomePage() {
         @keyframes bounce {
           0%, 100% { transform: translateY(-5%); animation-timing-function: cubic-bezier(0.8,0,1,1); }
           50% { transform: translateY(0); animation-timing-function: cubic-bezier(0,0,0.2,1); }
+        }
+        /* 日本語フォントの読み込み速度とレンダリングの最適化 */
+        body {
+          text-rendering: optimizeLegibility;
+          -webkit-font-smoothing: antialiased;
         }
       `}</style>
     </div>

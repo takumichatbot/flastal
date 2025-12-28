@@ -152,6 +152,8 @@ model User {
   handleName           String
   password             String
   floristPostLikes FloristPostLike[]
+  createdEvents  Event[] @relation("EventCreator")
+  editedEvents   Event[] @relation("EventLastEditor")
   isVerified        Boolean  @default(false)  // メール認証済みか
   verificationToken String?  // 認証用の一時トークン
   acceptsRushOrders Boolean  @default(false)
@@ -622,34 +624,38 @@ model Post {
 }
 
 model Event {
-  id             String   @id @default(cuid())
-  title          String
-  description    String?
-  eventDate      DateTime
-  isStandAllowed Boolean  @default(true)
-  regulationNote String?
-  imageUrl       String?
-  genre          String?  // ★ 追加: ジャンル (例: "IDOL", "VTUBER")
-  
-  interests      EventInterest[] // ★ 追加: 興味ありのリレーション
+  id             String   @id @default(cuid())
+  title          String
+  description    String?
+  eventDate      DateTime
+  isStandAllowed Boolean  @default(true)
+  regulationNote String?
+  imageUrl       String?
+  genre          String?  
 
-  // ★★★ 変更: organizerId をオプショナルに ★★★
-  organizerId String?
-  organizer   Organizer? @relation(fields: [organizerId], references: [id])
+  interests      EventInterest[]
 
-  venueId String?
-  venue   Venue?  @relation(fields: [venueId], references: [id])
+  organizerId String?
+  organizer   Organizer? @relation(fields: [organizerId], references: [id])
 
-  projects Project[]
+  venueId String?
+  venue   Venue?  @relation(fields: [venueId], references: [id])
 
-  sourceType EventSource @default(USER)
-  sourceUrl  String?
-  isBanned   Boolean     @default(false)
+  projects Project[]
 
-  reports EventReport[]
+  sourceType EventSource @default(USER)
+  sourceUrl  String?
+  isBanned   Boolean     @default(false)
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  reports EventReport[]
+
+  creatorId   String?
+  creator     User?    @relation("EventCreator", fields: [creatorId], references: [id])
+  lastEditorId String?
+  lastEditor   User?    @relation("EventLastEditor", fields: [lastEditorId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model EventInterest {

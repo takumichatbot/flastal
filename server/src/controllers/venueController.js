@@ -9,7 +9,10 @@ export const getVenues = async (req, res) => {
             orderBy: { venueName: 'asc' }
         });
         res.json(venues);
-    } catch (e) { res.status(500).json({ message: 'エラーが発生しました' }); }
+    } catch (e) { 
+        console.error('getVenues Error:', e);
+        res.status(500).json({ message: '会場情報の取得中にエラーが発生しました。' }); 
+    }
 };
 
 // --- 会場詳細取得 ---
@@ -25,10 +28,14 @@ export const getVenueById = async (req, res) => {
                 }
             }
         });
-        if (!venue) return res.status(404).json({ message: '会場が見つかりません' });
+        if (!venue) return res.status(404).json({ message: '会場が見つかりません。' });
+        
         const { password, ...clean } = venue;
         res.json(clean);
-    } catch (e) { res.status(500).json({ message: 'Error' }); }
+    } catch (e) { 
+        console.error('getVenueById Error:', e);
+        res.status(500).json({ message: '会場データの取得に失敗しました。' }); 
+    }
 };
 
 // --- ユーザーによる会場登録 ---
@@ -40,13 +47,17 @@ export const addVenueByUser = async (req, res) => {
             data: {
                 venueName, address, accessInfo: regulations,
                 email: `temp_${randomId}@flastal.user`,
-                password: 'temp_password',
-                isOfficial: false, // 初期値は未承認
-                isStandAllowed: true, isBowlAllowed: true, retrievalRequired: true
+                password: 'temp_password_not_for_login', // ログイン用ではないことを明示
+                isOfficial: false,
+                isStandAllowed: true, isBowlAllowed: true, retrievalRequired: true,
+                addedById: req.user.id // 誰が追加したか記録
             }
         });
         res.status(201).json(newVenue);
-    } catch (error) { res.status(500).json({ message: '登録エラー' }); }
+    } catch (error) { 
+        console.error('addVenueByUser Error:', error);
+        res.status(500).json({ message: '会場の仮登録に失敗しました。' }); 
+    }
 };
 
 // --- 会場情報の更新・承認 ---
@@ -54,9 +65,12 @@ export const updateVenueProfile = async (req, res) => {
     try {
         const venueId = req.params.id || req.user.id;
         const data = req.body;
-        if (req.user.role !== 'ADMIN' && req.user.role !== 'VENUE') {
-            return res.status(403).json({ message: '権限がありません' });
+        
+        // ADMIN か、自分自身の VENUE アカウントである必要がある
+        if (req.user.role !== 'ADMIN' && (req.user.role !== 'VENUE' || req.user.id !== venueId)) {
+            return res.status(403).json({ message: 'この操作を行う権限がありません。' });
         }
+
         const updated = await prisma.venue.update({
             where: { id: venueId },
             data: {
@@ -64,21 +78,29 @@ export const updateVenueProfile = async (req, res) => {
                 address: data.address,
                 isOfficial: data.isOfficial,
                 isStandAllowed: data.isStandAllowed,
-                isBowlAllowed: data.isBowlAllowed
+                isBowlAllowed: data.isBowlAllowed,
+                accessInfo: data.accessInfo,
+                retrievalRequired: data.retrievalRequired
             }
         });
         res.json(updated);
-    } catch (e) { res.status(500).json({ message: '更新失敗' }); }
+    } catch (e) { 
+        console.error('updateVenueProfile Error:', e);
+        res.status(500).json({ message: '会場情報の更新に失敗しました。' }); 
+    }
 };
 
 // --- 会場の削除 ---
 export const deleteVenue = async (req, res) => {
     const { id } = req.params;
-    if (req.user.role !== 'ADMIN') return res.status(403).json({ message: '権限なし' });
+    if (req.user.role !== 'ADMIN') return res.status(403).json({ message: '権限がありません。' });
     try {
         await prisma.venue.delete({ where: { id } });
         res.status(204).send();
-    } catch (e) { res.status(500).json({ message: '削除失敗' }); }
+    } catch (e) { 
+        console.error('deleteVenue Error:', e);
+        res.status(500).json({ message: '会場の削除に失敗しました。' }); 
+    }
 };
 
 // --- 物流情報の投稿 ---
@@ -90,34 +112,114 @@ export const postLogisticsInfo = async (req, res) => {
             data: { venueId, contributorId: req.user.id, title, description }
         });
         res.status(201).json(info);
-    } catch (e) { res.status(500).json({ message: 'Error' }); }
+    } catch (e) { 
+        console.error('postLogisticsInfo Error:', e);
+        res.status(500).json({ message: '情報の投稿に失敗しました。' }); 
+    }
 };
 
 // --- イベント関連 ---
 export const getEvents = async (req, res) => {
     try {
-        const events = await prisma.event.findMany({ include: { venue: true } });
+        const events = await prisma.event.findMany({ 
+            include: { 
+                venue: true,
+                creator: { select: { id: true, handleName: true, iconUrl: true } },
+                lastEditor: { select: { id: true, handleName: true, iconUrl: true } }
+            },
+            orderBy: { eventDate: 'asc' }
+        });
         res.json(events);
-    } catch (e) { res.status(500).json({ message: 'Error' }); }
+    } catch (e) { 
+        console.error('getEvents Error:', e);
+        res.status(500).json({ message: 'イベント一覧の取得に失敗しました。' }); 
+    }
 };
 
 export const getEventById = async (req, res) => {
     try {
-        const event = await prisma.event.findUnique({ where: { id: req.params.id }, include: { venue: true } });
+        const event = await prisma.event.findUnique({ 
+            where: { id: req.params.id }, 
+            include: { 
+                venue: true,
+                creator: { select: { id: true, handleName: true, iconUrl: true } },
+                lastEditor: { select: { id: true, handleName: true, iconUrl: true } }
+            } 
+        });
+        if (!event) return res.status(404).json({ message: 'イベントが見つかりません。' });
         res.json(event);
-    } catch (e) { res.status(500).json({ message: 'Error' }); }
+    } catch (e) { 
+        console.error('getEventById Error:', e);
+        res.status(500).json({ message: 'イベント情報の取得に失敗しました。' }); 
+    }
 };
 
 export const createEvent = async (req, res) => {
     try {
-        const event = await prisma.event.create({ data: { ...req.body, eventDate: new Date(req.body.eventDate) } });
+        const event = await prisma.event.create({ 
+            data: { 
+                ...req.body, 
+                eventDate: new Date(req.body.eventDate),
+                creatorId: req.user.id, // 投稿者を記録
+                lastEditorId: req.user.id, // 初期編集者として記録
+                sourceType: 'USER'
+            } 
+        });
         res.status(201).json(event);
-    } catch (e) { res.status(500).json({ message: 'Error' }); }
+    } catch (e) { 
+        console.error('createEvent Error:', e);
+        res.status(500).json({ message: 'イベントの作成に失敗しました。' }); 
+    }
+};
+
+export const updateEvent = async (req, res) => { 
+    try {
+        const { id } = req.params;
+        const event = await prisma.event.findUnique({ where: { id } });
+
+        if (!event) return res.status(404).json({ message: 'イベントが見つかりません。' });
+
+        // ADMIN または 投稿者本人のみが編集可能
+        if (req.user.role !== 'ADMIN' && event.creatorId !== req.user.id) {
+            return res.status(403).json({ message: '編集権限がありません。' });
+        }
+
+        const updated = await prisma.event.update({
+            where: { id },
+            data: {
+                ...req.body,
+                eventDate: req.body.eventDate ? new Date(req.body.eventDate) : undefined,
+                lastEditorId: req.user.id // 最終編集者を更新（アイコン表示用）
+            }
+        });
+        res.json(updated);
+    } catch (e) {
+        console.error('updateEvent Error:', e);
+        res.status(500).json({ message: 'イベントの更新に失敗しました。' });
+    }
+};
+
+export const deleteEvent = async (req, res) => { 
+    try {
+        const { id } = req.params;
+        const event = await prisma.event.findUnique({ where: { id } });
+
+        if (!event) return res.status(404).json({ message: 'イベントが見つかりません。' });
+
+        // ADMIN または 投稿者本人のみが削除可能
+        if (req.user.role !== 'ADMIN' && event.creatorId !== req.user.id) {
+            return res.status(403).json({ message: '削除権限がありません。' });
+        }
+
+        await prisma.event.delete({ where: { id } });
+        res.status(204).send();
+    } catch (e) {
+        console.error('deleteEvent Error:', e);
+        res.status(500).json({ message: 'イベントの削除に失敗しました。' });
+    }
 };
 
 export const toggleInterest = async (req, res) => { res.json({ message: 'ok' }); };
 export const reportEvent = async (req, res) => { res.json({ message: 'ok' }); };
 export const markLogisticsHelpful = async (req, res) => { res.json({ message: 'ok' }); };
 export const getOrganizerEvents = async (req, res) => { res.json([]); };
-export const updateEvent = async (req, res) => { res.json({ message: 'ok' }); };
-export const deleteEvent = async (req, res) => { res.status(204).send(); };

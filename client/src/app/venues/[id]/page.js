@@ -1,15 +1,25 @@
 "use client";
 import { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { FiMapPin, FiInfo, FiAlertTriangle, FiCheckCircle, FiChevronRight, FiXCircle, FiArrowRight } from 'react-icons/fi';
+import { useAuth } from '../../contexts/AuthContext';
+import { 
+  FiMapPin, FiInfo, FiAlertTriangle, FiCheckCircle, 
+  FiChevronRight, FiXCircle, FiArrowRight, FiEdit3, 
+  FiSettings, FiCalendar, FiTruck 
+} from 'react-icons/fi';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
 export default function VenueDetailPage() {
   const { id } = useParams();
+  const router = useRouter();
+  const { user, isAuthenticated } = useAuth();
   const [venue, setVenue] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  // 会場自身、または管理者であるかの判定
+  const isOwner = isAuthenticated && user && (user.id === id || user.role === 'ADMIN');
 
   useEffect(() => {
     if (!id) return;
@@ -44,6 +54,25 @@ export default function VenueDetailPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
+      {/* 会場専用管理バー (ログイン中かつ本人の場合のみ表示) */}
+      {isOwner && (
+        <div className="bg-amber-50 border-b border-amber-200 py-3">
+          <div className="max-w-5xl mx-auto px-4 flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center text-amber-800 font-bold text-sm">
+              <FiSettings className="mr-2"/> 会場管理モードで表示中
+            </div>
+            <div className="flex gap-3">
+              <Link href={`/venues/${id}/edit`} className="bg-white border border-amber-300 text-amber-700 px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-amber-100 transition-colors flex items-center">
+                <FiEdit3 className="mr-1"/> 情報を編集
+              </Link>
+              <Link href="/mypage" className="bg-amber-600 text-white px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-amber-700 transition-colors flex items-center">
+                <FiCalendar className="mr-1"/> 搬入予定を確認
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ヘッダーエリア */}
       <div className="bg-slate-900 text-white py-12 md:py-20">
         <div className="max-w-5xl mx-auto px-4">
@@ -58,12 +87,12 @@ export default function VenueDetailPage() {
                 <FiMapPin className="mr-2"/> {venue.address}
               </p>
             </div>
-            <div>
+            <div className="flex flex-col sm:flex-row gap-3">
                <a 
                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(venue.venueName + ' ' + venue.address)}`} 
                  target="_blank" 
                  rel="noopener noreferrer"
-                 className="bg-white/10 hover:bg-white/20 text-white px-6 py-3 rounded-lg font-bold transition-colors border border-white/20 inline-flex items-center"
+                 className="bg-white/10 hover:bg-white/20 text-white px-6 py-3 rounded-lg font-bold transition-colors border border-white/20 inline-flex items-center justify-center"
                >
                  Googleマップで見る <FiArrowRight className="ml-2"/>
                </a>
@@ -124,18 +153,29 @@ export default function VenueDetailPage() {
             </div>
           </div>
 
-          {/* アクション */}
-          <div className="bg-gradient-to-br from-indigo-600 to-purple-600 p-6 rounded-xl shadow-lg text-white relative overflow-hidden">
-            <div className="relative z-10">
-                <h3 className="font-bold text-lg mb-2">この会場で企画を立てる</h3>
-                <p className="text-indigo-100 text-sm mb-4">会場情報が自動入力されます。</p>
-                <Link href={`/projects/create?venueId=${venue.id}`} className="block w-full bg-white text-indigo-600 text-center py-3 rounded-lg font-bold hover:bg-indigo-50 transition-colors shadow-md">
-                企画を作成する
+          {/* 会場以外のユーザー向けアクション：自身の会場なら「物流情報」を出すなど */}
+          {!isOwner ? (
+            <div className="bg-gradient-to-br from-indigo-600 to-purple-600 p-6 rounded-xl shadow-lg text-white relative overflow-hidden">
+                <div className="relative z-10">
+                    <h3 className="font-bold text-lg mb-2">この会場で企画を立てる</h3>
+                    <p className="text-indigo-100 text-sm mb-4">会場情報が自動入力されます。</p>
+                    <Link href={`/projects/create?venueId=${venue.id}`} className="block w-full bg-white text-indigo-600 text-center py-3 rounded-lg font-bold hover:bg-indigo-50 transition-colors shadow-md">
+                    企画を作成する
+                    </Link>
+                </div>
+                <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-white opacity-10 rounded-full blur-2xl"></div>
+            </div>
+          ) : (
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-indigo-100">
+                <h3 className="font-bold text-gray-800 mb-4 flex items-center">
+                  <FiTruck className="mr-2 text-indigo-500"/> 物流・搬入設定
+                </h3>
+                <p className="text-xs text-gray-500 mb-4">お花屋さん向けに搬入口の場所や搬入可能時間を詳しく登録できます。</p>
+                <Link href={`/venues/${id}/logistics`} className="block w-full bg-indigo-50 text-indigo-600 text-center py-2 rounded-lg font-bold hover:bg-indigo-100 transition-colors text-sm">
+                  搬入ルールを編集
                 </Link>
             </div>
-            {/* 装飾 */}
-            <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-white opacity-10 rounded-full blur-2xl"></div>
-          </div>
+          )}
         </div>
 
         {/* 右カラム: 実績ギャラリー */}

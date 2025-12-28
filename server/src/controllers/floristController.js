@@ -4,8 +4,6 @@ import { createNotification } from '../utils/notification.js';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-
-
 // ==========================================
 // ★★★ 1. お花屋さん検索・取得 ★★★
 // ==========================================
@@ -36,18 +34,21 @@ export const getFlorists = async (req, res) => {
             select: {
                 id: true, platformName: true, portfolio: true, address: true,
                 iconUrl: true, portfolioImages: true, specialties: true, acceptsRushOrders: true,
+                _count: { select: { reviews: true } } // レビュー件数を一括取得
             },
             orderBy: { createdAt: 'desc' },
         });
 
-        // レビュー件数付与
-        const floristsWithRating = await Promise.all(florists.map(async (florist) => {
-            const reviewCount = await prisma.review.count({ where: { floristId: florist.id } });
-            return { ...florist, reviewCount, averageRating: 0 };
+        const floristsWithRating = florists.map(florist => ({
+            ...florist,
+            reviewCount: florist._count.reviews,
+            averageRating: 0, // 必要に応じて集計ロジックを追加可能
+            _count: undefined
         }));
 
         res.status(200).json(floristsWithRating);
     } catch (error) {
+        console.error('getFlorists Error:', error);
         res.status(500).json({ message: 'お花屋さんの取得中にエラーが発生しました。' });
     }
 };
@@ -64,15 +65,16 @@ export const getFloristById = async (req, res) => {
             orderBy: { createdAt: 'desc' }
         });
 
+        // 機密情報の除外
         const { password, laruBotApiKey, ...publicData } = florist;
         publicData.appealPosts = appealPosts;
         res.status(200).json(publicData);
     } catch (error) {
+        console.error('getFloristById Error:', error);
         res.status(500).json({ message: 'サーバーエラーが発生しました。' });
     }
 };
 
-// AIマッチング (タグ抽出)
 export const matchFloristsByAi = async (req, res) => {
     const { designDetails, flowerTypes } = req.body;
     const STYLE_TAGS = ['かわいい/キュート', 'クール/かっこいい', 'おしゃれ/モダン', '和風/和モダン', 'ゴージャス/豪華', 'パステルカラー', 'ビビッドカラー', 'バルーン装飾', 'ペーパーフラワー', '大型/連結', '卓上/楽屋花'];
@@ -82,7 +84,7 @@ export const matchFloristsByAi = async (req, res) => {
     try {
         let targetTags = [];
         if (process.env.OPENAI_API_KEY) {
-            const prompt = `要望: "${designDetails} ${flowerTypes}"\n選択肢: ${STYLE_TAGS.join(', ')}\n出力形式: タグ1, タグ2, タグ3`;
+            const prompt = `以下の要望に合うタグを、選択肢の中から最大3つ抽出してカンマ区切りで出力してください。\n要望: "${designDetails} ${flowerTypes}"\n選択肢: ${STYLE_TAGS.join(', ')}`;
             const completion = await openai.chat.completions.create({
                 model: "gpt-3.5-turbo",
                 messages: [{ role: "user", content: prompt }],
@@ -99,6 +101,7 @@ export const matchFloristsByAi = async (req, res) => {
         });
         res.json({ tags: targetTags, recommendedFlorists: florists });
     } catch (error) {
+        console.error('AI Match Error:', error);
         res.status(500).json({ message: 'マッチング処理に失敗しました' });
     }
 };
@@ -107,7 +110,6 @@ export const matchFloristsByAi = async (req, res) => {
 // ★★★ 2. オファー & 見積もり (Business) ★★★
 // ==========================================
 
-// オファー作成 (Planner -> Florist)
 export const createOffer = async (req, res) => {
     const { projectId, floristId } = req.body;
     const plannerId = req.user.id;
@@ -124,11 +126,10 @@ export const createOffer = async (req, res) => {
         res.status(201).json(newOffer);
     } catch (error) {
         if (error.code === 'P2002') return res.status(409).json({ message: '既にオファー済みです。' });
-        res.status(500).json({ message: 'オファー作成エラー' });
+        res.status(500).json({ message: 'オファー作成中にエラーが発生しました。' });
     }
 };
 
-// オファー回答 (Florist -> Planner)
 export const respondToOffer = async (req, res) => {
     const { offerId } = req.params;
     const { status } = req.body;
@@ -157,11 +158,10 @@ export const respondToOffer = async (req, res) => {
 
         res.status(200).json(updatedOffer);
     } catch (error) {
-        res.status(500).json({ message: '更新エラー' });
+        res.status(500).json({ message: 'オファー回答の更新に失敗しました。' });
     }
 };
 
-// 見積書作成 (Florist)
 export const createQuotation = async (req, res) => {
     const { projectId, items } = req.body;
     const floristId = req.user.id;
@@ -170,7 +170,7 @@ export const createQuotation = async (req, res) => {
 
     try {
         const offer = await prisma.offer.findFirst({ where: { projectId, floristId, status: 'ACCEPTED' } });
-        if (!offer) return res.status(403).json({ message: '権限がありません。' });
+        if (!offer) return res.status(403).json({ message: '承諾済みのオファーが存在しません。' });
 
         const totalAmount = items.reduce((sum, item) => sum + parseInt(item.amount, 10), 0);
 
@@ -188,11 +188,10 @@ export const createQuotation = async (req, res) => {
 
         res.status(201).json(newQuotation);
     } catch (error) {
-        res.status(500).json({ message: '作成エラー' });
+        res.status(500).json({ message: '見積書の作成に失敗しました。' });
     }
 };
 
-// 見積書承認 (Planner)
 export const approveQuotation = async (req, res) => {
     const { id } = req.params;
     const userId = req.user.id;
@@ -204,17 +203,15 @@ export const approveQuotation = async (req, res) => {
             if (quotation.isApproved) throw new Error('既に承認済みです。');
 
             const project = quotation.project;
-            if (project.collectedAmount < quotation.totalAmount) throw new Error('ポイント不足です。');
+            if (project.collectedAmount < quotation.totalAmount) throw new Error('企画の集計金額が見積額に達していません。');
 
             const offer = await tx.offer.findUnique({ where: { projectId: project.id }, include: { florist: true } });
             
-            // 手数料計算
             const systemSettings = await tx.systemSettings.findFirst() || { platformFeeRate: 0.10 };
             const feeRate = offer.florist.customFeeRate ?? systemSettings.platformFeeRate ?? 0.10;
             const commission = Math.floor(quotation.totalAmount * feeRate);
             const netPayout = quotation.totalAmount - commission;
 
-            // 売上反映
             await tx.florist.update({
                 where: { id: offer.floristId },
                 data: { balance: { increment: netPayout } },
@@ -226,7 +223,7 @@ export const approveQuotation = async (req, res) => {
                 data: { isApproved: true }
             });
 
-            await createNotification(offer.floristId, 'QUOTATION_APPROVED', `見積もりが承認されました。利益: ${netPayout}pt`, project.id, `/florists/offers/${offer.id}`);
+            await createNotification(offer.floristId, 'QUOTATION_APPROVED', `見積もりが承認されました。売上確定: ${netPayout.toLocaleString()}pt`, project.id, `/florists/offers/${offer.id}`);
             
             return approved;
         });
@@ -236,7 +233,6 @@ export const approveQuotation = async (req, res) => {
     }
 };
 
-// 見積書最終確定 (Florist)
 export const finalizeQuotation = async (req, res) => {
     const { id } = req.params;
     const floristId = req.user.id;
@@ -251,7 +247,7 @@ export const finalizeQuotation = async (req, res) => {
         });
         res.status(200).json(finalized);
     } catch (error) {
-        res.status(500).json({ message: '確定エラー' });
+        res.status(500).json({ message: '見積の確定に失敗しました。' });
     }
 };
 
@@ -259,7 +255,6 @@ export const finalizeQuotation = async (req, res) => {
 // ★★★ 3. お花屋さん管理 (Profile & Payouts) ★★★
 // ==========================================
 
-// プロフィール更新
 export const updateFloristProfile = async (req, res) => {
     const floristId = req.user.id;
     if (req.user.role !== 'FLORIST') return res.status(403).json({ message: '権限がありません。' });
@@ -269,18 +264,17 @@ export const updateFloristProfile = async (req, res) => {
     try {
         let dataToUpdate = { shopName, platformName, contactName, address, phoneNumber, website, portfolio, laruBotApiKey, businessHours, iconUrl, specialties, acceptsRushOrders };
         if (portfolioImages && Array.isArray(portfolioImages)) {
-            dataToUpdate.portfolioImages = portfolioImages.map(item => JSON.stringify(item));
+            dataToUpdate.portfolioImages = portfolioImages.map(item => typeof item === 'string' ? item : JSON.stringify(item));
         }
 
         const updated = await prisma.florist.update({ where: { id: floristId }, data: dataToUpdate });
         const { password, ...clean } = updated;
         res.status(200).json(clean);
     } catch (error) {
-        res.status(500).json({ message: '更新エラー' });
+        res.status(500).json({ message: 'プロフィールの更新に失敗しました。' });
     }
 };
 
-// 出金申請履歴
 export const getPayouts = async (req, res) => {
     const floristId = req.user.id;
     if (req.user.role !== 'FLORIST') return res.status(403).json({ message: '権限がありません。' });
@@ -288,27 +282,26 @@ export const getPayouts = async (req, res) => {
         const payouts = await prisma.payoutRequest.findMany({ where: { floristId }, orderBy: { createdAt: 'desc' } });
         res.status(200).json(payouts);
     } catch (error) {
-        res.status(500).json({ message: '取得エラー' });
+        res.status(500).json({ message: '出金履歴の取得に失敗しました。' });
     }
 };
 
-// 出金申請 (Florist Only - Sales Balance)
 export const requestPayout = async (req, res) => {
     const floristId = req.user.id;
     const { amount, accountInfo } = req.body;
     if (req.user.role !== 'FLORIST') return res.status(403).json({ message: '権限がありません。' });
 
     const payoutAmount = parseInt(amount, 10);
-    if (payoutAmount < 1000) return res.status(400).json({ message: '1000ptから申請可能です。' });
+    if (isNaN(payoutAmount) || payoutAmount < 1000) return res.status(400).json({ message: '出金は1000ptから申請可能です。' });
 
     try {
         const result = await prisma.$transaction(async (tx) => {
             const florist = await tx.florist.findUnique({ where: { id: floristId } });
-            if (florist.balance < payoutAmount) throw new Error('残高不足です。');
+            if (florist.balance < payoutAmount) throw new Error('売上残高が不足しています。');
 
             await tx.florist.update({ where: { id: floristId }, data: { balance: { decrement: payoutAmount } } });
             return await tx.payoutRequest.create({
-                data: { amount: payoutAmount, accountInfo, floristId }
+                data: { amount: payoutAmount, accountInfo, floristId, status: 'PENDING' }
             });
         });
         res.status(201).json(result);
@@ -317,7 +310,6 @@ export const requestPayout = async (req, res) => {
     }
 };
 
-// スケジュール取得
 export const getSchedule = async (req, res) => {
     const floristId = req.user.id;
     try {
@@ -335,7 +327,7 @@ export const getSchedule = async (req, res) => {
         }));
         res.json(events);
     } catch (error) {
-        res.status(500).json({ message: '取得エラー' });
+        res.status(500).json({ message: 'スケジュールの取得に失敗しました。' });
     }
 };
 
@@ -343,7 +335,6 @@ export const getSchedule = async (req, res) => {
 // ★★★ 4. 投稿・特売・その他 ★★★
 // ==========================================
 
-// アピール投稿作成
 export const createFloristPost = async (req, res) => {
     const floristId = req.user.id;
     const { imageUrl, content, isPublic } = req.body;
@@ -356,16 +347,14 @@ export const createFloristPost = async (req, res) => {
         });
         res.status(201).json(post);
     } catch (error) {
-        res.status(500).json({ message: '投稿エラー' });
+        res.status(500).json({ message: 'アピール投稿の作成に失敗しました。' });
     }
 };
 
-// アピール投稿へのいいね
 export const likeFloristPost = async (req, res) => {
     const { postId } = req.params;
     const userId = req.user.id;
-    // 花屋等はいいね不可
-    if (['FLORIST', 'VENUE', 'ADMIN'].includes(req.user.role)) return res.status(403).json({ message: 'いいねできません。' });
+    if (['FLORIST', 'VENUE', 'ADMIN'].includes(req.user.role)) return res.status(403).json({ message: 'お花屋さんや運営者はいいねできません。' });
 
     try {
         const existing = await prisma.floristPostLike.findUnique({ where: { floristPostId_userId: { floristPostId: postId, userId } } });
@@ -377,16 +366,15 @@ export const likeFloristPost = async (req, res) => {
             res.json({ liked: true });
         }
     } catch (error) {
-        res.status(500).json({ message: 'エラーが発生しました' });
+        res.status(500).json({ message: 'いいね処理中にエラーが発生しました。' });
     }
 };
 
-// ロスゼロ特売情報 (簡易メモリ実装例 -> 本番はDBへ)
 let SPECIAL_DEALS = [];
 export const createDeal = (req, res) => {
-    if (req.user.role !== 'FLORIST') return res.status(403).json({ message: '権限なし' });
+    if (req.user.role !== 'FLORIST') return res.status(403).json({ message: '権限がありません。' });
     const { color, flower, discount, message } = req.body;
-    const deal = { id: Date.now().toString(), floristId: req.user.id, floristName: req.user.shopName, color, flower, discount, message };
+    const deal = { id: Date.now().toString(), floristId: req.user.id, floristName: req.user.shopName, color, flower, discount, message, createdAt: new Date() };
     SPECIAL_DEALS.push(deal);
     res.status(201).json(deal);
 };
@@ -395,7 +383,11 @@ export const getMyDeals = (req, res) => {
 };
 export const searchDeals = (req, res) => {
     const { keyword } = req.query;
-    if (!keyword) return res.json([]);
-    const matches = SPECIAL_DEALS.filter(d => d.color.includes(keyword) || d.flower.includes(keyword) || d.message.includes(keyword));
+    if (!keyword) return res.json(SPECIAL_DEALS);
+    const matches = SPECIAL_DEALS.filter(d => 
+        (d.color && d.color.includes(keyword)) || 
+        (d.flower && d.flower.includes(keyword)) || 
+        (d.message && d.message.includes(keyword))
+    );
     res.json(matches);
 };
