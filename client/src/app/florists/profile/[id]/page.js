@@ -28,7 +28,7 @@ const getAuthToken = () => {
 };
 
 export default function FloristProfileEditPage() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const router = useRouter();
   
   // React Hook Form
@@ -64,17 +64,20 @@ export default function FloristProfileEditPage() {
     const fetchProfile = async () => {
       try {
         const token = getAuthToken();
-        const res = await fetch(`${API_URL}/api/florists/dashboard`, {
+        // ★修正: 取得先を /profile に統一。
+        // バックエンドの getFloristProfile は { florist: {...} } ではなく、
+        // 直接お花屋さんのオブジェクトを返すように前回の修正で行っています。
+        const res = await fetch(`${API_URL}/api/florists/profile`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
+        
         if (res.ok) {
-          const data = await res.json();
-          const f = data.florist;
+          const f = await res.json();
           
           // フォーム初期値設定
-          setValue('shopName', f.shopName);
-          setValue('platformName', f.platformName);
-          setValue('contactName', f.contactName);
+          setValue('shopName', f.shopName || '');
+          setValue('platformName', f.platformName || '');
+          setValue('contactName', f.contactName || '');
           setValue('address', f.address || '');
           setValue('phoneNumber', f.phoneNumber || '');
           setValue('website', f.website || '');
@@ -85,10 +88,13 @@ export default function FloristProfileEditPage() {
           setSelectedTags(f.specialties || []);
           setPortfolioImages(f.portfolioImages || []);
           setIconUrl(f.iconUrl || '');
+        } else {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.message || 'お花屋さんの情報が見つかりませんでした。');
         }
       } catch (error) {
         console.error(error);
-        toast.error('プロフィールの読み込みに失敗しました');
+        toast.error(error.message || 'プロフィールの読み込みに失敗しました');
       } finally {
         setLoadingData(false);
       }

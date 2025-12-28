@@ -8,10 +8,15 @@ const router = express.Router();
 // ★ 優先ルート (静的パスを動的パスの前に置く)
 // ==========================================
 
-// ログイン中のお花屋さん自身のプロフィール取得
+// 1. ログイン中のお花屋さん自身のプロフィール取得
+// フロントエンド `${API_URL}/api/florists/profile` に対応
 router.get('/profile', authenticateToken, floristController.getFloristProfile);
 
-// マッチングAI
+// 2. お花屋さんダッシュボード用データ取得
+// フロントエンド `${API_URL}/api/florists/dashboard` に対応
+router.get('/dashboard', authenticateToken, floristController.getFloristProfile); 
+
+// 3. マッチングAI
 router.post('/match-ai', authenticateToken, floristController.matchFloristsByAi);
 
 // ==========================================
@@ -20,12 +25,12 @@ router.post('/match-ai', authenticateToken, floristController.matchFloristsByAi)
 router.get('/', floristController.getFlorists);
 router.get('/:id', floristController.getFloristById);
 
-// プロフィール・業務
+// プロフィール更新
 router.patch('/profile', authenticateToken, floristController.updateFloristProfile);
 router.get('/schedule', authenticateToken, floristController.getSchedule);
 
 // ==========================================
-// ★ オファー・見積もり ( /api/offers, /api/quotations )
+// ★ オファー・見積もり
 // ==========================================
 router.post('/offers', authenticateToken, floristController.createOffer);
 router.patch('/offers/:offerId', authenticateToken, floristController.respondToOffer);
@@ -48,7 +53,7 @@ router.post('/posts/:postId/like', authenticateToken, floristController.likeFlor
 router.post('/deals', authenticateToken, floristController.createDeal);
 router.get('/deals', authenticateToken, floristController.getMyDeals);
 
-// 特売検索 (公開)
+// 特売検索
 router.get('/deals/search', floristController.searchDeals);
 
 export default router;
