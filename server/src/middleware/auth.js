@@ -17,28 +17,26 @@ export const authenticateToken = async (req, res, next) => {
     // 1. JWTの検証
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const userId = decoded.id || decoded.sub;
-    const userRoleInToken = decoded.role; // トークンに記録されているRole
+    const userRoleInToken = decoded.role; // トークン作成時に付与したRole
 
     if (!userId) {
         return res.status(401).json({ message: 'トークンに有効なIDが含まれていません。' });
     }
 
     // 2. 最新の情報をDBから取得
-    // ★ 修正ポイント: role はテーブルに存在しない場合があるため select から除外
+    // ★重要: Florist/Venue/Organizerには role カラムがないため select から除外
     let foundAccount = null;
-    let finalRole = 'USER';
+    let finalRole = userRoleInToken || 'USER';
     const ADMIN_EMAILS = ["takuminsitou946@gmail.com", "hana87kaori@gmail.com"];
 
     if (userRoleInToken === 'FLORIST') {
         foundAccount = await prisma.florist.findUnique({ where: { id: userId }, select: { id: true, email: true } });
-        finalRole = 'FLORIST';
     } else if (userRoleInToken === 'VENUE') {
         foundAccount = await prisma.venue.findUnique({ where: { id: userId }, select: { id: true, email: true } });
-        finalRole = 'VENUE';
     } else if (userRoleInToken === 'ORGANIZER') {
         foundAccount = await prisma.organizer.findUnique({ where: { id: userId }, select: { id: true, email: true } });
-        finalRole = 'ORGANIZER';
     } else {
+        // 一般ユーザーのみ role カラムが存在する
         foundAccount = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, email: true, role: true } });
         finalRole = foundAccount?.role || 'USER';
     }
@@ -47,12 +45,12 @@ export const authenticateToken = async (req, res, next) => {
       return res.status(404).json({ message: 'アカウントが見つかりません。' });
     }
 
-    // 3. 管理者救済・確定ロジック (最優先)
+    // 3. 管理者救済・確定ロジック
     if (ADMIN_EMAILS.includes(foundAccount.email.toLowerCase())) {
         finalRole = 'ADMIN';
     }
 
-    // リクエストオブジェクトに情報を確実にセット
+    // リクエストオブジェクトに情報をセット
     req.user = {
         id: foundAccount.id,
         email: foundAccount.email.toLowerCase(),
@@ -76,7 +74,7 @@ export const requireAdmin = (req, res, next) => {
   if (req.user && req.user.role === 'ADMIN') {
     next();
   } else {
-    res.status(403).json({ message: 'この操作には管理者権限が必要です。' });
+    res.status(403).json({ message: '管理者権限が必要です。' });
   }
 };
 

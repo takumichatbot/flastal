@@ -236,28 +236,33 @@ export default function Header() {
 
   /**
    * Roleに基づいたメニュー項目を生成
+   * 各Roleに合わせたプロフィール設定画面へのパスを割り当てます
    */
   const userMenuItems = useMemo(() => {
     if (!user) return [];
     const items = [];
     
-    // 全Role共通: 基本的なマイページ
-    items.push({ href: '/mypage', label: 'プロフィール設定', icon: <Settings size={16} /> });
-
     // Role別の専門ダッシュボード
     switch (user.role) {
       case 'ORGANIZER':
         items.push({ href: '/organizers/dashboard', label: '主催者管理画面', icon: <LayoutDashboard size={16} /> });
+        items.push({ href: '/organizers/profile', label: '主催者プロフィール', icon: <Settings size={16} /> });
         break;
       case 'FLORIST':
         items.push({ href: '/florists/dashboard', label: '受注管理画面', icon: <Briefcase size={16} /> });
+        items.push({ href: '/florists/profile', label: '花屋プロフィール', icon: <Settings size={16} /> });
         break;
       case 'VENUE':
         items.push({ href: `/dashboard/${user.id}`, label: '会場ダッシュボード', icon: <MapPin size={16} /> });
+        items.push({ href: `/venues/${user.id}/edit`, label: '会場レギュレーション設定', icon: <Settings size={16} /> });
         break;
       case 'ADMIN':
         items.push({ href: '/admin', label: 'システム管理画面', icon: <ShieldCheck size={16} /> });
+        items.push({ href: '/admin/settings', label: 'システム設定', icon: <Settings size={16} /> });
         break;
+      default:
+        items.push({ href: '/mypage', label: 'マイページ', icon: <LayoutDashboard size={16} /> });
+        items.push({ href: '/mypage/settings', label: 'プロフィール設定', icon: <Settings size={16} /> });
     }
     return items;
   }, [user]);
