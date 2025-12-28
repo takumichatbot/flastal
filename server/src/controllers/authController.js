@@ -9,11 +9,11 @@ import { sendDynamicEmail, sendEmail } from '../utils/email.js';
 // ==========================================
 /**
  * JWTトークンを生成します。
- * 管理者(ADMIN)の場合は有効期限を7日間に延長し、頻繁なログアウトを防ぎます。
+ * 全てのユーザー種別で有効期限を7日間に設定し、利便性を向上させます。
  */
 const generateToken = (payload) => {
-    const expiry = payload.role === 'ADMIN' ? '7d' : '1d';
-    return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: expiry });
+    // 頻繁な期限切れを防ぐため、一律7日間(7d)に設定
+    return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '7d' });
 };
 
 // ==========================================
@@ -138,7 +138,8 @@ export const registerFlorist = async (req, res) => {
 export const loginFlorist = async (req, res) => {
     try {
         const { email, password } = req.body;
-        const florist = await prisma.florist.findUnique({ where: { email: email.toLowerCase() } });
+        const lowerEmail = email.toLowerCase();
+        const florist = await prisma.florist.findUnique({ where: { email: lowerEmail } });
         
         if (!florist || !(await bcrypt.compare(password, florist.password))) {
             return res.status(401).json({ message: '認証に失敗しました。' });
