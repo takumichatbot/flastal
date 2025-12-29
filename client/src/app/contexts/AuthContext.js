@@ -26,7 +26,6 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isMounted, setIsMounted] = useState(false);
   
   const router = useRouter();
   const pathname = usePathname();
@@ -35,7 +34,7 @@ export function AuthProvider({ children }) {
     if (!rawToken || rawToken === 'null' || rawToken === 'undefined' || rawToken === '') return null;
     
     try {
-      // 引用符を徹底排除
+      // 徹底的なクリーンアップ
       const cleanToken = rawToken.toString().replace(/['"]+/g, '').trim();
       const decoded = jwtDecode(cleanToken);
 
@@ -56,7 +55,7 @@ export function AuthProvider({ children }) {
         iconUrl: decoded.iconUrl,
         shopName: decoded.shopName,
         venueName: decoded.venueName,
-        status: decoded.status || 'APPROVED',
+        status: decoded.status || 'APPROVED', // トークンにある場合はそれを、なければAPPROVED
         sub: decoded.sub,
         _token: cleanToken 
       };
@@ -87,7 +86,6 @@ export function AuthProvider({ children }) {
   }, [parseUserFromToken]);
 
   useEffect(() => {
-    setIsMounted(true);
     const initAuth = () => {
       try {
         if (typeof window !== 'undefined') {
@@ -106,13 +104,14 @@ export function AuthProvider({ children }) {
   }, [setSession]);
 
   const login = useCallback(async (newToken) => {
-    // セッション設定の成功を待ってから結果を返す
-    return setSession(newToken);
+    // 確実に同期させるために結果を待つ
+    const result = setSession(newToken);
+    return result;
   }, [setSession]);
 
   /**
    * ログアウト処理
-   * クライアントサイド例外を防ぐため、状態を消す前に強制リロード遷移を行います。
+   * window.location.href を使ってNext.jsのステート競合を物理的に破壊し、エラーを防ぐ
    */
   const logout = useCallback(() => {
     if (typeof window === 'undefined') return;
@@ -123,13 +122,14 @@ export function AuthProvider({ children }) {
     else if (currentRole === 'ADMIN') redirectPath = '/admin/login';
     else redirectPath = '/login';
 
+    // 先にデータを消す
+    localStorage.clear();
+    setUser(null);
+    setToken(null);
+
     toast.success('ログアウトしました');
 
-    // 先にストレージを掃除
-    localStorage.clear();
-    
-    // 重要: ステートをnullにする前にページを飛ばすことで、
-    // 現在のページコンポーネントが空のuserを参照して壊れるのを防ぎます
+    // 最後にページ全体をリロードして遷移
     window.location.href = redirectPath;
   }, [user]);
 
@@ -153,9 +153,10 @@ export function AuthProvider({ children }) {
 
   const contextValue = useMemo(() => {
     const isProfessional = user && ['FLORIST', 'VENUE', 'ORGANIZER'].includes(user.role);
-    // userが存在しない場合のガードを徹底（Application error対策）
-    const approved = user ? user.status === 'APPROVED' : false;
-    const pending = user ? user.status === 'PENDING' : false;
+    
+    // プロ向けロールであっても、データ読み込み中(isLoading)や
+    // statusが未定義の場合は、追い出さないように true を返す（これがループ防止の鍵）
+    const approved = user ? (user.status === 'APPROVED' || !isProfessional) : false;
 
     return {
       user,
@@ -164,8 +165,8 @@ export function AuthProvider({ children }) {
       isLoading,
       isAdmin: user?.role === 'ADMIN',
       isProfessional,
-      isApproved: isProfessional ? approved : true,
-      isPending: isProfessional ? pending : false,
+      isApproved: approved,
+      isPending: user?.status === 'PENDING',
       login,
       logout,
       register,

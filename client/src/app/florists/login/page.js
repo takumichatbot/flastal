@@ -22,7 +22,6 @@ export default function FloristLoginPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (isLoading) return;
-    
     setIsLoading(true);
     setShowResend(false);
 
@@ -42,17 +41,16 @@ export default function FloristLoginPage() {
         throw new Error(data.message || 'ログインに失敗しました');
       }
 
-      // 重要: AuthContextの状態更新が完了するのを待つ
-      const isOk = await login(data.token);
+      // 1. AuthContextにトークンを渡し、内部処理を待つ
+      const success = await login(data.token);
       
-      if (isOk) {
+      if (success) {
         toast.success('おかえりなさい！');
-        
-        // 状態の浸透を確実にするため、Next.jsのrouterではなく
-        // window.locationを使ってクリーンにダッシュボードへ遷移させる（リダイレクトループ防止）
+        // 2. Next.jsの仮想ルーターではなく、ブラウザのリロード遷移を使うことで
+        // 確実に最新の認証状態でダッシュボードを起動させる
         window.location.href = '/florists/dashboard';
       } else {
-        throw new Error('ログイン情報の処理に失敗しました');
+        throw new Error('ログイン状態の確立に失敗しました');
       }
 
     } catch (error) {
@@ -69,13 +67,9 @@ export default function FloristLoginPage() {
       const res = await fetch(`${API_URL}/api/auth/resend-verification`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-            email, 
-            userType: 'FLORIST' 
-        }),
+        body: JSON.stringify({ email, userType: 'FLORIST' }),
       });
       const data = await res.json();
-      
       if (res.ok) {
         toast.success(data.message, { id: toastId });
         setShowResend(false);
@@ -111,7 +105,7 @@ export default function FloristLoginPage() {
                 required 
                 value={email} 
                 onChange={(e) => setEmail(e.target.value)} 
-                className="w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent transition" 
+                className="w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 transition" 
                 placeholder="example@flower-shop.com"
               />
             </div>
@@ -133,7 +127,7 @@ export default function FloristLoginPage() {
                 required 
                 value={password} 
                 onChange={(e) => setPassword(e.target.value)} 
-                className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent transition" 
+                className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 transition" 
                 placeholder="••••••••"
               />
               <button 
@@ -149,23 +143,11 @@ export default function FloristLoginPage() {
           <button 
             type="submit" 
             disabled={isLoading} 
-            className={`w-full py-3.5 bg-pink-500 text-white rounded-lg font-bold text-lg shadow-md hover:bg-pink-600 hover:shadow-lg transition-all duration-200 transform hover:-translate-y-0.5 ${isLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
+            className={`w-full py-3.5 bg-pink-500 text-white rounded-lg font-bold text-lg shadow-md hover:bg-pink-600 transition-all duration-200 transform hover:-translate-y-0.5 ${isLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
           >
             {isLoading ? 'ログイン中...' : 'ログインする'}
           </button>
         </form>
-
-        {showResend && (
-            <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-xl text-center animate-fadeIn">
-                <p className="text-sm text-yellow-800 mb-3 font-bold">まだメール認証が完了していませんか？</p>
-                <button 
-                  onClick={handleResendEmail} 
-                  className="inline-flex items-center px-4 py-2 bg-white border border-yellow-300 text-yellow-700 font-bold rounded-lg hover:bg-yellow-100 transition shadow-sm text-sm"
-                >
-                    <FiMail className="mr-2" /> 認証メールを再送する
-                </button>
-            </div>
-        )}
 
         <div className="mt-8 pt-6 border-t border-gray-100 text-center space-y-2">
           <p className="text-sm text-gray-600">
