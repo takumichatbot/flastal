@@ -4,7 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '@/app/contexts/AuthContext';
-// アイコン (Lucide React) - ★ Truck を追加
+// アイコン (Lucide React)
 import { 
   Bell, ChevronDown, User, LogOut, Heart, CheckCircle2, Menu, X, 
   Calendar, MapPin, LayoutDashboard, Settings, Sparkles, Store, ShieldCheck, Briefcase, FileText,
@@ -16,14 +16,8 @@ import OshiColorPicker from './OshiColorPicker';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
-const getAuthToken = () => {
-    if (typeof window === 'undefined') return null;
-    const rawToken = localStorage.getItem('authToken'); 
-    return rawToken ? rawToken.replace(/^"|"$/g, '') : null;
-};
-
 // --- Notification Dropdown ---
-function NotificationDropdown({ notifications, fetchNotifications, unreadCount }) {
+function NotificationDropdown({ notifications, fetchNotifications, unreadCount, authenticatedFetch }) {
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef(null);
   
@@ -40,14 +34,8 @@ function NotificationDropdown({ notifications, fetchNotifications, unreadCount }
     const handleMarkAllAsRead = async () => {
       if (unreadCount === 0) return;
       try {
-        const token = getAuthToken(); 
-        if (!token) return;
-        const response = await fetch(`${API_URL}/api/notifications/readall`, {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-          },
+        const response = await authenticatedFetch(`${API_URL}/api/notifications/readall`, {
+          method: 'PATCH'
         });
         if (response.ok) {
           toast.success('全ての通知を既読にしました');
@@ -61,14 +49,10 @@ function NotificationDropdown({ notifications, fetchNotifications, unreadCount }
     const handleRead = async (notificationId, linkUrl) => {
       setIsOpen(false);
       try {
-        const token = getAuthToken(); 
-        if (token) {
-          await fetch(`${API_URL}/api/notifications/${notificationId}/read`, {
-            method: 'PATCH',
-            headers: { 'Authorization': `Bearer ${token}` },
-          });
-          fetchNotifications();
-        }
+        await authenticatedFetch(`${API_URL}/api/notifications/${notificationId}/read`, {
+          method: 'PATCH'
+        });
+        fetchNotifications();
       } catch (error) {
         console.error('Failed to mark as read:', error);
       }
@@ -166,7 +150,7 @@ function NotificationDropdown({ notifications, fetchNotifications, unreadCount }
 // Main Header Component
 // ===========================================
 export default function Header() {
-  const { user, logout } = useAuth();
+  const { user, logout, isLoading, authenticatedFetch } = useAuth();
   const [notifications, setNotifications] = useState([]);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); 
@@ -175,29 +159,26 @@ export default function Header() {
   const unreadCount = useMemo(() => notifications.filter(n => !n.isRead).length, [notifications]);
 
   const fetchNotifications = useCallback(async () => {
-    if (!user) return;
+    // isLoadingがtrueの時やユーザーがいない時はAPIを叩かない（401エラー防止）
+    if (isLoading || !user) return;
     try {
-      const token = getAuthToken(); 
-      if (!token) return;
-      const response = await fetch(`${API_URL}/api/notifications`, {
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
-      if (response.ok) {
+      const response = await authenticatedFetch(`${API_URL}/api/notifications`);
+      if (response && response.ok) {
         const data = await response.json();
         setNotifications(data);
       }
     } catch (error) {
       console.error('Failed to fetch notifications:', error);
     }
-  }, [user]); 
+  }, [user, isLoading, authenticatedFetch]); 
 
   useEffect(() => {
-    if (user) {
+    if (!isLoading && user) {
       fetchNotifications();
       const interval = setInterval(fetchNotifications, 60000); 
       return () => clearInterval(interval); 
     }
-  }, [user, fetchNotifications]);
+  }, [user, isLoading, fetchNotifications]);
 
   const handleLogout = () => {
     logout();
@@ -258,7 +239,7 @@ export default function Header() {
   }, [user]);
 
   /**
-   * Roleに基づいたメインリンク（Signed in as の遷移先）
+   * Roleに基づいたメインリンク
    */
   const getPrimaryLink = useMemo(() => {
     if (!user) return '/login';
@@ -272,7 +253,7 @@ export default function Header() {
   }, [user]);
 
   /**
-   * Roleに基づいたメニュー項目（Dropdown内）
+   * Roleに基づいたメニュー項目
    */
   const userMenuItems = useMemo(() => {
     if (!user) return [];
@@ -302,7 +283,7 @@ export default function Header() {
           { href: '/organizers/profile', label: '主催者情報設定', icon: <User size={16} /> },
           { href: '/organizers/messages', label: '参加者メッセージ', icon: <Bell size={16} /> },
         ];
-      default: // FAN / USER
+      default:
         return [
           { href: '/mypage', label: 'マイページ', icon: <LayoutDashboard size={16} /> },
           { href: '/mypage/pledges', label: '支援履歴', icon: <Heart size={16} /> },
@@ -333,7 +314,7 @@ export default function Header() {
               </span>
             </Link>
 
-            {/* Desktop Nav (Role-based) */}
+            {/* Desktop Nav */}
             <nav className="hidden lg:flex items-center space-x-1">
               {navLinks.map((link) => (
                 <Link 
@@ -361,6 +342,7 @@ export default function Header() {
                     notifications={notifications} 
                     fetchNotifications={fetchNotifications} 
                     unreadCount={unreadCount}
+                    authenticatedFetch={authenticatedFetch}
                 />
 
                 <div className="relative" ref={userMenuRef}>
@@ -447,7 +429,7 @@ export default function Header() {
         </div>
       </div>
 
-      {/* Mobile Menu Drawer (Role-based) */}
+      {/* Mobile Menu Drawer */}
       <AnimatePresence>
         {isMobileMenuOpen && (
             <motion.div
