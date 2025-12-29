@@ -8,7 +8,7 @@ import { sendDynamicEmail, sendEmail } from '../utils/email.js';
 // ★★★ 共通ヘルパー: トークン発行 ★★★
 // ==========================================
 const generateToken = (payload) => {
-    // expiresInを7dに固定し、セッション切れを防ぐ
+    // セッション切れを防ぐため7日間(7d)に設定
     return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '7d' });
 };
 
@@ -81,7 +81,7 @@ export const loginUser = async (req, res) => {
             email: user.email,
             handleName: user.handleName,
             role: userRole,
-            status: 'APPROVED', // 一般ユーザーは常にAPPROVED扱い
+            status: 'APPROVED',
             sub: user.id
         };
 
@@ -144,7 +144,7 @@ export const loginFlorist = async (req, res) => {
             return res.status(403).json({ message: 'アカウントが承認されていないか、未認証です。' });
         }
         
-        // ★AuthContextが必要とする情報をすべて含める
+        // ★重要: DBから取得した florist.id をそのままペイロードに使用
         const token = generateToken({ 
             id: florist.id, 
             email: florist.email, 
@@ -152,7 +152,6 @@ export const loginFlorist = async (req, res) => {
             status: florist.status, 
             shopName: florist.shopName,
             handleName: florist.platformName,
-            iconUrl: florist.iconUrl,
             sub: florist.id 
         });
 
