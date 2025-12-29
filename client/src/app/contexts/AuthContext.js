@@ -31,14 +31,21 @@ export function AuthProvider({ children }) {
   const router = useRouter();
   const pathname = usePathname();
 
+  /**
+   * トークンからユーザー情報を抽出する関数
+   * 引用符などを徹底的に排除するように強化
+   */
   const parseUserFromToken = useCallback((rawToken) => {
-    if (!rawToken || rawToken === 'null' || rawToken === 'undefined') return null;
+    if (!rawToken || rawToken === 'null' || rawToken === 'undefined' || rawToken === '') return null;
     
     try {
-      const cleanToken = rawToken.replace(/^"|"$/g, '');
+      // 全ての種類の引用符を完全に削除し、空白も除去
+      const cleanToken = rawToken.toString().replace(/['"]+/g, '').trim();
       const decoded = jwtDecode(cleanToken);
 
+      // 有効期限チェック
       if (decoded.exp * 1000 < Date.now()) {
+        console.warn("Auth: Token has expired");
         return null;
       }
 
@@ -55,7 +62,7 @@ export function AuthProvider({ children }) {
         iconUrl: decoded.iconUrl,
         shopName: decoded.shopName,
         venueName: decoded.venueName,
-        status: decoded.status,
+        status: decoded.status || 'APPROVED', // statusがない場合はデフォルトでAPPROVEDとする
         sub: decoded.sub,
         _token: cleanToken 
       };
@@ -65,14 +72,17 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
+  /**
+   * セッションを確立する関数
+   */
   const setSession = useCallback((newToken) => {
     const userData = parseUserFromToken(newToken);
 
     if (userData) {
       setUser(userData);
-      setToken(newToken.replace(/^"|"$/g, ''));
+      setToken(userData._token);
       if (typeof window !== 'undefined') {
-        localStorage.setItem('authToken', newToken.replace(/^"|"$/g, ''));
+        localStorage.setItem('authToken', userData._token);
       }
       return true;
     } else {
@@ -80,11 +90,15 @@ export function AuthProvider({ children }) {
       setToken(null);
       if (typeof window !== 'undefined') {
         localStorage.removeItem('authToken');
+        localStorage.removeItem('flastal-florist');
       }
       return false;
     }
   }, [parseUserFromToken]);
 
+  /**
+   * 初期起動時の認証チェック
+   */
   useEffect(() => {
     setIsMounted(true);
     const initAuth = () => {
@@ -104,14 +118,15 @@ export function AuthProvider({ children }) {
     initAuth();
   }, [setSession]);
 
+  /**
+   * ログイン実行
+   */
   const login = useCallback(async (newToken) => {
     return setSession(newToken);
   }, [setSession]);
 
   /**
    * ログアウト処理
-   * ページを真っ白にしたりエラーを出したりしないよう、
-   * window.locationで強制移動させてからストレージを掃除します。
    */
   const logout = useCallback(() => {
     if (typeof window === 'undefined') return;
@@ -123,17 +138,15 @@ export function AuthProvider({ children }) {
     else if (currentRole === 'ADMIN') redirectPath = '/admin/login';
     else redirectPath = '/login';
 
-    // 2. トーストを表示
-    toast.success('ログアウトしました');
-
-    // 3. データを消す前に強制的に移動させる（移動によってコンポーネントがアンマウントされる）
-    // 移動した先（ログイン画面）でデータが残っている分にはエラーにならないため、この順序が安全です。
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('flastal-florist');
-    
-    // 最後に状態をクリアして遷移
+    // 2. 状態とストレージをクリア
     setUser(null);
     setToken(null);
+    localStorage.clear(); // 全てクリアして不整合を防ぐ
+
+    toast.success('ログアウトしました');
+
+    // 3. window.location.replace で強制的にページをリロードして遷移
+    // これによりNext.jsのステート競合によるクラッシュを完全に防ぐ
     window.location.replace(redirectPath);
   }, [user]);
 
@@ -157,6 +170,8 @@ export function AuthProvider({ children }) {
 
   const contextValue = useMemo(() => {
     const isProfessional = user && ['FLORIST', 'VENUE', 'ORGANIZER'].includes(user.role);
+    const approved = user ? (user.status === 'APPROVED') : false;
+    
     return {
       user,
       token,
@@ -164,7 +179,7 @@ export function AuthProvider({ children }) {
       isLoading,
       isAdmin: user?.role === 'ADMIN',
       isProfessional,
-      isApproved: isProfessional ? user.status === 'APPROVED' : true,
+      isApproved: isProfessional ? approved : true,
       isPending: isProfessional ? user.status === 'PENDING' : false,
       login,
       logout,
