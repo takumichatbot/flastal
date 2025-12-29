@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { jwtDecode } from 'jwt-decode';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
@@ -27,21 +27,16 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const isInitializing = useRef(true);
   
   const router = useRouter();
 
-  // トークンからユーザー情報を抽出する純粋な関数
   const parseUserFromToken = useCallback((rawToken, extraData = null) => {
     if (!rawToken || rawToken === 'null' || rawToken === 'undefined' || rawToken === '') return null;
-    
     try {
       const cleanToken = rawToken.toString().replace(/['"]+/g, '').trim();
       const decoded = jwtDecode(cleanToken);
-
-      // 有効期限切れチェック
-      if (decoded.exp * 1000 < Date.now()) {
-        return null;
-      }
+      if (decoded.exp * 1000 < Date.now()) return null;
 
       let displayName = decoded.handleName;
       if (decoded.role === 'FLORIST') displayName = decoded.shopName || decoded.handleName;
@@ -61,15 +56,12 @@ export function AuthProvider({ children }) {
         _token: cleanToken 
       };
     } catch (error) {
-      console.error("Auth: Decode failed", error);
       return null;
     }
   }, []);
 
-  // セッションをセットする関数。初期化時は remove を行わないようにフラグを追加
-  const setSession = useCallback((newToken, extraData = null, isInitializing = false) => {
+  const setSession = useCallback((newToken, extraData = null) => {
     const userData = parseUserFromToken(newToken, extraData);
-
     if (userData) {
       setUser(userData);
       setToken(userData._token);
@@ -79,8 +71,8 @@ export function AuthProvider({ children }) {
       }
       return true;
     } else {
-      // 初期化中（ページ読み込み時）は、デコードに失敗しても即座に消さない（一瞬のラグ対策）
-      if (!isInitializing) {
+      // ログアウト以外（初期化中など）では、絶対に勝手にクリアしない
+      if (!isInitializing.current) {
         setUser(null);
         setToken(null);
         if (typeof window !== 'undefined') {
@@ -92,7 +84,8 @@ export function AuthProvider({ children }) {
     }
   }, [parseUserFromToken]);
 
-  const authenticatedFetch = useCallback(async (url, options = {}) => {
+  // ★ ネットワーク不安定やSafariの制限に耐えるリトライ付きFetch
+  const authenticatedFetch = useCallback(async (url, options = {}, retryCount = 0) => {
     const storedToken = typeof window !== 'undefined' ? localStorage.getItem('authToken') : token;
     const headers = { ...options.headers };
     if (!(options.body instanceof FormData)) {
@@ -102,7 +95,24 @@ export function AuthProvider({ children }) {
       const cleanToken = storedToken.replace(/['"]+/g, '').trim();
       headers['Authorization'] = `Bearer ${cleanToken}`;
     }
-    return await fetch(url, { ...options, headers });
+
+    try {
+      const response = await fetch(url, { ...options, headers });
+      
+      // Safari等で一時的に認証が弾かれた場合、1回だけ自動リトライ
+      if (response.status === 401 && retryCount < 1 && !url.includes('/login')) {
+        await new Promise(resolve => setTimeout(resolve, 300));
+        return authenticatedFetch(url, options, retryCount + 1);
+      }
+      return response;
+    } catch (e) {
+      // 通信エラー時も1回リトライ
+      if (retryCount < 1) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        return authenticatedFetch(url, options, retryCount + 1);
+      }
+      throw e;
+    }
   }, [token]);
 
   useEffect(() => {
@@ -112,27 +122,29 @@ export function AuthProvider({ children }) {
           const storedToken = localStorage.getItem('authToken');
           if (storedToken && storedToken !== 'null') {
             const storedStatus = localStorage.getItem('userStatus');
-            // isInitializing = true で呼び出し
-            setSession(storedToken, storedStatus ? { status: storedStatus } : null, true);
+            setSession(storedToken, storedStatus ? { status: storedStatus } : null);
           }
         }
-      } catch (e) {
-        console.error("Auth: Init failed", e);
       } finally {
-        // ステートが反映される時間を十分に確保
-        setTimeout(() => setIsLoading(false), 500);
+        // ロード完了を遅らせ、ステートを確実に固定
+        setTimeout(() => {
+          setIsLoading(false);
+          isInitializing.current = false;
+        }, 1000);
       }
     };
     initAuth();
   }, [setSession]);
 
   const login = useCallback(async (newToken, extraData = null) => {
-    const result = setSession(newToken, extraData, false);
-    if (result) setIsLoading(false);
-    return result;
+    isInitializing.current = false; 
+    const res = setSession(newToken, extraData);
+    if (res) setIsLoading(false);
+    return res;
   }, [setSession]);
 
   const logout = useCallback(() => {
+    isInitializing.current = false;
     if (typeof window === 'undefined') return;
     localStorage.removeItem('authToken');
     localStorage.removeItem('userStatus');
@@ -141,57 +153,24 @@ export function AuthProvider({ children }) {
     window.location.href = '/';
   }, []);
 
-  const register = useCallback(async (email, password, handleName) => {
-    const response = await fetch(`${API_URL}/api/users/register`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password, handleName }),
-    });
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || '登録に失敗しました。');
-    }
-    return response.json();
-  }, []);
-
   const updateUser = useCallback((newUserData) => {
-    setUser(prev => {
-        if (!prev) return null;
-        const updated = { ...prev, ...newUserData };
-        if (typeof window !== 'undefined' && newUserData.status) {
-            localStorage.setItem('userStatus', newUserData.status);
-        }
-        return updated;
-    });
+    setUser(prev => prev ? { ...prev, ...newUserData } : null);
   }, []);
 
   const contextValue = useMemo(() => {
     const isProfessional = user && ['FLORIST', 'VENUE', 'ORGANIZER'].includes(user.role);
-    // ロード中はガード機能を絶対に発動させない
     const approved = isLoading ? true : (user ? (user.status === 'APPROVED' || !isProfessional) : false);
 
     return {
-      user,
-      token,
-      isAuthenticated: !!user,
-      isLoading,
+      user, token, isAuthenticated: !!user, isLoading,
       isAdmin: user?.role === 'ADMIN',
-      isProfessional,
-      isApproved: approved,
+      isProfessional, isApproved: approved,
       isPending: user?.status === 'PENDING',
-      login,
-      logout,
-      register,
-      updateUser,
-      authenticatedFetch
+      login, logout, updateUser, authenticatedFetch
     };
-  }, [user, token, isLoading, login, logout, register, updateUser, authenticatedFetch]);
+  }, [user, token, isLoading, login, logout, updateUser, authenticatedFetch]);
 
-  return (
-    <AuthContext.Provider value={contextValue}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>;
 }
 
 export const useAuth = () => useContext(AuthContext);
