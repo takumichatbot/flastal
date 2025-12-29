@@ -17,39 +17,33 @@ export const getFloristProfile = async (req, res) => {
             return res.status(401).json({ message: '認証情報が不足しています。' });
         }
 
-        // ミドルウェアから渡された複数の情報で検索を試みる
         const floristId = req.user.id;
         const floristEmail = req.user.email;
 
-        // 1. IDで検索
-        let florist = await prisma.florist.findUnique({
-            where: { id: floristId },
-            include: { _count: { select: { offers: true, reviews: true } } }
+        // 確実に取得するため、IDまたはEmailのいずれか一致するものを検索
+        const florist = await prisma.florist.findFirst({
+            where: {
+                OR: [
+                    { id: floristId },
+                    { email: floristEmail }
+                ]
+            },
+            include: {
+                _count: {
+                    select: { offers: true, reviews: true }
+                }
+            }
         });
 
-        // 2. IDで見つからない場合は Email で検索（IDの型不一致対策）
-        if (!florist && floristEmail) {
-            florist = await prisma.florist.findUnique({
-                where: { email: floristEmail },
-                include: { _count: { select: { offers: true, reviews: true } } }
-            });
-        }
-
-        // 3. それでも見つからない場合（最後の手段：FindFirst）
         if (!florist) {
-            florist = await prisma.florist.findFirst({
-                where: { OR: [{ id: floristId }, { email: floristEmail }] },
-                include: { _count: { select: { offers: true, reviews: true } } }
-            });
+            console.error(`[PROFILE ERROR] No florist found in DB. ID: ${floristId}, Email: ${floristEmail}`);
+            return res.status(404).json({ message: 'お花屋さんの情報が見つかりませんでした。' });
         }
 
-        if (!florist) {
-            return res.status(404).json({ message: 'お花屋さんのデータが見つかりません。' });
-        }
-
+        // パスワードや機密情報を除外して返却
         const { password, laruBotApiKey, ...safeData } = florist;
+        
         res.status(200).json(safeData);
-
     } catch (error) {
         console.error('getFloristProfile Error:', error);
         res.status(500).json({ message: 'プロフィールの取得中にエラーが発生しました。' });
