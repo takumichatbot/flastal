@@ -87,7 +87,7 @@ export default function FloristLoginPage() {
           <button type="submit" disabled={isLoading} className={`w-full py-3.5 bg-pink-500 text-white rounded-lg font-bold text-lg shadow-md hover:bg-pink-600 transition-all ${isLoading ? 'opacity-70' : ''}`}>{isLoading ? 'ログイン中...' : 'ログインする'}</button>
         </form>
         <div className="mt-8 pt-6 border-t border-gray-100 text-center">
-          <p className="text-sm text-gray-600">パートナー登録はお済みですか？<br/><Link href="/florists/register" className="font-bold text-pink-600 hover:underline mt-1 inline-block">新規登録申請（無料）</Link></p>
+          <p className="text-sm text-gray-600">パートナー登録はお済みですか？？<br/><Link href="/florists/register" className="font-bold text-pink-600 hover:underline mt-1 inline-block">新規登録申請（無料）</Link></p>
         </div>
       </div>
     </div>
