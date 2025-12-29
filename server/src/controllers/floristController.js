@@ -10,16 +10,29 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 /**
  * ログイン中のお花屋さん自身の情報を取得
- * ミドルウェアで取得済みのデータをそのまま返却する堅牢な実装
  */
 export const getFloristProfile = async (req, res) => {
     try {
-        // ミドルウェア(authenticateToken)で既にDB検索済みのデータを利用
-        if (!req.user || req.user.role !== 'FLORIST' || !req.user.data) {
+        // ミドルウェアで検証済みの ID を使用
+        if (!req.user || req.user.role !== 'FLORIST' || !req.user.id) {
             return res.status(401).json({ message: 'お花屋さんの認証情報が見つかりません。' });
         }
 
-        const florist = req.user.data;
+        const floristId = req.user.id;
+
+        // DBから最新情報を取得（リレーションのカウントも含む）
+        const florist = await prisma.florist.findUnique({
+            where: { id: floristId },
+            include: {
+                _count: {
+                    select: { offers: true, reviews: true }
+                }
+            }
+        });
+
+        if (!florist) {
+            return res.status(404).json({ message: 'お花屋さんの情報が見つかりませんでした。' });
+        }
 
         // パスワードや機密情報を除外して返却
         const { password, laruBotApiKey, ...safeData } = florist;
@@ -28,7 +41,7 @@ export const getFloristProfile = async (req, res) => {
         res.status(200).json(safeData);
     } catch (error) {
         console.error('getFloristProfile Error:', error);
-        res.status(500).json({ message: 'プロフィールの返却中にエラーが発生しました。' });
+        res.status(500).json({ message: 'プロフィールの取得中にエラーが発生しました。' });
     }
 };
 

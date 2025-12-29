@@ -21,7 +21,7 @@ export const authenticateToken = async (req, res, next) => {
     // 1. JWTの検証
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
-    // IDの抽出。確実に文字列に変換
+    // IDの抽出。確実に文字列に変換し、不要な記号を除去
     const rawUserId = decoded.id || decoded.sub;
     if (!rawUserId) {
         return res.status(401).json({ message: 'トークンに有効なIDが含まれていません。' });
@@ -35,12 +35,8 @@ export const authenticateToken = async (req, res, next) => {
     let finalRole = userRoleInToken || 'USER';
     const ADMIN_EMAILS = ["takuminsitou946@gmail.com", "hana87kaori@gmail.com"];
 
-    // 役割に応じてテーブルを検索（IDは文字列として扱う）
     if (userRoleInToken === 'FLORIST') {
-        foundAccount = await prisma.florist.findUnique({ 
-            where: { id: userId },
-            include: { _count: { select: { offers: true, reviews: true } } } // ここでカウントも含めておく
-        });
+        foundAccount = await prisma.florist.findUnique({ where: { id: userId } });
     } else if (userRoleInToken === 'VENUE') {
         foundAccount = await prisma.venue.findUnique({ where: { id: userId } });
     } else if (userRoleInToken === 'ORGANIZER') {
@@ -60,13 +56,12 @@ export const authenticateToken = async (req, res, next) => {
         finalRole = 'ADMIN';
     }
 
-    // リクエストオブジェクトに情報をセット（DBから引いた実データを保持）
+    // リクエストオブジェクトに情報をセット（DB上の正式なIDをセット）
     req.user = {
         id: foundAccount.id,
         email: foundAccount.email.toLowerCase(),
         role: finalRole,
-        status: foundAccount.status || 'APPROVED',
-        data: foundAccount // DBから引いた実データを丸ごと渡す
+        status: foundAccount.status || 'APPROVED'
     };
 
     next();
