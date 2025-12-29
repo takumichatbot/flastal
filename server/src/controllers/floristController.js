@@ -13,31 +13,40 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
  */
 export const getFloristProfile = async (req, res) => {
     try {
-        // ミドルウェアで検証済みの ID を使用
-        if (!req.user || req.user.role !== 'FLORIST' || !req.user.id) {
+        // ミドルウェア(authenticateToken)で既にDB検索済みのデータを利用
+        if (!req.user || req.user.role !== 'FLORIST') {
             return res.status(401).json({ message: 'お花屋さんの認証情報が見つかりません。' });
         }
 
         const floristId = req.user.id;
+        const floristEmail = req.user.email;
 
         // DBから最新情報を取得（リレーションのカウントも含む）
-        const florist = await prisma.florist.findUnique({
+        // IDでの検索に失敗した場合はEmailで検索を試みる
+        let florist = await prisma.florist.findUnique({
             where: { id: floristId },
             include: {
-                _count: {
-                    select: { offers: true, reviews: true }
-                }
+                _count: { select: { offers: true, reviews: true } }
             }
         });
 
+        if (!florist && floristEmail) {
+            florist = await prisma.florist.findUnique({
+                where: { email: floristEmail },
+                include: {
+                    _count: { select: { offers: true, reviews: true } }
+                }
+            });
+        }
+
         if (!florist) {
+            console.error(`[PROFILE ERROR] Florist not found for ID: ${floristId} and Email: ${floristEmail}`);
             return res.status(404).json({ message: 'お花屋さんの情報が見つかりませんでした。' });
         }
 
         // パスワードや機密情報を除外して返却
         const { password, laruBotApiKey, ...safeData } = florist;
         
-        // 正常にデータを返却
         res.status(200).json(safeData);
     } catch (error) {
         console.error('getFloristProfile Error:', error);

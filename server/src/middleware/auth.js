@@ -21,8 +21,10 @@ export const authenticateToken = async (req, res, next) => {
     // 1. JWTの検証
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
-    // IDの抽出。確実に文字列に変換し、不要な記号を除去
+    // IDとEmailの抽出。確実にクリーンな状態にする
     const rawUserId = decoded.id || decoded.sub;
+    const userEmail = decoded.email ? String(decoded.email).toLowerCase() : null;
+
     if (!rawUserId) {
         return res.status(401).json({ message: 'トークンに有効なIDが含まれていません。' });
     }
@@ -35,19 +37,32 @@ export const authenticateToken = async (req, res, next) => {
     let finalRole = userRoleInToken || 'USER';
     const ADMIN_EMAILS = ["takuminsitou946@gmail.com", "hana87kaori@gmail.com"];
 
+    // 役割に応じてテーブルを検索（IDで失敗した場合はEmailで検索するフォールバック付き）
     if (userRoleInToken === 'FLORIST') {
         foundAccount = await prisma.florist.findUnique({ where: { id: userId } });
+        if (!foundAccount && userEmail) {
+            foundAccount = await prisma.florist.findUnique({ where: { email: userEmail } });
+        }
     } else if (userRoleInToken === 'VENUE') {
         foundAccount = await prisma.venue.findUnique({ where: { id: userId } });
+        if (!foundAccount && userEmail) {
+            foundAccount = await prisma.venue.findUnique({ where: { email: userEmail } });
+        }
     } else if (userRoleInToken === 'ORGANIZER') {
         foundAccount = await prisma.organizer.findUnique({ where: { id: userId } });
+        if (!foundAccount && userEmail) {
+            foundAccount = await prisma.organizer.findUnique({ where: { email: userEmail } });
+        }
     } else {
         foundAccount = await prisma.user.findUnique({ where: { id: userId } });
+        if (!foundAccount && userEmail) {
+            foundAccount = await prisma.user.findUnique({ where: { email: userEmail } });
+        }
         finalRole = foundAccount?.role || 'USER';
     }
 
     if (!foundAccount) {
-      console.error(`[AUTH ERROR] User not found in DB for ID: ${userId} Role: ${userRoleInToken}`);
+      console.error(`[AUTH ERROR] Account not found for ID: ${userId} or Email: ${userEmail}`);
       return res.status(404).json({ message: 'アカウントが見つかりません。再ログインしてください。' });
     }
 
@@ -56,12 +71,13 @@ export const authenticateToken = async (req, res, next) => {
         finalRole = 'ADMIN';
     }
 
-    // リクエストオブジェクトに情報をセット（DB上の正式なIDをセット）
+    // リクエストオブジェクトに情報をセット（DB上の正式なデータを保持）
     req.user = {
         id: foundAccount.id,
         email: foundAccount.email.toLowerCase(),
         role: finalRole,
-        status: foundAccount.status || 'APPROVED'
+        status: foundAccount.status || 'APPROVED',
+        data: foundAccount 
     };
 
     next();
