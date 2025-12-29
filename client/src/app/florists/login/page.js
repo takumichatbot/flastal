@@ -14,7 +14,6 @@ export default function FloristLoginPage() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [showResend, setShowResend] = useState(false);
   
   const router = useRouter();
   const { login } = useAuth();
@@ -23,17 +22,12 @@ export default function FloristLoginPage() {
     e.preventDefault();
     if (isLoading) return;
     setIsLoading(true);
-    setShowResend(false);
 
-    // 既存クッキー削除
+    // 物理的なクリーンアップ
     if (typeof document !== 'undefined') {
-      const cookies = document.cookie.split(";");
-      for (let i = 0; i < cookies.length; i++) {
-        const cookie = cookies[i];
-        const eqPos = cookie.indexOf("=");
-        const name = eqPos > -1 ? cookie.substr(0, eqPos) : cookie;
-        document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
-      }
+      document.cookie.split(";").forEach(function(c) { 
+        document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); 
+      });
     }
 
     try {
@@ -46,21 +40,18 @@ export default function FloristLoginPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        if (res.status === 403 && (data.message?.includes('認証') || data.message?.includes('承認'))) {
-            setShowResend(true);
-        }
         throw new Error(data.message || 'ログインに失敗しました');
       }
 
-      // セッション情報を保存
+      // 1. セッション情報をAuthContextに同期
       const success = await login(data.token, data.florist);
       
       if (success) {
         toast.success('おかえりなさい！');
-        // 少しだけ待機してステートが物理的に保存されるのを待つ
+        // 2. ブラウザのストレージ書き込みを待ってから遷移
         setTimeout(() => {
           window.location.href = '/florists/dashboard';
-        }, 100);
+        }, 300);
       } else {
         throw new Error('認証情報の処理に失敗しました');
       }
@@ -68,28 +59,7 @@ export default function FloristLoginPage() {
     } catch (error) {
       console.error(error);
       toast.error(error.message);
-    } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleResendEmail = async () => {
-    const toastId = toast.loading('再送信中...');
-    try {
-      const res = await fetch(`${API_URL}/api/auth/resend-verification`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.toLowerCase(), userType: 'FLORIST' }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        toast.success(data.message, { id: toastId });
-        setShowResend(false);
-      } else {
-        throw new Error(data.message);
-      }
-    } catch (error) {
-      toast.error(error.message, { id: toastId });
     }
   };
 
@@ -102,29 +72,20 @@ export default function FloristLoginPage() {
           </Link>
           <h1 className="text-2xl font-bold text-gray-800">お花屋さんログイン</h1>
         </div>
-
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-1">メールアドレス</label>
-            <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 outline-none" placeholder="example@flower-shop.com" />
+            <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 outline-none" />
           </div>
           <div>
-            <div className="flex justify-between items-center mb-1"><label className="block text-sm font-semibold text-gray-700">パスワード</label><Link href="/forgot-password?userType=FLORIST" className="text-xs text-pink-600 hover:underline">忘れた方はこちら</Link></div>
+            <div className="flex justify-between items-center mb-1"><label className="block text-sm font-semibold text-gray-700">パスワード</label></div>
             <div className="relative">
-              <input type={showPassword ? 'text' : 'password'} required value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 outline-none" placeholder="••••••••" />
+              <input type={showPassword ? 'text' : 'password'} required value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 outline-none" />
               <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-3.5 text-gray-400">{showPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}</button>
             </div>
           </div>
           <button type="submit" disabled={isLoading} className={`w-full py-3.5 bg-pink-500 text-white rounded-lg font-bold text-lg shadow-md hover:bg-pink-600 transition-all ${isLoading ? 'opacity-70' : ''}`}>{isLoading ? 'ログイン中...' : 'ログインする'}</button>
         </form>
-
-        {showResend && (
-          <div className="mt-4 p-3 bg-pink-50 rounded-lg text-center">
-            <p className="text-xs text-pink-700 mb-2">アカウントの認証が必要です</p>
-            <button onClick={handleResendEmail} className="text-xs font-bold text-pink-600 underline">認証メールを再送信</button>
-          </div>
-        )}
-
         <div className="mt-8 pt-6 border-t border-gray-100 text-center">
           <p className="text-sm text-gray-600">パートナー登録はお済みですか？<br/><Link href="/florists/register" className="font-bold text-pink-600 hover:underline mt-1 inline-block">新規登録申請（無料）</Link></p>
         </div>

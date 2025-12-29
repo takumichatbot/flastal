@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { jwtDecode } from 'jwt-decode';
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
@@ -30,6 +30,7 @@ export function AuthProvider({ children }) {
   
   const router = useRouter();
 
+  // トークンからユーザー情報を抽出する純粋な関数
   const parseUserFromToken = useCallback((rawToken, extraData = null) => {
     if (!rawToken || rawToken === 'null' || rawToken === 'undefined' || rawToken === '') return null;
     
@@ -37,8 +38,8 @@ export function AuthProvider({ children }) {
       const cleanToken = rawToken.toString().replace(/['"]+/g, '').trim();
       const decoded = jwtDecode(cleanToken);
 
+      // 有効期限切れチェック
       if (decoded.exp * 1000 < Date.now()) {
-        console.warn("Auth: Token expired");
         return null;
       }
 
@@ -60,12 +61,13 @@ export function AuthProvider({ children }) {
         _token: cleanToken 
       };
     } catch (error) {
-      console.error("Auth: Token decode failed", error);
+      console.error("Auth: Decode failed", error);
       return null;
     }
   }, []);
 
-  const setSession = useCallback((newToken, extraData = null) => {
+  // セッションをセットする関数。初期化時は remove を行わないようにフラグを追加
+  const setSession = useCallback((newToken, extraData = null, isInitializing = false) => {
     const userData = parseUserFromToken(newToken, extraData);
 
     if (userData) {
@@ -77,11 +79,14 @@ export function AuthProvider({ children }) {
       }
       return true;
     } else {
-      setUser(null);
-      setToken(null);
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('authToken');
-        localStorage.removeItem('userStatus');
+      // 初期化中（ページ読み込み時）は、デコードに失敗しても即座に消さない（一瞬のラグ対策）
+      if (!isInitializing) {
+        setUser(null);
+        setToken(null);
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('authToken');
+          localStorage.removeItem('userStatus');
+        }
       }
       return false;
     }
@@ -101,20 +106,20 @@ export function AuthProvider({ children }) {
   }, [token]);
 
   useEffect(() => {
-    const initAuth = async () => {
-      setIsLoading(true);
+    const initAuth = () => {
       try {
         if (typeof window !== 'undefined') {
           const storedToken = localStorage.getItem('authToken');
-          if (storedToken) {
+          if (storedToken && storedToken !== 'null') {
             const storedStatus = localStorage.getItem('userStatus');
-            setSession(storedToken, storedStatus ? { status: storedStatus } : null);
+            // isInitializing = true で呼び出し
+            setSession(storedToken, storedStatus ? { status: storedStatus } : null, true);
           }
         }
       } catch (e) {
-        console.error("Auth: Initialization failed", e);
+        console.error("Auth: Init failed", e);
       } finally {
-        // Safariのストレージ読み込み待ちとして少し長めに設定
+        // ステートが反映される時間を十分に確保
         setTimeout(() => setIsLoading(false), 500);
       }
     };
@@ -122,9 +127,9 @@ export function AuthProvider({ children }) {
   }, [setSession]);
 
   const login = useCallback(async (newToken, extraData = null) => {
-    const success = setSession(newToken, extraData);
-    if (success) setIsLoading(false); // ログイン時は即座にロード完了させる
-    return success;
+    const result = setSession(newToken, extraData, false);
+    if (result) setIsLoading(false);
+    return result;
   }, [setSession]);
 
   const logout = useCallback(() => {
@@ -162,7 +167,7 @@ export function AuthProvider({ children }) {
 
   const contextValue = useMemo(() => {
     const isProfessional = user && ['FLORIST', 'VENUE', 'ORGANIZER'].includes(user.role);
-    // 重要: ロード中は絶対にリダイレクトさせないために true を返す
+    // ロード中はガード機能を絶対に発動させない
     const approved = isLoading ? true : (user ? (user.status === 'APPROVED' || !isProfessional) : false);
 
     return {

@@ -150,10 +150,8 @@ export default function FloristDashboardPage() {
   }, [authenticatedFetch, logout]); 
 
   useEffect(() => {
-    // 重要: ロード中は絶対に判定しない
     if (authLoading) return;
 
-    // ロード完了後、ユーザーがいない場合のみログインへ
     if (!user) {
       router.replace('/florists/login');
       return;
@@ -164,17 +162,16 @@ export default function FloristDashboardPage() {
       return;
     }
 
-    // 承認済みならデータ取得
     if (user.status === 'APPROVED') {
       fetchData();
     }
   }, [user, authLoading, fetchData, router]); 
 
-  if (authLoading || (loading && !data)) {
+  // ロード中、または未ログイン（リダイレクト前）は何も表示しない
+  if (authLoading || (!user && !authLoading)) {
     return <div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-pink-500"></div></div>;
   }
 
-  // 承認待ち画面
   if (user && user.status !== 'APPROVED') {
     return (
       <div className="min-h-screen bg-slate-50 p-4">
