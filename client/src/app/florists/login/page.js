@@ -25,7 +25,7 @@ export default function FloristLoginPage() {
     setIsLoading(true);
     setShowResend(false);
 
-    // クッキー削除による干渉防止
+    // 既存クッキー削除
     if (typeof document !== 'undefined') {
       const cookies = document.cookie.split(";");
       for (let i = 0; i < cookies.length; i++) {
@@ -52,13 +52,15 @@ export default function FloristLoginPage() {
         throw new Error(data.message || 'ログインに失敗しました');
       }
 
-      // 重要: トークンと一緒に data.florist (statusなどを含む) を渡す
+      // セッション情報を保存
       const success = await login(data.token, data.florist);
       
       if (success) {
         toast.success('おかえりなさい！');
-        // ステート反映を確実にするため、window.locationで物理遷移
-        window.location.href = '/florists/dashboard';
+        // 少しだけ待機してステートが物理的に保存されるのを待つ
+        setTimeout(() => {
+          window.location.href = '/florists/dashboard';
+        }, 100);
       } else {
         throw new Error('認証情報の処理に失敗しました');
       }
@@ -99,79 +101,32 @@ export default function FloristLoginPage() {
             <span className="flex items-center text-sm font-medium"><FiArrowLeft className="mr-1"/> トップへ戻る</span>
           </Link>
           <h1 className="text-2xl font-bold text-gray-800">お花屋さんログイン</h1>
-          <p className="text-sm text-gray-500 mt-2">FLASTALパートナーとして、想いを形に。</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-1">メールアドレス</label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <FiMail className="text-gray-400" />
-              </div>
-              <input 
-                type="email" 
-                required 
-                value={email} 
-                onChange={(e) => setEmail(e.target.value)} 
-                className="w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 transition" 
-                placeholder="example@flower-shop.com"
-              />
-            </div>
+            <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 outline-none" placeholder="example@flower-shop.com" />
           </div>
-
           <div>
-            <div className="flex justify-between items-center mb-1">
-              <label className="block text-sm font-semibold text-gray-700">パスワード</label>
-              <Link href="/forgot-password?userType=FLORIST" className="text-xs text-pink-600 hover:underline">
-                忘れた方はこちら
-              </Link>
-            </div>
+            <div className="flex justify-between items-center mb-1"><label className="block text-sm font-semibold text-gray-700">パスワード</label><Link href="/forgot-password?userType=FLORIST" className="text-xs text-pink-600 hover:underline">忘れた方はこちら</Link></div>
             <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <FiLock className="text-gray-400" />
-              </div>
-              <input 
-                type={showPassword ? 'text' : 'password'} 
-                required 
-                value={password} 
-                onChange={(e) => setPassword(e.target.value)} 
-                className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 transition" 
-                placeholder="••••••••"
-              />
-              <button 
-                type="button" 
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-pink-600 transition"
-              >
-                {showPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
-              </button>
+              <input type={showPassword ? 'text' : 'password'} required value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 outline-none" placeholder="••••••••" />
+              <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-3.5 text-gray-400">{showPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}</button>
             </div>
           </div>
-
-          <button 
-            type="submit" 
-            disabled={isLoading} 
-            className={`w-full py-3.5 bg-pink-500 text-white rounded-lg font-bold text-lg shadow-md hover:bg-pink-600 transition-all duration-200 transform hover:-translate-y-0.5 ${isLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
-          >
-            {isLoading ? 'ログイン中...' : 'ログインする'}
-          </button>
+          <button type="submit" disabled={isLoading} className={`w-full py-3.5 bg-pink-500 text-white rounded-lg font-bold text-lg shadow-md hover:bg-pink-600 transition-all ${isLoading ? 'opacity-70' : ''}`}>{isLoading ? 'ログイン中...' : 'ログインする'}</button>
         </form>
 
         {showResend && (
-          <div className="mt-4 p-3 bg-pink-50 rounded-lg border border-pink-100 text-center">
-            <p className="text-xs text-pink-700 mb-2">アカウントが承認されていないか、未認証です</p>
-            <button onClick={handleResendEmail} className="text-xs font-bold text-pink-600 underline">認証メールを再送信する</button>
+          <div className="mt-4 p-3 bg-pink-50 rounded-lg text-center">
+            <p className="text-xs text-pink-700 mb-2">アカウントの認証が必要です</p>
+            <button onClick={handleResendEmail} className="text-xs font-bold text-pink-600 underline">認証メールを再送信</button>
           </div>
         )}
 
-        <div className="mt-8 pt-6 border-t border-gray-100 text-center space-y-2">
-          <p className="text-sm text-gray-600">
-            パートナー登録はお済みですか？<br/>
-            <Link href="/florists/register" className="font-bold text-pink-600 hover:text-pink-700 hover:underline mt-1 inline-block">
-              新規登録申請（無料）
-            </Link>
-          </p>
+        <div className="mt-8 pt-6 border-t border-gray-100 text-center">
+          <p className="text-sm text-gray-600">パートナー登録はお済みですか？<br/><Link href="/florists/register" className="font-bold text-pink-600 hover:underline mt-1 inline-block">新規登録申請（無料）</Link></p>
         </div>
       </div>
     </div>

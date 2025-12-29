@@ -47,7 +47,6 @@ export function AuthProvider({ children }) {
       if (decoded.role === 'VENUE') displayName = decoded.venueName || decoded.handleName;
       if (decoded.role === 'ORGANIZER') displayName = decoded.name || decoded.handleName;
 
-      // extraData (APIレスポンスの直データ) があれば優先し、なければトークンから補完
       return {
         id: extraData?.id || decoded.id,
         email: extraData?.email || decoded.email,
@@ -74,7 +73,6 @@ export function AuthProvider({ children }) {
       setToken(userData._token);
       if (typeof window !== 'undefined') {
         localStorage.setItem('authToken', userData._token);
-        // ステータスを永続化（リロード対策）
         localStorage.setItem('userStatus', userData.status);
       }
       return true;
@@ -91,34 +89,24 @@ export function AuthProvider({ children }) {
 
   const authenticatedFetch = useCallback(async (url, options = {}) => {
     const storedToken = typeof window !== 'undefined' ? localStorage.getItem('authToken') : token;
-    
     const headers = { ...options.headers };
     if (!(options.body instanceof FormData)) {
       headers['Content-Type'] = 'application/json';
     }
-
     if (storedToken) {
       const cleanToken = storedToken.replace(/['"]+/g, '').trim();
       headers['Authorization'] = `Bearer ${cleanToken}`;
     }
-
-    const response = await fetch(url, { ...options, headers });
-
-    if (response.status === 401 && !url.includes('/login')) {
-      console.warn("Auth: Unauthorized access");
-    }
-
-    return response;
+    return await fetch(url, { ...options, headers });
   }, [token]);
 
   useEffect(() => {
-    const initAuth = () => {
+    const initAuth = async () => {
       setIsLoading(true);
       try {
         if (typeof window !== 'undefined') {
           const storedToken = localStorage.getItem('authToken');
           if (storedToken) {
-            // ローカルストレージから復元。保存されていたstatusも反映させる
             const storedStatus = localStorage.getItem('userStatus');
             setSession(storedToken, storedStatus ? { status: storedStatus } : null);
           }
@@ -126,14 +114,17 @@ export function AuthProvider({ children }) {
       } catch (e) {
         console.error("Auth: Initialization failed", e);
       } finally {
-        setTimeout(() => setIsLoading(false), 200);
+        // Safariのストレージ読み込み待ちとして少し長めに設定
+        setTimeout(() => setIsLoading(false), 500);
       }
     };
     initAuth();
   }, [setSession]);
 
   const login = useCallback(async (newToken, extraData = null) => {
-    return setSession(newToken, extraData);
+    const success = setSession(newToken, extraData);
+    if (success) setIsLoading(false); // ログイン時は即座にロード完了させる
+    return success;
   }, [setSession]);
 
   const logout = useCallback(() => {
@@ -142,7 +133,6 @@ export function AuthProvider({ children }) {
     localStorage.removeItem('userStatus');
     setUser(null);
     setToken(null);
-    toast.success('ログアウトしました');
     window.location.href = '/';
   }, []);
 
@@ -172,7 +162,7 @@ export function AuthProvider({ children }) {
 
   const contextValue = useMemo(() => {
     const isProfessional = user && ['FLORIST', 'VENUE', 'ORGANIZER'].includes(user.role);
-    // ロード中はガード機能を無効化するため true を返す
+    // 重要: ロード中は絶対にリダイレクトさせないために true を返す
     const approved = isLoading ? true : (user ? (user.status === 'APPROVED' || !isProfessional) : false);
 
     return {
