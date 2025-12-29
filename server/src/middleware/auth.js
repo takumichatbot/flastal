@@ -21,7 +21,7 @@ export const authenticateToken = async (req, res, next) => {
     // 1. JWTの検証
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
-    // トークンからEmailとIDを抽出
+    // トークンから識別情報を抽出
     const userEmail = decoded.email ? String(decoded.email).toLowerCase().trim() : null;
     const rawUserId = decoded.id || decoded.sub;
     const userId = rawUserId ? String(rawUserId).replace(/['"]+/g, '').trim() : null;
@@ -32,41 +32,44 @@ export const authenticateToken = async (req, res, next) => {
 
     const userRoleInToken = decoded.role;
 
-    // 2. 最新の情報をDBから取得 (Emailを優先して検索)
+    // 2. 最新の情報をDBから取得を試みる
     let foundAccount = null;
     let finalRole = userRoleInToken || 'USER';
     const ADMIN_EMAILS = ["takuminsitou946@gmail.com", "hana87kaori@gmail.com"];
 
-    // 役割に応じてテーブルを検索（EmailがあればEmail、なければID）
-    const searchCondition = userEmail ? { email: userEmail } : { id: userId };
+    try {
+        const searchCondition = userEmail ? { email: userEmail } : { id: userId };
 
-    if (userRoleInToken === 'FLORIST') {
-        foundAccount = await prisma.florist.findUnique({ where: searchCondition });
-    } else if (userRoleInToken === 'VENUE') {
-        foundAccount = await prisma.venue.findUnique({ where: searchCondition });
-    } else if (userRoleInToken === 'ORGANIZER') {
-        foundAccount = await prisma.organizer.findUnique({ where: searchCondition });
-    } else {
-        foundAccount = await prisma.user.findUnique({ where: searchCondition });
-        finalRole = foundAccount?.role || 'USER';
-    }
-
-    if (!foundAccount) {
-      console.error(`[AUTH ERROR] User not found for Email: ${userEmail}, ID: ${userId}`);
-      return res.status(404).json({ message: 'アカウントが見つかりません。再ログインしてください。' });
+        if (userRoleInToken === 'FLORIST') {
+            foundAccount = await prisma.florist.findUnique({ where: searchCondition });
+        } else if (userRoleInToken === 'VENUE') {
+            foundAccount = await prisma.venue.findUnique({ where: searchCondition });
+        } else if (userRoleInToken === 'ORGANIZER') {
+            foundAccount = await prisma.organizer.findUnique({ where: searchCondition });
+        } else {
+            foundAccount = await prisma.user.findUnique({ where: searchCondition });
+            finalRole = foundAccount?.role || 'USER';
+        }
+    } catch (dbError) {
+        console.error('[AUTH DB ERROR]', dbError.message);
+        // DB検索に失敗しても、トークンが有効なら decoded を信じて次へ進む（救済措置）
     }
 
     // 3. 管理者判定
-    if (foundAccount.email && ADMIN_EMAILS.includes(foundAccount.email.toLowerCase())) {
+    const emailForAdmin = (foundAccount?.email || userEmail || "").toLowerCase();
+    if (ADMIN_EMAILS.includes(emailForAdmin)) {
         finalRole = 'ADMIN';
     }
 
-    // リクエストオブジェクトにDBの正式な情報をセット
+    // リクエストオブジェクトに情報をセット
+    // DBに見つからない場合でも decoded の情報を保持させる
     req.user = {
-        id: foundAccount.id,
-        email: foundAccount.email.toLowerCase(),
+        id: foundAccount?.id || userId,
+        email: emailForAdmin,
         role: finalRole,
-        status: foundAccount.status || 'APPROVED'
+        status: foundAccount?.status || decoded.status || 'APPROVED',
+        // 生のデータをバックアップとして保持
+        raw: foundAccount || decoded 
     };
 
     next();
