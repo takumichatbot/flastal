@@ -26,19 +26,17 @@ const AuthContext = createContext({
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
-  const [isLoading, setIsLoading] = useState(true); // 初期値は必ずtrue
+  const [isLoading, setIsLoading] = useState(true);
   
   const router = useRouter();
-  const pathname = usePathname();
 
-  const parseUserFromToken = useCallback((rawToken) => {
+  const parseUserFromToken = useCallback((rawToken, extraData = null) => {
     if (!rawToken || rawToken === 'null' || rawToken === 'undefined' || rawToken === '') return null;
     
     try {
       const cleanToken = rawToken.toString().replace(/['"]+/g, '').trim();
       const decoded = jwtDecode(cleanToken);
 
-      // 有効期限チェック
       if (decoded.exp * 1000 < Date.now()) {
         console.warn("Auth: Token expired");
         return null;
@@ -49,15 +47,16 @@ export function AuthProvider({ children }) {
       if (decoded.role === 'VENUE') displayName = decoded.venueName || decoded.handleName;
       if (decoded.role === 'ORGANIZER') displayName = decoded.name || decoded.handleName;
 
+      // extraData (APIレスポンスの直データ) があれば優先し、なければトークンから補完
       return {
-        id: decoded.id,
-        email: decoded.email,
-        role: decoded.role,
+        id: extraData?.id || decoded.id,
+        email: extraData?.email || decoded.email,
+        role: extraData?.role || decoded.role,
         handleName: displayName,
-        iconUrl: decoded.iconUrl,
-        shopName: decoded.shopName,
-        venueName: decoded.venueName,
-        status: decoded.status || 'APPROVED',
+        iconUrl: extraData?.iconUrl || decoded.iconUrl,
+        shopName: extraData?.shopName || decoded.shopName,
+        venueName: extraData?.venueName || decoded.venueName,
+        status: extraData?.status || decoded.status || 'APPROVED',
         sub: decoded.sub,
         _token: cleanToken 
       };
@@ -67,14 +66,16 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
-  const setSession = useCallback((newToken) => {
-    const userData = parseUserFromToken(newToken);
+  const setSession = useCallback((newToken, extraData = null) => {
+    const userData = parseUserFromToken(newToken, extraData);
 
     if (userData) {
       setUser(userData);
       setToken(userData._token);
       if (typeof window !== 'undefined') {
         localStorage.setItem('authToken', userData._token);
+        // ステータスを永続化（リロード対策）
+        localStorage.setItem('userStatus', userData.status);
       }
       return true;
     } else {
@@ -82,20 +83,16 @@ export function AuthProvider({ children }) {
       setToken(null);
       if (typeof window !== 'undefined') {
         localStorage.removeItem('authToken');
+        localStorage.removeItem('userStatus');
       }
       return false;
     }
   }, [parseUserFromToken]);
 
   const authenticatedFetch = useCallback(async (url, options = {}) => {
-    // 最新のトークンを常に取得
     const storedToken = typeof window !== 'undefined' ? localStorage.getItem('authToken') : token;
     
-    const headers = {
-      ...options.headers,
-    };
-
-    // FormDataの場合はContent-Typeをブラウザに任せる必要がある
+    const headers = { ...options.headers };
     if (!(options.body instanceof FormData)) {
       headers['Content-Type'] = 'application/json';
     }
@@ -107,16 +104,13 @@ export function AuthProvider({ children }) {
 
     const response = await fetch(url, { ...options, headers });
 
-    // 401エラーの時だけログアウトさせるが、一瞬の通信エラーでログアウトされないよう注意
     if (response.status === 401 && !url.includes('/login')) {
-      console.error("Auth: 401 Unauthorized detected");
-      // ログアウト処理を入れる場合はここで慎重に行う
+      console.warn("Auth: Unauthorized access");
     }
 
     return response;
   }, [token]);
 
-  // 初期化処理を一度だけ実行
   useEffect(() => {
     const initAuth = () => {
       setIsLoading(true);
@@ -124,34 +118,31 @@ export function AuthProvider({ children }) {
         if (typeof window !== 'undefined') {
           const storedToken = localStorage.getItem('authToken');
           if (storedToken) {
-            setSession(storedToken);
+            // ローカルストレージから復元。保存されていたstatusも反映させる
+            const storedStatus = localStorage.getItem('userStatus');
+            setSession(storedToken, storedStatus ? { status: storedStatus } : null);
           }
         }
       } catch (e) {
         console.error("Auth: Initialization failed", e);
       } finally {
-        // 少し余裕を持ってローディングを解除（ステート反映待ち）
-        setTimeout(() => setIsLoading(false), 100);
+        setTimeout(() => setIsLoading(false), 200);
       }
     };
     initAuth();
   }, [setSession]);
 
-  const login = useCallback(async (newToken) => {
-    const result = setSession(newToken);
-    return result;
+  const login = useCallback(async (newToken, extraData = null) => {
+    return setSession(newToken, extraData);
   }, [setSession]);
 
   const logout = useCallback(() => {
     if (typeof window === 'undefined') return;
-
     localStorage.removeItem('authToken');
+    localStorage.removeItem('userStatus');
     setUser(null);
     setToken(null);
-
     toast.success('ログアウトしました');
-    
-    // 完全にクリアするためにトップへ
     window.location.href = '/';
   }, []);
 
@@ -161,7 +152,6 @@ export function AuthProvider({ children }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password, handleName }),
     });
-
     if (!response.ok) {
       const errorData = await response.json();
       throw new Error(errorData.message || '登録に失敗しました。');
@@ -170,14 +160,19 @@ export function AuthProvider({ children }) {
   }, []);
 
   const updateUser = useCallback((newUserData) => {
-    setUser(prev => (prev ? { ...prev, ...newUserData } : null));
+    setUser(prev => {
+        if (!prev) return null;
+        const updated = { ...prev, ...newUserData };
+        if (typeof window !== 'undefined' && newUserData.status) {
+            localStorage.setItem('userStatus', newUserData.status);
+        }
+        return updated;
+    });
   }, []);
 
   const contextValue = useMemo(() => {
     const isProfessional = user && ['FLORIST', 'VENUE', 'ORGANIZER'].includes(user.role);
-    
-    // ロード中(isLoading)は、常に「承認済み(isApproved=true)」として扱い、
-    // ガード機能による意図しないリダイレクト（ログアウト）を防ぐ
+    // ロード中はガード機能を無効化するため true を返す
     const approved = isLoading ? true : (user ? (user.status === 'APPROVED' || !isProfessional) : false);
 
     return {

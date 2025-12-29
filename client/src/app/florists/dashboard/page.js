@@ -192,9 +192,9 @@ const OfferListCard = ({ offers, type = "normal" }) => {
   );
 };
 
-// --- メインページ ---
+// --- メメインページ ---
 export default function FloristDashboardPage() {
-  const { user, logout, isPending, isApproved, isLoading: authLoading, authenticatedFetch } = useAuth(); 
+  const { user, token, logout, isPending, isApproved, isLoading: authLoading, authenticatedFetch } = useAuth(); 
   const router = useRouter();
   
   const [data, setData] = useState(null);
@@ -202,15 +202,14 @@ export default function FloristDashboardPage() {
   const [activeTab, setActiveTab] = useState('pending');
 
   const fetchData = useCallback(async () => {
+    if (!token) return;
     setLoading(true);
     try {
       const res = await authenticatedFetch(`${API_URL}/api/florists/profile`);
-
       if (!res.ok) {
-        if (res.status === 401) throw new Error('認証切れ');
-        throw new Error('お花屋さんの情報が見つかりませんでした。');
+          if (res.status === 401) throw new Error('認証切れ');
+          throw new Error('データの取得に失敗しました');
       }
-      
       const json = await res.json();
       setData(json);
     } catch (error) {
@@ -223,13 +222,17 @@ export default function FloristDashboardPage() {
     } finally {
       setLoading(false);
     }
-  }, [authenticatedFetch, logout]); 
+  }, [token, authenticatedFetch, logout]); 
 
   useEffect(() => {
     if (!authLoading) {
-      if (!user) router.push('/florists/login');
-      else if (user.role !== 'FLORIST') router.push('/');
-      else if (isApproved) fetchData();
+      if (!user) {
+          router.push('/florists/login');
+      } else if (user.role !== 'FLORIST') {
+          router.push('/');
+      } else if (isApproved) {
+          fetchData();
+      }
     }
   }, [user, authLoading, isApproved, fetchData, router]); 
 
@@ -262,7 +265,7 @@ export default function FloristDashboardPage() {
     return <div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-pink-500"></div></div>;
   }
 
-  if (isPending || !isApproved) {
+  if (!isApproved) {
       return (
         <div className="min-h-screen bg-slate-50 p-4">
             <header className="flex justify-between items-center py-4 px-6 bg-white rounded-xl shadow-sm mb-6">

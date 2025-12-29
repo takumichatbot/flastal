@@ -25,32 +25,42 @@ export default function FloristLoginPage() {
     setIsLoading(true);
     setShowResend(false);
 
+    // クッキー削除による干渉防止
+    if (typeof document !== 'undefined') {
+      const cookies = document.cookie.split(";");
+      for (let i = 0; i < cookies.length; i++) {
+        const cookie = cookies[i];
+        const eqPos = cookie.indexOf("=");
+        const name = eqPos > -1 ? cookie.substr(0, eqPos) : cookie;
+        document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
+      }
+    }
+
     try {
       const res = await fetch(`${API_URL}/api/florists/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: email.toLowerCase(), password }),
       });
 
       const data = await res.json();
 
       if (!res.ok) {
-        if (res.status === 403 && (data.message?.includes('認証') || data.message?.includes('Verification'))) {
+        if (res.status === 403 && (data.message?.includes('認証') || data.message?.includes('承認'))) {
             setShowResend(true);
         }
         throw new Error(data.message || 'ログインに失敗しました');
       }
 
-      // 1. AuthContextにトークンを渡し、内部処理を待つ
-      const success = await login(data.token);
+      // 重要: トークンと一緒に data.florist (statusなどを含む) を渡す
+      const success = await login(data.token, data.florist);
       
       if (success) {
         toast.success('おかえりなさい！');
-        // 2. Next.jsの仮想ルーターではなく、ブラウザのリロード遷移を使うことで
-        // 確実に最新の認証状態でダッシュボードを起動させる
+        // ステート反映を確実にするため、window.locationで物理遷移
         window.location.href = '/florists/dashboard';
       } else {
-        throw new Error('ログイン状態の確立に失敗しました');
+        throw new Error('認証情報の処理に失敗しました');
       }
 
     } catch (error) {
@@ -67,7 +77,7 @@ export default function FloristLoginPage() {
       const res = await fetch(`${API_URL}/api/auth/resend-verification`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, userType: 'FLORIST' }),
+        body: JSON.stringify({ email: email.toLowerCase(), userType: 'FLORIST' }),
       });
       const data = await res.json();
       if (res.ok) {
@@ -84,7 +94,6 @@ export default function FloristLoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-50 to-white px-4">
       <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 border border-pink-100">
-        
         <div className="text-center mb-8">
           <Link href="/" className="inline-block text-pink-600 hover:text-pink-700 transition mb-2">
             <span className="flex items-center text-sm font-medium"><FiArrowLeft className="mr-1"/> トップへ戻る</span>
@@ -148,6 +157,13 @@ export default function FloristLoginPage() {
             {isLoading ? 'ログイン中...' : 'ログインする'}
           </button>
         </form>
+
+        {showResend && (
+          <div className="mt-4 p-3 bg-pink-50 rounded-lg border border-pink-100 text-center">
+            <p className="text-xs text-pink-700 mb-2">アカウントが承認されていないか、未認証です</p>
+            <button onClick={handleResendEmail} className="text-xs font-bold text-pink-600 underline">認証メールを再送信する</button>
+          </div>
+        )}
 
         <div className="mt-8 pt-6 border-t border-gray-100 text-center space-y-2">
           <p className="text-sm text-gray-600">
