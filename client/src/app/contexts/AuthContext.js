@@ -35,12 +35,11 @@ export function AuthProvider({ children }) {
     if (!rawToken || rawToken === 'null' || rawToken === 'undefined' || rawToken === '') return null;
     
     try {
-      // 全ての種類の引用符を完全に削除し、空白も除去（不純物の徹底排除）
+      // 引用符を徹底排除
       const cleanToken = rawToken.toString().replace(/['"]+/g, '').trim();
       const decoded = jwtDecode(cleanToken);
 
       if (decoded.exp * 1000 < Date.now()) {
-        console.warn("Auth: Token expired");
         return null;
       }
 
@@ -112,30 +111,25 @@ export function AuthProvider({ children }) {
 
   /**
    * ログアウト処理
-   * 状態を消す前に遷移を開始し、エラーを防ぎます。
+   * クライアントサイド例外を防ぐため、状態を消す前に強制リロード遷移を行います。
    */
   const logout = useCallback(() => {
     if (typeof window === 'undefined') return;
 
-    // 1. リダイレクト先の決定
     const currentRole = user?.role;
     let redirectPath = '/';
     if (currentRole === 'FLORIST') redirectPath = '/florists/login';
     else if (currentRole === 'ADMIN') redirectPath = '/admin/login';
     else redirectPath = '/login';
 
-    // 2. データのクリーンアップ
-    // 状態を null にする前に localStorage を消す
-    localStorage.clear();
-    
-    // 3. 全ての状態をリセット
-    setUser(null);
-    setToken(null);
-
     toast.success('ログアウトしました');
 
-    // 4. 強制リロード遷移（Next.jsのレンダリング競合を物理的に回避）
-    window.location.replace(redirectPath);
+    // 先にストレージを掃除
+    localStorage.clear();
+    
+    // 重要: ステートをnullにする前にページを飛ばすことで、
+    // 現在のページコンポーネントが空のuserを参照して壊れるのを防ぎます
+    window.location.href = redirectPath;
   }, [user]);
 
   const register = useCallback(async (email, password, handleName) => {
@@ -158,9 +152,10 @@ export function AuthProvider({ children }) {
 
   const contextValue = useMemo(() => {
     const isProfessional = user && ['FLORIST', 'VENUE', 'ORGANIZER'].includes(user.role);
-    // user が null の場合のガードを徹底
-    const approved = user?.status === 'APPROVED';
-    
+    // userが存在しない場合のガードを徹底（Application error対策）
+    const approved = user ? user.status === 'APPROVED' : false;
+    const pending = user ? user.status === 'PENDING' : false;
+
     return {
       user,
       token,
@@ -169,7 +164,7 @@ export function AuthProvider({ children }) {
       isAdmin: user?.role === 'ADMIN',
       isProfessional,
       isApproved: isProfessional ? approved : true,
-      isPending: isProfessional ? user?.status === 'PENDING' : false,
+      isPending: isProfessional ? pending : false,
       login,
       logout,
       register,

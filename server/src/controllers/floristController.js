@@ -20,8 +20,8 @@ export const getFloristProfile = async (req, res) => {
         const floristId = req.user.id;
         const floristEmail = req.user.email;
 
-        // 確実に取得するため、IDまたはEmailのいずれか一致するものを検索
-        const florist = await prisma.florist.findFirst({
+        // 確実に取得するため、IDまたはEmailの両方で検索をかける
+        let florist = await prisma.florist.findFirst({
             where: {
                 OR: [
                     { id: floristId },
@@ -36,14 +36,14 @@ export const getFloristProfile = async (req, res) => {
         });
 
         if (!florist) {
-            console.error(`[PROFILE ERROR] No florist found in DB. ID: ${floristId}, Email: ${floristEmail}`);
+            console.error(`[PROFILE ERROR] No record found for ID: ${floristId}, Email: ${floristEmail}`);
             return res.status(404).json({ message: 'お花屋さんの情報が見つかりませんでした。' });
         }
 
         // パスワードや機密情報を除外して返却
         const { password, laruBotApiKey, ...safeData } = florist;
-        
         res.status(200).json(safeData);
+
     } catch (error) {
         console.error('getFloristProfile Error:', error);
         res.status(500).json({ message: 'プロフィールの取得中にエラーが発生しました。' });
