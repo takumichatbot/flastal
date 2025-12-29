@@ -28,6 +28,7 @@ export function AuthProvider({ children }) {
   const [token, setToken] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const isInitializing = useRef(true);
+  const fetchCache = useRef({}); // 通信重複防止用キャッシュ
   
   const router = useRouter();
 
@@ -83,7 +84,15 @@ export function AuthProvider({ children }) {
     }
   }, [parseUserFromToken]);
 
-  const authenticatedFetch = useCallback(async (url, options = {}, retryCount = 0) => {
+  // 通信の重複を物理的に防止するFetch
+  const authenticatedFetch = useCallback(async (url, options = {}) => {
+    // 同一URLへのリクエストが300ms以内に発生した場合は無視する（ログにある多重送信対策）
+    const now = Date.now();
+    if (fetchCache.current[url] && (now - fetchCache.current[url] < 300) && !options.method) {
+        return null; 
+    }
+    fetchCache.current[url] = now;
+
     const storedToken = typeof window !== 'undefined' ? localStorage.getItem('authToken') : token;
     const headers = { ...options.headers };
     if (!(options.body instanceof FormData)) {
@@ -96,17 +105,14 @@ export function AuthProvider({ children }) {
 
     try {
       const response = await fetch(url, { ...options, headers });
-      if (response.status === 401 && retryCount < 1 && !url.includes('/login')) {
-        await new Promise(resolve => setTimeout(resolve, 300));
-        return authenticatedFetch(url, options, retryCount + 1);
+      // 401エラーが出ても、初期化が終わるまではステートを壊さない
+      if (response.status === 401 && !isInitializing.current && !url.includes('/login')) {
+        console.warn("Auth: Unauthorized session detected");
       }
       return response;
     } catch (e) {
-      if (retryCount < 1) {
-        await new Promise(resolve => setTimeout(resolve, 500));
-        return authenticatedFetch(url, options, retryCount + 1);
-      }
-      throw e;
+      console.error("Auth: Fetch error", e);
+      return null;
     }
   }, [token]);
 
@@ -121,10 +127,11 @@ export function AuthProvider({ children }) {
           }
         }
       } finally {
+        // ステートが浸透するまで待機
         setTimeout(() => {
           setIsLoading(false);
           isInitializing.current = false;
-        }, 1000);
+        }, 1200);
       }
     };
     initAuth();
@@ -140,8 +147,7 @@ export function AuthProvider({ children }) {
   const logout = useCallback(() => {
     isInitializing.current = false;
     if (typeof window === 'undefined') return;
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('userStatus');
+    localStorage.clear();
     setUser(null);
     setToken(null);
     window.location.href = '/';
