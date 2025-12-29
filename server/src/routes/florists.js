@@ -5,55 +5,49 @@ import { authenticateToken } from '../middleware/auth.js';
 const router = express.Router();
 
 // ==========================================
-// ★ 最優先ルート (静的パスを一番上に置く)
+// 1. 静的ルート（具体的なパス）を先に定義する
 // ==========================================
 
-// ログイン中のお花屋さん自身のプロフィール取得
-// フロントのリクエスト `${API_URL}/api/florists/profile` に対応
+// 自身のプロフィール取得
 router.get('/profile', authenticateToken, floristController.getFloristProfile);
 
-// オファー一覧 (dashboardで使用)
-// フロントのリクエスト `${API_URL}/api/florists/offers` に対応
-router.get('/offers', authenticateToken, floristController.getSchedule); // スケジュール関数を流用
+// オファー・スケジュール取得
+router.get('/offers', authenticateToken, floristController.getSchedule);
+router.get('/schedule', authenticateToken, floristController.getSchedule);
 
-// ダッシュボード用データ (profileと同じ情報を返す)
+// ダッシュボード
 router.get('/dashboard', authenticateToken, floristController.getFloristProfile);
 
 // マッチングAI
 router.post('/match-ai', authenticateToken, floristController.matchFloristsByAi);
 
-// ==========================================
-// お花屋さん検索・詳細
-// ==========================================
-router.get('/', floristController.getFlorists);
+// 共通機能
+router.get('/payouts', authenticateToken, floristController.getPayouts);
+router.post('/request-payout', authenticateToken, floristController.requestPayout);
+router.post('/posts', authenticateToken, floristController.createFloristPost);
+router.get('/deals', authenticateToken, floristController.getMyDeals);
+router.post('/deals', authenticateToken, floristController.createDeal);
 
-// 個別詳細 (動的パスは必ず静的パスより後に置くこと)
-router.get('/:id', floristController.getFloristById);
-
 // ==========================================
-// 業務・プロフィール更新
+// 2. 準静的ルート（PATCHなど）
 // ==========================================
 router.patch('/profile', authenticateToken, floristController.updateFloristProfile);
-router.get('/schedule', authenticateToken, floristController.getSchedule);
-
-// ==========================================
-// ★ オファー・見積もり・出金
-// ==========================================
 router.post('/offers', authenticateToken, floristController.createOffer);
 router.patch('/offers/:offerId', authenticateToken, floristController.respondToOffer);
 router.post('/quotations', authenticateToken, floristController.createQuotation);
 router.patch('/quotations/:id/approve', authenticateToken, floristController.approveQuotation);
 router.patch('/quotations/:id/finalize', authenticateToken, floristController.finalizeQuotation);
-
-router.get('/payouts', authenticateToken, floristController.getPayouts);
-router.post('/request-payout', authenticateToken, floristController.requestPayout); 
-
-// ==========================================
-// ★ 投稿・特売
-// ==========================================
-router.post('/posts', authenticateToken, floristController.createFloristPost);
 router.post('/posts/:postId/like', authenticateToken, floristController.likeFloristPost);
-router.post('/deals', authenticateToken, floristController.createDeal);
-router.get('/deals', authenticateToken, floristController.getMyDeals);
+
+// ==========================================
+// 3. 動的ルート（パラメータ）は最後に置く
+// ==========================================
+
+// 全体検索
+router.get('/', floristController.getFlorists);
+
+// 個別詳細
+// ★これが profile 等より上にあると、/profile が ID="profile" として扱われてしまいます。
+router.get('/:id', floristController.getFloristById);
 
 export default router;

@@ -189,20 +189,23 @@ app.get('/', (req, res) => {
 // ★★★ ルーティングのマウント ★★★
 // ==========================================
 
-// 注意: フロントエンドが `/api/admin/projects/pending` を叩いている場合、
-// 以下の adminRoutes のマウント位置により `/api/admin/admin/projects/pending` になるのを防ぎます。
-
+// 認証・ユーザー基本
 app.use('/api', authRoutes);
-app.use('/api', projectRoutes);
 app.use('/api', userRoutes);
-app.use('/api', floristRoutes);
-app.use('/api', venueRoutes);
-app.use('/api/tools', toolRoutes);
-app.use('/api', paymentRoutes);
-app.use('/api', projectDetailRoutes);
 
-// ★ adminRoutes のマウント位置を修正
-// admin.js 内で自らパスを定義しているため、階層の重複に注意します。
+// 花屋関連 (内部で /profile や /:id を定義)
+app.use('/api/florists', floristRoutes);
+
+// 会場・企画関連
+app.use('/api/projects', projectRoutes);
+app.use('/api/venues', venueRoutes);
+app.use('/api/project-details', projectDetailRoutes);
+
+// ツール・決済
+app.use('/api/tools', toolRoutes);
+app.use('/api/payment', paymentRoutes);
+
+// 管理者
 app.use('/api/admin', adminRoutes);
 
 export default app;
