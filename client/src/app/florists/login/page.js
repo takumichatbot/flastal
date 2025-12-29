@@ -21,6 +21,8 @@ export default function FloristLoginPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isLoading) return;
+    
     setIsLoading(true);
     setShowResend(false);
 
@@ -34,18 +36,24 @@ export default function FloristLoginPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        // 認証未完了エラー (403) の場合のみ再送信ボタンを表示
-        if (res.status === 403 && (data.message.includes('認証') || data.message.includes('Verification'))) {
+        if (res.status === 403 && (data.message?.includes('認証') || data.message?.includes('Verification'))) {
             setShowResend(true);
         }
         throw new Error(data.message || 'ログインに失敗しました');
       }
 
-      // 成功時: ロールを明示してログイン
-      const userData = { ...data.florist, role: 'FLORIST' };
-      await login(data.token, userData);
-      toast.success('おかえりなさい！');
-      router.push('/florists/dashboard');
+      // 重要: AuthContextの状態更新が完了するのを待つ
+      const isOk = await login(data.token);
+      
+      if (isOk) {
+        toast.success('おかえりなさい！');
+        
+        // 状態の浸透を確実にするため、Next.jsのrouterではなく
+        // window.locationを使ってクリーンにダッシュボードへ遷移させる（リダイレクトループ防止）
+        window.location.href = '/florists/dashboard';
+      } else {
+        throw new Error('ログイン情報の処理に失敗しました');
+      }
 
     } catch (error) {
       console.error(error);
@@ -63,7 +71,7 @@ export default function FloristLoginPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
             email, 
-            userType: 'FLORIST' // お花屋さんとして指定
+            userType: 'FLORIST' 
         }),
       });
       const data = await res.json();
@@ -83,7 +91,6 @@ export default function FloristLoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-50 to-white px-4">
       <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 border border-pink-100">
         
-        {/* ヘッダー */}
         <div className="text-center mb-8">
           <Link href="/" className="inline-block text-pink-600 hover:text-pink-700 transition mb-2">
             <span className="flex items-center text-sm font-medium"><FiArrowLeft className="mr-1"/> トップへ戻る</span>
@@ -93,7 +100,6 @@ export default function FloristLoginPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          {/* メールアドレス */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-1">メールアドレス</label>
             <div className="relative">
@@ -111,7 +117,6 @@ export default function FloristLoginPage() {
             </div>
           </div>
 
-          {/* パスワード */}
           <div>
             <div className="flex justify-between items-center mb-1">
               <label className="block text-sm font-semibold text-gray-700">パスワード</label>
@@ -150,7 +155,6 @@ export default function FloristLoginPage() {
           </button>
         </form>
 
-        {/* 再送信エリア */}
         {showResend && (
             <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-xl text-center animate-fadeIn">
                 <p className="text-sm text-yellow-800 mb-3 font-bold">まだメール認証が完了していませんか？</p>

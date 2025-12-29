@@ -106,6 +106,7 @@ export function AuthProvider({ children }) {
   }, [setSession]);
 
   const login = useCallback(async (newToken) => {
+    // セッション設定の成功を待ってから結果を返す
     return setSession(newToken);
   }, [setSession]);
 
