@@ -35,9 +35,12 @@ export const authenticateToken = async (req, res, next) => {
     let finalRole = userRoleInToken || 'USER';
     const ADMIN_EMAILS = ["takuminsitou946@gmail.com", "hana87kaori@gmail.com"];
 
-    // 各テーブルに対して検索を実行
+    // 役割に応じてテーブルを検索（IDは文字列として扱う）
     if (userRoleInToken === 'FLORIST') {
-        foundAccount = await prisma.florist.findUnique({ where: { id: userId } });
+        foundAccount = await prisma.florist.findUnique({ 
+            where: { id: userId },
+            include: { _count: { select: { offers: true, reviews: true } } } // ここでカウントも含めておく
+        });
     } else if (userRoleInToken === 'VENUE') {
         foundAccount = await prisma.venue.findUnique({ where: { id: userId } });
     } else if (userRoleInToken === 'ORGANIZER') {
@@ -48,7 +51,7 @@ export const authenticateToken = async (req, res, next) => {
     }
 
     if (!foundAccount) {
-      console.error(`[AUTH] Account not found for ID: ${userId}, Role: ${userRoleInToken}`);
+      console.error(`[AUTH ERROR] User not found in DB for ID: ${userId} Role: ${userRoleInToken}`);
       return res.status(404).json({ message: 'アカウントが見つかりません。再ログインしてください。' });
     }
 
@@ -57,12 +60,13 @@ export const authenticateToken = async (req, res, next) => {
         finalRole = 'ADMIN';
     }
 
-    // リクエストオブジェクトに情報をセット (foundAccount.id を使用することでDB純正のIDを渡す)
+    // リクエストオブジェクトに情報をセット（DBから引いた実データを保持）
     req.user = {
         id: foundAccount.id,
         email: foundAccount.email.toLowerCase(),
         role: finalRole,
-        status: foundAccount.status || 'APPROVED'
+        status: foundAccount.status || 'APPROVED',
+        data: foundAccount // DBから引いた実データを丸ごと渡す
     };
 
     next();
@@ -75,9 +79,6 @@ export const authenticateToken = async (req, res, next) => {
   }
 };
 
-/**
- * 管理者権限チェックミドルウェア
- */
 export const requireAdmin = (req, res, next) => {
   if (req.user && req.user.role === 'ADMIN') {
     next();
