@@ -10,13 +10,20 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 /**
  * ログイン中のお花屋さん自身の情報を取得
- * 404エラーおよびローディング停止の解決策
  */
 export const getFloristProfile = async (req, res) => {
     try {
-        const floristId = req.user.id;
+        // Authミドルウェアから渡されたIDを文字列としてクリーンアップ
+        if (!req.user || !req.user.id) {
+            return res.status(401).json({ message: '認証情報が不足しています。' });
+        }
+        
+        const floristId = String(req.user.id).replace(/['"]+/g, '').trim();
 
-        // Floristテーブルには role カラムがないため、roleを抜いて取得
+        // デバッグ用ログ（Renderのログで確認できます）
+        console.log(`[DEBUG] Fetching florist profile for ID: "${floristId}"`);
+
+        // Floristテーブルから取得
         const florist = await prisma.florist.findUnique({
             where: { id: floristId },
             include: {
@@ -26,14 +33,15 @@ export const getFloristProfile = async (req, res) => {
             }
         });
 
+        // データが見つからない場合の処理
         if (!florist) {
-            return res.status(404).json({ message: 'お花屋さんの情報が見つかりませんでした。' });
+            console.error(`[ERROR] Florist not found in DB for ID: ${floristId}`);
+            return res.status(404).json({ message: 'お花屋さんの情報が見つかりませんでした。再ログインをお試しください。' });
         }
 
-        // パスワードやAPIキーなどの機密情報を除外して返却
+        // パスワードや機密情報を除外して返却
         const { password, laruBotApiKey, ...safeData } = florist;
         
-        // 統計データなどを統合して返却
         res.status(200).json(safeData);
     } catch (error) {
         console.error('getFloristProfile Error:', error);
