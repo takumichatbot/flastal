@@ -13,17 +13,14 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
  */
 export const getFloristProfile = async (req, res) => {
     try {
-        // Authミドルウェアから渡されたIDを文字列としてクリーンアップ
+        // ミドルウェアで確定した req.user.id を使用
         if (!req.user || !req.user.id) {
             return res.status(401).json({ message: '認証情報が不足しています。' });
         }
         
-        const floristId = String(req.user.id).replace(/['"]+/g, '').trim();
+        const floristId = req.user.id;
 
-        // デバッグ用ログ（Renderのログで確認できます）
-        console.log(`[DEBUG] Fetching florist profile for ID: "${floristId}"`);
-
-        // Floristテーブルから取得
+        // Floristテーブルから取得。確実に一致させるため findUnique を使用
         const florist = await prisma.florist.findUnique({
             where: { id: floristId },
             include: {
@@ -33,10 +30,10 @@ export const getFloristProfile = async (req, res) => {
             }
         });
 
-        // データが見つからない場合の処理
+        // 万が一見つからない場合は、ミドルウェアとの不整合を確認
         if (!florist) {
-            console.error(`[ERROR] Florist not found in DB for ID: ${floristId}`);
-            return res.status(404).json({ message: 'お花屋さんの情報が見つかりませんでした。再ログインをお試しください。' });
+            console.error(`[PROFILE ERROR] Florist not found for ID: ${floristId}`);
+            return res.status(404).json({ message: 'お花屋さんの情報が見つかりませんでした。' });
         }
 
         // パスワードや機密情報を除外して返却

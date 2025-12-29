@@ -21,7 +21,7 @@ export const authenticateToken = async (req, res, next) => {
     // 1. JWTの検証
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
-    // IDの抽出。確実に文字列に変換し、不要な記号を再度除去
+    // IDの抽出。確実に文字列に変換
     const rawUserId = decoded.id || decoded.sub;
     if (!rawUserId) {
         return res.status(401).json({ message: 'トークンに有効なIDが含まれていません。' });
@@ -35,19 +35,21 @@ export const authenticateToken = async (req, res, next) => {
     let finalRole = userRoleInToken || 'USER';
     const ADMIN_EMAILS = ["takuminsitou946@gmail.com", "hana87kaori@gmail.com"];
 
+    // 各テーブルに対して検索を実行
     if (userRoleInToken === 'FLORIST') {
-        foundAccount = await prisma.florist.findUnique({ where: { id: userId }, select: { id: true, email: true, status: true } });
+        foundAccount = await prisma.florist.findUnique({ where: { id: userId } });
     } else if (userRoleInToken === 'VENUE') {
-        foundAccount = await prisma.venue.findUnique({ where: { id: userId }, select: { id: true, email: true, status: true } });
+        foundAccount = await prisma.venue.findUnique({ where: { id: userId } });
     } else if (userRoleInToken === 'ORGANIZER') {
-        foundAccount = await prisma.organizer.findUnique({ where: { id: userId }, select: { id: true, email: true, status: true } });
+        foundAccount = await prisma.organizer.findUnique({ where: { id: userId } });
     } else {
-        foundAccount = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, email: true, role: true } });
+        foundAccount = await prisma.user.findUnique({ where: { id: userId } });
         finalRole = foundAccount?.role || 'USER';
     }
 
     if (!foundAccount) {
-      return res.status(404).json({ message: 'アカウントが見つかりません。' });
+      console.error(`[AUTH] Account not found for ID: ${userId}, Role: ${userRoleInToken}`);
+      return res.status(404).json({ message: 'アカウントが見つかりません。再ログインしてください。' });
     }
 
     // 3. 管理者判定
@@ -55,7 +57,7 @@ export const authenticateToken = async (req, res, next) => {
         finalRole = 'ADMIN';
     }
 
-    // リクエストオブジェクトに情報をセット
+    // リクエストオブジェクトに情報をセット (foundAccount.id を使用することでDB純正のIDを渡す)
     req.user = {
         id: foundAccount.id,
         email: foundAccount.email.toLowerCase(),
