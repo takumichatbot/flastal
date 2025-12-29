@@ -194,7 +194,7 @@ const OfferListCard = ({ offers, type = "normal" }) => {
 
 // --- メインページ ---
 export default function FloristDashboardPage() {
-  const { user, token, logout, isPending, isApproved, isLoading: authLoading } = useAuth(); 
+  const { user, logout, isPending, isApproved, isLoading: authLoading, authenticatedFetch } = useAuth(); 
   const router = useRouter();
   
   const [data, setData] = useState(null);
@@ -202,32 +202,28 @@ export default function FloristDashboardPage() {
   const [activeTab, setActiveTab] = useState('pending');
 
   const fetchData = useCallback(async () => {
-    if (!token) return;
     setLoading(true);
     try {
-      // 取得先を /api/florists/profile に変更（これが最新の正しいパス）
-      const res = await fetch(`${API_URL}/api/florists/profile`, { 
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const res = await authenticatedFetch(`${API_URL}/api/florists/profile`);
 
-      if (res.status === 401) throw new Error('認証切れ');
-      if (!res.ok) throw new Error('お花屋さんの情報が見つかりませんでした。');
+      if (!res.ok) {
+        if (res.status === 401) throw new Error('認証切れ');
+        throw new Error('お花屋さんの情報が見つかりませんでした。');
+      }
       
       const json = await res.json();
-      // バックエンドのレスポンスが直接 florist オブジェクトそのものなので、そのままセット
       setData(json);
     } catch (error) {
       console.error(error);
       if (error.message === '認証切れ') {
         logout();
-        router.push('/florists/login');
       } else {
         toast.error(error.message);
       }
     } finally {
       setLoading(false);
     }
-  }, [token, logout, router]); 
+  }, [authenticatedFetch, logout]); 
 
   useEffect(() => {
     if (!authLoading) {
@@ -237,13 +233,14 @@ export default function FloristDashboardPage() {
     }
   }, [user, authLoading, isApproved, fetchData, router]); 
 
-  const handleLogout = () => { logout(); router.push('/florists/login'); };
+  const handleLogout = () => { logout(); };
 
   const handleDeletePost = async (postId) => {
     if(!confirm('本当に削除しますか？')) return;
     const toastId = toast.loading('削除中...');
     try {
-        await fetch(`${API_URL}/api/florists/posts/${postId}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
+        const res = await authenticatedFetch(`${API_URL}/api/florists/posts/${postId}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error('削除失敗');
         toast.success('削除しました', { id: toastId });
         fetchData();
     } catch(e) { toast.error('失敗しました', { id: toastId }); }
@@ -251,11 +248,11 @@ export default function FloristDashboardPage() {
 
   const handleTogglePost = async (post) => {
     try {
-        await fetch(`${API_URL}/api/florists/posts/${post.id}`, {
+        const res = await authenticatedFetch(`${API_URL}/api/florists/posts/${post.id}`, {
             method: 'PATCH',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
             body: JSON.stringify({ isPublic: !post.isPublic })
         });
+        if (!res.ok) throw new Error('更新失敗');
         toast.success(post.isPublic ? '非公開にしました' : '公開しました');
         fetchData();
     } catch(e) { toast.error('更新失敗'); }
@@ -300,7 +297,7 @@ export default function FloristDashboardPage() {
           <div className="flex items-center gap-4">
             <div className="text-right hidden sm:block">
                 <p className="text-xs text-slate-400">Login as</p>
-                <p className="text-sm font-bold text-slate-700">{shopName || user.shopName}</p>
+                <p className="text-sm font-bold text-slate-700">{shopName || user?.shopName}</p>
             </div>
             <div className="h-8 w-[1px] bg-slate-200 hidden sm:block"></div>
             <button onClick={handleLogout} className="text-slate-400 hover:text-red-500 transition-colors p-2" title="ログアウト"><FiLogOut size={20} /></button>

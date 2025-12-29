@@ -44,9 +44,11 @@ const allowedOrigins = [
 
 app.use(cors({
     origin: (origin, callback) => {
+        // originがundefined（同一ドメインやツールからのリクエスト）または許可リストにある場合
         if (!origin || allowedOrigins.includes(origin)) {
             callback(null, true);
         } else {
+            console.warn(`CORS blocked for origin: ${origin}`);
             callback(new Error('Not allowed by CORS'));
         }
     },
@@ -59,7 +61,8 @@ app.use(cors({
         "Accept", 
         "Origin",
         "Cache-Control"
-    ]
+    ],
+    exposedHeaders: ["Authorization"] // クライアントがヘッダーを読み取れるように明示
 }));
 
 // ==========================================
@@ -91,7 +94,7 @@ async function checkUserLevelAndBadges(tx, userId) {
 }
 
 // ==========================================
-// ★★★ Stripe Webhook ★★★
+// ★★★ Stripe Webhook (JSONパース前に配置が必要) ★★★
 // ==========================================
 app.post('/api/webhooks/stripe', express.raw({type: 'application/json'}), async (req, res) => {
     const sig = req.headers['stripe-signature'];
@@ -193,7 +196,7 @@ app.get('/', (req, res) => {
 app.use('/api', authRoutes);
 app.use('/api', userRoutes);
 
-// 花屋関連 (内部で /profile や /:id を定義)
+// 花屋関連
 app.use('/api/florists', floristRoutes);
 
 // 会場・企画関連

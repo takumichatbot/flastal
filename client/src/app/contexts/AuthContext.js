@@ -20,6 +20,7 @@ const AuthContext = createContext({
   logout: () => {},
   register: async () => {},
   updateUser: () => {},
+  authenticatedFetch: async () => {},
 });
 
 export function AuthProvider({ children }) {
@@ -34,7 +35,6 @@ export function AuthProvider({ children }) {
     if (!rawToken || rawToken === 'null' || rawToken === 'undefined' || rawToken === '') return null;
     
     try {
-      // 徹底的なクリーンアップ
       const cleanToken = rawToken.toString().replace(/['"]+/g, '').trim();
       const decoded = jwtDecode(cleanToken);
 
@@ -55,7 +55,7 @@ export function AuthProvider({ children }) {
         iconUrl: decoded.iconUrl,
         shopName: decoded.shopName,
         venueName: decoded.venueName,
-        status: decoded.status || 'APPROVED', // トークンにある場合はそれを、なければAPPROVED
+        status: decoded.status || 'APPROVED',
         sub: decoded.sub,
         _token: cleanToken 
       };
@@ -85,6 +85,34 @@ export function AuthProvider({ children }) {
     }
   }, [parseUserFromToken]);
 
+  // 認証付き fetch ヘルパー
+  const authenticatedFetch = useCallback(async (url, options = {}) => {
+    const storedToken = typeof window !== 'undefined' ? localStorage.getItem('authToken') : null;
+    
+    const headers = {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    };
+
+    if (storedToken) {
+      headers['Authorization'] = `Bearer ${storedToken}`;
+    }
+
+    const response = await fetch(url, { ...options, headers });
+
+    if (response.status === 401) {
+      // トークンが無効な場合はログアウト
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('authToken');
+        setUser(null);
+        setToken(null);
+        window.location.href = '/login';
+      }
+    }
+
+    return response;
+  }, []);
+
   useEffect(() => {
     const initAuth = () => {
       try {
@@ -104,15 +132,10 @@ export function AuthProvider({ children }) {
   }, [setSession]);
 
   const login = useCallback(async (newToken) => {
-    // 確実に同期させるために結果を待つ
     const result = setSession(newToken);
     return result;
   }, [setSession]);
 
-  /**
-   * ログアウト処理
-   * window.location.href を使ってNext.jsのステート競合を物理的に破壊し、エラーを防ぐ
-   */
   const logout = useCallback(() => {
     if (typeof window === 'undefined') return;
 
@@ -122,14 +145,11 @@ export function AuthProvider({ children }) {
     else if (currentRole === 'ADMIN') redirectPath = '/admin/login';
     else redirectPath = '/login';
 
-    // 先にデータを消す
     localStorage.clear();
     setUser(null);
     setToken(null);
 
     toast.success('ログアウトしました');
-
-    // 最後にページ全体をリロードして遷移
     window.location.href = redirectPath;
   }, [user]);
 
@@ -153,9 +173,6 @@ export function AuthProvider({ children }) {
 
   const contextValue = useMemo(() => {
     const isProfessional = user && ['FLORIST', 'VENUE', 'ORGANIZER'].includes(user.role);
-    
-    // プロ向けロールであっても、データ読み込み中(isLoading)や
-    // statusが未定義の場合は、追い出さないように true を返す（これがループ防止の鍵）
     const approved = user ? (user.status === 'APPROVED' || !isProfessional) : false;
 
     return {
@@ -170,9 +187,10 @@ export function AuthProvider({ children }) {
       login,
       logout,
       register,
-      updateUser
+      updateUser,
+      authenticatedFetch
     };
-  }, [user, token, isLoading, login, logout, register, updateUser]);
+  }, [user, token, isLoading, login, logout, register, updateUser, authenticatedFetch]);
 
   return (
     <AuthContext.Provider value={contextValue}>
