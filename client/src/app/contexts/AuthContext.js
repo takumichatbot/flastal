@@ -70,9 +70,9 @@ export function AuthProvider({ children }) {
 
     if (userData) {
       setUser(userData);
-      setToken(userData._token);
+      setToken(newToken.replace(/^"|"$/g, ''));
       if (typeof window !== 'undefined') {
-        localStorage.setItem('authToken', userData._token);
+        localStorage.setItem('authToken', newToken.replace(/^"|"$/g, ''));
       }
       return true;
     } else {
@@ -110,40 +110,36 @@ export function AuthProvider({ children }) {
 
   /**
    * ログアウト処理
-   * 状態をクリアする前にリダイレクト先を決定し、確実な遷移を行います。
+   * クライアントサイドエラーを回避するため、リダイレクト先を先に決定し、
+   * 状態クリアとリダイレクトを安全に行います。
    */
   const logout = useCallback(() => {
-    // 1. リダイレクト先の決定 (状態を消す前にRoleを確認)
+    if (typeof window === 'undefined') return;
+
+    // 1. リダイレクト先の決定
     const currentRole = user?.role;
-    let redirectPath = '/login';
+    let redirectPath = '/';
     
     if (currentRole === 'FLORIST') {
       redirectPath = '/florists/login';
     } else if (currentRole === 'ADMIN') {
       redirectPath = '/admin/login';
-    } else if (currentRole === 'VENUE') {
-      redirectPath = '/login'; // または会場用ログインがあればそこへ
     } else {
-      // 一般ユーザーの場合はトップページへ戻すのが最も安全（404回避）
-      redirectPath = '/';
+      redirectPath = '/login';
     }
 
-    // 2. ローカルストレージと状態のクリア
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('authToken');
-      localStorage.removeItem('flastal-florist');
-      // セッションストレージなど他に使っているものがあればここに追加
-    }
-    
+    // 2. 状態のクリア
     setUser(null);
     setToken(null);
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('flastal-florist');
 
-    // 3. ユーザーへの通知
+    // 3. 通知
     toast.success('ログアウトしました');
 
-    // 4. 強制的なリダイレクト (404回避のため replace を使用)
-    router.replace(redirectPath);
-  }, [user, router]);
+    // 4. 強制リダイレクト (Next.jsの内部状態によるエラーを防ぐため window.location を推奨)
+    window.location.href = redirectPath;
+  }, [user]);
 
   const register = useCallback(async (email, password, handleName) => {
     const response = await fetch(`${API_URL}/api/users/register`, {
