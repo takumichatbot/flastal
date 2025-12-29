@@ -31,21 +31,16 @@ export function AuthProvider({ children }) {
   const router = useRouter();
   const pathname = usePathname();
 
-  /**
-   * トークンからユーザー情報を抽出する関数
-   * 引用符などを徹底的に排除するように強化
-   */
   const parseUserFromToken = useCallback((rawToken) => {
     if (!rawToken || rawToken === 'null' || rawToken === 'undefined' || rawToken === '') return null;
     
     try {
-      // 全ての種類の引用符を完全に削除し、空白も除去
+      // 全ての種類の引用符を完全に削除し、空白も除去（不純物の徹底排除）
       const cleanToken = rawToken.toString().replace(/['"]+/g, '').trim();
       const decoded = jwtDecode(cleanToken);
 
-      // 有効期限チェック
       if (decoded.exp * 1000 < Date.now()) {
-        console.warn("Auth: Token has expired");
+        console.warn("Auth: Token expired");
         return null;
       }
 
@@ -62,7 +57,7 @@ export function AuthProvider({ children }) {
         iconUrl: decoded.iconUrl,
         shopName: decoded.shopName,
         venueName: decoded.venueName,
-        status: decoded.status || 'APPROVED', // statusがない場合はデフォルトでAPPROVEDとする
+        status: decoded.status || 'APPROVED',
         sub: decoded.sub,
         _token: cleanToken 
       };
@@ -72,9 +67,6 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
-  /**
-   * セッションを確立する関数
-   */
   const setSession = useCallback((newToken) => {
     const userData = parseUserFromToken(newToken);
 
@@ -90,15 +82,11 @@ export function AuthProvider({ children }) {
       setToken(null);
       if (typeof window !== 'undefined') {
         localStorage.removeItem('authToken');
-        localStorage.removeItem('flastal-florist');
       }
       return false;
     }
   }, [parseUserFromToken]);
 
-  /**
-   * 初期起動時の認証チェック
-   */
   useEffect(() => {
     setIsMounted(true);
     const initAuth = () => {
@@ -118,35 +106,35 @@ export function AuthProvider({ children }) {
     initAuth();
   }, [setSession]);
 
-  /**
-   * ログイン実行
-   */
   const login = useCallback(async (newToken) => {
     return setSession(newToken);
   }, [setSession]);
 
   /**
    * ログアウト処理
+   * 状態を消す前に遷移を開始し、エラーを防ぎます。
    */
   const logout = useCallback(() => {
     if (typeof window === 'undefined') return;
 
-    // 1. まずリダイレクト先を決める
+    // 1. リダイレクト先の決定
     const currentRole = user?.role;
     let redirectPath = '/';
     if (currentRole === 'FLORIST') redirectPath = '/florists/login';
     else if (currentRole === 'ADMIN') redirectPath = '/admin/login';
     else redirectPath = '/login';
 
-    // 2. 状態とストレージをクリア
+    // 2. データのクリーンアップ
+    // 状態を null にする前に localStorage を消す
+    localStorage.clear();
+    
+    // 3. 全ての状態をリセット
     setUser(null);
     setToken(null);
-    localStorage.clear(); // 全てクリアして不整合を防ぐ
 
     toast.success('ログアウトしました');
 
-    // 3. window.location.replace で強制的にページをリロードして遷移
-    // これによりNext.jsのステート競合によるクラッシュを完全に防ぐ
+    // 4. 強制リロード遷移（Next.jsのレンダリング競合を物理的に回避）
     window.location.replace(redirectPath);
   }, [user]);
 
@@ -170,7 +158,8 @@ export function AuthProvider({ children }) {
 
   const contextValue = useMemo(() => {
     const isProfessional = user && ['FLORIST', 'VENUE', 'ORGANIZER'].includes(user.role);
-    const approved = user ? (user.status === 'APPROVED') : false;
+    // user が null の場合のガードを徹底
+    const approved = user?.status === 'APPROVED';
     
     return {
       user,
@@ -180,7 +169,7 @@ export function AuthProvider({ children }) {
       isAdmin: user?.role === 'ADMIN',
       isProfessional,
       isApproved: isProfessional ? approved : true,
-      isPending: isProfessional ? user.status === 'PENDING' : false,
+      isPending: isProfessional ? user?.status === 'PENDING' : false,
       login,
       logout,
       register,
