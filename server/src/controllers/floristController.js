@@ -14,41 +14,45 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 export const getFloristProfile = async (req, res) => {
     try {
         if (!req.user || req.user.role !== 'FLORIST') {
-            return res.status(401).json({ message: 'お花屋さんの認証情報が見つかりません。' });
+            return res.status(401).json({ message: '認証情報が不足しています。' });
         }
 
+        // ミドルウェアから渡された複数の情報で検索を試みる
         const floristId = req.user.id;
         const floristEmail = req.user.email;
 
-        // IDで検索し、失敗した場合はEmailでバックアップ検索
+        // 1. IDで検索
         let florist = await prisma.florist.findUnique({
             where: { id: floristId },
-            include: {
-                _count: { select: { offers: true, reviews: true } }
-            }
+            include: { _count: { select: { offers: true, reviews: true } } }
         });
 
+        // 2. IDで見つからない場合は Email で検索（IDの型不一致対策）
         if (!florist && floristEmail) {
             florist = await prisma.florist.findUnique({
                 where: { email: floristEmail },
-                include: {
-                    _count: { select: { offers: true, reviews: true } }
-                }
+                include: { _count: { select: { offers: true, reviews: true } } }
+            });
+        }
+
+        // 3. それでも見つからない場合（最後の手段：FindFirst）
+        if (!florist) {
+            florist = await prisma.florist.findFirst({
+                where: { OR: [{ id: floristId }, { email: floristEmail }] },
+                include: { _count: { select: { offers: true, reviews: true } } }
             });
         }
 
         if (!florist) {
-            console.error(`[CRITICAL] Florist record missing in DB for ID: ${floristId} Email: ${floristEmail}`);
-            return res.status(404).json({ message: 'お花屋さんのデータが登録されていません。' });
+            return res.status(404).json({ message: 'お花屋さんのデータが見つかりません。' });
         }
 
-        // パスワードや機密情報を除外して返却
         const { password, laruBotApiKey, ...safeData } = florist;
         res.status(200).json(safeData);
 
     } catch (error) {
         console.error('getFloristProfile Error:', error);
-        res.status(500).json({ message: 'サーバー内でエラーが発生しました。' });
+        res.status(500).json({ message: 'プロフィールの取得中にエラーが発生しました。' });
     }
 };
 

@@ -110,35 +110,31 @@ export function AuthProvider({ children }) {
 
   /**
    * ログアウト処理
-   * クライアントサイドエラーを回避するため、リダイレクト先を先に決定し、
-   * 状態クリアとリダイレクトを安全に行います。
+   * ページを真っ白にしたりエラーを出したりしないよう、
+   * window.locationで強制移動させてからストレージを掃除します。
    */
   const logout = useCallback(() => {
     if (typeof window === 'undefined') return;
 
-    // 1. リダイレクト先の決定
+    // 1. まずリダイレクト先を決める
     const currentRole = user?.role;
     let redirectPath = '/';
-    
-    if (currentRole === 'FLORIST') {
-      redirectPath = '/florists/login';
-    } else if (currentRole === 'ADMIN') {
-      redirectPath = '/admin/login';
-    } else {
-      redirectPath = '/login';
-    }
+    if (currentRole === 'FLORIST') redirectPath = '/florists/login';
+    else if (currentRole === 'ADMIN') redirectPath = '/admin/login';
+    else redirectPath = '/login';
 
-    // 2. 状態のクリア
-    setUser(null);
-    setToken(null);
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('flastal-florist');
-
-    // 3. 通知
+    // 2. トーストを表示
     toast.success('ログアウトしました');
 
-    // 4. 強制リダイレクト (Next.jsの内部状態によるエラーを防ぐため window.location を推奨)
-    window.location.href = redirectPath;
+    // 3. データを消す前に強制的に移動させる（移動によってコンポーネントがアンマウントされる）
+    // 移動した先（ログイン画面）でデータが残っている分にはエラーにならないため、この順序が安全です。
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('flastal-florist');
+    
+    // 最後に状態をクリアして遷移
+    setUser(null);
+    setToken(null);
+    window.location.replace(redirectPath);
   }, [user]);
 
   const register = useCallback(async (email, password, handleName) => {
