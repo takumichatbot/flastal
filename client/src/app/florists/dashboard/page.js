@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
@@ -21,6 +21,7 @@ export default function FloristDashboardPage() {
   const { user, logout, isLoading, authenticatedFetch } = useAuth(); 
   const [data, setData] = useState(null);
   const [errorStatus, setErrorStatus] = useState(null);
+  const [isReady, setIsReady] = useState(false); // 判定開始フラグ
 
   const fetchData = useCallback(async () => {
     try {
@@ -37,13 +38,21 @@ export default function FloristDashboardPage() {
   }, [authenticatedFetch]);
 
   useEffect(() => {
-    if (!isLoading && user && user.role === 'FLORIST' && user.status === 'APPROVED') {
+    if (!isLoading) {
+      // ロード完了後、さらに500ms待ってから「準備完了」とする
+      const timer = setTimeout(() => setIsReady(true), 500);
+      return () => clearTimeout(timer);
+    }
+  }, [isLoading]);
+
+  useEffect(() => {
+    if (isReady && user && user.role === 'FLORIST' && user.status === 'APPROVED') {
       fetchData();
     }
-  }, [isLoading, user, fetchData]);
+  }, [isReady, user, fetchData]);
 
   // A. ロード中
-  if (isLoading) {
+  if (isLoading || !isReady) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-pink-500"></div>
@@ -51,14 +60,18 @@ export default function FloristDashboardPage() {
     );
   }
 
-  // B. セッション切れ or 権限なし（勝手に飛ばさずメッセージを出す）
+  // B. セッション判定（isReady が true の時のみ実行）
   if (!user || user.role !== 'FLORIST' || errorStatus === 401) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-white p-4">
         <FiAlertCircle size={48} className="text-gray-200 mb-4" />
-        <h1 className="text-lg font-bold text-slate-800 mb-4">セッションが切断されました</h1>
+        <h1 className="text-lg font-bold text-slate-800 mb-4">セッションを同期できませんでした</h1>
+        <p className="text-sm text-slate-500 mb-8 text-center">
+            もう一度ログインし直してください。<br/>
+            改善しない場合は、ブラウザのキャッシュをクリアしてください。
+        </p>
         <Link href="/florists/login" className="px-8 py-3 bg-pink-500 text-white rounded-full font-bold shadow-lg">
-          再ログインする
+          ログイン画面へ戻る
         </Link>
       </div>
     );
@@ -76,10 +89,9 @@ export default function FloristDashboardPage() {
 
   // D. データ取得待ち
   if (!data) {
-    return <div className="min-h-screen flex items-center justify-center bg-slate-50 text-slate-400 font-bold">データを同期中...</div>;
+    return <div className="min-h-screen flex items-center justify-center bg-slate-50 text-slate-400 font-bold animate-pulse">データを読み込み中...</div>;
   }
 
-  // E. 正常表示
   return (
     <div className="min-h-screen bg-slate-50 font-sans pb-20">
       <header className="bg-white/80 backdrop-blur-md sticky top-0 z-30 border-b border-slate-200 h-16 flex items-center justify-between px-4 md:px-8">
@@ -89,16 +101,15 @@ export default function FloristDashboardPage() {
         </div>
         <div className="flex items-center gap-4">
           <span className="text-sm font-bold text-slate-600">{data.shopName || user.shopName}</span>
-          <button onClick={() => logout()} className="text-slate-400 hover:text-red-500 transition-colors"><FiLogOut size={20} /></button>
+          <button onClick={() => logout()} className="text-slate-400 hover:text-red-500 transition-colors p-2"><FiLogOut size={20} /></button>
         </div>
       </header>
       
       <main className="max-w-7xl mx-auto px-4 md:px-8 py-8 space-y-8">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
              <div className="lg:col-span-2">
-                <div className="bg-gradient-to-r from-pink-500 to-rose-500 rounded-2xl p-6 text-white shadow-lg mb-6">
-                    <h2 className="text-2xl font-bold">Welcome Back!</h2>
-                    <p className="opacity-90 text-sm">今日の実績を更新しましょう。</p>
+                <div className="bg-gradient-to-r from-pink-500 to-rose-500 rounded-2xl p-6 text-white shadow-lg mb-6 flex justify-between items-center relative overflow-hidden">
+                    <div className="relative z-10"><h2 className="text-2xl font-bold mb-1">Welcome Back!</h2><p className="opacity-90 text-sm">今日の実績をアピールしましょう。</p></div>
                 </div>
                 <FloristAppealPostForm user={user} onPostSuccess={fetchData} />
              </div>
@@ -123,11 +134,11 @@ export default function FloristDashboardPage() {
                             <p className="font-bold text-slate-800">{o.project?.title}</p>
                             <p className="text-xs text-slate-400">{new Date(o.createdAt).toLocaleDateString()}</p>
                          </div>
-                         <Link href={`/florists/projects/${o.projectId}`} className="px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-bold text-pink-500 hover:bg-pink-50">詳細</Link>
+                         <Link href={`/florists/projects/${o.projectId}`} className="px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-bold text-pink-500 hover:bg-pink-50">詳細を確認</Link>
                       </div>
                    ))}
                 </div>
-             ) : <p className="text-slate-400 text-sm py-8 text-center">新しいオファーはありません</p>}
+             ) : <p className="text-slate-400 text-sm py-12 text-center">現在、新しいオファーはありません</p>}
           </div>
       </main>
     </div>

@@ -71,7 +71,6 @@ export function AuthProvider({ children }) {
       }
       return true;
     } else {
-      // ログアウト以外（初期化中など）では、絶対に勝手にクリアしない
       if (!isInitializing.current) {
         setUser(null);
         setToken(null);
@@ -84,7 +83,6 @@ export function AuthProvider({ children }) {
     }
   }, [parseUserFromToken]);
 
-  // ★ ネットワーク不安定やSafariの制限に耐えるリトライ付きFetch
   const authenticatedFetch = useCallback(async (url, options = {}, retryCount = 0) => {
     const storedToken = typeof window !== 'undefined' ? localStorage.getItem('authToken') : token;
     const headers = { ...options.headers };
@@ -98,15 +96,12 @@ export function AuthProvider({ children }) {
 
     try {
       const response = await fetch(url, { ...options, headers });
-      
-      // Safari等で一時的に認証が弾かれた場合、1回だけ自動リトライ
       if (response.status === 401 && retryCount < 1 && !url.includes('/login')) {
         await new Promise(resolve => setTimeout(resolve, 300));
         return authenticatedFetch(url, options, retryCount + 1);
       }
       return response;
     } catch (e) {
-      // 通信エラー時も1回リトライ
       if (retryCount < 1) {
         await new Promise(resolve => setTimeout(resolve, 500));
         return authenticatedFetch(url, options, retryCount + 1);
@@ -126,7 +121,6 @@ export function AuthProvider({ children }) {
           }
         }
       } finally {
-        // ロード完了を遅らせ、ステートを確実に固定
         setTimeout(() => {
           setIsLoading(false);
           isInitializing.current = false;
