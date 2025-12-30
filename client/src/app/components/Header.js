@@ -4,11 +4,10 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '@/app/contexts/AuthContext';
-// アイコン (Lucide React)
 import { 
   Bell, ChevronDown, User, LogOut, Heart, CheckCircle2, Menu, X, 
   Calendar, MapPin, LayoutDashboard, Settings, Sparkles, Store, ShieldCheck, Briefcase, FileText,
-  UserCheck, ClipboardList, BarChart3, Building2, Package, Truck
+  UserCheck, ClipboardList, BarChart3, Building2, Package, Truck, Search, PlusCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
@@ -16,7 +15,6 @@ import OshiColorPicker from './OshiColorPicker';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
-// --- Notification Dropdown ---
 function NotificationDropdown({ notifications, fetchNotifications, unreadCount, authenticatedFetch }) {
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef(null);
@@ -146,9 +144,6 @@ function NotificationDropdown({ notifications, fetchNotifications, unreadCount, 
     );
 }
 
-// ===========================================
-// Main Header Component
-// ===========================================
 export default function Header() {
   const { user, logout, isLoading, authenticatedFetch } = useAuth();
   const [notifications, setNotifications] = useState([]);
@@ -159,7 +154,6 @@ export default function Header() {
   const unreadCount = useMemo(() => notifications.filter(n => !n.isRead).length, [notifications]);
 
   const fetchNotifications = useCallback(async () => {
-    // isLoadingがtrueの時やユーザーがいない時はAPIを叩かない（401エラー防止）
     if (isLoading || !user) return;
     try {
       const response = await authenticatedFetch(`${API_URL}/api/notifications`);
@@ -195,9 +189,6 @@ export default function Header() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  /**
-   * Roleに基づいたメインナビゲーション
-   */
   const navLinks = useMemo(() => {
     const baseLinks = [
       { href: '/projects', label: '企画一覧', icon: <Heart size={18}/> },
@@ -238,9 +229,6 @@ export default function Header() {
     }
   }, [user]);
 
-  /**
-   * Roleに基づいたメインリンク
-   */
   const getPrimaryLink = useMemo(() => {
     if (!user) return '/login';
     switch (user.role) {
@@ -252,9 +240,6 @@ export default function Header() {
     }
   }, [user]);
 
-  /**
-   * Roleに基づいたメニュー項目
-   */
   const userMenuItems = useMemo(() => {
     if (!user) return [];
     
@@ -285,53 +270,43 @@ export default function Header() {
         ];
       default:
         return [
-          { href: '/mypage', label: 'マイページ', icon: <LayoutDashboard size={16} /> },
-          { href: '/mypage/pledges', label: '支援履歴', icon: <Heart size={16} /> },
+          { href: '/mypage', label: '参加した企画', icon: <Heart size={16} /> },
+          { href: '/mypage?tab=created', label: '主催した企画', icon: <ClipboardList size={16} /> },
           { href: '/mypage/settings', label: 'プロフィール設定', icon: <Settings size={16} /> },
         ];
     }
   }, [user]);
 
   return (
-    <header className="sticky top-0 z-[100] w-full bg-white/80 backdrop-blur-md border-b border-slate-200/50 shadow-sm h-16 md:h-20 flex items-center">
+    <header className="sticky top-0 z-[100] w-full bg-white/95 backdrop-blur-md border-b border-slate-200/60 shadow-sm h-16 md:h-20 flex items-center">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
         <div className="flex justify-between items-center">
           
-          {/* Logo */}
-          <div className="flex items-center gap-8">
-            <Link href="/" className="flex items-center gap-2 group">
+          <div className="flex items-center gap-6">
+            <Link href="/" className="flex items-center gap-2 group shrink-0">
               <div className="relative w-8 h-8 md:w-9 md:h-9 overflow-hidden rounded-xl shadow-sm group-hover:scale-105 transition-transform duration-300">
-                <Image
-                  src="/icon-512x512.png"
-                  alt="FLASTAL"
-                  fill
-                  className="object-cover"
-                  priority 
-                />
+                <Image src="/icon-512x512.png" alt="FLASTAL" fill className="object-cover" priority />
               </div>
-              <span className="text-xl md:text-2xl font-black bg-clip-text text-transparent bg-gradient-to-r from-slate-800 to-slate-600 tracking-tight group-hover:from-pink-500 group-hover:to-purple-500 transition-all duration-300">
+              <span className="text-xl md:text-2xl font-black bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-600 tracking-tighter group-hover:from-pink-500 group-hover:to-purple-500 transition-all duration-300">
                 FLASTAL
               </span>
             </Link>
 
-            {/* Desktop Nav */}
             <nav className="hidden lg:flex items-center space-x-1">
               {navLinks.map((link) => (
                 <Link 
                   key={link.href} 
                   href={link.href}
-                  className="px-4 py-2 rounded-full text-sm font-bold text-slate-500 hover:text-slate-800 hover:bg-slate-50 transition-all flex items-center gap-2 group"
+                  className="px-4 py-2 rounded-full text-sm font-bold text-slate-500 hover:text-slate-900 hover:bg-slate-50 transition-all flex items-center gap-2 group"
                 >
-                  <span className="text-slate-400 group-hover:text-indigo-400 transition-colors">{link.icon}</span>
+                  <span className="text-slate-400 group-hover:text-pink-400 transition-colors">{link.icon}</span>
                   {link.label}
                 </Link>
               ))}
             </nav>
           </div>
           
-          {/* User Actions */}
           <div className="flex items-center space-x-2 md:space-x-4">
-            
             <div className="hidden md:block scale-90">
                 <OshiColorPicker />
             </div>
@@ -348,9 +323,9 @@ export default function Header() {
                 <div className="relative" ref={userMenuRef}>
                   <button 
                     onClick={() => setIsUserMenuOpen(!isUserMenuOpen)} 
-                    className="flex items-center gap-2 pl-1 pr-3 py-1 rounded-full border border-slate-200 bg-white hover:bg-slate-50 hover:shadow-sm transition-all group"
+                    className="flex items-center gap-2 pl-1 pr-1 md:pr-3 py-1 rounded-full border border-slate-200 bg-white hover:bg-slate-50 hover:shadow-sm transition-all group"
                   >
-                    <div className="relative w-8 h-8 rounded-full overflow-hidden bg-indigo-50 border border-indigo-100">
+                    <div className="relative w-8 h-8 rounded-full overflow-hidden bg-indigo-50 border border-indigo-100 shrink-0">
                         {user.iconUrl ? (
                             <Image src={user.iconUrl} alt="User Icon" fill className="object-cover" />
                         ) : (
@@ -358,7 +333,7 @@ export default function Header() {
                         )}
                     </div>
                     <span className="text-sm font-bold hidden sm:block text-slate-700 max-w-[100px] truncate">{user.handleName}</span>
-                    <ChevronDown size={14} className={`text-slate-400 transition-transform duration-300 ${isUserMenuOpen ? 'rotate-180' : ''}`} />
+                    <ChevronDown size={14} className={`text-slate-400 transition-transform hidden md:block duration-300 ${isUserMenuOpen ? 'rotate-180' : ''}`} />
                   </button>
 
                   <AnimatePresence>
@@ -374,7 +349,7 @@ export default function Header() {
                             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">Signed in as</p>
                             <p className="text-sm font-bold text-slate-800 truncate">{user.handleName}</p>
                             <div className="mt-1">
-                                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-100 text-indigo-600 border border-indigo-200 inline-block uppercase">
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-pink-100 text-pink-600 border border-pink-200 inline-block uppercase tracking-wider">
                                     {user.role}
                                 </span>
                             </div>
@@ -385,9 +360,9 @@ export default function Header() {
                                     key={item.href}
                                     href={item.href} 
                                     onClick={() => setIsUserMenuOpen(false)} 
-                                    className="flex items-center px-4 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-50 hover:text-indigo-600 rounded-xl transition-colors"
+                                    className="flex items-center px-4 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-50 hover:text-pink-600 rounded-xl transition-colors"
                                 >
-                                    <span className="mr-3 text-slate-400">{item.icon}</span>
+                                    <span className="mr-3 text-slate-400 group-hover:text-pink-400 transition-colors">{item.icon}</span>
                                     {item.label}
                                 </Link>
                             ))}
@@ -429,88 +404,95 @@ export default function Header() {
         </div>
       </div>
 
-      {/* Mobile Menu Drawer */}
       <AnimatePresence>
         {isMobileMenuOpen && (
             <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: "auto", opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.3, ease: "easeInOut" }}
-                className="lg:hidden bg-white border-b border-slate-100 absolute top-full left-0 w-full overflow-hidden shadow-xl"
+                initial={{ x: "100%" }}
+                animate={{ x: 0 }}
+                exit={{ x: "100%" }}
+                transition={{ type: "spring", damping: 25, stiffness: 200 }}
+                className="lg:hidden fixed inset-0 top-0 left-0 w-full h-screen bg-white z-[200] overflow-y-auto"
             >
-                <nav className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+                <div className="p-4 flex justify-between items-center border-b border-slate-100">
+                    <span className="text-xl font-black text-slate-900 tracking-tighter">FLASTAL</span>
+                    <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 bg-slate-50 rounded-full">
+                        <X size={24} />
+                    </button>
+                </div>
+
+                <nav className="p-6 space-y-8">
                     {user && (
-                        <div className="bg-slate-50 p-4 rounded-xl mb-4">
-                            <Link href={getPrimaryLink} onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-3 mb-4">
+                        <div className="flex items-center justify-between bg-slate-50 p-4 rounded-2xl">
+                            <div className="flex items-center gap-4">
                                 <div className="relative w-12 h-12 rounded-full overflow-hidden bg-white border border-slate-200 shadow-sm">
-                                    {user.iconUrl ? (
-                                        <Image src={user.iconUrl} alt="User Avatar" fill className="object-cover" />
-                                    ) : (
-                                        <div className="w-full h-full flex items-center justify-center text-slate-300"><User size={24}/></div>
-                                    )}
+                                    {user.iconUrl ? <Image src={user.iconUrl} alt="User Avatar" fill className="object-cover" /> : <User size={24} className="m-3 text-slate-300" />}
                                 </div>
                                 <div>
                                     <p className="font-bold text-lg text-slate-800">{user.handleName}</p>
-                                    <p className="text-xs text-slate-500 font-bold uppercase tracking-wide">{user.role}</p>
+                                    <Link href="/mypage" onClick={() => setIsMobileMenuOpen(false)} className="text-xs text-pink-500 font-bold">プロフィール設定へ</Link>
                                 </div>
-                            </Link>
-                            <div className="grid grid-cols-1 gap-2">
-                                {userMenuItems.map((item) => (
-                                    <Link 
-                                        key={item.href}
-                                        href={item.href}
-                                        onClick={() => setIsMobileMenuOpen(false)}
-                                        className="flex items-center justify-center gap-2 w-full py-3 bg-white border border-slate-200 text-indigo-600 font-bold rounded-lg shadow-sm active:scale-95 transition-transform"
-                                    >
-                                        {item.icon} {item.label}
-                                    </Link>
-                                ))}
                             </div>
                         </div>
                     )}
 
+                    <div className="grid grid-cols-2 gap-4">
+                        <Link 
+                            href="/projects/create" 
+                            onClick={() => setIsMobileMenuOpen(false)}
+                            className="flex flex-col items-center justify-center gap-2 py-4 bg-pink-500 text-white rounded-2xl font-bold shadow-lg shadow-pink-100 transition-transform active:scale-95"
+                        >
+                            <PlusCircle size={24} /> 企画を立てる
+                        </Link>
+                        <Link 
+                            href="/projects" 
+                            onClick={() => setIsMobileMenuOpen(false)}
+                            className="flex flex-col items-center justify-center gap-2 py-4 bg-white border-2 border-pink-500 text-pink-500 rounded-2xl font-bold transition-transform active:scale-95"
+                        >
+                            <Search size={24} /> 企画を探す
+                        </Link>
+                    </div>
+
                     <div className="space-y-1">
-                        <p className="text-xs font-bold text-slate-400 px-2 mb-2 uppercase tracking-widest">Menu</p>
                         {navLinks.map((link) => (
                             <Link 
-                                key={link.href} 
-                                href={link.href}
+                                key={link.href} href={link.href}
                                 onClick={() => setIsMobileMenuOpen(false)}
-                                className="flex items-center gap-4 px-4 py-3 text-slate-700 font-bold hover:bg-slate-50 rounded-xl transition-colors"
+                                className="flex items-center justify-between px-2 py-4 text-slate-800 font-bold border-b border-slate-50"
                             >
-                                <span className="text-slate-400">{link.icon}</span>
-                                {link.label}
+                                <div className="flex items-center gap-4">
+                                    <span className="text-slate-400">{link.icon}</span>
+                                    {link.label}
+                                </div>
+                                <ChevronDown size={18} className="-rotate-90 text-slate-300" />
                             </Link>
                         ))}
                     </div>
 
-                    {!user && (
-                        <div className="grid grid-cols-2 gap-4 mt-6">
-                            <Link 
-                                href="/login"
-                                onClick={() => setIsMobileMenuOpen(false)}
-                                className="flex justify-center items-center gap-2 py-3 border border-slate-200 rounded-xl font-bold text-slate-600 active:bg-slate-50"
-                            >
-                                ログイン
-                            </Link>
-                            <Link 
-                                href="/register"
-                                onClick={() => setIsMobileMenuOpen(false)}
-                                className="flex justify-center items-center gap-2 py-3 bg-pink-500 text-white rounded-xl font-bold shadow-lg shadow-pink-200 active:scale-95 transition-transform"
-                            >
-                                ファン登録
-                            </Link>
+                    {user && (
+                        <div className="space-y-1 pt-4">
+                            <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em] mb-4">Account</p>
+                            {userMenuItems.map((item) => (
+                                <Link 
+                                    key={item.href} href={item.href}
+                                    onClick={() => setIsMobileMenuOpen(false)}
+                                    className="flex items-center gap-4 px-2 py-3 text-slate-600 font-bold"
+                                >
+                                    <span className="text-slate-400">{item.icon}</span>
+                                    {item.label}
+                                </Link>
+                            ))}
                         </div>
                     )}
-                    <div className="mt-6 pt-6 border-t border-slate-100">
-                        <p className="text-xs font-bold text-slate-400 px-2 mb-4 uppercase tracking-widest">Theme</p>
-                        <div className="px-2">
-                            <OshiColorPicker />
+
+                    {!user && (
+                        <div className="grid grid-cols-2 gap-4">
+                            <Link href="/login" onClick={() => setIsMobileMenuOpen(false)} className="flex justify-center py-3 bg-slate-100 rounded-xl font-bold text-slate-600">ログイン</Link>
+                            <Link href="/register" onClick={() => setIsMobileMenuOpen(false)} className="flex justify-center py-3 bg-pink-500 text-white rounded-xl font-bold">新規登録</Link>
                         </div>
-                    </div>
+                    )}
+
                     {user && (
-                        <button onClick={handleLogout} className="w-full py-4 text-red-500 font-bold border border-red-100 rounded-xl hover:bg-red-50 transition-colors flex items-center justify-center gap-2 mt-4">
+                        <button onClick={handleLogout} className="w-full py-4 text-red-500 font-bold border border-red-50 rounded-2xl hover:bg-red-50 transition-colors flex items-center justify-center gap-2">
                             <LogOut size={18} /> ログアウト
                         </button>
                     )}

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
-import { FiEye, FiEyeOff, FiHome, FiTag, FiUser, FiMail, FiLock, FiArrowLeft } from 'react-icons/fi';
+import { FiEye, FiEyeOff, FiHome, FiTag, FiUser, FiMail, FiLock, FiArrowLeft, FiCheckCircle } from 'react-icons/fi';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -18,6 +18,7 @@ export default function FloristRegisterPage() {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitted, setIsSubmitted] = useState(false); // ★送信完了状態を管理
   const router = useRouter();
 
   const handleChange = (e) => {
@@ -44,14 +45,56 @@ export default function FloristRegisterPage() {
     toast.promise(promise, {
       loading: '申請を送信中...',
       success: (data) => {
-        router.push('/'); // 完了後はトップへ
-        return data.message || '登録申請が完了しました。承認をお待ちください。'; 
+        setIsSubmitted(true); // ★完了画面に切り替え
+        return '申請メールを送信しました。'; 
       },
       error: (err) => err.message,
     });
     
     promise.finally(() => setIsLoading(false));
   };
+
+  // ★送信完了後の表示
+  if (isSubmitted) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-pink-50 to-white flex items-center justify-center p-4">
+        <div className="w-full max-w-lg p-8 bg-white rounded-2xl shadow-xl border border-pink-100 text-center">
+          <div className="mb-6 flex justify-center">
+            <div className="bg-pink-100 p-4 rounded-full">
+              <FiCheckCircle className="text-pink-500 w-12 h-12" />
+            </div>
+          </div>
+          <h2 className="text-3xl font-bold text-gray-800 mb-4">申請ありがとうございます</h2>
+          <div className="bg-pink-50 border border-pink-100 rounded-xl p-6 mb-8 text-left">
+            <p className="text-gray-700 font-medium mb-2">今後の流れ：</p>
+            <ul className="text-sm text-gray-600 space-y-3">
+              <li className="flex items-start">
+                <span className="bg-pink-200 text-pink-700 rounded-full w-5 h-5 flex items-center justify-center text-xs mt-0.5 mr-2 shrink-0">1</span>
+                <span>ご入力いただいたメールアドレス宛に、**本人確認メール**を送信しました。</span>
+              </li>
+              <li className="flex items-start">
+                <span className="bg-pink-200 text-pink-700 rounded-full w-5 h-5 flex items-center justify-center text-xs mt-0.5 mr-2 shrink-0">2</span>
+                <span>メール内のボタンをクリックして、メールアドレスの認証を完了させてください。</span>
+              </li>
+              <li className="flex items-start">
+                <span className="bg-pink-200 text-pink-700 rounded-full w-5 h-5 flex items-center justify-center text-xs mt-0.5 mr-2 shrink-0">3</span>
+                <span>認証完了後、運営事務局にてショップ情報の審査を行い、承認されるとログイン可能になります。</span>
+              </li>
+            </ul>
+          </div>
+          <p className="text-gray-500 text-sm mb-8">
+            ※メールが届かない場合は、迷惑メールフォルダをご確認ください。
+          </p>
+          <Link 
+            href="/" 
+            className="block w-full py-3.5 bg-pink-500 text-white rounded-lg font-bold text-lg shadow-md hover:bg-pink-600 transition-all"
+          >
+            トップページへ戻る
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 to-white flex items-center justify-center p-4">
