@@ -10,7 +10,8 @@ import {
   FiUser, FiList, FiHeart, FiBell, FiSettings, 
   FiPlus, FiActivity, FiCheckCircle, FiAlertCircle, 
   FiShoppingCart, FiSearch, FiCamera, FiLogOut, FiChevronRight,
-  FiAward, FiMessageSquare, FiTrendingUp, FiClock, FiStar
+  FiAward, FiMessageSquare, FiTrendingUp, FiClock, FiStar,
+  FiMapPin, FiFlag, FiCompass, FiZap
 } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 
@@ -39,7 +40,6 @@ const ProgressSteps = ({ currentStep }) => {
                 const isActive = stepNum <= currentStep;
                 return (
                     <div key={s} className="flex-1 flex flex-col items-center gap-2 relative">
-                        {/* 連結線 */}
                         {i > 0 && (
                             <div className={`absolute top-2 right-1/2 w-full h-[2px] -z-10 ${isActive ? 'bg-pink-300' : 'bg-gray-100'}`} />
                         )}
@@ -52,22 +52,13 @@ const ProgressSteps = ({ currentStep }) => {
     );
 };
 
-// --- 企画カードコンポーネント ---
+// --- 企画カード ---
 function ProjectCard({ project, isOwner }) {
     const config = PROJECT_STATUS_CONFIG[project.status] || { label: project.status, color: 'text-gray-600', bg: 'bg-gray-50', border: 'border-gray-100', step: 0 };
     const progress = project.targetAmount > 0 ? Math.min((project.collectedAmount / project.targetAmount) * 100, 100) : 0;
     
-    let adviceText = null;
-    if (isOwner) {
-        if (project.status === 'FUNDRAISING' && !project.offer) 
-            adviceText = { text: '次はお花屋さんを選んで相談しましょう', link: `/florists?projectId=${project.id}`, btn: 'お花屋さんを探す' };
-        else if (project.offer?.status === 'ACCEPTED' && !project.quotation) 
-            adviceText = { text: 'お花屋さんとチャットでお話ししましょう', link: `/chat/${project.offer.chatRoom?.id}`, btn: 'チャットを開く' };
-    }
-
     return (
         <div className="bg-white rounded-2xl border border-gray-100 hover:border-pink-200 hover:shadow-lg transition-all duration-300 overflow-hidden flex flex-col sm:flex-row">
-            {/* 画像エリア */}
             <div className="w-full sm:w-64 h-40 sm:h-auto relative shrink-0">
                 {project.imageUrl ? (
                     <Image src={project.imageUrl} alt={project.title} fill className="object-cover" />
@@ -78,54 +69,29 @@ function ProjectCard({ project, isOwner }) {
                     {config.label}
                 </div>
             </div>
-
-            {/* 情報エリア */}
             <div className="p-6 flex-grow flex flex-col">
                 <Link href={`/projects/${project.id}`}>
-                    <h3 className="font-bold text-gray-800 text-lg leading-snug hover:text-pink-500 transition-colors line-clamp-2">
-                        {project.title}
-                    </h3>
+                    <h3 className="font-bold text-gray-800 text-lg hover:text-pink-500 transition-colors line-clamp-2">{project.title}</h3>
                 </Link>
-                
-                <div className="flex items-center gap-4 mt-3 text-[11px] text-gray-400 font-medium">
-                    <span className="flex items-center gap-1"><FiClock /> 納品日: {new Date(project.deliveryDateTime).toLocaleDateString()}</span>
-                    <span className="flex items-center gap-1"><FiUser /> {isOwner ? 'あなたが主催' : '応援メンバー'}</span>
+                <div className="flex items-center gap-4 mt-3 text-[11px] text-gray-400 font-bold uppercase tracking-wider">
+                    <span className="flex items-center gap-1"><FiClock /> 納品: {new Date(project.deliveryDateTime).toLocaleDateString()}</span>
+                    <span className="flex items-center gap-1"><FiUser /> {isOwner ? '主催' : '応援'}</span>
                 </div>
-
-                {/* メーター */}
                 <div className="mt-5">
                     <div className="flex justify-between items-end mb-2">
                         <span className="text-xl font-black text-gray-800">{progress.toFixed(0)}%</span>
-                        <span className="text-[10px] text-gray-400 font-bold">
-                            現在の支援: {project.collectedAmount.toLocaleString()} pt
-                        </span>
+                        <span className="text-[10px] text-gray-400 font-black">{project.collectedAmount.toLocaleString()} / {project.targetAmount.toLocaleString()} pt</span>
                     </div>
                     <div className="w-full bg-gray-50 h-2 rounded-full overflow-hidden">
-                        <motion.div 
-                            initial={{ width: 0 }}
-                            animate={{ width: `${progress}%` }}
-                            className="h-full bg-pink-400" 
-                        />
+                        <motion.div initial={{ width: 0 }} animate={{ width: `${progress}%` }} className="h-full bg-pink-400" />
                     </div>
                     <ProgressSteps currentStep={config.step} />
                 </div>
-
-                {adviceText && (
-                    <div className="mt-6 flex items-center justify-between p-4 bg-pink-50/50 rounded-xl border border-pink-100">
-                        <p className="text-xs font-bold text-pink-600 flex items-center gap-2">
-                            <FiAlertCircle /> {adviceText.text}
-                        </p>
-                        <Link href={adviceText.link} className="bg-pink-500 text-white text-[10px] font-bold px-4 py-2 rounded-full hover:bg-pink-600 transition-colors shadow-sm">
-                            {adviceText.btn}
-                        </Link>
-                    </div>
-                )}
             </div>
         </div>
     );
 }
 
-// --- メインページ ---
 export default function MyPageClient() {
   const { user, isLoading: authLoading, logout, authenticatedFetch } = useAuth();
   const router = useRouter();
@@ -148,7 +114,6 @@ export default function MyPageClient() {
         authenticatedFetch(`${API_URL}/api/notifications`),
         authenticatedFetch(`${API_URL}/api/users/${user.id}/posts`)
       ]);
-
       if (createdRes?.ok) setCreatedProjects(await createdRes.json());
       if (pledgedRes?.ok) setPledgedProjects(await pledgedRes.json());
       if (notifRes?.ok) setNotifications(await notifRes.json());
@@ -164,14 +129,10 @@ export default function MyPageClient() {
 
   const unreadCount = useMemo(() => notifications.filter(n => !n.isRead).length, [notifications]);
   
-  if (authLoading || !user) return (
-    <div className="min-h-screen flex items-center justify-center bg-white">
-        <div className="animate-spin w-8 h-8 border-4 border-pink-500 border-t-transparent rounded-full" />
-    </div>
-  );
+  if (authLoading || !user) return <div className="min-h-screen flex items-center justify-center bg-white"><div className="animate-spin w-8 h-8 border-4 border-pink-500 border-t-transparent rounded-full" /></div>;
 
-  const NavButton = ({ id, label, icon: Icon, badge }) => (
-    <button onClick={() => setActiveTab(id)} className={`w-full flex items-center gap-3 px-6 py-4 text-sm font-bold transition-all relative ${activeTab === id ? 'text-pink-600 bg-pink-50/50' : 'text-gray-500 hover:bg-gray-50'}`}>
+  const NavButton = ({ id, label, icon: Icon, badge, color = "text-gray-500" }) => (
+    <button onClick={() => setActiveTab(id)} className={`w-full flex items-center gap-3 px-6 py-3.5 text-sm font-bold transition-all relative ${activeTab === id ? 'text-pink-600 bg-pink-50/50' : `${color} hover:bg-gray-50`}`}>
         <Icon size={18} />
         <span className="flex-grow text-left">{label}</span>
         {badge > 0 && <span className="bg-pink-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">{badge}</span>}
@@ -179,82 +140,95 @@ export default function MyPageClient() {
     </button>
   );
 
+  const QuickLink = ({ href, label, icon: Icon, sub }) => (
+    <Link href={href} className="group bg-white p-6 rounded-3xl border border-gray-100 hover:border-pink-200 hover:shadow-xl transition-all">
+        <div className="w-12 h-12 bg-pink-50 text-pink-500 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+            <Icon size={24} />
+        </div>
+        <p className="font-bold text-gray-800 mb-1">{label}</p>
+        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{sub}</p>
+    </Link>
+  );
+
   return (
     <div className="min-h-screen bg-gray-50/50 flex flex-col md:flex-row">
-      {/* 左サイドバー */}
-      <aside className="w-full md:w-72 bg-white border-r border-gray-100 sticky top-0 md:h-screen overflow-y-auto flex flex-col">
-        <div className="p-8 flex flex-col items-center">
+      {/* --- サイドバー --- */}
+      <aside className="w-full md:w-72 bg-white border-r border-gray-100 sticky top-0 md:h-screen overflow-y-auto flex flex-col z-20">
+        <div className="p-8 pb-4 flex flex-col items-center">
             <div className="w-20 h-20 rounded-3xl relative overflow-hidden border-4 border-white shadow-sm mb-4">
                 {user.iconUrl ? <Image src={user.iconUrl} alt="アイコン" fill className="object-cover" /> : <div className="w-full h-full bg-gray-50 flex items-center justify-center text-gray-300"><FiUser size={32}/></div>}
             </div>
             <h2 className="font-bold text-gray-800 text-lg">{user.handleName}</h2>
             <div className="mt-2"><SupportLevelBadge level={user.supportLevel} /></div>
+        </div>
 
-            {/* ポイント残高 */}
-            <div className="mt-8 w-full bg-pink-500 rounded-2xl p-5 text-white shadow-md shadow-pink-100">
-                <p className="text-[10px] font-bold opacity-80 mb-1">現在のポイント</p>
-                <div className="flex justify-between items-end">
-                    <p className="text-2xl font-bold">{(user.points || 0).toLocaleString()}<span className="text-xs ml-1">pt</span></p>
-                    <Link href="/points" className="bg-white/20 hover:bg-white/30 p-2 rounded-full transition-colors">
-                        <FiShoppingCart size={14}/>
-                    </Link>
+        <div className="px-4 py-2">
+            <div className="bg-gradient-to-br from-pink-500 to-rose-500 rounded-2xl p-5 text-white shadow-lg">
+                <p className="text-[10px] font-black opacity-80 uppercase tracking-widest mb-1">Point Balance</p>
+                <div className="flex justify-between items-center">
+                    <p className="text-2xl font-bold">{(user.points || 0).toLocaleString()}</p>
+                    <Link href="/points" className="bg-white/20 hover:bg-white/30 p-2 rounded-xl transition-colors"><FiPlus size={16}/></Link>
                 </div>
             </div>
         </div>
 
-        <nav className="mt-2 flex-grow">
+        <nav className="mt-4 flex-grow">
+            <p className="px-8 text-[10px] font-black text-gray-300 uppercase tracking-[0.2em] mb-2">My Activity</p>
             <NavButton id="home" label="ホーム" icon={FiActivity} />
             <NavButton id="created" label="主催した企画" icon={FiList} badge={createdProjects.length} />
             <NavButton id="pledged" label="参加中の企画" icon={FiHeart} badge={pledgedProjects.length} />
             <NavButton id="album" label="アルバム" icon={FiCamera} />
+            
+            <p className="px-8 text-[10px] font-black text-gray-300 uppercase tracking-[0.2em] mt-6 mb-2">Explore</p>
+            <Link href="/projects" className="w-full flex items-center gap-3 px-6 py-4 text-sm font-bold text-gray-500 hover:bg-gray-50 transition-all"><FiCompass size={18} /><span>支援する企画を探す</span></Link>
+            <Link href="/events" className="w-full flex items-center gap-3 px-6 py-4 text-sm font-bold text-gray-500 hover:bg-gray-50 transition-all"><FiFlag size={18} /><span>公式企画・イベント</span></Link>
+            <Link href="/venues" className="w-full flex items-center gap-3 px-6 py-4 text-sm font-bold text-gray-500 hover:bg-gray-50 transition-all"><FiMapPin size={18} /><span>会場レギュレーション</span></Link>
+            <Link href="/florists" className="w-full flex items-center gap-3 px-6 py-4 text-sm font-bold text-gray-500 hover:bg-gray-50 transition-all"><FiZap size={18} /><span>お花屋さん一覧</span></Link>
+
+            <p className="px-8 text-[10px] font-black text-gray-300 uppercase tracking-[0.2em] mt-6 mb-2">System</p>
             <NavButton id="notifications" label="お知らせ" icon={FiBell} badge={unreadCount} />
             <NavButton id="settings" label="設定" icon={FiSettings} />
         </nav>
         
         <div className="p-6 border-t border-gray-50">
-            <button onClick={logout} className="flex items-center gap-2 text-gray-400 hover:text-pink-500 font-bold text-xs transition-colors px-2">
-                <FiLogOut /> ログアウトする
+            <button onClick={logout} className="flex items-center gap-2 text-gray-400 hover:text-red-500 font-bold text-[10px] uppercase tracking-widest transition-colors w-full justify-center">
+                <FiLogOut /> Sign Out
             </button>
         </div>
       </aside>
 
-      {/* メインコンテンツ */}
+      {/* --- メインコンテンツ --- */}
       <main className="flex-grow p-4 md:p-12 overflow-y-auto">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-5xl mx-auto">
             {activeTab === 'home' && (
                 <div className="space-y-10 animate-fadeIn">
-                    <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                         <div>
-                            <h1 className="text-2xl font-bold text-gray-800 leading-tight">こんにちは、{user.handleName}さん！</h1>
-                            <p className="text-gray-400 text-xs font-bold mt-2 tracking-wide uppercase">企画の状況を確認しましょう</p>
+                            <h1 className="text-3xl font-bold text-gray-800 tracking-tight">おかえりなさい！</h1>
+                            <p className="text-gray-400 text-xs font-bold mt-1 uppercase tracking-widest">Your Flower Project Station</p>
                         </div>
-                        <Link href="/projects/create" className="flex items-center gap-2 bg-pink-500 text-white font-bold px-8 py-4 rounded-2xl shadow-lg shadow-pink-100 hover:bg-pink-600 transition-all active:scale-95">
-                            <FiPlus /> 新しい企画を立てる
+                        <Link href="/projects/create" className="flex items-center gap-2 bg-slate-900 text-white font-bold px-8 py-4 rounded-2xl shadow-xl hover:bg-slate-800 transition-all active:scale-95">
+                            <FiPlus /> 企画を立ち上げる
                         </Link>
                     </div>
 
-                    {/* 簡易スタッツ */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        {[
-                            { label: '進行中の企画', value: createdProjects.length + pledgedProjects.length, icon: <FiActivity />, color: 'text-pink-500' },
-                            { label: '集めた実績', value: createdProjects.filter(p=>p.status==='COMPLETED').length, icon: <FiAward />, color: 'text-orange-500' },
-                            { label: '応援数', value: pledgedProjects.length, icon: <FiHeart />, color: 'text-rose-500' },
-                            { label: '通知', value: notifications.length, icon: <FiBell />, color: 'text-indigo-500' },
-                        ].map(s => (
-                            <div key={s.label} className="bg-white p-6 rounded-2xl border border-gray-100 text-center">
-                                <div className={`flex justify-center mb-2 ${s.color}`}>{s.icon}</div>
-                                <p className="text-xl font-bold text-gray-800">{s.value}</p>
-                                <p className="text-[10px] font-bold text-gray-300 mt-1">{s.label}</p>
-                            </div>
-                        ))}
+                    {/* クイックアクセスパネル */}
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                        <QuickLink href="/projects" label="企画を探す" icon={FiSearch} sub="Support Now" />
+                        <QuickLink href="/events" label="イベント" icon={FiFlag} sub="Official News" />
+                        <QuickLink href="/venues" label="会場確認" icon={FiMapPin} sub="Regulation" />
+                        <QuickLink href="/florists" label="お花屋さん" icon={FiAward} sub="Artist List" />
                     </div>
 
-                    {/* 進行中の企画セクション */}
+                    {/* 動いている企画セクション */}
                     <section>
-                        <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2 mb-6">
-                            <div className="w-1.5 h-6 bg-pink-500 rounded-full" />
-                            動いている企画
-                        </h2>
+                        <div className="flex items-center justify-between mb-6">
+                            <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                                <div className="w-1.5 h-6 bg-pink-500 rounded-full" />
+                                進行中のプロジェクト
+                            </h2>
+                            <button onClick={() => setActiveTab('pledged')} className="text-[10px] font-bold text-pink-500 uppercase tracking-widest">View All</button>
+                        </div>
                         <div className="grid grid-cols-1 gap-6">
                             {[...createdProjects, ...pledgedProjects.map(p => p.project)]
                                 .filter(p => p && p.status !== 'COMPLETED' && p.status !== 'CANCELED')
@@ -264,9 +238,10 @@ export default function MyPageClient() {
                                 ))
                             }
                             {createdProjects.length + pledgedProjects.length === 0 && (
-                                <div className="bg-white p-16 rounded-3xl border-2 border-dashed border-gray-100 text-center">
-                                    <p className="text-gray-300 font-bold mb-4">まだ企画はありません</p>
-                                    <Link href="/projects" className="text-pink-500 font-bold text-sm hover:underline">企画をさがしに行く</Link>
+                                <div className="bg-white p-20 rounded-3xl border-2 border-dashed border-gray-100 text-center flex flex-col items-center">
+                                    <div className="text-4xl mb-4 text-gray-100">🔭</div>
+                                    <p className="text-gray-400 font-bold mb-6">進行中の企画はありません。支援する企画を探してみましょう！</p>
+                                    <Link href="/projects" className="bg-pink-500 text-white px-8 py-3 rounded-full font-bold shadow-lg hover:bg-pink-600 transition-all">企画を探しに行く</Link>
                                 </div>
                             )}
                         </div>
@@ -274,6 +249,7 @@ export default function MyPageClient() {
                 </div>
             )}
 
+            {/* その他のタブ（created, pledged, album, notifications, settings）は既存のロジックを維持 */}
             {activeTab === 'created' && (
                 <div className="space-y-6 animate-fadeIn">
                     <h2 className="text-xl font-bold text-gray-800">主催した企画</h2>
@@ -296,10 +272,8 @@ export default function MyPageClient() {
 
             {activeTab === 'album' && (
                 <div className="space-y-8 animate-fadeIn">
-                    <h2 className="text-xl font-bold text-gray-800">思い出アルバム</h2>
-                    <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
-                        <UploadForm onUploadComplete={fetchMyData} />
-                    </div>
+                    <h2 className="text-xl font-bold text-gray-800 font-black tracking-tighter uppercase">Memory Album</h2>
+                    <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm"><UploadForm onUploadComplete={fetchMyData} /></div>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-8">
                         {myPosts.map(post => (
                             <div key={post.id} className="relative aspect-square rounded-2xl overflow-hidden group shadow-sm border border-gray-100">
@@ -316,12 +290,10 @@ export default function MyPageClient() {
 
             {activeTab === 'notifications' && (
                 <div className="space-y-6 animate-fadeIn">
-                    <h2 className="text-xl font-bold text-gray-800">お知らせ</h2>
+                    <h2 className="text-xl font-bold text-gray-800 font-black tracking-tighter uppercase">Notifications</h2>
                     <div className="bg-white rounded-3xl border border-gray-100 overflow-hidden">
                         {notifications.length > 0 ? notifications.map(n => (
-                            <div 
-                                key={n.id} 
-                                onClick={async () => {
+                            <div key={n.id} onClick={async () => {
                                     await authenticatedFetch(`${API_URL}/api/notifications/${n.id}/read`, { method: 'PATCH' });
                                     if(n.linkUrl) router.push(n.linkUrl);
                                     fetchMyData();
@@ -334,16 +306,14 @@ export default function MyPageClient() {
                                     <p className="text-[10px] text-gray-300 mt-2 font-bold">{new Date(n.createdAt).toLocaleString()}</p>
                                 </div>
                             </div>
-                        )) : (
-                            <div className="p-20 text-center text-gray-300 font-bold">通知はありません</div>
-                        )}
+                        )) : (<div className="p-20 text-center text-gray-300 font-bold uppercase tracking-widest">No notifications</div>)}
                     </div>
                 </div>
             )}
 
             {activeTab === 'settings' && (
                 <div className="space-y-6 animate-fadeIn">
-                    <h2 className="text-xl font-bold text-gray-800">設定</h2>
+                    <h2 className="text-xl font-bold text-gray-800 font-black tracking-tighter uppercase">Settings</h2>
                     <div className="bg-white rounded-3xl p-8 md:p-12 border border-gray-100 shadow-sm">
                         <div className="flex flex-col md:flex-row items-center gap-8 mb-12">
                             <div className="w-24 h-24 rounded-3xl relative overflow-hidden border-4 border-pink-50">
@@ -351,19 +321,18 @@ export default function MyPageClient() {
                             </div>
                             <div className="text-center md:text-left flex-1">
                                 <h3 className="text-xl font-bold text-gray-800">{user.handleName}</h3>
-                                <p className="text-gray-400 text-xs mt-1">{user.email}</p>
+                                <p className="text-gray-400 text-xs mt-1 font-bold">{user.email}</p>
                                 <div className="mt-6 flex flex-wrap gap-3 justify-center md:justify-start">
                                     <Link href="/mypage/edit" className="px-6 py-2 bg-gray-800 text-white text-[10px] font-bold rounded-full hover:bg-gray-700 transition-all uppercase tracking-widest">編集する</Link>
                                     <button onClick={logout} className="px-6 py-2 border border-red-100 text-red-400 text-[10px] font-bold rounded-full hover:bg-red-50 transition-all uppercase tracking-widest">ログアウト</button>
                                 </div>
                             </div>
                         </div>
-
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="p-6 bg-gray-50 rounded-2xl border border-gray-100">
                                 <p className="text-[10px] font-bold text-gray-400 mb-2 uppercase tracking-widest">紹介コード</p>
                                 <div className="flex items-center justify-between">
-                                    <span className="text-xl font-bold text-gray-700 tracking-widest">{user.referralCode || '----'}</span>
+                                    <span className="text-xl font-bold text-gray-700 tracking-widest font-mono">{user.referralCode || '----'}</span>
                                     <button onClick={() => {navigator.clipboard.writeText(user.referralCode); toast.success('コピーしました')}} className="text-pink-500 hover:text-pink-600 transition-colors"><FiCheckCircle size={20}/></button>
                                 </div>
                             </div>
