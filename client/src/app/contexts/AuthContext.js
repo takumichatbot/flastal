@@ -163,18 +163,43 @@ export function AuthProvider({ children }) {
     setUser(prev => prev ? { ...prev, ...newUserData } : null);
   }, []);
 
+  // ★追加: register関数の実装
+  const register = useCallback(async (email, password, handleName, referralCode = '') => {
+    const response = await fetch(`${API_URL}/api/users/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password, handleName, referralCode }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || '登録に失敗しました。');
+    }
+
+    return data;
+  }, []);
+
   const contextValue = useMemo(() => {
     const isProfessional = user && ['FLORIST', 'VENUE', 'ORGANIZER'].includes(user.role);
     const approved = isLoading ? true : (user ? (user.status === 'APPROVED' || !isProfessional) : false);
 
     return {
-      user, token, isAuthenticated: !!user, isLoading,
+      user, 
+      token, 
+      isAuthenticated: !!user, 
+      isLoading,
       isAdmin: user?.role === 'ADMIN',
-      isProfessional, isApproved: approved,
+      isProfessional, 
+      isApproved: approved,
       isPending: user?.status === 'PENDING',
-      login, logout, updateUser, authenticatedFetch
+      login, 
+      logout, 
+      updateUser, 
+      register, // ★ここに追加して外部から呼べるようにした
+      authenticatedFetch
     };
-  }, [user, token, isLoading, login, logout, updateUser, authenticatedFetch]);
+  }, [user, token, isLoading, login, logout, updateUser, register, authenticatedFetch]);
 
   return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>;
 }
