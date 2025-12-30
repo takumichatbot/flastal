@@ -28,7 +28,7 @@ export function AuthProvider({ children }) {
   const [token, setToken] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const isInitializing = useRef(true);
-  const fetchCache = useRef({}); // 通信重複防止用キャッシュ
+  const lastRequestTime = useRef({});
   
   const router = useRouter();
 
@@ -84,14 +84,14 @@ export function AuthProvider({ children }) {
     }
   }, [parseUserFromToken]);
 
-  // 通信の重複を物理的に防止するFetch
-  const authenticatedFetch = useCallback(async (url, options = {}) => {
-    // 同一URLへのリクエストが300ms以内に発生した場合は無視する（ログにある多重送信対策）
+  const authenticatedFetch = useCallback(async (url, options = {}, retryCount = 0) => {
+    // 通信の衝突を防ぐためのミリ秒待機 (Race condition対策)
     const now = Date.now();
-    if (fetchCache.current[url] && (now - fetchCache.current[url] < 300) && !options.method) {
-        return null; 
+    if (lastRequestTime.current[url] && (now - lastRequestTime.current[url] < 500) && !options.method) {
+        // 全く同じリクエストが500ms以内に飛んできたら、前のリクエストが終わるのを待つ疑似的な遅延
+        await new Promise(resolve => setTimeout(resolve, 300));
     }
-    fetchCache.current[url] = now;
+    lastRequestTime.current[url] = now;
 
     const storedToken = typeof window !== 'undefined' ? localStorage.getItem('authToken') : token;
     const headers = { ...options.headers };
@@ -105,13 +105,18 @@ export function AuthProvider({ children }) {
 
     try {
       const response = await fetch(url, { ...options, headers });
-      // 401エラーが出ても、初期化が終わるまではステートを壊さない
-      if (response.status === 401 && !isInitializing.current && !url.includes('/login')) {
-        console.warn("Auth: Unauthorized session detected");
+      
+      // Safariでの通信重複による401エラーを救済
+      if (response.status === 401 && retryCount < 2 && !url.includes('/login')) {
+        await new Promise(resolve => setTimeout(resolve, 800));
+        return authenticatedFetch(url, options, retryCount + 1);
       }
       return response;
     } catch (e) {
-      console.error("Auth: Fetch error", e);
+      if (retryCount < 1) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        return authenticatedFetch(url, options, retryCount + 1);
+      }
       return null;
     }
   }, [token]);
@@ -127,11 +132,11 @@ export function AuthProvider({ children }) {
           }
         }
       } finally {
-        // ステートが浸透するまで待機
+        // 初期化時間をさらに伸ばして安定させる
         setTimeout(() => {
           setIsLoading(false);
           isInitializing.current = false;
-        }, 1200);
+        }, 1500);
       }
     };
     initAuth();
@@ -147,7 +152,8 @@ export function AuthProvider({ children }) {
   const logout = useCallback(() => {
     isInitializing.current = false;
     if (typeof window === 'undefined') return;
-    localStorage.clear();
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('userStatus');
     setUser(null);
     setToken(null);
     window.location.href = '/';
