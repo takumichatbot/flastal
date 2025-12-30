@@ -10,8 +10,11 @@ import {
   FiUser, FiList, FiHeart, FiBell, FiSettings, 
   FiPlus, FiActivity, FiCheckCircle, FiAlertCircle, 
   FiShoppingCart, FiSearch, FiCamera, FiLogOut, FiChevronRight,
-  FiTrophy, FiMessageSquare, FiTrendingUp, FiClock, FiStar
-} from 'react-icons/fi';
+  FiAward, FiMessageSquare, FiTrendingUp, FiClock, FiStar
+} from 'react-icons/fi'; // FiTrophyをFiAwardに変更
+
+// motionを使用するためにインポートを追加
+import { motion } from 'framer-motion';
 
 import UploadForm from '@/app/components/UploadForm'; 
 import SupportLevelBadge from '@/app/components/SupportLevelBadge'; 
@@ -48,7 +51,7 @@ const ProgressSteps = ({ currentStep }) => {
     );
 };
 
-// --- サブコンポーネント: 進行中企画カード (ミンサカ風) ---
+// --- サブコンポーネント: 進行中企画カード ---
 function ProjectCard({ project, isOwner }) {
     const config = PROJECT_STATUS_CONFIG[project.status] || { label: project.status, color: 'text-gray-600', bg: 'bg-gray-50', border: 'border-gray-100', step: 0 };
     const progress = project.targetAmount > 0 ? Math.min((project.collectedAmount / project.targetAmount) * 100, 100) : 0;
@@ -241,7 +244,7 @@ export default function MyPageClient() {
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         {[
                             { label: 'Active', value: activeProjectsCount, icon: <FiActivity />, color: 'text-sky-500' },
-                            { label: 'Created', value: createdProjects.length, icon: <FiTrophy />, color: 'text-amber-500' },
+                            { label: 'Created', value: createdProjects.length, icon: <FiAward />, color: 'text-amber-500' },
                             { label: 'Supported', value: pledgedProjects.length, icon: <FiHeart />, color: 'text-pink-500' },
                             { label: 'Messages', value: notifications.length, icon: <FiMessageSquare />, color: 'text-indigo-500' },
                         ].map(s => (
@@ -253,7 +256,7 @@ export default function MyPageClient() {
                         ))}
                     </div>
 
-                    {/* Active Projects (ミンサカ mina風) */}
+                    {/* Active Projects */}
                     <section>
                         <div className="flex items-center justify-between mb-6">
                             <h2 className="text-xl font-black text-slate-800 tracking-tight flex items-center gap-2">
@@ -267,7 +270,7 @@ export default function MyPageClient() {
                                 .filter(p => p && p.status !== 'COMPLETED' && p.status !== 'CANCELED')
                                 .slice(0, 3)
                                 .map((p, i) => (
-                                    <ProjectCard key={p.id + i} project={p} isOwner={p.plannerId === user.id} />
+                                    <ProjectCard key={p.id + '-' + i} project={p} isOwner={p.plannerId === user.id} />
                                 ))
                             }
                             {activeProjectsCount === 0 && (
