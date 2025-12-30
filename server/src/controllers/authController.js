@@ -8,8 +8,13 @@ import { sendDynamicEmail, sendEmail } from '../utils/email.js';
 // ★★★ 共通ヘルパー: トークン発行 ★★★
 // ==========================================
 const generateToken = (payload) => {
-    // セッション切れを防ぐため7日間(7d)に設定
-    return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '7d' });
+    // ペイロード内の ID 関連をすべて文字列に強制変換（不整合防止）
+    const cleanPayload = {
+        ...payload,
+        id: payload.id ? String(payload.id) : undefined,
+        sub: payload.sub ? String(payload.sub) : (payload.id ? String(payload.id) : undefined)
+    };
+    return jwt.sign(cleanPayload, process.env.JWT_SECRET, { expiresIn: '7d' });
 };
 
 // ==========================================
@@ -76,16 +81,14 @@ export const loginUser = async (req, res) => {
             userRole = 'ADMIN';
         }
 
-        const tokenPayload = {
+        const token = generateToken({
             id: user.id,
             email: user.email,
             handleName: user.handleName,
             role: userRole,
-            status: 'APPROVED',
-            sub: user.id
-        };
+            status: 'APPROVED'
+        });
 
-        const token = generateToken(tokenPayload);
         res.status(200).json({ message: 'ログインに成功しました。', token });
     } catch (error) {
         console.error('Login Error:', error);
@@ -144,18 +147,15 @@ export const loginFlorist = async (req, res) => {
             return res.status(403).json({ message: 'アカウントが承認されていないか、未認証です。' });
         }
         
-        // ★最適化: ミドルウェアでのDB再検索を確実にするため id と email を明示
-        const tokenPayload = { 
-            id: String(florist.id), 
+        // ★最重要修正: ミドルウェアが迷わないよう id と role を明確にセット
+        const token = generateToken({ 
+            id: florist.id, 
             email: florist.email, 
             role: 'FLORIST', 
             status: florist.status, 
             shopName: florist.shopName,
-            handleName: florist.platformName,
-            sub: String(florist.id) 
-        };
-
-        const token = generateToken(tokenPayload);
+            handleName: florist.platformName
+        });
 
         const { password: _, ...data } = florist;
         res.status(200).json({ message: 'ログインに成功しました。', token, florist: data });
@@ -205,8 +205,7 @@ export const loginVenue = async (req, res) => {
             email: venue.email, 
             role: 'VENUE', 
             status: venue.status,
-            venueName: venue.venueName,
-            sub: venue.id 
+            venueName: venue.venueName
         });
 
         const { password: _, ...data } = venue;
@@ -257,8 +256,7 @@ export const loginOrganizer = async (req, res) => {
             email: org.email, 
             role: 'ORGANIZER', 
             status: org.status,
-            name: org.name,
-            sub: org.id 
+            name: org.name
         });
         res.status(200).json({ message: '成功', token });
     } catch (error) { 
@@ -393,17 +391,12 @@ export const loginAdmin = async (req, res) => {
             return res.status(404).json({ message: '指定された管理者アカウントがシステムに存在しません。' });
         }
 
-        const token = jwt.sign(
-            { 
-                id: adminUser.id, 
-                email: adminUser.email, 
-                role: 'ADMIN',
-                status: 'APPROVED',
-                sub: adminUser.id 
-            },
-            process.env.JWT_SECRET,
-            { expiresIn: '7d' }
-        );
+        const token = generateToken({ 
+            id: adminUser.id, 
+            email: adminUser.email, 
+            role: 'ADMIN',
+            status: 'APPROVED'
+        });
 
         res.status(200).json({
             message: '管理者として認証されました。',
