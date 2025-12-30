@@ -144,16 +144,18 @@ export const loginFlorist = async (req, res) => {
             return res.status(403).json({ message: 'アカウントが承認されていないか、未認証です。' });
         }
         
-        // ★重要: DBから取得した florist.id をそのままペイロードに使用
-        const token = generateToken({ 
-            id: florist.id, 
+        // ★最適化: ミドルウェアでのDB再検索を確実にするため id と email を明示
+        const tokenPayload = { 
+            id: String(florist.id), 
             email: florist.email, 
             role: 'FLORIST', 
             status: florist.status, 
             shopName: florist.shopName,
             handleName: florist.platformName,
-            sub: florist.id 
-        });
+            sub: String(florist.id) 
+        };
+
+        const token = generateToken(tokenPayload);
 
         const { password: _, ...data } = florist;
         res.status(200).json({ message: 'ログインに成功しました。', token, florist: data });

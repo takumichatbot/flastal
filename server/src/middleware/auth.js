@@ -15,13 +15,16 @@ export const authenticateToken = async (req, res, next) => {
     const token = authHeader.split(' ')[1].replace(/['"]+/g, '').trim();
     
     if (!token) {
-      return res.status(401).json({ message: 'トークンが不正です。' });
+      return res.status(401).json({ message: 'トークンが空です。' });
     }
 
     // 1. JWTの検証
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    if (!decoded) {
+      return res.status(401).json({ message: 'トークンの解析に失敗しました。' });
+    }
     
-    // トークンから識別情報を抽出
+    // トークンから識別情報を抽出 (文字列化してクリーンアップ)
     const userEmail = decoded.email ? String(decoded.email).toLowerCase().trim() : null;
     const rawUserId = decoded.id || decoded.sub;
     const userId = rawUserId ? String(rawUserId).replace(/['"]+/g, '').trim() : null;
@@ -38,7 +41,8 @@ export const authenticateToken = async (req, res, next) => {
     const ADMIN_EMAILS = ["takuminsitou946@gmail.com", "hana87kaori@gmail.com"];
 
     try {
-        const searchCondition = userEmail ? { email: userEmail } : { id: userId };
+        // IDがある場合はID優先、なければEmailで検索
+        const searchCondition = userId ? { id: userId } : { email: userEmail };
 
         if (userRoleInToken === 'FLORIST') {
             foundAccount = await prisma.florist.findUnique({ where: searchCondition });
@@ -52,7 +56,7 @@ export const authenticateToken = async (req, res, next) => {
         }
     } catch (dbError) {
         console.error('[AUTH DB ERROR]', dbError.message);
-        // DB検索に失敗しても、トークンが有効なら decoded を信じて次へ進む（救済措置）
+        // DBエラー時はログ出力のみで、トークンの有効性を優先する
     }
 
     // 3. 管理者判定
@@ -62,13 +66,13 @@ export const authenticateToken = async (req, res, next) => {
     }
 
     // リクエストオブジェクトに情報をセット
-    // DBに見つからない場合でも decoded の情報を保持させる
+    // DBに見つからない場合（foundAccountがnull）でも、トークン内の情報を信じてセットする
+    // これにより「DB同期の遅延」による即時ログアウトを防ぎます
     req.user = {
         id: foundAccount?.id || userId,
-        email: emailForAdmin,
+        email: foundAccount?.email || userEmail,
         role: finalRole,
         status: foundAccount?.status || decoded.status || 'APPROVED',
-        // 生のデータをバックアップとして保持
         raw: foundAccount || decoded 
     };
 
