@@ -85,19 +85,20 @@ export function AuthProvider({ children }) {
   }, [parseUserFromToken]);
 
   const authenticatedFetch = useCallback(async (url, options = {}, retryCount = 0) => {
-    // 通信の衝突を防ぐためのミリ秒待機 (Race condition対策)
     const now = Date.now();
-    if (lastRequestTime.current[url] && (now - lastRequestTime.current[url] < 500) && !options.method) {
-        // 全く同じリクエストが500ms以内に飛んできたら、前のリクエストが終わるのを待つ疑似的な遅延
-        await new Promise(resolve => setTimeout(resolve, 300));
+    // 同一URLへの過剰な並列リクエストを抑制
+    if (lastRequestTime.current[url] && (now - lastRequestTime.current[url] < 300) && !options.method) {
+        await new Promise(resolve => setTimeout(resolve, 200));
     }
     lastRequestTime.current[url] = now;
 
     const storedToken = typeof window !== 'undefined' ? localStorage.getItem('authToken') : token;
     const headers = { ...options.headers };
+    
     if (!(options.body instanceof FormData)) {
       headers['Content-Type'] = 'application/json';
     }
+    
     if (storedToken) {
       const cleanToken = storedToken.replace(/['"]+/g, '').trim();
       headers['Authorization'] = `Bearer ${cleanToken}`;
@@ -106,18 +107,24 @@ export function AuthProvider({ children }) {
     try {
       const response = await fetch(url, { ...options, headers });
       
-      // Safariでの通信重複による401エラーを救済
-      if (response.status === 401 && retryCount < 2 && !url.includes('/login')) {
-        await new Promise(resolve => setTimeout(resolve, 800));
+      // 401エラー（認証切れ）の場合の再試行ロジック
+      if (response.status === 401 && retryCount < 1 && !url.includes('/login')) {
+        await new Promise(resolve => setTimeout(resolve, 500));
         return authenticatedFetch(url, options, retryCount + 1);
       }
+      
       return response;
     } catch (e) {
-      if (retryCount < 1) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
+      console.error(`Fetch error for ${url}:`, e);
+      // 再試行
+      if (retryCount < 2) {
+        const delay = 1000 * (retryCount + 1);
+        await new Promise(resolve => setTimeout(resolve, delay));
         return authenticatedFetch(url, options, retryCount + 1);
       }
-      return null;
+      // 最終的に失敗した場合は null ではなく偽装したエラーレスポンスを返すか、エラーをスローする
+      // ここでは呼び出し側の response.ok 判定を壊さないためにスローします
+      throw e;
     }
   }, [token]);
 
@@ -132,7 +139,6 @@ export function AuthProvider({ children }) {
           }
         }
       } finally {
-        // 初期化時間をさらに伸ばして安定させる
         setTimeout(() => {
           setIsLoading(false);
           isInitializing.current = false;
@@ -163,7 +169,6 @@ export function AuthProvider({ children }) {
     setUser(prev => prev ? { ...prev, ...newUserData } : null);
   }, []);
 
-  // ★追加: register関数の実装
   const register = useCallback(async (email, password, handleName, referralCode = '') => {
     const response = await fetch(`${API_URL}/api/users/register`, {
       method: 'POST',
@@ -196,7 +201,7 @@ export function AuthProvider({ children }) {
       login, 
       logout, 
       updateUser, 
-      register, // ★ここに追加して外部から呼べるようにした
+      register,
       authenticatedFetch
     };
   }, [user, token, isLoading, login, logout, updateUser, register, authenticatedFetch]);
