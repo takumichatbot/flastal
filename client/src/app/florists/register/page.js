@@ -1,242 +1,339 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useAuth } from '../contexts/AuthContext';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
-import { FiEye, FiEyeOff, FiHome, FiTag, FiUser, FiMail, FiLock, FiArrowLeft, FiCheckCircle } from 'react-icons/fi';
+import Image from 'next/image';
+import { 
+  FiUser, FiList, FiHeart, FiBell, FiSettings, 
+  FiPlus, FiActivity, FiCheckCircle, FiAlertCircle, 
+  FiShoppingCart, FiSearch, FiCamera, FiLogOut, FiChevronRight,
+  FiAward, FiMessageSquare, FiTrendingUp, FiClock, FiStar,
+  FiMapPin, FiFlag, FiCompass, FiZap, FiUsers
+} from 'react-icons/fi';
+import { motion } from 'framer-motion';
+
+import UploadForm from '@/app/components/UploadForm'; 
+import SupportLevelBadge from '@/app/components/SupportLevelBadge'; 
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
-export default function FloristRegisterPage() {
-  const [formData, setFormData] = useState({
-    shopName: '',
-    platformName: '',
-    contactName: '',
-    email: '',
-    password: '',
-  });
-  const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isSubmitted, setIsSubmitted] = useState(false); // ★送信完了状態を管理
-  const router = useRouter();
+const PROJECT_STATUS_CONFIG = {
+  'PENDING_APPROVAL': { label: '確認中', color: 'text-orange-500', bg: 'bg-orange-50', border: 'border-orange-100', step: 1 },
+  'FUNDRAISING': { label: '募集中', color: 'text-pink-500', bg: 'bg-pink-50', border: 'border-pink-100', step: 2 },
+  'SUCCESSFUL': { label: '目標達成', color: 'text-emerald-500', bg: 'bg-emerald-50', border: 'border-emerald-100', step: 3 },
+  'IN_PRODUCTION': { label: '制作中', color: 'text-sky-500', bg: 'bg-sky-50', border: 'border-sky-100', step: 4 },
+  'COMPLETED': { label: '完了', color: 'text-purple-500', bg: 'bg-purple-50', border: 'border-purple-100', step: 5 },
+  'CANCELED': { label: '中止', color: 'text-gray-400', bg: 'bg-gray-50', border: 'border-gray-100', step: 0 },
+};
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prevState) => ({ ...prevState, [name]: value }));
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setIsLoading(true);
-    
-    const promise = fetch(`${API_URL}/api/florists/register`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(formData),
-    }).then(async (response) => {
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.message || '登録申請に失敗しました。');
-      }
-      return data; 
-    });
-
-    toast.promise(promise, {
-      loading: '申請を送信中...',
-      success: (data) => {
-        setIsSubmitted(true); // ★完了画面に切り替え
-        return '申請メールを送信しました。'; 
-      },
-      error: (err) => err.message,
-    });
-    
-    promise.finally(() => setIsLoading(false));
-  };
-
-  // ★送信完了後の表示
-  if (isSubmitted) {
+const ProgressSteps = ({ currentStep }) => {
+    const steps = ['審査', '募集', '達成', '制作', '完了'];
     return (
-      <div className="min-h-screen bg-gradient-to-br from-pink-50 to-white flex items-center justify-center p-4">
-        <div className="w-full max-w-lg p-8 bg-white rounded-2xl shadow-xl border border-pink-100 text-center">
-          <div className="mb-6 flex justify-center">
-            <div className="bg-pink-100 p-4 rounded-full">
-              <FiCheckCircle className="text-pink-500 w-12 h-12" />
-            </div>
-          </div>
-          <h2 className="text-3xl font-bold text-gray-800 mb-4">申請ありがとうございます</h2>
-          <div className="bg-pink-50 border border-pink-100 rounded-xl p-6 mb-8 text-left">
-            <p className="text-gray-700 font-medium mb-2">今後の流れ：</p>
-            <ul className="text-sm text-gray-600 space-y-3">
-              <li className="flex items-start">
-                <span className="bg-pink-200 text-pink-700 rounded-full w-5 h-5 flex items-center justify-center text-xs mt-0.5 mr-2 shrink-0">1</span>
-                <span>ご入力いただいたメールアドレス宛に、**本人確認メール**を送信しました。</span>
-              </li>
-              <li className="flex items-start">
-                <span className="bg-pink-200 text-pink-700 rounded-full w-5 h-5 flex items-center justify-center text-xs mt-0.5 mr-2 shrink-0">2</span>
-                <span>メール内のボタンをクリックして、メールアドレスの認証を完了させてください。</span>
-              </li>
-              <li className="flex items-start">
-                <span className="bg-pink-200 text-pink-700 rounded-full w-5 h-5 flex items-center justify-center text-xs mt-0.5 mr-2 shrink-0">3</span>
-                <span>認証完了後、運営事務局にてショップ情報の審査を行い、承認されるとログイン可能になります。</span>
-              </li>
-            </ul>
-          </div>
-          <p className="text-gray-500 text-sm mb-8">
-            ※メールが届かない場合は、迷惑メールフォルダをご確認ください。
-          </p>
-          <Link 
-            href="/" 
-            className="block w-full py-3.5 bg-pink-500 text-white rounded-lg font-bold text-lg shadow-md hover:bg-pink-600 transition-all"
-          >
-            トップページへ戻る
-          </Link>
+        <div className="flex items-center w-full mt-6 px-2">
+            {steps.map((s, i) => {
+                const stepNum = i + 1;
+                const isActive = stepNum <= currentStep;
+                return (
+                    <div key={s} className="flex-1 flex flex-col items-center gap-2 relative">
+                        {i > 0 && (
+                            <div className={`absolute top-2 right-1/2 w-full h-[2px] -z-10 ${isActive ? 'bg-pink-300' : 'bg-gray-100'}`} />
+                        )}
+                        <div className={`w-4 h-4 rounded-full border-2 transition-all ${isActive ? 'bg-pink-500 border-pink-200' : 'bg-white border-gray-100'}`} />
+                        <span className={`text-[10px] font-bold ${isActive ? 'text-pink-600' : 'text-gray-300'}`}>{s}</span>
+                    </div>
+                );
+            })}
         </div>
-      </div>
     );
-  }
+};
+
+function ProjectCard({ project, isOwner }) {
+    const config = PROJECT_STATUS_CONFIG[project.status] || { label: project.status, color: 'text-gray-600', bg: 'bg-gray-50', border: 'border-gray-100', step: 0 };
+    const progress = project.targetAmount > 0 ? Math.min((project.collectedAmount / project.targetAmount) * 100, 100) : 0;
+    
+    return (
+        <div className="bg-white rounded-3xl border border-slate-100 hover:border-pink-200 hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col sm:flex-row group">
+            <div className="w-full sm:w-64 h-44 sm:h-auto relative shrink-0 overflow-hidden">
+                {project.imageUrl ? (
+                    <Image src={project.imageUrl} alt={project.title} fill className="object-cover group-hover:scale-105 transition-transform duration-500" />
+                ) : (
+                    <div className="w-full h-full bg-pink-50 flex items-center justify-center text-pink-200 text-2xl">💐</div>
+                )}
+                <div className={`absolute top-4 left-4 px-3 py-1 rounded-full text-[10px] font-black border shadow-sm backdrop-blur-md ${config.bg}/80 ${config.color} ${config.border}`}>
+                    {config.label}
+                </div>
+            </div>
+            <div className="p-6 flex-grow flex flex-col">
+                <Link href={`/projects/${project.id}`}>
+                    <h3 className="font-black text-slate-800 text-lg hover:text-pink-500 transition-colors line-clamp-2 leading-snug">{project.title}</h3>
+                </Link>
+                <div className="flex items-center gap-4 mt-3 text-[11px] text-slate-400 font-black uppercase tracking-widest">
+                    <span className="flex items-center gap-1.5"><FiClock className="text-pink-400"/> {new Date(project.deliveryDateTime).toLocaleDateString()}</span>
+                    <span className="flex items-center gap-1.5"><FiUsers className="text-sky-400"/> {project.backerCount || 0}人参加</span>
+                </div>
+                <div className="mt-auto pt-6">
+                    <div className="flex justify-between items-end mb-2.5">
+                        <div className="flex items-baseline gap-1">
+                            <span className="text-2xl font-black text-slate-900">{progress.toFixed(0)}</span>
+                            <span className="text-xs font-black text-slate-400">%</span>
+                        </div>
+                        <span className="text-[11px] text-slate-400 font-black tracking-tighter">
+                            <strong className="text-slate-900">{project.collectedAmount.toLocaleString()}</strong> / {project.targetAmount.toLocaleString()} pt
+                        </span>
+                    </div>
+                    <div className="w-full bg-slate-50 h-2.5 rounded-full overflow-hidden">
+                        <motion.div initial={{ width: 0 }} animate={{ width: `${progress}%` }} className="h-full bg-gradient-to-r from-pink-400 to-rose-400" />
+                    </div>
+                    <ProgressSteps currentStep={config.step} />
+                </div>
+            </div>
+        </div>
+    );
+}
+
+export default function MyPageClient() {
+  const { user, isLoading: authLoading, logout, authenticatedFetch } = useAuth();
+  const router = useRouter();
+  const searchParams = useSearchParams(); 
+
+  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'home');
+  const [createdProjects, setCreatedProjects] = useState([]);
+  const [pledgedProjects, setPledgedProjects] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+  const [myPosts, setMyPosts] = useState([]);
+  const [loadingData, setLoadingData] = useState(true);
+
+  const fetchMyData = useCallback(async () => {
+    if (!user?.id) return;
+    setLoadingData(true);
+    try {
+      const [createdRes, pledgedRes, notifRes, postsRes] = await Promise.all([
+        authenticatedFetch(`${API_URL}/api/users/${user.id}/created-projects`),
+        authenticatedFetch(`${API_URL}/api/users/${user.id}/pledged-projects`),
+        authenticatedFetch(`${API_URL}/api/notifications`),
+        authenticatedFetch(`${API_URL}/api/users/${user.id}/posts`)
+      ]);
+      if (createdRes?.ok) setCreatedProjects(await createdRes.json());
+      if (pledgedRes?.ok) setPledgedProjects(await pledgedRes.json());
+      if (notifRes?.ok) setNotifications(await notifRes.json());
+      if (postsRes?.ok) setMyPosts(await postsRes.json());
+    } catch (e) { console.error(e); }
+    finally { setLoadingData(false); }
+  }, [user, authenticatedFetch]);
+
+  useEffect(() => {
+    if (!authLoading && !user) router.push('/login');
+    if (user) fetchMyData();
+  }, [user, authLoading, fetchMyData, router]);
+
+  const unreadCount = useMemo(() => notifications.filter(n => !n.isRead).length, [notifications]);
+  
+  if (authLoading || !user) return <div className="min-h-screen flex items-center justify-center bg-white"><div className="animate-spin w-8 h-8 border-4 border-pink-500 border-t-transparent rounded-full" /></div>;
+
+  const NavButton = ({ id, label, icon: Icon, badge, color = "text-slate-600" }) => (
+    <button onClick={() => setActiveTab(id)} className={`w-full flex items-center gap-4 px-8 py-4 text-[15px] font-bold transition-all relative ${activeTab === id ? 'text-pink-600 bg-pink-50/40' : `${color} hover:bg-slate-50`}`}>
+        <Icon size={20} className={activeTab === id ? "text-pink-500" : "text-slate-400"} />
+        <span className="flex-grow text-left">{label}</span>
+        {badge > 0 && <span className="bg-pink-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full">{badge}</span>}
+        {activeTab === id && <div className="absolute left-0 w-1.5 h-full bg-pink-500" />}
+    </button>
+  );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 to-white flex items-center justify-center p-4">
-      <div className="w-full max-w-lg p-8 bg-white rounded-2xl shadow-xl border border-pink-100">
-        
-        {/* ヘッダー */}
-        <div className="text-center mb-8">
-          <Link href="/" className="inline-block text-pink-600 hover:text-pink-700 transition mb-2">
-            <span className="flex items-center text-sm font-medium"><FiArrowLeft className="mr-1"/> トップへ戻る</span>
-          </Link>
-          <h2 className="text-3xl font-bold text-gray-800">パートナー登録申請</h2>
-          <p className="text-gray-500 text-sm mt-2">素敵なお花を届けてくれるパートナーを募集しています</p>
+    <div className="min-h-screen bg-slate-50/30 flex flex-col md:flex-row">
+      <aside className="w-full md:w-80 bg-white border-r border-slate-100 sticky top-0 md:h-screen overflow-y-auto flex flex-col z-20 shadow-sm">
+        <div className="p-10 pb-6 flex flex-col items-center">
+            <div className="w-24 h-24 rounded-[2rem] relative overflow-hidden border-4 border-white shadow-xl mb-5 group">
+                {user.iconUrl ? <Image src={user.iconUrl} alt="アイコン" fill className="object-cover" /> : <div className="w-full h-full bg-slate-50 flex items-center justify-center text-slate-200"><FiUser size={40}/></div>}
+                <Link href="/mypage/settings" className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <FiCamera className="text-white" size={24} />
+                </Link>
+            </div>
+            <h2 className="font-black text-slate-900 text-xl tracking-tighter">{user.handleName}</h2>
+            <div className="mt-3"><SupportLevelBadge level={user.supportLevel} /></div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          
-          {/* 店舗情報セクション */}
-          <div className="space-y-4">
-            <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider border-b border-gray-100 pb-1 mb-3">店舗情報</h3>
+        <div className="px-6 py-4">
+            <div className="bg-slate-900 rounded-3xl p-6 text-white shadow-2xl shadow-slate-200 relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16 transition-transform group-hover:scale-110" />
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Point Balance</p>
+                <div className="flex justify-between items-center">
+                    <p className="text-3xl font-black tracking-tight">{(user.points || 0).toLocaleString()}<span className="text-xs ml-1 text-slate-500">pt</span></p>
+                    <Link href="/points" className="bg-pink-500 hover:bg-pink-600 p-2.5 rounded-2xl transition-all shadow-lg shadow-pink-500/30 active:scale-90"><FiPlus size={20}/></Link>
+                </div>
+            </div>
+        </div>
+
+        <nav className="mt-6 flex-grow pb-10">
+            <p className="px-8 text-[11px] font-black text-slate-300 uppercase tracking-[0.25em] mb-4 mt-4">Dashboard</p>
+            <NavButton id="home" label="ホーム" icon={FiActivity} />
+            <NavButton id="created" label="主催した企画" icon={FiList} badge={createdProjects.length} />
+            <NavButton id="pledged" label="参加中の企画" icon={FiHeart} badge={pledgedProjects.length} />
+            <NavButton id="album" label="アルバム" icon={FiCamera} />
             
-            {/* 店舗名 (正式名称) */}
-            <div>
-              <label htmlFor="shopName" className="block text-sm font-semibold text-gray-700 mb-1">店舗名（正式名称） <span className="text-red-500">*</span></label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <FiHome className="text-gray-400" />
-                </div>
-                <input 
-                  id="shopName" name="shopName" type="text" required 
-                  value={formData.shopName} onChange={handleChange} 
-                  placeholder="株式会社フラワーショップ"
-                  className="w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent transition"
-                />
-              </div>
-              <p className="mt-1 text-xs text-gray-500">運営確認用です。一般には公開されません。</p>
-            </div>
+            <p className="px-8 text-[11px] font-black text-slate-300 uppercase tracking-[0.25em] mb-4 mt-10">Explore</p>
+            <Link href="/projects" className="w-full flex items-center gap-4 px-8 py-4 text-[15px] font-bold text-slate-600 hover:bg-slate-50 transition-all"><FiSearch size={20} className="text-slate-400" /><span>企画を探す</span></Link>
+            <Link href="/events" className="w-full flex items-center gap-4 px-8 py-4 text-[15px] font-bold text-slate-600 hover:bg-slate-50 transition-all"><FiFlag size={20} className="text-slate-400" /><span>イベント</span></Link>
+            <Link href="/venues" className="w-full flex items-center gap-4 px-8 py-4 text-[15px] font-bold text-slate-600 hover:bg-slate-50 transition-all"><FiMapPin size={20} className="text-slate-400" /><span>会場・花屋確認</span></Link>
 
-            {/* 活動名 */}
-            <div>
-              <label htmlFor="platformName" className="block text-sm font-semibold text-gray-700 mb-1">活動名（公開される名前） <span className="text-red-500">*</span></label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <FiTag className="text-gray-400" />
-                </div>
-                <input 
-                  id="platformName" name="platformName" type="text" required 
-                  value={formData.platformName} onChange={handleChange} 
-                  placeholder="FLASTAL 花子"
-                  className="w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent transition"
-                />
-              </div>
-              <p className="mt-1 text-xs text-gray-500">サイト上で表示される名前です。屋号やペンネームも可能です。</p>
-            </div>
-          </div>
-
-          {/* 連絡先セクション */}
-          <div className="space-y-4 pt-2">
-            <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider border-b border-gray-100 pb-1 mb-3">担当者・ログイン情報</h3>
-
-            {/* 担当者名 */}
-            <div>
-              <label htmlFor="contactName" className="block text-sm font-semibold text-gray-700 mb-1">担当者名 <span className="text-red-500">*</span></label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <FiUser className="text-gray-400" />
-                </div>
-                <input 
-                  id="contactName" name="contactName" type="text" required 
-                  value={formData.contactName} onChange={handleChange} 
-                  placeholder="山田 太郎"
-                  className="w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent transition"
-                />
-              </div>
-            </div>
-
-            {/* メールアドレス */}
-            <div>
-              <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-1">メールアドレス <span className="text-red-500">*</span></label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <FiMail className="text-gray-400" />
-                </div>
-                <input 
-                  id="email" name="email" type="email" required 
-                  value={formData.email} onChange={handleChange} 
-                  placeholder="contact@flower-shop.com"
-                  className="w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent transition"
-                />
-              </div>
-            </div>
-
-            {/* パスワード */}
-            <div>
-              <label htmlFor="password" className="block text-sm font-semibold text-gray-700 mb-1">パスワード <span className="text-red-500">*</span></label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <FiLock className="text-gray-400" />
-                </div>
-                <input 
-                  id="password" 
-                  name="password" 
-                  type={showPassword ? 'text' : 'password'}
-                  required 
-                  value={formData.password} 
-                  onChange={handleChange} 
-                  placeholder="8文字以上の英数字"
-                  className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent transition"
-                />
-                <button 
-                  type="button" 
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-pink-600 transition"
-                >
-                  {showPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div className="pt-4">
-            <button 
-              type="submit" 
-              disabled={isLoading}
-              className={`w-full py-3.5 bg-pink-500 text-white rounded-lg font-bold text-lg shadow-md hover:bg-pink-600 hover:shadow-lg transition-all duration-200 transform hover:-translate-y-0.5 ${isLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
-            >
-              {isLoading ? '送信中...' : '登録を申請する'}
+            <p className="px-8 text-[11px] font-black text-slate-300 uppercase tracking-[0.25em] mb-4 mt-10">Settings</p>
+            <NavButton id="notifications" label="お知らせ" icon={FiBell} badge={unreadCount} />
+            <NavButton id="settings" label="プロフィール設定" icon={FiSettings} />
+            <button onClick={logout} className="w-full flex items-center gap-4 px-8 py-6 text-[15px] font-bold text-red-400 hover:bg-red-50/50 transition-all mt-4 border-t border-slate-50">
+                <FiLogOut size={20} /><span>ログアウト</span>
             </button>
-            <p className="mt-4 text-center text-xs text-gray-500">
-              登録申請後、運営による審査が行われます。<br/>審査完了まで数日かかる場合があります。
-            </p>
-          </div>
-        </form>
+        </nav>
+      </aside>
 
-        <div className="text-center mt-6 pt-6 border-t border-gray-100">
-          <p className="text-sm text-gray-600">
-            すでにアカウントをお持ちですか？{' '}
-            <Link href="/florists/login" className="font-bold text-pink-600 hover:text-pink-700 hover:underline">
-              ログイン
-            </Link>
-          </p>
+      <main className="flex-grow p-6 md:p-16 overflow-y-auto">
+        <div className="max-w-5xl mx-auto">
+            {activeTab === 'home' && (
+                <div className="space-y-12 animate-fadeIn">
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8">
+                        <div>
+                            <h1 className="text-4xl font-black text-slate-900 tracking-tighter">My Page</h1>
+                            <p className="text-slate-400 text-sm font-bold mt-2 tracking-tight">推しへの想いを形にする、あなただけのステーション</p>
+                        </div>
+                    </div>
+
+                    {/* アクションショートカットボタン */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <Link href="/projects/create" className="flex items-center justify-center gap-3 bg-pink-500 text-white font-black px-8 py-6 rounded-[2rem] shadow-2xl shadow-pink-200 hover:bg-pink-600 transition-all active:scale-95 text-xl">
+                            <FiPlus strokeWidth={3} /> 企画を立てる
+                        </Link>
+                        <Link href="/projects" className="flex items-center justify-center gap-3 bg-white border-4 border-pink-500 text-pink-500 font-black px-8 py-6 rounded-[2rem] shadow-xl hover:bg-pink-50 transition-all active:scale-95 text-xl">
+                            <FiSearch strokeWidth={3} /> 企画を探す
+                        </Link>
+                    </div>
+
+                    <section>
+                        <div className="flex items-center justify-between mb-8">
+                            <h2 className="text-xl font-black text-slate-900 flex items-center gap-3 tracking-tight">
+                                <span className="w-2 h-8 bg-pink-500 rounded-full" />
+                                進行中のプロジェクト
+                            </h2>
+                            <button onClick={() => setActiveTab('pledged')} className="text-xs font-black text-pink-500 uppercase tracking-widest border-b-2 border-pink-100 pb-1">View All</button>
+                        </div>
+                        <div className="grid grid-cols-1 gap-8">
+                            {[...createdProjects, ...pledgedProjects.map(p => p.project)]
+                                .filter(p => p && p.status !== 'COMPLETED' && p.status !== 'CANCELED')
+                                .slice(0, 3)
+                                .map((p, i) => (
+                                    <ProjectCard key={p.id + '-' + i} project={p} isOwner={p.plannerId === user.id} />
+                                ))
+                            }
+                            {createdProjects.length + pledgedProjects.length === 0 && (
+                                <div className="bg-white p-24 rounded-[3rem] border-4 border-dashed border-slate-100 text-center flex flex-col items-center">
+                                    <div className="text-6xl mb-6">🌸</div>
+                                    <h3 className="text-2xl font-black text-slate-800 mb-3">まだ参加中の企画がありません</h3>
+                                    <p className="text-slate-400 font-bold mb-10 max-w-sm leading-relaxed">まずは気になる企画を探して、推しに想いを届ける第一歩を踏み出しましょう！</p>
+                                    <Link href="/projects" className="bg-slate-900 text-white px-12 py-5 rounded-2xl font-black shadow-2xl hover:bg-slate-800 transition-all text-lg">企画を探しに行く</Link>
+                                </div>
+                            )}
+                        </div>
+                    </section>
+                </div>
+            )}
+
+            {activeTab === 'created' && (
+                <div className="space-y-8 animate-fadeIn">
+                    <h2 className="text-2xl font-black text-slate-900 tracking-tight">主催した企画</h2>
+                    <div className="grid grid-cols-1 gap-6">
+                        {createdProjects.map(p => <ProjectCard key={p.id} project={p} isOwner={true} />)}
+                    </div>
+                </div>
+            )}
+
+            {activeTab === 'pledged' && (
+                <div className="space-y-8 animate-fadeIn">
+                    <h2 className="text-2xl font-black text-slate-900 tracking-tight">参加中の企画</h2>
+                    <div className="grid grid-cols-1 gap-6">
+                        {pledgedProjects.map(pledge => pledge.project && (
+                            <ProjectCard key={pledge.id} project={pledge.project} isOwner={false} />
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {activeTab === 'album' && (
+                <div className="space-y-10 animate-fadeIn">
+                    <h2 className="text-2xl font-black text-slate-900 tracking-tight uppercase">Memory Album</h2>
+                    <div className="bg-white p-10 rounded-[2.5rem] border border-slate-100 shadow-sm"><UploadForm onUploadComplete={fetchMyData} /></div>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-6 mt-10">
+                        {myPosts.map(post => (
+                            <div key={post.id} className="relative aspect-square rounded-[2rem] overflow-hidden group shadow-lg border-4 border-white">
+                                <Image src={post.imageUrl} alt="思い出写真" fill className="object-cover transition-transform duration-700 group-hover:scale-110" />
+                                <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 flex flex-col justify-end p-6">
+                                    <p className="text-white font-black text-sm leading-tight mb-1">{post.eventName}</p>
+                                    <p className="text-white/60 text-[10px] font-bold uppercase tracking-widest">{new Date(post.createdAt).toLocaleDateString()}</p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {activeTab === 'notifications' && (
+                <div className="space-y-8 animate-fadeIn">
+                    <h2 className="text-2xl font-black text-slate-900 tracking-tight uppercase">Notifications</h2>
+                    <div className="bg-white rounded-[2.5rem] border border-slate-100 overflow-hidden shadow-sm">
+                        {notifications.length > 0 ? notifications.map(n => (
+                            <div key={n.id} onClick={async () => {
+                                    await authenticatedFetch(`${API_URL}/api/notifications/${n.id}/read`, { method: 'PATCH' });
+                                    if(n.linkUrl) router.push(n.linkUrl);
+                                    fetchMyData();
+                                }}
+                                className={`p-8 border-b border-slate-50 flex gap-6 cursor-pointer transition-all hover:bg-slate-50/50 ${n.isRead ? 'opacity-50' : ''}`}
+                            >
+                                <div className={`w-3 h-3 rounded-full mt-2 shrink-0 ${n.isRead ? 'bg-slate-200' : 'bg-pink-500 animate-pulse'}`} />
+                                <div className="flex-1">
+                                    <p className={`text-[15px] leading-relaxed ${n.isRead ? 'text-slate-500' : 'text-slate-900 font-bold'}`}>{n.message}</p>
+                                    <p className="text-[11px] text-slate-300 mt-3 font-black uppercase tracking-widest">{new Date(n.createdAt).toLocaleString()}</p>
+                                </div>
+                            </div>
+                        )) : (<div className="p-32 text-center text-slate-200 font-black uppercase tracking-[0.3em]">No notifications</div>)}
+                    </div>
+                </div>
+            )}
+
+            {activeTab === 'settings' && (
+                <div className="space-y-10 animate-fadeIn">
+                    <h2 className="text-2xl font-black text-slate-900 tracking-tight uppercase">Account Settings</h2>
+                    <div className="bg-white rounded-[3rem] p-10 md:p-16 border border-slate-100 shadow-sm relative overflow-hidden">
+                        <div className="flex flex-col md:flex-row items-center gap-12 mb-16 relative z-10">
+                            <div className="w-32 h-32 rounded-[2.5rem] relative overflow-hidden border-8 border-slate-50 shadow-2xl">
+                                {user.iconUrl ? <Image src={user.iconUrl} alt="アイコン" fill className="object-cover" /> : <div className="w-full h-full bg-slate-50 flex items-center justify-center text-slate-200"><FiUser size={48}/></div>}
+                            </div>
+                            <div className="text-center md:text-left flex-1">
+                                <h3 className="text-3xl font-black text-slate-900 tracking-tighter">{user.handleName}</h3>
+                                <p className="text-slate-400 text-sm font-bold mt-2">{user.email}</p>
+                                <div className="mt-8 flex flex-wrap gap-4 justify-center md:justify-start">
+                                    <Link href="/mypage/edit" className="px-10 py-3.5 bg-slate-900 text-white text-[11px] font-black rounded-full hover:bg-slate-800 transition-all uppercase tracking-[0.2em] shadow-xl">編集する</Link>
+                                    <button onClick={logout} className="px-10 py-3.5 border-2 border-slate-100 text-slate-400 text-[11px] font-black rounded-full hover:bg-red-50 hover:text-red-400 hover:border-red-100 transition-all uppercase tracking-[0.2em]">ログアウト</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10">
+                            <div className="p-8 bg-slate-50 rounded-[2rem] border border-slate-100 group">
+                                <p className="text-[10px] font-black text-slate-400 mb-3 uppercase tracking-[0.2em]">招待用コード</p>
+                                <div className="flex items-center justify-between">
+                                    <span className="text-2xl font-black text-slate-900 tracking-widest font-mono group-hover:text-pink-500 transition-colors">{user.referralCode || '----'}</span>
+                                    <button onClick={() => {navigator.clipboard.writeText(user.referralCode); toast.success('コピーしました')}} className="text-slate-300 hover:text-pink-500 transition-all active:scale-90"><FiCheckCircle size={24}/></button>
+                                </div>
+                            </div>
+                            <div className="p-8 bg-slate-50 rounded-[2rem] border border-slate-100">
+                                <p className="text-[10px] font-black text-slate-400 mb-3 uppercase tracking-[0.2em]">現在の応援ランク</p>
+                                <SupportLevelBadge level={user.supportLevel} />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
-      </div>
+      </main>
     </div>
   );
 }
