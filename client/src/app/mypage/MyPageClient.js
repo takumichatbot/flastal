@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '@/app/contexts/AuthContext';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
@@ -20,6 +20,7 @@ import SupportLevelBadge from '@/app/components/SupportLevelBadge';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
+// --- 進捗ステータスの日本語設定 ---
 const PROJECT_STATUS_CONFIG = {
   'PENDING_APPROVAL': { label: '確認中', color: 'text-orange-500', bg: 'bg-orange-50', border: 'border-orange-100', step: 1 },
   'FUNDRAISING': { label: '募集中', color: 'text-pink-500', bg: 'bg-pink-50', border: 'border-pink-100', step: 2 },
@@ -29,6 +30,7 @@ const PROJECT_STATUS_CONFIG = {
   'CANCELED': { label: '中止', color: 'text-gray-400', bg: 'bg-gray-50', border: 'border-gray-100', step: 0 },
 };
 
+// --- ミンサカ風の進捗バー ---
 const ProgressSteps = ({ currentStep }) => {
     const steps = ['審査', '募集', '達成', '制作', '完了'];
     return (
@@ -50,6 +52,7 @@ const ProgressSteps = ({ currentStep }) => {
     );
 };
 
+// --- 企画カード ---
 function ProjectCard({ project, isOwner }) {
     const config = PROJECT_STATUS_CONFIG[project.status] || { label: project.status, color: 'text-gray-600', bg: 'bg-gray-50', border: 'border-gray-100', step: 0 };
     const progress = project.targetAmount > 0 ? Math.min((project.collectedAmount / project.targetAmount) * 100, 100) : 0;
@@ -144,6 +147,7 @@ export default function MyPageClient() {
 
   return (
     <div className="min-h-screen bg-slate-50/30 flex flex-col md:flex-row">
+      {/* --- サイドバー --- */}
       <aside className="w-full md:w-80 bg-white border-r border-slate-100 sticky top-0 md:h-screen overflow-y-auto flex flex-col z-20 shadow-sm">
         <div className="p-10 pb-6 flex flex-col items-center">
             <div className="w-24 h-24 rounded-[2rem] relative overflow-hidden border-4 border-white shadow-xl mb-5 group">
@@ -188,6 +192,7 @@ export default function MyPageClient() {
         </nav>
       </aside>
 
+      {/* --- メインコンテンツ --- */}
       <main className="flex-grow p-6 md:p-16 overflow-y-auto">
         <div className="max-w-5xl mx-auto">
             {activeTab === 'home' && (
@@ -197,8 +202,15 @@ export default function MyPageClient() {
                             <h1 className="text-4xl font-black text-slate-900 tracking-tighter">My Page</h1>
                             <p className="text-slate-400 text-sm font-bold mt-2 tracking-tight">推しへの想いを形にする、あなただけのステーション</p>
                         </div>
-                        <Link href="/projects/create" className="flex items-center gap-3 bg-pink-500 text-white font-black px-10 py-5 rounded-[1.5rem] shadow-2xl shadow-pink-200 hover:bg-pink-600 transition-all active:scale-95 text-lg">
+                    </div>
+
+                    {/* ★追加: アクションショートカットボタン */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <Link href="/projects/create" className="flex items-center justify-center gap-3 bg-pink-500 text-white font-black px-8 py-6 rounded-[2rem] shadow-2xl shadow-pink-200 hover:bg-pink-600 transition-all active:scale-95 text-xl">
                             <FiPlus strokeWidth={3} /> 企画を立てる
+                        </Link>
+                        <Link href="/projects" className="flex items-center justify-center gap-3 bg-white border-4 border-pink-500 text-pink-500 font-black px-8 py-6 rounded-[2rem] shadow-xl hover:bg-pink-50 transition-all active:scale-95 text-xl">
+                            <FiSearch strokeWidth={3} /> 企画を探す
                         </Link>
                     </div>
 
@@ -231,6 +243,7 @@ export default function MyPageClient() {
                 </div>
             )}
 
+            {/* 主催した企画タブ */}
             {activeTab === 'created' && (
                 <div className="space-y-8 animate-fadeIn">
                     <h2 className="text-2xl font-black text-slate-900 tracking-tight">主催した企画</h2>
@@ -240,6 +253,7 @@ export default function MyPageClient() {
                 </div>
             )}
 
+            {/* 参加中の企画タブ */}
             {activeTab === 'pledged' && (
                 <div className="space-y-8 animate-fadeIn">
                     <h2 className="text-2xl font-black text-slate-900 tracking-tight">参加中の企画</h2>
@@ -251,6 +265,7 @@ export default function MyPageClient() {
                 </div>
             )}
 
+            {/* アルバムタブ */}
             {activeTab === 'album' && (
                 <div className="space-y-10 animate-fadeIn">
                     <h2 className="text-2xl font-black text-slate-900 tracking-tight uppercase">Memory Album</h2>
@@ -269,6 +284,7 @@ export default function MyPageClient() {
                 </div>
             )}
 
+            {/* お知らせタブ */}
             {activeTab === 'notifications' && (
                 <div className="space-y-8 animate-fadeIn">
                     <h2 className="text-2xl font-black text-slate-900 tracking-tight uppercase">Notifications</h2>
@@ -292,6 +308,7 @@ export default function MyPageClient() {
                 </div>
             )}
 
+            {/* 設定タブ */}
             {activeTab === 'settings' && (
                 <div className="space-y-10 animate-fadeIn">
                     <h2 className="text-2xl font-black text-slate-900 tracking-tight uppercase">Account Settings</h2>
