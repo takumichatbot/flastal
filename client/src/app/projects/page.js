@@ -31,7 +31,6 @@ function ProjectsContent() {
   const [prefecture, setPrefecture] = useState(searchParams.get('prefecture') || '');
 
   const fetchProjects = useCallback(async () => {
-    // 認証情報の初期化が終わるまで待機
     if (authLoading) return;
 
     setLoading(true);
@@ -44,27 +43,25 @@ function ProjectsContent() {
       if (currentPrefecture) params.append('prefecture', currentPrefecture);
       
       const queryString = params.toString();
-      // Auth側で /api/projects に自動補完される
-      const finalPath = queryString ? `/projects?${queryString}` : '/projects';
+      // パスを /projects に設定（Auth側で /api/projects へ変換）
+      const fetchPath = queryString ? `/projects?${queryString}` : '/projects';
 
-      const res = await authenticatedFetch(finalPath);
+      const res = await authenticatedFetch(fetchPath);
       
       if (!res || !res.ok) {
-        throw new Error('データの取得に失敗しました');
+        throw new Error(`HTTP error! status: ${res?.status || 'no-response'}`);
       }
       
       const data = await res.json();
-      // 常に配列として扱う
-      const list = Array.isArray(data) ? data : (data?.projects || []);
-      setProjects(list);
+      const resultList = Array.isArray(data) ? data : (data?.projects || []);
+      setProjects(resultList);
       
-      if (list.length === 0 && (currentKeyword || currentPrefecture)) {
+      if (resultList.length === 0 && (currentKeyword || currentPrefecture)) {
         toast('条件に一致する企画はありませんでした', { icon: '🔍' });
       }
     } catch (error) {
       console.error('Fetch error details:', error);
-      // 通信エラー表示
-      toast.error('通信エラーが発生しました。再読み込みしてください。', { id: 'fetch-error' });
+      toast.error('通信エラーが発生しました。再読み込みしてください。', { id: 'project-fetch-error' });
     } finally {
       setLoading(false);
     }
