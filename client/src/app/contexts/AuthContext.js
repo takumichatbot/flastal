@@ -5,6 +5,7 @@ import { jwtDecode } from 'jwt-decode';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 
+// 末尾にスラッシュを入れない
 const BASE_BACKEND_URL = 'https://flastal-backend.onrender.com';
 
 const AuthContext = createContext({
@@ -85,22 +86,22 @@ export function AuthProvider({ children }) {
   }, [parseUserFromToken]);
 
   const authenticatedFetch = useCallback(async (url, options = {}, retryCount = 0) => {
-    // ★URL正規化ロジック：二重の /api/ を防止
+    // ★最重要修正: URLの組み立てを極限まで厳密化
     let finalUrl = url;
     if (!url.startsWith('http')) {
-        // 先頭のスラッシュを処理
-        let path = url.startsWith('/') ? url : `/${url}`;
-        // すでに /api/ で始まっている場合はそのまま、そうでなければ付与
-        if (!path.startsWith('/api/')) {
-            path = `/api${path}`;
+        // 先頭のスラッシュを整理
+        let purePath = url.startsWith('/') ? url : `/${url}`;
+        // /api が含まれていない場合のみ付与
+        if (!purePath.startsWith('/api/')) {
+            purePath = `/api${purePath}`;
         }
-        finalUrl = `${BASE_BACKEND_URL}${path}`;
+        finalUrl = `${BASE_BACKEND_URL}${purePath}`;
     }
 
     const now = Date.now();
     const requestKey = `${finalUrl}-${options.method || 'GET'}`;
-    if (requestDebounce.current[requestKey] && (now - requestDebounce.current[requestKey] < 100)) {
-        await new Promise(resolve => setTimeout(resolve, 100));
+    if (requestDebounce.current[requestKey] && (now - requestDebounce.current[requestKey] < 150)) {
+        await new Promise(resolve => setTimeout(resolve, 200));
     }
     requestDebounce.current[requestKey] = now;
 
@@ -115,9 +116,15 @@ export function AuthProvider({ children }) {
     }
 
     try {
-      const response = await fetch(finalUrl, { ...options, headers });
+      // 外部ドメインへのリクエストであることをブラウザに明示
+      const response = await fetch(finalUrl, { 
+        ...options, 
+        headers,
+        mode: 'cors' 
+      });
+      
       if (response.status === 401 && retryCount < 1 && !finalUrl.includes('/login')) {
-        await new Promise(resolve => setTimeout(resolve, 300));
+        await new Promise(resolve => setTimeout(resolve, 500));
         return authenticatedFetch(finalUrl, options, retryCount + 1);
       }
       return response;
@@ -144,7 +151,7 @@ export function AuthProvider({ children }) {
         setTimeout(() => {
           setIsLoading(false);
           isInitializing.current = false;
-        }, 1500);
+        }, 1000);
       }
     };
     initAuth();

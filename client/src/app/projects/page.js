@@ -36,14 +36,13 @@ function ProjectsContent() {
       const currentKeyword = searchParams.get('keyword');
       const currentPrefecture = searchParams.get('prefecture');
 
-      // ★シンプルにエンドポイント名だけで呼び出す（AuthContext側で /api/projects に補完されます）
-      let queryPath = 'projects'; 
+      // AuthContextの自動補完に任せるため、シンプルなスラッシュ開始パスにする
       const params = new URLSearchParams();
       if (currentKeyword) params.append('keyword', currentKeyword);
       if (currentPrefecture) params.append('prefecture', currentPrefecture);
       
       const queryString = params.toString();
-      const finalPath = queryString ? `${queryPath}?${queryString}` : queryPath;
+      const finalPath = queryString ? `/projects?${queryString}` : '/projects';
 
       const res = await authenticatedFetch(finalPath);
       
@@ -56,7 +55,7 @@ function ProjectsContent() {
         toast('条件に一致する企画はありませんでした', { icon: '🔍' });
       }
     } catch (error) {
-      console.error('Fetch error:', error);
+      console.error('Fetch error details:', error);
       toast.error('通信エラーが発生しました。再読み込みしてください。');
     } finally {
       setLoading(false);
@@ -80,7 +79,6 @@ function ProjectsContent() {
   return (
     <div className="bg-slate-50 min-h-screen py-10 font-sans text-gray-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        
         <div className="flex flex-col md:flex-row justify-between items-center mb-10 gap-6">
           <div>
             <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight mb-2">みんなの企画</h1>
@@ -158,7 +156,6 @@ function ProjectsContent() {
             {projects.map((project) => (
               <Link key={project.id} href={`/projects/${project.id}`} className="group h-full block">
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-xl transition-all duration-300 hover:-translate-y-1 h-full flex flex-col relative">
-                  
                   <div className="relative h-52 bg-gray-100 overflow-hidden">
                     {project.imageUrl ? (
                       <Image 
@@ -174,7 +171,6 @@ function ProjectsContent() {
                         <span className="text-4xl">💐</span>
                       </div>
                     )}
-                    
                     <div className="absolute top-3 right-3">
                         {project.status === 'FUNDRAISING' ? (
                             <span className="bg-white/90 backdrop-blur text-pink-600 text-xs font-bold px-3 py-1 rounded-full shadow-sm">募集中</span>
@@ -185,12 +181,10 @@ function ProjectsContent() {
                         )}
                     </div>
                   </div>
-
                   <div className="p-5 flex flex-col flex-grow">
                     <h2 className="text-lg font-bold text-gray-900 group-hover:text-pink-600 transition-colors line-clamp-2 mb-2 leading-snug">
                         {project.title}
                     </h2>
-                    
                     <div className="space-y-1 mb-4">
                         {project.deliveryDateTime && (
                             <p className="text-xs text-gray-500 flex items-center">
@@ -203,9 +197,7 @@ function ProjectsContent() {
                             <span className="truncate">{project.deliveryAddress || '場所未定'}</span>
                         </p>
                     </div>
-
                     <div className="flex-grow"></div> 
-
                     <div className="mt-4 pt-4 border-t border-gray-50">
                         <div className="flex justify-between items-end mb-1 text-xs">
                             <span className="font-bold text-gray-700">{Math.min((project.collectedAmount / (project.targetAmount || 1)) * 100, 100).toFixed(0)}%</span>
@@ -218,7 +210,6 @@ function ProjectsContent() {
                             ></div>
                         </div>
                     </div>
-
                     <div className="mt-3 flex items-center gap-2">
                         {project.planner?.iconUrl ? (
                             <Image src={project.planner.iconUrl} alt="" width={20} height={20} className="rounded-full object-cover border border-gray-200" />
