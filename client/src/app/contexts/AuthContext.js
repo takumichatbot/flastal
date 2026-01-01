@@ -86,33 +86,28 @@ export function AuthProvider({ children }) {
   }, [parseUserFromToken]);
 
   const authenticatedFetch = useCallback(async (url, options = {}, retryCount = 0) => {
-    // URLアッセンブリの強化
+    // URLの組み立てロジックを極限までシンプルかつ厳密に
     let finalUrl = url;
     if (!url.startsWith('http')) {
-      // 1. 既存のクエリパラメータを保持しつつ、パス部分を抽出
+      // 1. クエリパラメータとパスを分離
       const [path, query] = url.split('?');
-      let purePath = path;
-
-      // 2. /api/ の重複チェックと補完
-      if (!purePath.startsWith('/api/')) {
-        purePath = purePath.startsWith('/') ? `/api${purePath}` : `/api/${purePath}`;
+      // 2. パスを正規化（/api を確実に含むように）
+      let normalizedPath = path.startsWith('/') ? path : `/${path}`;
+      if (!normalizedPath.startsWith('/api/')) {
+        normalizedPath = `/api${normalizedPath}`;
       }
-      
-      // 3. バックエンドのベースURLと結合 (スラッシュの重複を徹底排除)
-      const baseUrl = BASE_BACKEND_URL.replace(/\/$/, '');
-      finalUrl = `${baseUrl}${purePath}${query ? `?${query}` : ''}`;
+      // 3. 絶対URLを作成
+      finalUrl = `${BASE_BACKEND_URL}${normalizedPath}${query ? `?${query}` : ''}`;
     }
 
     const now = Date.now();
     const requestKey = `${finalUrl}-${options.method || 'GET'}`;
-    
-    // デバウンス処理中にリクエストを捨てず、待機して実行するように変更
     if (requestDebounce.current[requestKey] && (now - requestDebounce.current[requestKey] < 100)) {
-      await new Promise(resolve => setTimeout(resolve, 150));
+        await new Promise(resolve => setTimeout(resolve, 150));
     }
     requestDebounce.current[requestKey] = now;
 
-    // トークンの取得（最新のlocalStorageから取得を優先）
+    // 最新のトークンを常に取得
     const storedToken = typeof window !== 'undefined' ? localStorage.getItem('authToken') : token;
     const headers = { ...options.headers };
     
@@ -132,7 +127,7 @@ export function AuthProvider({ children }) {
         mode: 'cors' 
       });
       
-      // 401エラー時のリトライ（トークンがセットされるのを待つ）
+      // 401エラー（未認証）時はトークン復旧を待って1回だけリトライ
       if (response.status === 401 && retryCount < 1 && !finalUrl.includes('/login')) {
         await new Promise(resolve => setTimeout(resolve, 800));
         return authenticatedFetch(url, options, retryCount + 1);
@@ -159,11 +154,10 @@ export function AuthProvider({ children }) {
           }
         }
       } finally {
-        // 初期化時間を少し短縮しつつ確実に完了させる
         setTimeout(() => {
           setIsLoading(false);
           isInitializing.current = false;
-        }, 500);
+        }, 800);
       }
     };
     initAuth();
