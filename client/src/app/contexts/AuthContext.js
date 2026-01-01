@@ -5,7 +5,6 @@ import { jwtDecode } from 'jwt-decode';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 
-// ★バックエンドの絶対URLを直接定義（環境変数が空の場合のフォールバックを確実にする）
 const BASE_BACKEND_URL = 'https://flastal-backend.onrender.com';
 
 const AuthContext = createContext({
@@ -86,11 +85,12 @@ export function AuthProvider({ children }) {
   }, [parseUserFromToken]);
 
   const authenticatedFetch = useCallback(async (url, options = {}, retryCount = 0) => {
-    // ★重要: URLが絶対パス（http...）でない場合、バックエンドURLを強制付与
+    // ★URL正規化ロジック：二重の /api/ を防止
     let finalUrl = url;
     if (!url.startsWith('http')) {
-        // パスの先頭に / がなければ付ける。ただし /api/ がなければ付ける
+        // 先頭のスラッシュを処理
         let path = url.startsWith('/') ? url : `/${url}`;
+        // すでに /api/ で始まっている場合はそのまま、そうでなければ付与
         if (!path.startsWith('/api/')) {
             path = `/api${path}`;
         }
@@ -99,8 +99,6 @@ export function AuthProvider({ children }) {
 
     const now = Date.now();
     const requestKey = `${finalUrl}-${options.method || 'GET'}`;
-
-    // 超短時間の重複のみスキップ
     if (requestDebounce.current[requestKey] && (now - requestDebounce.current[requestKey] < 100)) {
         await new Promise(resolve => setTimeout(resolve, 100));
     }
@@ -108,11 +106,9 @@ export function AuthProvider({ children }) {
 
     const storedToken = typeof window !== 'undefined' ? localStorage.getItem('authToken') : token;
     const headers = { ...options.headers };
-    
     if (!(options.body instanceof FormData)) {
       headers['Content-Type'] = 'application/json';
     }
-    
     if (storedToken) {
       const cleanToken = storedToken.replace(/['"]+/g, '').trim();
       headers['Authorization'] = `Bearer ${cleanToken}`;
@@ -120,12 +116,10 @@ export function AuthProvider({ children }) {
 
     try {
       const response = await fetch(finalUrl, { ...options, headers });
-      
       if (response.status === 401 && retryCount < 1 && !finalUrl.includes('/login')) {
         await new Promise(resolve => setTimeout(resolve, 300));
         return authenticatedFetch(finalUrl, options, retryCount + 1);
       }
-      
       return response;
     } catch (e) {
       if (retryCount < 2) {
@@ -183,32 +177,20 @@ export function AuthProvider({ children }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password, handleName, referralCode }),
     });
-
     const data = await response.json();
-    if (!response.ok) {
-      throw new Error(data.message || '登録に失敗しました。');
-    }
+    if (!response.ok) throw new Error(data.message || '登録に失敗しました。');
     return data;
   }, []);
 
   const contextValue = useMemo(() => {
     const isProfessional = user && ['FLORIST', 'VENUE', 'ORGANIZER'].includes(user.role);
     const approved = isLoading ? true : (user ? (user.status === 'APPROVED' || !isProfessional) : false);
-
     return {
-      user, 
-      token, 
-      isAuthenticated: !!user, 
-      isLoading,
+      user, token, isAuthenticated: !!user, isLoading,
       isAdmin: user?.role === 'ADMIN',
-      isProfessional, 
-      isApproved: approved,
+      isProfessional, isApproved: approved,
       isPending: user?.status === 'PENDING',
-      login, 
-      logout, 
-      updateUser, 
-      register,
-      authenticatedFetch
+      login, logout, updateUser, register, authenticatedFetch
     };
   }, [user, token, isLoading, login, logout, updateUser, register, authenticatedFetch]);
 

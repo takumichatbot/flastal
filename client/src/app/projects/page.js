@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense, useCallback } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
-import { useAuth } from '@/app/contexts/AuthContext'; // ★追加
+import { useAuth } from '@/app/contexts/AuthContext'; 
 import Link from 'next/link';
 import Image from 'next/image';
 import toast from 'react-hot-toast';
@@ -22,7 +22,7 @@ function ProjectsContent() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { authenticatedFetch } = useAuth(); // ★AuthContextから取得
+  const { authenticatedFetch } = useAuth();
 
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -36,8 +36,8 @@ function ProjectsContent() {
       const currentKeyword = searchParams.get('keyword');
       const currentPrefecture = searchParams.get('prefecture');
 
-      // ★authenticatedFetchを使用するように変更。パスだけでOK
-      let queryPath = '/projects';
+      // ★シンプルにエンドポイント名だけで呼び出す（AuthContext側で /api/projects に補完されます）
+      let queryPath = 'projects'; 
       const params = new URLSearchParams();
       if (currentKeyword) params.append('keyword', currentKeyword);
       if (currentPrefecture) params.append('prefecture', currentPrefecture);
@@ -70,13 +70,10 @@ function ProjectsContent() {
   const handleSearch = (e) => {
     e.preventDefault();
     const params = new URLSearchParams(searchParams);
-    
     if (keyword.trim()) params.set('keyword', keyword);
     else params.delete('keyword');
-    
     if (prefecture) params.set('prefecture', prefecture);
     else params.delete('prefecture');
-
     router.replace(`${pathname}?${params.toString()}`);
   };
 
