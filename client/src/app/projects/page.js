@@ -31,45 +31,40 @@ function ProjectsContent() {
   const [prefecture, setPrefecture] = useState(searchParams.get('prefecture') || '');
 
   const fetchProjects = useCallback(async () => {
-    // Authの初期化中は何もしない
+    // 認証情報の初期化が終わるまで待機
     if (authLoading) return;
 
     setLoading(true);
     try {
+      const params = new URLSearchParams();
       const currentKeyword = searchParams.get('keyword');
       const currentPrefecture = searchParams.get('prefecture');
 
-      const params = new URLSearchParams();
       if (currentKeyword) params.append('keyword', currentKeyword);
       if (currentPrefecture) params.append('prefecture', currentPrefecture);
       
       const queryString = params.toString();
-      // Auth側で /api/projects に解決される
+      // Auth側で /api/projects に自動補完される
       const finalPath = queryString ? `/projects?${queryString}` : '/projects';
 
       const res = await authenticatedFetch(finalPath);
       
-      if (!res) throw new Error('サーバーからの応答がありません');
-      
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.message || `取得失敗(Status: ${res.status})`);
+      if (!res || !res.ok) {
+        throw new Error('データの取得に失敗しました');
       }
       
       const data = await res.json();
-      // dataが配列でない場合（オブジェクト等）を考慮したガード
-      const projectsArray = Array.isArray(data) ? data : (data.projects || []);
-      setProjects(projectsArray);
+      // 常に配列として扱う
+      const list = Array.isArray(data) ? data : (data?.projects || []);
+      setProjects(list);
       
-      if (projectsArray.length === 0 && (currentKeyword || currentPrefecture)) {
+      if (list.length === 0 && (currentKeyword || currentPrefecture)) {
         toast('条件に一致する企画はありませんでした', { icon: '🔍' });
       }
     } catch (error) {
       console.error('Fetch error details:', error);
-      // fetch失敗(ネットワーク断)時は標準のブラウザエラーが出るため、自作エラーのみトースト表示
-      if (error.message !== 'Failed to fetch') {
-        toast.error('通信エラーが発生しました。再読み込みしてください。');
-      }
+      // 通信エラー表示
+      toast.error('通信エラーが発生しました。再読み込みしてください。', { id: 'fetch-error' });
     } finally {
       setLoading(false);
     }

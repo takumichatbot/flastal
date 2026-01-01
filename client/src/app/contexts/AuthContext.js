@@ -86,37 +86,45 @@ export function AuthProvider({ children }) {
   }, [parseUserFromToken]);
 
   const authenticatedFetch = useCallback(async (url, options = {}, retryCount = 0) => {
-    // URLの組み立てロジックを極限までシンプルかつ厳密に
+    // 1. URLアッセンブリの正規化
     let finalUrl = url;
     if (!url.startsWith('http')) {
-      // 1. クエリパラメータとパスを分離
-      const [path, query] = url.split('?');
-      // 2. パスを正規化（/api を確実に含むように）
-      let normalizedPath = path.startsWith('/') ? path : `/${path}`;
-      if (!normalizedPath.startsWith('/api/')) {
-        normalizedPath = `/api${normalizedPath}`;
+      // 既存のクエリパラメータを保持
+      const urlParts = url.split('?');
+      let purePath = urlParts[0];
+      const queryString = urlParts[1] ? `?${urlParts[1]}` : '';
+
+      // /api の二重付与とスラッシュの欠如を同時に防ぐ
+      if (purePath.startsWith('/api/')) {
+        // すでに /api/ で始まっている場合はそのまま
+      } else if (purePath.startsWith('api/')) {
+        purePath = `/${purePath}`;
+      } else {
+        purePath = purePath.startsWith('/') ? `/api${purePath}` : `/api/${purePath}`;
       }
-      // 3. 絶対URLを作成
-      finalUrl = `${BASE_BACKEND_URL}${normalizedPath}${query ? `?${query}` : ''}`;
+      
+      finalUrl = `${BASE_BACKEND_URL}${purePath}${queryString}`;
     }
 
     const now = Date.now();
     const requestKey = `${finalUrl}-${options.method || 'GET'}`;
-    if (requestDebounce.current[requestKey] && (now - requestDebounce.current[requestKey] < 100)) {
-        await new Promise(resolve => setTimeout(resolve, 150));
+    if (requestDebounce.current[requestKey] && (now - requestDebounce.current[requestKey] < 50)) {
+        await new Promise(resolve => setTimeout(resolve, 100));
     }
     requestDebounce.current[requestKey] = now;
 
-    // 最新のトークンを常に取得
-    const storedToken = typeof window !== 'undefined' ? localStorage.getItem('authToken') : token;
+    // 最新のトークンを確実に取得
+    let currentToken = token;
+    if (!currentToken && typeof window !== 'undefined') {
+      currentToken = localStorage.getItem('authToken');
+    }
+
     const headers = { ...options.headers };
-    
     if (!(options.body instanceof FormData)) {
       headers['Content-Type'] = 'application/json';
     }
-    
-    if (storedToken) {
-      const cleanToken = storedToken.replace(/['"]+/g, '').trim();
+    if (currentToken) {
+      const cleanToken = currentToken.replace(/['"]+/g, '').trim();
       headers['Authorization'] = `Bearer ${cleanToken}`;
     }
 
@@ -127,12 +135,11 @@ export function AuthProvider({ children }) {
         mode: 'cors' 
       });
       
-      // 401エラー（未認証）時はトークン復旧を待って1回だけリトライ
+      // 401エラー（未認証）時はトークン復帰を待って1回リトライ
       if (response.status === 401 && retryCount < 1 && !finalUrl.includes('/login')) {
-        await new Promise(resolve => setTimeout(resolve, 800));
+        await new Promise(resolve => setTimeout(resolve, 500));
         return authenticatedFetch(url, options, retryCount + 1);
       }
-      
       return response;
     } catch (e) {
       if (retryCount < 2) {
@@ -154,10 +161,12 @@ export function AuthProvider({ children }) {
           }
         }
       } finally {
-        setTimeout(() => {
+        // isLoadingの解除を少し遅らせ、ステートの同期を確実にする
+        const timer = setTimeout(() => {
           setIsLoading(false);
           isInitializing.current = false;
-        }, 800);
+        }, 300);
+        return () => clearTimeout(timer);
       }
     };
     initAuth();
