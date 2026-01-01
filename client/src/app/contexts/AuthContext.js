@@ -28,7 +28,9 @@ export function AuthProvider({ children }) {
   const [token, setToken] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const isInitializing = useRef(true);
-  const lastRequestTime = useRef({});
+  
+  // 短時間の重複リクエストを防ぐためのメモ
+  const requestDebounce = useRef({});
   
   const router = useRouter();
 
@@ -86,11 +88,13 @@ export function AuthProvider({ children }) {
 
   const authenticatedFetch = useCallback(async (url, options = {}, retryCount = 0) => {
     const now = Date.now();
-    // 同一URLへの過剰な並列リクエストを抑制
-    if (lastRequestTime.current[url] && (now - lastRequestTime.current[url] < 300) && !options.method) {
-        await new Promise(resolve => setTimeout(resolve, 200));
+    const requestKey = `${url}-${options.method || 'GET'}`;
+
+    // 500ms以内の全く同じリクエストをスキップ（無限ループ防止）
+    if (requestDebounce.current[requestKey] && (now - requestDebounce.current[requestKey] < 500)) {
+        return new Response(JSON.stringify({ message: "Duplicate request prevented" }), { status: 429 });
     }
-    lastRequestTime.current[url] = now;
+    requestDebounce.current[requestKey] = now;
 
     const storedToken = typeof window !== 'undefined' ? localStorage.getItem('authToken') : token;
     const headers = { ...options.headers };
@@ -107,7 +111,6 @@ export function AuthProvider({ children }) {
     try {
       const response = await fetch(url, { ...options, headers });
       
-      // 401エラー（認証切れ）の場合の再試行ロジック
       if (response.status === 401 && retryCount < 1 && !url.includes('/login')) {
         await new Promise(resolve => setTimeout(resolve, 500));
         return authenticatedFetch(url, options, retryCount + 1);
@@ -116,14 +119,11 @@ export function AuthProvider({ children }) {
       return response;
     } catch (e) {
       console.error(`Fetch error for ${url}:`, e);
-      // 再試行
       if (retryCount < 2) {
-        const delay = 1000 * (retryCount + 1);
-        await new Promise(resolve => setTimeout(resolve, delay));
+        await new Promise(resolve => setTimeout(resolve, 1000));
         return authenticatedFetch(url, options, retryCount + 1);
       }
-      // 最終的に失敗した場合は null ではなく偽装したエラーレスポンスを返すか、エラーをスローする
-      // ここでは呼び出し側の response.ok 判定を壊さないためにスローします
+      // エラーオブジェクトをそのまま投げ、呼び出し側で catch できるようにする
       throw e;
     }
   }, [token]);
@@ -177,11 +177,9 @@ export function AuthProvider({ children }) {
     });
 
     const data = await response.json();
-
     if (!response.ok) {
       throw new Error(data.message || '登録に失敗しました。');
     }
-
     return data;
   }, []);
 
