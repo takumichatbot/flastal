@@ -86,33 +86,40 @@ export function AuthProvider({ children }) {
   }, [parseUserFromToken]);
 
   const authenticatedFetch = useCallback(async (url, options = {}, retryCount = 0) => {
-    // URLの組み立てロジックを修正
+    // URLアッセンブリの強化
     let finalUrl = url;
     if (!url.startsWith('http')) {
-        // パスの正規化: 先頭のスラッシュを確実に1つにする
-        let purePath = url.startsWith('/') ? url : `/${url}`;
-        
-        // パスが /api で始まっていない場合は付与する
-        if (!purePath.startsWith('/api/')) {
-            purePath = `/api${purePath}`;
-        }
-        
-        // バックエンドURLと結合（BASE_BACKEND_URLは末尾スラッシュなしを想定）
-        finalUrl = `${BASE_BACKEND_URL}${purePath}`;
+      // 1. 既存のクエリパラメータを保持しつつ、パス部分を抽出
+      const [path, query] = url.split('?');
+      let purePath = path;
+
+      // 2. /api/ の重複チェックと補完
+      if (!purePath.startsWith('/api/')) {
+        purePath = purePath.startsWith('/') ? `/api${purePath}` : `/api/${purePath}`;
+      }
+      
+      // 3. バックエンドのベースURLと結合 (スラッシュの重複を徹底排除)
+      const baseUrl = BASE_BACKEND_URL.replace(/\/$/, '');
+      finalUrl = `${baseUrl}${purePath}${query ? `?${query}` : ''}`;
     }
 
     const now = Date.now();
     const requestKey = `${finalUrl}-${options.method || 'GET'}`;
-    if (requestDebounce.current[requestKey] && (now - requestDebounce.current[requestKey] < 150)) {
-        await new Promise(resolve => setTimeout(resolve, 200));
+    
+    // デバウンス処理中にリクエストを捨てず、待機して実行するように変更
+    if (requestDebounce.current[requestKey] && (now - requestDebounce.current[requestKey] < 100)) {
+      await new Promise(resolve => setTimeout(resolve, 150));
     }
     requestDebounce.current[requestKey] = now;
 
+    // トークンの取得（最新のlocalStorageから取得を優先）
     const storedToken = typeof window !== 'undefined' ? localStorage.getItem('authToken') : token;
     const headers = { ...options.headers };
+    
     if (!(options.body instanceof FormData)) {
       headers['Content-Type'] = 'application/json';
     }
+    
     if (storedToken) {
       const cleanToken = storedToken.replace(/['"]+/g, '').trim();
       headers['Authorization'] = `Bearer ${cleanToken}`;
@@ -125,15 +132,17 @@ export function AuthProvider({ children }) {
         mode: 'cors' 
       });
       
+      // 401エラー時のリトライ（トークンがセットされるのを待つ）
       if (response.status === 401 && retryCount < 1 && !finalUrl.includes('/login')) {
-        await new Promise(resolve => setTimeout(resolve, 500));
-        return authenticatedFetch(finalUrl, options, retryCount + 1);
+        await new Promise(resolve => setTimeout(resolve, 800));
+        return authenticatedFetch(url, options, retryCount + 1);
       }
+      
       return response;
     } catch (e) {
       if (retryCount < 2) {
         await new Promise(resolve => setTimeout(resolve, 1000));
-        return authenticatedFetch(finalUrl, options, retryCount + 1);
+        return authenticatedFetch(url, options, retryCount + 1);
       }
       throw e;
     }
@@ -150,10 +159,11 @@ export function AuthProvider({ children }) {
           }
         }
       } finally {
+        // 初期化時間を少し短縮しつつ確実に完了させる
         setTimeout(() => {
           setIsLoading(false);
           isInitializing.current = false;
-        }, 1000);
+        }, 500);
       }
     };
     initAuth();
