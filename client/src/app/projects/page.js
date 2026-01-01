@@ -2,12 +2,11 @@
 
 import { useState, useEffect, Suspense, useCallback } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
+import { useAuth } from '@/app/contexts/AuthContext'; // ★追加
 import Link from 'next/link';
 import Image from 'next/image';
 import toast from 'react-hot-toast';
 import { FiSearch, FiMapPin, FiCalendar, FiUser, FiLoader, FiFilter } from 'react-icons/fi';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
 const PREFECTURES = [
   '北海道', '青森県', '岩手県', '宮城県', '秋田県', '山形県', '福島県',
@@ -19,34 +18,36 @@ const PREFECTURES = [
   '熊本県', '大分県', '宮崎県', '鹿児島県', '沖縄県'
 ];
 
-// ---------------------------------------------------------
-// メインコンテンツ (データ取得と表示ロジック)
-// ---------------------------------------------------------
 function ProjectsContent() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { authenticatedFetch } = useAuth(); // ★AuthContextから取得
 
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // フォームの状態管理
   const [keyword, setKeyword] = useState(searchParams.get('keyword') || '');
   const [prefecture, setPrefecture] = useState(searchParams.get('prefecture') || '');
 
-  // データ取得関数
   const fetchProjects = useCallback(async () => {
     setLoading(true);
     try {
       const currentKeyword = searchParams.get('keyword');
       const currentPrefecture = searchParams.get('prefecture');
 
-      const url = new URL(`${API_URL}/api/projects`);
-      if (currentKeyword) url.searchParams.append('keyword', currentKeyword);
-      if (currentPrefecture) url.searchParams.append('prefecture', currentPrefecture);
+      // ★authenticatedFetchを使用するように変更。パスだけでOK
+      let queryPath = '/projects';
+      const params = new URLSearchParams();
+      if (currentKeyword) params.append('keyword', currentKeyword);
+      if (currentPrefecture) params.append('prefecture', currentPrefecture);
+      
+      const queryString = params.toString();
+      const finalPath = queryString ? `${queryPath}?${queryString}` : queryPath;
 
-      const res = await fetch(url.toString());
-      if (!res.ok) throw new Error('データの取得に失敗しました');
+      const res = await authenticatedFetch(finalPath);
+      
+      if (!res || !res.ok) throw new Error('データの取得に失敗しました');
       
       const data = await res.json();
       setProjects(data);
@@ -55,19 +56,17 @@ function ProjectsContent() {
         toast('条件に一致する企画はありませんでした', { icon: '🔍' });
       }
     } catch (error) {
-      console.error(error);
-      toast.error('通信エラーが発生しました');
+      console.error('Fetch error:', error);
+      toast.error('通信エラーが発生しました。再読み込みしてください。');
     } finally {
       setLoading(false);
     }
-  }, [searchParams]);
+  }, [searchParams, authenticatedFetch]);
 
-  // URLパラメータが変更されたら再取得
   useEffect(() => {
     fetchProjects();
   }, [fetchProjects]);
 
-  // 検索実行（URLパラメータを更新）
   const handleSearch = (e) => {
     e.preventDefault();
     const params = new URLSearchParams(searchParams);
@@ -85,7 +84,6 @@ function ProjectsContent() {
     <div className="bg-slate-50 min-h-screen py-10 font-sans text-gray-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
-        {/* ヘッダーエリア */}
         <div className="flex flex-col md:flex-row justify-between items-center mb-10 gap-6">
           <div>
             <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight mb-2">みんなの企画</h1>
@@ -98,7 +96,6 @@ function ProjectsContent() {
           </Link>
         </div>
 
-        {/* 検索・フィルター */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-5 mb-10">
           <form onSubmit={handleSearch} className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
             <div className="md:col-span-6">
@@ -147,7 +144,6 @@ function ProjectsContent() {
           </form>
         </div>
 
-        {/* リスト表示エリア */}
         {loading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
              {[...Array(6)].map((_, i) => (
@@ -166,7 +162,6 @@ function ProjectsContent() {
               <Link key={project.id} href={`/projects/${project.id}`} className="group h-full block">
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-xl transition-all duration-300 hover:-translate-y-1 h-full flex flex-col relative">
                   
-                  {/* 画像エリア */}
                   <div className="relative h-52 bg-gray-100 overflow-hidden">
                     {project.imageUrl ? (
                       <Image 
@@ -183,7 +178,6 @@ function ProjectsContent() {
                       </div>
                     )}
                     
-                    {/* ステータスバッジ */}
                     <div className="absolute top-3 right-3">
                         {project.status === 'FUNDRAISING' ? (
                             <span className="bg-white/90 backdrop-blur text-pink-600 text-xs font-bold px-3 py-1 rounded-full shadow-sm">募集中</span>
@@ -196,12 +190,10 @@ function ProjectsContent() {
                   </div>
 
                   <div className="p-5 flex flex-col flex-grow">
-                    {/* タイトル */}
                     <h2 className="text-lg font-bold text-gray-900 group-hover:text-pink-600 transition-colors line-clamp-2 mb-2 leading-snug">
                         {project.title}
                     </h2>
                     
-                    {/* お届け日・場所 */}
                     <div className="space-y-1 mb-4">
                         {project.deliveryDateTime && (
                             <p className="text-xs text-gray-500 flex items-center">
@@ -217,21 +209,19 @@ function ProjectsContent() {
 
                     <div className="flex-grow"></div> 
 
-                    {/* 進捗バー */}
                     <div className="mt-4 pt-4 border-t border-gray-50">
                         <div className="flex justify-between items-end mb-1 text-xs">
-                            <span className="font-bold text-gray-700">{Math.min((project.collectedAmount / project.targetAmount) * 100, 100).toFixed(0)}%</span>
-                            <span className="text-gray-400">あと {(project.targetAmount - project.collectedAmount).toLocaleString()}pt</span>
+                            <span className="font-bold text-gray-700">{Math.min((project.collectedAmount / (project.targetAmount || 1)) * 100, 100).toFixed(0)}%</span>
+                            <span className="text-gray-400">あと {((project.targetAmount || 0) - (project.collectedAmount || 0)).toLocaleString()}pt</span>
                         </div>
                         <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
                             <div 
                                 className="bg-gradient-to-r from-pink-400 to-rose-500 h-full rounded-full" 
-                                style={{ width: `${Math.min((project.collectedAmount / project.targetAmount) * 100, 100)}%` }}
+                                style={{ width: `${Math.min((project.collectedAmount / (project.targetAmount || 1)) * 100, 100)}%` }}
                             ></div>
                         </div>
                     </div>
 
-                    {/* 企画者 */}
                     <div className="mt-3 flex items-center gap-2">
                         {project.planner?.iconUrl ? (
                             <Image src={project.planner.iconUrl} alt="" width={20} height={20} className="rounded-full object-cover border border-gray-200" />
@@ -262,9 +252,6 @@ function ProjectsContent() {
   );
 }
 
-// ---------------------------------------------------------
-// デフォルトエクスポート (Suspenseラッパー)
-// ---------------------------------------------------------
 export default function ProjectsPage() {
   return (
     <Suspense fallback={
