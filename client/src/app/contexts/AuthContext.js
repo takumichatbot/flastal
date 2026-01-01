@@ -29,7 +29,7 @@ export function AuthProvider({ children }) {
   const [isLoading, setIsLoading] = useState(true);
   const isInitializing = useRef(true);
   
-  // 短時間の重複リクエストを防ぐためのメモ
+  // 重複リクエスト制御を少し緩和（100ms以内のみ制限）
   const requestDebounce = useRef({});
   
   const router = useRouter();
@@ -90,9 +90,10 @@ export function AuthProvider({ children }) {
     const now = Date.now();
     const requestKey = `${url}-${options.method || 'GET'}`;
 
-    // 500ms以内の全く同じリクエストをスキップ（無限ループ防止）
-    if (requestDebounce.current[requestKey] && (now - requestDebounce.current[requestKey] < 500)) {
-        return new Response(JSON.stringify({ message: "Duplicate request prevented" }), { status: 429 });
+    // 100ms以内の全く同じリクエストのみをスキップ（Safari等のチャタリング防止に限定）
+    if (requestDebounce.current[requestKey] && (now - requestDebounce.current[requestKey] < 100)) {
+        // 重複時は少し待ってから再実行させることで正常なResponseを返す
+        await new Promise(resolve => setTimeout(resolve, 150));
     }
     requestDebounce.current[requestKey] = now;
 
@@ -111,19 +112,20 @@ export function AuthProvider({ children }) {
     try {
       const response = await fetch(url, { ...options, headers });
       
+      // 401(認証切れ)かつログイン画面以外なら1回だけ再試行
       if (response.status === 401 && retryCount < 1 && !url.includes('/login')) {
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise(resolve => setTimeout(resolve, 300));
         return authenticatedFetch(url, options, retryCount + 1);
       }
       
       return response;
     } catch (e) {
-      console.error(`Fetch error for ${url}:`, e);
+      // ネットワーク切断等のリトライ
       if (retryCount < 2) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        const backoff = (retryCount + 1) * 1000;
+        await new Promise(resolve => setTimeout(resolve, backoff));
         return authenticatedFetch(url, options, retryCount + 1);
       }
-      // エラーオブジェクトをそのまま投げ、呼び出し側で catch できるようにする
       throw e;
     }
   }, [token]);
