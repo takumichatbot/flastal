@@ -86,23 +86,21 @@ export function AuthProvider({ children }) {
   }, [parseUserFromToken]);
 
   const authenticatedFetch = useCallback(async (url, options = {}, retryCount = 0) => {
+    // 1. バックエンドURLの生成を最優先で絶対パス化
     let finalUrl = url;
-    
-    // URLアッセンブリを URL オブジェクトベースに刷新
     if (!url.startsWith('http')) {
-      const purePath = url.split('?')[0];
-      const search = url.split('?')[1] || '';
-      
-      // パスに /api/ が含まれていない場合は付与
-      let apiPath = purePath;
+      const parts = url.split('?');
+      let apiPath = parts[0];
+      const query = parts[1] ? `?${parts[1]}` : '';
+
+      // 先頭のスラッシュを整理し、確実に /api を経由させる
+      apiPath = apiPath.replace(/^\/+/, '/');
       if (!apiPath.startsWith('/api/')) {
-        apiPath = apiPath.startsWith('/') ? `/api${apiPath}` : `/api/${apiPath}`;
+        apiPath = `/api${apiPath}`;
       }
       
-      // BASE_BACKEND_URL に対して絶対パスとして結合
-      const urlObj = new URL(apiPath, BASE_BACKEND_URL);
-      if (search) urlObj.search = search;
-      finalUrl = urlObj.toString();
+      // ドメインとパスをURLオブジェクトで結合（ブラウザの自動補完を防止）
+      finalUrl = new URL(apiPath + query, BASE_BACKEND_URL).toString();
     }
 
     const now = Date.now();
@@ -112,7 +110,7 @@ export function AuthProvider({ children }) {
     }
     requestDebounce.current[requestKey] = now;
 
-    // トークン取得を localStorage 直参照に強化
+    // トークン取得
     let currentToken = token;
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem('authToken');
@@ -131,10 +129,10 @@ export function AuthProvider({ children }) {
       const response = await fetch(finalUrl, { 
         ...options, 
         headers,
-        mode: 'cors' 
+        mode: 'cors',
+        credentials: 'omit' // ブラウザのセッション干渉を防ぐ
       });
       
-      // 401時はトークン反映を待ってリトライ
       if (response.status === 401 && retryCount < 1 && !finalUrl.includes('/login')) {
         await new Promise(resolve => setTimeout(resolve, 600));
         return authenticatedFetch(url, options, retryCount + 1);
@@ -152,7 +150,6 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     const initAuth = () => {
       if (typeof window === 'undefined') return;
-      
       try {
         const storedToken = localStorage.getItem('authToken');
         if (storedToken && storedToken !== 'null') {
@@ -160,11 +157,10 @@ export function AuthProvider({ children }) {
           setSession(storedToken, storedStatus ? { status: storedStatus } : null);
         }
       } finally {
-        // isLoadingの解除タイミングを調整
         setTimeout(() => {
           setIsLoading(false);
           isInitializing.current = false;
-        }, 400);
+        }, 500);
       }
     };
     initAuth();

@@ -31,6 +31,7 @@ function ProjectsContent() {
   const [prefecture, setPrefecture] = useState(searchParams.get('prefecture') || '');
 
   const fetchProjects = useCallback(async () => {
+    // 認証ロード完了を待機
     if (authLoading) return;
 
     setLoading(true);
@@ -43,25 +44,26 @@ function ProjectsContent() {
       if (currentPrefecture) params.append('prefecture', currentPrefecture);
       
       const queryString = params.toString();
-      // パスを /projects に設定（Auth側で /api/projects へ変換）
-      const fetchPath = queryString ? `/projects?${queryString}` : '/projects';
+      // パスを明確にし、フロントエンドのURLと競合しないよう末尾スラッシュなしで指定
+      const fetchPath = `/projects${queryString ? `?${queryString}` : ''}`;
 
       const res = await authenticatedFetch(fetchPath);
       
       if (!res || !res.ok) {
-        throw new Error(`HTTP error! status: ${res?.status || 'no-response'}`);
+        throw new Error(`Status: ${res?.status || 'unknown'}`);
       }
       
       const data = await res.json();
-      const resultList = Array.isArray(data) ? data : (data?.projects || []);
-      setProjects(resultList);
+      // APIがオブジェクトを返した場合でもリストを抽出
+      const result = Array.isArray(data) ? data : (data?.projects || []);
+      setProjects(result);
       
-      if (resultList.length === 0 && (currentKeyword || currentPrefecture)) {
+      if (result.length === 0 && (currentKeyword || currentPrefecture)) {
         toast('条件に一致する企画はありませんでした', { icon: '🔍' });
       }
     } catch (error) {
-      console.error('Fetch error details:', error);
-      toast.error('通信エラーが発生しました。再読み込みしてください。', { id: 'project-fetch-error' });
+      console.error('Fetch error:', error);
+      toast.error('通信エラーが発生しました。再読み込みしてください。', { id: 'fetch-fail' });
     } finally {
       setLoading(false);
     }
