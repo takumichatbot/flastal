@@ -5,7 +5,6 @@ import { jwtDecode } from 'jwt-decode';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 
-// 末尾にスラッシュを入れない
 const BASE_BACKEND_URL = 'https://flastal-backend.onrender.com';
 
 const AuthContext = createContext({
@@ -30,7 +29,6 @@ export function AuthProvider({ children }) {
   const [isLoading, setIsLoading] = useState(true);
   const isInitializing = useRef(true);
   const requestDebounce = useRef({});
-  
   const router = useRouter();
 
   const parseUserFromToken = useCallback((rawToken, extraData = null) => {
@@ -86,21 +84,15 @@ export function AuthProvider({ children }) {
   }, [parseUserFromToken]);
 
   const authenticatedFetch = useCallback(async (url, options = {}, retryCount = 0) => {
-    // 1. バックエンドURLの生成を最優先で絶対パス化
     let finalUrl = url;
     if (!url.startsWith('http')) {
       const parts = url.split('?');
-      let apiPath = parts[0];
-      const query = parts[1] ? `?${parts[1]}` : '';
-
-      // 先頭のスラッシュを整理し、確実に /api を経由させる
-      apiPath = apiPath.replace(/^\/+/, '/');
+      let apiPath = parts[0].replace(/^\/+/, '/');
       if (!apiPath.startsWith('/api/')) {
         apiPath = `/api${apiPath}`;
       }
-      
-      // ドメインとパスをURLオブジェクトで結合（ブラウザの自動補完を防止）
-      finalUrl = new URL(apiPath + query, BASE_BACKEND_URL).toString();
+      const query = parts[1] ? `?${parts[1]}` : '';
+      finalUrl = `${BASE_BACKEND_URL}${apiPath}${query}`;
     }
 
     const now = Date.now();
@@ -110,11 +102,9 @@ export function AuthProvider({ children }) {
     }
     requestDebounce.current[requestKey] = now;
 
-    // トークン取得
     let currentToken = token;
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('authToken');
-      if (stored) currentToken = stored.replace(/['"]+/g, '').trim();
+    if (!currentToken && typeof window !== 'undefined') {
+      currentToken = localStorage.getItem('authToken');
     }
 
     const headers = { ...options.headers };
@@ -122,19 +112,19 @@ export function AuthProvider({ children }) {
       headers['Content-Type'] = 'application/json';
     }
     if (currentToken) {
-      headers['Authorization'] = `Bearer ${currentToken}`;
+      const cleanToken = currentToken.replace(/['"]+/g, '').trim();
+      headers['Authorization'] = `Bearer ${cleanToken}`;
     }
 
     try {
       const response = await fetch(finalUrl, { 
         ...options, 
         headers,
-        mode: 'cors',
-        credentials: 'omit' // ブラウザのセッション干渉を防ぐ
+        mode: 'cors'
       });
       
       if (response.status === 401 && retryCount < 1 && !finalUrl.includes('/login')) {
-        await new Promise(resolve => setTimeout(resolve, 600));
+        await new Promise(resolve => setTimeout(resolve, 500));
         return authenticatedFetch(url, options, retryCount + 1);
       }
       return response;
@@ -149,12 +139,13 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     const initAuth = () => {
-      if (typeof window === 'undefined') return;
       try {
-        const storedToken = localStorage.getItem('authToken');
-        if (storedToken && storedToken !== 'null') {
-          const storedStatus = localStorage.getItem('userStatus');
-          setSession(storedToken, storedStatus ? { status: storedStatus } : null);
+        if (typeof window !== 'undefined') {
+          const storedToken = localStorage.getItem('authToken');
+          if (storedToken && storedToken !== 'null') {
+            const storedStatus = localStorage.getItem('userStatus');
+            setSession(storedToken, storedStatus ? { status: storedStatus } : null);
+          }
         }
       } finally {
         setTimeout(() => {

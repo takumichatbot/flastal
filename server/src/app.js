@@ -44,7 +44,6 @@ const allowedOrigins = [
 
 app.use(cors({
     origin: (origin, callback) => {
-        // originがundefined（同一ドメインやツールからのリクエスト）または許可リストにある場合
         if (!origin || allowedOrigins.includes(origin)) {
             callback(null, true);
         } else {
@@ -62,7 +61,7 @@ app.use(cors({
         "Origin",
         "Cache-Control"
     ],
-    exposedHeaders: ["Authorization"] // クライアントがヘッダーを読み取れるように明示
+    exposedHeaders: ["Authorization"]
 }));
 
 // ==========================================
@@ -118,7 +117,7 @@ app.post('/api/webhooks/stripe', express.raw({type: 'application/json'}), async 
 
             try {
                 await prisma.$transaction(async (tx) => {
-                    const newPledge = await tx.pledge.create({
+                    await tx.pledge.create({
                         data: {
                             amount: amount, 
                             projectId: projectId,
@@ -200,7 +199,8 @@ app.use('/api', userRoutes);
 app.use('/api/florists', floristRoutes);
 
 // 会場・企画関連
-app.use('/api/projects', projectRoutes);
+// ★重要修正: '/api/projects' から '/api' に変更 (projects.js側で /projects を定義しているため)
+app.use('/api', projectRoutes); 
 app.use('/api/venues', venueRoutes);
 app.use('/api/project-details', projectDetailRoutes);
 
