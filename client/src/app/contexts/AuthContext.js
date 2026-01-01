@@ -5,7 +5,8 @@ import { jwtDecode } from 'jwt-decode';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
+// バックエンドのURLを確実に定義（末尾のスラッシュは削除）
+const BASE_BACKEND_URL = (process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com').replace(/\/$/, '');
 
 const AuthContext = createContext({
   user: null,
@@ -28,8 +29,6 @@ export function AuthProvider({ children }) {
   const [token, setToken] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const isInitializing = useRef(true);
-  
-  // 重複リクエスト制御を少し緩和（100ms以内のみ制限）
   const requestDebounce = useRef({});
   
   const router = useRouter();
@@ -87,12 +86,17 @@ export function AuthProvider({ children }) {
   }, [parseUserFromToken]);
 
   const authenticatedFetch = useCallback(async (url, options = {}, retryCount = 0) => {
-    const now = Date.now();
-    const requestKey = `${url}-${options.method || 'GET'}`;
+    // ★重要: URLが http から始まっていない場合、自動的にバックエンドURLを付与する
+    let finalUrl = url;
+    if (!url.startsWith('http')) {
+        const cleanPath = url.startsWith('/') ? url : `/${url}`;
+        finalUrl = `${BASE_BACKEND_URL}${cleanPath}`;
+    }
 
-    // 100ms以内の全く同じリクエストのみをスキップ（Safari等のチャタリング防止に限定）
+    const now = Date.now();
+    const requestKey = `${finalUrl}-${options.method || 'GET'}`;
+
     if (requestDebounce.current[requestKey] && (now - requestDebounce.current[requestKey] < 100)) {
-        // 重複時は少し待ってから再実行させることで正常なResponseを返す
         await new Promise(resolve => setTimeout(resolve, 150));
     }
     requestDebounce.current[requestKey] = now;
@@ -110,21 +114,19 @@ export function AuthProvider({ children }) {
     }
 
     try {
-      const response = await fetch(url, { ...options, headers });
+      const response = await fetch(finalUrl, { ...options, headers });
       
-      // 401(認証切れ)かつログイン画面以外なら1回だけ再試行
-      if (response.status === 401 && retryCount < 1 && !url.includes('/login')) {
+      if (response.status === 401 && retryCount < 1 && !finalUrl.includes('/login')) {
         await new Promise(resolve => setTimeout(resolve, 300));
-        return authenticatedFetch(url, options, retryCount + 1);
+        return authenticatedFetch(finalUrl, options, retryCount + 1);
       }
       
       return response;
     } catch (e) {
-      // ネットワーク切断等のリトライ
       if (retryCount < 2) {
         const backoff = (retryCount + 1) * 1000;
         await new Promise(resolve => setTimeout(resolve, backoff));
-        return authenticatedFetch(url, options, retryCount + 1);
+        return authenticatedFetch(finalUrl, options, retryCount + 1);
       }
       throw e;
     }
@@ -172,7 +174,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   const register = useCallback(async (email, password, handleName, referralCode = '') => {
-    const response = await fetch(`${API_URL}/api/users/register`, {
+    const response = await fetch(`${BASE_BACKEND_URL}/api/users/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password, handleName, referralCode }),
