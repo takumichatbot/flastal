@@ -5,8 +5,8 @@ import { jwtDecode } from 'jwt-decode';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 
-// バックエンドのURLを確実に定義（末尾のスラッシュは削除）
-const BASE_BACKEND_URL = (process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com').replace(/\/$/, '');
+// ★バックエンドの絶対URLを直接定義（環境変数が空の場合のフォールバックを確実にする）
+const BASE_BACKEND_URL = 'https://flastal-backend.onrender.com';
 
 const AuthContext = createContext({
   user: null,
@@ -86,18 +86,23 @@ export function AuthProvider({ children }) {
   }, [parseUserFromToken]);
 
   const authenticatedFetch = useCallback(async (url, options = {}, retryCount = 0) => {
-    // ★重要: URLが http から始まっていない場合、自動的にバックエンドURLを付与する
+    // ★重要: URLが絶対パス（http...）でない場合、バックエンドURLを強制付与
     let finalUrl = url;
     if (!url.startsWith('http')) {
-        const cleanPath = url.startsWith('/') ? url : `/${url}`;
-        finalUrl = `${BASE_BACKEND_URL}${cleanPath}`;
+        // パスの先頭に / がなければ付ける。ただし /api/ がなければ付ける
+        let path = url.startsWith('/') ? url : `/${url}`;
+        if (!path.startsWith('/api/')) {
+            path = `/api${path}`;
+        }
+        finalUrl = `${BASE_BACKEND_URL}${path}`;
     }
 
     const now = Date.now();
     const requestKey = `${finalUrl}-${options.method || 'GET'}`;
 
+    // 超短時間の重複のみスキップ
     if (requestDebounce.current[requestKey] && (now - requestDebounce.current[requestKey] < 100)) {
-        await new Promise(resolve => setTimeout(resolve, 150));
+        await new Promise(resolve => setTimeout(resolve, 100));
     }
     requestDebounce.current[requestKey] = now;
 
@@ -124,8 +129,7 @@ export function AuthProvider({ children }) {
       return response;
     } catch (e) {
       if (retryCount < 2) {
-        const backoff = (retryCount + 1) * 1000;
-        await new Promise(resolve => setTimeout(resolve, backoff));
+        await new Promise(resolve => setTimeout(resolve, 1000));
         return authenticatedFetch(finalUrl, options, retryCount + 1);
       }
       throw e;
