@@ -5,7 +5,7 @@ import { jwtDecode } from 'jwt-decode';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 
-// ★スラッシュの重複を防ぐため正規化
+// 末尾にスラッシュを入れない
 const BASE_BACKEND_URL = 'https://flastal-backend.onrender.com';
 
 const AuthContext = createContext({
@@ -86,15 +86,19 @@ export function AuthProvider({ children }) {
   }, [parseUserFromToken]);
 
   const authenticatedFetch = useCallback(async (url, options = {}, retryCount = 0) => {
-    // ★重要: URLを強制的にバックエンド絶対パスに変換
+    // URLの組み立てロジックを修正
     let finalUrl = url;
     if (!url.startsWith('http')) {
-        let path = url.startsWith('/') ? url : `/${url}`;
-        // /apiがなければ付与
-        if (!path.startsWith('/api/')) {
-            path = `/api${path}`;
+        // パスの正規化: 先頭のスラッシュを確実に1つにする
+        let purePath = url.startsWith('/') ? url : `/${url}`;
+        
+        // パスが /api で始まっていない場合は付与する
+        if (!purePath.startsWith('/api/')) {
+            purePath = `/api${purePath}`;
         }
-        finalUrl = `${BASE_BACKEND_URL}${path}`;
+        
+        // バックエンドURLと結合（BASE_BACKEND_URLは末尾スラッシュなしを想定）
+        finalUrl = `${BASE_BACKEND_URL}${purePath}`;
     }
 
     const now = Date.now();
@@ -115,12 +119,10 @@ export function AuthProvider({ children }) {
     }
 
     try {
-      // mode: 'cors' を強制し、キャッシュを使わせない
       const response = await fetch(finalUrl, { 
         ...options, 
         headers,
-        mode: 'cors',
-        cache: 'no-store' 
+        mode: 'cors' 
       });
       
       if (response.status === 401 && retryCount < 1 && !finalUrl.includes('/login')) {

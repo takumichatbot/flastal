@@ -36,28 +36,27 @@ function ProjectsContent() {
       const currentKeyword = searchParams.get('keyword');
       const currentPrefecture = searchParams.get('prefecture');
 
-      // ★/apiから書き始めることでAuthContextの補完を確実にする
-      let queryPath = '/api/projects'; 
       const params = new URLSearchParams();
       if (currentKeyword) params.append('keyword', currentKeyword);
       if (currentPrefecture) params.append('prefecture', currentPrefecture);
       
       const queryString = params.toString();
-      const finalUrl = queryString ? `${queryPath}?${queryString}` : queryPath;
+      // AuthContext側で /api を自動付与させるため、スラッシュから始める
+      const finalPath = queryString ? `/projects?${queryString}` : '/projects';
 
-      const res = await authenticatedFetch(finalUrl);
+      const res = await authenticatedFetch(finalPath);
       
       if (!res || !res.ok) throw new Error('データの取得に失敗しました');
       
       const data = await res.json();
-      setProjects(data);
+      setProjects(Array.isArray(data) ? data : []);
       
       if (data.length === 0 && (currentKeyword || currentPrefecture)) {
         toast('条件に一致する企画はありませんでした', { icon: '🔍' });
       }
     } catch (error) {
       console.error('Fetch error details:', error);
-      toast.error('通信エラーが発生しました。ページを再読み込みしてください。');
+      toast.error('通信エラーが発生しました。再読み込みしてください。');
     } finally {
       setLoading(false);
     }
@@ -80,13 +79,12 @@ function ProjectsContent() {
   return (
     <div className="bg-slate-50 min-h-screen py-10 font-sans text-gray-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        
         <div className="flex flex-col md:flex-row justify-between items-center mb-10 gap-6">
           <div>
             <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight mb-2">みんなの企画</h1>
             <p className="text-gray-500 text-sm">現在進行中のフラスタ企画を探して応援しよう</p>
           </div>
-          <Link href="/projects/create" prefetch={false}>
+          <Link href="/projects/create">
             <span className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-pink-500 to-rose-500 text-white font-bold rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all cursor-pointer">
               <span className="mr-2">+</span> 企画を立てる
             </span>
@@ -156,7 +154,7 @@ function ProjectsContent() {
         ) : projects.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 animate-fadeIn">
             {projects.map((project) => (
-              <Link key={project.id} href={`/projects/${project.id}`} prefetch={false} className="group h-full block">
+              <Link key={project.id} href={`/projects/${project.id}`} className="group h-full block">
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-xl transition-all duration-300 hover:-translate-y-1 h-full flex flex-col relative">
                   <div className="relative h-52 bg-gray-100 overflow-hidden">
                     {project.imageUrl ? (
@@ -232,7 +230,7 @@ function ProjectsContent() {
             </div>
             <p className="text-lg font-bold text-gray-600 mb-2">企画が見つかりませんでした</p>
             <p className="text-sm text-gray-400 mb-6">条件を変更するか、新しい企画を立ち上げてみませんか？</p>
-            <Link href="/projects/create" prefetch={false}>
+            <Link href="/projects/create">
                 <span className="text-sm font-bold text-pink-500 hover:text-pink-600 underline">企画を作成する &rarr;</span>
             </Link>
           </div>
