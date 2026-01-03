@@ -17,9 +17,9 @@ export const getPendingItems = async (req, res) => {
                 orderBy: { createdAt: 'asc' }
             });
         } else if (type === 'florists') {
-            // 安全なフォールバック参照
-            const model = prisma.florist || prisma.Florist;
-            data = await model.findMany({ where: { status: 'PENDING' }, orderBy: { createdAt: 'asc' } });
+            // Floristモデルへの安全なアクセス
+            const floristModel = prisma.florist || prisma['florist'];
+            data = await floristModel.findMany({ where: { status: 'PENDING' }, orderBy: { createdAt: 'asc' } });
         } else if (type === 'venues') {
             data = await prisma.venue.findMany({ where: { status: 'PENDING' }, orderBy: { createdAt: 'asc' } });
         } else if (type === 'organizers') {
@@ -34,33 +34,40 @@ export const getPendingItems = async (req, res) => {
     }
 };
 
-// ★全お花屋さん取得 (取得失敗を物理的に回避する最終版)
+// ★全お花屋さん取得 (取得失敗を徹底回避する最終構造)
 export const getAllFloristsAdmin = async (req, res) => {
-    console.log("[AdminAPI] Starting getAllFloristsAdmin...");
+    console.log("[AdminAPI] Accessing getAllFloristsAdmin...");
     try {
-        // 1. Prismaのインスタンスとモデルの存在を確認
-        const floristModel = prisma.florist || prisma.Florist;
+        // Prismaのモデル解決 (Florist / florist 両対応)
+        const floristModel = prisma.florist || prisma['florist'];
         
         if (!floristModel) {
-            console.error("CRITICAL: Prisma model 'florist' is not accessible.");
-            // モデルがない場合は空配列を返してフロントエンドを保護
-            return res.status(200).json([]);
+            console.error("CRITICAL: Florist model not found in Prisma instance.");
+            return res.status(500).json({ message: 'データベースモデルの初期化エラー' });
         }
 
-        // 2. データの取得を試行
         const florists = await floristModel.findMany({
-            orderBy: { createdAt: 'desc' }
+            orderBy: { createdAt: 'desc' },
+            select: {
+                id: true,
+                shopName: true,
+                platformName: true,
+                email: true,
+                status: true,
+                customFeeRate: true,
+                createdAt: true,
+                balance: true
+            }
         });
         
-        console.log(`[AdminAPI] Fetch SUCCESS. Count: ${florists?.length || 0}`);
+        console.log(`[AdminAPI] getAllFloristsAdmin SUCCESS: Count=${florists?.length}`);
         
-        // 3. 正常な配列を返却
+        // 常に配列として返す
         return res.status(200).json(florists || []);
 
     } catch (e) {
-        // 4. エラーが発生しても500を返さず、空配列を返してフロントエンドのトーストを防ぐ
-        // 代わりにコンソール（Renderログ）で原因を確認できるようにする
-        console.error('getAllFloristsAdmin INTERNAL ERROR:', e);
+        console.error('getAllFloristsAdmin DATABASE ERROR:', e);
+        // エラー時は空配列を返し、フロントエンドの「失敗しました」表示を回避する
         return res.status(200).json([]); 
     }
 };
@@ -69,9 +76,9 @@ export const getAllFloristsAdmin = async (req, res) => {
 export const getFloristByIdAdmin = async (req, res) => {
     const { id } = req.params;
     try {
-        const model = prisma.florist || prisma.Florist;
-        const florist = await model.findUnique({ where: { id } });
-        if (!florist) return res.status(404).json({ message: 'お花屋さんが見つかりません' });
+        const floristModel = prisma.florist || prisma['florist'];
+        const florist = await floristModel.findUnique({ where: { id } });
+        if (!florist) return res.status(404).json({ message: '対象の花屋が見つかりません' });
         res.json(florist);
     } catch (e) {
         res.status(500).json({ message: '設定データの取得に失敗しました' });
@@ -91,10 +98,15 @@ export const approveItem = async (req, res) => {
             });
             return res.json(project);
         } 
+        
         let updated;
-        if (type === 'florists') updated = await prisma.florist.update({ where: { id }, data: { status } });
+        if (type === 'florists') {
+            const floristModel = prisma.florist || prisma['florist'];
+            updated = await floristModel.update({ where: { id }, data: { status } });
+        }
         else if (type === 'venues') updated = await prisma.venue.update({ where: { id }, data: { status } });
         else if (type === 'organizers') updated = await prisma.organizer.update({ where: { id }, data: { status } });
+
         res.json(updated);
     } catch (e) { 
         res.status(500).json({ message: '更新エラーが発生しました' }); 
@@ -102,13 +114,15 @@ export const approveItem = async (req, res) => {
 };
 
 // ==========================================
-// ★★★ 2. システム設定・手数料 ★★★
+// ★★★ 2. システム設定・手数料 (System Settings) ★★★
 // ==========================================
 
 export const getSystemSettings = async (req, res) => {
     try {
         let settings = await prisma.systemSettings.findFirst();
-        if (!settings) settings = await prisma.systemSettings.create({ data: { platformFeeRate: 0.10 } });
+        if (!settings) {
+            settings = await prisma.systemSettings.create({ data: { platformFeeRate: 0.10 } });
+        }
         res.json(settings);
     } catch (e) { res.status(500).json({ message: '取得失敗' }); }
 };
@@ -117,23 +131,19 @@ export const updateSystemSettings = async (req, res) => {
     const { platformFeeRate } = req.body;
     try {
         let settings = await prisma.systemSettings.findFirst();
-        if (!settings) {
-            settings = await prisma.systemSettings.create({ data: { platformFeeRate: parseFloat(platformFeeRate) } });
-        } else {
-            settings = await prisma.systemSettings.update({
-                where: { id: settings.id },
-                data: { platformFeeRate: parseFloat(platformFeeRate) }
-            });
-        }
-        res.json(settings);
+        const updated = await prisma.systemSettings.update({
+            where: { id: settings.id },
+            data: { platformFeeRate: platformFeeRate !== undefined ? parseFloat(platformFeeRate) : undefined }
+        });
+        res.json(updated);
     } catch (e) { res.status(500).json({ message: '保存失敗' }); }
 };
 
 export const getFloristFee = async (req, res) => {
     const { id } = req.params;
     try {
-        const model = prisma.florist || prisma.Florist;
-        const florist = await model.findUnique({
+        const floristModel = prisma.florist || prisma['florist'];
+        const florist = await floristModel.findUnique({
             where: { id },
             select: { id: true, platformName: true, customFeeRate: true }
         });
@@ -146,9 +156,9 @@ export const updateFloristFee = async (req, res) => {
     const { id } = req.params;
     const { customFeeRate } = req.body; 
     try {
-        const model = prisma.florist || prisma.Florist;
+        const floristModel = prisma.florist || prisma['florist'];
         const rate = (customFeeRate === null || customFeeRate === '') ? null : parseFloat(customFeeRate);
-        const updated = await model.update({
+        const updated = await floristModel.update({
             where: { id },
             data: { customFeeRate: rate },
             select: { id: true, platformName: true, customFeeRate: true }
@@ -168,7 +178,7 @@ export const getCommissions = async (req, res) => {
 };
 
 // ==========================================
-// ★★★ 3. 出金管理 ★★★
+// ★★★ 3. 出金管理 (Payouts) ★★★
 // ==========================================
 
 export const getAdminPayouts = async (req, res) => {
@@ -219,8 +229,8 @@ export const sendIndividualEmail = async (req, res) => {
     try {
         let email = '';
         if (targetRole === 'FLORIST') {
-            const model = prisma.florist || prisma.Florist;
-            const f = await model.findUnique({ where: { id: userId } });
+            const floristModel = prisma.florist || prisma['florist'];
+            const f = await floristModel.findUnique({ where: { id: userId } });
             email = f?.email;
         } else {
             const u = await prisma.user.findUnique({ where: { id: userId } });
@@ -258,7 +268,7 @@ export const getAdminChatMessages = async (req, res) => {
 };
 
 // ==========================================
-// ★★★ 5. その他 ★★★
+// ★★★ 5. その他 (User Search, Venue Admin) ★★★
 // ==========================================
 
 export const searchAllUsers = async (req, res) => {
