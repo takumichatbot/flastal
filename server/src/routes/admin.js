@@ -17,9 +17,10 @@ router.get('/florists/pending', (req, res) => { req.params.type = 'florists'; ad
 router.get('/venues/pending', (req, res) => { req.params.type = 'venues'; adminController.getPendingItems(req, res); });
 router.get('/organizers/pending', (req, res) => { req.params.type = 'organizers'; adminController.getPendingItems(req, res); });
 
-// ★追加・修正: お花屋さん管理用のルートを統合
-router.get('/florists/all', adminController.getAllFloristsAdmin); // 全リスト取得用
-router.get('/florists/:floristId', adminController.getFloristByIdAdmin); // 個別データ取得用
+// --- お花屋さん管理ルート ---
+router.get('/florists/all', adminController.getAllFloristsAdmin);
+// ★修正: パラメータ名を :id にしてコントローラーと同期
+router.get('/florists/:id', adminController.getFloristByIdAdmin); 
 
 // 承認実行
 router.post('/approve/:type/:id', adminController.approveItem);
@@ -30,8 +31,9 @@ router.patch('/settings', adminController.updateSystemSettings);
 
 // --- 手数料・売上 ---
 router.get('/commissions', adminController.getCommissions);
-router.get('/florists/:floristId/fee', adminController.getFloristFee);
-router.patch('/florists/:floristId/fee', adminController.updateFloristFee);
+// ★修正: ここも :id に統一
+router.get('/florists/:id/fee', adminController.getFloristFee);
+router.patch('/florists/:id/fee', adminController.updateFloristFee);
 
 // --- 出金管理 ---
 router.get('/payouts', adminController.getAdminPayouts);

@@ -32,7 +32,6 @@ export const getPendingItems = async (req, res) => {
     }
 };
 
-// ★全お花屋さん取得
 export const getAllFloristsAdmin = async (req, res) => {
     try {
         const florists = await prisma.florist.findMany({
@@ -41,18 +40,15 @@ export const getAllFloristsAdmin = async (req, res) => {
         res.json(florists);
     } catch (e) {
         console.error(e);
-        res.status(500).json({ message: 'お花屋さんリスト取得エラー' });
+        res.status(500).json({ message: '花屋リストの取得に失敗しました。' });
     }
 };
 
-// ★個別お花屋さん取得
 export const getFloristByIdAdmin = async (req, res) => {
-    const { floristId } = req.params;
+    const { id } = req.params;
     try {
-        const florist = await prisma.florist.findUnique({
-            where: { id: floristId }
-        });
-        if (!florist) return res.status(404).json({ message: 'お花屋さんが見つかりません' });
+        const florist = await prisma.florist.findUnique({ where: { id } });
+        if (!florist) return res.status(404).json({ message: 'お花屋さんが見見つかりません' });
         res.json(florist);
     } catch (e) {
         res.status(500).json({ message: '設定データの取得に失敗しました' });
@@ -71,18 +67,12 @@ export const approveItem = async (req, res) => {
                 data: { status: projectStatus },
                 include: { planner: true }
             });
-
-            if (projectStatus === 'FUNDRAISING') {
-                await createNotification(project.plannerId, 'PROJECT_APPROVED', '企画が承認されました！', id, `/projects/${id}`);
-            }
             return res.json(project);
         } 
-        
         let updated;
         if (type === 'florists') updated = await prisma.florist.update({ where: { id }, data: { status } });
         else if (type === 'venues') updated = await prisma.venue.update({ where: { id }, data: { status } });
         else if (type === 'organizers') updated = await prisma.organizer.update({ where: { id }, data: { status } });
-
         res.json(updated);
     } catch (e) { 
         res.status(500).json({ message: '更新エラーが発生しました' }); 
@@ -96,7 +86,7 @@ export const approveItem = async (req, res) => {
 export const getSystemSettings = async (req, res) => {
     try {
         let settings = await prisma.systemSettings.findFirst();
-        if (!settings) settings = await prisma.systemSettings.create({ data: {} });
+        if (!settings) settings = await prisma.systemSettings.create({ data: { platformFeeRate: 0.10 } });
         res.json(settings);
     } catch (e) { res.status(500).json({ message: '設定データの取得に失敗しました' }); }
 };
@@ -104,20 +94,24 @@ export const getSystemSettings = async (req, res) => {
 export const updateSystemSettings = async (req, res) => {
     const { platformFeeRate } = req.body;
     try {
-        const settings = await prisma.systemSettings.findFirst();
-        const updated = await prisma.systemSettings.update({
-            where: { id: settings.id },
-            data: { platformFeeRate: platformFeeRate !== undefined ? parseFloat(platformFeeRate) : undefined }
-        });
-        res.json(updated);
+        let settings = await prisma.systemSettings.findFirst();
+        if (!settings) {
+            settings = await prisma.systemSettings.create({ data: { platformFeeRate: parseFloat(platformFeeRate) } });
+        } else {
+            settings = await prisma.systemSettings.update({
+                where: { id: settings.id },
+                data: { platformFeeRate: parseFloat(platformFeeRate) }
+            });
+        }
+        res.json(settings);
     } catch (e) { res.status(500).json({ message: '保存に失敗しました' }); }
 };
 
 export const getFloristFee = async (req, res) => {
-    const { floristId } = req.params;
+    const { id } = req.params;
     try {
         const florist = await prisma.florist.findUnique({
-            where: { id: floristId },
+            where: { id },
             select: { id: true, platformName: true, customFeeRate: true }
         });
         if (!florist) return res.status(404).json({ message: 'Not found' });
@@ -126,17 +120,21 @@ export const getFloristFee = async (req, res) => {
 };
 
 export const updateFloristFee = async (req, res) => {
-    const { floristId } = req.params;
+    const { id } = req.params;
     const { customFeeRate } = req.body; 
     try {
+        // 数値変換の安全策
         const rate = (customFeeRate === null || customFeeRate === '') ? null : parseFloat(customFeeRate);
         const updated = await prisma.florist.update({
-            where: { id: floristId },
+            where: { id },
             data: { customFeeRate: rate },
             select: { id: true, platformName: true, customFeeRate: true }
         });
         res.json(updated);
-    } catch (e) { res.status(500).json({ message: '保存に失敗しました' }); }
+    } catch (e) { 
+        console.error(e);
+        res.status(500).json({ message: '保存に失敗しました' }); 
+    }
 };
 
 export const getCommissions = async (req, res) => {
