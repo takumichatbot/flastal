@@ -17,6 +17,7 @@ export const getPendingItems = async (req, res) => {
                 orderBy: { createdAt: 'asc' }
             });
         } else if (type === 'florists') {
+            // モデル名 florist でアクセス
             data = await prisma.florist.findMany({ where: { status: 'PENDING' }, orderBy: { createdAt: 'asc' } });
         } else if (type === 'venues') {
             data = await prisma.venue.findMany({ where: { status: 'PENDING' }, orderBy: { createdAt: 'asc' } });
@@ -35,25 +36,31 @@ export const getPendingItems = async (req, res) => {
 // ★全お花屋さん取得 (取得失敗を絶対に防ぐガード版)
 export const getAllFloristsAdmin = async (req, res) => {
     try {
-        // prisma.florist が存在するか確認しつつ取得
-        if (!prisma.florist) {
-            throw new Error('Prisma Florist model is not initialized');
+        // Prismaのインスタンスとお花屋さんのモデルが存在するか厳密にチェック
+        if (!prisma || !prisma.florist) {
+            console.error('CRITICAL: Prisma client or Florist model is missing!');
+            return res.status(500).json({ message: 'データベース接続の初期化に失敗しています。' });
         }
 
         const florists = await prisma.florist.findMany({
             orderBy: { createdAt: 'desc' }
         });
         
-        // ログ出力（Renderのログで確認可能）
-        console.log(`[AdminAPI] getAllFloristsAdmin success. Count: ${florists?.length}`);
+        // 取得成功ログ
+        console.log(`[AdminAPI] getAllFloristsAdmin SUCCESS. Found ${florists?.length || 0} florists.`);
         
-        // nullやundefinedの場合に備えて必ず配列を返す
-        res.status(200).json(florists || []);
+        // 常に配列を返す (nullやundefinedを防ぐ)
+        return res.status(200).json(florists || []);
+
     } catch (e) {
-        console.error('getAllFloristsAdmin Critical Error:', e);
-        // エラー時でも空配列を返すことでフロントエンドの「取得に失敗しました」トーストを抑制し、
-        // かわりにコンソールで原因を特定できるようにします
-        res.status(500).json({ message: '花屋リストの取得に失敗しました。', error: e.message });
+        // ここでエラー内容をRenderのコンソールに詳細出力します
+        console.error('getAllFloristsAdmin DATABASE ERROR:', e);
+        
+        // フロントエンドのトーストに原因が表示されるようにメッセージを詳細化
+        return res.status(500).json({ 
+            message: 'お花屋さんリストを取得できませんでした。データベースの同期を確認してください。',
+            error: e.message 
+        });
     }
 };
 
