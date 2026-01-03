@@ -32,23 +32,30 @@ export const getPendingItems = async (req, res) => {
     }
 };
 
+// ★全お花屋さん取得 (管理画面用)
 export const getAllFloristsAdmin = async (req, res) => {
     try {
+        // Prismaモデル名が 'florist' であることを確認してください
         const florists = await prisma.florist.findMany({
             orderBy: { createdAt: 'desc' }
         });
-        res.json(florists);
+        
+        // ログで取得件数を確認 (Renderのログに出力されます)
+        console.log(`[Admin] Fetched ${florists.length} florists.`);
+        
+        res.status(200).json(florists);
     } catch (e) {
-        console.error(e);
+        console.error('getAllFloristsAdmin Critical Error:', e);
         res.status(500).json({ message: '花屋リストの取得に失敗しました。' });
     }
 };
 
+// ★個別お花屋さん取得
 export const getFloristByIdAdmin = async (req, res) => {
     const { id } = req.params;
     try {
         const florist = await prisma.florist.findUnique({ where: { id } });
-        if (!florist) return res.status(404).json({ message: 'お花屋さんが見見つかりません' });
+        if (!florist) return res.status(404).json({ message: 'お花屋さんが見つかりません' });
         res.json(florist);
     } catch (e) {
         res.status(500).json({ message: '設定データの取得に失敗しました' });
@@ -58,7 +65,6 @@ export const getFloristByIdAdmin = async (req, res) => {
 export const approveItem = async (req, res) => {
     const { type, id } = req.params;
     const { status, adminComment } = req.body;
-
     try {
         if (type === 'projects') {
             const projectStatus = status === 'APPROVED' ? 'FUNDRAISING' : 'REJECTED';
@@ -123,7 +129,6 @@ export const updateFloristFee = async (req, res) => {
     const { id } = req.params;
     const { customFeeRate } = req.body; 
     try {
-        // 数値変換の安全策
         const rate = (customFeeRate === null || customFeeRate === '') ? null : parseFloat(customFeeRate);
         const updated = await prisma.florist.update({
             where: { id },
