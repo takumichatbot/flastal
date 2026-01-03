@@ -26,16 +26,18 @@ export const getPendingItems = async (req, res) => {
         } else {
             return res.status(400).json({ message: 'Invalid type' });
         }
-        res.json(data);
+        res.json(data || []);
     } catch (e) { 
         console.error('getPendingItems Error:', e);
         res.status(500).json({ message: '取得に失敗しました' }); 
     }
 };
 
-// ★追加: 管理画面用お花屋さん全リスト取得
+// ★修正: 管理画面用お花屋さん全リスト取得
+// フロントエンド(src/app/admin/florists/page.js)が /api/admin/florists/all を叩く際に呼ばれる
 export const getAllFloristsAdmin = async (req, res) => {
     try {
+        // Prisma Clientが生成した florist プロパティを使用して取得
         const florists = await prisma.florist.findMany({
             orderBy: { platformName: 'asc' },
             select: {
@@ -48,10 +50,34 @@ export const getAllFloristsAdmin = async (req, res) => {
                 createdAt: true
             }
         });
-        res.json(florists);
+        
+        // ログで成功を確認
+        console.log(`[AdminAPI] getAllFloristsAdmin SUCCESS: Found ${florists?.length || 0} items`);
+        
+        // 確実に配列形式で返却
+        res.status(200).json(florists || []);
     } catch (e) {
         console.error('getAllFloristsAdmin Error:', e);
-        res.status(500).json({ message: 'お花屋さんリストの取得に失敗しました' });
+        // エラー時でも空配列を返すことでトーストを抑制するか、500エラーとして詳細を返す
+        res.status(500).json({ 
+            message: 'お花屋さんリストの取得に失敗しました',
+            error: e.message 
+        });
+    }
+};
+
+// ★追加: 個別お花屋さん取得（手数料設定モーダル用）
+export const getFloristByIdAdmin = async (req, res) => {
+    const { id } = req.params;
+    try {
+        const florist = await prisma.florist.findUnique({
+            where: { id }
+        });
+        if (!florist) return res.status(404).json({ message: '対象の花屋が見つかりません' });
+        res.json(florist);
+    } catch (e) {
+        console.error('getFloristByIdAdmin Error:', e);
+        res.status(500).json({ message: '設定データの取得に失敗しました' });
     }
 };
 
@@ -164,10 +190,10 @@ export const updateSystemSettings = async (req, res) => {
 };
 
 export const getFloristFee = async (req, res) => {
-    const { floristId } = req.params;
+    const { id } = req.params; // routes/admin.js の :id と合わせる
     try {
         const florist = await prisma.florist.findUnique({
-            where: { id: floristId },
+            where: { id: id },
             select: { id: true, platformName: true, customFeeRate: true }
         });
         if (!florist) return res.status(404).json({ message: 'Not found' });
@@ -176,17 +202,17 @@ export const getFloristFee = async (req, res) => {
 };
 
 export const updateFloristFee = async (req, res) => {
-    const { floristId } = req.params;
+    const { id } = req.params; // routes/admin.js の :id と合わせる
     const { customFeeRate } = req.body; 
     try {
-        const rate = customFeeRate === null ? null : parseFloat(customFeeRate);
+        const rate = (customFeeRate === null || customFeeRate === '') ? null : parseFloat(customFeeRate);
         const updated = await prisma.florist.update({
-            where: { id: floristId },
+            where: { id: id },
             data: { customFeeRate: rate },
             select: { id: true, platformName: true, customFeeRate: true }
         });
         res.json(updated);
-    } catch (e) { res.status(500).json({ message: '更新失敗' }); }
+    } catch (e) { res.status(500).json({ message: '保存に失敗しました' }); }
 };
 
 export const getCommissions = async (req, res) => {
@@ -195,7 +221,7 @@ export const getCommissions = async (req, res) => {
             orderBy: { createdAt: 'desc' },
             include: { project: { select: { title: true } } }
         });
-        res.json(commissions);
+        res.json(commissions || []);
     } catch (e) { res.status(500).json({ message: '取得失敗' }); }
 };
 
@@ -220,7 +246,7 @@ export const getAdminPayouts = async (req, res) => {
                 orderBy: { createdAt: 'asc' }
             });
         }
-        res.json(payouts);
+        res.json(payouts || []);
     } catch (e) { res.status(500).json({ message: 'Error' }); }
 };
 
@@ -264,7 +290,7 @@ export const updateAdminPayoutStatus = async (req, res) => {
 export const getEmailTemplates = async (req, res) => {
     try {
         const data = await prisma.emailTemplate.findMany({ orderBy: { name: 'asc' } });
-        res.json(data);
+        res.json(data || []);
     } catch (e) { res.status(500).json({ message: '取得失敗' }); }
 };
 
@@ -326,7 +352,7 @@ export const getReports = async (req, res) => {
         }
         if (type === 'events') {
             const reports = await prisma.eventReport.findMany({ where: { status: 'PENDING' }, include: { event: true, reporter: true } });
-            return res.json(reports);
+            return res.json(reports || []);
         }
         res.json([]);
     } catch (e) { res.status(500).json({ message: 'Error' }); }
@@ -344,7 +370,7 @@ export const createAdminChatRoom = async (req, res) => {
 export const getAdminChatMessages = async (req, res) => {
     try {
         const messages = await prisma.adminChatMessage.findMany({ where: { chatRoomId: req.params.roomId }, orderBy: { createdAt: 'asc' } });
-        res.json(messages);
+        res.json(messages || []);
     } catch (e) { res.status(500).json({ message: 'Error' }); }
 };
 
@@ -365,7 +391,7 @@ export const searchAllUsers = async (req, res) => {
 export const getAllProjectsAdmin = async (req, res) => {
     try {
         const projects = await prisma.project.findMany({ orderBy: { createdAt: 'desc' }, include: { planner: { select: { handleName: true } } } });
-        res.json(projects);
+        res.json(projects || []);
     } catch (e) { res.status(500).json({ message: 'Error' }); }
 };
 
