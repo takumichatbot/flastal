@@ -33,7 +33,7 @@ export const getPendingItems = async (req, res) => {
     }
 };
 
-// ★追加: 管理画面用お花屋さん全リスト取得
+// 管理画面用お花屋さん全リスト取得
 export const getAllFloristsAdmin = async (req, res) => {
     try {
         const florists = await prisma.florist.findMany({
@@ -175,18 +175,30 @@ export const getFloristFee = async (req, res) => {
     } catch (e) { res.status(500).json({ message: 'Error' }); }
 };
 
+// ★重要修正: parseFloatの結果を厳密にチェック
 export const updateFloristFee = async (req, res) => {
     const { floristId } = req.params;
     const { customFeeRate } = req.body; 
     try {
-        const rate = customFeeRate === null ? null : parseFloat(customFeeRate);
+        let rate = null;
+        if (customFeeRate !== null && customFeeRate !== undefined && customFeeRate !== '') {
+            rate = parseFloat(customFeeRate);
+            // 数値変換に失敗した場合はエラー
+            if (isNaN(rate)) {
+                return res.status(400).json({ message: '無効な数値形式です' });
+            }
+        }
+        
         const updated = await prisma.florist.update({
             where: { id: floristId },
             data: { customFeeRate: rate },
             select: { id: true, platformName: true, customFeeRate: true }
         });
         res.json(updated);
-    } catch (e) { res.status(500).json({ message: '更新失敗' }); }
+    } catch (e) { 
+        console.error('updateFloristFee Error:', e);
+        res.status(500).json({ message: '手数料設定の保存に失敗しました' }); 
+    }
 };
 
 export const getCommissions = async (req, res) => {
