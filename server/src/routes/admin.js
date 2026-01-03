@@ -6,24 +6,20 @@ const router = express.Router();
 
 /**
  * 全ての管理ルートに認証とAdmin権限を強制
- * ※ app.js で /api/admin にマウントされているため、
- * ここでの '/' は実質 '/api/admin/' となります。
  */
 router.use(authenticateToken);
 router.use(requireAdmin);
 
 // --- 審査・承認ルート ---
-// 形式A: /api/admin/pending/:type
 router.get('/pending/:type', adminController.getPendingItems);
-
-// 形式B: /api/admin/:type/pending (フロントエンドの現在の挙動に合わせる)
 router.get('/projects/pending', (req, res) => { req.params.type = 'projects'; adminController.getPendingItems(req, res); });
 router.get('/florists/pending', (req, res) => { req.params.type = 'florists'; adminController.getPendingItems(req, res); });
 router.get('/venues/pending', (req, res) => { req.params.type = 'venues'; adminController.getPendingItems(req, res); });
 router.get('/organizers/pending', (req, res) => { req.params.type = 'organizers'; adminController.getPendingItems(req, res); });
 
-// ★追加: 全てのお花屋さんを取得するルート
-router.get('/florists/all', adminController.getAllFloristsAdmin);
+// ★追加・修正: お花屋さん管理用のルートを統合
+router.get('/florists/all', adminController.getAllFloristsAdmin); // 全リスト取得用
+router.get('/florists/:floristId', adminController.getFloristByIdAdmin); // 個別データ取得用
 
 // 承認実行
 router.post('/approve/:type/:id', adminController.approveItem);
