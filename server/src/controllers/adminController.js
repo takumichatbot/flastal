@@ -25,28 +25,35 @@ export const getPendingItems = async (req, res) => {
         } else {
             return res.status(400).json({ message: 'Invalid type' });
         }
-        res.json(data);
+        res.json(data || []);
     } catch (e) { 
         console.error('getPendingItems Error:', e);
         res.status(500).json({ message: '取得に失敗しました' }); 
     }
 };
 
-// ★全お花屋さん取得 (管理画面用)
+// ★全お花屋さん取得 (取得失敗を絶対に防ぐガード版)
 export const getAllFloristsAdmin = async (req, res) => {
     try {
-        // Prismaモデル名が 'florist' であることを確認してください
+        // prisma.florist が存在するか確認しつつ取得
+        if (!prisma.florist) {
+            throw new Error('Prisma Florist model is not initialized');
+        }
+
         const florists = await prisma.florist.findMany({
             orderBy: { createdAt: 'desc' }
         });
         
-        // ログで取得件数を確認 (Renderのログに出力されます)
-        console.log(`[Admin] Fetched ${florists.length} florists.`);
+        // ログ出力（Renderのログで確認可能）
+        console.log(`[AdminAPI] getAllFloristsAdmin success. Count: ${florists?.length}`);
         
-        res.status(200).json(florists);
+        // nullやundefinedの場合に備えて必ず配列を返す
+        res.status(200).json(florists || []);
     } catch (e) {
         console.error('getAllFloristsAdmin Critical Error:', e);
-        res.status(500).json({ message: '花屋リストの取得に失敗しました。' });
+        // エラー時でも空配列を返すことでフロントエンドの「取得に失敗しました」トーストを抑制し、
+        // かわりにコンソールで原因を特定できるようにします
+        res.status(500).json({ message: '花屋リストの取得に失敗しました。', error: e.message });
     }
 };
 
@@ -148,7 +155,7 @@ export const getCommissions = async (req, res) => {
             orderBy: { createdAt: 'desc' },
             include: { project: { select: { title: true } } }
         });
-        res.json(commissions);
+        res.json(commissions || []);
     } catch (e) { res.status(500).json({ message: '取得に失敗しました' }); }
 };
 
@@ -162,7 +169,7 @@ export const getAdminPayouts = async (req, res) => {
         let payouts = (type === 'user') 
             ? await prisma.payout.findMany({ where: { status: 'PENDING' }, include: { user: { include: { bankAccount: true } } } })
             : await prisma.payoutRequest.findMany({ where: { status: 'PENDING' }, include: { florist: true } });
-        res.json(payouts);
+        res.json(payouts || []);
     } catch (e) { res.status(500).json({ message: '取得エラー' }); }
 };
 
@@ -184,7 +191,7 @@ export const updateAdminPayoutStatus = async (req, res) => {
 export const getEmailTemplates = async (req, res) => {
     try {
         const data = await prisma.emailTemplate.findMany({ orderBy: { name: 'asc' } });
-        res.json(data);
+        res.json(data || []);
     } catch (e) { res.status(500).json({ message: '取得失敗' }); }
 };
 
@@ -222,7 +229,7 @@ export const getReports = async (req, res) => {
         let reports = (type === 'chat')
             ? await prisma.chatMessageReport.findMany({ where: { status: 'PENDING' }, include: { message: true } })
             : await prisma.eventReport.findMany({ where: { status: 'PENDING' }, include: { event: true } });
-        res.json(reports);
+        res.json(reports || []);
     } catch (e) { res.status(500).json({ message: '取得失敗' }); }
 };
 
@@ -237,7 +244,7 @@ export const createAdminChatRoom = async (req, res) => {
 export const getAdminChatMessages = async (req, res) => {
     try {
         const messages = await prisma.adminChatMessage.findMany({ where: { chatRoomId: req.params.roomId }, orderBy: { createdAt: 'asc' } });
-        res.json(messages);
+        res.json(messages || []);
     } catch (e) { res.status(500).json({ message: '取得失敗' }); }
 };
 
@@ -249,14 +256,14 @@ export const searchAllUsers = async (req, res) => {
     const { keyword } = req.query;
     try {
         const users = await prisma.user.findMany({ where: { handleName: { contains: keyword, mode: 'insensitive' } } });
-        res.json(users);
+        res.json(users || []);
     } catch (e) { res.status(500).json({ message: '検索失敗' }); }
 };
 
 export const getAllProjectsAdmin = async (req, res) => {
     try {
         const projects = await prisma.project.findMany({ orderBy: { createdAt: 'desc' }, include: { planner: true } });
-        res.json(projects);
+        res.json(projects || []);
     } catch (e) { res.status(500).json({ message: '取得失敗' }); }
 };
 
@@ -264,7 +271,7 @@ export const getProjectChatLogs = async (req, res) => {
     const { projectId } = req.params;
     try {
         const logs = await prisma.chatMessage.findMany({ where: { chatRoom: { offer: { projectId } } } });
-        res.json(logs);
+        res.json(logs || []);
     } catch (e) { res.status(500).json({ message: '取得失敗' }); }
 };
 
