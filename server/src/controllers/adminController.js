@@ -33,6 +33,28 @@ export const getPendingItems = async (req, res) => {
     }
 };
 
+// ★追加: 管理画面用お花屋さん全リスト取得
+export const getAllFloristsAdmin = async (req, res) => {
+    try {
+        const florists = await prisma.florist.findMany({
+            orderBy: { platformName: 'asc' },
+            select: {
+                id: true,
+                shopName: true,
+                platformName: true,
+                email: true,
+                status: true,
+                customFeeRate: true,
+                createdAt: true
+            }
+        });
+        res.json(florists);
+    } catch (e) {
+        console.error('getAllFloristsAdmin Error:', e);
+        res.status(500).json({ message: 'お花屋さんリストの取得に失敗しました' });
+    }
+};
+
 // 審査実行 (プロジェクト・花屋・会場・主催者)
 export const approveItem = async (req, res) => {
     const { type, id } = req.params;
@@ -49,7 +71,6 @@ export const approveItem = async (req, res) => {
                 include: { planner: true }
             });
 
-            // 非同期で通知とメールを処理（メインのレスポンスを妨げない）
             try {
                 if (projectStatus === 'FUNDRAISING') {
                     await createNotification(project.plannerId, 'PROJECT_APPROVED', '企画が承認され、公開されました！', id, `/projects/${id}`);

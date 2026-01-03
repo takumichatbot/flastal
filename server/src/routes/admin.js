@@ -22,6 +22,9 @@ router.get('/florists/pending', (req, res) => { req.params.type = 'florists'; ad
 router.get('/venues/pending', (req, res) => { req.params.type = 'venues'; adminController.getPendingItems(req, res); });
 router.get('/organizers/pending', (req, res) => { req.params.type = 'organizers'; adminController.getPendingItems(req, res); });
 
+// ★追加: 全てのお花屋さんを取得するルート
+router.get('/florists/all', adminController.getAllFloristsAdmin);
+
 // 承認実行
 router.post('/approve/:type/:id', adminController.approveItem);
 

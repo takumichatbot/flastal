@@ -57,25 +57,26 @@ export default function VenueRegisterPage() {
           </div>
           <h2 className="text-3xl font-bold text-gray-800 mb-4">申請ありがとうございます</h2>
           <div className="bg-green-50 border border-green-100 rounded-xl p-6 mb-8 text-left">
-            <p className="text-gray-700 font-medium mb-2">審査完了までの流れ：</p>
+            <p className="text-gray-700 font-medium mb-2">今後の流れ：</p>
             <ul className="text-sm text-gray-600 space-y-3">
               <li className="flex items-start">
                 <span className="bg-green-200 text-green-700 rounded-full w-5 h-5 flex items-center justify-center text-xs mt-0.5 mr-2 shrink-0">1</span>
-                <span>ご入力いただいたメールアドレス宛に、本人確認メールを送信しました。</span>
+                <span>本人確認メールを送信しました。メール内のボタンをクリックして認証を完了してください。</span>
               </li>
               <li className="flex items-start">
                 <span className="bg-green-200 text-green-700 rounded-full w-5 h-5 flex items-center justify-center text-xs mt-0.5 mr-2 shrink-0">2</span>
-                <span>メール内のリンクから認証を完了させてください。</span>
+                <span>事務局にて会場情報の審査を行います（通常1〜3営業日）。</span>
               </li>
               <li className="flex items-start">
                 <span className="bg-green-200 text-green-700 rounded-full w-5 h-5 flex items-center justify-center text-xs mt-0.5 mr-2 shrink-0">3</span>
-                <span>認証完了後、運営事務局にて会場情報の確認と審査を行います。</span>
+                <span>審査承認後、ご登録のメールアドレスに通知が届き、ログイン可能となります。</span>
               </li>
             </ul>
           </div>
-          <p className="text-gray-500 text-sm mb-8">※審査には通常1〜3営業日ほどお時間をいただいております。</p>
-          <Link href="/" className="block w-full py-3.5 bg-green-600 text-white rounded-lg font-bold text-lg shadow-md hover:bg-green-700 transition-all">
-            トップページへ戻る
+          <p className="text-gray-500 text-sm mb-8">※メールが届かない場合は、ログイン画面から再送が可能です。</p>
+          {/* ★リンク先を会場ログインに修正 */}
+          <Link href="/venues/login" className="block w-full py-3.5 bg-green-600 text-white rounded-lg font-bold text-lg shadow-md hover:bg-green-700 transition-all">
+            ログインページへ移動
           </Link>
         </div>
       </div>

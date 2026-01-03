@@ -32,12 +32,14 @@ function OrganizerLoginContent() {
       const result = await res.json();
 
       if (!res.ok) {
+        // ステータス403かつメッセージに「認証」または「Verification」が含まれる場合、再送ボタンを表示
         if (res.status === 403 && (result.message.includes('認証') || result.message.includes('Verification'))) {
             setShowResend(true);
         }
         throw new Error(result.message || 'ログインに失敗しました。');
       }
 
+      // ログイン成功時、AuthContextにトークンをセット
       login(result.token);
       toast.success('主催者としてログインしました');
       router.push('/organizers/dashboard');
@@ -47,6 +49,7 @@ function OrganizerLoginContent() {
     }
   };
 
+  // 認証メールの再送処理
   const handleResendEmail = async () => {
     const email = getValues('email');
     if (!email) return toast.error('メールアドレスを入力してください');
@@ -61,7 +64,7 @@ function OrganizerLoginContent() {
       const data = await res.json();
       
       if (res.ok) {
-        toast.success(data.message, { id: toastId });
+        toast.success(data.message || '認証メールを再送しました', { id: toastId });
         setShowResend(false);
       } else {
         throw new Error(data.message);
@@ -127,15 +130,16 @@ function OrganizerLoginContent() {
         </form>
 
         {showResend && (
-            <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-xl text-center">
-                <button type="button" onClick={handleResendEmail} className="text-yellow-700 font-bold text-sm flex items-center justify-center w-full">
+            <div className="mt-6 p-4 bg-pink-50 border border-pink-200 rounded-xl text-center">
+                <p className="text-sm text-pink-800 mb-3 font-medium">認証が完了していないようです</p>
+                <button type="button" onClick={handleResendEmail} className="inline-flex items-center px-4 py-2 bg-white border border-pink-300 text-pink-700 font-bold rounded-lg hover:bg-pink-100 transition shadow-sm text-sm">
                     <FiMail className="mr-2" /> 認証メールを再送する
                 </button>
             </div>
         )}
 
         <div className="mt-8 pt-6 border-t border-gray-100 text-center">
-            <Link href="/organizers/register" className="font-bold text-indigo-600 hover:text-indigo-700">
+            <Link href="/organizers/register" className="font-bold text-indigo-600 hover:text-indigo-700 hover:underline">
               新規主催者登録（無料）
             </Link>
         </div>
