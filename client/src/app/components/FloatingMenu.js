@@ -28,9 +28,7 @@ export default function FloatingMenu() {
 
   return (
     <>
-      {/* バックドロップ (メニューが開いている時だけ表示)
-        画面全体を覆い、クリックするとメニューを閉じる
-      */}
+      {/* バックドロップ */}
       <div 
         className={`fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40 transition-opacity duration-300 ${
           isOpen ? 'opacity-100 visible' : 'opacity-0 invisible pointer-events-none'
@@ -41,7 +39,7 @@ export default function FloatingMenu() {
       {/* メニュー本体 */}
       <div className="fixed bottom-6 right-6 z-50 flex flex-col-reverse items-end gap-4 pointer-events-none">
         
-        {/* メインボタン (常時表示・操作可能) */}
+        {/* メインボタン */}
         <button
           onClick={toggleMenu}
           className={`pointer-events-auto w-16 h-16 rounded-full shadow-xl flex items-center justify-center text-3xl text-white transition-all duration-300 transform active:scale-95 ${
@@ -55,13 +53,15 @@ export default function FloatingMenu() {
         </button>
 
         {/* 展開されるメニュー項目
-          横並び(flex-row)で右から左へ出てくるアニメーション 
+          ★修正ポイント：
+          1. スマホでは縦並び (flex-col)、デスクトップ(md以上)では横並び (md:flex-row-reverse)
+          2. absoluteの位置を調整
         */}
         <div 
-          className={`absolute bottom-0 right-20 flex flex-row-reverse items-center gap-3 transition-all duration-300 origin-right pointer-events-auto ${
+          className={`flex flex-col items-end md:flex-row-reverse md:items-center gap-3 transition-all duration-300 origin-bottom-right pointer-events-auto ${
             isOpen 
-              ? 'opacity-100 translate-x-0 scale-100' 
-              : 'opacity-0 translate-x-8 scale-90 pointer-events-none'
+              ? 'opacity-100 translate-y-0 md:translate-x-0 scale-100' 
+              : 'opacity-0 translate-y-8 md:translate-x-8 scale-90 pointer-events-none'
           }`}
         >
           {/* メニュー項目 */}
@@ -77,7 +77,7 @@ export default function FloatingMenu() {
             </Link>
           ))}
 
-          {/* プッシュ通知マネージャー (左端に配置) */}
+          {/* プッシュ通知マネージャー */}
           <div className="flex-shrink-0">
              <PushNotificationManager />
           </div>
