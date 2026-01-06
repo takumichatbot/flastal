@@ -11,20 +11,22 @@ router.use(authenticateToken);
 router.use(requireAdmin);
 
 // --- 審査・承認ルート ---
-router.get('/pending/:type', adminController.getPendingItems);
+// 固定の特定エンドポイントを最優先
 router.get('/projects/pending', (req, res) => { req.params.type = 'projects'; adminController.getPendingItems(req, res); });
 router.get('/florists/pending', (req, res) => { req.params.type = 'florists'; adminController.getPendingItems(req, res); });
 router.get('/venues/pending', (req, res) => { req.params.type = 'venues'; adminController.getPendingItems(req, res); });
 router.get('/organizers/pending', (req, res) => { req.params.type = 'organizers'; adminController.getPendingItems(req, res); });
 
-// --- お花屋さん管理ルート ---
-// ★重要修正: 固定パスの /all を先に定義し、動的パスの :id との競合を避ける
-router.get('/florists/all', adminController.getAllFloristsAdmin); 
+// ★お花屋さん全取得パス (ここを確実に :id より上に置く)
+router.get('/florists/all', adminController.getAllFloristsAdmin);
+
+// ID指定の個別操作（順序を下に移動）
 router.get('/florists/:id/fee', adminController.getFloristFee);
 router.patch('/florists/:id/fee', adminController.updateFloristFee);
 router.get('/florists/:id', adminController.getFloristByIdAdmin);
 
-// 承認実行
+// 汎用審査
+router.get('/pending/:type', adminController.getPendingItems);
 router.post('/approve/:type/:id', adminController.approveItem);
 
 // --- システム設定 ---

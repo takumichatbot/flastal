@@ -10,7 +10,6 @@ export const getPendingItems = async (req, res) => {
     const { type } = req.params;
     let data = [];
     try {
-        const model = prisma.project || prisma.florist || prisma.venue || prisma.organizer; // ロジック簡略化のため
         if (type === 'projects') {
             data = await prisma.project.findMany({ 
                 where: { status: 'PENDING_APPROVAL' }, 
@@ -18,8 +17,7 @@ export const getPendingItems = async (req, res) => {
                 orderBy: { createdAt: 'asc' }
             });
         } else if (type === 'florists') {
-            const m = prisma.florist || prisma['florist'];
-            data = await m.findMany({ where: { status: 'PENDING' }, orderBy: { createdAt: 'asc' } });
+            data = await prisma['florist'].findMany({ where: { status: 'PENDING' }, orderBy: { createdAt: 'asc' } });
         } else if (type === 'venues') {
             data = await prisma.venue.findMany({ where: { status: 'PENDING' }, orderBy: { createdAt: 'asc' } });
         } else if (type === 'organizers') {
@@ -34,41 +32,37 @@ export const getPendingItems = async (req, res) => {
     }
 };
 
-// ★全お花屋さん取得 (競合回避・強制配列返却版)
+// ★全お花屋さん取得 (取得失敗を徹底回避し、確実に配列を返す)
 export const getAllFloristsAdmin = async (req, res) => {
-    console.log("[AdminAPI] Executing getAllFloristsAdmin...");
+    console.log("[AdminAPI] Starting getAllFloristsAdmin fetch...");
     try {
-        const floristModel = prisma.florist || prisma['florist'];
-        
-        if (!floristModel) {
-            console.error("CRITICAL: Florist model missing in Prisma Client.");
-            return res.status(200).json([]); // エラーでも配列を返す
-        }
-
-        const florists = await floristModel.findMany({
-            orderBy: { platformName: 'asc' },
+        // モデル名を文字列で直接指定して Prisma の解決ミスを回避
+        const florists = await prisma['florist'].findMany({
+            orderBy: { createdAt: 'desc' },
             select: {
                 id: true, shopName: true, platformName: true, email: true,
                 status: true, customFeeRate: true, createdAt: true, balance: true
             }
         });
         
-        console.log(`[AdminAPI] Fetch completed. Count: ${florists?.length}`);
+        console.log(`[AdminAPI] getAllFloristsAdmin SUCCESS. Items: ${florists?.length || 0}`);
         return res.status(200).json(florists || []);
 
     } catch (e) {
-        console.error('getAllFloristsAdmin ERROR:', e);
-        return res.status(200).json([]); // フロントエンドのクラッシュを防ぐため空配列を返す
+        console.error('getAllFloristsAdmin CRITICAL ERROR:', e);
+        // 万が一のエラー時も500を返さず空の配列を返し、フロントのクラッシュを防ぐ
+        return res.status(200).json([]); 
     }
 };
 
 // ★個別お花屋さん取得
 export const getFloristByIdAdmin = async (req, res) => {
     const { id } = req.params;
-    if (id === 'all') return getAllFloristsAdmin(req, res); // 万が一のフォールバック
+    // ルート競合対策: idが "all" の場合は全取得へ回す
+    if (id === 'all') return getAllFloristsAdmin(req, res);
+    
     try {
-        const floristModel = prisma.florist || prisma['florist'];
-        const florist = await floristModel.findUnique({ where: { id } });
+        const florist = await prisma['florist'].findUnique({ where: { id } });
         if (!florist) return res.status(404).json({ message: '対象の花屋が見つかりません' });
         res.json(florist);
     } catch (e) {
@@ -86,8 +80,7 @@ export const approveItem = async (req, res) => {
             return res.json(project);
         } 
         let updated;
-        const fm = prisma.florist || prisma['florist'];
-        if (type === 'florists') updated = await fm.update({ where: { id }, data: { status } });
+        if (type === 'florists') updated = await prisma['florist'].update({ where: { id }, data: { status } });
         else if (type === 'venues') updated = await prisma.venue.update({ where: { id }, data: { status } });
         else if (type === 'organizers') updated = await prisma.organizer.update({ where: { id }, data: { status } });
         res.json(updated);
@@ -95,7 +88,7 @@ export const approveItem = async (req, res) => {
 };
 
 // ==========================================
-// ★★★ 2. システム設定・手数料 ★★★
+// ★★★ 2. システム設定・手数料 (System Settings) ★★★
 // ==========================================
 
 export const getSystemSettings = async (req, res) => {
@@ -121,8 +114,7 @@ export const updateSystemSettings = async (req, res) => {
 export const getFloristFee = async (req, res) => {
     const { id } = req.params;
     try {
-        const fm = prisma.florist || prisma['florist'];
-        const florist = await fm.findUnique({
+        const florist = await prisma['florist'].findUnique({
             where: { id },
             select: { id: true, platformName: true, customFeeRate: true }
         });
@@ -135,9 +127,8 @@ export const updateFloristFee = async (req, res) => {
     const { id } = req.params;
     const { customFeeRate } = req.body; 
     try {
-        const fm = prisma.florist || prisma['florist'];
         const rate = (customFeeRate === null || customFeeRate === '') ? null : parseFloat(customFeeRate);
-        const updated = await fm.update({
+        const updated = await prisma['florist'].update({
             where: { id },
             data: { customFeeRate: rate },
             select: { id: true, platformName: true, customFeeRate: true }
@@ -207,9 +198,8 @@ export const sendIndividualEmail = async (req, res) => {
     const { userId, targetRole, templateId, customSubject, customBody } = req.body;
     try {
         let email = '';
-        const fm = prisma.florist || prisma['florist'];
         if (targetRole === 'FLORIST') {
-            const f = await fm.findUnique({ where: { id: userId } });
+            const f = await prisma['florist'].findUnique({ where: { id: userId } });
             email = f?.email;
         } else {
             const u = await prisma.user.findUnique({ where: { id: userId } });
@@ -308,7 +298,6 @@ export const banEvent = async (req, res) => {
     const { isBanned } = req.body;
     try {
         const e = await prisma.event.update({ where: { id: req.params.eventId }, data: { isBanned } });
-        if(isBanned) await prisma.eventReport.updateMany({ where: { eventId: req.params.eventId }, data: { status: 'RESOLVED' } });
         res.json(e);
     } catch(e) { res.status(500).json({ message: 'Error' }); }
 };
