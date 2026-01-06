@@ -13,7 +13,6 @@ import {
   Activity, BarChart3, Settings
 } from 'lucide-react';
 
-// 強制的に動的レンダリング（ビルド時のエラー回避）を設定
 export const dynamic = 'force-dynamic';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
@@ -33,10 +32,19 @@ function VenueDashboardContent() {
   const { user, loading: authLoading } = useAuth();
   const [venue, setVenue] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [venueAuth, setVenueAuth] = useState(null); // 会場専用ログイン状態のバックアップ
   const router = useRouter();
 
   useEffect(() => {
-    // 会場情報の取得
+    // 1. 会場専用の認証情報をローカルストレージから確認
+    const storedVenue = localStorage.getItem('flastal-venue');
+    const storedToken = localStorage.getItem('flastal-token');
+    
+    if (storedVenue && storedToken) {
+      setVenueAuth(JSON.parse(storedVenue));
+    }
+
+    // 2. 会場情報の取得
     const fetchVenueData = async () => {
       try {
         const response = await fetch(`${API_URL}/api/venues/${id}`);
@@ -54,8 +62,17 @@ function VenueDashboardContent() {
     if (id) fetchVenueData();
   }, [id]);
 
-  // 権限チェック: ログインしていない、または会場本人でも管理者でもない場合
-  const hasAccess = user && (user.id === id || user.role === 'ADMIN' || user.role === 'VENUE');
+  // 権限チェックの強化: 
+  // AuthContextのuser情報 OR ローカルストレージの会場情報(venueAuth)
+  // かつ、そのIDがダッシュボードのIDと一致するか、管理者であること
+  const currentUserId = user?.id || venueAuth?.id;
+  const currentUserRole = user?.role || (venueAuth ? 'VENUE' : null);
+
+  const hasAccess = currentUserId && (
+    currentUserId === id || 
+    currentUserRole === 'ADMIN' || 
+    currentUserRole === 'VENUE'
+  );
 
   if (authLoading || loading) {
     return (
@@ -65,7 +82,8 @@ function VenueDashboardContent() {
     );
   }
 
-  if (!user || !hasAccess) {
+  // 権限がない、または未ログインの場合
+  if (!hasAccess) {
     return (
       <div className="bg-slate-50 min-h-screen flex items-center justify-center p-4">
         <motion.div 
@@ -80,8 +98,12 @@ function VenueDashboardContent() {
           <p className="text-slate-500 mb-8 leading-relaxed font-medium">
             会場ダッシュボードを利用するには、会場アカウントでログインしてください。
           </p>
-          <Link href="/login" className="block w-full py-4 font-bold text-white bg-slate-900 rounded-full hover:shadow-lg transition-all">
-              ログインページへ
+          {/* リンク先を修正 */}
+          <Link href="/venues/login" className="block w-full py-4 font-bold text-white bg-indigo-600 rounded-full hover:shadow-lg transition-all">
+              会場ログインページへ
+          </Link>
+          <Link href="/" className="block mt-4 text-sm text-slate-400 font-bold hover:text-slate-600 transition-colors">
+              トップページに戻る
           </Link>
         </motion.div>
       </div>
@@ -90,7 +112,7 @@ function VenueDashboardContent() {
 
   return (
     <div className="bg-slate-50 min-h-screen pb-32 font-sans text-slate-800 overflow-x-hidden">
-      {/* ヒーローセクション: 会場概要 */}
+      {/* ヒーローセクション */}
       <section className="relative bg-white pt-20 pb-32 overflow-hidden border-b border-slate-100">
         <div className="container mx-auto px-6 relative z-10">
           <Reveal>
@@ -120,10 +142,9 @@ function VenueDashboardContent() {
         </div>
       </section>
 
-      {/* ステータスカードセクション */}
+      {/* ステータスカード */}
       <section className="container mx-auto px-6 -mt-16 relative z-20">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-          {/* 受入設定カード */}
           <Reveal delay={0.2}>
             <div className="bg-white p-8 rounded-[40px] shadow-xl border border-slate-100 h-full">
               <div className="w-12 h-12 bg-emerald-50 text-emerald-500 rounded-2xl flex items-center justify-center mb-6">
@@ -147,7 +168,6 @@ function VenueDashboardContent() {
             </div>
           </Reveal>
 
-          {/* 実績サマリーカード */}
           <Reveal delay={0.3}>
             <div className="bg-white p-8 rounded-[40px] shadow-xl border border-slate-100 h-full">
               <div className="w-12 h-12 bg-indigo-50 text-indigo-500 rounded-2xl flex items-center justify-center mb-6">
@@ -165,7 +185,6 @@ function VenueDashboardContent() {
             </div>
           </Reveal>
 
-          {/* 搬入スケジュール(簡易) */}
           <Reveal delay={0.4}>
             <div className="bg-slate-900 p-8 rounded-[40px] shadow-xl text-white h-full relative overflow-hidden">
               <div className="relative z-10">
@@ -185,8 +204,8 @@ function VenueDashboardContent() {
           </Reveal>
         </div>
       </section>
-
-      {/* 注意事項・ヘルプ */}
+      
+      {/* 案内セクション */}
       <section className="container mx-auto px-6 mt-20 max-w-4xl">
         <Reveal delay={0.5}>
           <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100">
@@ -232,7 +251,6 @@ function VenueDashboardContent() {
   );
 }
 
-// メインエクスポート
 export default function VenueDashboardPage() {
   return (
     <Suspense fallback={<div className="min-h-screen bg-slate-50 flex items-center justify-center"><Loader2 className="w-10 h-10 text-indigo-500 animate-spin" /></div>}>
