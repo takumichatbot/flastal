@@ -117,6 +117,22 @@ export const postLogisticsInfo = async (req, res) => {
     }
 };
 
+// --- 物流情報の取得 (新しく追加) ---
+export const getLogisticsInfo = async (req, res) => {
+    const { venueId } = req.params;
+    try {
+        const info = await prisma.venueLogisticsInfo.findMany({
+            where: { venueId },
+            include: { contributor: { select: { handleName: true } } },
+            orderBy: { createdAt: 'desc' }
+        });
+        res.json(info);
+    } catch (e) {
+        console.error('getLogisticsInfo Error:', e);
+        res.status(500).json({ message: '物流情報の取得に失敗しました。' });
+    }
+};
+
 // --- イベント関連 ---
 export const getEvents = async (req, res) => {
     try {
@@ -179,7 +195,6 @@ export const updateEvent = async (req, res) => {
 
         if (!event) return res.status(404).json({ message: 'イベントが見つかりません。' });
 
-        // ADMIN または 投稿者本人のみが編集可能
         if (req.user.role !== 'ADMIN' && event.creatorId !== req.user.id) {
             return res.status(403).json({ message: '編集権限がありません。' });
         }
@@ -189,7 +204,7 @@ export const updateEvent = async (req, res) => {
             data: {
                 ...req.body,
                 eventDate: req.body.eventDate ? new Date(req.body.eventDate) : undefined,
-                lastEditorId: req.user.id // ★ 最終編集者を更新
+                lastEditorId: req.user.id
             },
             include: {
                 creator: { select: { id: true, handleName: true, iconUrl: true } },
