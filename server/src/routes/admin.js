@@ -11,21 +11,25 @@ router.use(authenticateToken);
 router.use(requireAdmin);
 
 // --- 審査・承認ルート ---
-// 固定の特定エンドポイントを最優先
+// 固定の特定エンドポイント
 router.get('/projects/pending', (req, res) => { req.params.type = 'projects'; adminController.getPendingItems(req, res); });
 router.get('/florists/pending', (req, res) => { req.params.type = 'florists'; adminController.getPendingItems(req, res); });
 router.get('/venues/pending', (req, res) => { req.params.type = 'venues'; adminController.getPendingItems(req, res); });
 router.get('/organizers/pending', (req, res) => { req.params.type = 'organizers'; adminController.getPendingItems(req, res); });
 
-// ★お花屋さん全取得パス (ここを確実に :id より上に置く)
-router.get('/florists/all', adminController.getAllFloristsAdmin);
+// ★追加修正: 管理画面の「PATCH .../:type/:id/status」というリクエストに対応させる
+router.patch('/projects/:id/status', (req, res) => { req.params.type = 'projects'; adminController.approveItem(req, res); });
+router.patch('/florists/:id/status', (req, res) => { req.params.type = 'florists'; adminController.approveItem(req, res); });
+router.patch('/venues/:id/status', (req, res) => { req.params.type = 'venues'; adminController.approveItem(req, res); });
+router.patch('/organizers/:id/status', (req, res) => { req.params.type = 'organizers'; adminController.approveItem(req, res); });
 
-// ID指定の個別操作（順序を下に移動）
+// ★お花屋さん管理ルート
+router.get('/florists/all', adminController.getAllFloristsAdmin);
 router.get('/florists/:id/fee', adminController.getFloristFee);
 router.patch('/florists/:id/fee', adminController.updateFloristFee);
 router.get('/florists/:id', adminController.getFloristByIdAdmin);
 
-// 汎用審査
+// 汎用承認 (念のため POST 版も残す)
 router.get('/pending/:type', adminController.getPendingItems);
 router.post('/approve/:type/:id', adminController.approveItem);
 
