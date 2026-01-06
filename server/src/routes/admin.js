@@ -18,8 +18,10 @@ router.get('/venues/pending', (req, res) => { req.params.type = 'venues'; adminC
 router.get('/organizers/pending', (req, res) => { req.params.type = 'organizers'; adminController.getPendingItems(req, res); });
 
 // --- お花屋さん管理ルート ---
-// ★重要: フロントエンドのリクエスト /api/admin/florists/all に対応
-router.get('/florists/all', adminController.getAllFloristsAdmin);
+// ★重要修正: 固定パスの /all を先に定義し、動的パスの :id との競合を避ける
+router.get('/florists/all', adminController.getAllFloristsAdmin); 
+router.get('/florists/:id/fee', adminController.getFloristFee);
+router.patch('/florists/:id/fee', adminController.updateFloristFee);
 router.get('/florists/:id', adminController.getFloristByIdAdmin);
 
 // 承認実行
@@ -31,8 +33,6 @@ router.patch('/settings', adminController.updateSystemSettings);
 
 // --- 手数料・売上 ---
 router.get('/commissions', adminController.getCommissions);
-router.get('/florists/:id/fee', adminController.getFloristFee);
-router.patch('/florists/:id/fee', adminController.updateFloristFee);
 
 // --- 出金管理 ---
 router.get('/payouts', adminController.getAdminPayouts);
