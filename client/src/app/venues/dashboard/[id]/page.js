@@ -130,7 +130,7 @@ function VenueDashboardContent() {
               </div>
               
               <div className="flex gap-4">
-                <Link href={`/venues/${id}/edit`} className="flex items-center gap-2 px-6 py-3 bg-white border-2 border-slate-100 rounded-2xl font-bold text-slate-700 hover:border-indigo-500 hover:text-indigo-600 transition-all shadow-sm">
+                <Link href={`/venues/dashboard/${id}/edit`} className="flex items-center gap-2 px-6 py-3 bg-white border-2 border-slate-100 rounded-2xl font-bold text-slate-700 hover:border-indigo-500 hover:text-indigo-600 transition-all shadow-sm">
                   <Edit3 size={18} /> 情報を編集
                 </Link>
                 <Link href={`/venues/${id}`} className="flex items-center gap-2 px-6 py-3 bg-indigo-600 rounded-2xl font-bold text-white hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100">
