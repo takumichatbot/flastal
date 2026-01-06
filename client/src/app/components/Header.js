@@ -177,6 +177,10 @@ export default function Header() {
   const handleLogout = () => {
     logout();
     setIsUserMenuOpen(false);
+    // 会場用のデータも確実に削除
+    localStorage.removeItem('flastal-venue');
+    localStorage.removeItem('flastal-token');
+    window.location.href = '/';
   };
 
   useEffect(() => {
@@ -208,9 +212,9 @@ export default function Header() {
         ];
       case 'VENUE':
         return [
-          { href: `/dashboard/${user.id}`, label: '予約状況', icon: <Calendar size={18}/> },
+          { href: `/venues/dashboard/${user.id}`, label: 'ダッシュボード', icon: <LayoutDashboard size={18}/> },
           { href: `/venues/${user.id}/logistics`, label: '搬入設定', icon: <Truck size={18}/> },
-          { href: '/projects', label: '実施企画一覧', icon: <Heart size={18}/> },
+          { href: '/projects', label: '実施企画', icon: <Heart size={18}/> },
         ];
       case 'ORGANIZER':
         return [
@@ -220,7 +224,7 @@ export default function Header() {
         ];
       case 'ADMIN':
         return [
-          { href: '/admin', label: 'ダッシュボード', icon: <BarChart3 size={18}/> },
+          { href: '/admin', label: '管理ホーム', icon: <BarChart3 size={18}/> },
           { href: '/admin/project-approval', label: '企画審査', icon: <UserCheck size={18}/> },
           { href: '/admin/settings', label: 'システム設定', icon: <Settings size={18}/> },
         ];
@@ -234,7 +238,7 @@ export default function Header() {
     switch (user.role) {
       case 'ADMIN': return '/admin';
       case 'FLORIST': return '/florists/dashboard';
-      case 'VENUE': return `/dashboard/${user.id}`;
+      case 'VENUE': return `/venues/dashboard/${user.id}`;
       case 'ORGANIZER': return '/organizers/dashboard';
       default: return '/mypage';
     }
@@ -258,8 +262,8 @@ export default function Header() {
         ];
       case 'VENUE':
         return [
-          { href: `/dashboard/${user.id}`, label: '会場ダッシュボード', icon: <LayoutDashboard size={16} /> },
-          { href: `/venues/${user.id}/edit`, label: 'レギュレーション設定', icon: <Building2 size={16} /> },
+          { href: `/venues/dashboard/${user.id}`, label: '会場ダッシュボード', icon: <LayoutDashboard size={16} /> },
+          { href: `/venues/dashboard/${user.id}/edit`, label: 'レギュレーション設定', icon: <Building2 size={16} /> },
           { href: `/venues/${user.id}/logistics`, label: '搬入・物流設定', icon: <Package size={16} /> },
         ];
       case 'ORGANIZER':
@@ -332,7 +336,7 @@ export default function Header() {
                             <div className="w-full h-full flex items-center justify-center text-indigo-400"><User size={16}/></div>
                         )}
                     </div>
-                    <span className="text-sm font-bold hidden sm:block text-slate-700 max-w-[100px] truncate">{user.handleName}</span>
+                    <span className="text-sm font-bold hidden sm:block text-slate-700 max-w-[100px] truncate">{user.handleName || user.venueName}</span>
                     <ChevronDown size={14} className={`text-slate-400 transition-transform hidden md:block duration-300 ${isUserMenuOpen ? 'rotate-180' : ''}`} />
                   </button>
 
@@ -347,7 +351,7 @@ export default function Header() {
                         >
                         <Link href={getPrimaryLink} onClick={() => setIsUserMenuOpen(false)} className="block px-6 py-4 border-b border-slate-50 bg-slate-50/30 hover:bg-slate-50 transition-colors">
                             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">Signed in as</p>
-                            <p className="text-sm font-bold text-slate-800 truncate">{user.handleName}</p>
+                            <p className="text-sm font-bold text-slate-800 truncate">{user.handleName || user.venueName}</p>
                             <div className="mt-1">
                                 <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-pink-100 text-pink-600 border border-pink-200 inline-block uppercase tracking-wider">
                                     {user.role}
@@ -404,6 +408,7 @@ export default function Header() {
         </div>
       </div>
 
+      {/* Mobile Menu */}
       <AnimatePresence>
         {isMobileMenuOpen && (
             <motion.div
@@ -428,8 +433,8 @@ export default function Header() {
                                     {user.iconUrl ? <Image src={user.iconUrl} alt="User Avatar" fill className="object-cover" /> : <User size={24} className="m-3 text-slate-300" />}
                                 </div>
                                 <div>
-                                    <p className="font-bold text-lg text-slate-800">{user.handleName}</p>
-                                    <Link href="/mypage" onClick={() => setIsMobileMenuOpen(false)} className="text-xs text-pink-500 font-bold">プロフィール設定へ</Link>
+                                    <p className="font-bold text-lg text-slate-800">{user.handleName || user.venueName}</p>
+                                    <Link href={getPrimaryLink} onClick={() => setIsMobileMenuOpen(false)} className="text-xs text-pink-500 font-bold">マイページへ</Link>
                                 </div>
                             </div>
                         </div>
