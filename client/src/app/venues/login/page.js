@@ -22,6 +22,11 @@ export default function VenueLoginPage() {
     setShowResend(false);
     
     try {
+      // 1. ログイン前に古いトークンや情報をクリア
+      localStorage.removeItem('flastal-token');
+      localStorage.removeItem('flastal-user');
+      localStorage.removeItem('flastal-venue');
+
       const response = await fetch(`${API_URL}/api/venues/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -31,16 +36,24 @@ export default function VenueLoginPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        // 審査中や未認証の場合、再送ボタンを表示するための判定
         if (response.status === 403 && (data.message.includes('認証') || data.message.includes('Verification'))) {
             setShowResend(true);
         }
         throw new Error(data.message || 'ログインに失敗しました');
       }
 
+      // 2. 【重要】トークンと会場情報を保存
+      if (data.token) {
+        localStorage.setItem('flastal-token', data.token);
+      }
       localStorage.setItem('flastal-venue', JSON.stringify(data.venue));
+      
       toast.success('ログインしました！');
+      
+      // ダッシュボードへ移動
       router.push(`/venues/dashboard/${data.venue.id}`);
+      // 移動後に確実にリロードさせたい場合は以下（オプション）
+      // window.location.href = `/venues/dashboard/${data.venue.id}`;
 
     } catch (err) {
       toast.error(err.message);
