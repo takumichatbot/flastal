@@ -4,11 +4,13 @@ import { authenticateToken } from '../middleware/auth.js';
 
 const router = express.Router();
 
-// --- 1. 静的ルート ---
-// 管理者用
+// --- 1. 静的ルート (特定のキーワードを最優先) ---
+
+// 管理者用：全会場取得 (フロントエンドの呼び出しに合わせ /admin に修正)
+router.get('/admin', authenticateToken, venueController.getVenues);
 router.get('/admin/all', authenticateToken, venueController.getVenues);
 
-// 一般：会場一覧
+// 一般：会場一覧取得
 router.get('/', venueController.getVenues);
 
 // イベント関連
@@ -22,7 +24,7 @@ router.patch('/events/:id', authenticateToken, venueController.updateEvent);
 router.delete('/events/:id', authenticateToken, venueController.deleteEvent);
 
 // --- 3. 動的ルート (会場) ---
-// 詳細取得
+// 詳細取得 (これが上にあると admin などのパスを ID と誤認するため最後に配置)
 router.get('/:id', venueController.getVenueById);
 
 // 登録

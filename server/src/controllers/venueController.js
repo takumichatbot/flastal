@@ -3,12 +3,17 @@ import prisma from '../config/prisma.js';
 // --- 会場一覧取得 ---
 export const getVenues = async (req, res) => {
     try {
-        const isAdminRequest = req.user && req.user.role === 'ADMIN' && req.path.includes('admin');
+        // 管理者権限があり、かつ管理者用エンドポイントを叩いているかチェック
+        // req.baseUrl や req.route.path を活用して判定を強化
+        const isAdminRole = req.user && req.user.role === 'ADMIN';
+        const isUrlAdmin = req.originalUrl.includes('/admin');
+
         const venues = await prisma.venue.findMany({
-            where: isAdminRequest ? {} : { isOfficial: true },
+            // 管理者としてアクセスしている場合は全取得、そうでなければ公式のみ
+            where: (isAdminRole && isUrlAdmin) ? {} : { isOfficial: true },
             orderBy: { venueName: 'asc' }
         });
-        res.json(venues);
+        res.json(venues || []);
     } catch (e) { 
         console.error('getVenues Error:', e);
         res.status(500).json({ message: '会場情報の取得中にエラーが発生しました。' }); 
@@ -18,6 +23,10 @@ export const getVenues = async (req, res) => {
 // --- 会場詳細取得 ---
 export const getVenueById = async (req, res) => {
     const { id } = req.params;
+    
+    // 'admin' という文字列が ID として渡ってきた場合のガード
+    if (id === 'admin') return getVenues(req, res);
+
     try {
         const venue = await prisma.venue.findUnique({
             where: { id },
@@ -63,17 +72,14 @@ export const addVenueByUser = async (req, res) => {
 // --- 会場情報の更新・承認 ---
 export const updateVenueProfile = async (req, res) => {
     try {
-        // req.user.id が会場IDそのものである場合を優先
         const venueId = req.params.id || req.user.id;
         const data = req.body;
         
-        // ADMIN または 本人(VENUE) であれば許可
         const isSelf = req.user.role === 'VENUE' && req.user.id === venueId;
         const isAdmin = req.user.role === 'ADMIN';
 
         if (!isSelf && !isAdmin) {
-            console.warn(`[AccessDenied] User:${req.user.id}, Role:${req.user.role}, TargetVenue:${venueId}`);
-            return res.status(403).json({ message: '会場ダッシュボードを利用するには、会場アカウントでログインしてください。' });
+            return res.status(403).json({ message: '権限がありません。' });
         }
 
         const updated = await prisma.venue.update({
@@ -85,7 +91,8 @@ export const updateVenueProfile = async (req, res) => {
                 isStandAllowed: data.isStandAllowed,
                 isBowlAllowed: data.isBowlAllowed,
                 accessInfo: data.accessInfo,
-                retrievalRequired: data.retrievalRequired
+                retrievalRequired: data.retrievalRequired,
+                status: data.status // 承認ステータスも更新可能に
             }
         });
         res.json(updated);
@@ -132,7 +139,7 @@ export const getLogisticsInfo = async (req, res) => {
             include: { contributor: { select: { handleName: true } } },
             orderBy: { createdAt: 'desc' }
         });
-        res.json(info);
+        res.json(info || []);
     } catch (e) {
         console.error('getLogisticsInfo Error:', e);
         res.status(500).json({ message: '物流情報の取得に失敗しました。' });
@@ -146,12 +153,11 @@ export const getEvents = async (req, res) => {
             include: { 
                 venue: true,
                 creator: { select: { id: true, handleName: true, iconUrl: true } },
-                lastEditor: { select: { id: true, handleName: true, iconUrl: true } },
                 _count: { select: { interests: true } }
             },
             orderBy: { eventDate: 'asc' }
         });
-        res.json(events);
+        res.json(events || []);
     } catch (e) { 
         console.error('getEvents Error:', e);
         res.status(500).json({ message: 'イベント一覧の取得に失敗しました。' }); 
@@ -164,8 +170,7 @@ export const getEventById = async (req, res) => {
             where: { id: req.params.id }, 
             include: { 
                 venue: true,
-                creator: { select: { id: true, handleName: true, iconUrl: true } },
-                lastEditor: { select: { id: true, handleName: true, iconUrl: true } }
+                creator: { select: { id: true, handleName: true, iconUrl: true } }
             } 
         });
         if (!event) return res.status(404).json({ message: 'イベントが見つかりません。' });
@@ -181,7 +186,7 @@ export const createEvent = async (req, res) => {
         const event = await prisma.event.create({ 
             data: { 
                 ...req.body, 
-                eventDate: new Date(req.body.eventDate),
+                eventDate: req.body.eventDate ? new Date(req.body.eventDate) : new Date(),
                 creatorId: req.user.id, 
                 lastEditorId: req.user.id, 
                 sourceType: 'USER'
@@ -208,10 +213,6 @@ export const updateEvent = async (req, res) => {
                 ...req.body,
                 eventDate: req.body.eventDate ? new Date(req.body.eventDate) : undefined,
                 lastEditorId: req.user.id
-            },
-            include: {
-                creator: { select: { id: true, handleName: true, iconUrl: true } },
-                lastEditor: { select: { id: true, handleName: true, iconUrl: true } }
             }
         });
         res.json(updated);
