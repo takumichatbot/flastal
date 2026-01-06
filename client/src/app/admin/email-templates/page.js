@@ -5,17 +5,20 @@ import { useState, useEffect, useCallback, Suspense } from 'react';
 import toast from 'react-hot-toast';
 import { 
   FiMail, FiEdit, FiSave, FiArrowLeft, FiRefreshCw, 
-  FiInfo, FiTag, FiFileText, FiLoader 
+  FiInfo, FiTag, FiFileText, FiLoader, FiEdit3 // ★FiEdit3 を追加しました
 } from 'react-icons/fi';
 import { useAuth } from '@/app/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
-const getAuthToken = () => localStorage.getItem('authToken')?.replace(/^"|"$/g, '') || '';
+const getAuthToken = () => {
+    if (typeof window === 'undefined') return '';
+    return localStorage.getItem('authToken')?.replace(/^"|"$/g, '') || '';
+};
 
 function EmailTemplateContent() {
-    const { user, isAuthenticated } = useAuth();
+    const { user, isAuthenticated, loading: authLoading } = useAuth();
     const router = useRouter();
 
     const [templates, setTemplates] = useState([]);
@@ -23,7 +26,6 @@ function EmailTemplateContent() {
     const [selectedTemplate, setSelectedTemplate] = useState(null);
     const [isSaving, setIsSaving] = useState(false);
 
-    // テンプレート一覧取得
     const fetchTemplates = useCallback(async () => {
         try {
             const token = getAuthToken();
@@ -41,14 +43,14 @@ function EmailTemplateContent() {
     }, []);
 
     useEffect(() => {
+        if (authLoading) return;
         if (!isAuthenticated || user?.role !== 'ADMIN') {
             router.push('/admin');
             return;
         }
         fetchTemplates();
-    }, [isAuthenticated, user, router, fetchTemplates]);
+    }, [isAuthenticated, user, router, fetchTemplates, authLoading]);
 
-    // 保存処理
     const handleSave = async (e) => {
         e.preventDefault();
         setIsSaving(true);
@@ -79,7 +81,6 @@ function EmailTemplateContent() {
     return (
         <div className="min-h-screen bg-gray-50 p-4 sm:p-8 font-sans text-gray-800">
             <div className="max-w-6xl mx-auto">
-                {/* ヘッダー */}
                 <div className="flex items-center justify-between mb-8">
                     <div className="flex items-center gap-4">
                         <Link href="/admin/settings" className="p-2 bg-white border border-gray-200 rounded-full hover:bg-gray-100 text-gray-500 shadow-sm transition-all">
@@ -95,7 +96,6 @@ function EmailTemplateContent() {
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    {/* 左側：テンプレート一覧 */}
                     <div className="lg:col-span-1 space-y-4">
                         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                             <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
@@ -121,7 +121,6 @@ function EmailTemplateContent() {
                         </div>
                     </div>
 
-                    {/* 右側：エディター */}
                     <div className="lg:col-span-2">
                         {selectedTemplate ? (
                             <form onSubmit={handleSave} className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden animate-fadeIn">
@@ -130,17 +129,10 @@ function EmailTemplateContent() {
                                         <FiEdit3 className="text-indigo-400" />
                                         <span className="font-bold">{selectedTemplate.name} の編集</span>
                                     </div>
-                                    <button 
-                                        type="button" 
-                                        onClick={() => setSelectedTemplate(null)}
-                                        className="text-xs text-gray-400 hover:text-white"
-                                    >
-                                        キャンセル
-                                    </button>
+                                    <button type="button" onClick={() => setSelectedTemplate(null)} className="text-xs text-gray-400 hover:text-white">キャンセル</button>
                                 </div>
                                 
                                 <div className="p-6 space-y-6">
-                                    {/* 件名 */}
                                     <div>
                                         <label className="flex items-center gap-2 text-sm font-bold text-gray-700 mb-2">
                                             <FiTag className="text-gray-400"/> メールの件名
@@ -154,7 +146,6 @@ function EmailTemplateContent() {
                                         />
                                     </div>
 
-                                    {/* 本文 */}
                                     <div>
                                         <label className="flex items-center gap-2 text-sm font-bold text-gray-700 mb-2">
                                             <FiFileText className="text-gray-400"/> メールの本文
