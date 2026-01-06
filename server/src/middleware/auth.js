@@ -12,17 +12,18 @@ export const authenticateToken = async (req, res, next) => {
     }
 
     const token = authHeader.split(' ')[1].replace(/['"]+/g, '').trim();
-    if (!token) return res.status(401).json({ message: 'トークンが不正です。' });
+    if (!token || token === 'null' || token === 'undefined') {
+        return res.status(401).json({ message: 'トークンが不正です。' });
+    }
 
     // 1. JWTの検証
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     if (!decoded) return res.status(401).json({ message: 'トークンの解析に失敗しました。' });
     
     const userId = decoded.id || decoded.sub;
-    const userRole = decoded.role || 'USER';
+    const userRole = (decoded.role || 'USER').toUpperCase(); // 統一して大文字比較
 
     // 2. リクエストオブジェクトの構築
-    // DBへのアクセスを最小限にし、トークン内の情報を優先する
     req.user = {
         id: userId,
         email: decoded.email,
@@ -30,18 +31,25 @@ export const authenticateToken = async (req, res, next) => {
         status: decoded.status || 'APPROVED'
     };
 
-    // 3. 非同期でDB情報の確認が必要な場合のみ試行（クラッシュ防止）
-    if (userRole !== 'USER' && userRole !== 'ADMIN') {
+    // 3. 特殊ロールの場合のDBステータスチェック（最新状態を反映）
+    if (['FLORIST', 'VENUE', 'ORGANIZER'].includes(userRole)) {
         try {
             let account = null;
             if (userRole === 'FLORIST') account = await prisma.florist.findUnique({ where: { id: userId } });
             else if (userRole === 'VENUE') account = await prisma.venue.findUnique({ where: { id: userId } });
             else if (userRole === 'ORGANIZER') account = await prisma.organizer.findUnique({ where: { id: userId } });
             
-            if (account) {
-                req.user.status = account.status;
-                req.user.raw = account;
+            if (!account) {
+                return res.status(403).json({ message: 'アカウント情報が見つかりません。' });
             }
+            
+            // 最新のステータスをセット
+            req.user.status = account.status;
+            req.user.raw = account;
+
+            // 承認されていない場合は一部制限するロジックを入れるならここ
+            // if (account.status !== 'APPROVED') { ... }
+            
         } catch (dbErr) {
             console.error('[Middleware] DB check failed:', dbErr.message);
         }
@@ -51,7 +59,7 @@ export const authenticateToken = async (req, res, next) => {
   } catch (error) {
     console.error('Auth Middleware Error:', error.message);
     if (error.name === 'TokenExpiredError') {
-      return res.status(401).json({ message: 'セッションが切れました。再ログインしてください。' });
+      return res.status(401).json({ message: 'expired', detail: 'セッションが切れました。再ログインしてください。' });
     }
     return res.status(401).json({ message: '認証に失敗しました。' });
   }

@@ -2,10 +2,11 @@ import prisma from '../config/prisma.js';
 import { sendEmail, sendDynamicEmail } from '../utils/email.js';
 import { createNotification } from '../utils/notification.js';
 
-// チャット履歴取得（監視画面用）
+// ==========================================
+// ★★★ プロジェクトごとの全チャット履歴取得 ★★★
+// ==========================================
 export const getProjectChatLogs = async (req, res) => {
     const { projectId } = req.params;
-    console.log(`[AdminAPI] Loading chat logs for: ${projectId}`);
     try {
         const groupMessages = await prisma.groupChatMessage.findMany({
             where: { projectId },
@@ -15,19 +16,31 @@ export const getProjectChatLogs = async (req, res) => {
 
         const floristMessages = await prisma.chatMessage.findMany({
             where: { chatRoom: { offer: { projectId } } },
-            include: { user: { select: { handleName: true } }, florist: { select: { platformName: true } } },
+            include: {
+                user: { select: { handleName: true } },
+                florist: { select: { platformName: true } }
+            },
             orderBy: { createdAt: 'asc' }
         });
 
         const allMessages = [
             ...groupMessages.map(m => ({
-                id: m.id, type: 'GROUP', content: m.content,
-                senderName: m.user?.handleName || '不明', createdAt: m.createdAt
+                id: m.id,
+                type: 'GROUP',
+                content: m.content,
+                senderName: m.user?.handleName || '不明',
+                createdAt: m.createdAt,
+                messageType: m.messageType,
+                fileUrl: m.fileUrl
             })),
             ...floristMessages.map(m => ({
-                id: m.id, type: 'DIRECT', content: m.content,
+                id: m.id,
+                type: 'DIRECT',
+                content: m.content,
                 senderName: m.senderType === 'USER' ? (m.user?.handleName || '不明') : (m.florist?.platformName || '花屋'),
-                createdAt: m.createdAt
+                createdAt: m.createdAt,
+                messageType: m.messageType,
+                fileUrl: m.fileUrl
             }))
         ].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
 
@@ -38,7 +51,8 @@ export const getProjectChatLogs = async (req, res) => {
     }
 };
 
-// プロジェクト一覧取得
+// --- 以下、既存の安定化された関数群 ---
+
 export const getAllProjectsAdmin = async (req, res) => {
     try {
         const projects = await prisma.project.findMany({
@@ -49,54 +63,37 @@ export const getAllProjectsAdmin = async (req, res) => {
     } catch (e) { return res.status(200).json([]); }
 };
 
-// 通報取得
 export const getReports = async (req, res) => {
     const { type } = req.params;
     try {
         if (type === 'chat') {
-            const group = await prisma.groupChatMessageReport.findMany({ where: { status: 'PENDING' }, include: { message: true, reporter: true } });
-            const direct = await prisma.chatMessageReport.findMany({ where: { status: 'PENDING' }, include: { message: true, reporter: true } });
-            const formatted = [...group, ...direct].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+            const groupReports = await prisma.groupChatMessageReport.findMany({ where: { status: 'PENDING' }, include: { message: true, reporter: true } });
+            const directReports = await prisma.chatMessageReport.findMany({ where: { status: 'PENDING' }, include: { message: true, reporter: true } });
+            const formatted = [
+                ...groupReports.map(r => ({ id: r.id, type: 'GROUP', content: r.message?.content, reporterName: r.reporter.handleName, createdAt: r.createdAt })),
+                ...directReports.map(r => ({ id: r.id, type: 'DIRECT', content: r.message?.content, reporterName: r.reporter.handleName, createdAt: r.createdAt }))
+            ].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
             return res.json(formatted);
         }
         return res.json([]);
     } catch (e) { return res.status(200).json([]); }
 };
 
-// 承認処理
 export const approveItem = async (req, res) => {
     const { type, id } = req.params;
     const { status } = req.body; 
     try {
         const finalStatus = status === 'APPROVED' ? 'APPROVED' : (status === 'REJECTED' ? 'REJECTED' : 'PENDING');
         let updated;
-        const model = prisma.florist || prisma['florist'];
+        const fm = prisma.florist || prisma['florist'];
         if (type === 'projects') updated = await prisma.project.update({ where: { id }, data: { status: status === 'APPROVED' ? 'FUNDRAISING' : 'REJECTED' } });
-        else if (type === 'florists') updated = await model.update({ where: { id }, data: { status: finalStatus } });
+        else if (type === 'florists') updated = await fm.update({ where: { id }, data: { status: finalStatus } });
         else if (type === 'venues') updated = await prisma.venue.update({ where: { id }, data: { status: finalStatus } });
         else if (type === 'organizers') updated = await prisma.organizer.update({ where: { id }, data: { status: finalStatus } });
         return res.json(updated);
-    } catch (e) { return res.status(500).json({ message: '失敗' }); }
+    } catch (e) { return res.status(500).json({ message: '更新に失敗しました' }); }
 };
 
-// システム設定
-export const getSystemSettings = async (req, res) => {
-    try {
-        let s = await prisma.systemSettings.findFirst();
-        if (!s) s = await prisma.systemSettings.create({ data: { platformFeeRate: 0.10 } });
-        return res.json(s);
-    } catch (e) { return res.status(500).json({ message: 'Error' }); }
-};
-
-export const updateSystemSettings = async (req, res) => {
-    try {
-        let s = await prisma.systemSettings.findFirst();
-        const u = await prisma.systemSettings.update({ where: { id: s.id }, data: { platformFeeRate: parseFloat(req.body.platformFeeRate) } });
-        return res.json(u);
-    } catch (e) { return res.status(500).json({ message: 'Error' }); }
-};
-
-// --- 以下、既存のヘルパー関数群 (省略せずに統合) ---
 export const getPendingItems = async (req, res) => {
     const { type } = req.params;
     try {
@@ -113,24 +110,37 @@ export const getPendingItems = async (req, res) => {
 export const getAllFloristsAdmin = async (req, res) => {
     try {
         const fm = prisma.florist || prisma['florist'];
-        const florists = await fm.findMany({ orderBy: { createdAt: 'desc' } });
-        return res.json(florists || []);
+        return res.json(await fm.findMany({ orderBy: { createdAt: 'desc' } }) || []);
     } catch (e) { return res.status(200).json([]); }
 };
 
 export const getFloristByIdAdmin = async (req, res) => {
     try {
         const fm = prisma.florist || prisma['florist'];
-        const f = await fm.findUnique({ where: { id: req.params.id } });
-        return res.json(f);
+        return res.json(await fm.findUnique({ where: { id: req.params.id } }));
+    } catch (e) { return res.status(500).json({ message: 'Error' }); }
+};
+
+export const getSystemSettings = async (req, res) => {
+    try {
+        let s = await prisma.systemSettings.findFirst();
+        if (!s) s = await prisma.systemSettings.create({ data: { platformFeeRate: 0.10 } });
+        return res.json(s);
+    } catch (e) { return res.status(500).json({ message: 'Error' }); }
+};
+
+export const updateSystemSettings = async (req, res) => {
+    try {
+        let s = await prisma.systemSettings.findFirst();
+        const u = await prisma.systemSettings.update({ where: { id: s.id }, data: { platformFeeRate: parseFloat(req.body.platformFeeRate) } });
+        return res.json(u);
     } catch (e) { return res.status(500).json({ message: 'Error' }); }
 };
 
 export const getFloristFee = async (req, res) => {
     try {
         const fm = prisma.florist || prisma['florist'];
-        const f = await fm.findUnique({ where: { id: req.params.id }, select: { id: true, platformName: true, customFeeRate: true } });
-        return res.json(f);
+        return res.json(await fm.findUnique({ where: { id: req.params.id }, select: { id: true, platformName: true, customFeeRate: true } }));
     } catch (e) { return res.status(500).json({ message: 'Error' }); }
 };
 
@@ -138,9 +148,12 @@ export const updateFloristFee = async (req, res) => {
     try {
         const fm = prisma.florist || prisma['florist'];
         const rate = req.body.customFeeRate === '' ? null : parseFloat(req.body.customFeeRate);
-        const u = await fm.update({ where: { id: req.params.id }, data: { customFeeRate: rate } });
-        return res.json(u);
+        return res.json(await fm.update({ where: { id: req.params.id }, data: { customFeeRate: rate } }));
     } catch (e) { return res.status(500).json({ message: 'Error' }); }
+};
+
+export const getCommissions = async (req, res) => {
+    try { return res.json(await prisma.commission.findMany({ include: { project: true } }) || []); } catch (e) { return res.status(200).json([]); }
 };
 
 export const getAdminPayouts = async (req, res) => {
@@ -158,10 +171,7 @@ export const updateAdminPayoutStatus = async (req, res) => {
 };
 
 export const getEmailTemplates = async (req, res) => {
-    try {
-        const d = await prisma.emailTemplate.findMany();
-        return res.json(d || []);
-    } catch (e) { return res.status(200).json([]); }
+    try { return res.json(await prisma.emailTemplate.findMany() || []); } catch (e) { return res.status(200).json([]); }
 };
 
 export const saveEmailTemplate = async (req, res) => {
@@ -186,38 +196,30 @@ export const createAdminChatRoom = async (req, res) => {
 };
 
 export const getAdminChatMessages = async (req, res) => {
-    try {
-        const m = await prisma.adminChatMessage.findMany({ where: { chatRoomId: req.params.roomId } });
-        return res.json(m || []);
-    } catch (e) { return res.status(200).json([]); }
+    try { return res.json(await prisma.adminChatMessage.findMany({ where: { chatRoomId: req.params.roomId } }) || []); } catch (e) { return res.status(200).json([]); }
 };
 
 export const searchAllUsers = async (req, res) => {
-    try {
-        const d = await prisma.user.findMany({ where: { handleName: { contains: req.query.keyword } } });
-        return res.json(d || []);
-    } catch (e) { return res.status(200).json([]); }
+    try { return res.json(await prisma.user.findMany({ where: { handleName: { contains: req.query.keyword } } }) || []); } catch (e) { return res.status(200).json([]); }
 };
 
 export const updateProjectVisibility = async (req, res) => {
     try {
-        const p = await prisma.project.update({ where: { id: req.params.projectId }, data: { visibility: req.body.isVisible ? 'PUBLIC' : 'UNLISTED' } });
-        return res.json(p);
+        return res.json(await prisma.project.update({ where: { id: req.params.projectId }, data: { visibility: req.body.isVisible ? 'PUBLIC' : 'UNLISTED' } }));
     } catch (e) { return res.status(500).json({ message: 'Error' }); }
 };
 
 export const reviewReport = async (req, res) => {
     try {
-        const u = await prisma.projectReport.update({ where: { id: req.params.reportId }, data: { status: 'REVIEWED' } });
-        return res.json(u);
+        return res.json(await prisma.projectReport.update({ where: { id: req.params.reportId }, data: { status: 'REVIEWED' } }));
     } catch (e) { return res.status(500).json({ message: 'Error' }); }
 };
 
 export const createVenueAdmin = async (req, res) => {
-    try { const v = await prisma.venue.create({ data: req.body }); return res.status(201).json(v); } catch(e) { return res.status(500).json({message:'Error'}); }
+    try { return res.status(201).json(await prisma.venue.create({ data: req.body })); } catch(e) { return res.status(500).json({message:'Error'}); }
 };
 export const updateVenueAdmin = async (req, res) => {
-    try { const v = await prisma.venue.update({ where: {id:req.params.id}, data: req.body }); return res.json(v); } catch(e) { return res.status(500).json({message:'Error'}); }
+    try { return res.json(await prisma.venue.update({ where: {id:req.params.id}, data: req.body })); } catch(e) { return res.status(500).json({message:'Error'}); }
 };
 export const deleteVenueAdmin = async (req, res) => {
     try { await prisma.venue.delete({ where: {id:req.params.id} }); return res.status(204).send(); } catch(e) { return res.status(500).json({message:'Error'}); }
@@ -225,8 +227,7 @@ export const deleteVenueAdmin = async (req, res) => {
 
 export const banEvent = async (req, res) => {
     try {
-        const e = await prisma.event.update({ where: { id: req.params.eventId }, data: { isBanned: req.body.isBanned } });
-        return res.json(e);
+        return res.json(await prisma.event.update({ where: { id: req.params.eventId }, data: { isBanned: req.body.isBanned } }));
     } catch(e) { return res.status(500).json({ message: 'Error' }); }
 };
 export const dismissEventReport = async (req, res) => {
