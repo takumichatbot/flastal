@@ -21,41 +21,48 @@ export const authenticateToken = async (req, res, next) => {
     const userId = decoded.id || decoded.sub;
     const userRole = decoded.role || 'USER';
 
-    // 2. DBでの存在確認（ロールに応じて切り替え）
-    let account = null;
-    try {
-        const condition = { id: userId };
-        if (userRole === 'FLORIST') account = await prisma.florist.findUnique({ where: condition });
-        else if (userRole === 'VENUE') account = await prisma.venue.findUnique({ where: condition });
-        else if (userRole === 'ORGANIZER') account = await prisma.organizer.findUnique({ where: condition });
-        else account = await prisma.user.findUnique({ where: condition });
-    } catch (dbErr) {
-        console.error('[Middleware] DB check failed:', dbErr.message);
-    }
-
-    // 3. リクエストオブジェクトの構築
-    // DBに見つからない場合でも、トークンが有効ならログイン状態を維持させる
+    // 2. リクエストオブジェクトの構築
+    // DBへのアクセスを最小限にし、トークン内の情報を優先する
     req.user = {
         id: userId,
-        email: account?.email || decoded.email,
-        role: account?.role || userRole,
-        status: account?.status || decoded.status || 'APPROVED',
-        raw: account || decoded
+        email: decoded.email,
+        role: userRole,
+        status: decoded.status || 'APPROVED'
     };
+
+    // 3. 非同期でDB情報の確認が必要な場合のみ試行（クラッシュ防止）
+    if (userRole !== 'USER' && userRole !== 'ADMIN') {
+        try {
+            let account = null;
+            if (userRole === 'FLORIST') account = await prisma.florist.findUnique({ where: { id: userId } });
+            else if (userRole === 'VENUE') account = await prisma.venue.findUnique({ where: { id: userId } });
+            else if (userRole === 'ORGANIZER') account = await prisma.organizer.findUnique({ where: { id: userId } });
+            
+            if (account) {
+                req.user.status = account.status;
+                req.user.raw = account;
+            }
+        } catch (dbErr) {
+            console.error('[Middleware] DB check failed:', dbErr.message);
+        }
+    }
 
     next();
   } catch (error) {
     console.error('Auth Middleware Error:', error.message);
     if (error.name === 'TokenExpiredError') {
-      return res.status(401).json({ message: 'セッションが切れました。' });
+      return res.status(401).json({ message: 'セッションが切れました。再ログインしてください。' });
     }
     return res.status(401).json({ message: '認証に失敗しました。' });
   }
 };
 
 export const requireAdmin = (req, res, next) => {
-  if (req.user && req.user.role === 'ADMIN') next();
-  else res.status(403).json({ message: '管理者権限が必要です。' });
+  if (req.user && req.user.role === 'ADMIN') {
+      next();
+  } else {
+      res.status(403).json({ message: '管理者権限が必要です。' });
+  }
 };
 
 export const adminMiddleware = requireAdmin;
