@@ -18,12 +18,10 @@ export const authenticateToken = async (req, res, next) => {
 
     // 1. JWTの検証
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    if (!decoded) return res.status(401).json({ message: 'トークンの解析に失敗しました。' });
-    
     const userId = decoded.id || decoded.sub;
-    const userRole = (decoded.role || 'USER').toUpperCase(); // 統一して大文字比較
+    let userRole = (decoded.role || 'USER').toUpperCase();
 
-    // 2. リクエストオブジェクトの構築
+    // 2. 基本情報セット
     req.user = {
         id: userId,
         email: decoded.email,
@@ -31,28 +29,23 @@ export const authenticateToken = async (req, res, next) => {
         status: decoded.status || 'APPROVED'
     };
 
-    // 3. 特殊ロールの場合のDBステータスチェック（最新状態を反映）
-    if (['FLORIST', 'VENUE', 'ORGANIZER'].includes(userRole)) {
-        try {
-            let account = null;
-            if (userRole === 'FLORIST') account = await prisma.florist.findUnique({ where: { id: userId } });
-            else if (userRole === 'VENUE') account = await prisma.venue.findUnique({ where: { id: userId } });
-            else if (userRole === 'ORGANIZER') account = await prisma.organizer.findUnique({ where: { id: userId } });
-            
-            if (!account) {
-                return res.status(403).json({ message: 'アカウント情報が見つかりません。' });
-            }
-            
-            // 最新のステータスをセット
-            req.user.status = account.status;
-            req.user.raw = account;
-
-            // 承認されていない場合は一部制限するロジックを入れるならここ
-            // if (account.status !== 'APPROVED') { ... }
-            
-        } catch (dbErr) {
-            console.error('[Middleware] DB check failed:', dbErr.message);
+    // 3. 【重要】会場ダッシュボードアクセスのための補完ロジック
+    // 会場テーブルにIDが存在する場合、強制的にロールを VENUE として扱う（トークンの不整合対策）
+    try {
+        const venueAccount = await prisma.venue.findUnique({ where: { id: userId } });
+        if (venueAccount) {
+            req.user.role = 'VENUE';
+            req.user.status = venueAccount.status;
+            req.user.raw = venueAccount;
+        } else if (userRole === 'FLORIST') {
+            const floristAccount = await prisma.florist.findUnique({ where: { id: userId } });
+            if (floristAccount) req.user.raw = floristAccount;
+        } else if (userRole === 'ORGANIZER') {
+            const organizerAccount = await prisma.organizer.findUnique({ where: { id: userId } });
+            if (organizerAccount) req.user.raw = organizerAccount;
         }
+    } catch (dbErr) {
+        console.error('[Middleware] DB check failed:', dbErr.message);
     }
 
     next();

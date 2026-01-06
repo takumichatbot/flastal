@@ -63,11 +63,17 @@ export const addVenueByUser = async (req, res) => {
 // --- 会場情報の更新・承認 ---
 export const updateVenueProfile = async (req, res) => {
     try {
+        // req.user.id が会場IDそのものである場合を優先
         const venueId = req.params.id || req.user.id;
         const data = req.body;
         
-        if (req.user.role !== 'ADMIN' && (req.user.role !== 'VENUE' || req.user.id !== venueId)) {
-            return res.status(403).json({ message: 'この操作を行う権限がありません。' });
+        // ADMIN または 本人(VENUE) であれば許可
+        const isSelf = req.user.role === 'VENUE' && req.user.id === venueId;
+        const isAdmin = req.user.role === 'ADMIN';
+
+        if (!isSelf && !isAdmin) {
+            console.warn(`[AccessDenied] User:${req.user.id}, Role:${req.user.role}, TargetVenue:${venueId}`);
+            return res.status(403).json({ message: '会場ダッシュボードを利用するには、会場アカウントでログインしてください。' });
         }
 
         const updated = await prisma.venue.update({
@@ -117,7 +123,7 @@ export const postLogisticsInfo = async (req, res) => {
     }
 };
 
-// --- 物流情報の取得 (新しく追加) ---
+// --- 物流情報の取得 ---
 export const getLogisticsInfo = async (req, res) => {
     const { venueId } = req.params;
     try {
@@ -192,13 +198,10 @@ export const updateEvent = async (req, res) => {
     try {
         const { id } = req.params;
         const event = await prisma.event.findUnique({ where: { id } });
-
         if (!event) return res.status(404).json({ message: 'イベントが見つかりません。' });
-
         if (req.user.role !== 'ADMIN' && event.creatorId !== req.user.id) {
             return res.status(403).json({ message: '編集権限がありません。' });
         }
-
         const updated = await prisma.event.update({
             where: { id },
             data: {
@@ -222,13 +225,10 @@ export const deleteEvent = async (req, res) => {
     try {
         const { id } = req.params;
         const event = await prisma.event.findUnique({ where: { id } });
-
         if (!event) return res.status(404).json({ message: 'イベントが見つかりません。' });
-
         if (req.user.role !== 'ADMIN' && event.creatorId !== req.user.id) {
             return res.status(403).json({ message: '削除権限がありません。' });
         }
-
         await prisma.event.delete({ where: { id } });
         res.status(204).send();
     } catch (e) {
