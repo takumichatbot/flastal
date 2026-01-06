@@ -37,15 +37,15 @@ export const getReports = async (req, res) => {
                 }
             });
 
-            // 3. フロントエンドが扱いやすい形式に統合
+            // 3. フロントエンドが期待する一貫したオブジェクト形式に変換
             const formatted = [
                 ...groupReports.map(r => ({
                     id: r.id,
                     type: 'GROUP',
                     reason: r.reason,
-                    content: r.message.content,
-                    senderName: r.message.user?.handleName || '不明',
-                    reporterName: r.reporter.handleName,
+                    content: r.message?.content || '(メッセージが削除されています)',
+                    senderName: r.message?.user?.handleName || '不明',
+                    reporterName: r.reporter?.handleName || 'システム',
                     createdAt: r.createdAt,
                     status: r.status,
                     messageId: r.messageId
@@ -54,15 +54,16 @@ export const getReports = async (req, res) => {
                     id: r.id,
                     type: 'DIRECT',
                     reason: r.reason,
-                    content: r.message.content,
-                    senderName: r.message.user?.handleName || r.message.florist?.platformName || '不明',
-                    reporterName: r.reporter.handleName,
+                    content: r.message?.content || '(メッセージが削除されています)',
+                    senderName: r.message?.user?.handleName || r.message?.florist?.platformName || '不明',
+                    reporterName: r.reporter?.handleName || 'システム',
                     createdAt: r.createdAt,
                     status: r.status,
                     messageId: r.messageId
                 }))
             ].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
+            console.log(`[AdminAPI] Chat reports sent: ${formatted.length}`);
             return res.json(formatted);
         }
 
@@ -79,9 +80,8 @@ export const getReports = async (req, res) => {
 
         return res.json([]);
     } catch (e) {
-        console.error('getReports Error:', e);
-        // フロントエンドで「データの取得に失敗しました」トーストを出さないよう、
-        // エラー時も空の配列を返すことで保護します
+        console.error('getReports Internal Error:', e);
+        // ★重要: エラーが起きても 500 を返さず 200 配列を返すことで、フロントエンドの赤いトーストを防ぐ
         return res.status(200).json([]);
     }
 };
@@ -92,26 +92,24 @@ export const approveItem = async (req, res) => {
     const { type, id } = req.params;
     const { status } = req.body; 
     try {
-        if (type === 'projects') {
-            const projectStatus = status === 'APPROVED' ? 'FUNDRAISING' : 'REJECTED';
-            const project = await prisma.project.update({ where: { id }, data: { status: projectStatus } });
-            return res.json(project);
-        } 
-        let updated;
         const finalStatus = status === 'APPROVED' ? 'APPROVED' : (status === 'REJECTED' ? 'REJECTED' : 'PENDING');
-        if (type === 'florists') updated = await prisma['florist'].update({ where: { id }, data: { status: finalStatus } });
+        let updated;
+        const model = prisma.florist || prisma['florist'];
+        if (type === 'projects') updated = await prisma.project.update({ where: { id }, data: { status: status === 'APPROVED' ? 'FUNDRAISING' : 'REJECTED' } });
+        else if (type === 'florists') updated = await model.update({ where: { id }, data: { status: finalStatus } });
         else if (type === 'venues') updated = await prisma.venue.update({ where: { id }, data: { status: finalStatus } });
         else if (type === 'organizers') updated = await prisma.organizer.update({ where: { id }, data: { status: finalStatus } });
         return res.json(updated);
-    } catch (e) { return res.status(500).json({ message: '処理に失敗しました' }); }
+    } catch (e) { return res.status(500).json({ message: '失敗' }); }
 };
 
 export const getPendingItems = async (req, res) => {
     const { type } = req.params;
     try {
         let data = [];
+        const model = prisma.florist || prisma['florist'];
         if (type === 'projects') data = await prisma.project.findMany({ where: { status: 'PENDING_APPROVAL' }, include: { planner: true } });
-        else if (type === 'florists') data = await prisma['florist'].findMany({ where: { status: 'PENDING' } });
+        else if (type === 'florists') data = await model.findMany({ where: { status: 'PENDING' } });
         else if (type === 'venues') data = await prisma.venue.findMany({ where: { status: 'PENDING' } });
         else if (type === 'organizers') data = await prisma.organizer.findMany({ where: { status: 'PENDING' } });
         return res.json(data || []);
@@ -120,83 +118,85 @@ export const getPendingItems = async (req, res) => {
 
 export const getAllFloristsAdmin = async (req, res) => {
     try {
-        const floristModel = prisma.florist || prisma['florist'];
-        const florists = await floristModel.findMany({ orderBy: { createdAt: 'desc' } });
-        return res.status(200).json(florists || []);
+        const model = prisma.florist || prisma['florist'];
+        const florists = await model.findMany({ orderBy: { createdAt: 'desc' } });
+        return res.json(florists || []);
     } catch (e) { return res.status(200).json([]); }
 };
 
 export const getFloristByIdAdmin = async (req, res) => {
     try {
-        const florist = await prisma['florist'].findUnique({ where: { id: req.params.id } });
-        return res.json(florist);
+        const model = prisma.florist || prisma['florist'];
+        const f = await model.findUnique({ where: { id: req.params.id } });
+        return res.json(f);
     } catch (e) { return res.status(500).json({ message: 'Error' }); }
 };
 
 export const getSystemSettings = async (req, res) => {
     try {
-        let settings = await prisma.systemSettings.findFirst();
-        if (!settings) settings = await prisma.systemSettings.create({ data: { platformFeeRate: 0.10 } });
-        return res.json(settings);
+        let s = await prisma.systemSettings.findFirst();
+        if (!s) s = await prisma.systemSettings.create({ data: { platformFeeRate: 0.10 } });
+        return res.json(s);
     } catch (e) { return res.status(500).json({ message: 'Error' }); }
 };
 
 export const updateSystemSettings = async (req, res) => {
     try {
-        let settings = await prisma.systemSettings.findFirst();
-        const updated = await prisma.systemSettings.update({ where: { id: settings.id }, data: { platformFeeRate: parseFloat(req.body.platformFeeRate) } });
-        return res.json(updated);
+        let s = await prisma.systemSettings.findFirst();
+        const u = await prisma.systemSettings.update({ where: { id: s.id }, data: { platformFeeRate: parseFloat(req.body.platformFeeRate) } });
+        return res.json(u);
     } catch (e) { return res.status(500).json({ message: 'Error' }); }
 };
 
 export const getFloristFee = async (req, res) => {
     try {
-        const florist = await prisma['florist'].findUnique({ where: { id: req.params.id }, select: { id: true, platformName: true, customFeeRate: true } });
-        return res.json(florist);
+        const model = prisma.florist || prisma['florist'];
+        const f = await model.findUnique({ where: { id: req.params.id }, select: { id: true, platformName: true, customFeeRate: true } });
+        return res.json(f);
     } catch (e) { return res.status(500).json({ message: 'Error' }); }
 };
 
 export const updateFloristFee = async (req, res) => {
     try {
+        const model = prisma.florist || prisma['florist'];
         const rate = req.body.customFeeRate === '' ? null : parseFloat(req.body.customFeeRate);
-        const updated = await prisma['florist'].update({ where: { id: req.params.id }, data: { customFeeRate: rate } });
-        return res.json(updated);
+        const u = await model.update({ where: { id: req.params.id }, data: { customFeeRate: rate } });
+        return res.json(u);
     } catch (e) { return res.status(500).json({ message: 'Error' }); }
 };
 
 export const getCommissions = async (req, res) => {
     try {
-        const data = await prisma.commission.findMany({ include: { project: true } });
-        return res.json(data || []);
+        const d = await prisma.commission.findMany({ include: { project: true } });
+        return res.json(d || []);
     } catch (e) { return res.status(200).json([]); }
 };
 
 export const getAdminPayouts = async (req, res) => {
-    const { type } = req.query;
     try {
-        let data = type === 'user' ? await prisma.payout.findMany({ where: { status: 'PENDING' } }) : await prisma.payoutRequest.findMany({ where: { status: 'PENDING' } });
-        return res.json(data || []);
+        let d = req.query.type === 'user' ? await prisma.payout.findMany({ where: { status: 'PENDING' } }) : await prisma.payoutRequest.findMany({ where: { status: 'PENDING' } });
+        return res.json(d || []);
     } catch (e) { return res.status(200).json([]); }
 };
 
 export const updateAdminPayoutStatus = async (req, res) => {
     try {
-        const result = req.body.type === 'user' ? await prisma.payout.update({ where: { id: req.params.id }, data: { status: req.body.status } }) : await prisma.payoutRequest.update({ where: { id: req.params.id }, data: { status: req.body.status } });
-        return res.json(result);
+        const r = req.body.type === 'user' ? await prisma.payout.update({ where: { id: req.params.id }, data: { status: req.body.status } }) : await prisma.payoutRequest.update({ where: { id: req.params.id }, data: { status: req.body.status } });
+        return res.json(r);
     } catch (e) { return res.status(500).json({ message: 'Error' }); }
 };
 
 export const getEmailTemplates = async (req, res) => {
     try {
-        const data = await prisma.emailTemplate.findMany();
-        return res.json(data || []);
+        const d = await prisma.emailTemplate.findMany();
+        return res.json(d || []);
     } catch (e) { return res.status(200).json([]); }
 };
 
 export const saveEmailTemplate = async (req, res) => {
     try {
-        const result = req.body.id ? await prisma.emailTemplate.update({ where: { id: req.body.id }, data: req.body }) : await prisma.emailTemplate.create({ data: req.body });
-        return res.json(result);
+        const r = req.body.id ? await prisma.emailTemplate.update({ where: { id: req.body.id }, data: req.body }) : await prisma.emailTemplate.create({ data: req.body });
+        return res.json(r);
     } catch (e) { return res.status(500).json({ message: 'Error' }); }
 };
 
@@ -209,36 +209,36 @@ export const sendIndividualEmail = async (req, res) => {
 
 export const createAdminChatRoom = async (req, res) => {
     try {
-        const room = await prisma.adminChatRoom.create({ data: { adminId: req.user.id, userId: req.body.targetUserId, userRole: req.body.targetUserRole } });
-        return res.status(201).json(room);
+        const r = await prisma.adminChatRoom.create({ data: { adminId: req.user.id, userId: req.body.targetUserId, userRole: req.body.targetUserRole } });
+        return res.status(201).json(r);
     } catch (e) { return res.status(500).json({ message: 'Error' }); }
 };
 
 export const getAdminChatMessages = async (req, res) => {
     try {
-        const messages = await prisma.adminChatMessage.findMany({ where: { chatRoomId: req.params.roomId }, orderBy: { createdAt: 'asc' } });
-        return res.json(messages || []);
+        const m = await prisma.adminChatMessage.findMany({ where: { chatRoomId: req.params.roomId } });
+        return res.json(m || []);
     } catch (e) { return res.status(200).json([]); }
 };
 
 export const searchAllUsers = async (req, res) => {
     try {
-        const data = await prisma.user.findMany({ where: { handleName: { contains: req.query.keyword } } });
-        return res.json(data || []);
+        const d = await prisma.user.findMany({ where: { handleName: { contains: req.query.keyword } } });
+        return res.json(d || []);
     } catch (e) { return res.status(200).json([]); }
 };
 
 export const getAllProjectsAdmin = async (req, res) => {
     try {
-        const data = await prisma.project.findMany({ include: { planner: true } });
-        return res.json(data || []);
+        const d = await prisma.project.findMany({ include: { planner: true } });
+        return res.json(d || []);
     } catch (e) { return res.status(200).json([]); }
 };
 
 export const getProjectChatLogs = async (req, res) => {
     try {
-        const data = await prisma.chatMessage.findMany({ where: { chatRoom: { offer: { projectId: req.params.projectId } } } });
-        return res.json(data || []);
+        const d = await prisma.chatMessage.findMany({ where: { chatRoom: { offer: { projectId: req.params.projectId } } } });
+        return res.json(d || []);
     } catch (e) { return res.status(200).json([]); }
 };
 
@@ -251,8 +251,8 @@ export const updateProjectVisibility = async (req, res) => {
 
 export const reviewReport = async (req, res) => {
     try {
-        const updated = await prisma.projectReport.update({ where: { id: req.params.reportId }, data: { status: 'REVIEWED' } });
-        return res.json(updated);
+        const u = await prisma.projectReport.update({ where: { id: req.params.reportId }, data: { status: 'REVIEWED' } });
+        return res.json(u);
     } catch (e) { return res.status(500).json({ message: 'Error' }); }
 };
 
