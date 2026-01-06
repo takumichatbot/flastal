@@ -2,71 +2,43 @@ import prisma from '../config/prisma.js';
 import { sendEmail, sendDynamicEmail } from '../utils/email.js';
 import { createNotification } from '../utils/notification.js';
 
-// ==========================================
-// ★★★ プロジェクトごとの全チャット履歴取得 ★★★
-// ==========================================
+// チャット履歴取得（監視画面用）
 export const getProjectChatLogs = async (req, res) => {
     const { projectId } = req.params;
-    console.log(`[AdminAPI] Fetching chat logs for project: ${projectId}`);
-
+    console.log(`[AdminAPI] Loading chat logs for: ${projectId}`);
     try {
-        // 1. グループチャット履歴の取得
         const groupMessages = await prisma.groupChatMessage.findMany({
             where: { projectId },
-            include: {
-                user: { select: { handleName: true } }
-            },
+            include: { user: { select: { handleName: true } } },
             orderBy: { createdAt: 'asc' }
         });
 
-        // 2. そのプロジェクトに関連するダイレクトチャット(花屋相談)履歴の取得
-        // Offer -> ChatRoom -> ChatMessage の階層を辿る
         const floristMessages = await prisma.chatMessage.findMany({
-            where: {
-                chatRoom: {
-                    offer: { projectId }
-                }
-            },
-            include: {
-                user: { select: { handleName: true } },
-                florist: { select: { platformName: true } }
-            },
+            where: { chatRoom: { offer: { projectId } } },
+            include: { user: { select: { handleName: true } }, florist: { select: { platformName: true } } },
             orderBy: { createdAt: 'asc' }
         });
 
-        // 3. 全てのメッセージを統合して時間順に並べ替え
         const allMessages = [
             ...groupMessages.map(m => ({
-                id: m.id,
-                type: 'GROUP',
-                content: m.content,
-                senderName: m.user?.handleName || '不明',
-                createdAt: m.createdAt,
-                messageType: m.messageType,
-                fileUrl: m.fileUrl
+                id: m.id, type: 'GROUP', content: m.content,
+                senderName: m.user?.handleName || '不明', createdAt: m.createdAt
             })),
             ...floristMessages.map(m => ({
-                id: m.id,
-                type: 'DIRECT',
-                content: m.content,
+                id: m.id, type: 'DIRECT', content: m.content,
                 senderName: m.senderType === 'USER' ? (m.user?.handleName || '不明') : (m.florist?.platformName || '花屋'),
-                createdAt: m.createdAt,
-                messageType: m.messageType,
-                fileUrl: m.fileUrl
+                createdAt: m.createdAt
             }))
         ].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
 
-        console.log(`[AdminAPI] Sent ${allMessages.length} combined messages for project ${projectId}`);
         return res.json(allMessages);
-
     } catch (e) {
         console.error('getProjectChatLogs Error:', e);
-        // エラー時でも空配列を返すことでフロントエンドのクラッシュを防ぐ
         return res.status(200).json([]);
     }
 };
 
-// --- 以下、既存の安定化された関数群 (すべて統合して保存してください) ---
+// プロジェクト一覧取得
 export const getAllProjectsAdmin = async (req, res) => {
     try {
         const projects = await prisma.project.findMany({
@@ -77,37 +49,54 @@ export const getAllProjectsAdmin = async (req, res) => {
     } catch (e) { return res.status(200).json([]); }
 };
 
+// 通報取得
 export const getReports = async (req, res) => {
     const { type } = req.params;
     try {
         if (type === 'chat') {
-            const groupReports = await prisma.groupChatMessageReport.findMany({ where: { status: 'PENDING' }, include: { message: true, reporter: true } });
-            const directReports = await prisma.chatMessageReport.findMany({ where: { status: 'PENDING' }, include: { message: true, reporter: true } });
-            const formatted = [
-                ...groupReports.map(r => ({ id: r.id, type: 'GROUP', content: r.message?.content, reporterName: r.reporter.handleName, createdAt: r.createdAt })),
-                ...directReports.map(r => ({ id: r.id, type: 'DIRECT', content: r.message?.content, reporterName: r.reporter.handleName, createdAt: r.createdAt }))
-            ].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+            const group = await prisma.groupChatMessageReport.findMany({ where: { status: 'PENDING' }, include: { message: true, reporter: true } });
+            const direct = await prisma.chatMessageReport.findMany({ where: { status: 'PENDING' }, include: { message: true, reporter: true } });
+            const formatted = [...group, ...direct].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
             return res.json(formatted);
         }
         return res.json([]);
     } catch (e) { return res.status(200).json([]); }
 };
 
+// 承認処理
 export const approveItem = async (req, res) => {
     const { type, id } = req.params;
     const { status } = req.body; 
     try {
         const finalStatus = status === 'APPROVED' ? 'APPROVED' : (status === 'REJECTED' ? 'REJECTED' : 'PENDING');
         let updated;
-        const fm = prisma.florist || prisma['florist'];
+        const model = prisma.florist || prisma['florist'];
         if (type === 'projects') updated = await prisma.project.update({ where: { id }, data: { status: status === 'APPROVED' ? 'FUNDRAISING' : 'REJECTED' } });
-        else if (type === 'florists') updated = await fm.update({ where: { id }, data: { status: finalStatus } });
+        else if (type === 'florists') updated = await model.update({ where: { id }, data: { status: finalStatus } });
         else if (type === 'venues') updated = await prisma.venue.update({ where: { id }, data: { status: finalStatus } });
         else if (type === 'organizers') updated = await prisma.organizer.update({ where: { id }, data: { status: finalStatus } });
         return res.json(updated);
     } catch (e) { return res.status(500).json({ message: '失敗' }); }
 };
 
+// システム設定
+export const getSystemSettings = async (req, res) => {
+    try {
+        let s = await prisma.systemSettings.findFirst();
+        if (!s) s = await prisma.systemSettings.create({ data: { platformFeeRate: 0.10 } });
+        return res.json(s);
+    } catch (e) { return res.status(500).json({ message: 'Error' }); }
+};
+
+export const updateSystemSettings = async (req, res) => {
+    try {
+        let s = await prisma.systemSettings.findFirst();
+        const u = await prisma.systemSettings.update({ where: { id: s.id }, data: { platformFeeRate: parseFloat(req.body.platformFeeRate) } });
+        return res.json(u);
+    } catch (e) { return res.status(500).json({ message: 'Error' }); }
+};
+
+// --- 以下、既存のヘルパー関数群 (省略せずに統合) ---
 export const getPendingItems = async (req, res) => {
     const { type } = req.params;
     try {
@@ -137,22 +126,6 @@ export const getFloristByIdAdmin = async (req, res) => {
     } catch (e) { return res.status(500).json({ message: 'Error' }); }
 };
 
-export const getSystemSettings = async (req, res) => {
-    try {
-        let s = await prisma.systemSettings.findFirst();
-        if (!s) s = await prisma.systemSettings.create({ data: { platformFeeRate: 0.10 } });
-        return res.json(s);
-    } catch (e) { return res.status(500).json({ message: 'Error' }); }
-};
-
-export const updateSystemSettings = async (req, res) => {
-    try {
-        let s = await prisma.systemSettings.findFirst();
-        const u = await prisma.systemSettings.update({ where: { id: s.id }, data: { platformFeeRate: parseFloat(req.body.platformFeeRate) } });
-        return res.json(u);
-    } catch (e) { return res.status(500).json({ message: 'Error' }); }
-};
-
 export const getFloristFee = async (req, res) => {
     try {
         const fm = prisma.florist || prisma['florist'];
@@ -168,13 +141,6 @@ export const updateFloristFee = async (req, res) => {
         const u = await fm.update({ where: { id: req.params.id }, data: { customFeeRate: rate } });
         return res.json(u);
     } catch (e) { return res.status(500).json({ message: 'Error' }); }
-};
-
-export const getCommissions = async (req, res) => {
-    try {
-        const d = await prisma.commission.findMany({ include: { project: true } });
-        return res.json(d || []);
-    } catch (e) { return res.status(200).json([]); }
 };
 
 export const getAdminPayouts = async (req, res) => {
