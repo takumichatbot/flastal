@@ -17,13 +17,13 @@ export const getVenues = async (req, res) => {
     }
 };
 
-// --- 会場詳細取得 (ダッシュボード対応強化) ---
+// --- 会場詳細取得 (重要: ダッシュボード対応) ---
 export const getVenueById = async (req, res) => {
     const { id } = req.params;
     if (id === 'admin') return getVenues(req, res);
 
     try {
-        // 全てのケースで projects を含めて取得するように変更
+        // ダッシュボード表示に必要な projects リレーションを常に含める
         const venue = await prisma.venue.findUnique({
             where: { id },
             include: {
@@ -38,7 +38,7 @@ export const getVenueById = async (req, res) => {
         
         if (!venue) return res.status(404).json({ message: '会場が見つかりません。' });
         
-        // セキュリティのためパスワードのみ削除して全て返す
+        // パスワードを除外して返却
         const { password, ...cleanVenue } = venue;
         res.json(cleanVenue);
     } catch (e) { 
