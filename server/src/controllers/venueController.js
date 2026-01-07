@@ -179,39 +179,39 @@ export const getEventById = async (req, res) => {
 
 /**
  * ★ 重要修正: 新規イベント作成 ★
- * 会場IDの不整合（P2003エラー）を徹底的に回避します
+ * title と eventName の両方に対応させることでバリデーションエラーを回避します
  */
 export const createEvent = async (req, res) => {
     try {
         const body = req.body;
         console.log('[CreateEvent] Received body:', JSON.stringify(body));
 
-        // 1. 会場IDの抽出ロジックを強化
-        // フロントエンドから 'venueId' または 'venue' (オブジェクト) が来る可能性があるため
+        // 会場IDの抽出
         let targetVenueId = body.venueId;
         if (!targetVenueId && body.venue && body.venue.id) {
             targetVenueId = body.venue.id;
         }
 
-        // 2. 基本バリデーション
-        if (!body.eventName || !body.eventDate || !targetVenueId) {
-            return res.status(400).json({ 
-                message: 'イベント名、日付、会場の選択は必須です。',
-                debug: { eventName: !!body.eventName, eventDate: !!body.eventDate, venueId: !!targetVenueId }
-            });
+        // イベント名の抽出 (title と eventName 両方をサポート)
+        const name = body.eventName || body.title;
+
+        // 基本バリデーション
+        if (!name || !body.eventDate || !targetVenueId) {
+            return res.status(400).json({ message: 'イベント名、日付、会場の選択は必須です。' });
         }
 
-        // 3. データベースに本当に会場が存在するか最終チェック
+        // 会場存在チェック
         const exists = await prisma.venue.findUnique({ where: { id: targetVenueId } });
         if (!exists) {
-            console.error(`[CreateEvent] Venue not found in DB: ${targetVenueId}`);
-            return res.status(400).json({ message: '指定された会場が存在しません。もう一度選択し直してください。' });
+            return res.status(400).json({ message: '指定された会場が存在しません。' });
         }
 
-        // 4. イベント作成実行
+        // イベント作成実行
+        // データベースのカラム名が 'title' である場合と 'eventName' である場合の両方に備える
         const event = await prisma.event.create({ 
             data: { 
-                eventName: body.eventName,
+                title: name,        // DBが title を期待している場合
+                eventName: name,    // DBが eventName を期待している場合 (もしあれば)
                 description: body.description || '',
                 twitterHashtag: body.twitterHashtag || '',
                 eventDate: new Date(body.eventDate),
@@ -222,15 +222,11 @@ export const createEvent = async (req, res) => {
             } 
         });
 
-        console.log(`[CreateEvent] Success! New Event ID: ${event.id}`);
         res.status(201).json(event);
 
     } catch (e) { 
         console.error('createEvent Final Error:', e);
-        if (e.code === 'P2003') {
-            return res.status(400).json({ message: 'データベースの制約エラーが発生しました（会場IDが無効です）。' });
-        }
-        res.status(500).json({ message: 'イベントの作成中に予期せぬエラーが発生しました。' }); 
+        res.status(500).json({ message: 'イベントの作成中にエラーが発生しました。' }); 
     }
 };
 
@@ -243,10 +239,15 @@ export const updateEvent = async (req, res) => {
         if (req.user.role !== 'ADMIN' && event.creatorId !== req.user.id) {
             return res.status(403).json({ message: '編集権限がありません。' });
         }
+        
+        const name = req.body.eventName || req.body.title;
+
         const updated = await prisma.event.update({
             where: { id },
             data: {
-                ...req.body,
+                title: name,
+                eventName: name,
+                description: req.body.description,
                 eventDate: req.body.eventDate ? new Date(req.body.eventDate) : undefined,
                 lastEditorId: req.user.id
             }
