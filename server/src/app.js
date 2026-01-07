@@ -160,28 +160,32 @@ app.get('/', (req, res) => {
 });
 
 // ==========================================
-// ★★★ ルーティングのマウント ★★★
+// ★★★ ルーティングのマウント (整理版) ★★★
 // ==========================================
 
 // 認証・ユーザー基本
 app.use('/api', authRoutes);
-app.use('/api', userRoutes);
+app.use('/api/users', userRoutes); // パスを明確化
 
 // 花屋関連
 app.use('/api/florists', floristRoutes);
 
-// 会場・企画・イベント関連
-// 【重要】/api/venues ではなく /api にマウントすることで venueRoutes.js 内の /events や /venues が有効になります
-app.use('/api', projectRoutes); 
-app.use('/api', venueRoutes); // ★ 修正: /api/venues から /api へ
-app.use('/api/project-details', projectDetailRoutes);
-app.use('/api/organizers', organizerRoutes);
+// 会場関連 (最重要: パスを /api/venues に固定)
+// venueRoutes.js 内の '/' は '/api/venues' として動作するようになります
+app.use('/api/venues', venueRoutes); 
 
-// ツール・決済
+// イベント関連 (ショートカット用)
+// venueRoutes.js 内に /events がある場合、/api/events/... でアクセス可能になります
+app.use('/api/events', venueRoutes); 
+
+// 企画・詳細
+app.use('/api/projects', projectRoutes); // パスを明確化
+app.use('/api/project-details', projectDetailRoutes);
+
+// その他
+app.use('/api/organizers', organizerRoutes);
 app.use('/api/tools', toolRoutes);
 app.use('/api/payment', paymentRoutes);
-
-// 管理者
 app.use('/api/admin', adminRoutes);
 
 export default app;
