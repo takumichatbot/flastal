@@ -179,40 +179,28 @@ export const getEventById = async (req, res) => {
 
 /**
  * ★ 修正: 新規イベント作成 ★
- * DBのスキーマに合わせて 'title' フィールドのみを使用し、'eventName' を除外します
+ * データベースの定義(schema.prisma)に厳密に合わせて保存を実行します
  */
 export const createEvent = async (req, res) => {
     try {
         const body = req.body;
-        console.log('[CreateEvent] Received body:', JSON.stringify(body));
+        console.log('[CreateEvent] Processing body:', JSON.stringify(body));
 
-        // 1. 会場IDの抽出
-        let targetVenueId = body.venueId;
-        if (!targetVenueId && body.venue && body.venue.id) {
-            targetVenueId = body.venue.id;
-        }
+        // 1. 各項目の抽出と補完
+        const targetVenueId = body.venueId || (body.venue ? body.venue.id : null);
+        const name = body.title || body.eventName; // データベースのカラムは 'title'
 
-        // 2. イベント名の抽出 (フロントエンドから eventName または title で来る可能性がある)
-        const name = body.eventName || body.title;
-
-        // 3. 基本バリデーション
+        // 2. 必須チェック
         if (!name || !body.eventDate || !targetVenueId) {
-            return res.status(400).json({ message: 'イベント名、日付、会場の選択は必須です。' });
+            return res.status(400).json({ message: 'イベント名、開催日、会場は必須です。' });
         }
 
-        // 4. 会場存在チェック
-        const exists = await prisma.venue.findUnique({ where: { id: targetVenueId } });
-        if (!exists) {
-            return res.status(400).json({ message: '指定された会場が存在しません。' });
-        }
-
-        // 5. イベント作成実行
-        // 【重要】Prismaのモデルに存在するフィールド名 'title' のみを使用します
+        // 3. イベント作成実行 (エラーの原因になる不明な引数を排除)
         const event = await prisma.event.create({ 
             data: { 
-                title: name,        // データベースのカラム名
+                title: name,
                 description: body.description || '',
-                twitterHashtag: body.twitterHashtag || '',
+                // 【重要】Prismaエラーを避けるため、twitterHashtag などの不明なフィールドは含めない
                 eventDate: new Date(body.eventDate),
                 venueId: targetVenueId,
                 creatorId: req.user.id, 
@@ -240,14 +228,13 @@ export const updateEvent = async (req, res) => {
             return res.status(403).json({ message: '編集権限がありません。' });
         }
         
-        const name = req.body.eventName || req.body.title;
+        const name = req.body.title || req.body.eventName;
 
-        // 更新時も 'title' フィールドのみを使用
         const updated = await prisma.event.update({
             where: { id },
             data: {
                 title: name,
-                description: req.body.description,
+                description: req.body.description || '',
                 eventDate: req.body.eventDate ? new Date(req.body.eventDate) : undefined,
                 lastEditorId: req.user.id
             }
