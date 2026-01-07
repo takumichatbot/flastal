@@ -46,7 +46,7 @@ export const getVenueById = async (req, res) => {
     }
 };
 
-// --- ユーザーによる会場登録 ---
+// --- 一般ユーザーによる会場登録 ---
 export const addVenueByUser = async (req, res) => {
     const { venueName, address, regulations } = req.body;
     try {
@@ -68,7 +68,7 @@ export const addVenueByUser = async (req, res) => {
     }
 };
 
-// --- 会場情報の更新 ---
+// --- 会場情報の更新 (会場本人または管理者) ---
 export const updateVenueProfile = async (req, res) => {
     try {
         const venueId = req.params.id || req.user.id;
@@ -100,7 +100,7 @@ export const updateVenueProfile = async (req, res) => {
     }
 };
 
-// --- 会場の削除 ---
+// --- 会場の削除 (管理者のみ) ---
 export const deleteVenue = async (req, res) => {
     const { id } = req.params;
     if (req.user.role !== 'ADMIN') return res.status(403).json({ message: '権限がありません。' });
@@ -113,11 +113,7 @@ export const deleteVenue = async (req, res) => {
     }
 };
 
-/**
- * ★ 重要修正: 物流情報の投稿 ★
- * 会場アカウントからの投稿時は、DB制約を回避するために
- * 特定の「公式投稿」用処理を行います。
- */
+// --- 物流情報の投稿 ---
 export const postLogisticsInfo = async (req, res) => {
     const { venueId } = req.params;
     const { title, description } = req.body;
@@ -125,21 +121,13 @@ export const postLogisticsInfo = async (req, res) => {
     const userRole = req.user.role;
 
     try {
-        // 現在のスキーマでは VenueLogisticsInfo.contributorId が Florist 必須。
-        // 会場が投稿する場合、本来の目的は Venue.accessInfo の更新であることが多いため、
-        // もし会場自身が投稿しようとしているなら、それを「会場本体の更新」として処理するか
-        // または、制約エラーが出ない特定の ID を割り当てる必要があります。
-
+        // 会場自身による投稿の場合、Venue.accessInfoを更新する
         if (userRole === 'VENUE') {
-            // 会場アカウントの場合は、Venueモデルの accessInfo を更新する
-            // これにより、画面上の「現在の搬入情報」とは別に、公式ルールとして保存されます。
             await prisma.venue.update({
                 where: { id: venueId },
                 data: { accessInfo: `${title}\n${description}` }
             });
 
-            // 画面の「搬入情報」一覧にも表示させたい場合、DB制約があるため
-            // ここでは成功を返しつつ、フロントエンドに「公式情報として保存した」旨を伝えます。
             return res.status(201).json({ 
                 id: 'official-info',
                 title: `【公式】${title}`, 
@@ -148,7 +136,7 @@ export const postLogisticsInfo = async (req, res) => {
             });
         }
 
-        // お花屋さんの場合は通常通りリレーションを繋いで保存
+        // お花屋さんの場合は通常保存
         const info = await prisma.venueLogisticsInfo.create({
             data: { 
                 title, 
@@ -165,18 +153,16 @@ export const postLogisticsInfo = async (req, res) => {
     }
 };
 
-// --- 物流情報の取得 (会場の公式情報も混ぜて取得) ---
+// --- 物流情報の取得 ---
 export const getLogisticsInfo = async (req, res) => {
     const { venueId } = req.params;
     try {
-        // 1. お花屋さんの投稿を取得
         const floristInfos = await prisma.venueLogisticsInfo.findMany({
             where: { venueId },
             include: { contributor: { select: { shopName: true } } },
             orderBy: { createdAt: 'desc' }
         });
 
-        // 2. 会場の公式情報 (accessInfo) もリストの先頭に加える
         const venue = await prisma.venue.findUnique({
             where: { id: venueId },
             select: { accessInfo: true, venueName: true }
@@ -193,7 +179,6 @@ export const getLogisticsInfo = async (req, res) => {
                 contributor: { shopName: venue.venueName }
             });
         }
-
         res.json(results || []);
     } catch (e) {
         console.error('getLogisticsInfo Error:', e);
@@ -238,58 +223,55 @@ export const getEventById = async (req, res) => {
     }
 };
 
-// --- 新規イベント作成 ---
+// --- 一般ユーザーによるイベント登録 (sourceType: USER 固定) ---
 export const createEvent = async (req, res) => {
     try {
-        const body = req.body;
-        const userId = req.user.id;
-        const userRole = req.user.role;
+        const { title, eventName, eventDate, venueId, venue, description } = req.body;
+        const name = title || eventName;
+        const targetVenueId = venueId || venue?.id;
 
-        const name = body.title || body.eventName;
-        const targetVenueId = body.venueId || (body.venue ? body.venue.id : null);
-
-        if (!name || !body.eventDate || !targetVenueId) {
+        if (!name || !eventDate || !targetVenueId) {
             return res.status(400).json({ message: '入力内容が不足しています。' });
         }
 
-        const createData = {
-            title: name,
-            description: body.description || '',
-            eventDate: new Date(body.eventDate),
-            venue: { connect: { id: targetVenueId } },
-            sourceType: userRole === 'ADMIN' ? 'OFFICIAL' : 'USER'
-        };
-
-        if (userRole === 'ORGANIZER') {
-            createData.organizer = { connect: { id: userId } };
-        } else {
-            createData.creator = { connect: { id: userId } };
-            createData.lastEditor = { connect: { id: userId } };
-        }
-
-        const event = await prisma.event.create({ data: createData });
+        const event = await prisma.event.create({
+            data: {
+                title: name,
+                description: description || '',
+                eventDate: new Date(eventDate),
+                venue: { connect: { id: targetVenueId } },
+                creator: { connect: { id: req.user.id } },
+                sourceType: 'USER' // 一般ユーザー投稿として固定
+            }
+        });
         res.status(201).json(event);
-
     } catch (e) { 
         console.error('createEvent Error:', e);
         res.status(500).json({ message: 'イベントの作成に失敗しました。' }); 
     }
 };
 
-// --- イベント更新 ---
+// --- イベント更新 (一般投稿用) ---
 export const updateEvent = async (req, res) => { 
     try {
         const { id } = req.params;
         const event = await prisma.event.findUnique({ where: { id } });
         if (!event) return res.status(404).json({ message: 'イベントが見つかりません。' });
-        const name = req.body.title || req.body.eventName;
-        const updateData = {
-            title: name,
-            description: req.body.description || '',
-            eventDate: req.body.eventDate ? new Date(req.body.eventDate) : undefined,
-        };
-        if (req.user.role !== 'ORGANIZER') updateData.lastEditor = { connect: { id: req.user.id } };
-        const updated = await prisma.event.update({ where: { id: id }, data: updateData });
+        
+        // 投稿者本人か管理者のみ更新可能
+        if (event.creatorId !== req.user.id && req.user.role !== 'ADMIN') {
+            return res.status(403).json({ message: '権限がありません。' });
+        }
+
+        const updated = await prisma.event.update({
+            where: { id },
+            data: {
+                title: req.body.title || req.body.eventName,
+                description: req.body.description,
+                eventDate: req.body.eventDate ? new Date(req.body.eventDate) : undefined,
+                lastEditor: { connect: { id: req.user.id } }
+            }
+        });
         res.json(updated);
     } catch (e) {
         console.error('updateEvent Error:', e);
@@ -297,47 +279,22 @@ export const updateEvent = async (req, res) => {
     }
 };
 
-// --- イベント削除 ---
+// --- イベント削除 (一般投稿用) ---
 export const deleteEvent = async (req, res) => { 
     try {
         const { id } = req.params;
         const event = await prisma.event.findUnique({ where: { id } });
         if (!event) return res.status(404).json({ message: 'イベントが見つかりません。' });
-        const isOwner = event.organizerId === req.user.id || event.creatorId === req.user.id;
-        if (req.user.role !== 'ADMIN' && !isOwner) return res.status(403).json({ message: '削除権限がありません。' });
+        
+        if (event.creatorId !== req.user.id && req.user.role !== 'ADMIN') {
+            return res.status(403).json({ message: '削除権限がありません。' });
+        }
+
         await prisma.event.delete({ where: { id } });
         res.status(204).send();
     } catch (e) {
         console.error('deleteEvent Error:', e);
         res.status(500).json({ message: 'イベントの削除に失敗しました。' });
-    }
-};
-
-// --- 主催者が管理中のイベント一覧を取得 ---
-export const getOrganizerEvents = async (req, res) => {
-    try {
-        const userId = req.user.id;
-        const userRole = req.user.role;
-        let whereCondition = {};
-        if (userRole === 'ORGANIZER') {
-            whereCondition = { organizerId: userId };
-        } else if (userRole === 'ADMIN') {
-            whereCondition = {};
-        } else {
-            whereCondition = { creatorId: userId };
-        }
-        const events = await prisma.event.findMany({
-            where: whereCondition,
-            include: {
-                venue: { select: { venueName: true } },
-                _count: { select: { projects: true } }
-            },
-            orderBy: { eventDate: 'desc' }
-        });
-        res.json(events || []);
-    } catch (e) {
-        console.error('getOrganizerEvents Error:', e);
-        res.status(500).json({ message: '管理イベントの取得に失敗しました。' });
     }
 };
 
