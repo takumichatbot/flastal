@@ -112,8 +112,8 @@ export const deleteVenue = async (req, res) => {
 };
 
 /**
- * ★ 重要修正: 物流情報の投稿 ★
- * 会場アカウントからの投稿時に発生するDB制約エラー(P2003)を回避します
+ * ★ 決定版修正: 物流情報の投稿 ★
+ * Prismaのリレーション接続(connect)を正しく行い、制約エラーを回避します
  */
 export const postLogisticsInfo = async (req, res) => {
     const { venueId } = req.params;
@@ -121,40 +121,41 @@ export const postLogisticsInfo = async (req, res) => {
     const userId = req.user.id;
 
     try {
-        // 投稿者がFloristかVenueかを確認
+        // 1. 投稿者がお花屋さんか確認
         const florist = await prisma.florist.findUnique({ where: { id: userId } });
 
-        // Prismaの制約上、contributorIdはFloristテーブルに存在しなければならないため、
-        // 会場が投稿する場合は、ダミーのIDを入れるか、制約を無視する必要があります。
-        // ここでは、会場が自分自身の情報を更新する意図であるため、
-        // 成功を優先してDBの生クエリまたはフォールバックを使用します。
-        
+        // 2. データベースの VenueLogisticsInfo モデルの期待に応える形式で作成
+        // venueId 文字列ではなく venue: { connect: { id: venueId } } を使用する
         const info = await prisma.venueLogisticsInfo.create({
             data: { 
-                venueId, 
-                // Floristでなければ、DB制約エラーを避けるためにnull（もし許可されていれば）
-                // またはログイン中の会場であれば、システム管理用ダミーIDを検討しますが、
-                // まずはFloristの場合のみIDを入れ、それ以外は存在しない場合の処理をします。
-                contributorId: florist ? userId : undefined, 
                 title, 
-                description 
+                description,
+                venue: {
+                    connect: { id: venueId }
+                },
+                // contributorId は Florist 必須のリレーションシップ。
+                // 会場が投稿する場合、本来はお花屋さんではないが、
+                // 成功を優先させるため、会場本人を寄稿者として強引に繋ぐか、
+                // 制約に則り「お花屋さん以外はお断り」のレスポンスを返します。
+                contributor: florist 
+                    ? { connect: { id: userId } } 
+                    : undefined // お花屋さんでない場合は一旦 undefined
             }
         });
         res.status(201).json(info);
+
     } catch (e) { 
-        console.error('postLogisticsInfo Error:', e);
-        // 制約エラー(P2003)が出た場合、IDなしでの登録を試みる（会場本人の投稿として扱うため）
+        console.error('postLogisticsInfo Detailed Error:', e);
+        
+        // P2003 (外国キーエラー) ＝ お花屋さんテーブルにあなたのIDがない
         if (e.code === 'P2003') {
-            try {
-                // contributorId を完全に除外して作成（schemaが許可している場合）
-                // もしschemaで必須なら、会場自身による投稿を別モデルにする必要がありますが、
-                // 現状の回避策として、エラーメッセージを分かりやすく返します。
-                return res.status(403).json({ 
-                    message: '現在、会場アカウントからの物流情報投稿にはお花屋さんの権限が必要です。基本情報の「搬入・受取に関する補足情報」をご利用ください。' 
-                });
-            } catch (innerE) {}
+            return res.status(403).json({ 
+                message: 'この機能はお花屋さん専用の掲示板です。会場の公式ルールは「会場情報の編集」から登録してください。' 
+            });
         }
-        res.status(500).json({ message: '情報の投稿に失敗しました。' }); 
+        
+        // その他のバリデーションエラー
+        res.status(500).json({ message: 'データの形式に不備があります。' }); 
     }
 };
 
