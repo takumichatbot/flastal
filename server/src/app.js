@@ -16,6 +16,7 @@ import toolRoutes from './routes/tools.js';
 import adminRoutes from './routes/admin.js';
 import paymentRoutes from './routes/payment.js';
 import projectDetailRoutes from './routes/projectDetails.js';
+import organizerRoutes from './routes/organizers.js'; // ★ 追加
 
 const app = express();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
@@ -198,11 +199,11 @@ app.use('/api', userRoutes);
 // 花屋関連
 app.use('/api/florists', floristRoutes);
 
-// 会場・企画関連
-// ★重要修正: '/api/projects' から '/api' に変更 (projects.js側で /projects を定義しているため)
+// 会場・企画・主催者関連
 app.use('/api', projectRoutes); 
 app.use('/api/venues', venueRoutes);
 app.use('/api/project-details', projectDetailRoutes);
+app.use('/api/organizers', organizerRoutes); // ★ 追加
 
 // ツール・決済
 app.use('/api/tools', toolRoutes);
