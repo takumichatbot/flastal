@@ -1,6 +1,5 @@
 'use client';
 
-// Next.js 15 のビルドエラーを確実に回避するための設定
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
 
@@ -11,44 +10,39 @@ import { useAuth } from '@/app/contexts/AuthContext';
 import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import { 
-  FiArrowLeft, FiCalendar, FiMapPin, FiInfo, FiCheck, FiLoader, FiAlertCircle 
+  FiArrowLeft, FiCalendar, FiMapPin, FiLoader, FiCheck, FiType
 } from 'react-icons/fi';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
-/**
- * メインロジック
- */
 function CreateEventContent() {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
   const router = useRouter();
   const [isMounted, setIsMounted] = useState(false);
   const [venues, setVenues] = useState([]);
-  const [selectedVenueInfo, setSelectedVenueInfo] = useState(null);
 
-  // 1. マウント確認
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
-  // 2. React Hook Form (マウント後にのみ初期化されるように配慮されています)
   const { 
     register, 
     handleSubmit, 
-    watch, 
-    formState: { errors, isSubmitting } 
+    formState: { isSubmitting } 
   } = useForm({
     defaultValues: {
-      isStandAllowed: true,
-      venueId: ''
+      eventName: '', // title から eventName に修正
+      eventDate: '',
+      venueId: '',
+      description: '',
+      twitterHashtag: ''
     }
   });
 
-  // 3. 権限・データ取得
   useEffect(() => {
     if (!isMounted || authLoading) return;
 
-    if (!isAuthenticated || user?.role !== 'ORGANIZER') {
+    if (!isAuthenticated || (user?.role !== 'ORGANIZER' && user?.role !== 'ADMIN')) {
       router.push('/organizers/login');
       return;
     }
@@ -56,7 +50,10 @@ function CreateEventContent() {
     const fetchVenues = async () => {
       try {
         const res = await fetch(`${API_URL}/api/venues`);
-        if (res.ok) setVenues(await res.json());
+        if (res.ok) {
+          const data = await res.json();
+          setVenues(Array.isArray(data) ? data : []);
+        }
       } catch (e) {
         toast.error('会場リストの読み込みに失敗しました');
       }
@@ -64,17 +61,16 @@ function CreateEventContent() {
     fetchVenues();
   }, [isMounted, authLoading, isAuthenticated, user, router]);
 
-  const watchedVenueId = watch('venueId');
-  useEffect(() => {
-    if (watchedVenueId) {
-      const venue = venues.find(v => v.id === watchedVenueId);
-      setSelectedVenueInfo(venue || null);
-    }
-  }, [watchedVenueId, venues]);
-
   const onSubmit = async (data) => {
+    // 会場IDが未選択の場合は送信させない
+    if (!data.venueId) {
+      toast.error('会場を選択してください');
+      return;
+    }
+
     try {
-      const rawToken = localStorage.getItem('authToken');
+      // 保存キーを flastal-token に統一
+      const rawToken = localStorage.getItem('flastal-token');
       const token = rawToken ? rawToken.replace(/^"|"$/g, '') : null;
       
       const res = await fetch(`${API_URL}/api/events`, {
@@ -86,18 +82,20 @@ function CreateEventContent() {
         body: JSON.stringify(data),
       });
 
-      if (!res.ok) throw new Error('作成に失敗しました');
+      const resData = await res.json();
+
+      if (!res.ok) {
+        throw new Error(resData.message || '作成に失敗しました');
+      }
 
       toast.success('イベントを作成しました！');
       router.push('/organizers/dashboard');
     } catch (error) {
+      console.error('Submit Error:', error);
       toast.error(error.message);
     }
   };
 
-  const isStandAllowed = watch('isStandAllowed');
-
-  // ビルド時（サーバーサイド）やマウント前は、重いフォームを表示せずローディングのみ返す
   if (!isMounted || authLoading || !user) {
       return (
         <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50">
@@ -124,18 +122,22 @@ function CreateEventContent() {
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
           <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden p-6 md:p-8 space-y-6">
                 <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-1">イベント名 *</label>
+                    <label className="block text-sm font-bold text-gray-700 mb-1 flex items-center gap-2">
+                        <FiType className="text-indigo-500" /> イベント名 *
+                    </label>
                     <input 
                         type="text" 
-                        {...register('title', { required: 'イベント名は必須です' })} 
+                        {...register('eventName', { required: 'イベント名は必須です' })} 
                         className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-100 outline-none transition-all"
-                        placeholder="例: FLASTAL LIVE 2025"
+                        placeholder="例: FLASTAL LIVE 2026"
                     />
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <label className="block text-sm font-bold text-gray-700 mb-1">開催日 *</label>
+                        <label className="block text-sm font-bold text-gray-700 mb-1 flex items-center gap-2">
+                            <FiCalendar className="text-indigo-500" /> 開催日 *
+                        </label>
                         <input 
                             type="date" 
                             {...register('eventDate', { required: '開催日は必須です' })} 
@@ -145,12 +147,14 @@ function CreateEventContent() {
                 </div>
 
                 <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-1">会場</label>
+                    <label className="block text-sm font-bold text-gray-700 mb-1 flex items-center gap-2">
+                        <FiMapPin className="text-indigo-500" /> 会場 *
+                    </label>
                     <select 
-                        {...register('venueId')} 
+                        {...register('venueId', { required: '会場の選択は必須です' })} 
                         className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none cursor-pointer"
                     >
-                        <option value="">会場を選択（未定は空欄）</option>
+                        <option value="">会場を選択してください</option>
                         {venues.map(v => <option key={v.id} value={v.id}>{v.venueName}</option>)}
                     </select>
                 </div>
@@ -160,6 +164,7 @@ function CreateEventContent() {
                     <textarea 
                         {...register('description')} 
                         rows="4"
+                        placeholder="イベントの詳細やフラスタに関する補足があれば入力してください"
                         className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none"
                     ></textarea>
                 </div>
@@ -167,7 +172,7 @@ function CreateEventContent() {
 
           <div className="flex gap-4">
              <button type="submit" disabled={isSubmitting} className="w-full py-4 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all shadow-lg disabled:bg-gray-400">
-                {isSubmitting ? '作成中...' : 'イベントを公開する'}
+                {isSubmitting ? '作成中...' : 'イベントを登録する'}
              </button>
           </div>
         </form>
@@ -176,9 +181,6 @@ function CreateEventContent() {
   );
 }
 
-/**
- * エクスポート
- */
 export default function NewEventPage() {
   return (
     <Suspense fallback={<div className="min-h-screen bg-slate-50 flex items-center justify-center"><FiLoader className="animate-spin text-indigo-500 w-10 h-10" /></div>}>
