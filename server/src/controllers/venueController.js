@@ -178,40 +178,39 @@ export const getEventById = async (req, res) => {
 };
 
 /**
- * ★ 重要修正: 新規イベント作成 ★
- * title と eventName の両方に対応させることでバリデーションエラーを回避します
+ * ★ 修正: 新規イベント作成 ★
+ * DBのスキーマに合わせて 'title' フィールドのみを使用し、'eventName' を除外します
  */
 export const createEvent = async (req, res) => {
     try {
         const body = req.body;
         console.log('[CreateEvent] Received body:', JSON.stringify(body));
 
-        // 会場IDの抽出
+        // 1. 会場IDの抽出
         let targetVenueId = body.venueId;
         if (!targetVenueId && body.venue && body.venue.id) {
             targetVenueId = body.venue.id;
         }
 
-        // イベント名の抽出 (title と eventName 両方をサポート)
+        // 2. イベント名の抽出 (フロントエンドから eventName または title で来る可能性がある)
         const name = body.eventName || body.title;
 
-        // 基本バリデーション
+        // 3. 基本バリデーション
         if (!name || !body.eventDate || !targetVenueId) {
             return res.status(400).json({ message: 'イベント名、日付、会場の選択は必須です。' });
         }
 
-        // 会場存在チェック
+        // 4. 会場存在チェック
         const exists = await prisma.venue.findUnique({ where: { id: targetVenueId } });
         if (!exists) {
             return res.status(400).json({ message: '指定された会場が存在しません。' });
         }
 
-        // イベント作成実行
-        // データベースのカラム名が 'title' である場合と 'eventName' である場合の両方に備える
+        // 5. イベント作成実行
+        // 【重要】Prismaのモデルに存在するフィールド名 'title' のみを使用します
         const event = await prisma.event.create({ 
             data: { 
-                title: name,        // DBが title を期待している場合
-                eventName: name,    // DBが eventName を期待している場合 (もしあれば)
+                title: name,        // データベースのカラム名
                 description: body.description || '',
                 twitterHashtag: body.twitterHashtag || '',
                 eventDate: new Date(body.eventDate),
@@ -222,6 +221,7 @@ export const createEvent = async (req, res) => {
             } 
         });
 
+        console.log(`[CreateEvent] Success! New Event ID: ${event.id}`);
         res.status(201).json(event);
 
     } catch (e) { 
@@ -242,11 +242,11 @@ export const updateEvent = async (req, res) => {
         
         const name = req.body.eventName || req.body.title;
 
+        // 更新時も 'title' フィールドのみを使用
         const updated = await prisma.event.update({
             where: { id },
             data: {
                 title: name,
-                eventName: name,
                 description: req.body.description,
                 eventDate: req.body.eventDate ? new Date(req.body.eventDate) : undefined,
                 lastEditorId: req.user.id
