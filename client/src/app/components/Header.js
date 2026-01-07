@@ -192,12 +192,10 @@ export default function Header() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // ロールに応じた表示名の決定
+  // 会場名、店舗名、ハンドル名をロールに応じて確実に取得
   const displayName = useMemo(() => {
     if (!user) return "";
-    if (user.role === 'VENUE') return user.venueName || user.handleName || "会場担当者";
-    if (user.role === 'FLORIST') return user.shopName || user.handleName || "お花屋さん";
-    return user.handleName || user.name || "ユーザー";
+    return user.venueName || user.shopName || user.handleName || user.name || "ログイン中";
   }, [user]);
 
   const navLinks = useMemo(() => {
@@ -219,8 +217,8 @@ export default function Header() {
         ];
       case 'VENUE':
         return [
-          { href: `/venues/dashboard`, label: 'ダッシュボード', icon: <LayoutDashboard size={18}/> },
-          { href: `/venues/logistics`, label: '搬入設定', icon: <Truck size={18}/> },
+          { href: `/venues/dashboard/${user.id}`, label: 'ダッシュボード', icon: <LayoutDashboard size={18}/> },
+          { href: `/venues/${user.id}/logistics`, label: '搬入設定', icon: <Truck size={18}/> },
           { href: '/projects', label: '実施企画', icon: <Heart size={18}/> },
         ];
       case 'ORGANIZER':
@@ -245,7 +243,7 @@ export default function Header() {
     switch (user.role) {
       case 'ADMIN': return '/admin';
       case 'FLORIST': return '/florists/dashboard';
-      case 'VENUE': return `/venues/dashboard`;
+      case 'VENUE': return `/venues/dashboard/${user.id}`;
       case 'ORGANIZER': return '/organizers/dashboard';
       default: return '/mypage';
     }
@@ -269,9 +267,9 @@ export default function Header() {
         ];
       case 'VENUE':
         return [
-          { href: `/venues/dashboard`, label: '会場ダッシュボード', icon: <LayoutDashboard size={16} /> },
-          { href: `/venues/settings`, label: 'レギュレーション設定', icon: <Building2 size={16} /> },
-          { href: `/venues/logistics`, label: '搬入・物流設定', icon: <Package size={16} /> },
+          { href: `/venues/dashboard/${user.id}`, label: '会場ダッシュボード', icon: <LayoutDashboard size={16} /> },
+          { href: `/venues/${user.id}/edit`, label: 'レギュレーション設定', icon: <Building2 size={16} /> },
+          { href: `/venues/${user.id}/logistics`, label: '搬入・物流設定', icon: <Package size={16} /> },
         ];
       case 'ORGANIZER':
         return [
