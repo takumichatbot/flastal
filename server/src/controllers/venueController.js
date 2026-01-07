@@ -3,13 +3,10 @@ import prisma from '../config/prisma.js';
 // --- 会場一覧取得 ---
 export const getVenues = async (req, res) => {
     try {
-        // 管理者権限があり、かつ管理者用エンドポイントを叩いているかチェック
-        // req.baseUrl や req.route.path を活用して判定を強化
         const isAdminRole = req.user && req.user.role === 'ADMIN';
         const isUrlAdmin = req.originalUrl.includes('/admin');
 
         const venues = await prisma.venue.findMany({
-            // 管理者としてアクセスしている場合は全取得、そうでなければ公式のみ
             where: (isAdminRole && isUrlAdmin) ? {} : { isOfficial: true },
             orderBy: { venueName: 'asc' }
         });
@@ -23,8 +20,6 @@ export const getVenues = async (req, res) => {
 // --- 会場詳細取得 ---
 export const getVenueById = async (req, res) => {
     const { id } = req.params;
-    
-    // 'admin' という文字列が ID として渡ってきた場合のガード
     if (id === 'admin') return getVenues(req, res);
 
     try {
@@ -69,7 +64,7 @@ export const addVenueByUser = async (req, res) => {
     }
 };
 
-// --- 会場情報の更新・承認 ---
+// --- 会場情報の更新 ---
 export const updateVenueProfile = async (req, res) => {
     try {
         const venueId = req.params.id || req.user.id;
@@ -92,7 +87,7 @@ export const updateVenueProfile = async (req, res) => {
                 isBowlAllowed: data.isBowlAllowed,
                 accessInfo: data.accessInfo,
                 retrievalRequired: data.retrievalRequired,
-                status: data.status // 承認ステータスも更新可能に
+                status: data.status
             }
         });
         res.json(updated);
@@ -146,7 +141,7 @@ export const getLogisticsInfo = async (req, res) => {
     }
 };
 
-// --- イベント関連 ---
+// --- イベント一覧取得 ---
 export const getEvents = async (req, res) => {
     try {
         const events = await prisma.event.findMany({ 
@@ -164,6 +159,7 @@ export const getEvents = async (req, res) => {
     }
 };
 
+// --- イベント詳細取得 ---
 export const getEventById = async (req, res) => {
     try {
         const event = await prisma.event.findUnique({ 
@@ -181,24 +177,64 @@ export const getEventById = async (req, res) => {
     }
 };
 
+/**
+ * ★ 重要修正: 新規イベント作成 ★
+ * 会場IDの不整合（P2003エラー）を徹底的に回避します
+ */
 export const createEvent = async (req, res) => {
     try {
+        const body = req.body;
+        console.log('[CreateEvent] Received body:', JSON.stringify(body));
+
+        // 1. 会場IDの抽出ロジックを強化
+        // フロントエンドから 'venueId' または 'venue' (オブジェクト) が来る可能性があるため
+        let targetVenueId = body.venueId;
+        if (!targetVenueId && body.venue && body.venue.id) {
+            targetVenueId = body.venue.id;
+        }
+
+        // 2. 基本バリデーション
+        if (!body.eventName || !body.eventDate || !targetVenueId) {
+            return res.status(400).json({ 
+                message: 'イベント名、日付、会場の選択は必須です。',
+                debug: { eventName: !!body.eventName, eventDate: !!body.eventDate, venueId: !!targetVenueId }
+            });
+        }
+
+        // 3. データベースに本当に会場が存在するか最終チェック
+        const exists = await prisma.venue.findUnique({ where: { id: targetVenueId } });
+        if (!exists) {
+            console.error(`[CreateEvent] Venue not found in DB: ${targetVenueId}`);
+            return res.status(400).json({ message: '指定された会場が存在しません。もう一度選択し直してください。' });
+        }
+
+        // 4. イベント作成実行
         const event = await prisma.event.create({ 
             data: { 
-                ...req.body, 
-                eventDate: req.body.eventDate ? new Date(req.body.eventDate) : new Date(),
+                eventName: body.eventName,
+                description: body.description || '',
+                twitterHashtag: body.twitterHashtag || '',
+                eventDate: new Date(body.eventDate),
+                venueId: targetVenueId,
                 creatorId: req.user.id, 
                 lastEditorId: req.user.id, 
                 sourceType: 'USER'
             } 
         });
+
+        console.log(`[CreateEvent] Success! New Event ID: ${event.id}`);
         res.status(201).json(event);
+
     } catch (e) { 
-        console.error('createEvent Error:', e);
-        res.status(500).json({ message: 'イベントの作成に失敗しました。' }); 
+        console.error('createEvent Final Error:', e);
+        if (e.code === 'P2003') {
+            return res.status(400).json({ message: 'データベースの制約エラーが発生しました（会場IDが無効です）。' });
+        }
+        res.status(500).json({ message: 'イベントの作成中に予期せぬエラーが発生しました。' }); 
     }
 };
 
+// --- イベント更新 ---
 export const updateEvent = async (req, res) => { 
     try {
         const { id } = req.params;
@@ -222,6 +258,7 @@ export const updateEvent = async (req, res) => {
     }
 };
 
+// --- イベント削除 ---
 export const deleteEvent = async (req, res) => { 
     try {
         const { id } = req.params;
