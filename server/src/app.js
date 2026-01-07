@@ -16,7 +16,7 @@ import toolRoutes from './routes/tools.js';
 import adminRoutes from './routes/admin.js';
 import paymentRoutes from './routes/payment.js';
 import projectDetailRoutes from './routes/projectDetails.js';
-import organizerRoutes from './routes/organizers.js'; // ★ 追加
+import organizerRoutes from './routes/organizers.js';
 
 const app = express();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
@@ -64,34 +64,6 @@ app.use(cors({
     ],
     exposedHeaders: ["Authorization"]
 }));
-
-// ==========================================
-// ★★★ ヘルパー関数 (Webhook用) ★★★
-// ==========================================
-const LEVEL_CONFIG = { 'Bronze': 10000, 'Silver': 50000, 'Gold': 100000 };
-
-async function checkUserLevelAndBadges(tx, userId) {
-    const user = await tx.user.findUnique({ where: { id: userId } });
-    if (!user) return;
-
-    let newLevel = user.supportLevel;
-    let levelChanged = false;
-
-    for (const [levelName, threshold] of Object.entries(LEVEL_CONFIG)) {
-        if (user.totalPledgedAmount >= threshold && 
-           (user.supportLevel === null || LEVEL_CONFIG[user.supportLevel] < threshold)) {
-            newLevel = levelName;
-            levelChanged = true;
-        }
-    }
-
-    if (levelChanged) {
-        await tx.user.update({
-            where: { id: userId },
-            data: { supportLevel: newLevel },
-        });
-    }
-}
 
 // ==========================================
 // ★★★ Stripe Webhook (JSONパース前に配置が必要) ★★★
@@ -168,7 +140,6 @@ app.post('/api/webhooks/stripe', express.raw({type: 'application/json'}), async 
                             await tx.user.update({ where: { id: purchaser.referredById }, data: { points: { increment: 500 } } });
                             await tx.user.update({ where: { id: userId }, data: { hasMadeFirstPurchase: true } });
                         }
-                        await checkUserLevelAndBadges(tx, userId);
                     }
                 });
             } catch(error) {
@@ -199,11 +170,12 @@ app.use('/api', userRoutes);
 // 花屋関連
 app.use('/api/florists', floristRoutes);
 
-// 会場・企画・主催者関連
+// 会場・企画・イベント関連
+// 【重要】/api/venues ではなく /api にマウントすることで venueRoutes.js 内の /events や /venues が有効になります
 app.use('/api', projectRoutes); 
-app.use('/api/venues', venueRoutes);
+app.use('/api', venueRoutes); // ★ 修正: /api/venues から /api へ
 app.use('/api/project-details', projectDetailRoutes);
-app.use('/api/organizers', organizerRoutes); // ★ 追加
+app.use('/api/organizers', organizerRoutes);
 
 // ツール・決済
 app.use('/api/tools', toolRoutes);
