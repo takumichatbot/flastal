@@ -114,25 +114,41 @@ export const deleteVenue = async (req, res) => {
 };
 
 /**
- * ★ 物流情報の投稿 ★
- * データベースの制約を遵守しつつ、適切なエラー案内を返します
+ * ★ 重要修正: 物流情報の投稿 ★
+ * 会場アカウントからの投稿時は、DB制約を回避するために
+ * 特定の「公式投稿」用処理を行います。
  */
 export const postLogisticsInfo = async (req, res) => {
     const { venueId } = req.params;
     const { title, description } = req.body;
     const userId = req.user.id;
+    const userRole = req.user.role;
 
     try {
-        const florist = await prisma.florist.findUnique({ where: { id: userId } });
+        // 現在のスキーマでは VenueLogisticsInfo.contributorId が Florist 必須。
+        // 会場が投稿する場合、本来の目的は Venue.accessInfo の更新であることが多いため、
+        // もし会場自身が投稿しようとしているなら、それを「会場本体の更新」として処理するか
+        // または、制約エラーが出ない特定の ID を割り当てる必要があります。
 
-        if (!florist) {
-            // 重要：ここで403エラーと分かりやすいメッセージを返すことで、
-            // フロントエンドのトーストにこの文章が表示されます。
-            return res.status(403).json({ 
-                message: 'この「情報を公開する」機能は現場の状況を共有するためのお花屋さん専用掲示板です。会場公式のルールは、ダッシュボードの「情報を編集」→「補足情報」へ記入してください。' 
+        if (userRole === 'VENUE') {
+            // 会場アカウントの場合は、Venueモデルの accessInfo を更新する
+            // これにより、画面上の「現在の搬入情報」とは別に、公式ルールとして保存されます。
+            await prisma.venue.update({
+                where: { id: venueId },
+                data: { accessInfo: `${title}\n${description}` }
+            });
+
+            // 画面の「搬入情報」一覧にも表示させたい場合、DB制約があるため
+            // ここでは成功を返しつつ、フロントエンドに「公式情報として保存した」旨を伝えます。
+            return res.status(201).json({ 
+                id: 'official-info',
+                title: `【公式】${title}`, 
+                description,
+                isOfficial: true
             });
         }
 
+        // お花屋さんの場合は通常通りリレーションを繋いで保存
         const info = await prisma.venueLogisticsInfo.create({
             data: { 
                 title, 
@@ -144,21 +160,41 @@ export const postLogisticsInfo = async (req, res) => {
         res.status(201).json(info);
 
     } catch (e) { 
-        console.error('postLogisticsInfo Error:', e);
+        console.error('postLogisticsInfo Critical Error:', e);
         res.status(500).json({ message: '情報の保存中にエラーが発生しました。' }); 
     }
 };
 
-// --- 物流情報の取得 ---
+// --- 物流情報の取得 (会場の公式情報も混ぜて取得) ---
 export const getLogisticsInfo = async (req, res) => {
     const { venueId } = req.params;
     try {
-        const info = await prisma.venueLogisticsInfo.findMany({
+        // 1. お花屋さんの投稿を取得
+        const floristInfos = await prisma.venueLogisticsInfo.findMany({
             where: { venueId },
             include: { contributor: { select: { shopName: true } } },
             orderBy: { createdAt: 'desc' }
         });
-        res.json(info || []);
+
+        // 2. 会場の公式情報 (accessInfo) もリストの先頭に加える
+        const venue = await prisma.venue.findUnique({
+            where: { id: venueId },
+            select: { accessInfo: true, venueName: true }
+        });
+
+        const results = [...floristInfos];
+        if (venue?.accessInfo) {
+            results.unshift({
+                id: 'official',
+                title: '【会場公式】搬入・受取ルール',
+                description: venue.accessInfo,
+                createdAt: new Date(),
+                isOfficial: true,
+                contributor: { shopName: venue.venueName }
+            });
+        }
+
+        res.json(results || []);
     } catch (e) {
         console.error('getLogisticsInfo Error:', e);
         res.status(500).json({ message: '物流情報の取得に失敗しました。' });
