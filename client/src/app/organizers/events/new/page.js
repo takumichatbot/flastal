@@ -28,7 +28,7 @@ function CreateEventContent() {
   const { 
     register, 
     handleSubmit, 
-    formState: { isSubmitting } 
+    formState: { isSubmitting, errors } 
   } = useForm({
     defaultValues: {
       eventName: '', 
@@ -39,10 +39,10 @@ function CreateEventContent() {
     }
   });
 
+  // 会場一覧の取得
   useEffect(() => {
     if (!isMounted || authLoading) return;
 
-    // 主催者または管理者のみ許可
     if (!isAuthenticated || (user?.role !== 'ORGANIZER' && user?.role !== 'ADMIN')) {
       router.push('/organizers/login');
       return;
@@ -63,6 +63,8 @@ function CreateEventContent() {
   }, [isMounted, authLoading, isAuthenticated, user, router]);
 
   const onSubmit = async (data) => {
+    console.log("Submit start with data:", data);
+
     if (!data.venueId) {
       toast.error('会場を選択してください');
       return;
@@ -71,19 +73,20 @@ function CreateEventContent() {
     const toastId = toast.loading('イベントを登録中...');
 
     try {
-      // 修正: localStorage のキーを flastal-token に統一
-      const rawToken = localStorage.getItem('flastal-token');
-      const token = rawToken ? rawToken.replace(/^"|"$/g, '') : null;
+      // 保存されているトークンの取得（複数のキーを試行して確実に取得）
+      const token = localStorage.getItem('flastal-token') || localStorage.getItem('authToken');
+      const cleanToken = token ? token.replace(/^"|"$/g, '') : null;
 
-      if (!token) {
-        throw new Error('ログインセッションが見つかりません。再ログインしてください。');
+      if (!cleanToken) {
+        toast.error('ログインセッションが切れています。再ログインしてください。', { id: toastId });
+        return;
       }
       
       const res = await fetch(`${API_URL}/api/events`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${cleanToken}`
         },
         body: JSON.stringify(data),
       });
@@ -100,6 +103,12 @@ function CreateEventContent() {
       console.error('Submit Error:', error);
       toast.error(error.message, { id: toastId });
     }
+  };
+
+  // バリデーションエラー時の処理（ボタンが反応しない原因を特定するため）
+  const onError = (errors) => {
+    console.log("Validation Errors:", errors);
+    toast.error("入力内容に不備があります。赤枠の箇所を確認してください。");
   };
 
   if (!isMounted || authLoading || !user) {
@@ -125,7 +134,7 @@ function CreateEventContent() {
       </div>
 
       <div className="max-w-3xl mx-auto px-4 py-8">
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+        <form onSubmit={handleSubmit(onSubmit, onError)} className="space-y-8">
           <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden p-6 md:p-8 space-y-6">
                 <div>
                     <label className="block text-sm font-bold text-gray-700 mb-1 flex items-center gap-2">
@@ -134,9 +143,10 @@ function CreateEventContent() {
                     <input 
                         type="text" 
                         {...register('eventName', { required: 'イベント名は必須です' })} 
-                        className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-100 outline-none transition-all"
+                        className={`w-full p-3 bg-gray-50 border ${errors.eventName ? 'border-red-500' : 'border-gray-200'} rounded-xl focus:ring-2 focus:ring-indigo-100 outline-none transition-all`}
                         placeholder="例: FLASTAL LIVE 2026"
                     />
+                    {errors.eventName && <p className="text-red-500 text-xs mt-1">{errors.eventName.message}</p>}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -147,8 +157,9 @@ function CreateEventContent() {
                         <input 
                             type="date" 
                             {...register('eventDate', { required: '開催日は必須です' })} 
-                            className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none"
+                            className={`w-full p-3 bg-gray-50 border ${errors.eventDate ? 'border-red-500' : 'border-gray-200'} rounded-xl outline-none`}
                         />
+                        {errors.eventDate && <p className="text-red-500 text-xs mt-1">{errors.eventDate.message}</p>}
                     </div>
                 </div>
 
@@ -158,11 +169,12 @@ function CreateEventContent() {
                     </label>
                     <select 
                         {...register('venueId', { required: '会場の選択は必須です' })} 
-                        className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none cursor-pointer bg-white"
+                        className={`w-full p-3 bg-gray-50 border ${errors.venueId ? 'border-red-500' : 'border-gray-200'} rounded-xl outline-none cursor-pointer bg-white`}
                     >
                         <option value="">会場を選択してください</option>
                         {venues.map(v => <option key={v.id} value={v.id}>{v.venueName}</option>)}
                     </select>
+                    {errors.venueId && <p className="text-red-500 text-xs mt-1">{errors.venueId.message}</p>}
                 </div>
 
                 <div>
