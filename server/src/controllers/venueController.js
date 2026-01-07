@@ -141,7 +141,7 @@ export const getLogisticsInfo = async (req, res) => {
     }
 };
 
-// --- イベント一覧取得 ---
+// --- 一般イベント一覧取得 ---
 export const getEvents = async (req, res) => {
     try {
         const events = await prisma.event.findMany({ 
@@ -166,7 +166,10 @@ export const getEventById = async (req, res) => {
             where: { id: req.params.id }, 
             include: { 
                 venue: true,
-                creator: { select: { id: true, handleName: true, iconUrl: true } }
+                creator: { select: { id: true, handleName: true, iconUrl: true } },
+                projects: {
+                    include: { planner: { select: { handleName: true, iconUrl: true } } }
+                }
             } 
         });
         if (!event) return res.status(404).json({ message: 'イベントが見つかりません。' });
@@ -177,25 +180,20 @@ export const getEventById = async (req, res) => {
     }
 };
 
-/**
- * ★ 重要修正: 新規イベント作成 ★
- * 外国キー制約（P2003: creatorId）を回避するため、
- * ロールに基づいて紐付け先を動的に切り替えます。
- */
+// --- 新規イベント作成 ---
 export const createEvent = async (req, res) => {
     try {
         const body = req.body;
         const userId = req.user.id;
         const userRole = req.user.role;
 
-        const name = body.eventName || body.title;
+        const name = body.title || body.eventName;
         const targetVenueId = body.venueId || (body.venue ? body.venue.id : null);
 
         if (!name || !body.eventDate || !targetVenueId) {
             return res.status(400).json({ message: '入力内容が不足しています。' });
         }
 
-        // 保存データの構築
         const createData = {
             title: name,
             description: body.description || '',
@@ -204,13 +202,10 @@ export const createEvent = async (req, res) => {
             sourceType: userRole === 'ADMIN' ? 'OFFICIAL' : 'USER'
         };
 
-        // 【最重要】ロールに応じて紐付けカラムを分ける
+        // 主催者IDまたはユーザーIDをセット
         if (userRole === 'ORGANIZER') {
-            // 主催者の場合は organizerId に紐付ける（schemaにカラムがある場合）
-            // もしschemaにない場合は、creatorIdをセットせず進める
             createData.organizerId = userId;
-        } else if (userRole === 'USER' || userRole === 'ADMIN') {
-            // 一般ユーザーまたは管理者の場合は User テーブルに存在するため creatorId にセット
+        } else {
             createData.creatorId = userId;
             createData.lastEditorId = userId;
         }
@@ -219,25 +214,8 @@ export const createEvent = async (req, res) => {
         res.status(201).json(event);
 
     } catch (e) { 
-        console.error('createEvent Final Error:', e);
-        // 万が一まだ P2003 が出る場合は、さらに creatorId を削って再試行する保険
-        if (e.code === 'P2003') {
-            try {
-                const name = req.body.eventName || req.body.title;
-                const eventFallback = await prisma.event.create({
-                    data: {
-                        title: name,
-                        eventDate: new Date(req.body.eventDate),
-                        venueId: req.body.venueId,
-                        description: req.body.description || ''
-                    }
-                });
-                return res.status(201).json(eventFallback);
-            } catch (innerErr) {
-                return res.status(400).json({ message: 'データの紐付けに失敗しました。' });
-            }
-        }
-        res.status(500).json({ message: 'イベントの作成中にエラーが発生しました。' }); 
+        console.error('createEvent Error:', e);
+        res.status(500).json({ message: 'イベントの作成に失敗しました。' }); 
     }
 };
 
@@ -255,7 +233,6 @@ export const updateEvent = async (req, res) => {
             eventDate: req.body.eventDate ? new Date(req.body.eventDate) : undefined,
         };
 
-        // creatorId制約を避けるため、更新時は編集者IDをセットしないか、存在チェックを行う
         if (req.user.role !== 'ORGANIZER') {
             updateData.lastEditorId = req.user.id;
         }
@@ -277,9 +254,13 @@ export const deleteEvent = async (req, res) => {
         const { id } = req.params;
         const event = await prisma.event.findUnique({ where: { id } });
         if (!event) return res.status(404).json({ message: 'イベントが見つかりません。' });
-        if (req.user.role !== 'ADMIN' && event.creatorId !== req.user.id) {
+        
+        // 権限チェック: 管理者、またはそのイベントの作成者・主催者であること
+        const isOwner = event.organizerId === req.user.id || event.creatorId === req.user.id;
+        if (req.user.role !== 'ADMIN' && !isOwner) {
             return res.status(403).json({ message: '削除権限がありません。' });
         }
+
         await prisma.event.delete({ where: { id } });
         res.status(204).send();
     } catch (e) {
@@ -288,29 +269,34 @@ export const deleteEvent = async (req, res) => {
     }
 };
 
-export const toggleInterest = async (req, res) => { res.json({ message: 'ok' }); };
-export const reportEvent = async (req, res) => { res.json({ message: 'ok' }); };
-export const markLogisticsHelpful = async (req, res) => { res.json({ message: 'ok' }); };
 // --- 主催者が管理中のイベント一覧を取得 ---
 export const getOrganizerEvents = async (req, res) => {
     try {
-        // ログイン中の主催者IDに紐づくイベントを取得
+        console.log(`[getOrganizerEvents] Fetching for user: ${req.user.id} (${req.user.role})`);
+        
+        // ログイン中のID（主催者IDまたはユーザーID）に紐づくイベントを取得
         const events = await prisma.event.findMany({
             where: {
                 OR: [
                     { organizerId: req.user.id },
-                    { creatorId: req.user.id } // 念のため両方のカラムをチェック
+                    { creatorId: req.user.id }
                 ]
             },
             include: {
-                venue: true,
-                _count: { select: { interests: true } }
+                venue: { select: { venueName: true } },
+                _count: { select: { projects: true } }
             },
             orderBy: { eventDate: 'desc' }
         });
+
+        console.log(`[getOrganizerEvents] Found ${events.length} events`);
         res.json(events || []);
     } catch (e) {
         console.error('getOrganizerEvents Error:', e);
         res.status(500).json({ message: '管理イベントの取得に失敗しました。' });
     }
 };
+
+export const toggleInterest = async (req, res) => { res.json({ message: 'ok' }); };
+export const reportEvent = async (req, res) => { res.json({ message: 'ok' }); };
+export const markLogisticsHelpful = async (req, res) => { res.json({ message: 'ok' }); };
