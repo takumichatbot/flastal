@@ -114,51 +114,38 @@ export const deleteVenue = async (req, res) => {
 };
 
 /**
- * ★★★ 決定版: 物流情報の投稿 ★★★
- * データベースの制約（FloristテーブルにIDが必要）を
- * 会場アカウントでも突破できるようにロジックを修正しました。
+ * ★ 物流情報の投稿 ★
+ * データベースの制約を遵守しつつ、適切なエラー案内を返します
  */
 export const postLogisticsInfo = async (req, res) => {
     const { venueId } = req.params;
     const { title, description } = req.body;
-    const currentUserId = req.user.id;
-    const currentUserRole = req.user.role;
+    const userId = req.user.id;
 
     try {
-        // 1. 投稿者が「お花屋さん」として登録されているか確認
-        const florist = await prisma.florist.findUnique({ where: { id: currentUserId } });
+        const florist = await prisma.florist.findUnique({ where: { id: userId } });
 
-        // 2. もしお花屋さんでない（会場自身などの）場合、
-        // データベースにダミーの contributorId を入れられないため、
-        // データベースの VenueLogisticsInfo ではなく、Venue 本体の accessInfo を更新するか
-        // エラーを回避するための分岐を行います。
-        
-        if (!florist && currentUserRole === 'VENUE') {
-            // 会場アカウントが投稿しようとしている場合
-            // 本来は Venue.accessInfo を更新すべきですが、
-            // 互換性のために、公式情報として VenueLogisticsInfo に特殊フラグで保存します。
-            
-            // 【重要】Prismaの制約を回避するため、まず「お花屋さん」の中に
-            // ログ投稿用のアカウントが存在するか確認。なければエラーを丁寧に返す。
+        if (!florist) {
+            // 重要：ここで403エラーと分かりやすいメッセージを返すことで、
+            // フロントエンドのトーストにこの文章が表示されます。
             return res.status(403).json({ 
-                message: '会場アカウントからはこの掲示板に投稿できません。公式な搬入ルールは「会場情報の編集」から「搬入・受取に関する補足情報」に記入してください。' 
+                message: 'この「情報を公開する」機能は現場の状況を共有するためのお花屋さん専用掲示板です。会場公式のルールは、ダッシュボードの「情報を編集」→「補足情報」へ記入してください。' 
             });
         }
 
-        // お花屋さんの場合は正常に作成
         const info = await prisma.venueLogisticsInfo.create({
             data: { 
                 title, 
                 description,
                 venue: { connect: { id: venueId } },
-                contributor: { connect: { id: currentUserId } }
+                contributor: { connect: { id: userId } }
             }
         });
         res.status(201).json(info);
 
     } catch (e) { 
-        console.error('postLogisticsInfo Critical Error:', e);
-        res.status(500).json({ message: 'データの保存に失敗しました。権限設定を確認してください。' }); 
+        console.error('postLogisticsInfo Error:', e);
+        res.status(500).json({ message: '情報の保存中にエラーが発生しました。' }); 
     }
 };
 

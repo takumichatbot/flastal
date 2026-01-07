@@ -16,19 +16,20 @@ export default function VenueLogisticsPage() {
   const [newInfo, setNewInfo] = useState({ title: '', description: '' });
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const fetchLogistics = async () => {
     if (!id) return;
-    const fetchLogistics = async () => {
-      try {
-        const res = await fetch(`${API_URL}/api/venues/${id}/logistics`);
-        const data = await res.json();
-        setLogistics(Array.isArray(data) ? data : []);
-      } catch (e) {
-        console.error(e);
-      } finally {
-        setLoading(false);
-      }
-    };
+    try {
+      const res = await fetch(`${API_URL}/api/venues/${id}/logistics`);
+      const data = await res.json();
+      setLogistics(Array.isArray(data) ? data : []);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchLogistics();
   }, [id]);
 
@@ -40,17 +41,19 @@ export default function VenueLogisticsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newInfo)
       });
+
+      const data = await res.json();
+
       if (res.ok) {
         toast.success('情報を追加しました');
         setNewInfo({ title: '', description: '' });
-        // 再取得
-        const updatedRes = await fetch(`${API_URL}/api/venues/${id}/logistics`);
-        setLogistics(await updatedRes.json());
+        fetchLogistics();
       } else {
-        throw new Error();
+        // バックエンドから返ってくる「お花屋さん専用です」などのメッセージを表示
+        toast.error(data.message || '追加に失敗しました。');
       }
     } catch (e) {
-      toast.error('追加に失敗しました。権限を確認してください。');
+      toast.error('通信エラーが発生しました。');
     }
   };
 
@@ -80,12 +83,26 @@ export default function VenueLogisticsPage() {
           </div>
 
           <div className="md:col-span-2 space-y-6">
-            {isAuthenticated && user?.id === id && (
+            {/* 入力欄を復活：ログインしていれば会場・お花屋に関わらず表示 */}
+            {isAuthenticated && (
               <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
                 <h3 className="font-bold text-slate-800 mb-4">新しい情報の追加</h3>
                 <form onSubmit={handleAdd} className="space-y-4">
-                  <input type="text" placeholder="タイトル (例: 裏口搬入口の場所)" value={newInfo.title} onChange={e => setNewInfo({...newInfo, title: e.target.value})} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none" required />
-                  <textarea placeholder="詳細な説明..." value={newInfo.description} onChange={e => setNewInfo({...newInfo, description: e.target.value})} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl min-h-[100px] outline-none" required />
+                  <input 
+                    type="text" 
+                    placeholder="タイトル (例: 裏口搬入口の場所)" 
+                    value={newInfo.title} 
+                    onChange={e => setNewInfo({...newInfo, title: e.target.value})} 
+                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none" 
+                    required 
+                  />
+                  <textarea 
+                    placeholder="詳細な説明..." 
+                    value={newInfo.description} 
+                    onChange={e => setNewInfo({...newInfo, description: e.target.value})} 
+                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl min-h-[100px] outline-none" 
+                    required 
+                  />
                   <button type="submit" className="w-full py-3 bg-slate-900 text-white font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-slate-800 transition-all">
                     <FiPlus /> 情報を公開する
                   </button>
@@ -97,7 +114,14 @@ export default function VenueLogisticsPage() {
               <h3 className="font-bold text-slate-800 px-2">現在の搬入情報</h3>
               {logistics.length > 0 ? logistics.map(info => (
                 <div key={info.id} className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
-                  <h4 className="font-bold text-slate-800 mb-2">{info.title}</h4>
+                  <div className="flex justify-between items-start mb-2">
+                    <h4 className="font-bold text-slate-800">{info.title}</h4>
+                    {info.contributor && (
+                      <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full font-bold">
+                        by {info.contributor.shopName || 'Florist'}
+                      </span>
+                    )}
+                  </div>
                   <p className="text-sm text-slate-500 whitespace-pre-wrap">{info.description}</p>
                 </div>
               )) : (
