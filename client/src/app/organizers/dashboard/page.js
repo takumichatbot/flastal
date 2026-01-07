@@ -52,24 +52,30 @@ function OrganizerDashboardContent() {
   }, []);
 
   const fetchEvents = useCallback(async () => {
-    if (isPending || !isApproved) {
+    // 修正: localStorage のキーを flastal-token に統一（保険で authToken もチェック）
+    const token = typeof window !== 'undefined' 
+      ? (localStorage.getItem('flastal-token') || localStorage.getItem('authToken'))?.replace(/^"|"$/g, '') 
+      : null;
+
+    if (!token) {
+        console.warn("No token found for fetching events");
         setIsLoadingEvents(false);
-        return; 
+        return;
     }
-    
-    const token = typeof window !== 'undefined' ? localStorage.getItem('authToken')?.replace(/^"|"$/g, '') : null;
-    if (!token) return;
 
     try {
       const res = await fetch(`${API_URL}/api/organizers/events`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
+      
       if (!res.ok) throw new Error('イベント一覧の取得に失敗しました');
       
       const data = await res.json();
+      console.log("Fetched events:", data); // デバッグ用
       setEvents(data);
 
-      const upcoming = data.filter(e => new Date(e.eventDate) >= new Date()).length;
+      const now = new Date();
+      const upcoming = data.filter(e => new Date(e.eventDate) >= now).length;
       const projects = data.reduce((acc, curr) => acc + (curr._count?.projects || 0), 0);
       
       setStats({
@@ -79,23 +85,28 @@ function OrganizerDashboardContent() {
       });
     } catch (error) {
       console.error(error);
-      toast.error('データの読み込みに失敗しました');
+      toast.error('データの取得に失敗しました。再ログインをお試しください。');
     } finally {
       setIsLoadingEvents(false);
     }
-  }, [isPending, isApproved]); 
+  }, []); 
 
   useEffect(() => {
     if (!isMounted || loading) return;
-    if (!isAuthenticated || user?.role !== 'ORGANIZER') {
+    
+    // 権限チェック
+    if (!isAuthenticated || (user?.role !== 'ORGANIZER' && user?.role !== 'ADMIN')) {
       router.push('/organizers/login');
       return;
     }
+
     fetchEvents();
   }, [isMounted, loading, isAuthenticated, user, router, fetchEvents]);
 
   const handleLogout = () => {
     logout();
+    localStorage.removeItem('flastal-token');
+    localStorage.removeItem('authToken');
     toast.success('ログアウトしました');
     router.push('/organizers/login');
   };
@@ -108,7 +119,8 @@ function OrganizerDashboardContent() {
     );
   }
 
-  if (isPending || !isApproved) {
+  // 審査待ち状態の表示（Admin以外）
+  if (user?.role === 'ORGANIZER' && (isPending || !isApproved)) {
       return <ApprovalPendingCard />;
   }
 
@@ -184,6 +196,7 @@ function OrganizerDashboardContent() {
                         {isUpcoming ? '公開中' : '終了'}
                       </span>
                     </div>
+                    {/* title カラムを表示 */}
                     <h3 className="text-lg font-bold text-gray-900 mb-3 line-clamp-2">{event.title}</h3>
                     <div className="space-y-2 text-sm text-gray-600">
                       <div className="flex items-start gap-2">
