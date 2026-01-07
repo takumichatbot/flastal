@@ -50,13 +50,35 @@ function CreateEventContent() {
 
     const fetchVenues = async () => {
       try {
+        console.log("Fetching venues from:", `${API_URL}/api/venues`);
         const res = await fetch(`${API_URL}/api/venues`);
-        if (res.ok) {
-          const data = await res.json();
-          setVenues(Array.isArray(data) ? data : []);
+        
+        if (!res.ok) {
+          // もし404なら /api 直下も試す（保険）
+          console.warn("Retrying with /api...");
+          const resRetry = await fetch(`${API_URL}/api`);
+          if (resRetry.ok) {
+            const data = await resRetry.json();
+            if (Array.isArray(data)) {
+               setVenues(data);
+               return;
+            }
+          }
+          throw new Error('会場リストを取得できませんでした');
+        }
+
+        const data = await res.json();
+        console.log("Venues received:", data);
+        
+        // データの形式をチェックしてセット
+        if (Array.isArray(data)) {
+          setVenues(data);
+        } else if (data && Array.isArray(data.venues)) {
+          setVenues(data.venues);
         }
       } catch (e) {
         console.error('Failed to fetch venues:', e);
+        toast.error('会場リストの読み込みに失敗しました。ページを再読み込みしてください。');
       }
     };
     fetchVenues();
