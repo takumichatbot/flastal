@@ -17,7 +17,7 @@ export const getVenues = async (req, res) => {
     }
 };
 
-// --- 会場詳細取得 (ダッシュボード対応・堅牢化版) ---
+// --- 会場詳細取得 ---
 export const getVenueById = async (req, res) => {
     const { id } = req.params;
     if (id === 'admin' || id === 'all') return getVenues(req, res);
@@ -87,6 +87,8 @@ export const updateVenueProfile = async (req, res) => {
                 isStandAllowed: data.isStandAllowed,
                 isBowlAllowed: data.isBowlAllowed,
                 accessInfo: data.accessInfo,
+                standRegulation: data.standRegulation,
+                bowlRegulation: data.bowlRegulation,
                 retrievalRequired: data.retrievalRequired,
                 status: data.status
             }
@@ -112,8 +114,8 @@ export const deleteVenue = async (req, res) => {
 };
 
 /**
- * ★ 決定版修正: 物流情報の投稿 ★
- * Prismaのリレーション接続(connect)を正しく行い、制約エラーを回避します
+ * ★ 修正: 物流情報の投稿 ★
+ * データベースの制約 (Florist 必須) を考慮したロジック
  */
 export const postLogisticsInfo = async (req, res) => {
     const { venueId } = req.params;
@@ -121,41 +123,30 @@ export const postLogisticsInfo = async (req, res) => {
     const userId = req.user.id;
 
     try {
-        // 1. 投稿者がお花屋さんか確認
+        // 現在のスキーマでは VenueLogisticsInfo には必ず Florist (contributorId) が必要。
+        // 会場アカウント (VENUE) は Florist テーブルにいないため、投稿すると P2003 エラーになる。
         const florist = await prisma.florist.findUnique({ where: { id: userId } });
 
-        // 2. データベースの VenueLogisticsInfo モデルの期待に応える形式で作成
-        // venueId 文字列ではなく venue: { connect: { id: venueId } } を使用する
+        if (!florist) {
+            // 会場アカウントの場合は、物流情報テーブルではなく会場テーブルの accessInfo 等を更新するよう誘導
+            return res.status(403).json({ 
+                message: 'この「公開する」機能はお花屋さん専用の掲示板です。会場公式の搬入ルールは、ダッシュボードの「情報を編集」から登録してください。' 
+            });
+        }
+
         const info = await prisma.venueLogisticsInfo.create({
             data: { 
                 title, 
                 description,
-                venue: {
-                    connect: { id: venueId }
-                },
-                // contributorId は Florist 必須のリレーションシップ。
-                // 会場が投稿する場合、本来はお花屋さんではないが、
-                // 成功を優先させるため、会場本人を寄稿者として強引に繋ぐか、
-                // 制約に則り「お花屋さん以外はお断り」のレスポンスを返します。
-                contributor: florist 
-                    ? { connect: { id: userId } } 
-                    : undefined // お花屋さんでない場合は一旦 undefined
+                venue: { connect: { id: venueId } },
+                contributor: { connect: { id: userId } }
             }
         });
         res.status(201).json(info);
 
     } catch (e) { 
-        console.error('postLogisticsInfo Detailed Error:', e);
-        
-        // P2003 (外国キーエラー) ＝ お花屋さんテーブルにあなたのIDがない
-        if (e.code === 'P2003') {
-            return res.status(403).json({ 
-                message: 'この機能はお花屋さん専用の掲示板です。会場の公式ルールは「会場情報の編集」から登録してください。' 
-            });
-        }
-        
-        // その他のバリデーションエラー
-        res.status(500).json({ message: 'データの形式に不備があります。' }); 
+        console.error('postLogisticsInfo Error:', e);
+        res.status(500).json({ message: '情報の投稿に失敗しました。' }); 
     }
 };
 
@@ -230,15 +221,15 @@ export const createEvent = async (req, res) => {
             title: name,
             description: body.description || '',
             eventDate: new Date(body.eventDate),
-            venueId: targetVenueId,
+            venue: { connect: { id: targetVenueId } },
             sourceType: userRole === 'ADMIN' ? 'OFFICIAL' : 'USER'
         };
 
         if (userRole === 'ORGANIZER') {
-            createData.organizerId = userId;
+            createData.organizer = { connect: { id: userId } };
         } else {
-            createData.creatorId = userId;
-            createData.lastEditorId = userId;
+            createData.creator = { connect: { id: userId } };
+            createData.lastEditor = { connect: { id: userId } };
         }
 
         const event = await prisma.event.create({ data: createData });
@@ -262,7 +253,7 @@ export const updateEvent = async (req, res) => {
             description: req.body.description || '',
             eventDate: req.body.eventDate ? new Date(req.body.eventDate) : undefined,
         };
-        if (req.user.role !== 'ORGANIZER') updateData.lastEditorId = req.user.id;
+        if (req.user.role !== 'ORGANIZER') updateData.lastEditor = { connect: { id: req.user.id } };
         const updated = await prisma.event.update({ where: { id: id }, data: updateData });
         res.json(updated);
     } catch (e) {
