@@ -10,7 +10,7 @@ import { useAuth } from '@/app/contexts/AuthContext';
 import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import { 
-  FiArrowLeft, FiCalendar, FiMapPin, FiLoader, FiCheck, FiType
+  FiArrowLeft, FiCalendar, FiMapPin, FiLoader, FiType
 } from 'react-icons/fi';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
@@ -31,7 +31,7 @@ function CreateEventContent() {
     formState: { isSubmitting } 
   } = useForm({
     defaultValues: {
-      eventName: '', // title から eventName に修正
+      eventName: '', 
       eventDate: '',
       venueId: '',
       description: '',
@@ -42,6 +42,7 @@ function CreateEventContent() {
   useEffect(() => {
     if (!isMounted || authLoading) return;
 
+    // 主催者または管理者のみ許可
     if (!isAuthenticated || (user?.role !== 'ORGANIZER' && user?.role !== 'ADMIN')) {
       router.push('/organizers/login');
       return;
@@ -55,23 +56,28 @@ function CreateEventContent() {
           setVenues(Array.isArray(data) ? data : []);
         }
       } catch (e) {
-        toast.error('会場リストの読み込みに失敗しました');
+        console.error('Failed to fetch venues:', e);
       }
     };
     fetchVenues();
   }, [isMounted, authLoading, isAuthenticated, user, router]);
 
   const onSubmit = async (data) => {
-    // 会場IDが未選択の場合は送信させない
     if (!data.venueId) {
       toast.error('会場を選択してください');
       return;
     }
 
+    const toastId = toast.loading('イベントを登録中...');
+
     try {
-      // 保存キーを flastal-token に統一
+      // 修正: localStorage のキーを flastal-token に統一
       const rawToken = localStorage.getItem('flastal-token');
       const token = rawToken ? rawToken.replace(/^"|"$/g, '') : null;
+
+      if (!token) {
+        throw new Error('ログインセッションが見つかりません。再ログインしてください。');
+      }
       
       const res = await fetch(`${API_URL}/api/events`, {
         method: 'POST',
@@ -88,11 +94,11 @@ function CreateEventContent() {
         throw new Error(resData.message || '作成に失敗しました');
       }
 
-      toast.success('イベントを作成しました！');
+      toast.success('イベントを作成しました！', { id: toastId });
       router.push('/organizers/dashboard');
     } catch (error) {
       console.error('Submit Error:', error);
-      toast.error(error.message);
+      toast.error(error.message, { id: toastId });
     }
   };
 
@@ -152,7 +158,7 @@ function CreateEventContent() {
                     </label>
                     <select 
                         {...register('venueId', { required: '会場の選択は必須です' })} 
-                        className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none cursor-pointer"
+                        className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none cursor-pointer bg-white"
                     >
                         <option value="">会場を選択してください</option>
                         {venues.map(v => <option key={v.id} value={v.id}>{v.venueName}</option>)}
@@ -164,15 +170,23 @@ function CreateEventContent() {
                     <textarea 
                         {...register('description')} 
                         rows="4"
-                        placeholder="イベントの詳細やフラスタに関する補足があれば入力してください"
+                        placeholder="出演者や企画に関する補足情報があれば入力してください"
                         className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none"
                     ></textarea>
                 </div>
           </div>
 
           <div className="flex gap-4">
-             <button type="submit" disabled={isSubmitting} className="w-full py-4 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all shadow-lg disabled:bg-gray-400">
-                {isSubmitting ? '作成中...' : 'イベントを登録する'}
+             <button 
+               type="submit" 
+               disabled={isSubmitting} 
+               className="w-full py-4 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all shadow-lg disabled:bg-gray-400 flex justify-center items-center gap-2"
+             >
+                {isSubmitting ? (
+                  <>
+                    <FiLoader className="animate-spin" /> 登録中...
+                  </>
+                ) : 'イベントを登録する'}
              </button>
           </div>
         </form>
