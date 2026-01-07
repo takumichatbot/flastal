@@ -16,7 +16,6 @@ export const loginOrganizer = async (req, res) => {
             return res.status(401).json({ message: 'メールアドレスまたはパスワードが正しくありません。' });
         }
 
-        // トークンにロールを含める
         const token = jwt.sign(
             { id: organizer.id, email: organizer.email, role: 'ORGANIZER' },
             process.env.JWT_SECRET,
@@ -38,29 +37,30 @@ export const loginOrganizer = async (req, res) => {
     }
 };
 
-// 主催者のダッシュボード用イベント取得
+/**
+ * ★ 修正: 主催者のイベント取得 ★
+ * Projectテーブルではなく、Eventテーブルを直接取得するように変更します
+ */
 export const getOrganizerEvents = async (req, res) => {
     try {
-        // 主催者が Planner として紐付いているプロジェクト、または直接関連するイベントを取得
-        const projects = await prisma.project.findMany({
-            where: { plannerId: req.user.id },
-            include: {
-                event: {
-                    include: { venue: true }
-                }
+        const userId = req.user.id;
+        console.log(`[OrganizerController] Fetching events for ID: ${userId}`);
+
+        const events = await prisma.event.findMany({
+            where: {
+                OR: [
+                    { organizerId: userId },
+                    { creatorId: userId }
+                ]
             },
-            orderBy: { createdAt: 'desc' }
+            include: {
+                venue: { select: { venueName: true } },
+                _count: { select: { projects: true } }
+            },
+            orderBy: { eventDate: 'desc' }
         });
 
-        // フロントエンドが期待するイベント形式に整形
-        const events = projects
-            .filter(p => p.event)
-            .map(p => ({
-                ...p.event,
-                relatedProjectId: p.id,
-                projectTitle: p.title
-            }));
-
+        console.log(`[OrganizerController] Found ${events.length} events`);
         res.json(events || []);
     } catch (e) {
         console.error('getOrganizerEvents Error:', e);
