@@ -291,4 +291,26 @@ export const deleteEvent = async (req, res) => {
 export const toggleInterest = async (req, res) => { res.json({ message: 'ok' }); };
 export const reportEvent = async (req, res) => { res.json({ message: 'ok' }); };
 export const markLogisticsHelpful = async (req, res) => { res.json({ message: 'ok' }); };
-export const getOrganizerEvents = async (req, res) => { res.json([]); };
+// --- 主催者が管理中のイベント一覧を取得 ---
+export const getOrganizerEvents = async (req, res) => {
+    try {
+        // ログイン中の主催者IDに紐づくイベントを取得
+        const events = await prisma.event.findMany({
+            where: {
+                OR: [
+                    { organizerId: req.user.id },
+                    { creatorId: req.user.id } // 念のため両方のカラムをチェック
+                ]
+            },
+            include: {
+                venue: true,
+                _count: { select: { interests: true } }
+            },
+            orderBy: { eventDate: 'desc' }
+        });
+        res.json(events || []);
+    } catch (e) {
+        console.error('getOrganizerEvents Error:', e);
+        res.status(500).json({ message: '管理イベントの取得に失敗しました。' });
+    }
+};
