@@ -180,7 +180,7 @@ export const getEventById = async (req, res) => {
     }
 };
 
-// --- 新規イベント作成 ---
+// --- 新規イベント作成 (修正版) ---
 export const createEvent = async (req, res) => {
     try {
         const body = req.body;
@@ -202,9 +202,10 @@ export const createEvent = async (req, res) => {
             sourceType: userRole === 'ADMIN' ? 'OFFICIAL' : 'USER'
         };
 
-        // 主催者IDまたはユーザーIDをセット
+        // Schemaに合わせて organizerId または creatorId を適切にセット
         if (userRole === 'ORGANIZER') {
             createData.organizerId = userId;
+            // 主催者はUserテーブルに存在しないため creatorId はセットしない
         } else {
             createData.creatorId = userId;
             createData.lastEditorId = userId;
@@ -238,7 +239,7 @@ export const updateEvent = async (req, res) => {
         }
 
         const updated = await prisma.event.update({
-            where: { id },
+            where: { id: id },
             data: updateData
         });
         res.json(updated);
@@ -255,7 +256,6 @@ export const deleteEvent = async (req, res) => {
         const event = await prisma.event.findUnique({ where: { id } });
         if (!event) return res.status(404).json({ message: 'イベントが見つかりません。' });
         
-        // 権限チェック: 管理者、またはそのイベントの作成者・主催者であること
         const isOwner = event.organizerId === req.user.id || event.creatorId === req.user.id;
         if (req.user.role !== 'ADMIN' && !isOwner) {
             return res.status(403).json({ message: '削除権限がありません。' });
@@ -269,19 +269,29 @@ export const deleteEvent = async (req, res) => {
     }
 };
 
-// --- 主催者が管理中のイベント一覧を取得 ---
+// --- 主催者が管理中のイベント一覧を取得 (重要修正版) ---
 export const getOrganizerEvents = async (req, res) => {
     try {
-        console.log(`[getOrganizerEvents] Fetching for user: ${req.user.id} (${req.user.role})`);
+        const userId = req.user.id;
+        const userRole = req.user.role;
+        console.log(`[getOrganizerEvents] Fetching for ${userRole}: ${userId}`);
+
+        // 検索条件を動的に構築
+        let whereCondition = {};
         
-        // ログイン中のID（主催者IDまたはユーザーID）に紐づくイベントを取得
+        if (userRole === 'ORGANIZER') {
+            // 主催者の場合は organizerId カラムのみを対象にする
+            whereCondition = { organizerId: userId };
+        } else if (userRole === 'ADMIN') {
+            // 管理者の場合は全取得
+            whereCondition = {};
+        } else {
+            // それ以外（一般ユーザー）は creatorId
+            whereCondition = { creatorId: userId };
+        }
+
         const events = await prisma.event.findMany({
-            where: {
-                OR: [
-                    { organizerId: req.user.id },
-                    { creatorId: req.user.id }
-                ]
-            },
+            where: whereCondition,
             include: {
                 venue: { select: { venueName: true } },
                 _count: { select: { projects: true } }
@@ -289,7 +299,7 @@ export const getOrganizerEvents = async (req, res) => {
             orderBy: { eventDate: 'desc' }
         });
 
-        console.log(`[getOrganizerEvents] Found ${events.length} events`);
+        console.log(`[getOrganizerEvents] Found ${events.length} events for ${userId}`);
         res.json(events || []);
     } catch (e) {
         console.error('getOrganizerEvents Error:', e);
