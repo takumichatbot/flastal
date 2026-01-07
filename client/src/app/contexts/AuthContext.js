@@ -38,19 +38,20 @@ export function AuthProvider({ children }) {
       const decoded = jwtDecode(cleanToken);
       if (decoded.exp * 1000 < Date.now()) return null;
 
-      let displayName = decoded.handleName;
-      if (decoded.role === 'FLORIST') displayName = decoded.shopName || decoded.handleName;
-      if (decoded.role === 'VENUE') displayName = decoded.venueName || decoded.handleName;
-      if (decoded.role === 'ORGANIZER') displayName = decoded.name || decoded.handleName;
+      // extraData (ログインAPIのレスポンス) を優先、なければ decoded (JWT) から取得
+      const role = extraData?.role || decoded.role;
+      const venueName = extraData?.venueName || decoded.venueName;
+      const shopName = extraData?.shopName || decoded.shopName;
+      const handleName = extraData?.handleName || decoded.handleName;
 
       return {
         id: extraData?.id || decoded.id,
         email: extraData?.email || decoded.email,
-        role: extraData?.role || decoded.role,
-        handleName: displayName,
+        role: role,
+        handleName: handleName,
         iconUrl: extraData?.iconUrl || decoded.iconUrl,
-        shopName: extraData?.shopName || decoded.shopName,
-        venueName: extraData?.venueName || decoded.venueName,
+        shopName: shopName,
+        venueName: venueName,
         status: extraData?.status || decoded.status || 'APPROVED',
         sub: decoded.sub,
         _token: cleanToken 
@@ -67,6 +68,7 @@ export function AuthProvider({ children }) {
       setToken(userData._token);
       if (typeof window !== 'undefined') {
         localStorage.setItem('authToken', userData._token);
+        localStorage.setItem('flastal-token', userData._token); // 互換性のため両方保存
         localStorage.setItem('userStatus', userData.status);
       }
       return true;
@@ -76,6 +78,7 @@ export function AuthProvider({ children }) {
         setToken(null);
         if (typeof window !== 'undefined') {
           localStorage.removeItem('authToken');
+          localStorage.removeItem('flastal-token');
           localStorage.removeItem('userStatus');
         }
       }
@@ -104,7 +107,7 @@ export function AuthProvider({ children }) {
 
     let currentToken = token;
     if (!currentToken && typeof window !== 'undefined') {
-      currentToken = localStorage.getItem('authToken');
+      currentToken = localStorage.getItem('flastal-token') || localStorage.getItem('authToken');
     }
 
     const headers = { ...options.headers };
@@ -141,10 +144,12 @@ export function AuthProvider({ children }) {
     const initAuth = () => {
       try {
         if (typeof window !== 'undefined') {
-          const storedToken = localStorage.getItem('authToken');
+          const storedToken = localStorage.getItem('flastal-token') || localStorage.getItem('authToken');
           if (storedToken && storedToken !== 'null') {
             const storedStatus = localStorage.getItem('userStatus');
-            setSession(storedToken, storedStatus ? { status: storedStatus } : null);
+            const storedVenue = localStorage.getItem('flastal-venue');
+            const extraData = storedVenue ? JSON.parse(storedVenue) : (storedStatus ? { status: storedStatus } : null);
+            setSession(storedToken, extraData);
           }
         }
       } finally {
@@ -168,7 +173,9 @@ export function AuthProvider({ children }) {
     isInitializing.current = false;
     if (typeof window === 'undefined') return;
     localStorage.removeItem('authToken');
+    localStorage.removeItem('flastal-token');
     localStorage.removeItem('userStatus');
+    localStorage.removeItem('flastal-venue');
     setUser(null);
     setToken(null);
     window.location.href = '/';

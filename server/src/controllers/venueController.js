@@ -17,25 +17,30 @@ export const getVenues = async (req, res) => {
     }
 };
 
-// --- 会場詳細取得 ---
+// --- 会場詳細取得 (ダッシュボード対応強化) ---
 export const getVenueById = async (req, res) => {
     const { id } = req.params;
     if (id === 'admin') return getVenues(req, res);
 
     try {
+        // 全てのケースで projects を含めて取得するように変更
         const venue = await prisma.venue.findUnique({
             where: { id },
             include: {
                 projects: {
-                    where: { status: { in: ['COMPLETED', 'SUCCESSFUL'] }, visibility: 'PUBLIC' },
-                    take: 12
+                    include: {
+                        planner: { select: { handleName: true, iconUrl: true } }
+                    },
+                    orderBy: { createdAt: 'desc' }
                 }
             }
         });
+        
         if (!venue) return res.status(404).json({ message: '会場が見つかりません。' });
         
-        const { password, ...clean } = venue;
-        res.json(clean);
+        // セキュリティのためパスワードのみ削除して全て返す
+        const { password, ...cleanVenue } = venue;
+        res.json(cleanVenue);
     } catch (e) { 
         console.error('getVenueById Error:', e);
         res.status(500).json({ message: '会場データの取得に失敗しました。' }); 
@@ -180,7 +185,7 @@ export const getEventById = async (req, res) => {
     }
 };
 
-// --- 新規イベント作成 (修正版) ---
+// --- 新規イベント作成 ---
 export const createEvent = async (req, res) => {
     try {
         const body = req.body;
@@ -202,10 +207,8 @@ export const createEvent = async (req, res) => {
             sourceType: userRole === 'ADMIN' ? 'OFFICIAL' : 'USER'
         };
 
-        // Schemaに合わせて organizerId または creatorId を適切にセット
         if (userRole === 'ORGANIZER') {
             createData.organizerId = userId;
-            // 主催者はUserテーブルに存在しないため creatorId はセットしない
         } else {
             createData.creatorId = userId;
             createData.lastEditorId = userId;
@@ -269,24 +272,18 @@ export const deleteEvent = async (req, res) => {
     }
 };
 
-// --- 主催者が管理中のイベント一覧を取得 (重要修正版) ---
+// --- 主催者が管理中のイベント一覧を取得 ---
 export const getOrganizerEvents = async (req, res) => {
     try {
         const userId = req.user.id;
         const userRole = req.user.role;
-        console.log(`[getOrganizerEvents] Fetching for ${userRole}: ${userId}`);
 
-        // 検索条件を動的に構築
         let whereCondition = {};
-        
         if (userRole === 'ORGANIZER') {
-            // 主催者の場合は organizerId カラムのみを対象にする
             whereCondition = { organizerId: userId };
         } else if (userRole === 'ADMIN') {
-            // 管理者の場合は全取得
             whereCondition = {};
         } else {
-            // それ以外（一般ユーザー）は creatorId
             whereCondition = { creatorId: userId };
         }
 
@@ -299,7 +296,6 @@ export const getOrganizerEvents = async (req, res) => {
             orderBy: { eventDate: 'desc' }
         });
 
-        console.log(`[getOrganizerEvents] Found ${events.length} events for ${userId}`);
         res.json(events || []);
     } catch (e) {
         console.error('getOrganizerEvents Error:', e);

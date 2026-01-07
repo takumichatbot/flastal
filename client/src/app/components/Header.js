@@ -178,6 +178,7 @@ export default function Header() {
     logout();
     setIsUserMenuOpen(false);
     localStorage.removeItem('flastal-venue');
+    localStorage.removeItem('authToken');
     localStorage.removeItem('flastal-token');
     window.location.href = '/';
   };
@@ -268,7 +269,7 @@ export default function Header() {
       case 'VENUE':
         return [
           { href: `/venues/dashboard/${user.id}`, label: '会場ダッシュボード', icon: <LayoutDashboard size={16} /> },
-          { href: `/venues/${user.id}/edit`, label: 'レギュレーション設定', icon: <Building2 size={16} /> },
+          { href: `/venues/${user.id}/edit`, label: '基本設定・ルール', icon: <Building2 size={16} /> },
           { href: `/venues/${user.id}/logistics`, label: '搬入・物流設定', icon: <Package size={16} /> },
         ];
       case 'ORGANIZER':
