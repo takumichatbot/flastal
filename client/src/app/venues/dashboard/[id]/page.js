@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, Suspense, useCallback } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/app/contexts/AuthContext';
@@ -28,43 +28,55 @@ const Reveal = ({ children, delay = 0 }) => (
 );
 
 function VenueDashboardContent() {
-  const { id } = useParams();
+  const params = useParams();
+  const id = params?.id;
   const { user, loading: authLoading } = useAuth();
   const [venue, setVenue] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [venueAuth, setVenueAuth] = useState(null); // 会場専用ログイン状態のバックアップ
+  const [venueAuth, setVenueAuth] = useState(null);
   const router = useRouter();
 
+  const fetchVenueData = useCallback(async () => {
+    if (!id) return;
+    try {
+      console.log(`Fetching venue data for: ${id}`);
+      const response = await fetch(`${API_URL}/api/venues/${id}`);
+      
+      if (!response.ok) {
+        throw new Error('会場データの取得に失敗しました');
+      }
+      
+      const data = await response.json();
+      console.log("Venue data received:", data);
+      
+      // データ構造の安全性を確保
+      setVenue({
+        ...data,
+        projects: data.projects || []
+      });
+    } catch (error) {
+      console.error("Dashboard fetch error:", error);
+      toast.error('会場情報を読み込めませんでした');
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
+
   useEffect(() => {
-    // 1. 会場専用の認証情報をローカルストレージから確認
     const storedVenue = localStorage.getItem('flastal-venue');
     const storedToken = localStorage.getItem('flastal-token');
     
     if (storedVenue && storedToken) {
-      setVenueAuth(JSON.parse(storedVenue));
+      try {
+        setVenueAuth(JSON.parse(storedVenue));
+      } catch (e) {
+        console.error("Token parse error", e);
+      }
     }
 
-    // 2. 会場情報の取得
-    const fetchVenueData = async () => {
-      try {
-        const response = await fetch(`${API_URL}/api/venues/${id}`);
-        if (!response.ok) throw new Error('会場データの取得に失敗しました');
-        const data = await response.json();
-        setVenue(data);
-      } catch (error) {
-        console.error(error);
-        toast.error('会場情報を読み込めませんでした');
-      } finally {
-        setLoading(false);
-      }
-    };
+    fetchVenueData();
+  }, [id, fetchVenueData]);
 
-    if (id) fetchVenueData();
-  }, [id]);
-
-  // 権限チェックの強化: 
-  // AuthContextのuser情報 OR ローカルストレージの会場情報(venueAuth)
-  // かつ、そのIDがダッシュボードのIDと一致するか、管理者であること
   const currentUserId = user?.id || venueAuth?.id;
   const currentUserRole = user?.role || (venueAuth ? 'VENUE' : null);
 
@@ -82,7 +94,6 @@ function VenueDashboardContent() {
     );
   }
 
-  // 権限がない、または未ログインの場合
   if (!hasAccess) {
     return (
       <div className="bg-slate-50 min-h-screen flex items-center justify-center p-4">
@@ -98,7 +109,6 @@ function VenueDashboardContent() {
           <p className="text-slate-500 mb-8 leading-relaxed font-medium">
             会場ダッシュボードを利用するには、会場アカウントでログインしてください。
           </p>
-          {/* リンク先を修正 */}
           <Link href="/venues/login" className="block w-full py-4 font-bold text-white bg-indigo-600 rounded-full hover:shadow-lg transition-all">
               会場ログインページへ
           </Link>
@@ -112,7 +122,6 @@ function VenueDashboardContent() {
 
   return (
     <div className="bg-slate-50 min-h-screen pb-32 font-sans text-slate-800 overflow-x-hidden">
-      {/* ヒーローセクション */}
       <section className="relative bg-white pt-20 pb-32 overflow-hidden border-b border-slate-100">
         <div className="container mx-auto px-6 relative z-10">
           <Reveal>
@@ -142,7 +151,6 @@ function VenueDashboardContent() {
         </div>
       </section>
 
-      {/* ステータスカード */}
       <section className="container mx-auto px-6 -mt-16 relative z-20">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
           <Reveal delay={0.2}>
@@ -205,7 +213,6 @@ function VenueDashboardContent() {
         </div>
       </section>
       
-      {/* 案内セクション */}
       <section className="container mx-auto px-6 mt-20 max-w-4xl">
         <Reveal delay={0.5}>
           <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100">
@@ -253,7 +260,7 @@ function VenueDashboardContent() {
 
 export default function VenueDashboardPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-slate-50 flex items-center justify-center"><Loader2 className="w-10 h-10 text-indigo-500 animate-spin" /></div>}>
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen bg-slate-50"><Loader2 className="w-10 h-10 text-indigo-500 animate-spin" /></div>}>
       <VenueDashboardContent />
     </Suspense>
   );

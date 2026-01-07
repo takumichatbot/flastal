@@ -17,33 +17,60 @@ export const getVenues = async (req, res) => {
     }
 };
 
-// --- 会場詳細取得 (重要: ダッシュボード対応) ---
+// --- 会場詳細取得 (重要: ダッシュボード対応・堅牢化版) ---
 export const getVenueById = async (req, res) => {
     const { id } = req.params;
-    if (id === 'admin') return getVenues(req, res);
+    
+    // adminという文字列がIDとして来た場合の回避
+    if (id === 'admin' || id === 'all') return getVenues(req, res);
 
     try {
-        // ダッシュボード表示に必要な projects リレーションを常に含める
+        console.log(`[getVenueById] Fetching ID: ${id}`);
+
         const venue = await prisma.venue.findUnique({
-            where: { id },
+            where: { id: id },
             include: {
                 projects: {
-                    include: {
-                        planner: { select: { handleName: true, iconUrl: true } }
+                    select: {
+                        id: true,
+                        title: true,
+                        imageUrl: true,
+                        flowerTypes: true,
+                        planner: {
+                            select: {
+                                handleName: true,
+                                iconUrl: true
+                            }
+                        }
                     },
-                    orderBy: { createdAt: 'desc' }
+                    take: 50 // 直近50件程度
                 }
             }
         });
         
-        if (!venue) return res.status(404).json({ message: '会場が見つかりません。' });
+        if (!venue) {
+            console.warn(`[getVenueById] Venue not found for ID: ${id}`);
+            return res.status(404).json({ message: '会場が見つかりません。' });
+        }
         
-        // パスワードを除外して返却
+        // パスワードを除外
         const { password, ...cleanVenue } = venue;
+
+        // projectsが万が一nullだった場合の保険
+        if (!cleanVenue.projects) {
+            cleanVenue.projects = [];
+        }
+
+        console.log(`[getVenueById] Success fetching venue: ${cleanVenue.venueName}`);
         res.json(cleanVenue);
+
     } catch (e) { 
-        console.error('getVenueById Error:', e);
-        res.status(500).json({ message: '会場データの取得に失敗しました。' }); 
+        console.error('getVenueById Critical Error:', e);
+        // エラーログを詳細に出力して原因を特定しやすくする
+        res.status(500).json({ 
+            message: '会場データの取得中にサーバーエラーが発生しました。',
+            error: process.env.NODE_ENV === 'development' ? e.message : undefined 
+        }); 
     }
 };
 
@@ -121,7 +148,12 @@ export const postLogisticsInfo = async (req, res) => {
     const { title, description } = req.body;
     try {
         const info = await prisma.venueLogisticsInfo.create({
-            data: { venueId, contributorId: req.user.id, title, description }
+            data: { 
+                venueId, 
+                contributorId: req.user.id, 
+                title, 
+                description 
+            }
         });
         res.status(201).json(info);
     } catch (e) { 
@@ -136,7 +168,9 @@ export const getLogisticsInfo = async (req, res) => {
     try {
         const info = await prisma.venueLogisticsInfo.findMany({
             where: { venueId },
-            include: { contributor: { select: { handleName: true } } },
+            include: { 
+                contributor: { select: { shopName: true } } 
+            },
             orderBy: { createdAt: 'desc' }
         });
         res.json(info || []);
