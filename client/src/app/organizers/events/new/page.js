@@ -104,26 +104,26 @@ function CreateEventContent() {
         if (!res.ok) throw new Error('アップロード許可の取得に失敗しました');
         const { uploadUrl, fileUrl } = await res.json();
 
-        // 2. XMLHttpRequestを使用してS3へPUTリクエスト
-        // fetchで発生しがちな「勝手なヘッダー付与」を防ぐためXHRを使用します
+        // 2. XMLHttpRequestを使用してS3へPUT
+        // 署名の不一致を防ぐため、バックエンドで指定したContent-Typeを正確にセットします
         const xhr = new XMLHttpRequest();
         xhr.open('PUT', uploadUrl);
+        
+        // 重要: 署名時にContentTypeを含めた場合、ここでも必ずセットする必要があります
         xhr.setRequestHeader('Content-Type', file.type);
         
         xhr.onload = () => {
-          if (xhr.status === 200) {
+          if (xhr.status === 200 || xhr.status === 204) {
             resolve(fileUrl);
           } else {
-            console.error('S3 Response Status:', xhr.status);
-            console.error('S3 Response Body:', xhr.responseText);
-            reject(new Error(`S3アップロードに失敗しました (${xhr.status})`));
+            // エラー内容を詳細にログに出す
+            console.error('S3 Status:', xhr.status);
+            reject(new Error(`S3エラー: ${xhr.status}`));
           }
         };
 
-        xhr.onerror = () => {
-          reject(new Error('ネットワークエラーによりS3へアップロードできませんでした'));
-        };
-
+        xhr.onerror = () => reject(new Error('S3への通信がブロックされました。CORS設定を確認してください。'));
+        
         xhr.send(file);
       } catch (error) {
         reject(error);
