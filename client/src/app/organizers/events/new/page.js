@@ -95,36 +95,33 @@ function CreateEventContent() {
   const uploadToS3 = (file) => {
     return new Promise(async (resolve, reject) => {
       try {
-        // 1. バックエンドから署名付きURLを取得
         const res = await authenticatedFetch('/api/tools/s3-upload-url', {
           method: 'POST',
           body: JSON.stringify({ fileName: file.name, fileType: file.type })
         });
         
-        if (!res.ok) throw new Error('署名付きURLの取得に失敗しました');
+        if (!res.ok) throw new Error('アップロード許可の取得に失敗しました');
         const { uploadUrl, fileUrl } = await res.json();
 
-        // ブラウザによる&のエスケープを正規化
-        const cleanUploadUrl = uploadUrl.replace(/&amp;/g, '&');
-
-        // 2. XMLHttpRequestを使用してS3へPUTリクエスト
+        // 署名付きURLをそのまま使用（余計な加工をしない）
         const xhr = new XMLHttpRequest();
-        xhr.open('PUT', cleanUploadUrl);
+        xhr.open('PUT', uploadUrl);
         
-        // 重要: 署名時にContentTypeを含めているため、ヘッダーを厳密にセット
+        // 署名に含まれている Content-Type を正確にセット
         xhr.setRequestHeader('Content-Type', file.type);
         
         xhr.onload = () => {
           if (xhr.status === 200 || xhr.status === 204) {
             resolve(fileUrl);
           } else {
-            console.error('S3 Response Status:', xhr.status);
-            reject(new Error(`S3アップロードに失敗しました (${xhr.status})`));
+            console.error('S3 Status:', xhr.status);
+            reject(new Error(`S3 Error: ${xhr.status}`));
           }
         };
 
         xhr.onerror = () => {
-          reject(new Error('S3への接続がブラウザでブロックされました。CORS設定を確認してください。'));
+          // ここでエラーが出る場合はブラウザの「ネットワーク」タブを確認する必要があります
+          reject(new Error('S3への接続がブロックされました。CORS設定またはブラウザ制限を確認してください。'));
         };
 
         xhr.send(file);
