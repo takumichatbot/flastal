@@ -630,7 +630,8 @@ model Event {
   eventDate      DateTime
   isStandAllowed Boolean  @default(true)
   regulationNote String?
-  // imageUrl String?      <-- これを削除
+  isIllustratorRecruiting     Boolean @default(false)      // 絵師募集中フラグ
+  illustratorRequirements     String? @db.Text
   imageUrls      String[] // <-- これを追加（複数枚対応）
   genre          String?  
 

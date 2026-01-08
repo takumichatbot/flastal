@@ -5,7 +5,8 @@ import { useRouter, useParams } from 'next/navigation';
 import { useAuth } from '@/app/contexts/AuthContext'; 
 import { 
   FiSave, FiTrash2, FiArrowLeft, FiCalendar, FiMapPin, 
-  FiInfo, FiCheckCircle, FiUsers, FiExternalLink, FiAlertCircle, FiImage, FiPlus, FiX, FiUpload, FiLoader
+  FiInfo, FiCheckCircle, FiUsers, FiExternalLink, FiAlertCircle, 
+  FiImage, FiPlus, FiX, FiUpload, FiLoader, FiTwitter, FiInstagram, FiGlobe, FiMega, FiStar, FiEdit3
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
@@ -50,7 +51,13 @@ export default function OrganizerEventDetailPage() {
         setEventData({
             ...eventJson,
             eventDate: formattedDate,
-            imageUrls: eventJson.imageUrls || []
+            imageUrls: eventJson.imageUrls || [],
+            twitterUrl: eventJson.twitterUrl || '',
+            instagramUrl: eventJson.instagramUrl || '',
+            officialWebsite: eventJson.officialWebsite || '',
+            announcement: eventJson.announcement || '',
+            isIllustratorRecruiting: eventJson.isIllustratorRecruiting || false,
+            illustratorRequirements: eventJson.illustratorRequirements || ''
         });
 
         const venueRes = await fetch(`${API_URL}/api/venues`);
@@ -133,15 +140,7 @@ export default function OrganizerEventDetailPage() {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({
-            title: eventData.title,
-            description: eventData.description,
-            eventDate: eventData.eventDate,
-            venueId: eventData.venueId,
-            isStandAllowed: eventData.isStandAllowed,
-            regulationNote: eventData.regulationNote,
-            imageUrls: eventData.imageUrls // 配列で送信
-        }),
+        body: JSON.stringify(eventData), // eventData全体を送信
       });
 
       if (!res.ok) throw new Error('更新に失敗しました');
@@ -171,7 +170,7 @@ export default function OrganizerEventDetailPage() {
   if (authLoading || loading) {
       return (
         <div className="flex items-center justify-center min-h-screen bg-slate-50">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
+            <FiLoader className="animate-spin text-indigo-500" size={40} />
         </div>
       );
   }
@@ -201,7 +200,7 @@ export default function OrganizerEventDetailPage() {
                     </div>
 
                     <form onSubmit={handleUpdate} className="p-6 md:p-8 space-y-6">
-                        {/* 画像管理セクション (複数枚対応) */}
+                        {/* 画像管理セクション */}
                         <div>
                             <label className="block text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
                                 <FiImage className="text-indigo-500" /> イベント画像ギャラリー
@@ -225,6 +224,39 @@ export default function OrganizerEventDetailPage() {
                                     <input type="file" multiple accept="image/*" onChange={handleImageAdd} className="hidden" disabled={isUploading} />
                                 </label>
                             </div>
+                        </div>
+
+                        {/* 主催者告知セクション */}
+                        <div className="bg-indigo-600 rounded-xl p-5 text-white shadow-lg">
+                            <h3 className="font-bold mb-3 flex items-center gap-2"><FiMega /> 主催者からの最新告知</h3>
+                            <textarea 
+                                value={eventData.announcement}
+                                onChange={(e) => setEventData({...eventData, announcement: e.target.value})}
+                                placeholder="例：フラスタの受付時間を変更しました！等、一番上に目立つように表示されます"
+                                className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 outline-none min-h-[80px] text-sm"
+                            />
+                        </div>
+
+                        {/* 絵師公募セクション */}
+                        <div className="bg-rose-50 rounded-xl border border-rose-200 p-5 shadow-sm">
+                            <h3 className="font-bold text-rose-800 mb-3 flex items-center gap-2">
+                                <FiStar className="text-rose-500" /> イラストレーター公募設定
+                            </h3>
+                            <label className="flex items-center p-3 bg-white rounded-lg border border-rose-100 cursor-pointer mb-4 shadow-sm hover:border-rose-300 transition-colors">
+                                <input 
+                                    type="checkbox"
+                                    checked={eventData.isIllustratorRecruiting}
+                                    onChange={(e) => setEventData({...eventData, isIllustratorRecruiting: e.target.checked})}
+                                    className="w-5 h-5 text-rose-500 rounded focus:ring-rose-400 border-gray-300 mr-3"
+                                />
+                                <span className="font-bold text-rose-900 text-sm">このイベントのイラストレーターを公募する</span>
+                            </label>
+                            <textarea 
+                                value={eventData.illustratorRequirements || ''}
+                                onChange={(e) => setEventData({...eventData, illustratorRequirements: e.target.value})}
+                                placeholder="【公募条件】例：予算、締切、描いてほしいキャラクターのイメージなど"
+                                className="w-full p-3 border border-rose-100 rounded-xl text-sm min-h-[100px] outline-none focus:ring-2 focus:ring-rose-300 transition-all bg-white"
+                            />
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -255,18 +287,47 @@ export default function OrganizerEventDetailPage() {
 
                         <div>
                             <label className="block text-sm font-bold text-gray-700 mb-2">開催会場</label>
-                            <div className="relative">
-                                <FiMapPin className="absolute top-3.5 left-3 text-gray-400 pointer-events-none"/>
-                                <select 
-                                    value={eventData.venueId || ''}
-                                    onChange={(e) => setEventData({...eventData, venueId: e.target.value || null})}
-                                    className="w-full pl-10 pr-10 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-indigo-500 outline-none appearance-none cursor-pointer"
-                                >
-                                    <option value="">会場未定 / その他</option>
-                                    {venues.map(v => (
-                                        <option key={v.id} value={v.id}>{v.venueName}</option>
-                                    ))}
-                                </select>
+                            <select 
+                                value={eventData.venueId || ''}
+                                onChange={(e) => setEventData({...eventData, venueId: e.target.value})}
+                                className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none bg-white cursor-pointer"
+                            >
+                                <option value="">会場未定 / その他</option>
+                                {venues.map(v => <option key={v.id} value={v.id}>{v.venueName}</option>)}
+                            </select>
+                        </div>
+
+                        {/* SNS・HPリンク編集セクション */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 mb-1 flex items-center gap-1"><FiGlobe /> 公式HP</label>
+                                <input 
+                                    type="url" 
+                                    value={eventData.officialWebsite} 
+                                    onChange={(e) => setEventData({...eventData, officialWebsite: e.target.value})} 
+                                    className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" 
+                                    placeholder="https://..." 
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 mb-1 flex items-center gap-1"><FiTwitter /> X (Twitter)</label>
+                                <input 
+                                    type="url" 
+                                    value={eventData.twitterUrl} 
+                                    onChange={(e) => setEventData({...eventData, twitterUrl: e.target.value})} 
+                                    className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" 
+                                    placeholder="https://x.com/..." 
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 mb-1 flex items-center gap-1"><FiInstagram /> Instagram</label>
+                                <input 
+                                    type="url" 
+                                    value={eventData.instagramUrl} 
+                                    onChange={(e) => setEventData({...eventData, instagramUrl: e.target.value})} 
+                                    className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" 
+                                    placeholder="https://instagram.com/..." 
+                                />
                             </div>
                         </div>
 
@@ -306,7 +367,8 @@ export default function OrganizerEventDetailPage() {
                                 disabled={saving || isUploading}
                                 className="w-full py-4 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 shadow-lg transition-all flex justify-center items-center disabled:opacity-70"
                             >
-                                {saving ? <><FiLoader className="animate-spin mr-2"/> 保存中...</> : <><FiSave className="mr-2 text-xl"/> 変更内容を保存する</>}
+                                {saving ? <FiLoader className="animate-spin mr-2"/> : <FiSave className="mr-2 text-xl"/>}
+                                変更内容を保存する
                             </button>
                         </div>
                     </form>
@@ -325,7 +387,7 @@ export default function OrganizerEventDetailPage() {
                             <div className="space-y-3">
                                 {eventData.projects.map(project => (
                                     <Link key={project.id} href={`/projects/${project.id}`} className="block">
-                                        <div className="bg-white p-4 rounded-xl border border-gray-200 hover:border-indigo-300 transition-all">
+                                        <div className="bg-white p-4 rounded-xl border border-gray-200 hover:border-indigo-300 transition-all shadow-sm">
                                             <ProjectStatusBadge status={project.status || 'PLANNING'} />
                                             <h3 className="font-bold text-gray-800 text-sm mt-2 line-clamp-2">{project.title}</h3>
                                         </div>
@@ -333,7 +395,7 @@ export default function OrganizerEventDetailPage() {
                                 ))}
                             </div>
                         ) : (
-                            <p className="text-center py-12 text-gray-400 text-sm">まだ企画はありません</p>
+                            <p className="text-center py-12 text-gray-400 text-sm italic">まだ企画はありません</p>
                         )}
                     </div>
                 </div>

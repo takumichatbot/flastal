@@ -155,6 +155,8 @@ export const updateEvent = async (req, res) => {
             data: {
                 title: title || eventName,
                 description: description,
+                isIllustratorRecruiting: isIllustratorRecruiting,
+                illustratorRequirements: illustratorRequirements,
                 eventDate: eventDate ? new Date(eventDate) : undefined,
                 genre: genre,
                 sourceUrl: sourceUrl,
