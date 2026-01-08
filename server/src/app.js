@@ -12,6 +12,7 @@ import projectRoutes from './routes/projects.js';
 import userRoutes from './routes/users.js';
 import floristRoutes from './routes/florists.js';
 import venueRoutes from './routes/venues.js';
+import eventRoutes from './routes/events.js'; // 追加
 import toolRoutes from './routes/tools.js';
 import adminRoutes from './routes/admin.js';
 import paymentRoutes from './routes/payment.js';
@@ -160,29 +161,19 @@ app.get('/', (req, res) => {
 });
 
 // ==========================================
-// ★★★ ルーティングのマウント (整理版) ★★★
+// ★★★ ルーティングのマウント ★★★
 // ==========================================
 
-// 認証・ユーザー基本
 app.use('/api', authRoutes);
-app.use('/api/users', userRoutes); // パスを明確化
-
-// 花屋関連
+app.use('/api/users', userRoutes);
 app.use('/api/florists', floristRoutes);
-
-// 会場関連 (最重要: パスを /api/venues に固定)
-// venueRoutes.js 内の '/' は '/api/venues' として動作するようになります
 app.use('/api/venues', venueRoutes); 
 
-// イベント関連 (ショートカット用)
-// venueRoutes.js 内に /events がある場合、/api/events/... でアクセス可能になります
-app.use('/api/events', venueRoutes); 
+// イベント関連を eventRoutes に接続
+app.use('/api/events', eventRoutes); 
 
-// 企画・詳細
-app.use('/api/projects', projectRoutes); // パスを明確化
+app.use('/api/projects', projectRoutes);
 app.use('/api/project-details', projectDetailRoutes);
-
-// その他
 app.use('/api/organizers', organizerRoutes);
 app.use('/api/tools', toolRoutes);
 app.use('/api/payment', paymentRoutes);
