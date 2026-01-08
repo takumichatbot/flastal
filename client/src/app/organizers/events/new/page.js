@@ -11,7 +11,7 @@ import { useAuth } from '@/app/contexts/AuthContext';
 import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import { 
-  FiArrowLeft, FiCalendar, FiMapPin, FiLoader, FiType, FiImage, FiLink, FiGlobe, FiInstagram, FiTwitter, FiUpload, FiX, FiInfo
+  FiArrowLeft, FiCalendar, FiMapPin, FiLoader, FiType, FiImage, FiLink, FiGlobe, FiInstagram, FiTwitter, FiUpload, FiX, FiInfo, FiPlus
 } from 'react-icons/fi';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
@@ -22,9 +22,8 @@ function CreateEventContent() {
   const [isMounted, setIsMounted] = useState(false);
   const [venues, setVenues] = useState([]);
   
-  // 画像アップロード用状態
-  const [imagePreview, setImagePreview] = useState(null);
-  const [imageFile, setImageFile] = useState(null);
+  // 画像アップロード用状態 (複数枚対応)
+  const [imageUrls, setImageUrls] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
@@ -62,11 +61,7 @@ function CreateEventContent() {
         const res = await fetch(`${API_URL}/api/venues`);
         if (!res.ok) throw new Error('会場リストを取得できませんでした');
         const data = await res.json();
-        if (Array.isArray(data)) {
-          setVenues(data);
-        } else if (data && Array.isArray(data.venues)) {
-          setVenues(data.venues);
-        }
+        setVenues(Array.isArray(data) ? data : (data.venues || []));
       } catch (e) {
         console.error('Failed to fetch venues:', e);
         toast.error('会場リストの読み込みに失敗しました。');
@@ -75,60 +70,58 @@ function CreateEventContent() {
     fetchVenues();
   }, [isMounted, authLoading, isAuthenticated, user, router]);
 
+  // AWS S3へのアップロード関数 (最安定版)
+  const uploadToS3 = async (file) => {
+    const res = await authenticatedFetch('/api/tools/s3-upload-url', {
+      method: 'POST',
+      body: JSON.stringify({ fileName: file.name, fileType: file.type })
+    });
+    
+    if (!res.ok) throw new Error('署名取得失敗');
+    const { uploadUrl, fileUrl } = await res.json();
+
+    const xhr = new XMLHttpRequest();
+    xhr.open('PUT', uploadUrl);
+    xhr.setRequestHeader('Content-Type', file.type);
+    
+    return new Promise((resolve, reject) => {
+      xhr.onload = () => xhr.status === 200 ? resolve(fileUrl) : reject();
+      xhr.onerror = () => reject();
+      xhr.send(file);
+    });
+  };
+
   // 画像ファイル選択時の処理
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        return toast.error('画像サイズは5MB以下にしてください');
+  const handleImageChange = async (e) => {
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+
+    setIsUploading(true);
+    const toastId = toast.loading('画像をアップロード中...');
+
+    try {
+      const newUrls = [];
+      for (const file of files) {
+        if (file.size > 5 * 1024 * 1024) {
+          toast.error(`${file.name} は5MBを超えているためスキップしました`);
+          continue;
+        }
+        const url = await uploadToS3(file);
+        newUrls.push(url);
       }
-      setImageFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result);
-      };
-      reader.readAsDataURL(file);
+      setImageUrls(prev => [...prev, ...newUrls]);
+      toast.success('画像をアップロードしました', { id: toastId });
+    } catch (err) {
+      toast.error('アップロードに失敗しました', { id: toastId });
+    } finally {
+      setIsUploading(false);
+      e.target.value = ''; // 同じファイルを再度選べるようにリセット
     }
   };
 
-  // AWS S3へのアップロード関数 (XMLHttpRequest版 - 最も確実にLoad failedを回避)
-  const uploadToS3 = (file) => {
-    return new Promise(async (resolve, reject) => {
-      try {
-        const res = await authenticatedFetch('/api/tools/s3-upload-url', {
-          method: 'POST',
-          body: JSON.stringify({ fileName: file.name, fileType: file.type })
-        });
-        
-        if (!res.ok) throw new Error('アップロード許可の取得に失敗しました');
-        const { uploadUrl, fileUrl } = await res.json();
-
-        // 署名付きURLをそのまま使用（余計な加工をしない）
-        const xhr = new XMLHttpRequest();
-        xhr.open('PUT', uploadUrl);
-        
-        // 署名に含まれている Content-Type を正確にセット
-        xhr.setRequestHeader('Content-Type', file.type);
-        
-        xhr.onload = () => {
-          if (xhr.status === 200 || xhr.status === 204) {
-            resolve(fileUrl);
-          } else {
-            console.error('S3 Status:', xhr.status);
-            reject(new Error(`S3 Error: ${xhr.status}`));
-          }
-        };
-
-        xhr.onerror = () => {
-          // ここでエラーが出る場合はブラウザの「ネットワーク」タブを確認する必要があります
-          reject(new Error('S3への接続がブロックされました。CORS設定またはブラウザ制限を確認してください。'));
-        };
-
-        xhr.send(file);
-      } catch (error) {
-        reject(error);
-      }
-    });
+  // 画像削除
+  const removeImage = (idx) => {
+    setImageUrls(prev => prev.filter((_, i) => i !== idx));
   };
 
   const onSubmit = async (data) => {
@@ -138,16 +131,8 @@ function CreateEventContent() {
     }
 
     const toastId = toast.loading('イベントを登録中...');
-    setIsUploading(true);
 
     try {
-      let finalImageUrl = '';
-      
-      // 画像ファイルがある場合はS3へアップロード
-      if (imageFile) {
-        finalImageUrl = await uploadToS3(imageFile);
-      }
-
       // 日付のISO形式変換
       const formattedDate = new Date(`${data.eventDate}T00:00:00`).toISOString();
 
@@ -155,7 +140,7 @@ function CreateEventContent() {
         method: 'POST',
         body: JSON.stringify({
           ...data,
-          imageUrl: finalImageUrl,
+          imageUrls: imageUrls, // 配列で送信
           eventDate: formattedDate 
         }),
       });
@@ -170,8 +155,6 @@ function CreateEventContent() {
     } catch (error) {
       console.error('Submit Error:', error);
       toast.error(error.message || '予期せぬエラーが発生しました', { id: toastId });
-    } finally {
-      setIsUploading(false);
     }
   };
 
@@ -267,35 +250,46 @@ function CreateEventContent() {
 
                 <div>
                     <label className="block text-sm font-bold text-gray-700 mb-2 flex items-center gap-2">
-                        <FiImage className="text-indigo-500" /> イベントのメイン画像
+                        <FiImage className="text-indigo-500" /> イベント画像 (複数追加可)
                     </label>
                     
-                    <div className="flex flex-col items-center justify-center border-2 border-dashed border-gray-200 rounded-2xl p-6 bg-gray-50 hover:bg-gray-100 transition-all relative">
-                        {imagePreview ? (
-                            <div className="relative w-full aspect-video rounded-xl overflow-hidden shadow-sm">
-                                <img src={imagePreview} className="w-full h-full object-cover" alt="Preview" />
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-4">
+                        {imageUrls.map((url, idx) => (
+                            <div key={idx} className="relative aspect-video rounded-xl overflow-hidden shadow-sm group border border-gray-200">
+                                <img src={url} className="w-full h-full object-cover" alt="Preview" />
                                 <button 
                                     type="button"
-                                    onClick={() => {setImagePreview(null); setImageFile(null);}}
-                                    className="absolute top-2 right-2 p-2 bg-black/50 text-white rounded-full hover:bg-black/70 transition-all"
+                                    onClick={() => removeImage(idx)}
+                                    className="absolute top-1 right-1 p-1.5 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-all shadow-md"
                                 >
-                                    <FiX size={18} />
+                                    <FiX size={14} />
                                 </button>
+                                {idx === 0 && (
+                                  <div className="absolute bottom-0 left-0 right-0 bg-indigo-600 text-white text-[10px] text-center py-0.5 font-bold">カバー</div>
+                                )}
                             </div>
-                        ) : (
-                            <label className="flex flex-col items-center justify-center cursor-pointer py-4 w-full">
-                                <FiUpload className="text-indigo-400 mb-2" size={32} />
-                                <span className="text-sm font-bold text-gray-500">写真をアップロード</span>
-                                <span className="text-[10px] text-gray-400 mt-1">スマホのカメラやPCのファイルから選択</span>
-                                <input 
-                                    type="file" 
-                                    accept="image/*" 
-                                    className="hidden" 
-                                    onChange={handleImageChange}
-                                />
-                            </label>
-                        )}
+                        ))}
+                        
+                        <label className="flex flex-col items-center justify-center aspect-video border-2 border-dashed border-gray-200 rounded-xl bg-gray-50 hover:bg-indigo-50 hover:border-indigo-300 transition-all cursor-pointer">
+                            {isUploading ? (
+                              <FiLoader className="animate-spin text-indigo-500" size={24} />
+                            ) : (
+                              <>
+                                <FiPlus className="text-indigo-400 mb-1" size={24} />
+                                <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">画像を追加</span>
+                              </>
+                            )}
+                            <input 
+                                type="file" 
+                                multiple 
+                                accept="image/*" 
+                                className="hidden" 
+                                onChange={handleImageChange}
+                                disabled={isUploading}
+                            />
+                        </label>
                     </div>
+                    <p className="text-[10px] text-gray-400">※1枚目の画像が一覧のカバー写真として使用されます。</p>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -51,7 +51,7 @@ function EventListContent() {
         setEvents(Array.isArray(data) ? data : []);
       } else {
         const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Server error');
+        throw new Error(errorData.message || 'サーバーエラー');
       }
     } catch (e) {
       console.error('[EventList] Fetch error:', e);
@@ -129,6 +129,7 @@ function EventListContent() {
     <div className="bg-slate-50 min-h-screen py-10 font-sans text-gray-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
+        {/* ヘッダー */}
         <div className="flex flex-col md:flex-row justify-between items-center mb-10 gap-6">
           <div className="flex items-center gap-4">
               <div className="bg-indigo-600 p-3 rounded-2xl text-white shadow-lg shadow-indigo-100">
@@ -156,10 +157,11 @@ function EventListContent() {
           </div>
         </div>
 
+        {/* フィルター */}
         <div className="bg-white rounded-[2rem] shadow-sm border border-gray-100 p-6 mb-10">
           <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
             <div className="md:col-span-6">
-              <label className="block text-[10px] font-black text-gray-400 mb-1.5 uppercase tracking-widest ml-1">Keyword Search</label>
+              <label className="block text-[10px] font-black text-gray-400 mb-1.5 uppercase tracking-widest ml-1">キーワード検索</label>
               <div className="relative">
                 <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 size-5"/>
                 <input
@@ -173,7 +175,7 @@ function EventListContent() {
             </div>
             
             <div className="md:col-span-4">
-              <label className="block text-[10px] font-black text-gray-400 mb-1.5 uppercase tracking-widest ml-1">Genre / Category</label>
+              <label className="block text-[10px] font-black text-gray-400 mb-1.5 uppercase tracking-widest ml-1">ジャンル選択</label>
               <div className="relative">
                 <FiFilter className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"/>
                 <select
@@ -200,6 +202,7 @@ function EventListContent() {
           </div>
         </div>
 
+        {/* リスト */}
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
              {[...Array(6)].map((_, i) => (
@@ -215,7 +218,7 @@ function EventListContent() {
         ) : events.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-32 bg-white rounded-[3rem] border-2 border-dashed border-gray-100 text-center">
             <FiSearch size={48} className="text-slate-200 mb-4"/>
-            <p className="text-gray-400 font-black text-lg uppercase tracking-widest">No Events Found</p>
+            <p className="text-gray-400 font-black text-lg uppercase tracking-widest">見つかりませんでした</p>
             <p className="text-gray-400 text-sm mt-2">条件を変更するか、新しいイベントを教えてください</p>
             <button onClick={() => {setSearchTerm(''); setSelectedGenre('ALL');}} className="mt-6 text-indigo-600 font-black text-sm underline decoration-dotted">すべて表示する</button>
           </div>
@@ -406,7 +409,7 @@ function ImageUploadArea({ images, setImages, isUploading, setIsUploading }) {
 
   return (
     <div className="space-y-3">
-      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 block">Images (Multiple)</label>
+      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 block">イベント画像 (複数選択可)</label>
       <div className="grid grid-cols-4 gap-2">
         {images.map((url, i) => (
           <div key={i} className="relative aspect-square rounded-lg overflow-hidden border border-slate-100 group">
@@ -490,11 +493,28 @@ function AiAddModal({ onClose, onAdded }) {
 }
 
 function ManualAddModal({ onClose, onAdded, editData = null }) {
-  const [formData, setFormData] = useState({ title: '', eventDate: '', description: '', genre: 'OTHER', sourceUrl: '' });
+  const [formData, setFormData] = useState({ title: '', eventDate: '', description: '', genre: 'OTHER', sourceUrl: '', venueId: '' });
   const [images, setImages] = useState([]);
+  const [venues, setVenues] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const { authenticatedFetch } = useAuth();
+
+  // 会場リストの取得
+  useEffect(() => {
+    const fetchVenues = async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/venues`);
+        if (res.ok) {
+          const data = await res.json();
+          setVenues(Array.isArray(data) ? data : (data.venues || []));
+        }
+      } catch (e) {
+        console.error("会場の取得に失敗:", e);
+      }
+    };
+    fetchVenues();
+  }, []);
 
   useEffect(() => {
     if (editData) {
@@ -506,7 +526,8 @@ function ManualAddModal({ onClose, onAdded, editData = null }) {
         eventDate: localISO,
         description: editData.description || '',
         genre: editData.genre || 'OTHER',
-        sourceUrl: editData.sourceUrl || ''
+        sourceUrl: editData.sourceUrl || '',
+        venueId: editData.venueId || ''
       });
       setImages(editData.imageUrls || []);
     }
@@ -514,6 +535,8 @@ function ManualAddModal({ onClose, onAdded, editData = null }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!formData.venueId) return toast.error('会場を選択してください');
+    
     setIsSubmitting(true);
     try {
       const url = editData ? `/api/events/${editData.id}` : `/api/events/user-submit`;
@@ -525,10 +548,11 @@ function ManualAddModal({ onClose, onAdded, editData = null }) {
         toast.success('保存しました'); 
         onAdded(); onClose(); 
       } else {
-        throw new Error();
+        const errData = await res.json();
+        throw new Error(errData.message || '登録エラー');
       }
     } catch (e) { 
-      toast.error('エラーが発生しました'); 
+      toast.error(e.message || 'エラーが発生しました'); 
     } finally { setIsSubmitting(false); }
   };
 
@@ -539,16 +563,25 @@ function ManualAddModal({ onClose, onAdded, editData = null }) {
         <h3 className="text-2xl font-black mb-6 text-gray-900">{editData ? 'イベント編集' : 'イベント手動登録'}</h3>
         <div className="space-y-4">
           <div>
-            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">Event Title</label>
-            <input required className="w-full p-4 border border-slate-100 bg-slate-50 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500 transition-all text-sm" placeholder="イベント名" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} />
+            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">イベント名</label>
+            <input required className="w-full p-4 border border-slate-100 bg-slate-50 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500 transition-all text-sm" placeholder="イベント名を入力" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} />
           </div>
+
+          <div>
+            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">開催会場</label>
+            <select required className="w-full p-4 border border-slate-100 bg-slate-50 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500 transition-all text-sm appearance-none" value={formData.venueId} onChange={e => setFormData({...formData, venueId: e.target.value})}>
+              <option value="">会場を選択してください</option>
+              {venues.map(v => <option key={v.id} value={v.id}>{v.venueName}</option>)}
+            </select>
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">Date & Time</label>
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">開催日時</label>
                 <input required type="datetime-local" className="w-full p-3 border border-slate-100 bg-slate-50 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500 transition-all text-xs" value={formData.eventDate} onChange={e => setFormData({...formData, eventDate: e.target.value})} />
               </div>
               <div>
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">Category</label>
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">ジャンル</label>
                 <select className="w-full p-3 border border-slate-100 bg-slate-50 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500 transition-all text-xs" value={formData.genre} onChange={e => setFormData({...formData, genre: e.target.value})}>
                   {GENRES.filter(g => g.id !== 'ALL').map(g => <option key={g.id} value={g.id}>{g.label}</option>)}
                 </select>
@@ -558,8 +591,13 @@ function ManualAddModal({ onClose, onAdded, editData = null }) {
           <ImageUploadArea images={images} setImages={setImages} isUploading={isUploading} setIsUploading={setIsUploading} />
 
           <div>
-            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">Description</label>
-            <textarea className="w-full p-4 border border-slate-100 bg-slate-50 rounded-xl outline-none h-24 resize-none focus:bg-white focus:ring-2 focus:ring-indigo-500 transition-all text-sm" placeholder="詳細..." value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} />
+            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">出典・公式サイトURL (任意)</label>
+            <input className="w-full p-4 border border-slate-100 bg-slate-50 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500 transition-all text-sm" placeholder="https://..." value={formData.sourceUrl} onChange={e => setFormData({...formData, sourceUrl: e.target.value})} />
+          </div>
+
+          <div>
+            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">イベント詳細・説明</label>
+            <textarea className="w-full p-4 border border-slate-100 bg-slate-50 rounded-xl outline-none h-24 resize-none focus:bg-white focus:ring-2 focus:ring-indigo-500 transition-all text-sm" placeholder="出演者情報やフラスタ規定など" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} />
           </div>
         </div>
         <button type="submit" disabled={isSubmitting || isUploading} className="w-full mt-6 py-4 bg-indigo-600 text-white font-black rounded-2xl shadow-xl shadow-indigo-100 active:scale-95 transition-all">
