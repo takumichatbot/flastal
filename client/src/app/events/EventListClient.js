@@ -6,7 +6,7 @@ import { useAuth } from '@/app/contexts/AuthContext';
 import { 
   FiCalendar, FiMapPin, FiSearch, FiAlertTriangle, FiCheckCircle, 
   FiPlus, FiCpu, FiLink, FiX, FiFilter, FiHeart, FiLoader,
-  FiEdit3, FiTrash2, FiUser, FiInfo
+  FiEdit3, FiTrash2, FiUser, FiInfo, FiStar
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
@@ -230,14 +230,14 @@ function EventListContent() {
                 const isOwner = user && (event.creatorId === user.id || user.role === 'ADMIN');
                 const genreData = GENRES.find(g => g.id === event.genre) || GENRES[GENRES.length - 1];
                 
-                // 公式判定: creatorのroleがADMIN/VENUE、またはsourceTypeがOFFICIALの場合
+                // 公式判定ロジック
                 const isOfficial = event.sourceType === 'OFFICIAL' || 
-                                 (event.creator && (event.creator.role === 'ADMIN' || event.creator.role === 'VENUE'));
+                                 (event.creator && (['ADMIN', 'VENUE', 'ORGANIZER'].includes(event.creator.role)));
 
                 return (
-                  <div key={event.id} className="group bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden hover:shadow-xl transition-all duration-300 hover:-translate-y-1.5 flex flex-col h-full relative">
+                  <div key={event.id} className="group bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 flex flex-col h-full relative">
                     
-                    {/* アイコンオーバーレイ (投稿者・更新者) */}
+                    {/* アイコンオーバーレイ */}
                     <div className="absolute top-3 right-3 z-20 flex -space-x-2">
                          {event.creator && (
                             <div className="w-9 h-9 rounded-full border-2 border-white bg-white shadow-md overflow-hidden" title={`投稿: ${event.creator.handleName}`}>
@@ -245,43 +245,43 @@ function EventListContent() {
                             </div>
                          )}
                          {event.lastEditor && event.lastEditorId !== event.creatorId && (
-                           <div className="w-9 h-9 rounded-full border-2 border-white bg-white shadow-md overflow-hidden" title={`更新: ${event.lastEditor.handleName}`}>
+                           <div className="w-9 h-9 rounded-full border-2 border-white bg-white shadow-md overflow-hidden" title={`最終更新: ${event.lastEditor.handleName}`}>
                               {event.lastEditor.iconUrl ? <img src={event.lastEditor.iconUrl} className="w-full h-full object-cover" alt="" /> : <div className="w-full h-full flex items-center justify-center bg-emerald-50 text-emerald-500"><FiEdit3 size={14}/></div>}
                            </div>
                          )}
                     </div>
 
                     <Link href={`/events/${event.id}`} className="flex-grow flex flex-col">
-                        <div className={`h-44 flex items-center justify-center relative bg-gradient-to-br ${genreData.color} transition-all duration-500`}>
-                            <div className="absolute top-3 left-3 bg-black/20 backdrop-blur-md text-white text-[10px] font-black px-3 py-1 rounded-full border border-white/20 uppercase tracking-tighter">
+                        <div className={`h-44 flex items-center justify-center relative bg-gradient-to-br ${genreData.color} transition-all duration-700`}>
+                            <div className="absolute top-4 left-4 bg-white/20 backdrop-blur-md text-white text-[10px] font-black px-3 py-1 rounded-full border border-white/30 uppercase tracking-widest shadow-sm">
                                 {genreData.label}
                             </div>
-                            <span className="text-7xl filter drop-shadow-xl opacity-90 transform group-hover:scale-110 transition-transform duration-700">
+                            <span className="text-7xl filter drop-shadow-2xl opacity-90 transform group-hover:scale-125 group-hover:rotate-6 transition-all duration-700 ease-out">
                                 {event.sourceType === 'AI' ? '🤖' : isOfficial ? '🎤' : '👤'}
                             </span>
                         </div>
                         
-                        <div className="p-6 flex flex-col flex-grow relative">
-                            {/* バッジ表示の進化 */}
-                            <div className="mb-3">
+                        <div className="p-7 flex flex-col flex-grow relative bg-white">
+                            {/* 投稿種別バッジの日本語化と進化 */}
+                            <div className="mb-4">
                                 {isOfficial ? (
-                                  <span className="text-[10px] font-black bg-indigo-50 text-indigo-600 px-2.5 py-1 rounded-lg border border-indigo-100 uppercase tracking-tighter flex items-center w-fit">
-                                    <FiCheckCircle className="mr-1"/> Official Post
+                                  <span className="text-[10px] font-black bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-full border border-indigo-100 uppercase tracking-widest flex items-center w-fit shadow-sm">
+                                    <FiStar className="mr-1.5 fill-indigo-600"/> 公式・主催者
                                   </span>
                                 ) : (
-                                  <span className="text-[10px] font-black bg-gray-50 text-gray-500 px-2.5 py-1 rounded-lg border border-gray-100 uppercase tracking-tighter flex items-center w-fit">
-                                    <FiUser className="mr-1"/> Community Contribution
+                                  <span className="text-[10px] font-black bg-slate-50 text-slate-500 px-3 py-1.5 rounded-full border border-slate-100 uppercase tracking-widest flex items-center w-fit">
+                                    <FiUser className="mr-1.5"/> ユーザー投稿
                                   </span>
                                 )}
                             </div>
 
-                            <h3 className="font-bold text-xl text-gray-900 group-hover:text-indigo-600 transition-colors line-clamp-2 mb-4 leading-tight">
+                            <h3 className="font-bold text-xl text-gray-900 group-hover:text-indigo-600 transition-colors line-clamp-2 mb-5 leading-snug">
                                 {event.title}
                             </h3>
                             
-                            <div className="mt-auto pt-5 border-t border-gray-50 space-y-2.5">
-                                <div className="flex items-center text-sm text-gray-600 font-bold">
-                                    <FiCalendar className="mr-2 text-indigo-400 shrink-0" size={16}/>
+                            <div className="mt-auto pt-6 border-t border-slate-50 space-y-3">
+                                <div className="flex items-center text-sm text-slate-600 font-bold">
+                                    <FiCalendar className="mr-3 text-indigo-500 shrink-0" size={18}/>
                                     {new Date(event.eventDate).toLocaleString('ja-JP', { 
                                       month: 'long', 
                                       day: 'numeric', 
@@ -290,39 +290,39 @@ function EventListContent() {
                                       minute: '2-digit'
                                     })}
                                 </div>
-                                <div className="flex items-center text-sm text-gray-500 font-medium">
-                                    <FiMapPin className="mr-2 text-indigo-400 shrink-0" size={16}/>
+                                <div className="flex items-center text-sm text-slate-500 font-medium">
+                                    <FiMapPin className="mr-3 text-indigo-500 shrink-0" size={18}/>
                                     <span className="truncate">{event.venue?.venueName || '会場未定'}</span>
                                 </div>
                             </div>
                         </div>
                     </Link>
 
-                    <div className="px-6 pb-6 pt-0 flex justify-between items-center">
+                    <div className="px-7 pb-7 pt-2 flex justify-between items-center bg-white">
                         <button 
                             onClick={(e) => handleInterest(e, event.id)} 
-                            className={`flex items-center text-xs font-black px-5 py-2.5 rounded-full border transition-all active:scale-95 ${
+                            className={`flex items-center text-xs font-black px-6 py-3 rounded-full border transition-all duration-300 active:scale-90 ${
                                 isInterested 
-                                ? 'bg-pink-50 border-pink-200 text-pink-600 shadow-inner' 
-                                : 'bg-white border-gray-200 text-gray-400 hover:text-pink-500 hover:border-pink-200 shadow-sm'
+                                ? 'bg-pink-50 border-pink-200 text-pink-600 shadow-md shadow-pink-100' 
+                                : 'bg-white border-slate-200 text-slate-400 hover:text-pink-500 hover:border-pink-200 hover:shadow-lg'
                             }`}
                         >
-                            <FiHeart className={`mr-1.5 ${isInterested ? 'fill-pink-600' : ''}`}/> {event._count?.interests || 0}
+                            <FiHeart className={`mr-2 size-4 ${isInterested ? 'fill-pink-600' : ''}`}/> {event._count?.interests || 0}
                         </button>
 
-                        <div className="flex gap-1.5">
+                        <div className="flex gap-2">
                             {event.sourceUrl && (
-                                <a href={event.sourceUrl} target="_blank" rel="noopener noreferrer" className="p-2.5 text-gray-300 hover:text-indigo-500 transition-colors bg-slate-50 rounded-xl" title="Source URL">
-                                    <FiLink size={18}/>
+                                <a href={event.sourceUrl} target="_blank" rel="noopener noreferrer" className="p-3 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all rounded-2xl border border-transparent hover:border-indigo-100" title="公式サイト">
+                                    <FiLink size={20}/>
                                 </a>
                             )}
                             {isOwner && (
                                 <>
-                                    <button onClick={(e) => { e.preventDefault(); setEditTargetEvent(event); }} className="p-2.5 text-gray-300 hover:text-emerald-500 bg-slate-50 rounded-xl" title="編集"><FiEdit3 size={18}/></button>
-                                    <button onClick={(e) => handleDeleteEvent(e, event.id)} className="p-2.5 text-gray-300 hover:text-red-500 bg-slate-50 rounded-xl" title="削除"><FiTrash2 size={18}/></button>
+                                    <button onClick={(e) => { e.preventDefault(); setEditTargetEvent(event); }} className="p-3 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all rounded-2xl border border-transparent hover:border-emerald-100" title="編集"><FiEdit3 size={20}/></button>
+                                    <button onClick={(e) => handleDeleteEvent(e, event.id)} className="p-3 text-slate-400 hover:text-red-600 hover:bg-red-50 transition-all rounded-2xl border border-transparent hover:border-red-100" title="削除"><FiTrash2 size={20}/></button>
                                 </>
                             )}
-                            <button onClick={() => setReportTargetId(event.id)} className="p-2.5 text-gray-300 hover:text-orange-500 bg-slate-50 rounded-xl" title="報告"><FiAlertTriangle size={18}/></button>
+                            <button onClick={() => setReportTargetId(event.id)} className="p-3 text-slate-400 hover:text-orange-600 hover:bg-orange-50 transition-all rounded-2xl border border-transparent hover:border-orange-100" title="報告"><FiAlertTriangle size={20}/></button>
                         </div>
                     </div>
                   </div>
@@ -425,7 +425,6 @@ function ManualAddModal({ onClose, onAdded, editData = null }) {
 
   useEffect(() => {
     if (editData) {
-      // 日時をdatetime-local形式 (YYYY-MM-DDTHH:mm) に変換
       const date = new Date(editData.eventDate);
       const localISO = new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
       
