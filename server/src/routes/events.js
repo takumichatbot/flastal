@@ -5,21 +5,26 @@ import { authenticateToken } from '../middleware/auth.js';
 
 const router = express.Router();
 
-// 公開イベント取得 (フロントの /api/events/public に対応)
+// --- 公開エンドポイント ---
+// /api/events/public (EventListClient.js がここを叩く)
 router.get('/public', venueController.getEvents);
 
-// AI解析 (フロントの /api/events/ai-parse に対応)
+// --- 認証が必要な登録系 ---
+// AI解析登録: /api/events/ai-parse
 router.post('/ai-parse', authenticateToken, eventController.aiParseEvent);
 
-// ユーザー投稿 (フロントの /api/events/user-submit に対応)
+// ユーザー手動登録: /api/events/user-submit
 router.post('/user-submit', authenticateToken, venueController.createEvent);
 
-// 詳細・更新・削除
+// --- ID指定の操作 ---
+// 詳細取得
 router.get('/:id', venueController.getEventById);
+
+// 興味あり: /api/events/:id/interest
+router.post('/:id/interest', authenticateToken, venueController.toggleInterest);
+
+// 更新・削除
 router.patch('/:id', authenticateToken, venueController.updateEvent);
 router.delete('/:id', authenticateToken, venueController.deleteEvent);
-
-// 興味あり
-router.post('/:id/interest', authenticateToken, venueController.toggleInterest);
 
 export default router;

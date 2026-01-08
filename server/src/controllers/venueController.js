@@ -186,16 +186,37 @@ export const getLogisticsInfo = async (req, res) => {
     }
 };
 
-// --- 一般イベント一覧取得 ---
+// --- 一般イベント一覧取得 (修正版) ---
 export const getEvents = async (req, res) => {
     try {
+        const { genre, keyword, sort } = req.query;
+        
+        let where = {};
+        if (genre && genre !== 'ALL') {
+            where.genre = genre;
+        }
+        if (keyword) {
+            where.OR = [
+                { title: { contains: keyword, mode: 'insensitive' } },
+                { description: { contains: keyword, mode: 'insensitive' } },
+                { venue: { venueName: { contains: keyword, mode: 'insensitive' } } }
+            ];
+        }
+
+        let orderBy = { eventDate: 'asc' };
+        if (sort === 'newest') orderBy = { createdAt: 'desc' };
+        if (sort === 'popular') orderBy = { interests: { _count: 'desc' } };
+
         const events = await prisma.event.findMany({ 
+            where,
             include: { 
                 venue: true,
                 creator: { select: { id: true, handleName: true, iconUrl: true } },
+                lastEditor: { select: { id: true, handleName: true, iconUrl: true } },
+                interests: { select: { userId: true } },
                 _count: { select: { interests: true } }
             },
-            orderBy: { eventDate: 'asc' }
+            orderBy: orderBy
         });
         res.json(events || []);
     } catch (e) { 
@@ -223,10 +244,10 @@ export const getEventById = async (req, res) => {
     }
 };
 
-// --- 一般ユーザーによるイベント登録 (sourceType: USER 固定) ---
+// --- 一般ユーザーによるイベント登録 ---
 export const createEvent = async (req, res) => {
     try {
-        const { title, eventName, eventDate, venueId, venue, description } = req.body;
+        const { title, eventName, eventDate, venueId, venue, description, genre, sourceUrl } = req.body;
         const name = title || eventName;
         const targetVenueId = venueId || venue?.id;
 
@@ -239,9 +260,11 @@ export const createEvent = async (req, res) => {
                 title: name,
                 description: description || '',
                 eventDate: new Date(eventDate),
+                genre: genre || 'OTHER',
+                sourceUrl: sourceUrl || '',
                 venue: { connect: { id: targetVenueId } },
                 creator: { connect: { id: req.user.id } },
-                sourceType: 'USER' // 一般ユーザー投稿として固定
+                sourceType: 'USER'
             }
         });
         res.status(201).json(event);
@@ -251,14 +274,13 @@ export const createEvent = async (req, res) => {
     }
 };
 
-// --- イベント更新 (一般投稿用) ---
+// --- イベント更新 ---
 export const updateEvent = async (req, res) => { 
     try {
         const { id } = req.params;
         const event = await prisma.event.findUnique({ where: { id } });
         if (!event) return res.status(404).json({ message: 'イベントが見つかりません。' });
         
-        // 投稿者本人か管理者のみ更新可能
         if (event.creatorId !== req.user.id && req.user.role !== 'ADMIN') {
             return res.status(403).json({ message: '権限がありません。' });
         }
@@ -268,6 +290,8 @@ export const updateEvent = async (req, res) => {
             data: {
                 title: req.body.title || req.body.eventName,
                 description: req.body.description,
+                genre: req.body.genre,
+                sourceUrl: req.body.sourceUrl,
                 eventDate: req.body.eventDate ? new Date(req.body.eventDate) : undefined,
                 lastEditor: { connect: { id: req.user.id } }
             }
@@ -279,7 +303,7 @@ export const updateEvent = async (req, res) => {
     }
 };
 
-// --- イベント削除 (一般投稿用) ---
+// --- イベント削除 ---
 export const deleteEvent = async (req, res) => { 
     try {
         const { id } = req.params;

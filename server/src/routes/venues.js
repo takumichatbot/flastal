@@ -4,23 +4,19 @@ import { authenticateToken } from '../middleware/auth.js';
 
 const router = express.Router();
 
-// --- 1. 会場関連ルート ---
+// --- 会場関連ルート ---
+// 管理者用一覧
 router.get('/admin', authenticateToken, venueController.getVenues);
+// 一般一覧
 router.get('/', venueController.getVenues);
+// 物流情報
+router.get('/:venueId/logistics', venueController.getLogisticsInfo);
+router.post('/:venueId/logistics', authenticateToken, venueController.postLogisticsInfo);
+
+// 詳細取得・登録・更新・削除 (会場)
 router.get('/:id', venueController.getVenueById);
 router.post('/', authenticateToken, venueController.addVenueByUser);
 router.patch('/:id', authenticateToken, venueController.updateVenueProfile);
 router.delete('/:id', authenticateToken, venueController.deleteVenue);
-router.get('/:venueId/logistics', venueController.getLogisticsInfo);
-router.post('/:venueId/logistics', authenticateToken, venueController.postLogisticsInfo);
-
-// --- 2. イベント関連ルート (フロントエンドの期待に合わせる) ---
-router.get('/public', venueController.getEvents); // /api/events/public
-router.get('/list', venueController.getEvents);   // /api/events/list
-router.post('/user-submit', authenticateToken, venueController.createEvent); // /api/events/user-submit ★追加
-router.post('/', authenticateToken, venueController.createEvent); // /api/events/
-router.get('/:id', venueController.getEventById);
-router.patch('/:id', authenticateToken, venueController.updateEvent);
-router.delete('/:id', authenticateToken, venueController.deleteEvent);
 
 export default router;

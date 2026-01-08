@@ -13,7 +13,6 @@ export const aiParseEvent = async (req, res) => {
     if (!text) return res.status(400).json({ message: 'テキストを入力してください' });
 
     try {
-        // AIへの命令をより厳格化（フォーマットを指定して1月1日問題を回避）
         const prompt = `
             以下のテキストからイベント情報を抽出して、必ずJSON形式で出力してください。
             現在の日時: ${new Date().toLocaleString('ja-JP')}
@@ -23,7 +22,6 @@ export const aiParseEvent = async (req, res) => {
             - title: イベント名
             - eventDate: ISO8601形式の完全な日時 (例: 2025-12-25T18:00:00)
             - venueName: 会場名（不明な場合は空文字）
-            - address: 会場の住所（わかる場合のみ）
             - description: 内容の要約
             - genre: IDOL, VTUBER, MUSIC, ANIME, STAGE, OTHER の中から選択
 
@@ -32,23 +30,20 @@ export const aiParseEvent = async (req, res) => {
         `;
 
         const completion = await openai.chat.completions.create({
-            model: "gpt-3.5-turbo", // または gpt-4
+            model: "gpt-3.5-turbo",
             messages: [{ role: "system", content: "あなたは優秀なイベント情報解析アシスタントです。" }, { role: "user", content: prompt }],
             response_format: { type: "json_object" }
         });
 
         const result = JSON.parse(completion.choices[0].message.content);
 
-        // --- 修正の要：日付と会場のバリデーション ---
-        
-        // 1. 日付が正しく解析できていない（1月1日等）場合のガード
+        // 日付のバリデーション
         let finalDate = new Date(result.eventDate);
-        if (isNaN(finalDate.getTime()) || (finalDate.getMonth() === 0 && finalDate.getDate() === 1 && !text.includes('1月1日'))) {
-            // 解析失敗時は現在時刻をベースにするのではなく、エラーを出すか手動入力を促す
-            console.warn('[AI Parse Warning] Date parsing seems incorrect.');
+        if (isNaN(finalDate.getTime())) {
+            finalDate = new Date(); // 解析不能な場合は現在時刻（要修正マーカーとして）
         }
 
-        // 2. 会場名が未定の場合の検索ロジック
+        // 会場名からDB内の会場を検索
         let venueId = null;
         if (result.venueName && result.venueName.trim() !== '') {
             const existingVenue = await prisma.venue.findFirst({
@@ -59,28 +54,33 @@ export const aiParseEvent = async (req, res) => {
             }
         }
 
-        // 3. データベースへの登録
+        // データベースへの登録
         const newEvent = await prisma.event.create({
             data: {
                 title: result.title || '無題のイベント',
                 eventDate: finalDate,
-                description: result.description,
+                description: result.description || '',
                 venueId: venueId,
-                // venueIdがない場合でも、テキストとしての会場名を備考に残す
                 regulationNote: venueId ? null : `候補会場: ${result.venueName || '不明'}`,
                 genre: result.genre || 'OTHER',
                 sourceType: 'AI',
-                sourceUrl: sourceUrl,
+                sourceUrl: sourceUrl || '',
                 creatorId: userId,
                 lastEditorId: userId
             },
-            include: { venue: true }
+            include: { 
+                venue: true,
+                creator: { select: { id: true, handleName: true, iconUrl: true } },
+                _count: { select: { interests: true } }
+            }
         });
 
-        res.status(201).json({ event: newEvent });
+        // EventListClient.js の fetchEvents は配列または単一オブジェクトの整合性を期待するため
+        // 登録直後のデータを返却
+        res.status(201).json(newEvent);
 
     } catch (error) {
         console.error('AI Parse Error:', error);
-        res.status(500).json({ message: 'AI解析に失敗しました。内容を簡潔にして再度お試しください。' });
+        res.status(500).json({ message: 'AI解析に失敗しました。' });
     }
 };
