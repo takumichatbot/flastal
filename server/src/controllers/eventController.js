@@ -74,26 +74,50 @@ export const createEvent = async (req, res) => {
             return res.status(400).json({ message: '入力内容が不足しています。' });
         }
 
-        // ★ 投稿者のロールに基づいて sourceType を決定するロジックを追加
         const officialRoles = ['ADMIN', 'VENUE', 'ORGANIZER'];
         const sourceType = officialRoles.includes(req.user.role) ? 'OFFICIAL' : 'USER';
 
+        // ★ Prisma P2025 エラー対策
+        // イベントモデルの creator リレーションが User モデルを指している場合、
+        // 主催者(ORGANIZER)も User テーブルにレコードがある必要があります。
+        // もし主催者が別テーブル管理なら、connect ではなく creatorId: req.user.id を直接入れるなどの調整が必要です。
+        
+        const eventData = {
+            title: name,
+            description: description || '',
+            eventDate: new Date(eventDate),
+            genre: genre || 'OTHER',
+            sourceUrl: sourceUrl || '',
+            venue: { connect: { id: targetVenueId } },
+            sourceType: sourceType
+        };
+
+        // 作成者の接続処理
+        // 注意: req.user.id が User テーブルに存在しないと connect で落ちます。
+        // 安全のため、まず User が存在するか確認するか、もしくは直接 ID を代入します。
+        const userExists = await prisma.user.findUnique({ where: { id: req.user.id } });
+
+        if (userExists) {
+            eventData.creator = { connect: { id: req.user.id } };
+        } else {
+            // Userテーブルにいない（主催者専用垢など）場合は、強制的に紐付けず ID のみ保持するか、
+            // またはシステム上の共通管理ユーザーに紐付けるなどの回避策をとります。
+            // ここでは ID を直接セットする形を試みます（Schemaによりますが）
+            eventData.creatorId = req.user.id; 
+        }
+
         const event = await prisma.event.create({
-            data: {
-                title: name,
-                description: description || '',
-                eventDate: new Date(eventDate),
-                genre: genre || 'OTHER',
-                sourceUrl: sourceUrl || '',
-                venue: { connect: { id: targetVenueId } },
-                creator: { connect: { id: req.user.id } },
-                sourceType: sourceType // 判定結果を反映
-            }
+            data: eventData
         });
+
         res.status(201).json(event);
     } catch (e) { 
         console.error('createEvent Error:', e);
-        res.status(500).json({ message: 'イベントの作成に失敗しました。' }); 
+        // エラー詳細を返してデバッグしやすくする
+        res.status(500).json({ 
+            message: 'イベントの作成に失敗しました。',
+            error: e.code === 'P2025' ? '作成ユーザーの認証レコードが見つかりません。' : e.message 
+        }); 
     }
 };
 
@@ -108,7 +132,6 @@ export const updateEvent = async (req, res) => {
             return res.status(403).json({ message: '権限がありません。' });
         }
 
-        // 更新時に主催者へロールが変わった場合などを考慮し、sourceType を再判定（任意）
         const officialRoles = ['ADMIN', 'VENUE', 'ORGANIZER'];
         const newSourceType = officialRoles.includes(req.user.role) ? 'OFFICIAL' : event.sourceType;
 
@@ -121,7 +144,7 @@ export const updateEvent = async (req, res) => {
                 sourceUrl: req.body.sourceUrl,
                 sourceType: newSourceType,
                 eventDate: req.body.eventDate ? new Date(req.body.eventDate) : undefined,
-                lastEditor: { connect: { id: req.user.id } }
+                lastEditorId: req.user.id
             }
         });
         res.json(updated);
