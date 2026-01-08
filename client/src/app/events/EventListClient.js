@@ -6,7 +6,7 @@ import { useAuth } from '@/app/contexts/AuthContext';
 import { 
   FiCalendar, FiMapPin, FiSearch, FiAlertTriangle, FiCheckCircle, 
   FiPlus, FiCpu, FiLink, FiX, FiFilter, FiHeart, FiLoader,
-  FiEdit3, FiTrash2, FiUser, FiInfo, FiStar, FiImage
+  FiEdit3, FiTrash2, FiUser, FiInfo, FiStar, FiImage, FiUpload
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
@@ -34,7 +34,6 @@ function EventListContent() {
   const [showAiModal, setShowAiModal] = useState(false);
   const [showManualModal, setShowManualModal] = useState(false);
   const [editTargetEvent, setEditTargetEvent] = useState(null); 
-  const [reportTargetId, setReportTargetId] = useState(null);
 
   const fetchEvents = useCallback(async () => {
     setLoading(true);
@@ -130,7 +129,6 @@ function EventListContent() {
     <div className="bg-slate-50 min-h-screen py-10 font-sans text-gray-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
-        {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-center mb-10 gap-6">
           <div className="flex items-center gap-4">
               <div className="bg-indigo-600 p-3 rounded-2xl text-white shadow-lg shadow-indigo-100">
@@ -158,7 +156,6 @@ function EventListContent() {
           </div>
         </div>
 
-        {/* Filters */}
         <div className="bg-white rounded-[2rem] shadow-sm border border-gray-100 p-6 mb-10">
           <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
             <div className="md:col-span-6">
@@ -203,7 +200,6 @@ function EventListContent() {
           </div>
         </div>
 
-        {/* List */}
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
              {[...Array(6)].map((_, i) => (
@@ -251,10 +247,9 @@ function EventListContent() {
 
                     <Link href={`/events/${event.id}`} className="flex-grow flex flex-col">
                         <div className={`h-44 flex items-center justify-center relative bg-slate-100 transition-all duration-700`}>
-                            {/* 画像表示ロジックの修正 */}
-                            {event.imageUrl ? (
+                            {event.imageUrls && event.imageUrls.length > 0 ? (
                               <img 
-                                src={event.imageUrl} 
+                                src={event.imageUrls[0]} 
                                 alt={event.title} 
                                 className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" 
                               />
@@ -330,7 +325,7 @@ function EventListContent() {
                                     <button onClick={(e) => handleDeleteEvent(e, event.id)} className="p-3 text-slate-400 hover:text-red-600 hover:bg-red-50 transition-all rounded-2xl border border-transparent hover:border-red-100" title="削除"><FiTrash2 size={20}/></button>
                                 </>
                             )}
-                            <button onClick={() => setReportTargetId(event.id)} className="p-3 text-slate-400 hover:text-orange-600 hover:bg-orange-50 transition-all rounded-2xl border border-transparent hover:border-orange-100" title="報告"><FiAlertTriangle size={20}/></button>
+                            <button className="p-3 text-slate-400 hover:text-orange-600 hover:bg-orange-50 transition-all rounded-2xl border border-transparent hover:border-orange-100" title="報告"><FiAlertTriangle size={20}/></button>
                         </div>
                     </div>
                   </div>
@@ -365,10 +360,75 @@ function EventListContent() {
   );
 }
 
+/**
+ * 共有アップロードコンポーネント (モーダル内用)
+ */
+function ImageUploadArea({ images, setImages, isUploading, setIsUploading }) {
+  const { authenticatedFetch } = useAuth();
+
+  const uploadToS3 = async (file) => {
+    const res = await authenticatedFetch('/api/tools/s3-upload-url', {
+      method: 'POST',
+      body: JSON.stringify({ fileName: file.name, fileType: file.type })
+    });
+    if (!res.ok) throw new Error('署名取得失敗');
+    const { uploadUrl, fileUrl } = await res.json();
+
+    const xhr = new XMLHttpRequest();
+    xhr.open('PUT', uploadUrl);
+    xhr.setRequestHeader('Content-Type', file.type);
+    return new Promise((resolve, reject) => {
+      xhr.onload = () => xhr.status === 200 ? resolve(fileUrl) : reject();
+      xhr.onerror = () => reject();
+      xhr.send(file);
+    });
+  };
+
+  const handleFiles = async (e) => {
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+    setIsUploading(true);
+    try {
+      const urls = [];
+      for (const file of files) {
+        const url = await uploadToS3(file);
+        urls.push(url);
+      }
+      setImages([...images, ...urls]);
+    } catch (err) {
+      toast.error('画像のアップロードに失敗しました');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const removeImg = (idx) => setImages(images.filter((_, i) => i !== idx));
+
+  return (
+    <div className="space-y-3">
+      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 block">Images (Multiple)</label>
+      <div className="grid grid-cols-4 gap-2">
+        {images.map((url, i) => (
+          <div key={i} className="relative aspect-square rounded-lg overflow-hidden border border-slate-100 group">
+            <img src={url} className="w-full h-full object-cover" alt="" />
+            <button onClick={() => removeImg(i)} className="absolute top-0 right-0 p-1 bg-red-500 text-white rounded-bl-lg opacity-0 group-hover:opacity-100 transition-opacity"><FiX size={12}/></button>
+          </div>
+        ))}
+        <label className="aspect-square rounded-lg border-2 border-dashed border-slate-200 flex flex-col items-center justify-center cursor-pointer hover:bg-slate-50 transition-colors">
+          {isUploading ? <FiLoader className="animate-spin text-indigo-500"/> : <FiUpload className="text-slate-400"/>}
+          <input type="file" multiple accept="image/*" className="hidden" onChange={handleFiles} disabled={isUploading} />
+        </label>
+      </div>
+    </div>
+  );
+}
+
 function AiAddModal({ onClose, onAdded }) {
   const [text, setText] = useState('');
   const [url, setUrl] = useState('');
+  const [images, setImages] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const { authenticatedFetch } = useAuth();
 
   const handleSubmit = async () => {
@@ -378,7 +438,7 @@ function AiAddModal({ onClose, onAdded }) {
     try {
       const res = await authenticatedFetch('/api/events/ai-parse', {
         method: 'POST',
-        body: JSON.stringify({ text, sourceUrl: url })
+        body: JSON.stringify({ text, sourceUrl: url, imageUrls: images })
       });
       if (!res.ok) throw new Error('解析失敗');
       toast.success(`追加しました！`, { id: toastId });
@@ -390,18 +450,18 @@ function AiAddModal({ onClose, onAdded }) {
 
   return (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[100] p-4 backdrop-blur-md animate-fadeIn">
-      <div className="bg-white rounded-[2.5rem] p-10 w-full max-w-lg shadow-2xl relative border border-white/20">
+      <div className="bg-white rounded-[2.5rem] p-8 w-full max-w-lg shadow-2xl relative border border-white/20 max-h-[90vh] overflow-y-auto">
         <button onClick={onClose} className="absolute top-6 right-6 text-gray-400 hover:text-gray-600 transition-colors"><FiX size={28}/></button>
-        <div className="flex items-center gap-4 mb-8">
-            <div className="p-4 bg-indigo-600 text-white rounded-2xl shadow-lg shadow-indigo-100"><FiCpu size={32}/></div>
+        <div className="flex items-center gap-4 mb-6">
+            <div className="p-3 bg-indigo-600 text-white rounded-2xl shadow-lg shadow-indigo-100"><FiCpu size={28}/></div>
             <div>
-                <h3 className="text-2xl font-black text-gray-900">AI解析登録</h3>
-                <p className="text-gray-400 text-xs font-bold uppercase tracking-widest">Automatic Event Entry</p>
+                <h3 className="text-xl font-black text-gray-900">AI解析登録</h3>
+                <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest">Automatic Event Entry</p>
             </div>
         </div>
-        <div className="space-y-6">
+        <div className="space-y-5">
             <textarea 
-                className="w-full p-5 border border-slate-100 rounded-[1.5rem] bg-slate-50 h-40 text-sm focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all resize-none shadow-inner" 
+                className="w-full p-4 border border-slate-100 rounded-2xl bg-slate-50 h-32 text-sm focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all resize-none shadow-inner" 
                 placeholder="告知テキストをそのまま貼り付けてください..." 
                 value={text} 
                 onChange={(e) => setText(e.target.value)} 
@@ -412,9 +472,12 @@ function AiAddModal({ onClose, onAdded }) {
                 value={url} 
                 onChange={(e) => setUrl(e.target.value)} 
             />
+            
+            <ImageUploadArea images={images} setImages={setImages} isUploading={isUploading} setIsUploading={setIsUploading} />
+
             <button 
                 onClick={handleSubmit} 
-                disabled={isSubmitting} 
+                disabled={isSubmitting || isUploading} 
                 className="w-full py-4 bg-indigo-600 text-white font-black rounded-2xl shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all flex items-center justify-center text-lg active:scale-95 disabled:opacity-50"
             >
               {isSubmitting ? <FiLoader className="animate-spin mr-3"/> : <FiCheckCircle className="mr-3"/>}
@@ -428,7 +491,9 @@ function AiAddModal({ onClose, onAdded }) {
 
 function ManualAddModal({ onClose, onAdded, editData = null }) {
   const [formData, setFormData] = useState({ title: '', eventDate: '', description: '', genre: 'OTHER', sourceUrl: '' });
+  const [images, setImages] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const { authenticatedFetch } = useAuth();
 
   useEffect(() => {
@@ -443,6 +508,7 @@ function ManualAddModal({ onClose, onAdded, editData = null }) {
         genre: editData.genre || 'OTHER',
         sourceUrl: editData.sourceUrl || ''
       });
+      setImages(editData.imageUrls || []);
     }
   }, [editData]);
 
@@ -453,7 +519,7 @@ function ManualAddModal({ onClose, onAdded, editData = null }) {
       const url = editData ? `/api/events/${editData.id}` : `/api/events/user-submit`;
       const res = await authenticatedFetch(url, {
         method: editData ? 'PATCH' : 'POST',
-        body: JSON.stringify(formData)
+        body: JSON.stringify({ ...formData, imageUrls: images })
       });
       if (res.ok) { 
         toast.success('保存しました'); 
@@ -468,34 +534,35 @@ function ManualAddModal({ onClose, onAdded, editData = null }) {
 
   return (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[100] p-4 backdrop-blur-md">
-      <form onSubmit={handleSubmit} className="bg-white rounded-[2.5rem] p-10 w-full max-w-lg shadow-2xl relative">
+      <form onSubmit={handleSubmit} className="bg-white rounded-[2.5rem] p-8 w-full max-w-lg shadow-2xl relative max-h-[90vh] overflow-y-auto">
         <button type="button" onClick={onClose} className="absolute top-6 right-6 text-gray-400"><FiX size={28}/></button>
         <h3 className="text-2xl font-black mb-6 text-gray-900">{editData ? 'イベント編集' : 'イベント手動登録'}</h3>
         <div className="space-y-4">
           <div>
             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">Event Title</label>
-            <input required className="w-full p-4 border border-slate-100 bg-slate-50 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500 transition-all" placeholder="イベント名" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} />
+            <input required className="w-full p-4 border border-slate-100 bg-slate-50 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500 transition-all text-sm" placeholder="イベント名" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} />
           </div>
-          <div>
-            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">Date & Time</label>
-            <input required type="datetime-local" className="w-full p-4 border border-slate-100 bg-slate-50 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500 transition-all" value={formData.eventDate} onChange={e => setFormData({...formData, eventDate: e.target.value})} />
+          <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">Date & Time</label>
+                <input required type="datetime-local" className="w-full p-3 border border-slate-100 bg-slate-50 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500 transition-all text-xs" value={formData.eventDate} onChange={e => setFormData({...formData, eventDate: e.target.value})} />
+              </div>
+              <div>
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">Category</label>
+                <select className="w-full p-3 border border-slate-100 bg-slate-50 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500 transition-all text-xs" value={formData.genre} onChange={e => setFormData({...formData, genre: e.target.value})}>
+                  {GENRES.filter(g => g.id !== 'ALL').map(g => <option key={g.id} value={g.id}>{g.label}</option>)}
+                </select>
+              </div>
           </div>
-          <div>
-            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">Category</label>
-            <select className="w-full p-4 border border-slate-100 bg-slate-50 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500 transition-all" value={formData.genre} onChange={e => setFormData({...formData, genre: e.target.value})}>
-              {GENRES.filter(g => g.id !== 'ALL').map(g => <option key={g.id} value={g.id}>{g.label}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">Source URL (Optional)</label>
-            <input className="w-full p-4 border border-slate-100 bg-slate-50 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500 transition-all" placeholder="https://..." value={formData.sourceUrl} onChange={e => setFormData({...formData, sourceUrl: e.target.value})} />
-          </div>
+          
+          <ImageUploadArea images={images} setImages={setImages} isUploading={isUploading} setIsUploading={setIsUploading} />
+
           <div>
             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">Description</label>
-            <textarea className="w-full p-4 border border-slate-100 bg-slate-50 rounded-xl outline-none h-28 resize-none focus:bg-white focus:ring-2 focus:ring-indigo-500 transition-all" placeholder="詳細..." value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} />
+            <textarea className="w-full p-4 border border-slate-100 bg-slate-50 rounded-xl outline-none h-24 resize-none focus:bg-white focus:ring-2 focus:ring-indigo-500 transition-all text-sm" placeholder="詳細..." value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} />
           </div>
         </div>
-        <button type="submit" disabled={isSubmitting} className="w-full mt-8 py-4 bg-indigo-600 text-white font-black rounded-2xl shadow-xl shadow-indigo-100 active:scale-95 transition-all">
+        <button type="submit" disabled={isSubmitting || isUploading} className="w-full mt-6 py-4 bg-indigo-600 text-white font-black rounded-2xl shadow-xl shadow-indigo-100 active:scale-95 transition-all">
           {isSubmitting ? <FiLoader className="animate-spin inline mr-2"/> : null}
           {editData ? '更新を保存する' : 'イベントを登録する'}
         </button>

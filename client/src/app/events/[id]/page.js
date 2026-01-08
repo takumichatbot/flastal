@@ -4,7 +4,11 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 // アイコン
-import { FiCalendar, FiMapPin, FiInfo, FiAlertTriangle, FiPlus, FiExternalLink, FiCpu, FiUser, FiCheckCircle, FiX, FiImage } from 'react-icons/fi';
+import { 
+  FiCalendar, FiMapPin, FiInfo, FiAlertTriangle, FiPlus, 
+  FiExternalLink, FiCpu, FiUser, FiCheckCircle, FiX, FiImage,
+  FiChevronLeft, FiChevronRight 
+} from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/app/contexts/AuthContext';
 
@@ -18,6 +22,7 @@ function ProjectCard({ project }) {
     <Link href={`/projects/${project.id}`} className="block bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-md hover:border-sky-300 transition-all overflow-hidden group">
       <div className="h-40 bg-gray-200 relative overflow-hidden">
         {project.imageUrl ? (
+          /* eslint-disable-next-line @next/next/no-img-element */
           <img src={project.imageUrl} alt={project.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-gray-400 bg-gray-100">No Image</div>
@@ -31,6 +36,7 @@ function ProjectCard({ project }) {
         <div className="flex items-center gap-2 text-xs text-gray-500 mb-3">
           <div className="flex items-center">
             {project.planner?.iconUrl ? (
+                /* eslint-disable-next-line @next/next/no-img-element */
                 <img src={project.planner.iconUrl} alt="planner" className="w-4 h-4 rounded-full mr-1 object-cover"/>
             ) : <span className="w-4 h-4 rounded-full bg-gray-300 mr-1 block"></span>}
             {project.planner?.handleName || '退会済みユーザー'}
@@ -99,13 +105,17 @@ export default function EventDetailPage() {
   const [event, setEvent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showReportModal, setShowReportModal] = useState(false);
+  
+  // スライダー用のステート
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   useEffect(() => {
     const fetchEvent = async () => {
       try {
         const res = await fetch(`${API_URL}/api/events/${id}`);
         if (!res.ok) throw new Error('イベントが見つかりません');
-        setEvent(await res.json());
+        const data = await res.json();
+        setEvent(data);
       } catch (error) {
         console.error(error);
       } finally {
@@ -114,6 +124,17 @@ export default function EventDetailPage() {
     };
     if (id) fetchEvent();
   }, [id]);
+
+  // スライダー操作
+  const nextImage = () => {
+    if (!event?.imageUrls) return;
+    setCurrentImageIndex((prev) => (prev + 1) % event.imageUrls.length);
+  };
+
+  const prevImage = () => {
+    if (!event?.imageUrls) return;
+    setCurrentImageIndex((prev) => (prev - 1 + event.imageUrls.length) % event.imageUrls.length);
+  };
 
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-sky-500"></div></div>;
   if (!event) return <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 text-gray-500"><p className="mb-4">イベントが見つかりませんでした。</p><Link href="/events" className="text-indigo-600 font-bold hover:underline">イベント一覧へ戻る</Link></div>;
@@ -124,11 +145,47 @@ export default function EventDetailPage() {
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
           <div className="flex flex-col md:flex-row gap-10">
-            {/* 左: 画像 (PCでは固定幅) */}
+            
+            {/* 左: 画像スライダー (PCでは固定幅) */}
             <div className="w-full md:w-80 shrink-0">
-               <div className="aspect-[3/4] rounded-2xl bg-slate-100 overflow-hidden shadow-xl border border-slate-200 relative">
-                  {event.imageUrl ? (
-                    <img src={event.imageUrl} alt={event.title} className="w-full h-full object-cover" />
+               <div className="aspect-[3/4] rounded-2xl bg-slate-100 overflow-hidden shadow-xl border border-slate-200 relative group">
+                  {event.imageUrls && event.imageUrls.length > 0 ? (
+                    <>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img 
+                        src={event.imageUrls[currentImageIndex]} 
+                        alt={`${event.title} - ${currentImageIndex + 1}`} 
+                        className="w-full h-full object-cover transition-opacity duration-500" 
+                      />
+                      
+                      {/* スライダーナビゲーション */}
+                      {event.imageUrls.length > 1 && (
+                        <>
+                          <button 
+                            onClick={prevImage}
+                            className="absolute left-2 top-1/2 -translate-y-1/2 p-2 bg-black/30 hover:bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-all"
+                          >
+                            <FiChevronLeft size={20} />
+                          </button>
+                          <button 
+                            onClick={nextImage}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-black/30 hover:bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-all"
+                          >
+                            <FiChevronRight size={20} />
+                          </button>
+                          
+                          {/* インジケーター */}
+                          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5">
+                            {event.imageUrls.map((_, idx) => (
+                              <div 
+                                key={idx} 
+                                className={`h-1.5 rounded-full transition-all ${idx === currentImageIndex ? 'w-4 bg-white' : 'w-1.5 bg-white/50'}`}
+                              />
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </>
                   ) : (
                     <div className="w-full h-full flex flex-col items-center justify-center text-slate-300">
                         <FiImage size={64} className="mb-2" />
@@ -168,6 +225,7 @@ export default function EventDetailPage() {
                   <span className="font-medium">{event.venue ? event.venue.venueName : '会場未定'}</span>
                 </div>
                 
+                {/* 公式サイト or 情報元へのリンク */}
                 {(event.organizer?.website || event.sourceUrl) && (
                   <a 
                     href={event.organizer?.website || event.sourceUrl} 
@@ -221,6 +279,7 @@ export default function EventDetailPage() {
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         
+        {/* レギュレーション情報 */}
         <div className="mb-10">
           <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
             <FiInfo className="mr-2 text-indigo-600"/> フラスタ・レギュレーション
@@ -284,6 +343,7 @@ export default function EventDetailPage() {
         </div>
       </div>
 
+      {/* スマホ用追従ボタン */}
       <div className="md:hidden fixed bottom-6 right-6 z-30">
         {event.isStandAllowed && (
             <Link 
@@ -295,6 +355,7 @@ export default function EventDetailPage() {
         )}
       </div>
 
+      {/* モーダル表示 */}
       {showReportModal && <ReportModal eventId={event.id} onClose={() => setShowReportModal(false)} />}
     </div>
   );

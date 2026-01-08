@@ -5,7 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { useAuth } from '@/app/contexts/AuthContext'; 
 import { 
   FiSave, FiTrash2, FiArrowLeft, FiCalendar, FiMapPin, 
-  FiInfo, FiCheckCircle, FiUsers, FiExternalLink, FiAlertCircle, FiImage
+  FiInfo, FiCheckCircle, FiUsers, FiExternalLink, FiAlertCircle, FiImage, FiPlus, FiX, FiUpload, FiLoader
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
@@ -30,12 +30,13 @@ const ProjectStatusBadge = ({ status }) => {
 export default function OrganizerEventDetailPage() {
   const { id } = useParams();
   const router = useRouter();
-  const { user, isAuthenticated, loading: authLoading } = useAuth();
+  const { user, isAuthenticated, loading: authLoading, authenticatedFetch } = useAuth();
 
   const [eventData, setEventData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [venues, setVenues] = useState([]);
+  const [isUploading, setIsUploading] = useState(false);
 
   const fetchData = useCallback(async () => {
       try {
@@ -48,7 +49,8 @@ export default function OrganizerEventDetailPage() {
 
         setEventData({
             ...eventJson,
-            eventDate: formattedDate
+            eventDate: formattedDate,
+            imageUrls: eventJson.imageUrls || []
         });
 
         const venueRes = await fetch(`${API_URL}/api/venues`);
@@ -66,6 +68,58 @@ export default function OrganizerEventDetailPage() {
   useEffect(() => {
     if (isAuthenticated) fetchData();
   }, [isAuthenticated, fetchData]);
+
+  // S3アップロード関数
+  const uploadToS3 = async (file) => {
+    const res = await authenticatedFetch('/api/tools/s3-upload-url', {
+      method: 'POST',
+      body: JSON.stringify({ fileName: file.name, fileType: file.type })
+    });
+    const { uploadUrl, fileUrl } = await res.json();
+
+    const xhr = new XMLHttpRequest();
+    xhr.open('PUT', uploadUrl);
+    xhr.setRequestHeader('Content-Type', file.type);
+    return new Promise((resolve, reject) => {
+      xhr.onload = () => xhr.status === 200 ? resolve(fileUrl) : reject();
+      xhr.onerror = () => reject();
+      xhr.send(file);
+    });
+  };
+
+  // 画像追加
+  const handleImageAdd = async (e) => {
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+    
+    setIsUploading(true);
+    const toastId = toast.loading('画像をアップロード中...');
+
+    try {
+      const newUrls = [];
+      for (const file of files) {
+        const url = await uploadToS3(file);
+        newUrls.push(url);
+      }
+      setEventData(prev => ({
+        ...prev,
+        imageUrls: [...prev.imageUrls, ...newUrls]
+      }));
+      toast.success('画像をアップロードしました', { id: toastId });
+    } catch (err) {
+      toast.error('アップロードに失敗しました', { id: toastId });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  // 画像削除
+  const removeImage = (index) => {
+    setEventData(prev => ({
+      ...prev,
+      imageUrls: prev.imageUrls.filter((_, i) => i !== index)
+    }));
+  };
 
   const handleUpdate = async (e) => {
     e.preventDefault();
@@ -85,7 +139,8 @@ export default function OrganizerEventDetailPage() {
             eventDate: eventData.eventDate,
             venueId: eventData.venueId,
             isStandAllowed: eventData.isStandAllowed,
-            regulationNote: eventData.regulationNote
+            regulationNote: eventData.regulationNote,
+            imageUrls: eventData.imageUrls // 配列で送信
         }),
       });
 
@@ -100,8 +155,7 @@ export default function OrganizerEventDetailPage() {
   };
 
   const handleDelete = async () => {
-    if(!window.confirm('本当に削除しますか？この操作は取り消せません。')) return;
-
+    if(!window.confirm('本当に削除しますか？')) return;
     const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
     try {
         const res = await fetch(`${API_URL}/api/events/${id}`, {
@@ -109,12 +163,9 @@ export default function OrganizerEventDetailPage() {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         if (!res.ok) throw new Error('削除できませんでした');
-        
         toast.success('イベントを削除しました');
         router.push('/organizers/dashboard');
-    } catch (error) {
-        toast.error(error.message);
-    }
+    } catch (error) { toast.error(error.message); }
   };
 
   if (authLoading || loading) {
@@ -130,22 +181,16 @@ export default function OrganizerEventDetailPage() {
   return (
     <div className="min-h-screen bg-slate-50 py-8 px-4 sm:px-6 lg:px-8 font-sans text-gray-800">
       <div className="max-w-6xl mx-auto">
-        
         <div className="flex justify-between items-center mb-6">
             <Link href="/organizers/dashboard" className="flex items-center text-sm font-bold text-gray-500 hover:text-indigo-600 transition-colors bg-white px-4 py-2 rounded-full shadow-sm border border-gray-200">
                 <FiArrowLeft className="mr-2"/> ダッシュボードへ戻る
             </Link>
-            
-            <button 
-                onClick={handleDelete}
-                className="text-red-500 hover:text-white hover:bg-red-500 border border-red-200 px-4 py-2 rounded-lg transition-all text-sm font-bold flex items-center"
-            >
+            <button onClick={handleDelete} className="text-red-500 hover:text-white hover:bg-red-500 border border-red-200 px-4 py-2 rounded-lg transition-all text-sm font-bold flex items-center">
                 <FiTrash2 className="mr-2"/> イベントを削除
             </button>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            
             <div className="lg:col-span-2 space-y-6">
                 <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                     <div className="bg-indigo-50 px-6 py-4 border-b border-indigo-100 flex justify-between items-center">
@@ -156,20 +201,29 @@ export default function OrganizerEventDetailPage() {
                     </div>
 
                     <form onSubmit={handleUpdate} className="p-6 md:p-8 space-y-6">
-                        {/* 画像プレビューセクションを追加 */}
+                        {/* 画像管理セクション (複数枚対応) */}
                         <div>
-                            <label className="block text-sm font-bold text-gray-700 mb-2 flex items-center gap-2">
-                                <FiImage className="text-indigo-500" /> 現在のメイン画像
+                            <label className="block text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
+                                <FiImage className="text-indigo-500" /> イベント画像ギャラリー
                             </label>
-                            <div className="aspect-video w-full max-w-md bg-slate-100 rounded-2xl overflow-hidden border border-slate-200 relative">
-                                {eventData.imageUrl ? (
-                                    <img src={eventData.imageUrl} alt="Main" className="w-full h-full object-cover" />
-                                ) : (
-                                    <div className="w-full h-full flex flex-col items-center justify-center text-slate-300">
-                                        <FiImage size={48} className="mb-2" />
-                                        <span className="text-xs font-bold uppercase tracking-widest">No Image Attached</span>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                                {eventData.imageUrls?.map((url, idx) => (
+                                    <div key={idx} className="relative aspect-square rounded-xl overflow-hidden group border border-slate-200 shadow-sm">
+                                        <img src={url} alt="" className="w-full h-full object-cover transition-transform group-hover:scale-110" />
+                                        <button 
+                                            type="button"
+                                            onClick={() => removeImage(idx)}
+                                            className="absolute top-1 right-1 p-1.5 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                        >
+                                            <FiX size={14} />
+                                        </button>
                                     </div>
-                                )}
+                                ))}
+                                <label className="flex flex-col items-center justify-center aspect-square border-2 border-dashed border-slate-200 rounded-xl bg-slate-50 hover:bg-indigo-50 hover:border-indigo-300 transition-all cursor-pointer">
+                                    {isUploading ? <FiLoader className="animate-spin text-indigo-500" size={24}/> : <FiPlus className="text-slate-400" size={24} />}
+                                    <span className="text-[10px] font-bold text-slate-400 mt-2">追加</span>
+                                    <input type="file" multiple accept="image/*" onChange={handleImageAdd} className="hidden" disabled={isUploading} />
+                                </label>
                             </div>
                         </div>
 
@@ -180,7 +234,7 @@ export default function OrganizerEventDetailPage() {
                                     type="text"
                                     value={eventData.title}
                                     onChange={(e) => setEventData({...eventData, title: e.target.value})}
-                                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none transition-all font-bold text-lg"
+                                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-indigo-500 outline-none transition-all font-bold text-lg"
                                     required
                                 />
                             </div>
@@ -213,15 +267,7 @@ export default function OrganizerEventDetailPage() {
                                         <option key={v.id} value={v.id}>{v.venueName}</option>
                                     ))}
                                 </select>
-                                <div className="absolute top-1/2 right-3 -translate-y-1/2 pointer-events-none">
-                                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-                                </div>
                             </div>
-                            {eventData.venueId && (
-                                <Link href={`/venues/${eventData.venueId}`} target="_blank" className="text-xs text-indigo-600 hover:underline mt-2 inline-flex items-center">
-                                    <FiExternalLink className="mr-1"/> 会場ページを確認する
-                                </Link>
-                            )}
                         </div>
 
                         <div>
@@ -230,45 +276,37 @@ export default function OrganizerEventDetailPage() {
                                 value={eventData.description || ''}
                                 onChange={(e) => setEventData({...eventData, description: e.target.value})}
                                 className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-indigo-500 outline-none transition-all min-h-[120px]"
-                                placeholder="出演者やタイムテーブルなど、参加者に伝えたい情報を入力してください"
                             />
                         </div>
 
                         <div className="bg-yellow-50 rounded-xl border border-yellow-200 p-5">
                             <h3 className="font-bold text-yellow-800 mb-3 flex items-center">
-                                <FiAlertCircle className="mr-2"/> フラスタ受付設定
+                                <FiAlertCircle className="mr-2"/> フラワースタンド受付設定
                             </h3>
-                            
-                            <label className="flex items-center p-3 bg-white rounded-lg border border-yellow-100 cursor-pointer hover:border-yellow-300 transition-colors mb-4 shadow-sm">
+                            <label className="flex items-center p-3 bg-white rounded-lg border border-yellow-100 cursor-pointer mb-4 shadow-sm">
                                 <input 
                                     type="checkbox"
                                     checked={eventData.isStandAllowed}
                                     onChange={(e) => setEventData({...eventData, isStandAllowed: e.target.checked})}
-                                    className="w-5 h-5 text-indigo-600 rounded focus:ring-indigo-500 border-gray-300 mr-3"
+                                    className="w-5 h-5 text-indigo-600 rounded mr-3"
                                 />
                                 <span className="font-bold text-gray-800">フラワースタンドを受け入れる</span>
                             </label>
-                            
-                            <label className="block text-xs font-bold text-gray-600 mb-2">レギュレーション・注意事項 (ファン向け)</label>
                             <textarea 
                                 value={eventData.regulationNote || ''}
                                 onChange={(e) => setEventData({...eventData, regulationNote: e.target.value})}
-                                placeholder="【サイズ規定】高さ180cm以下、底辺40cm×40cm以下&#13;&#10;【搬入時間】当日午前中指定&#13;&#10;【回収】必須 (公演終了後〜翌日午前中)"
-                                className="w-full p-3 border border-yellow-200 rounded-xl text-sm min-h-[100px] focus:ring-2 focus:ring-yellow-400 outline-none bg-white"
+                                placeholder="【サイズ規定】など注意事項を入力"
+                                className="w-full p-3 border border-yellow-200 rounded-xl text-sm min-h-[100px] outline-none bg-white"
                             />
                         </div>
 
-                        <div className="pt-4 border-t border-gray-100">
+                        <div className="pt-4">
                             <button 
                                 type="submit" 
-                                disabled={saving}
-                                className="w-full py-4 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all flex justify-center items-center transform active:scale-[0.99] disabled:opacity-70 disabled:cursor-not-allowed"
+                                disabled={saving || isUploading}
+                                className="w-full py-4 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 shadow-lg transition-all flex justify-center items-center disabled:opacity-70"
                             >
-                                {saving ? (
-                                    <><div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent mr-2"></div> 保存中...</>
-                                ) : (
-                                    <><FiSave className="mr-2 text-xl"/> 変更内容を保存する</>
-                                )}
+                                {saving ? <><FiLoader className="animate-spin mr-2"/> 保存中...</> : <><FiSave className="mr-2 text-xl"/> 変更内容を保存する</>}
                             </button>
                         </div>
                     </form>
@@ -281,57 +319,25 @@ export default function OrganizerEventDetailPage() {
                         <h2 className="text-lg font-bold text-green-900 flex items-center gap-2">
                             <FiCheckCircle className="text-green-600"/> 申請された企画
                         </h2>
-                        <p className="text-xs text-green-700 mt-1">
-                            このイベントに対して作成されたフラスタ企画の一覧です。
-                        </p>
                     </div>
-                    
-                    <div className="p-4 bg-gray-50/50 min-h-[300px] max-h-[calc(100vh-200px)] overflow-y-auto">
+                    <div className="p-4 bg-gray-50/50 min-h-[300px]">
                         {eventData.projects && eventData.projects.length > 0 ? (
                             <div className="space-y-3">
                                 {eventData.projects.map(project => (
-                                    <Link key={project.id} href={`/projects/${project.id}`} target="_blank" className="block group">
-                                        <div className="bg-white p-4 rounded-xl border border-gray-200 hover:border-indigo-300 hover:shadow-md transition-all">
-                                            <div className="flex items-start justify-between mb-2">
-                                                <ProjectStatusBadge status={project.status || 'PLANNING'} />
-                                                <span className="text-[10px] text-gray-400">
-                                                    {new Date(project.createdAt).toLocaleDateString()}
-                                                </span>
-                                            </div>
-                                            
-                                            <h3 className="font-bold text-gray-800 text-sm mb-2 line-clamp-2 group-hover:text-indigo-600 transition-colors">
-                                                {project.title}
-                                            </h3>
-                                            
-                                            <div className="flex items-center gap-2 pt-2 border-t border-gray-100 mt-2">
-                                                {project.planner?.iconUrl ? (
-                                                    <img src={project.planner.iconUrl} alt="" className="w-6 h-6 rounded-full object-cover border border-gray-100"/>
-                                                ) : (
-                                                    <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-gray-400 text-[10px]"><FiUsers/></div>
-                                                )}
-                                                <span className="text-xs text-gray-500 truncate max-w-[120px]">
-                                                    {project.planner?.handleName || '退会ユーザー'}
-                                                </span>
-                                            </div>
+                                    <Link key={project.id} href={`/projects/${project.id}`} className="block">
+                                        <div className="bg-white p-4 rounded-xl border border-gray-200 hover:border-indigo-300 transition-all">
+                                            <ProjectStatusBadge status={project.status || 'PLANNING'} />
+                                            <h3 className="font-bold text-gray-800 text-sm mt-2 line-clamp-2">{project.title}</h3>
                                         </div>
                                     </Link>
                                 ))}
                             </div>
                         ) : (
-                            <div className="h-full flex flex-col items-center justify-center py-12 text-gray-400 text-sm border-2 border-dashed border-gray-200 rounded-xl bg-white">
-                                <div className="bg-gray-100 p-3 rounded-full mb-3">
-                                    <FiUsers size={24} className="text-gray-300"/>
-                                </div>
-                                <p>まだ企画はありません</p>
-                            </div>
+                            <p className="text-center py-12 text-gray-400 text-sm">まだ企画はありません</p>
                         )}
-                    </div>
-                    <div className="p-3 bg-gray-50 text-center border-t border-gray-200">
-                        <span className="text-xs text-gray-500 font-bold">Total: {eventData.projects?.length || 0} 件</span>
                     </div>
                 </div>
             </div>
-
         </div>
       </div>
     </div>

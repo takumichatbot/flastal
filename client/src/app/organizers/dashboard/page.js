@@ -186,10 +186,15 @@ function OrganizerDashboardContent() {
               const isUpcoming = new Date(event.eventDate) > new Date();
               return (
                 <div key={event.id} className="group bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-all flex flex-col h-full">
-                  {/* 画像表示エリアを追加 */}
+                  
+                  {/* 改修点: imageUrls 配列の 1 枚目を表示 */}
                   <div className="h-40 bg-slate-100 relative overflow-hidden">
-                    {event.imageUrl ? (
-                      <img src={event.imageUrl} alt={event.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                    {event.imageUrls && event.imageUrls.length > 0 ? (
+                      <img 
+                        src={event.imageUrls[0]} 
+                        alt={event.title} 
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                      />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-slate-300">
                         <FiImage size={32} />
