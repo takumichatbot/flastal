@@ -129,7 +129,6 @@ function EventListContent() {
     <div className="bg-slate-50 min-h-screen py-10 font-sans text-gray-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
-        {/* ヘッダー */}
         <div className="flex flex-col md:flex-row justify-between items-center mb-10 gap-6">
           <div className="flex items-center gap-4">
               <div className="bg-indigo-600 p-3 rounded-2xl text-white shadow-lg shadow-indigo-100">
@@ -157,7 +156,6 @@ function EventListContent() {
           </div>
         </div>
 
-        {/* フィルター */}
         <div className="bg-white rounded-[2rem] shadow-sm border border-gray-100 p-6 mb-10">
           <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
             <div className="md:col-span-6">
@@ -202,7 +200,6 @@ function EventListContent() {
           </div>
         </div>
 
-        {/* リスト */}
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
              {[...Array(6)].map((_, i) => (
@@ -454,7 +451,10 @@ function AiAddModal({ onClose, onAdded }) {
   return (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[100] p-4 backdrop-blur-md animate-fadeIn">
       <div className="bg-white rounded-[2.5rem] p-8 w-full max-w-lg shadow-2xl relative border border-white/20 max-h-[90vh] overflow-y-auto">
-        <button onClick={onClose} className="absolute top-6 right-6 text-gray-400 hover:text-gray-600 transition-colors"><FiX size={28}/></button>
+        {/* バツマーク修正 */}
+        <button onClick={onClose} className="absolute top-6 right-6 text-gray-400 hover:text-gray-600 transition-colors z-10 p-2">
+          <FiX size={28}/>
+        </button>
         <div className="flex items-center gap-4 mb-6">
             <div className="p-3 bg-indigo-600 text-white rounded-2xl shadow-lg shadow-indigo-100"><FiCpu size={28}/></div>
             <div>
@@ -500,7 +500,6 @@ function ManualAddModal({ onClose, onAdded, editData = null }) {
   const [isUploading, setIsUploading] = useState(false);
   const { authenticatedFetch } = useAuth();
 
-  // 会場リストの取得
   useEffect(() => {
     const fetchVenues = async () => {
       try {
@@ -542,7 +541,16 @@ function ManualAddModal({ onClose, onAdded, editData = null }) {
       const url = editData ? `/api/events/${editData.id}` : `/api/events/user-submit`;
       const res = await authenticatedFetch(url, {
         method: editData ? 'PATCH' : 'POST',
-        body: JSON.stringify({ ...formData, imageUrls: images })
+        // 修正ポイント: 古い imageUrl を削除し、imageUrls (複数形) で送る
+        body: JSON.stringify({ 
+          title: formData.title,
+          eventDate: formData.eventDate,
+          description: formData.description,
+          genre: formData.genre,
+          sourceUrl: formData.sourceUrl,
+          venueId: formData.venueId,
+          imageUrls: images // ここを複数形にする
+        })
       });
       if (res.ok) { 
         toast.success('保存しました'); 
@@ -558,10 +566,15 @@ function ManualAddModal({ onClose, onAdded, editData = null }) {
 
   return (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[100] p-4 backdrop-blur-md">
-      <form onSubmit={handleSubmit} className="bg-white rounded-[2.5rem] p-8 w-full max-w-lg shadow-2xl relative max-h-[90vh] overflow-y-auto">
-        <button type="button" onClick={onClose} className="absolute top-6 right-6 text-gray-400"><FiX size={28}/></button>
+      <div className="bg-white rounded-[2.5rem] p-8 w-full max-w-lg shadow-2xl relative max-h-[90vh] overflow-y-auto">
+        {/* バツマーク修正 */}
+        <button type="button" onClick={onClose} className="absolute top-6 right-6 text-gray-400 hover:text-gray-600 transition-colors z-10 p-2">
+          <FiX size={28}/>
+        </button>
+        
         <h3 className="text-2xl font-black mb-6 text-gray-900">{editData ? 'イベント編集' : 'イベント手動登録'}</h3>
-        <div className="space-y-4">
+        
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">イベント名</label>
             <input required className="w-full p-4 border border-slate-100 bg-slate-50 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500 transition-all text-sm" placeholder="イベント名を入力" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} />
@@ -591,20 +604,21 @@ function ManualAddModal({ onClose, onAdded, editData = null }) {
           <ImageUploadArea images={images} setImages={setImages} isUploading={isUploading} setIsUploading={setIsUploading} />
 
           <div>
-            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">出典・公式サイトURL (任意)</label>
+            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">公式サイトURL (任意)</label>
             <input className="w-full p-4 border border-slate-100 bg-slate-50 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500 transition-all text-sm" placeholder="https://..." value={formData.sourceUrl} onChange={e => setFormData({...formData, sourceUrl: e.target.value})} />
           </div>
 
           <div>
             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">イベント詳細・説明</label>
-            <textarea className="w-full p-4 border border-slate-100 bg-slate-50 rounded-xl outline-none h-24 resize-none focus:bg-white focus:ring-2 focus:ring-indigo-500 transition-all text-sm" placeholder="出演者情報やフラスタ規定など" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} />
+            <textarea className="w-full p-4 border border-slate-100 bg-slate-50 rounded-xl outline-none h-24 resize-none focus:bg-white focus:ring-2 focus:ring-indigo-500 transition-all text-sm" placeholder="詳細を入力してください" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} />
           </div>
-        </div>
-        <button type="submit" disabled={isSubmitting || isUploading} className="w-full mt-6 py-4 bg-indigo-600 text-white font-black rounded-2xl shadow-xl shadow-indigo-100 active:scale-95 transition-all">
-          {isSubmitting ? <FiLoader className="animate-spin inline mr-2"/> : null}
-          {editData ? '更新を保存する' : 'イベントを登録する'}
-        </button>
-      </form>
+
+          <button type="submit" disabled={isSubmitting || isUploading} className="w-full mt-6 py-4 bg-indigo-600 text-white font-black rounded-2xl shadow-xl shadow-indigo-100 active:scale-95 transition-all">
+            {isSubmitting ? <FiLoader className="animate-spin inline mr-2"/> : null}
+            {editData ? '更新を保存する' : 'イベントを登録する'}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }
