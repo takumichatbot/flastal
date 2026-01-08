@@ -53,7 +53,7 @@ export const getEventById = async (req, res) => {
             include: { 
                 venue: true,
                 creator: { select: { id: true, handleName: true, iconUrl: true, role: true } },
-                organizer: { select: { id: true, name: true } },
+                organizer: { select: { id: true, name: true, website: true } },
                 projects: { include: { planner: { select: { handleName: true, iconUrl: true } } } }
             } 
         });
@@ -68,7 +68,11 @@ export const getEventById = async (req, res) => {
 // --- 一般ユーザー・主催者・管理者によるイベント登録 ---
 export const createEvent = async (req, res) => {
     try {
-        const { title, eventName, eventDate, venueId, venue, description, genre, sourceUrl } = req.body;
+        const { 
+            title, eventName, eventDate, venueId, venue, description, 
+            genre, sourceUrl, imageUrl, twitterUrl, instagramUrl, officialWebsite 
+        } = req.body;
+
         const name = title || eventName;
         const targetVenueId = venueId || venue?.id;
 
@@ -79,30 +83,26 @@ export const createEvent = async (req, res) => {
         const userRole = req.user.role;
         const userId = req.user.id;
         
-        // 公式判定: ADMIN, VENUE, ORGANIZER のいずれか
         const officialRoles = ['ADMIN', 'VENUE', 'ORGANIZER'];
         const sourceType = officialRoles.includes(userRole) ? 'OFFICIAL' : 'USER';
 
-        // 初期データオブジェクト
         const eventData = {
             title: name,
             description: description || '',
             eventDate: new Date(eventDate),
             genre: genre || 'OTHER',
             sourceUrl: sourceUrl || '',
+            imageUrl: imageUrl || '', // 写真フィールド
+            twitterUrl: twitterUrl || '', // Xリンク
+            instagramUrl: instagramUrl || '', // Instagramリンク
+            officialWebsite: officialWebsite || '', // HPリンク
             venue: { connect: { id: targetVenueId } },
             sourceType: sourceType
         };
 
-        // --- リレーションの解決 (P2025/ValidationError 対策) ---
-        
         if (userRole === 'ORGANIZER') {
-            // 主催者としてログインしている場合、Organizerテーブルに接続
-            // schema.prisma の Event.organizerId を使用
             eventData.organizer = { connect: { id: userId } };
         } else {
-            // それ以外（USER, ADMIN, VENUE）は Userテーブルに接続
-            // ※VENUEもUserテーブルにレコードがある前提の設計なら connect を使う
             const userRecord = await prisma.user.findUnique({ where: { id: userId } });
             if (userRecord) {
                 eventData.creator = { connect: { id: userId } };
@@ -127,23 +127,36 @@ export const createEvent = async (req, res) => {
 export const updateEvent = async (req, res) => { 
     try {
         const { id } = req.params;
+        const { 
+            title, eventName, description, eventDate, venueId, genre, 
+            sourceUrl, imageUrl, twitterUrl, instagramUrl, officialWebsite 
+        } = req.body;
+
         const event = await prisma.event.findUnique({ where: { id } });
         if (!event) return res.status(404).json({ message: 'イベントが見つかりません。' });
         
-        // 権限チェック (作成者本人か管理者か主催者本人)
         const isOwner = event.creatorId === req.user.id || event.organizerId === req.user.id || req.user.role === 'ADMIN';
         if (!isOwner) {
             return res.status(403).json({ message: '権限がありません。' });
         }
 
+        const officialRoles = ['ADMIN', 'VENUE', 'ORGANIZER'];
+        const newSourceType = officialRoles.includes(req.user.role) ? 'OFFICIAL' : event.sourceType;
+
         const updated = await prisma.event.update({
             where: { id },
             data: {
-                title: req.body.title || req.body.eventName,
-                description: req.body.description,
-                genre: req.body.genre,
-                sourceUrl: req.body.sourceUrl,
-                eventDate: req.body.eventDate ? new Date(req.body.eventDate) : undefined,
+                title: title || eventName,
+                description: description,
+                eventDate: eventDate ? new Date(eventDate) : undefined,
+                genre: genre,
+                sourceUrl: sourceUrl,
+                imageUrl: imageUrl, // 写真
+                twitterUrl: twitterUrl, // X
+                instagramUrl: instagramUrl, // Instagram
+                officialWebsite: officialWebsite, // HP
+                venue: venueId ? { connect: { id: venueId } } : undefined,
+                sourceType: newSourceType,
                 lastEditor: req.user.role !== 'ORGANIZER' ? { connect: { id: req.user.id } } : undefined
             }
         });
@@ -175,7 +188,7 @@ export const deleteEvent = async (req, res) => {
 };
 
 /**
- * AIによるイベント情報解析
+ * AIによるイベント情報解析 (強化版)
  */
 export const aiParseEvent = async (req, res) => {
     const { text, sourceUrl } = req.body;
@@ -195,13 +208,16 @@ export const aiParseEvent = async (req, res) => {
             - venueName: 会場名（不明な場合は空文字）
             - description: 内容の要約
             - genre: IDOL, VTUBER, MUSIC, ANIME, STAGE, OTHER の中から選択
+            - officialWebsite: 公式サイトURLがあれば抽出
+            - twitterUrl: X (Twitter) のURLがあれば抽出
+            - instagramUrl: InstagramのURLがあれば抽出
 
             テキスト:
             "${text}"
         `;
 
         const completion = await openai.chat.completions.create({
-            model: "gpt-3.5-turbo",
+            model: "gpt-4-turbo-preview", // 精度向上のためモデルを強化
             messages: [{ role: "system", content: "あなたは優秀なイベント情報解析アシスタントです。" }, { role: "user", content: prompt }],
             response_format: { type: "json_object" }
         });
@@ -213,6 +229,7 @@ export const aiParseEvent = async (req, res) => {
             finalDate = new Date();
         }
 
+        // 会場マッチングロジックの強化
         let venueId = null;
         if (result.venueName && result.venueName.trim() !== '') {
             const existingVenue = await prisma.venue.findFirst({
@@ -231,6 +248,9 @@ export const aiParseEvent = async (req, res) => {
                 venue: venueId ? { connect: { id: venueId } } : undefined,
                 regulationNote: venueId ? null : `候補会場: ${result.venueName || '不明'}`,
                 genre: result.genre || 'OTHER',
+                officialWebsite: result.officialWebsite || '',
+                twitterUrl: result.twitterUrl || '',
+                instagramUrl: result.instagramUrl || '',
                 sourceType: 'AI',
                 sourceUrl: sourceUrl || '',
                 creator: { connect: { id: userId } }
