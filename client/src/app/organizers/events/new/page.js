@@ -95,37 +95,37 @@ function CreateEventContent() {
   const uploadToS3 = (file) => {
     return new Promise(async (resolve, reject) => {
       try {
-        // 1. バックエンドから署名付きURLを取得
         const res = await authenticatedFetch('/api/tools/s3-upload-url', {
           method: 'POST',
           body: JSON.stringify({ fileName: file.name, fileType: file.type })
         });
         
-        if (!res.ok) throw new Error('アップロード許可の取得に失敗しました');
+        if (!res.ok) throw new Error('署名付きURLの取得に失敗しました');
         const { uploadUrl, fileUrl } = await res.json();
 
-        // 2. XMLHttpRequestを使用してS3へPUT
-        // 署名の不一致を防ぐため、バックエンドで指定したContent-Typeを正確にセットします
         const xhr = new XMLHttpRequest();
         xhr.open('PUT', uploadUrl);
-        
-        // 重要: 署名時にContentTypeを含めた場合、ここでも必ずセットする必要があります
         xhr.setRequestHeader('Content-Type', file.type);
         
         xhr.onload = () => {
           if (xhr.status === 200 || xhr.status === 204) {
             resolve(fileUrl);
           } else {
-            // エラー内容を詳細にログに出す
-            console.error('S3 Status:', xhr.status);
+            // エラーを具体的にアラートで表示
+            alert(`S3アップロード失敗: ステータス ${xhr.status}\n${xhr.responseText}`);
             reject(new Error(`S3エラー: ${xhr.status}`));
           }
         };
 
-        xhr.onerror = () => reject(new Error('S3への通信がブロックされました。CORS設定を確認してください。'));
-        
+        xhr.onerror = () => {
+          // CORSエラーなどはここ
+          alert('S3への接続がブラウザでブロックされました。CORS設定またはネット接続を確認してください。');
+          reject(new Error('Network Error during S3 upload'));
+        };
+
         xhr.send(file);
       } catch (error) {
+        alert('アップロード開始前にエラー: ' + error.message);
         reject(error);
       }
     });
