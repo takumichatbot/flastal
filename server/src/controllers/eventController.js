@@ -70,7 +70,7 @@ export const createEvent = async (req, res) => {
     try {
         const { 
             title, eventName, eventDate, venueId, venue, description, 
-            genre, sourceUrl, imageUrl, twitterUrl, instagramUrl, officialWebsite 
+            genre, sourceUrl, imageUrl, imageUrls, twitterUrl, instagramUrl, officialWebsite 
         } = req.body;
 
         const name = title || eventName;
@@ -86,16 +86,20 @@ export const createEvent = async (req, res) => {
         const officialRoles = ['ADMIN', 'VENUE', 'ORGANIZER'];
         const sourceType = officialRoles.includes(userRole) ? 'OFFICIAL' : 'USER';
 
+        // 修正ポイント: imageUrl (単数) を廃止し、imageUrls (複数配列) を使用
+        // フロントから imageUrl (単数) が送られてきた場合の互換性も持たせる
+        const finalImageUrls = Array.isArray(imageUrls) ? imageUrls : (imageUrl ? [imageUrl] : []);
+
         const eventData = {
             title: name,
             description: description || '',
             eventDate: new Date(eventDate),
             genre: genre || 'OTHER',
             sourceUrl: sourceUrl || '',
-            imageUrl: imageUrl || '', // 写真フィールド
-            twitterUrl: twitterUrl || '', // Xリンク
-            instagramUrl: instagramUrl || '', // Instagramリンク
-            officialWebsite: officialWebsite || '', // HPリンク
+            imageUrls: finalImageUrls, // DBカラム名に合わせて複数形に修正
+            twitterUrl: twitterUrl || '',
+            instagramUrl: instagramUrl || '',
+            officialWebsite: officialWebsite || '',
             venue: { connect: { id: targetVenueId } },
             sourceType: sourceType
         };
@@ -129,7 +133,7 @@ export const updateEvent = async (req, res) => {
         const { id } = req.params;
         const { 
             title, eventName, description, eventDate, venueId, genre, 
-            sourceUrl, imageUrl, twitterUrl, instagramUrl, officialWebsite 
+            sourceUrl, imageUrl, imageUrls, twitterUrl, instagramUrl, officialWebsite 
         } = req.body;
 
         const event = await prisma.event.findUnique({ where: { id } });
@@ -143,6 +147,9 @@ export const updateEvent = async (req, res) => {
         const officialRoles = ['ADMIN', 'VENUE', 'ORGANIZER'];
         const newSourceType = officialRoles.includes(req.user.role) ? 'OFFICIAL' : event.sourceType;
 
+        // 修正ポイント: 更新時も imageUrls (複数配列) を優先
+        const finalImageUrls = Array.isArray(imageUrls) ? imageUrls : (imageUrl ? [imageUrl] : undefined);
+
         const updated = await prisma.event.update({
             where: { id },
             data: {
@@ -151,10 +158,10 @@ export const updateEvent = async (req, res) => {
                 eventDate: eventDate ? new Date(eventDate) : undefined,
                 genre: genre,
                 sourceUrl: sourceUrl,
-                imageUrl: imageUrl, // 写真
-                twitterUrl: twitterUrl, // X
-                instagramUrl: instagramUrl, // Instagram
-                officialWebsite: officialWebsite, // HP
+                imageUrls: finalImageUrls, // 複数形に修正
+                twitterUrl: twitterUrl,
+                instagramUrl: instagramUrl,
+                officialWebsite: officialWebsite,
                 venue: venueId ? { connect: { id: venueId } } : undefined,
                 sourceType: newSourceType,
                 lastEditor: req.user.role !== 'ORGANIZER' ? { connect: { id: req.user.id } } : undefined
@@ -188,10 +195,10 @@ export const deleteEvent = async (req, res) => {
 };
 
 /**
- * AIによるイベント情報解析 (強化版)
+ * AIによるイベント情報解析
  */
 export const aiParseEvent = async (req, res) => {
-    const { text, sourceUrl } = req.body;
+    const { text, sourceUrl, imageUrls } = req.body;
     const userId = req.user.id;
 
     if (!text) return res.status(400).json({ message: 'テキストを入力してください' });
@@ -200,44 +207,38 @@ export const aiParseEvent = async (req, res) => {
         const prompt = `
             以下のテキストからイベント情報を抽出して、必ずJSON形式で出力してください。
             現在の日時: ${new Date().toLocaleString('ja-JP')}
-            年が不明な場合は、文脈から判断するか現在の日時を参考にしてください。
 
             【出力項目】
             - title: イベント名
             - eventDate: ISO8601形式の完全な日時 (例: 2025-12-25T18:00:00)
-            - venueName: 会場名（不明な場合は空文字）
+            - venueName: 会場名
             - description: 内容の要約
             - genre: IDOL, VTUBER, MUSIC, ANIME, STAGE, OTHER の中から選択
-            - officialWebsite: 公式サイトURLがあれば抽出
-            - twitterUrl: X (Twitter) のURLがあれば抽出
-            - instagramUrl: InstagramのURLがあれば抽出
+            - officialWebsite: 公式サイトURL
+            - twitterUrl: X URL
+            - instagramUrl: Instagram URL
 
             テキスト:
             "${text}"
         `;
 
         const completion = await openai.chat.completions.create({
-            model: "gpt-4-turbo-preview", // 精度向上のためモデルを強化
-            messages: [{ role: "system", content: "あなたは優秀なイベント情報解析アシスタントです。" }, { role: "user", content: prompt }],
+            model: "gpt-4-turbo-preview",
+            messages: [{ role: "system", content: "優秀な助手です。" }, { role: "user", content: prompt }],
             response_format: { type: "json_object" }
         });
 
         const result = JSON.parse(completion.choices[0].message.content);
 
         let finalDate = new Date(result.eventDate);
-        if (isNaN(finalDate.getTime())) {
-            finalDate = new Date();
-        }
+        if (isNaN(finalDate.getTime())) finalDate = new Date();
 
-        // 会場マッチングロジックの強化
         let venueId = null;
-        if (result.venueName && result.venueName.trim() !== '') {
+        if (result.venueName) {
             const existingVenue = await prisma.venue.findFirst({
                 where: { venueName: { contains: result.venueName, mode: 'insensitive' } }
             });
-            if (existingVenue) {
-                venueId = existingVenue.id;
-            }
+            if (existingVenue) venueId = existingVenue.id;
         }
 
         const newEvent = await prisma.event.create({
@@ -248,6 +249,7 @@ export const aiParseEvent = async (req, res) => {
                 venue: venueId ? { connect: { id: venueId } } : undefined,
                 regulationNote: venueId ? null : `候補会場: ${result.venueName || '不明'}`,
                 genre: result.genre || 'OTHER',
+                imageUrls: Array.isArray(imageUrls) ? imageUrls : [], // AI解析時も画像配列に対応
                 officialWebsite: result.officialWebsite || '',
                 twitterUrl: result.twitterUrl || '',
                 instagramUrl: result.instagramUrl || '',
