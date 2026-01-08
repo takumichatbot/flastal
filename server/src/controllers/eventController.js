@@ -31,6 +31,7 @@ export const getEvents = async (req, res) => {
             include: { 
                 venue: true,
                 creator: { select: { id: true, handleName: true, iconUrl: true, role: true } },
+                organizer: { select: { id: true, name: true } },
                 lastEditor: { select: { id: true, handleName: true, iconUrl: true } },
                 interests: { select: { userId: true } },
                 _count: { select: { interests: true } }
@@ -52,6 +53,7 @@ export const getEventById = async (req, res) => {
             include: { 
                 venue: true,
                 creator: { select: { id: true, handleName: true, iconUrl: true, role: true } },
+                organizer: { select: { id: true, name: true } },
                 projects: { include: { planner: { select: { handleName: true, iconUrl: true } } } }
             } 
         });
@@ -74,14 +76,14 @@ export const createEvent = async (req, res) => {
             return res.status(400).json({ message: '入力内容が不足しています。' });
         }
 
-        const officialRoles = ['ADMIN', 'VENUE', 'ORGANIZER'];
-        const sourceType = officialRoles.includes(req.user.role) ? 'OFFICIAL' : 'USER';
-
-        // ★ Prisma P2025 エラー対策
-        // イベントモデルの creator リレーションが User モデルを指している場合、
-        // 主催者(ORGANIZER)も User テーブルにレコードがある必要があります。
-        // もし主催者が別テーブル管理なら、connect ではなく creatorId: req.user.id を直接入れるなどの調整が必要です。
+        const userRole = req.user.role;
+        const userId = req.user.id;
         
+        // 公式判定: ADMIN, VENUE, ORGANIZER のいずれか
+        const officialRoles = ['ADMIN', 'VENUE', 'ORGANIZER'];
+        const sourceType = officialRoles.includes(userRole) ? 'OFFICIAL' : 'USER';
+
+        // 初期データオブジェクト
         const eventData = {
             title: name,
             description: description || '',
@@ -92,18 +94,19 @@ export const createEvent = async (req, res) => {
             sourceType: sourceType
         };
 
-        // 作成者の接続処理
-        // 注意: req.user.id が User テーブルに存在しないと connect で落ちます。
-        // 安全のため、まず User が存在するか確認するか、もしくは直接 ID を代入します。
-        const userExists = await prisma.user.findUnique({ where: { id: req.user.id } });
-
-        if (userExists) {
-            eventData.creator = { connect: { id: req.user.id } };
+        // --- リレーションの解決 (P2025/ValidationError 対策) ---
+        
+        if (userRole === 'ORGANIZER') {
+            // 主催者としてログインしている場合、Organizerテーブルに接続
+            // schema.prisma の Event.organizerId を使用
+            eventData.organizer = { connect: { id: userId } };
         } else {
-            // Userテーブルにいない（主催者専用垢など）場合は、強制的に紐付けず ID のみ保持するか、
-            // またはシステム上の共通管理ユーザーに紐付けるなどの回避策をとります。
-            // ここでは ID を直接セットする形を試みます（Schemaによりますが）
-            eventData.creatorId = req.user.id; 
+            // それ以外（USER, ADMIN, VENUE）は Userテーブルに接続
+            // ※VENUEもUserテーブルにレコードがある前提の設計なら connect を使う
+            const userRecord = await prisma.user.findUnique({ where: { id: userId } });
+            if (userRecord) {
+                eventData.creator = { connect: { id: userId } };
+            }
         }
 
         const event = await prisma.event.create({
@@ -112,11 +115,10 @@ export const createEvent = async (req, res) => {
 
         res.status(201).json(event);
     } catch (e) { 
-        console.error('createEvent Error:', e);
-        // エラー詳細を返してデバッグしやすくする
+        console.error('createEvent Critical Error:', e);
         res.status(500).json({ 
             message: 'イベントの作成に失敗しました。',
-            error: e.code === 'P2025' ? '作成ユーザーの認証レコードが見つかりません。' : e.message 
+            detail: e.message 
         }); 
     }
 };
@@ -128,12 +130,11 @@ export const updateEvent = async (req, res) => {
         const event = await prisma.event.findUnique({ where: { id } });
         if (!event) return res.status(404).json({ message: 'イベントが見つかりません。' });
         
-        if (event.creatorId !== req.user.id && req.user.role !== 'ADMIN') {
+        // 権限チェック (作成者本人か管理者か主催者本人)
+        const isOwner = event.creatorId === req.user.id || event.organizerId === req.user.id || req.user.role === 'ADMIN';
+        if (!isOwner) {
             return res.status(403).json({ message: '権限がありません。' });
         }
-
-        const officialRoles = ['ADMIN', 'VENUE', 'ORGANIZER'];
-        const newSourceType = officialRoles.includes(req.user.role) ? 'OFFICIAL' : event.sourceType;
 
         const updated = await prisma.event.update({
             where: { id },
@@ -142,9 +143,8 @@ export const updateEvent = async (req, res) => {
                 description: req.body.description,
                 genre: req.body.genre,
                 sourceUrl: req.body.sourceUrl,
-                sourceType: newSourceType,
                 eventDate: req.body.eventDate ? new Date(req.body.eventDate) : undefined,
-                lastEditorId: req.user.id
+                lastEditor: req.user.role !== 'ORGANIZER' ? { connect: { id: req.user.id } } : undefined
             }
         });
         res.json(updated);
@@ -161,7 +161,8 @@ export const deleteEvent = async (req, res) => {
         const event = await prisma.event.findUnique({ where: { id } });
         if (!event) return res.status(404).json({ message: 'イベントが見つかりません。' });
         
-        if (event.creatorId !== req.user.id && req.user.role !== 'ADMIN') {
+        const isOwner = event.creatorId === req.user.id || event.organizerId === req.user.id || req.user.role === 'ADMIN';
+        if (!isOwner) {
             return res.status(403).json({ message: '削除権限がありません。' });
         }
 
@@ -227,13 +228,12 @@ export const aiParseEvent = async (req, res) => {
                 title: result.title || '無題のイベント',
                 eventDate: finalDate,
                 description: result.description || '',
-                venueId: venueId,
+                venue: venueId ? { connect: { id: venueId } } : undefined,
                 regulationNote: venueId ? null : `候補会場: ${result.venueName || '不明'}`,
                 genre: result.genre || 'OTHER',
                 sourceType: 'AI',
                 sourceUrl: sourceUrl || '',
-                creatorId: userId,
-                lastEditorId: userId
+                creator: { connect: { id: userId } }
             },
             include: { 
                 venue: true,
