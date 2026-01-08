@@ -18,7 +18,8 @@ import {
   FiLogOut, 
   FiSettings, 
   FiLayers, 
-  FiArrowRight
+  FiArrowRight,
+  FiImage
 } from 'react-icons/fi';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
@@ -52,13 +53,11 @@ function OrganizerDashboardContent() {
   }, []);
 
   const fetchEvents = useCallback(async () => {
-    // 修正: localStorage のキーを flastal-token に統一（保険で authToken もチェック）
     const token = typeof window !== 'undefined' 
       ? (localStorage.getItem('flastal-token') || localStorage.getItem('authToken'))?.replace(/^"|"$/g, '') 
       : null;
 
     if (!token) {
-        console.warn("No token found for fetching events");
         setIsLoadingEvents(false);
         return;
     }
@@ -71,7 +70,6 @@ function OrganizerDashboardContent() {
       if (!res.ok) throw new Error('イベント一覧の取得に失敗しました');
       
       const data = await res.json();
-      console.log("Fetched events:", data); // デバッグ用
       setEvents(data);
 
       const now = new Date();
@@ -94,7 +92,6 @@ function OrganizerDashboardContent() {
   useEffect(() => {
     if (!isMounted || loading) return;
     
-    // 権限チェック
     if (!isAuthenticated || (user?.role !== 'ORGANIZER' && user?.role !== 'ADMIN')) {
       router.push('/organizers/login');
       return;
@@ -119,7 +116,6 @@ function OrganizerDashboardContent() {
     );
   }
 
-  // 審査待ち状態の表示（Admin以外）
   if (user?.role === 'ORGANIZER' && (isPending || !isApproved)) {
       return <ApprovalPendingCard />;
   }
@@ -190,14 +186,24 @@ function OrganizerDashboardContent() {
               const isUpcoming = new Date(event.eventDate) > new Date();
               return (
                 <div key={event.id} className="group bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-all flex flex-col h-full">
-                  <div className="p-5 flex-1">
-                    <div className="flex justify-between items-start mb-3">
-                      <span className={`text-xs px-2.5 py-1 rounded-full font-bold tracking-wide ${isUpcoming ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                  {/* 画像表示エリアを追加 */}
+                  <div className="h-40 bg-slate-100 relative overflow-hidden">
+                    {event.imageUrl ? (
+                      <img src={event.imageUrl} alt={event.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-slate-300">
+                        <FiImage size={32} />
+                      </div>
+                    )}
+                    <div className="absolute top-3 left-3">
+                      <span className={`text-[10px] px-2 py-1 rounded-full font-bold tracking-wide shadow-sm ${isUpcoming ? 'bg-green-500 text-white' : 'bg-gray-500 text-white'}`}>
                         {isUpcoming ? '公開中' : '終了'}
                       </span>
                     </div>
-                    {/* title カラムを表示 */}
-                    <h3 className="text-lg font-bold text-gray-900 mb-3 line-clamp-2">{event.title}</h3>
+                  </div>
+
+                  <div className="p-5 flex-1">
+                    <h3 className="text-lg font-bold text-gray-900 mb-3 line-clamp-2 group-hover:text-indigo-600 transition-colors">{event.title}</h3>
                     <div className="space-y-2 text-sm text-gray-600">
                       <div className="flex items-start gap-2">
                         <FiCalendar className="mt-0.5 text-indigo-400 shrink-0" />

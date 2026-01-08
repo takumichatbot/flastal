@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 // アイコン
-import { FiCalendar, FiMapPin, FiInfo, FiAlertTriangle, FiPlus, FiExternalLink, FiCpu, FiUser, FiCheckCircle, FiX } from 'react-icons/fi';
+import { FiCalendar, FiMapPin, FiInfo, FiAlertTriangle, FiPlus, FiExternalLink, FiCpu, FiUser, FiCheckCircle, FiX, FiImage } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/app/contexts/AuthContext';
 
@@ -18,7 +18,6 @@ function ProjectCard({ project }) {
     <Link href={`/projects/${project.id}`} className="block bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-md hover:border-sky-300 transition-all overflow-hidden group">
       <div className="h-40 bg-gray-200 relative overflow-hidden">
         {project.imageUrl ? (
-          /* eslint-disable-next-line @next/next/no-img-element */
           <img src={project.imageUrl} alt={project.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-gray-400 bg-gray-100">No Image</div>
@@ -32,7 +31,6 @@ function ProjectCard({ project }) {
         <div className="flex items-center gap-2 text-xs text-gray-500 mb-3">
           <div className="flex items-center">
             {project.planner?.iconUrl ? (
-                /* eslint-disable-next-line @next/next/no-img-element */
                 <img src={project.planner.iconUrl} alt="planner" className="w-4 h-4 rounded-full mr-1 object-cover"/>
             ) : <span className="w-4 h-4 rounded-full bg-gray-300 mr-1 block"></span>}
             {project.planner?.handleName || '退会済みユーザー'}
@@ -125,9 +123,23 @@ export default function EventDetailPage() {
       {/* ヘッダーセクション */}
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
-          <div className="flex flex-col md:flex-row justify-between items-start gap-6">
+          <div className="flex flex-col md:flex-row gap-10">
+            {/* 左: 画像 (PCでは固定幅) */}
+            <div className="w-full md:w-80 shrink-0">
+               <div className="aspect-[3/4] rounded-2xl bg-slate-100 overflow-hidden shadow-xl border border-slate-200 relative">
+                  {event.imageUrl ? (
+                    <img src={event.imageUrl} alt={event.title} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex flex-col items-center justify-center text-slate-300">
+                        <FiImage size={64} className="mb-2" />
+                        <span className="text-xs font-bold uppercase tracking-widest">No Image</span>
+                    </div>
+                  )}
+               </div>
+            </div>
+
+            {/* 右: テキスト情報 */}
             <div className="flex-1">
-              {/* 情報ソースバッジ */}
               <div className="flex gap-2 mb-3">
                 {event.organizer ? (
                    <span className="inline-block px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-xs font-bold border border-indigo-200">
@@ -156,7 +168,6 @@ export default function EventDetailPage() {
                   <span className="font-medium">{event.venue ? event.venue.venueName : '会場未定'}</span>
                 </div>
                 
-                {/* 公式サイト or 情報元へのリンク */}
                 {(event.organizer?.website || event.sourceUrl) && (
                   <a 
                     href={event.organizer?.website || event.sourceUrl} 
@@ -175,35 +186,34 @@ export default function EventDetailPage() {
                 </div>
               )}
               
-              {/* 通報ボタン */}
-              <div className="mt-4">
+              <div className="mt-4 flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
                 <button 
                     onClick={() => isAuthenticated ? setShowReportModal(true) : toast.error('ログインが必要です')}
                     className="text-xs text-gray-400 hover:text-red-500 flex items-center transition-colors underline"
                 >
                     <FiAlertTriangle className="mr-1"/> この情報を通報する
                 </button>
-              </div>
-            </div>
 
-            {/* アクションボタン (PC用) */}
-            <div className="hidden md:block">
-               {event.isStandAllowed ? (
-                  <Link 
-                    href={`/projects/create?eventId=${event.id}`}
-                    className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-pink-500 to-rose-500 text-white font-bold rounded-xl shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all active:scale-95"
-                  >
-                    <FiPlus className="w-5 h-5 mr-2"/>
-                    このイベントで企画を立てる
-                  </Link>
-               ) : (
-                 <div className="px-6 py-3 bg-gray-100 text-gray-500 font-bold rounded-xl border border-gray-300 cursor-not-allowed text-center min-w-[200px]">
-                    <div className="flex flex-col items-center">
-                        <span className="text-xs text-gray-400 mb-1">フラスタ受付</span>
-                        <span className="flex items-center"><FiAlertTriangle className="mr-1"/> 不可 / 未確認</span>
+                {/* アクションボタン (PC用) */}
+                <div className="hidden md:block">
+                  {event.isStandAllowed ? (
+                      <Link 
+                        href={`/projects/create?eventId=${event.id}`}
+                        className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-pink-500 to-rose-500 text-white font-bold rounded-xl shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all active:scale-95"
+                      >
+                        <FiPlus className="w-5 h-5 mr-2"/>
+                        このイベントで企画を立てる
+                      </Link>
+                  ) : (
+                    <div className="px-6 py-3 bg-gray-100 text-gray-500 font-bold rounded-xl border border-gray-300 cursor-not-allowed text-center min-w-[200px]">
+                        <div className="flex flex-col items-center">
+                            <span className="text-xs text-gray-400 mb-1">フラスタ受付</span>
+                            <span className="flex items-center"><FiAlertTriangle className="mr-1"/> 不可 / 未確認</span>
+                        </div>
                     </div>
-                 </div>
-               )}
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -211,7 +221,6 @@ export default function EventDetailPage() {
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         
-        {/* レギュレーション情報 */}
         <div className="mb-10">
           <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
             <FiInfo className="mr-2 text-indigo-600"/> フラスタ・レギュレーション
@@ -246,7 +255,6 @@ export default function EventDetailPage() {
           </div>
         </div>
 
-        {/* 紐づく企画一覧 */}
         <div>
           <div className="flex justify-between items-end mb-6 border-b border-gray-200 pb-2">
             <h2 className="text-xl font-bold text-gray-800">
@@ -276,7 +284,6 @@ export default function EventDetailPage() {
         </div>
       </div>
 
-      {/* スマホ用追従ボタン */}
       <div className="md:hidden fixed bottom-6 right-6 z-30">
         {event.isStandAllowed && (
             <Link 
@@ -288,7 +295,6 @@ export default function EventDetailPage() {
         )}
       </div>
 
-      {/* モーダル表示 */}
       {showReportModal && <ReportModal eventId={event.id} onClose={() => setShowReportModal(false)} />}
     </div>
   );

@@ -2,17 +2,16 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { useAuth } from '@/app/contexts/AuthContext'; // パス調整
+import { useAuth } from '@/app/contexts/AuthContext'; 
 import { 
   FiSave, FiTrash2, FiArrowLeft, FiCalendar, FiMapPin, 
-  FiInfo, FiCheckCircle, FiUsers, FiExternalLink, FiAlertCircle 
+  FiInfo, FiCheckCircle, FiUsers, FiExternalLink, FiAlertCircle, FiImage
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
-// 企画ステータスバッジ
 const ProjectStatusBadge = ({ status }) => {
     const styles = {
         'PLANNING': { bg: 'bg-yellow-100', text: 'text-yellow-700', label: '企画中' },
@@ -38,17 +37,12 @@ export default function OrganizerEventDetailPage() {
   const [saving, setSaving] = useState(false);
   const [venues, setVenues] = useState([]);
 
-  // データ取得
   const fetchData = useCallback(async () => {
       try {
-        const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
-        
-        // 1. イベント詳細取得
         const eventRes = await fetch(`${API_URL}/api/events/${id}`);
         if (!eventRes.ok) throw new Error('イベントが見つかりません');
         const eventJson = await eventRes.json();
         
-        // 日付フォーマット変換 (YYYY-MM-DD)
         const dateObj = new Date(eventJson.eventDate);
         const formattedDate = !isNaN(dateObj) ? dateObj.toISOString().split('T')[0] : '';
 
@@ -57,7 +51,6 @@ export default function OrganizerEventDetailPage() {
             eventDate: formattedDate
         });
 
-        // 2. 会場リスト取得
         const venueRes = await fetch(`${API_URL}/api/venues`);
         if (venueRes.ok) setVenues(await venueRes.json());
 
@@ -74,7 +67,6 @@ export default function OrganizerEventDetailPage() {
     if (isAuthenticated) fetchData();
   }, [isAuthenticated, fetchData]);
 
-  // 更新処理
   const handleUpdate = async (e) => {
     e.preventDefault();
     setSaving(true);
@@ -107,7 +99,6 @@ export default function OrganizerEventDetailPage() {
     }
   };
 
-  // 削除処理
   const handleDelete = async () => {
     if(!window.confirm('本当に削除しますか？この操作は取り消せません。')) return;
 
@@ -140,7 +131,6 @@ export default function OrganizerEventDetailPage() {
     <div className="min-h-screen bg-slate-50 py-8 px-4 sm:px-6 lg:px-8 font-sans text-gray-800">
       <div className="max-w-6xl mx-auto">
         
-        {/* ヘッダーナビ */}
         <div className="flex justify-between items-center mb-6">
             <Link href="/organizers/dashboard" className="flex items-center text-sm font-bold text-gray-500 hover:text-indigo-600 transition-colors bg-white px-4 py-2 rounded-full shadow-sm border border-gray-200">
                 <FiArrowLeft className="mr-2"/> ダッシュボードへ戻る
@@ -156,7 +146,6 @@ export default function OrganizerEventDetailPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             
-            {/* 左カラム: 編集フォーム (2/3幅) */}
             <div className="lg:col-span-2 space-y-6">
                 <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                     <div className="bg-indigo-50 px-6 py-4 border-b border-indigo-100 flex justify-between items-center">
@@ -167,7 +156,23 @@ export default function OrganizerEventDetailPage() {
                     </div>
 
                     <form onSubmit={handleUpdate} className="p-6 md:p-8 space-y-6">
-                        {/* タイトル & 日付 */}
+                        {/* 画像プレビューセクションを追加 */}
+                        <div>
+                            <label className="block text-sm font-bold text-gray-700 mb-2 flex items-center gap-2">
+                                <FiImage className="text-indigo-500" /> 現在のメイン画像
+                            </label>
+                            <div className="aspect-video w-full max-w-md bg-slate-100 rounded-2xl overflow-hidden border border-slate-200 relative">
+                                {eventData.imageUrl ? (
+                                    <img src={eventData.imageUrl} alt="Main" className="w-full h-full object-cover" />
+                                ) : (
+                                    <div className="w-full h-full flex flex-col items-center justify-center text-slate-300">
+                                        <FiImage size={48} className="mb-2" />
+                                        <span className="text-xs font-bold uppercase tracking-widest">No Image Attached</span>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                             <div className="md:col-span-2">
                                 <label className="block text-sm font-bold text-gray-700 mb-2">イベント名 <span className="text-red-500">*</span></label>
@@ -194,7 +199,6 @@ export default function OrganizerEventDetailPage() {
                             </div>
                         </div>
 
-                        {/* 会場選択 */}
                         <div>
                             <label className="block text-sm font-bold text-gray-700 mb-2">開催会場</label>
                             <div className="relative">
@@ -220,7 +224,6 @@ export default function OrganizerEventDetailPage() {
                             )}
                         </div>
 
-                        {/* 概要 */}
                         <div>
                             <label className="block text-sm font-bold text-gray-700 mb-2">イベント概要</label>
                             <textarea 
@@ -231,10 +234,9 @@ export default function OrganizerEventDetailPage() {
                             />
                         </div>
 
-                        {/* フラスタ設定エリア */}
                         <div className="bg-yellow-50 rounded-xl border border-yellow-200 p-5">
                             <h3 className="font-bold text-yellow-800 mb-3 flex items-center">
-                                <FiAlertCircle className="mr-2"/> フラワースタンド受付設定
+                                <FiAlertCircle className="mr-2"/> フラスタ受付設定
                             </h3>
                             
                             <label className="flex items-center p-3 bg-white rounded-lg border border-yellow-100 cursor-pointer hover:border-yellow-300 transition-colors mb-4 shadow-sm">
@@ -273,7 +275,6 @@ export default function OrganizerEventDetailPage() {
                 </div>
             </div>
 
-            {/* 右カラム: 紐づいている企画リスト (1/3幅) */}
             <div className="lg:col-span-1">
                 <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden sticky top-6">
                     <div className="bg-green-50 px-5 py-4 border-b border-green-100">
@@ -304,7 +305,6 @@ export default function OrganizerEventDetailPage() {
                                             
                                             <div className="flex items-center gap-2 pt-2 border-t border-gray-100 mt-2">
                                                 {project.planner?.iconUrl ? (
-                                                    /* eslint-disable-next-line @next/next/no-img-element */
                                                     <img src={project.planner.iconUrl} alt="" className="w-6 h-6 rounded-full object-cover border border-gray-100"/>
                                                 ) : (
                                                     <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-gray-400 text-[10px]"><FiUsers/></div>
