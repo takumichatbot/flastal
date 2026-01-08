@@ -91,37 +91,44 @@ function CreateEventContent() {
     }
   };
 
-  // AWS S3へのアップロード関数 (署名不一致・Load failed 対策版)
-  const uploadToS3 = async (file) => {
-    // 1. バックエンドから署名付きURLを取得
-    // tools.js で fileType を ContentType として署名に使っているため、正確に送る必要があります
-    const res = await authenticatedFetch('/api/tools/s3-upload-url', {
-      method: 'POST',
-      body: JSON.stringify({ fileName: file.name, fileType: file.type })
-    });
-    
-    if (!res.ok) throw new Error('アップロード許可の取得に失敗しました');
-    const { uploadUrl, fileUrl } = await res.json();
+  // AWS S3へのアップロード関数 (XMLHttpRequest版 - 最も確実にLoad failedを回避)
+  const uploadToS3 = (file) => {
+    return new Promise(async (resolve, reject) => {
+      try {
+        // 1. バックエンドから署名付きURLを取得
+        const res = await authenticatedFetch('/api/tools/s3-upload-url', {
+          method: 'POST',
+          body: JSON.stringify({ fileName: file.name, fileType: file.type })
+        });
+        
+        if (!res.ok) throw new Error('アップロード許可の取得に失敗しました');
+        const { uploadUrl, fileUrl } = await res.json();
 
-    // 2. S3へ直接PUTリクエストで送信
-    // 重要：署名付きURLを使用する場合、署名に含まれていないヘッダー（Authorization等）があるとエラーになります。
-    // そのため、ここでは authenticatedFetch ではなく、標準の window.fetch を使用し、
-    // かつヘッダーをバックエンドの署名と完全に一致させます。
-    const uploadRes = await window.fetch(uploadUrl, {
-      method: 'PUT',
-      body: file,
-      headers: {
-        'Content-Type': file.type // バックエンドの PutObjectCommand の ContentType と一致させる
+        // 2. XMLHttpRequestを使用してS3へPUTリクエスト
+        // fetchで発生しがちな「勝手なヘッダー付与」を防ぐためXHRを使用します
+        const xhr = new XMLHttpRequest();
+        xhr.open('PUT', uploadUrl);
+        xhr.setRequestHeader('Content-Type', file.type);
+        
+        xhr.onload = () => {
+          if (xhr.status === 200) {
+            resolve(fileUrl);
+          } else {
+            console.error('S3 Response Status:', xhr.status);
+            console.error('S3 Response Body:', xhr.responseText);
+            reject(new Error(`S3アップロードに失敗しました (${xhr.status})`));
+          }
+        };
+
+        xhr.onerror = () => {
+          reject(new Error('ネットワークエラーによりS3へアップロードできませんでした'));
+        };
+
+        xhr.send(file);
+      } catch (error) {
+        reject(error);
       }
     });
-
-    if (!uploadRes.ok) {
-        const errorText = await uploadRes.text();
-        console.error('S3 Error Body:', errorText);
-        throw new Error('S3アップロードに失敗しました。ファイル形式を確認してください。');
-    }
-    
-    return fileUrl;
   };
 
   const onSubmit = async (data) => {
@@ -162,7 +169,7 @@ function CreateEventContent() {
       router.push('/organizers/dashboard');
     } catch (error) {
       console.error('Submit Error:', error);
-      toast.error(error.message || '通信エラーが発生しました', { id: toastId });
+      toast.error(error.message || '予期せぬエラーが発生しました', { id: toastId });
     } finally {
       setIsUploading(false);
     }
