@@ -13,7 +13,7 @@ import toast from 'react-hot-toast';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
-// ジャンル定義 (デザイン統一のためのカラー設定)
+// ジャンル定義
 const GENRES = [
   { id: 'ALL', label: 'すべて', color: 'from-gray-500 to-slate-500' },
   { id: 'IDOL', label: 'アイドル', color: 'from-pink-400 to-rose-500' },
@@ -40,7 +40,7 @@ function EventListContent() {
   const [editTargetEvent, setEditTargetEvent] = useState(null); 
   const [reportTargetId, setReportTargetId] = useState(null);
 
-  // データ取得関数
+  // データ取得関数 (バックエンドからのレスポンスを厳密に処理)
   const fetchEvents = useCallback(async () => {
     setLoading(true);
     try {
@@ -56,12 +56,12 @@ function EventListContent() {
 
       if (res.ok) {
         const data = await res.json();
-        // 配列であることを保証し、createdAtで降順に並べ替え
+        // 配列であることを保証
         const eventData = Array.isArray(data) ? data : [];
         setEvents(eventData);
-        console.log(`[EventList] Loaded ${eventData.length} events`);
+        console.log(`[EventList] Received ${eventData.length} events`);
       } else {
-        throw new Error('Server responded with error');
+        throw new Error('API Response Error');
       }
     } catch (e) {
       console.error('[EventList] Fetch error:', e);
@@ -105,7 +105,7 @@ function EventListContent() {
     }
   };
 
-  // 興味ありボタン (ロジック完全維持)
+  // 興味ありボタン (提示ロジックを完全維持)
   const handleInterest = async (e, eventId) => {
     e.preventDefault(); 
     e.stopPropagation(); 
@@ -130,9 +130,8 @@ function EventListContent() {
 
     try {
       const res = await authenticatedFetch(`/api/events/${eventId}/interest`, { method: 'POST' });
-      if (!res.ok) throw new Error('通信エラー');
+      if (!res.ok) throw new Error();
     } catch (error) {
-      console.error(error);
       toast.error('操作に失敗しました');
       fetchEvents(); 
     }
@@ -142,7 +141,7 @@ function EventListContent() {
     <div className="bg-slate-50 min-h-screen py-10 font-sans text-gray-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
-        {/* ヘッダーエリア */}
+        {/* ヘッダーセクション */}
         <div className="flex flex-col md:flex-row justify-between items-center mb-10 gap-6">
           <div className="flex items-center gap-4">
               <div className="bg-indigo-600 p-3 rounded-2xl text-white shadow-lg shadow-indigo-100">
@@ -170,7 +169,7 @@ function EventListContent() {
           </div>
         </div>
 
-        {/* 検索・フィルターエリア (企画一覧のデザインを完全継承) */}
+        {/* 検索・フィルターエリア */}
         <div className="bg-white rounded-[2rem] shadow-sm border border-gray-100 p-6 mb-10">
           <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
             <div className="md:col-span-6">
@@ -219,13 +218,7 @@ function EventListContent() {
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
              {[...Array(6)].map((_, i) => (
-                 <div key={i} className="bg-white rounded-[2rem] h-80 shadow-sm border border-gray-100 animate-pulse flex flex-col">
-                    <div className="h-44 bg-slate-100 rounded-t-[2rem]" />
-                    <div className="p-6 space-y-3">
-                        <div className="h-4 bg-slate-100 rounded w-1/4" />
-                        <div className="h-6 bg-slate-100 rounded w-3/4" />
-                    </div>
-                 </div>
+                 <div key={i} className="bg-white rounded-[2rem] h-80 shadow-sm border border-gray-100 animate-pulse" />
              ))}
           </div>
         ) : events.length === 0 ? (
@@ -245,23 +238,17 @@ function EventListContent() {
                 return (
                   <div key={event.id} className="group bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden hover:shadow-xl transition-all duration-300 hover:-translate-y-1.5 flex flex-col h-full relative">
                     
-                    {/* アイコンオーバーレイ (承認欲求セクション) */}
+                    {/* アイコンオーバーレイ (投稿者情報) */}
                     <div className="absolute top-3 right-3 z-20 flex -space-x-2">
                          {event.creator && (
                             <div className="w-9 h-9 rounded-full border-2 border-white bg-white shadow-md overflow-hidden" title={`投稿: ${event.creator.handleName}`}>
                                {event.creator.iconUrl ? <img src={event.creator.iconUrl} className="w-full h-full object-cover" alt="" /> : <div className="w-full h-full flex items-center justify-center bg-indigo-50 text-indigo-400"><FiUser size={14}/></div>}
                             </div>
                          )}
-                         {event.lastEditor && event.lastEditorId !== event.creatorId && (
-                           <div className="w-9 h-9 rounded-full border-2 border-white bg-white shadow-md overflow-hidden" title={`更新: ${event.lastEditor.handleName}`}>
-                              {event.lastEditor.iconUrl ? <img src={event.lastEditor.iconUrl} className="w-full h-full object-cover" alt="" /> : <div className="w-full h-full flex items-center justify-center bg-emerald-50 text-emerald-500"><FiEdit3 size={14}/></div>}
-                           </div>
-                         )}
                     </div>
 
                     <Link href={`/events/${event.id}`} className="flex-grow flex flex-col">
-                        {/* ビジュアルエリア (ジャンル別カラー) */}
-                        <div className={`h-44 flex items-center justify-center relative bg-gradient-to-br ${genreData.color} transition-all duration-500`}>
+                        <div className={`h-44 flex items-center justify-center relative bg-gradient-to-br ${genreData.color}`}>
                             <div className="absolute top-3 left-3 bg-black/20 backdrop-blur-md text-white text-[10px] font-black px-3 py-1 rounded-full border border-white/20 uppercase tracking-tighter">
                                 {genreData.label}
                             </div>
@@ -275,7 +262,7 @@ function EventListContent() {
                                 {event.sourceType === 'OFFICIAL' ? (
                                   <span className="text-[10px] font-black bg-indigo-50 text-indigo-600 px-2.5 py-1 rounded-lg border border-indigo-100 uppercase tracking-tighter">Official Post</span>
                                 ) : (
-                                  <span className="text-[10px] font-black bg-gray-50 text-gray-500 px-2.5 py-1 rounded-lg border border-gray-100 uppercase tracking-tighter">Community Contribution</span>
+                                  <span className="text-[10px] font-black bg-gray-50 text-gray-500 px-2.5 py-1 rounded-lg border border-gray-100 uppercase tracking-tighter">Community</span>
                                 )}
                             </div>
 
@@ -283,12 +270,12 @@ function EventListContent() {
                                 {event.title}
                             </h3>
                             
-                            <div className="mt-auto pt-5 border-t border-gray-50 space-y-2.5">
-                                <div className="flex items-center text-sm text-gray-600 font-bold">
+                            <div className="mt-auto pt-5 border-t border-gray-50 space-y-2.5 text-sm text-gray-600">
+                                <div className="flex items-center font-bold">
                                     <FiCalendar className="mr-2 text-indigo-400 shrink-0" size={16}/>
-                                    {new Date(event.eventDate).toLocaleString('ja-JP', { month: 'long', day: 'numeric', weekday: 'short', hour: '2-digit', minute: '2-digit' })}
+                                    {new Date(event.eventDate).toLocaleDateString('ja-JP', { month: 'long', day: 'numeric', weekday: 'short', hour: '2-digit', minute: '2-digit' })}
                                 </div>
-                                <div className="flex items-center text-sm text-gray-500 font-medium">
+                                <div className="flex items-center font-medium">
                                     <FiMapPin className="mr-2 text-indigo-400 shrink-0" size={16}/>
                                     <span className="truncate">{event.venue?.venueName || '会場未定'}</span>
                                 </div>
@@ -296,7 +283,6 @@ function EventListContent() {
                         </div>
                     </Link>
 
-                    {/* アクションバー */}
                     <div className="px-6 pb-6 pt-0 flex justify-between items-center">
                         <button 
                             onClick={(e) => handleInterest(e, event.id)} 
@@ -331,51 +317,17 @@ function EventListContent() {
         )}
       </div>
 
-      {/* --- モーダルコンポーネント (ロジック完全維持) --- */}
-      
-      {/* AI解析モーダル */}
-      {showAiModal && (
-        <AiAddModal 
-          onClose={() => setShowAiModal(false)} 
-          onAdded={handleEventAdded} 
-          API_URL={API_URL}
-        />
-      )}
-      
-      {/* 手動追加・編集モーダル */}
-      {showManualModal && (
-        <ManualAddModal 
-          onClose={() => setShowManualModal(false)} 
-          onAdded={handleEventAdded} 
-          API_URL={API_URL}
-        />
-      )}
-      
-      {editTargetEvent && (
-        <ManualAddModal 
-          editData={editTargetEvent} 
-          onClose={() => setEditTargetEvent(null)} 
-          onAdded={handleEventAdded} 
-          API_URL={API_URL}
-        />
-      )}
-      
-      {/* 通報モーダル */}
-      {reportTargetId && (
-        <ReportModal 
-          eventId={reportTargetId} 
-          onClose={() => setReportTargetId(null)} 
-          API_URL={API_URL}
-        />
-      )}
+      {/* モーダル類 (全ロジック完全維持) */}
+      {showAiModal && <AiAddModal onClose={() => setShowAiModal(false)} onAdded={handleEventAdded} />}
+      {showManualModal && <ManualAddModal onClose={() => setShowManualModal(false)} onAdded={handleEventAdded} />}
+      {editTargetEvent && <ManualAddModal editData={editTargetEvent} onClose={() => setEditTargetEvent(null)} onAdded={handleEventAdded} />}
+      {reportTargetId && <ReportModal eventId={reportTargetId} onClose={() => setReportTargetId(null)} />}
     </div>
   );
 }
 
-// ----------------------------------------------
-// サブコンポーネント: AI解析モーダル (ロジック維持)
-// ----------------------------------------------
-function AiAddModal({ onClose, onAdded, API_URL }) {
+// サブコンポーネント (AI解析モーダル)
+function AiAddModal({ onClose, onAdded }) {
   const [text, setText] = useState('');
   const [url, setUrl] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -391,7 +343,6 @@ function AiAddModal({ onClose, onAdded, API_URL }) {
         body: JSON.stringify({ text, sourceUrl: url })
       });
       if (!res.ok) throw new Error('解析失敗');
-      const data = await res.json();
       toast.success(`追加しました！`, { id: toastId });
       onAdded(); onClose();
     } catch (e) {
@@ -437,27 +388,22 @@ function AiAddModal({ onClose, onAdded, API_URL }) {
   );
 }
 
-// ----------------------------------------------
-// サブコンポーネント: 手動登録・編集モーダル (ロジック維持)
-// ----------------------------------------------
-function ManualAddModal({ onClose, onAdded, API_URL, editData = null }) {
-  const [formData, setFormData] = useState({ title: '', eventDate: '', description: '', sourceUrl: '', genre: 'OTHER' });
+// サブコンポーネント (手動登録モーダル)
+function ManualAddModal({ onClose, onAdded, editData = null }) {
+  const [formData, setFormData] = useState({ title: '', eventDate: '', description: '', genre: 'OTHER' });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { authenticatedFetch } = useAuth();
 
   useEffect(() => {
     if (editData) {
       const d = new Date(editData.eventDate);
-      // ローカル時間に調整したdatetime-local形式
       const offset = d.getTimezoneOffset() * 60000;
-      const localDate = new Date(d.getTime() - offset).toISOString().slice(0, 16);
-      
+      const localISOTime = (new Date(d.getTime() - offset)).toISOString().slice(0, 16);
       setFormData({
         title: editData.title || '',
-        eventDate: localDate,
+        eventDate: localISOTime,
         description: editData.description || '',
-        sourceUrl: editData.sourceUrl || '',
-        genre: eventData.genre || 'OTHER'
+        genre: editData.genre || 'OTHER'
       });
     }
   }, [editData]);
@@ -473,7 +419,7 @@ function ManualAddModal({ onClose, onAdded, API_URL, editData = null }) {
         body: JSON.stringify(formData)
       });
       if (res.ok) { 
-        toast.success('保存完了しました！', { id: toastId }); 
+        toast.success('保存しました！', { id: toastId }); 
         onAdded(); onClose(); 
       } else {
         throw new Error();
@@ -511,10 +457,8 @@ function ManualAddModal({ onClose, onAdded, API_URL, editData = null }) {
   );
 }
 
-// ----------------------------------------------
-// サブコンポーネント: 通報モーダル (ロジック維持)
-// ----------------------------------------------
-function ReportModal({ eventId, onClose, API_URL }) {
+// サブコンポーネント (通報モーダル)
+function ReportModal({ eventId, onClose }) {
   const [reason, setReason] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { authenticatedFetch } = useAuth();
@@ -550,9 +494,7 @@ function ReportModal({ eventId, onClose, API_URL }) {
   );
 }
 
-// ----------------------------------------------
 // 最終エクスポート
-// ----------------------------------------------
 export default function EventsPage() {
   return (
     <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50"><FiLoader className="animate-spin text-indigo-500 w-10 h-10" /></div>}>
