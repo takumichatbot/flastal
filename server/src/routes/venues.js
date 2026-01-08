@@ -4,40 +4,23 @@ import { authenticateToken } from '../middleware/auth.js';
 
 const router = express.Router();
 
-// --- 1. 静的ルート (特定のキーワードを最優先) ---
-
-// 管理者用：全会場取得 (フロントエンドの呼び出しに合わせ /admin に修正)
+// --- 1. 会場関連ルート ---
 router.get('/admin', authenticateToken, venueController.getVenues);
-router.get('/admin/all', authenticateToken, venueController.getVenues);
-
-// 一般：会場一覧取得
 router.get('/', venueController.getVenues);
-
-// イベント関連
-router.get('/events/list', venueController.getEvents);
-router.get('/events/public', venueController.getEvents);
-router.post('/events', authenticateToken, venueController.createEvent);
-
-// --- 2. 動的ルート (イベント) ---
-router.get('/events/:id', venueController.getEventById);
-router.patch('/events/:id', authenticateToken, venueController.updateEvent);
-router.delete('/events/:id', authenticateToken, venueController.deleteEvent);
-
-// --- 3. 動的ルート (会場) ---
-// 詳細取得 (これが上にあると admin などのパスを ID と誤認するため最後に配置)
 router.get('/:id', venueController.getVenueById);
-
-// 登録
 router.post('/', authenticateToken, venueController.addVenueByUser);
-
-// 更新
 router.patch('/:id', authenticateToken, venueController.updateVenueProfile);
-
-// 削除
 router.delete('/:id', authenticateToken, venueController.deleteVenue);
-
-// 物流情報
 router.get('/:venueId/logistics', venueController.getLogisticsInfo);
 router.post('/:venueId/logistics', authenticateToken, venueController.postLogisticsInfo);
+
+// --- 2. イベント関連ルート (フロントエンドの期待に合わせる) ---
+router.get('/public', venueController.getEvents); // /api/events/public
+router.get('/list', venueController.getEvents);   // /api/events/list
+router.post('/user-submit', authenticateToken, venueController.createEvent); // /api/events/user-submit ★追加
+router.post('/', authenticateToken, venueController.createEvent); // /api/events/
+router.get('/:id', venueController.getEventById);
+router.patch('/:id', authenticateToken, venueController.updateEvent);
+router.delete('/:id', authenticateToken, venueController.deleteEvent);
 
 export default router;
