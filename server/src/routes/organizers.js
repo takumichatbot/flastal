@@ -6,14 +6,13 @@ import { authenticateToken } from '../middleware/auth.js';
 const router = express.Router();
 
 // --- 主催者専用イベント管理 ---
-// イベント一覧取得
-router.get('/events', authenticateToken, venueController.getEvents); 
+// イベント一覧取得: eventControllerから取得するように修正
+router.get('/events', authenticateToken, eventController.getEvents); 
 
-// ★ ここが重要：新規登録
-// デザインや機能を変えず、共通の eventController.createEvent を使うようにマッピングします
+// 新規登録: eventControllerの関数を使用
 router.post('/events', authenticateToken, eventController.createEvent);
 
-// その他 (ログイン等、既存のルートがあればここに続く)
-// router.post('/login', ...); 
+// --- 会場情報の参照用 ---
+router.get('/venues', venueController.getVenues);
 
 export default router;
