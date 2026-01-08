@@ -2,12 +2,11 @@
 
 import { useState, useEffect, useCallback, Suspense } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { useAuth } from '@/app/contexts/AuthContext';
 import { 
   FiCalendar, FiMapPin, FiSearch, FiAlertTriangle, FiCheckCircle, 
-  FiPlus, FiCpu, FiLink, FiX, FiInfo, FiFilter, FiHeart, FiLoader,
-  FiEdit3, FiTrash2, FiUser
+  FiPlus, FiCpu, FiLink, FiX, FiFilter, FiHeart, FiLoader,
+  FiEdit3, FiTrash2, FiUser, FiInfo
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
@@ -52,11 +51,12 @@ function EventListContent() {
         const data = await res.json();
         setEvents(Array.isArray(data) ? data : []);
       } else {
-        throw new Error('Server responded with error');
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Server error');
       }
     } catch (e) {
       console.error('[EventList] Fetch error:', e);
-      toast.error('イベント情報の取得に失敗しました');
+      toast.error(e.message || 'イベント情報の取得に失敗しました');
     } finally {
       setLoading(false);
     }
@@ -130,6 +130,7 @@ function EventListContent() {
     <div className="bg-slate-50 min-h-screen py-10 font-sans text-gray-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
+        {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-center mb-10 gap-6">
           <div className="flex items-center gap-4">
               <div className="bg-indigo-600 p-3 rounded-2xl text-white shadow-lg shadow-indigo-100">
@@ -157,6 +158,7 @@ function EventListContent() {
           </div>
         </div>
 
+        {/* Filters */}
         <div className="bg-white rounded-[2rem] shadow-sm border border-gray-100 p-6 mb-10">
           <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
             <div className="md:col-span-6">
@@ -201,6 +203,7 @@ function EventListContent() {
           </div>
         </div>
 
+        {/* List */}
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
              {[...Array(6)].map((_, i) => (
@@ -226,10 +229,15 @@ function EventListContent() {
                 const isInterested = user && event.interests?.some(i => i.userId === user.id);
                 const isOwner = user && (event.creatorId === user.id || user.role === 'ADMIN');
                 const genreData = GENRES.find(g => g.id === event.genre) || GENRES[GENRES.length - 1];
+                
+                // 公式判定: creatorのroleがADMIN/VENUE、またはsourceTypeがOFFICIALの場合
+                const isOfficial = event.sourceType === 'OFFICIAL' || 
+                                 (event.creator && (event.creator.role === 'ADMIN' || event.creator.role === 'VENUE'));
 
                 return (
                   <div key={event.id} className="group bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden hover:shadow-xl transition-all duration-300 hover:-translate-y-1.5 flex flex-col h-full relative">
                     
+                    {/* アイコンオーバーレイ (投稿者・更新者) */}
                     <div className="absolute top-3 right-3 z-20 flex -space-x-2">
                          {event.creator && (
                             <div className="w-9 h-9 rounded-full border-2 border-white bg-white shadow-md overflow-hidden" title={`投稿: ${event.creator.handleName}`}>
@@ -249,16 +257,21 @@ function EventListContent() {
                                 {genreData.label}
                             </div>
                             <span className="text-7xl filter drop-shadow-xl opacity-90 transform group-hover:scale-110 transition-transform duration-700">
-                                {event.sourceType === 'AI' ? '🤖' : event.sourceType === 'OFFICIAL' ? '🎤' : '👤'}
+                                {event.sourceType === 'AI' ? '🤖' : isOfficial ? '🎤' : '👤'}
                             </span>
                         </div>
                         
                         <div className="p-6 flex flex-col flex-grow relative">
-                            <div className="mb-2">
-                                {event.sourceType === 'OFFICIAL' ? (
-                                  <span className="text-[10px] font-black bg-indigo-50 text-indigo-600 px-2.5 py-1 rounded-lg border border-indigo-100 uppercase tracking-tighter">Official Post</span>
+                            {/* バッジ表示の進化 */}
+                            <div className="mb-3">
+                                {isOfficial ? (
+                                  <span className="text-[10px] font-black bg-indigo-50 text-indigo-600 px-2.5 py-1 rounded-lg border border-indigo-100 uppercase tracking-tighter flex items-center w-fit">
+                                    <FiCheckCircle className="mr-1"/> Official Post
+                                  </span>
                                 ) : (
-                                  <span className="text-[10px] font-black bg-gray-50 text-gray-500 px-2.5 py-1 rounded-lg border border-gray-100 uppercase tracking-tighter">Community Contribution</span>
+                                  <span className="text-[10px] font-black bg-gray-50 text-gray-500 px-2.5 py-1 rounded-lg border border-gray-100 uppercase tracking-tighter flex items-center w-fit">
+                                    <FiUser className="mr-1"/> Community Contribution
+                                  </span>
                                 )}
                             </div>
 
@@ -269,7 +282,13 @@ function EventListContent() {
                             <div className="mt-auto pt-5 border-t border-gray-50 space-y-2.5">
                                 <div className="flex items-center text-sm text-gray-600 font-bold">
                                     <FiCalendar className="mr-2 text-indigo-400 shrink-0" size={16}/>
-                                    {new Date(event.eventDate).toLocaleString('ja-JP', { month: 'long', day: 'numeric', weekday: 'short', hour: '2-digit', minute: '2-digit' })}
+                                    {new Date(event.eventDate).toLocaleString('ja-JP', { 
+                                      month: 'long', 
+                                      day: 'numeric', 
+                                      weekday: 'short',
+                                      hour: '2-digit',
+                                      minute: '2-digit'
+                                    })}
                                 </div>
                                 <div className="flex items-center text-sm text-gray-500 font-medium">
                                     <FiMapPin className="mr-2 text-indigo-400 shrink-0" size={16}/>
@@ -293,17 +312,17 @@ function EventListContent() {
 
                         <div className="flex gap-1.5">
                             {event.sourceUrl && (
-                                <a href={event.sourceUrl} target="_blank" rel="noopener noreferrer" className="p-2.5 text-gray-300 hover:text-indigo-500 transition-colors bg-slate-50 rounded-xl" title="Source">
+                                <a href={event.sourceUrl} target="_blank" rel="noopener noreferrer" className="p-2.5 text-gray-300 hover:text-indigo-500 transition-colors bg-slate-50 rounded-xl" title="Source URL">
                                     <FiLink size={18}/>
                                 </a>
                             )}
                             {isOwner && (
                                 <>
-                                    <button onClick={(e) => { e.preventDefault(); setEditTargetEvent(event); }} className="p-2.5 text-gray-300 hover:text-emerald-500 bg-slate-50 rounded-xl" title="Edit"><FiEdit3 size={18}/></button>
-                                    <button onClick={(e) => handleDeleteEvent(e, event.id)} className="p-2.5 text-gray-300 hover:text-red-500 bg-slate-50 rounded-xl" title="Delete"><FiTrash2 size={18}/></button>
+                                    <button onClick={(e) => { e.preventDefault(); setEditTargetEvent(event); }} className="p-2.5 text-gray-300 hover:text-emerald-500 bg-slate-50 rounded-xl" title="編集"><FiEdit3 size={18}/></button>
+                                    <button onClick={(e) => handleDeleteEvent(e, event.id)} className="p-2.5 text-gray-300 hover:text-red-500 bg-slate-50 rounded-xl" title="削除"><FiTrash2 size={18}/></button>
                                 </>
                             )}
-                            <button onClick={() => setReportTargetId(event.id)} className="p-2.5 text-gray-300 hover:text-red-500 bg-slate-50 rounded-xl" title="Report"><FiAlertTriangle size={18}/></button>
+                            <button onClick={() => setReportTargetId(event.id)} className="p-2.5 text-gray-300 hover:text-orange-500 bg-slate-50 rounded-xl" title="報告"><FiAlertTriangle size={18}/></button>
                         </div>
                     </div>
                   </div>
@@ -317,7 +336,6 @@ function EventListContent() {
         <AiAddModal 
           onClose={() => setShowAiModal(false)} 
           onAdded={handleEventAdded} 
-          API_URL={API_URL}
         />
       )}
       
@@ -325,7 +343,6 @@ function EventListContent() {
         <ManualAddModal 
           onClose={() => setShowManualModal(false)} 
           onAdded={handleEventAdded} 
-          API_URL={API_URL}
         />
       )}
       
@@ -334,22 +351,13 @@ function EventListContent() {
           editData={editTargetEvent} 
           onClose={() => setEditTargetEvent(null)} 
           onAdded={handleEventAdded} 
-          API_URL={API_URL}
-        />
-      )}
-      
-      {reportTargetId && (
-        <ReportModal 
-          eventId={reportTargetId} 
-          onClose={() => setReportTargetId(null)} 
-          API_URL={API_URL}
         />
       )}
     </div>
   );
 }
 
-function AiAddModal({ onClose, onAdded, API_URL }) {
+function AiAddModal({ onClose, onAdded }) {
   const [text, setText] = useState('');
   const [url, setUrl] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -368,7 +376,7 @@ function AiAddModal({ onClose, onAdded, API_URL }) {
       toast.success(`追加しました！`, { id: toastId });
       onAdded(); onClose();
     } catch (e) {
-      toast.error('解析エラーが発生しました。', { id: toastId });
+      toast.error('エラーが発生しました', { id: toastId });
     } finally { setIsSubmitting(false); }
   };
 
@@ -410,23 +418,23 @@ function AiAddModal({ onClose, onAdded, API_URL }) {
   );
 }
 
-function ManualAddModal({ onClose, onAdded, API_URL, editData = null }) {
-  const [formData, setFormData] = useState({ title: '', eventDate: '', description: '', sourceUrl: '', genre: 'OTHER' });
+function ManualAddModal({ onClose, onAdded, editData = null }) {
+  const [formData, setFormData] = useState({ title: '', eventDate: '', description: '', genre: 'OTHER', sourceUrl: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { authenticatedFetch } = useAuth();
 
   useEffect(() => {
     if (editData) {
-      const d = new Date(editData.eventDate);
-      const offset = d.getTimezoneOffset() * 60000;
-      const localDate = new Date(d.getTime() - offset).toISOString().slice(0, 16);
+      // 日時をdatetime-local形式 (YYYY-MM-DDTHH:mm) に変換
+      const date = new Date(editData.eventDate);
+      const localISO = new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
       
       setFormData({
         title: editData.title || '',
-        eventDate: localDate,
+        eventDate: localISO,
         description: editData.description || '',
-        sourceUrl: editData.sourceUrl || '',
-        genre: editData.genre || 'OTHER'
+        genre: editData.genre || 'OTHER',
+        sourceUrl: editData.sourceUrl || ''
       });
     }
   }, [editData]);
@@ -434,7 +442,6 @@ function ManualAddModal({ onClose, onAdded, API_URL, editData = null }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
-    const toastId = toast.loading('保存中...');
     try {
       const url = editData ? `/api/events/${editData.id}` : `/api/events/user-submit`;
       const res = await authenticatedFetch(url, {
@@ -442,77 +449,50 @@ function ManualAddModal({ onClose, onAdded, API_URL, editData = null }) {
         body: JSON.stringify(formData)
       });
       if (res.ok) { 
-        toast.success('保存完了しました！', { id: toastId }); 
+        toast.success('保存しました'); 
         onAdded(); onClose(); 
       } else {
         throw new Error();
       }
     } catch (e) { 
-      toast.error('エラーが発生しました', { id: toastId }); 
-    } finally { 
-      setIsSubmitting(false); 
-    }
+      toast.error('エラーが発生しました'); 
+    } finally { setIsSubmitting(false); }
   };
 
   return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[100] p-4 backdrop-blur-md animate-fadeIn">
-      <form onSubmit={handleSubmit} className="bg-white rounded-[2.5rem] p-10 w-full max-w-lg shadow-2xl relative space-y-5">
-        <button type="button" onClick={onClose} className="absolute top-6 right-6 text-gray-400 hover:text-gray-600 transition-colors"><FiX size={28}/></button>
-        <h3 className="text-2xl font-black text-gray-900 mb-6">{editData ? 'イベント情報を編集' : 'イベントを手動登録'}</h3>
-        
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[100] p-4 backdrop-blur-md">
+      <form onSubmit={handleSubmit} className="bg-white rounded-[2.5rem] p-10 w-full max-w-lg shadow-2xl relative">
+        <button type="button" onClick={onClose} className="absolute top-6 right-6 text-gray-400"><FiX size={28}/></button>
+        <h3 className="text-2xl font-black mb-6 text-gray-900">{editData ? 'イベント編集' : 'イベント手動登録'}</h3>
         <div className="space-y-4">
-            <input required className="w-full p-4 border border-slate-100 bg-slate-50 rounded-xl outline-none font-bold focus:bg-white focus:ring-2 focus:ring-indigo-500 transition-all shadow-inner" placeholder="イベント名" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} />
-            <input required type="datetime-local" className="w-full p-4 border border-slate-100 bg-slate-50 rounded-xl outline-none text-sm focus:bg-white shadow-inner" value={formData.eventDate} onChange={e => setFormData({...formData, eventDate: e.target.value})} />
-            <select className="w-full p-4 border border-slate-100 bg-slate-50 rounded-xl outline-none text-sm font-bold shadow-inner" value={formData.genre} onChange={e => setFormData({...formData, genre: e.target.value})}>
-               {GENRES.filter(g => g.id !== 'ALL').map(g => <option key={g.id} value={g.id}>{g.label}</option>)}
+          <div>
+            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">Event Title</label>
+            <input required className="w-full p-4 border border-slate-100 bg-slate-50 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500 transition-all" placeholder="イベント名" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} />
+          </div>
+          <div>
+            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">Date & Time</label>
+            <input required type="datetime-local" className="w-full p-4 border border-slate-100 bg-slate-50 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500 transition-all" value={formData.eventDate} onChange={e => setFormData({...formData, eventDate: e.target.value})} />
+          </div>
+          <div>
+            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">Category</label>
+            <select className="w-full p-4 border border-slate-100 bg-slate-50 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500 transition-all" value={formData.genre} onChange={e => setFormData({...formData, genre: e.target.value})}>
+              {GENRES.filter(g => g.id !== 'ALL').map(g => <option key={g.id} value={g.id}>{g.label}</option>)}
             </select>
-            <input className="w-full p-4 border border-slate-100 bg-slate-50 rounded-xl outline-none text-sm focus:bg-white shadow-inner" placeholder="参考URL" value={formData.sourceUrl} onChange={e => setFormData({...formData, sourceUrl: e.target.value})} />
-            <textarea className="w-full p-4 border border-slate-100 bg-slate-50 rounded-xl outline-none h-28 text-sm focus:bg-white shadow-inner resize-none" placeholder="イベントの詳細や備考..." value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} />
+          </div>
+          <div>
+            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">Source URL (Optional)</label>
+            <input className="w-full p-4 border border-slate-100 bg-slate-50 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500 transition-all" placeholder="https://..." value={formData.sourceUrl} onChange={e => setFormData({...formData, sourceUrl: e.target.value})} />
+          </div>
+          <div>
+            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">Description</label>
+            <textarea className="w-full p-4 border border-slate-100 bg-slate-50 rounded-xl outline-none h-28 resize-none focus:bg-white focus:ring-2 focus:ring-indigo-500 transition-all" placeholder="詳細..." value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} />
+          </div>
         </div>
-
-        <div className="flex gap-4 pt-4">
-          <button type="button" onClick={onClose} className="flex-1 py-4 bg-slate-100 rounded-2xl font-black text-gray-500 hover:bg-slate-200 transition-all">キャンセル</button>
-          <button type="submit" disabled={isSubmitting} className="flex-1 py-4 bg-indigo-600 text-white rounded-2xl font-black shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95 disabled:opacity-50">
-            {isSubmitting ? '保存中...' : '保存する'}
-          </button>
-        </div>
-      </form>
-    </div>
-  );
-}
-
-function ReportModal({ eventId, onClose, API_URL }) {
-  const [reason, setReason] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const { authenticatedFetch } = useAuth();
-
-  const handleReport = async () => {
-    if (!reason) return toast.error('理由を入力してください');
-    setIsSubmitting(true);
-    try {
-      await authenticatedFetch(`/api/events/${eventId}/report`, {
-        method: 'POST',
-        body: JSON.stringify({ reason })
-      });
-      toast.success('運営へ通報しました'); onClose();
-    } catch(e) { 
-      toast.error('送信に失敗しました'); 
-    } finally { 
-      setIsSubmitting(false); 
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[100] p-4 backdrop-blur-md animate-fadeIn">
-      <div className="bg-white rounded-[2.5rem] p-10 w-full max-w-md shadow-2xl relative border border-red-50">
-        <h3 className="text-2xl font-black mb-2 text-red-600">問題を報告</h3>
-        <p className="text-gray-400 text-xs font-bold mb-6">虚偽の情報や不適切な内容を報告します</p>
-        <textarea className="w-full p-5 border border-red-50 rounded-[1.5rem] bg-red-50/30 mb-8 outline-none h-32 text-sm focus:bg-white focus:ring-2 focus:ring-red-200 transition-all shadow-inner" placeholder="具体的な理由を入力してください..." value={reason} onChange={(e) => setReason(e.target.value)} />
-        <button onClick={handleReport} disabled={isSubmitting} className="w-full py-4 bg-red-500 text-white font-black rounded-2xl shadow-xl shadow-red-100 hover:bg-red-600 transition-all active:scale-95 disabled:opacity-50">
-          {isSubmitting ? '送信中...' : '報告を送信する'}
+        <button type="submit" disabled={isSubmitting} className="w-full mt-8 py-4 bg-indigo-600 text-white font-black rounded-2xl shadow-xl shadow-indigo-100 active:scale-95 transition-all">
+          {isSubmitting ? <FiLoader className="animate-spin inline mr-2"/> : null}
+          {editData ? '更新を保存する' : 'イベントを登録する'}
         </button>
-        <button onClick={onClose} className="w-full mt-4 py-2 text-gray-400 font-bold text-sm hover:text-gray-600 transition-colors">閉じる</button>
-      </div>
+      </form>
     </div>
   );
 }
