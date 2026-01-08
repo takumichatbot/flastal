@@ -16,12 +16,15 @@ const s3Client = new S3Client({
 // S3アップロード用の署名付きURLを発行
 router.post('/s3-upload-url', authenticateToken, async (req, res) => {
     const { fileName, fileType } = req.body;
-    const fileKey = `events/${Date.now()}_${fileName}`;
+    
+    // 重要: ファイル名の特殊文字によるエラーを防ぐため、キーをシンプルに生成
+    const extension = fileName.split('.').pop();
+    const fileKey = `events/${Date.now()}.${extension}`;
 
     const command = new PutObjectCommand({
         Bucket: process.env.AWS_S3_BUCKET_NAME,
         Key: fileKey,
-        ContentType: fileType,
+        ContentType: fileType, // フロントエンドの file.type と厳密に一致させる必要があります
     });
 
     try {

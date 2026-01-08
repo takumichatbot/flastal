@@ -4,26 +4,68 @@ import cloudinary from '../config/cloudinary.js';
 import OpenAI from 'openai';
 import webpush from 'web-push';
 import prisma from '../config/prisma.js';
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
+// AWS S3 Clientの初期化
+const s3Client = new S3Client({
+    region: process.env.AWS_REGION,
+    credentials: {
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+    },
+});
+
 // ==========================================
-// 1. ARパネル生成 (GLB)
+// 1. AWS S3 署名付きURL発行 (新規追加)
+// ==========================================
+export const getS3UploadUrl = async (req, res) => {
+    const { fileName, fileType } = req.body;
+    
+    if (!fileName || !fileType) {
+        return res.status(400).json({ message: 'ファイル情報が不足しています。' });
+    }
+
+    // ファイル名の重複や特殊文字による署名エラーを避けるため、キーを正規化
+    const extension = fileName.split('.').pop();
+    const fileKey = `events/${Date.now()}.${extension}`;
+
+    const command = new PutObjectCommand({
+        Bucket: process.env.AWS_S3_BUCKET_NAME,
+        Key: fileKey,
+        ContentType: fileType, // フロントエンドの送付ヘッダーと一致させる
+    });
+
+    try {
+        // 5分間有効な署名付きURLを生成
+        const signedUrl = await getSignedUrl(s3Client, command, { expiresIn: 300 });
+        
+        res.json({ 
+            uploadUrl: signedUrl, 
+            fileUrl: `https://${process.env.AWS_S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${fileKey}` 
+        });
+    } catch (err) {
+        console.error("S3署名エラー:", err);
+        res.status(500).json({ message: "署名付きURLの生成に失敗しました" });
+    }
+};
+
+// ==========================================
+// 2. ARパネル生成 (GLB)
 // ==========================================
 export const createArPanel = async (req, res) => {
     try {
         if (!req.file) return res.status(400).json({ message: '画像ファイルがありません。' });
 
-        // 画像情報取得
         const image = sharp(req.file.buffer);
         const metadata = await image.metadata();
         
-        // サイズ計算 (高さ1.8m固定)
         const targetHeight = 1.8; 
         const aspectRatio = metadata.width / metadata.height;
         const targetWidth = targetHeight * aspectRatio;
 
-        // GLTF作成
         const doc = new Document();
         const buffer = doc.createBuffer();
         
@@ -38,7 +80,6 @@ export const createArPanel = async (req, res) => {
             .setMetallicFactor(0)
             .setRoughnessFactor(1);
 
-        // 頂点データなど
         const halfW = targetWidth / 2;
         const yBottom = 0;
         const yTop = targetHeight;
@@ -78,7 +119,7 @@ export const createArPanel = async (req, res) => {
 };
 
 // ==========================================
-// 2. AI画像生成 (DALL-E)
+// 3. AI画像生成 (DALL-E)
 // ==========================================
 export const generateAiImage = async (req, res) => {
     const { prompt } = req.body;
@@ -95,11 +136,9 @@ export const generateAiImage = async (req, res) => {
                 quality: "standard",
             });
             const tempUrl = response.data[0].url;
-            // Cloudinaryへ保存
             const uploadResult = await cloudinary.uploader.upload(tempUrl, { folder: 'flastal_ai_generated' });
             imageUrl = uploadResult.secure_url;
         } else {
-            // ダミー
             imageUrl = `https://source.unsplash.com/featured/?flower,arrangement&${Date.now()}`;
         }
         res.status(200).json({ url: imageUrl });
@@ -110,10 +149,9 @@ export const generateAiImage = async (req, res) => {
 };
 
 // ==========================================
-// 3. AIによるテキスト解析 (イベント抽出・翻訳・企画文)
+// 4. AIによるテキスト解析
 // ==========================================
 
-// 自動翻訳
 export const translateText = async (req, res) => {
     const { text, targetLang } = req.body;
     if (!text) return res.status(400).json({ message: 'テキストが必要です' });
@@ -139,7 +177,6 @@ export const translateText = async (req, res) => {
     }
 };
 
-// AI企画文生成
 export const generatePlanText = async (req, res) => {
     const { targetName, eventName, tone, extraInfo } = req.body;
     try {
@@ -164,7 +201,6 @@ export const generatePlanText = async (req, res) => {
     }
 };
 
-// イベント情報抽出
 export const parseEventInfo = async (req, res) => {
     const { text, sourceUrl } = req.body;
     try {
@@ -206,7 +242,7 @@ export const parseEventInfo = async (req, res) => {
 };
 
 // ==========================================
-// 4. Push通知 (WebPush)
+// 5. Push通知 (WebPush)
 // ==========================================
 export const subscribePush = async (req, res) => {
     const { subscription } = req.body;
@@ -227,7 +263,7 @@ export const sendTestPush = async (req, res) => {
     res.json({ message: 'テスト送信機能は未実装です' }); 
 };
 
-// 画像アップロード用 (汎用)
+// 画像アップロード用 (Cloudinary用)
 export const uploadImage = async (req, res) => {
     if (!req.file) return res.status(400).json({ message: 'ファイルなし' });
     cloudinary.uploader.upload_stream({ resource_type: 'image' }, (error, result) => {
@@ -242,7 +278,7 @@ export const searchFloristByImage = async (req, res) => {
     const STYLE_TAGS = ['かわいい/キュート', 'クール/かっこいい', 'おしゃれ/モダン', '和風/和モダン', 'ゴージャス/豪華', 'パステルカラー', 'ビビッドカラー', 'バルーン装飾', 'ペーパーフラワー', '大型/連結', '卓上/楽屋花'];
     
     try {
-        let targetTags = ['かわいい/キュート']; // ダミー初期値
+        let targetTags = ['かわいい/キュート']; 
         if (process.env.OPENAI_API_KEY) {
             const base64Image = req.file.buffer.toString('base64');
             const dataUrl = `data:${req.file.mimetype};base64,${base64Image}`;
