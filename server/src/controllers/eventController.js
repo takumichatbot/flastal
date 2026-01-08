@@ -20,9 +20,15 @@ export const getEvents = async (req, res) => {
             ];
         }
 
-        let orderBy = { eventDate: 'asc' };
-        if (sort === 'newest') orderBy = { createdAt: 'desc' };
-        if (sort === 'popular') orderBy = { interests: { _count: 'desc' } };
+        // ソート順の定義
+        let orderBy = {};
+        if (sort === 'popular') {
+            orderBy = { interests: { _count: 'desc' } };
+        } else if (sort === 'newest') {
+            orderBy = { createdAt: 'desc' };
+        } else {
+            orderBy = { eventDate: 'asc' }; // デフォルト：開催日順
+        }
 
         const events = await prisma.event.findMany({ 
             where,
@@ -35,10 +41,11 @@ export const getEvents = async (req, res) => {
             },
             orderBy: orderBy
         });
+
         res.json(events || []);
     } catch (e) { 
-        console.error('getEvents Error:', e);
-        res.status(500).json({ message: 'イベント一覧の取得に失敗しました。' }); 
+        console.error('getEvents Critical Error:', e);
+        res.status(500).json({ message: 'イベント一覧の取得に失敗しました。', error: e.message }); 
     }
 };
 
@@ -50,11 +57,7 @@ export const getEventById = async (req, res) => {
             include: { 
                 venue: true,
                 creator: { select: { id: true, handleName: true, iconUrl: true } },
-                projects: { 
-                    include: { 
-                        planner: { select: { handleName: true, iconUrl: true } } 
-                    } 
-                }
+                projects: { include: { planner: { select: { handleName: true, iconUrl: true } } } }
             } 
         });
         if (!event) return res.status(404).json({ message: 'イベントが見つかりません。' });
@@ -143,83 +146,46 @@ export const deleteEvent = async (req, res) => {
     }
 };
 
-/**
- * AIによるイベント情報解析
- */
+// AI解析
 export const aiParseEvent = async (req, res) => {
     const { text, sourceUrl } = req.body;
     const userId = req.user.id;
-
     if (!text) return res.status(400).json({ message: 'テキストを入力してください' });
 
     try {
-        const prompt = `
-            以下のテキストからイベント情報を抽出して、必ずJSON形式で出力してください。
-            現在の日時: ${new Date().toLocaleString('ja-JP')}
-            年が不明な場合は、文脈から判断するか現在の日時を参考にしてください。
-
-            【出力項目】
-            - title: イベント名
-            - eventDate: ISO8601形式の完全な日時 (例: 2025-12-25T18:00:00)
-            - venueName: 会場名（不明な場合は空文字）
-            - description: 内容の要約
-            - genre: IDOL, VTUBER, MUSIC, ANIME, STAGE, OTHER の中から選択
-
-            テキスト:
-            "${text}"
-        `;
-
+        const prompt = `イベント情報をJSON形式で抽出せよ。 title, eventDate(ISO8601), venueName, description, genre(IDOL, VTUBER, MUSIC, ANIME, STAGE, OTHER)。 テキスト: "${text}"`;
         const completion = await openai.chat.completions.create({
             model: "gpt-3.5-turbo",
-            messages: [{ role: "system", content: "あなたは優秀なイベント情報解析アシスタントです。" }, { role: "user", content: prompt }],
+            messages: [{ role: "system", content: "優秀なアシスタント" }, { role: "user", content: prompt }],
             response_format: { type: "json_object" }
         });
-
         const result = JSON.parse(completion.choices[0].message.content);
 
-        let finalDate = new Date(result.eventDate);
-        if (isNaN(finalDate.getTime())) {
-            finalDate = new Date();
-        }
-
         let venueId = null;
-        if (result.venueName && result.venueName.trim() !== '') {
-            const existingVenue = await prisma.venue.findFirst({
-                where: { venueName: { contains: result.venueName, mode: 'insensitive' } }
-            });
-            if (existingVenue) {
-                venueId = existingVenue.id;
-            }
+        if (result.venueName) {
+            const v = await prisma.venue.findFirst({ where: { venueName: { contains: result.venueName, mode: 'insensitive' } } });
+            if (v) venueId = v.id;
         }
 
         const newEvent = await prisma.event.create({
             data: {
-                title: result.title || '無題のイベント',
-                eventDate: finalDate,
+                title: result.title || '無題',
+                eventDate: new Date(result.eventDate),
                 description: result.description || '',
                 venueId: venueId,
-                regulationNote: venueId ? null : `候補会場: ${result.venueName || '不明'}`,
                 genre: result.genre || 'OTHER',
                 sourceType: 'AI',
                 sourceUrl: sourceUrl || '',
                 creatorId: userId,
                 lastEditorId: userId
             },
-            include: { 
-                venue: true,
-                creator: { select: { id: true, handleName: true, iconUrl: true } },
-                _count: { select: { interests: true } }
-            }
+            include: { venue: true, _count: { select: { interests: true } } }
         });
-
         res.status(201).json(newEvent);
-
     } catch (error) {
-        console.error('AI Parse Error:', error);
-        res.status(500).json({ message: 'AI解析に失敗しました。' });
+        res.status(500).json({ message: 'AI解析失敗' });
     }
 };
 
-// --- その他スタブ ---
 export const toggleInterest = async (req, res) => { res.json({ message: 'ok' }); };
 export const reportEvent = async (req, res) => { res.json({ message: 'ok' }); };
