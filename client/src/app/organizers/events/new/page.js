@@ -91,7 +91,7 @@ function CreateEventContent() {
     }
   };
 
-  // AWS S3へのアップロード関数
+  // AWS S3へのアップロード関数 (Load failed 対策版)
   const uploadToS3 = async (file) => {
     // 1. バックエンドから署名付きURLを取得
     const res = await authenticatedFetch('/api/tools/s3-upload-url', {
@@ -103,13 +103,23 @@ function CreateEventContent() {
     const { uploadUrl, fileUrl } = await res.json();
 
     // 2. S3へ直接PUTリクエストで送信
+    // 注意: S3へのPUT時は authenticatedFetch を使わず、標準の fetch を使います。
+    // (署名付きURLには認証情報が含まれているため、ヘッダーに余計なものを入れるとエラーになります)
     const uploadRes = await fetch(uploadUrl, {
       method: 'PUT',
-      headers: { 'Content-Type': file.type },
-      body: file
+      body: file,
+      headers: {
+        'Content-Type': file.type
+      },
+      mode: 'cors'
     });
 
-    if (!uploadRes.ok) throw new Error('S3へのアップロードに失敗しました');
+    if (!uploadRes.ok) {
+        const errorText = await uploadRes.text();
+        console.error('S3 Upload Error:', errorText);
+        throw new Error('S3へのアップロードに失敗しました');
+    }
+    
     return fileUrl;
   };
 
@@ -151,7 +161,7 @@ function CreateEventContent() {
       router.push('/organizers/dashboard');
     } catch (error) {
       console.error('Submit Error:', error);
-      toast.error(error.message, { id: toastId });
+      toast.error(error.message || '通信エラーが発生しました', { id: toastId });
     } finally {
       setIsUploading(false);
     }
