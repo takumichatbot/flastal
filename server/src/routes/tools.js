@@ -1,25 +1,39 @@
 import express from 'express';
-import * as toolController from '../controllers/toolController.js';
 import { authenticateToken } from '../middleware/auth.js';
-import upload from '../middleware/upload.js';
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 const router = express.Router();
 
-// AR & 画像
-router.post('/ar/create-panel', upload.single('image'), toolController.createArPanel);
-router.post('/ai/generate-image', authenticateToken, toolController.generateAiImage);
-router.post('/upload', authenticateToken, upload.single('image'), toolController.uploadImage);
+const s3Client = new S3Client({
+    region: process.env.AWS_REGION,
+    credentials: {
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+    },
+});
 
-// AI解析・テキスト
-router.post('/translate', authenticateToken, toolController.translateText);
-router.post('/ai/generate-plan', authenticateToken, toolController.generatePlanText);
-router.post('/events/ai-parse', authenticateToken, toolController.parseEventInfo);
+// S3アップロード用の署名付きURLを発行
+router.post('/s3-upload-url', authenticateToken, async (req, res) => {
+    const { fileName, fileType } = req.body;
+    const fileKey = `events/${Date.now()}_${fileName}`;
 
-// AI画像検索 (Vision)
-router.post('/ai/search-florist-by-image', upload.single('image'), toolController.searchFloristByImage);
+    const command = new PutObjectCommand({
+        Bucket: process.env.AWS_S3_BUCKET_NAME,
+        Key: fileKey,
+        ContentType: fileType,
+    });
 
-// Push通知
-router.post('/push/subscribe', authenticateToken, toolController.subscribePush);
-router.post('/push/test', authenticateToken, toolController.sendTestPush);
+    try {
+        const signedUrl = await getSignedUrl(s3Client, command, { expiresIn: 300 });
+        res.json({ 
+            uploadUrl: signedUrl, 
+            fileUrl: `https://${process.env.AWS_S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${fileKey}` 
+        });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "署名付きURLの生成に失敗しました" });
+    }
+});
 
 export default router;

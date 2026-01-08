@@ -11,7 +11,7 @@ import { useAuth } from '@/app/contexts/AuthContext';
 import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import { 
-  FiArrowLeft, FiCalendar, FiMapPin, FiLoader, FiType, FiImage, FiLink, FiGlobe, FiInstagram, FiTwitter
+  FiArrowLeft, FiCalendar, FiMapPin, FiLoader, FiType, FiImage, FiLink, FiGlobe, FiInstagram, FiTwitter, FiUpload, FiX, FiInfo
 } from 'react-icons/fi';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
@@ -21,6 +21,11 @@ function CreateEventContent() {
   const router = useRouter();
   const [isMounted, setIsMounted] = useState(false);
   const [venues, setVenues] = useState([]);
+  
+  // 画像アップロード用状態
+  const [imagePreview, setImagePreview] = useState(null);
+  const [imageFile, setImageFile] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
@@ -37,7 +42,6 @@ function CreateEventContent() {
       venueId: '',
       description: '',
       genre: 'OTHER',
-      imageUrl: '',
       twitterUrl: '',
       instagramUrl: '',
       officialWebsite: ''
@@ -71,6 +75,44 @@ function CreateEventContent() {
     fetchVenues();
   }, [isMounted, authLoading, isAuthenticated, user, router]);
 
+  // 画像ファイル選択時の処理
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        return toast.error('画像サイズは5MB以下にしてください');
+      }
+      setImageFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // AWS S3へのアップロード関数
+  const uploadToS3 = async (file) => {
+    // 1. バックエンドから署名付きURLを取得
+    const res = await authenticatedFetch('/api/tools/s3-upload-url', {
+      method: 'POST',
+      body: JSON.stringify({ fileName: file.name, fileType: file.type })
+    });
+    
+    if (!res.ok) throw new Error('アップロード許可の取得に失敗しました');
+    const { uploadUrl, fileUrl } = await res.json();
+
+    // 2. S3へ直接PUTリクエストで送信
+    const uploadRes = await fetch(uploadUrl, {
+      method: 'PUT',
+      headers: { 'Content-Type': file.type },
+      body: file
+    });
+
+    if (!uploadRes.ok) throw new Error('S3へのアップロードに失敗しました');
+    return fileUrl;
+  };
+
   const onSubmit = async (data) => {
     if (!data.venueId) {
       toast.error('会場を選択してください');
@@ -78,8 +120,16 @@ function CreateEventContent() {
     }
 
     const toastId = toast.loading('イベントを登録中...');
+    setIsUploading(true);
 
     try {
+      let finalImageUrl = '';
+      
+      // 画像ファイルがある場合はS3へアップロード
+      if (imageFile) {
+        finalImageUrl = await uploadToS3(imageFile);
+      }
+
       // 日付のISO形式変換
       const formattedDate = new Date(`${data.eventDate}T00:00:00`).toISOString();
 
@@ -87,6 +137,7 @@ function CreateEventContent() {
         method: 'POST',
         body: JSON.stringify({
           ...data,
+          imageUrl: finalImageUrl,
           eventDate: formattedDate 
         }),
       });
@@ -96,11 +147,13 @@ function CreateEventContent() {
         throw new Error(resData.message || '作成に失敗しました');
       }
 
-      toast.success('イベントを作成しました（公式バッジ適用）', { id: toastId });
+      toast.success('イベントを作成しました！', { id: toastId });
       router.push('/organizers/dashboard');
     } catch (error) {
       console.error('Submit Error:', error);
       toast.error(error.message, { id: toastId });
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -135,7 +188,6 @@ function CreateEventContent() {
         <form onSubmit={handleSubmit(onSubmit, onError)} className="space-y-8">
           <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden p-6 md:p-8 space-y-6">
                 
-                {/* 基本情報セクション */}
                 <h2 className="text-lg font-bold border-l-4 border-indigo-500 pl-3 mb-4">基本情報</h2>
                 
                 <div>
@@ -148,7 +200,6 @@ function CreateEventContent() {
                         className={`w-full p-3 bg-gray-50 border ${errors.title ? 'border-red-500' : 'border-gray-200'} rounded-xl focus:ring-2 focus:ring-indigo-100 outline-none transition-all`}
                         placeholder="例: FLASTAL LIVE 2026"
                     />
-                    {errors.title && <p className="text-red-500 text-xs mt-1">{errors.title.message}</p>}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -159,9 +210,8 @@ function CreateEventContent() {
                         <input 
                             type="date" 
                             {...register('eventDate', { required: '開催日は必須です' })} 
-                            className={`w-full p-3 bg-gray-50 border ${errors.eventDate ? 'border-red-500' : 'border-gray-200'} rounded-xl outline-none`}
+                            className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none"
                         />
-                        {errors.eventDate && <p className="text-red-500 text-xs mt-1">{errors.eventDate.message}</p>}
                     </div>
 
                     <div>
@@ -186,30 +236,48 @@ function CreateEventContent() {
                     </label>
                     <select 
                         {...register('venueId', { required: '会場の選択は必須です' })} 
-                        className={`w-full p-3 bg-gray-50 border ${errors.venueId ? 'border-red-500' : 'border-gray-200'} rounded-xl outline-none cursor-pointer bg-white`}
+                        className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none cursor-pointer bg-white"
                     >
                         <option value="">会場を選択してください</option>
                         {venues.map(v => <option key={v.id} value={v.id}>{v.venueName}</option>)}
                     </select>
-                    {errors.venueId && <p className="text-red-500 text-xs mt-1">{errors.venueId.message}</p>}
                 </div>
 
                 <hr className="border-gray-100" />
 
-                {/* メディア・リンク情報セクション */}
-                <h2 className="text-lg font-bold border-l-4 border-indigo-500 pl-3 mb-4">メディア・リンク情報</h2>
+                <h2 className="text-lg font-bold border-l-4 border-indigo-500 pl-3 mb-4">メディア・画像</h2>
 
                 <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-1 flex items-center gap-2">
-                        <FiImage className="text-indigo-500" /> イベント画像URL
+                    <label className="block text-sm font-bold text-gray-700 mb-2 flex items-center gap-2">
+                        <FiImage className="text-indigo-500" /> イベントのメイン画像
                     </label>
-                    <input 
-                        type="url" 
-                        {...register('imageUrl')} 
-                        className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none"
-                        placeholder="https://... (メインビジュアル画像URL)"
-                    />
-                    <p className="text-[10px] text-gray-400 mt-1">※現時点では画像URLを直接入力してください</p>
+                    
+                    <div className="flex flex-col items-center justify-center border-2 border-dashed border-gray-200 rounded-2xl p-6 bg-gray-50 hover:bg-gray-100 transition-all relative">
+                        {imagePreview ? (
+                            <div className="relative w-full aspect-video rounded-xl overflow-hidden shadow-sm">
+                                <img src={imagePreview} className="w-full h-full object-cover" alt="Preview" />
+                                <button 
+                                    type="button"
+                                    onClick={() => {setImagePreview(null); setImageFile(null);}}
+                                    className="absolute top-2 right-2 p-2 bg-black/50 text-white rounded-full hover:bg-black/70 transition-all"
+                                >
+                                    <FiX size={18} />
+                                </button>
+                            </div>
+                        ) : (
+                            <label className="flex flex-col items-center justify-center cursor-pointer py-4 w-full">
+                                <FiUpload className="text-indigo-400 mb-2" size={32} />
+                                <span className="text-sm font-bold text-gray-500">写真をアップロード</span>
+                                <span className="text-[10px] text-gray-400 mt-1">スマホのカメラやPCのファイルから選択</span>
+                                <input 
+                                    type="file" 
+                                    accept="image/*" 
+                                    className="hidden" 
+                                    onChange={handleImageChange}
+                                />
+                            </label>
+                        )}
+                    </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -220,7 +288,7 @@ function CreateEventContent() {
                       <input 
                           type="url" 
                           {...register('officialWebsite')} 
-                          className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none"
+                          className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none transition-all"
                           placeholder="https://..."
                       />
                   </div>
@@ -231,7 +299,7 @@ function CreateEventContent() {
                       <input 
                           type="url" 
                           {...register('twitterUrl')} 
-                          className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none"
+                          className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none transition-all"
                           placeholder="https://x.com/..."
                       />
                   </div>
@@ -244,19 +312,19 @@ function CreateEventContent() {
                     <input 
                         type="url" 
                         {...register('instagramUrl')} 
-                        className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none"
+                        className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none transition-all"
                         placeholder="https://instagram.com/..."
                     />
                 </div>
 
                 <div>
                     <label className="block text-sm font-bold text-gray-700 mb-1 flex items-center gap-2">
-                      <FiLoader className="text-indigo-500" /> イベント詳細
+                      <FiInfo className="text-indigo-500" /> イベント詳細
                     </label>
                     <textarea 
                         {...register('description')} 
                         rows="4"
-                        placeholder="出演者や企画に関する補足情報、フラスタの搬入規定などがあれば入力してください"
+                        placeholder="出演者やフラスタの搬入規定など"
                         className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none"
                     ></textarea>
                 </div>
@@ -265,12 +333,12 @@ function CreateEventContent() {
           <div className="flex gap-4">
              <button 
                type="submit" 
-               disabled={isSubmitting} 
-               className="w-full py-5 bg-indigo-600 text-white font-bold rounded-2xl hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 disabled:bg-gray-400 flex justify-center items-center gap-3 text-lg"
+               disabled={isSubmitting || isUploading} 
+               className="w-full py-5 bg-indigo-600 text-white font-bold rounded-2xl hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 disabled:bg-gray-400 flex justify-center items-center gap-3 text-lg active:scale-95 transition-transform"
              >
-                {isSubmitting ? (
+                {(isSubmitting || isUploading) ? (
                   <>
-                    <FiLoader className="animate-spin" /> 登録中...
+                    <FiLoader className="animate-spin" /> {isUploading ? '画像をアップロード中...' : '登録中...'}
                   </>
                 ) : 'イベントを公開する'}
              </button>
