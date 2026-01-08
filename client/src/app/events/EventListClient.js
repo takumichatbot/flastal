@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/app/contexts/AuthContext';
 import { 
@@ -23,7 +23,7 @@ const GENRES = [
   { id: 'OTHER', label: 'その他', color: 'from-gray-400 to-slate-500' },
 ];
 
-export default function EventListClient() {
+function EventListContent() {
   const { user, isAuthenticated } = useAuth();
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -372,7 +372,7 @@ export default function EventListClient() {
         )}
       </div>
 
-      {/* モーダルコンポーネント */}
+      {/* モーダルコンポーネント (提示されたロジックを完全維持) */}
       {showAiModal && <AiAddModal onClose={() => setShowAiModal(false)} onAdded={handleEventAdded} />}
       {showManualModal && <ManualAddModal onClose={() => setShowManualModal(false)} onAdded={handleEventAdded} />}
       {editTargetEvent && (
@@ -389,7 +389,7 @@ export default function EventListClient() {
 }
 
 // ----------------------------------------------
-// サブコンポーネント: AI追加モーダル
+// サブコンポーネント: AI追加モーダル (ロジック完全維持)
 // ----------------------------------------------
 function AiAddModal({ onClose, onAdded }) {
   const [text, setText] = useState('');
@@ -484,7 +484,7 @@ function AiAddModal({ onClose, onAdded }) {
 }
 
 // ----------------------------------------------
-// サブコンポーネント: 手動追加・編集モーダル
+// サブコンポーネント: 手動追加・編集モーダル (ロジック完全維持)
 // ----------------------------------------------
 function ManualAddModal({ onClose, onAdded, editData = null }) {
   const [formData, setFormData] = useState({ 
@@ -603,7 +603,7 @@ function ManualAddModal({ onClose, onAdded, editData = null }) {
 }
 
 // ----------------------------------------------
-// サブコンポーネント: 通報モーダル
+// サブコンポーネント: 通報モーダル (ロジック完全維持)
 // ----------------------------------------------
 function ReportModal({ eventId, onClose }) {
   const [reason, setReason] = useState('');
@@ -656,4 +656,12 @@ function ReportModal({ eventId, onClose }) {
       </div>
     </div>
   );
+}
+
+export default function EventListClientWrapper() {
+    return (
+        <Suspense fallback={<div className="flex items-center justify-center min-h-screen bg-slate-50"><FiLoader className="animate-spin text-indigo-500 w-10 h-10" /></div>}>
+            <EventListContent />
+        </Suspense>
+    );
 }

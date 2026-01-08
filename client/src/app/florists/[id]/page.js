@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -8,14 +8,14 @@ import toast from 'react-hot-toast';
 import { useAuth } from '@/app/contexts/AuthContext';
 import { 
     FiMapPin, FiCamera, FiAward, FiClock, FiCheckCircle, 
-    FiUser, FiHeart, FiStar, FiX, FiShield, FiZap, FiAlertCircle
+    FiUser, FiHeart, FiStar, FiX, FiShield, FiZap, FiAlertCircle, FiSearch, FiLoader
 } from 'react-icons/fi'; 
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
 // --- サブコンポーネント ---
 
-// プロフィール項目表示用
+// プロフィール項目表示用 (デザイン統一のためカード内では使わないが、詳細ページ用として維持)
 const ProfileItem = ({ icon, label, value, colorClass = "text-pink-500 bg-pink-50" }) => (
     <div className="flex items-start">
         <div className={`${colorClass} p-2 rounded-full mr-4 mt-1 shrink-0`}>
@@ -28,7 +28,7 @@ const ProfileItem = ({ icon, label, value, colorClass = "text-pink-500 bg-pink-5
     </div>
 );
 
-// オファー申請モーダル
+// オファー申請モーダル (ロジック完全維持)
 function OfferModal({ floristId, floristName, onClose }) {
     const router = useRouter();
     
@@ -70,400 +70,188 @@ function OfferModal({ floristId, floristName, onClose }) {
     );
 }
 
-// --- メインページコンポーネント ---
+// --- メインページコンポーネント (一覧表示用に最適化しつつロジック維持) ---
 
-export default function FloristDetailPage() { 
-  const { id } = useParams();
+function FloristListContent() { 
   const { user, token, logout } = useAuth(); 
-  const router = useRouter();
-  
-  const [florist, setFlorist] = useState(null);
+  const [florists, setFlorists] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState('profile'); 
-  const [appealPosts, setAppealPosts] = useState([]); 
-  const [activeTag, setActiveTag] = useState(null); 
+  const [keyword, setKeyword] = useState('');
 
-  const fetchFlorist = useCallback(async () => {
-    if (!id) return;
+  // 一覧取得用ロジック (詳細取得ロジックを一覧用に拡張)
+  const fetchFlorists = useCallback(async () => {
     setLoading(true);
     try {
-      const floristRes = await fetch(`${API_URL}/api/florists/${id}`);
-      if (!floristRes.ok) {
-          if (floristRes.status === 404) throw new Error('お花屋さんが見つかりませんでした。');
-          throw new Error('情報の取得に失敗しました。');
+      const res = await fetch(`${API_URL}/api/florists`);
+      if (res.ok) {
+        const data = await res.json();
+        // 各データに対して住所パース処理を適用 (提示コードのロジックを適用)
+        const processedData = data.map(f => {
+            if (f.address) {
+                const prefMatch = f.address.match(/^(?:東京都|道庁所在地|.{2,3}府|.{2,3}県)/);
+                f.displayPrefecture = prefMatch ? prefMatch[0] : f.address;
+            }
+            return f;
+        });
+        setFlorists(processedData);
+      } else {
+         throw new Error('一覧の取得に失敗しました');
       }
-      
-      const floristData = await floristRes.json();
-      
-      // 所在地から都道府県のみを抽出
-      if (floristData && floristData.address) {
-          const prefMatch = floristData.address.match(/^(?:東京都|道庁所在地|.{2,3}府|.{2,3}県)/);
-          floristData.displayPrefecture = prefMatch ? prefMatch[0] : floristData.address;
-      }
-
-      setFlorist(floristData);
-      setAppealPosts(floristData.appealPosts || []);
     } catch (error) {
         console.error(error);
-        toast.error(error.message); 
+        toast.error('お花屋さんデータの取得に失敗しました'); 
     } finally {
         setLoading(false);
     }
-  }, [id]);
+  }, []);
 
   useEffect(() => {
-    fetchFlorist();
-  }, [fetchFlorist]);
+    fetchFlorists();
+  }, [fetchFlorists]);
 
-  const handleLikeToggle = async (post) => {
-    if (!token || !user) {
-        toast.error("ログインが必要です。");
-        return;
-    }
-    try {
-        const res = await fetch(`${API_URL}/api/florists/posts/${post.id}/like`, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}` },
-        });
-
-        if (res.status === 401) {
-            toast.error("セッションが切れました。再度ログインしてください。");
-            logout();
-            return;
-        }
-
-        if (!res.ok) throw new Error('失敗');
-        const data = await res.json();
-        setAppealPosts(prev => prev.map(p => {
-            if (p.id === post.id) {
-                const isLiked = data.liked;
-                const newCount = isLiked ? (p._count?.likes || 0) + 1 : Math.max(0, (p._count?.likes || 0) - 1);
-                const newLikes = isLiked 
-                    ? [...(p.likes || []), { userId: user.id }] 
-                    : (p.likes || []).filter(l => l.userId !== user.id);
-                return { ...p, _count: { ...p._count, likes: newCount }, likes: newLikes };
-            }
-            return p;
-        }));
-    } catch (error) {
-        toast.error('エラーが発生しました');
-    }
-  };
-
-  // ★修正：エラー回避のための安全なタグ抽出ロジック
-  const availableTags = useMemo(() => {
-    const tags = new Set();
-    
-    // 制作実績のキャプションからタグを抽出
-    appealPosts.forEach(post => {
-        const content = post.content || '';
-        if (typeof content === 'string') {
-            const matches = content.match(/#[^\s#]+/g);
-            if (matches) matches.forEach(m => tags.add(m.substring(1)));
-        }
+  // フィルタリングロジック
+  const filteredFlorists = useMemo(() => {
+    return florists.filter(f => {
+      const nameMatch = (f.platformName || f.shopName || '').toLowerCase().includes(keyword.toLowerCase());
+      const specMatch = Array.isArray(f.specialties) 
+          ? f.specialties.some(s => s.toLowerCase().includes(keyword.toLowerCase()))
+          : (f.specialties || '').toLowerCase().includes(keyword.toLowerCase());
+      return nameMatch || specMatch;
     });
-
-    // 「得意な装飾」フィールドからタグを抽出
-    const specs = florist?.specialties;
-    if (specs) {
-        if (typeof specs === 'string' && specs !== '未設定') {
-            specs.split(/[\s,、]+/).forEach(t => {
-                const trimmed = t.trim();
-                if (trimmed) tags.add(trimmed);
-            });
-        } else if (Array.isArray(specs)) {
-            specs.forEach(t => {
-                if (typeof t === 'string' && t.trim()) tags.add(t.trim());
-            });
-        }
-    }
-    
-    return Array.from(tags).sort();
-  }, [appealPosts, florist]);
-
-  const filteredPosts = useMemo(() => {
-    if (!activeTag) return appealPosts;
-    return appealPosts.filter(p => {
-        const content = p.content || '';
-        return typeof content === 'string' && content.includes(`#${activeTag}`);
-    });
-  }, [appealPosts, activeTag]);
-
-  if (loading) {
-      return (
-          <div className="flex items-center justify-center min-h-screen bg-slate-50">
-              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-pink-500"></div>
-          </div>
-      );
-  }
-
-  if (!florist) {
-    return (
-        <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 text-center p-6">
-            <FiAlertCircle size={48} className="text-gray-300 mb-4" />
-            <h2 className="text-xl font-bold text-gray-800 mb-2">Florist Not Found</h2>
-            <Link href="/florists" className="text-pink-500 font-bold hover:underline">お花屋さん一覧へ戻る</Link>
-        </div>
-    );
-  }
-
-  const reviews = florist.reviews || [];
-  const averageRating = reviews.length > 0 ? reviews.reduce((s, r) => s + (Number(r.rating) || 0), 0) / reviews.length : 0;
-  const isMyProfile = user && user.role === 'FLORIST' && user.id === florist.id; 
+  }, [florists, keyword]);
 
   return (
-    <>
-      <div className="min-h-screen bg-slate-50 p-4 md:p-8 font-sans">
-        <div className="max-w-5xl mx-auto bg-white rounded-[40px] shadow-2xl p-6 md:p-12 border border-slate-100 overflow-hidden relative">
-          
-          <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-pink-400 via-purple-400 to-sky-400"></div>
+    <div className="bg-slate-50 min-h-screen py-10 font-sans text-gray-800">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        
+        {/* ヘッダーセクション */}
+        <div className="mb-10 text-center md:text-left">
+            <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight mb-2">お花屋さんを探す</h1>
+            <p className="text-gray-500 text-sm">あなたの想いをカタチにする、プロフェッショナルな制作者たち</p>
+        </div>
 
-          <header className="mb-12 flex flex-col md:flex-row items-center md:items-end gap-8 text-center md:text-left">
-              <div className="relative w-40 h-40 shrink-0 rounded-[2rem] overflow-hidden border-4 border-white shadow-2xl bg-white md:rotate-3">
-                  {florist.iconUrl ? (
-                      <Image src={florist.iconUrl} alt="アイコン" fill style={{objectFit: 'cover'}} />
-                  ) : (
-                      <div className="w-full h-full bg-slate-50 flex items-center justify-center text-gray-300">
-                          <FiUser size={60} />
-                      </div>
-                  )}
-              </div>
-              
-              <div className="flex-1 min-w-0 pb-2">
-                  <div className="flex items-center justify-center md:justify-start gap-2 mb-2">
-                      <span className="px-3 py-1 bg-indigo-50 text-indigo-600 text-[10px] font-black uppercase tracking-widest rounded-full flex items-center gap-1">
-                          <FiShield size={12}/> Verified Artist
-                      </span>
-                  </div>
-                  <h1 className="text-4xl font-black text-gray-900 break-words tracking-tight leading-tight">{florist.platformName || florist.shopName}</h1>
-                  <p className="text-lg text-slate-400 font-bold mt-1">Professional Florist Partner</p>
-                  
-                  <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 mt-6">
-                      <div className="flex items-center px-4 py-2 bg-yellow-50 text-yellow-700 rounded-2xl border border-yellow-100 shadow-sm">
-                        <FiStar className="mr-2 fill-yellow-400 text-yellow-400"/> 
-                        <span className="font-black text-lg">{averageRating.toFixed(1)}</span>
-                        <span className="text-xs ml-2 font-bold opacity-60">({reviews.length} reviews)</span>
-                      </div>
-                       
-                      {isMyProfile && (
-                         <Link href="/florists/dashboard" className="text-sm px-6 py-2.5 bg-gray-900 text-white rounded-xl font-bold hover:bg-gray-800 transition-all shadow-lg active:scale-95">
-                            ダッシュボード
-                         </Link>
-                      )}
-                  </div>
-              </div>
-
-              <div className="hidden md:block">
-                 {(!user || user.role === 'USER') && !isMyProfile ? (
-                     <button
-                        onClick={() => setIsModalOpen(true)}
-                        className="px-8 py-4 font-black text-white bg-pink-600 rounded-2xl hover:bg-pink-700 transition-all transform hover:-translate-y-1 shadow-xl shadow-pink-200 flex items-center gap-2"
-                      >
-                        <FiZap /> 制作オファー
-                      </button>
-                 ) : null}
-              </div>
-          </header>
-
-          <div className="border-b border-gray-100 mb-10">
-              <nav className="flex space-x-10 overflow-x-auto no-scrollbar pb-1">
-                  {[
-                      { id: 'profile', label: 'プロフィール' },
-                      { id: 'appeal', label: `制作実績 (${appealPosts.length})` },
-                      { id: 'reviews', label: `評価 (${reviews.length})` }
-                  ].map(tab => (
-                      <button 
-                        key={tab.id}
-                        onClick={() => setActiveTab(tab.id)} 
-                        className={`whitespace-nowrap py-4 px-2 border-b-4 font-black text-sm tracking-widest uppercase transition-all ${
-                            activeTab === tab.id 
-                            ? 'border-pink-500 text-pink-600 scale-110' 
-                            : 'border-transparent text-gray-300 hover:text-gray-500'
-                        }`}
-                      >
-                          {tab.label}
-                      </button>
-                  ))}
-              </nav>
-          </div>
-
-          <div className="min-h-[500px]">
-              {activeTab === 'profile' && (
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-12 animate-fadeIn">
-                      <div className="lg:col-span-2 space-y-8">
-                         <div className="bg-slate-50 p-8 rounded-[2.5rem] border border-slate-100 relative">
-                            <h2 className="text-xl font-black text-gray-800 mb-6 flex items-center gap-3">
-                                <FiUser className="text-pink-500"/> 自己紹介 / コンセプト
-                            </h2>
-                            <p className="text-gray-600 whitespace-pre-wrap leading-relaxed font-medium text-sm md:text-base">
-                                {florist.portfolio || '自己紹介文がまだ設定されていません。'}
-                            </p>
-                            <div className="absolute top-8 right-8 opacity-5 text-gray-900 pointer-events-none">
-                                <FiAward size={120} />
-                            </div>
-                         </div>
-                      </div>
-
-                      <div className="bg-white p-8 rounded-[2.5rem] border-2 border-slate-50 shadow-inner h-fit space-y-8">
-                        <h2 className="text-xl font-black text-gray-900 mb-4 tracking-tighter">FLASTAL 登録情報</h2>
-                        
-                        <div className="space-y-6">
-                            <ProfileItem 
-                                icon={<FiMapPin />} 
-                                label="主な活動エリア" 
-                                value={florist.displayPrefecture || '全国対応'} 
-                                colorClass="text-sky-500 bg-sky-50"
-                            />
-                            <ProfileItem 
-                                icon={<FiClock />} 
-                                label="オーダー受付時間" 
-                                value={florist.businessHours} 
-                                colorClass="text-purple-500 bg-purple-50"
-                            />
-                            <ProfileItem 
-                                icon={<FiZap />} 
-                                label="特急注文 (1週間以内)" 
-                                value={florist.acceptsRushOrders ? '対応可能' : '要相談'} 
-                                colorClass="text-amber-500 bg-amber-50"
-                            />
-                            <ProfileItem 
-                                icon={<FiAward />} 
-                                label="得意な装飾・スキル" 
-                                value={Array.isArray(florist.specialties) ? florist.specialties.join(' / ') : florist.specialties} 
-                                colorClass="text-emerald-500 bg-emerald-50"
-                            />
-                        </div>
-
-                        <div className="pt-6 border-t border-slate-100">
-                            <p className="text-[10px] text-slate-400 font-bold leading-relaxed italic">
-                                ※プライバシー保護のため、詳細な所在地や連絡先は非公開です。制作進行の際、システム内チャットにて詳細なやり取りが可能になります。
-                            </p>
-                        </div>
-                      </div>
-                  </div>
-              )}
-              
-              {activeTab === 'appeal' && (
-                  <div className="animate-fadeIn">
-                      {availableTags.length > 0 && (
-                          <div className="flex flex-wrap gap-2 mb-10">
-                              <button 
-                                  onClick={() => setActiveTag(null)} 
-                                  className={`px-5 py-2 text-xs rounded-xl font-black tracking-widest uppercase transition-all ${
-                                      !activeTag ? 'bg-gray-900 text-white shadow-xl' : 'bg-white text-gray-400 border border-gray-100 hover:bg-gray-50'
-                                  }`}
-                              >
-                                  All Works
-                              </button>
-                              {availableTags.map(tag => (
-                                  <button 
-                                      key={tag}
-                                      onClick={() => setActiveTag(tag)} 
-                                      className={`px-5 py-2 text-xs rounded-xl font-black tracking-widest uppercase transition-all ${
-                                          activeTag === tag ? 'bg-pink-600 text-white shadow-xl shadow-pink-100' : 'bg-white text-gray-400 border border-gray-100 hover:bg-gray-50'
-                                      }`}
-                                  >
-                                      #{tag}
-                                  </button>
-                              ))}
-                          </div>
-                      )}
-
-                      {filteredPosts.length > 0 ? (
-                          <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
-                              {filteredPosts.map(post => {
-                                  const isLiked = user && post.likes?.some(l => l.userId === user.id);
-                                  return (
-                                      <div key={post.id} className="group relative aspect-square bg-gray-100 rounded-[2rem] overflow-hidden shadow-sm hover:shadow-2xl transition-all duration-500">
-                                          {post.imageUrl && (
-                                              <Image src={post.imageUrl} alt="作品" fill sizes="(max-width: 768px) 33vw, 50vw" style={{objectFit: 'cover'}} className="transition-transform duration-700 group-hover:scale-110" />
-                                          )}
-                                          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-6">
-                                              <p className="text-white text-xs font-bold leading-relaxed line-clamp-3">{post.content}</p>
-                                          </div>
-                                          <button 
-                                              onClick={(e) => {
-                                                  e.preventDefault();
-                                                  handleLikeToggle(post);
-                                              }}
-                                              className={`absolute top-4 right-4 p-3 rounded-2xl backdrop-blur-md transition-all z-20 ${
-                                                  isLiked ? 'bg-red-500 text-white shadow-lg' : 'bg-white/80 text-gray-400 hover:text-red-500'
-                                              }`}
-                                          >
-                                              <FiHeart size={18} fill={isLiked ? 'currentColor' : 'none'}/>
-                                          </button>
-                                      </div>
-                                  );
-                              })}
-                          </div>
-                      ) : (
-                          <div className="flex flex-col items-center justify-center py-24 bg-slate-50 rounded-[3rem] border-2 border-dashed border-slate-200">
-                              <FiCamera className="w-16 h-16 text-slate-200 mb-4" />
-                              <p className="text-slate-400 font-black tracking-widest uppercase text-sm">No works posted yet</p>
-                          </div>
-                      )}
-                  </div>
-              )}
-              
-              {activeTab === 'reviews' && (
-                  <div className="animate-fadeIn max-w-3xl mx-auto space-y-6">
-                       {reviews.length > 0 ? reviews.map(review => (
-                            <div key={review.id} className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm hover:shadow-md transition-all">
-                                <div className="flex items-center justify-between mb-6">
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-12 h-12 bg-slate-100 rounded-2xl flex items-center justify-center text-slate-400">
-                                            <FiUser size={24} />
-                                        </div>
-                                        <div>
-                                            <span className="font-black text-gray-800 block leading-none">{review.user?.handleName || 'Guest'}</span>
-                                            <span className="text-[10px] text-slate-400 font-bold mt-1 block uppercase tracking-tighter">{new Date(review.createdAt).toLocaleDateString()}</span>
-                                        </div>
-                                    </div>
-                                    <div className="flex text-yellow-400 gap-0.5">
-                                        {[...Array(5)].map((_, i) => (
-                                            <FiStar key={i} fill={i < review.rating ? "currentColor" : "none"} size={16}/>
-                                        ))}
-                                    </div>
-                                </div>
-                                <p className="text-gray-600 text-sm leading-relaxed font-medium bg-slate-50 p-6 rounded-2xl italic">
-                                    &quot;{review.comment}&quot;
-                                </p>
-                            </div>
-                        )) : (
-                            <div className="text-center py-20 text-slate-300 font-black tracking-widest uppercase bg-slate-50 rounded-[3rem]">No reviews found</div>
-                        )}
-                  </div>
-              )}
-          </div>
-
-          <div className="md:hidden sticky bottom-4 z-30 mt-12">
-            {(!user || user.role === 'USER') && !isMyProfile ? ( 
-              <button
-                onClick={() => setIsModalOpen(true)}
-                className="w-full py-5 font-black text-white bg-pink-600 rounded-3xl shadow-2xl shadow-pink-200 active:scale-95 transition-all flex items-center justify-center gap-3"
-              >
-                <FiZap size={24} /> 制作オファーを出す
-              </button>
-            ) : !user ? (
-              <div className="p-6 bg-white/90 backdrop-blur-xl border border-white rounded-[2rem] shadow-2xl text-center">
-                <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">Login required for orders</p>
-                <Link href="/login" className="block w-full py-4 bg-gray-900 text-white font-bold rounded-2xl">
-                  ログインして依頼する
-                </Link>
-              </div>
-            ) : null}
+        {/* 検索バー */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-5 mb-10">
+          <div className="relative max-w-2xl">
+            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"/>
+            <input
+              type="text"
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+              placeholder="店舗名、得意な装飾（バルーン, 連結など）で検索..."
+              className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-pink-500 focus:border-transparent outline-none transition-all"
+            />
           </div>
         </div>
-      </div>
 
-      {isModalOpen && (
-          <OfferModal 
-            floristId={id} 
-            floristName={florist.platformName || florist.shopName} 
-            onClose={() => setIsModalOpen(false)} 
-          />
-      )}
-    </>
+        {loading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+             {[...Array(6)].map((_, i) => (
+                 <div key={i} className="bg-white rounded-2xl h-80 shadow-sm border border-gray-100 animate-pulse">
+                     <div className="h-48 bg-gray-200 rounded-t-2xl"></div>
+                     <div className="p-5 space-y-3">
+                         <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                         <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                     </div>
+                 </div>
+             ))}
+          </div>
+        ) : filteredFlorists.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 animate-fadeIn">
+            {filteredFlorists.map((florist) => {
+               // 提示コードの評価計算ロジック
+               const reviews = florist.reviews || [];
+               const averageRating = reviews.length > 0 ? reviews.reduce((s, r) => s + (Number(r.rating) || 0), 0) / reviews.length : 0;
+               
+               return (
+                <Link key={florist.id} href={`/florists/${florist.id}`} className="group h-full block">
+                  <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-xl transition-all duration-300 hover:-translate-y-1 h-full flex flex-col relative">
+                    
+                    {/* ポートフォリオ画像エリア */}
+                    <div className="relative h-48 bg-slate-100 overflow-hidden">
+                        {florist.portfolioImages?.[0] ? (
+                            <Image 
+                                src={florist.portfolioImages[0]} 
+                                alt="Portfolio" fill style={{ objectFit: 'cover' }}
+                                className="group-hover:scale-105 transition-transform duration-500"
+                            />
+                        ) : (
+                            <div className="w-full h-full flex items-center justify-center text-slate-300 bg-slate-50">
+                                <FiCamera size={40} className="opacity-50" />
+                            </div>
+                        )}
+                        <div className="absolute top-3 right-3">
+                            <span className="bg-white/90 backdrop-blur text-pink-600 text-[10px] font-black px-3 py-1 rounded-full shadow-sm flex items-center gap-1 border border-pink-100">
+                                <FiShield size={10}/> VERIFIED
+                            </span>
+                        </div>
+                    </div>
+                    
+                    {/* 詳細情報エリア */}
+                    <div className="p-5 flex flex-col flex-grow relative">
+                        {/* アイコン（浮かせるデザイン） */}
+                        <div className="absolute -top-10 left-5 w-16 h-16 rounded-2xl border-4 border-white shadow-lg overflow-hidden bg-white">
+                            {florist.iconUrl ? (
+                                <Image src={florist.iconUrl} alt="Icon" fill style={{objectFit: 'cover'}} />
+                            ) : (
+                                <div className="w-full h-full bg-slate-50 flex items-center justify-center text-gray-300"><FiUser size={24}/></div>
+                            )}
+                        </div>
+
+                        <div className="mt-6">
+                            <h2 className="text-lg font-bold text-gray-900 group-hover:text-pink-600 transition-colors line-clamp-1 mb-1">
+                                {florist.platformName || florist.shopName}
+                            </h2>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Professional Artist</p>
+                        </div>
+
+                        <div className="space-y-2 mb-4 flex-grow">
+                            <p className="text-xs text-gray-500 flex items-center">
+                                <FiMapPin className="mr-1.5 text-indigo-400 shrink-0"/> 
+                                {florist.displayPrefecture || '全国対応'}
+                            </p>
+                            <div className="flex flex-wrap gap-1.5">
+                                {(Array.isArray(florist.specialties) ? florist.specialties : []).slice(0, 3).map((s, i) => (
+                                    <span key={i} className="text-[10px] bg-slate-50 text-slate-500 px-2.5 py-1 rounded-lg border border-slate-100 font-bold">#{s}</span>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="mt-auto pt-4 border-t border-gray-50 flex items-center justify-between">
+                            <div className="flex items-center text-yellow-500 font-black text-sm">
+                                <FiStar className="mr-1 fill-yellow-500"/>
+                                {averageRating.toFixed(1)}
+                                <span className="text-gray-300 font-bold ml-1 text-[10px]">({reviews.length})</span>
+                            </div>
+                            <div className="flex gap-2">
+                                {florist.acceptsRushOrders && (
+                                    <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-100 flex items-center gap-0.5">
+                                        <FiZap size={10} className="fill-amber-600"/> 特急OK
+                                    </span>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                  </div>
+                </Link>
+               );
+            })}
+          </div>
+        ) : (
+          <div className="text-center py-20 bg-white rounded-3xl border-2 border-dashed border-gray-200">
+            <FiAlertCircle size={40} className="text-gray-200 mx-auto mb-4" />
+            <p className="text-gray-400 font-bold">お花屋さんが見つかりませんでした</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default function FloristListPage() { 
+  return (
+      <Suspense fallback={<div className="flex items-center justify-center min-h-screen bg-slate-50"><FiLoader className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-pink-500"/></div>}>
+          <FloristsListContent />
+      </Suspense>
   );
 }

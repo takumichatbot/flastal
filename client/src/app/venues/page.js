@@ -1,222 +1,227 @@
 'use client';
 
-export const dynamic = 'force-dynamic';
-export const fetchCache = 'force-no-store';
-
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, Suspense, useCallback } from 'react';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
+import { useAuth } from '@/app/contexts/AuthContext'; 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { useAuth } from '@/app/contexts/AuthContext';
+import Image from 'next/image';
 import toast from 'react-hot-toast';
-import { 
-  FiMapPin, FiCheckCircle, FiInfo, FiSearch, FiEdit2, 
-  FiTrash2, FiPlus, FiArrowLeft, FiLoader, FiClock, FiShield
-} from 'react-icons/fi';
+import { FiSearch, FiMapPin, FiCheckCircle, FiLoader, FiPlus, FiTrash2, FiShield, FiFilter } from 'react-icons/fi';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
-function VenuesListInner() {
-    const { user } = useAuth();
-    // トークンをlocalStorageから安全に取得
-    const getToken = () => typeof window !== 'undefined' ? localStorage.getItem('authToken')?.replace(/"/g, '') : null;
+const PREFECTURES = [
+  '北海道', '青森県', '岩手県', '宮城県', '秋田県', '山形県', '福島県',
+  '茨城県', '栃木県', '群馬県', '埼玉県', '千葉県', '東京都', '神奈川県',
+  '新潟県', '富山県', '石川県', '福井県', '山梨県', '長野県', '岐阜県', 
+  '静岡県', '愛知県', '三重県', '滋賀県', '京都府', '大阪府', '兵庫県', 
+  '奈良県', '和歌山県', '鳥取県', '島根県', '岡山県', '広島県', '山口県',
+  '徳島県', '香川県', '愛媛県', '高知県', '福岡県', '佐賀県', '長崎県', 
+  '熊本県', '大分県', '宮崎県', '鹿児島県', '沖縄県'
+];
 
-    const [venues, setVenues] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [searchTerm, setSearchTerm] = useState('');
-    
-    const isAdmin = user?.role === 'ADMIN';
+function VenuesContent() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const { user, authenticatedFetch, isLoading: authLoading } = useAuth();
 
-    const fetchVenues = async () => {
-        setLoading(true);
-        const token = getToken();
-        try {
-            // 1. まずは全件取得（管理者用エンドポイント）を試みる
-            let endpoint = token ? `${API_URL}/api/venues/admin` : `${API_URL}/api/venues`;
-            let res = await fetch(endpoint, {
-                headers: token ? { 'Authorization': `Bearer ${token}` } : {}
-            });
+  const [venues, setVenues] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-            // 2. もし権限エラー等で失敗した場合は、一般用エンドポイントに切り替え
-            if (!res.ok) {
-                res = await fetch(`${API_URL}/api/venues`);
-            }
+  const [keyword, setKeyword] = useState(searchParams.get('keyword') || '');
+  const [prefecture, setPrefecture] = useState(searchParams.get('prefecture') || '');
 
-            if (res.ok) {
-                const data = await res.json();
-                setVenues(data);
-            }
-        } catch (error) {
-            console.error('Fetch error:', error);
-            toast.error('会場データの読み込みに失敗しました');
-        } finally {
-            setLoading(false);
-        }
-    };
+  const fetchVenues = useCallback(async () => {
+    if (authLoading) return;
+    setLoading(true);
+    try {
+      const isAdmin = user?.role === 'ADMIN';
+      const endpoint = isAdmin ? `${API_URL}/api/venues/admin` : `${API_URL}/api/venues`;
+      const res = await authenticatedFetch(endpoint);
+      
+      if (res && res.ok) {
+        const data = await res.json();
+        setVenues(data);
+      }
+    } catch (error) {
+      console.error('Fetch error:', error);
+      toast.error('会場データの読み込みに失敗しました');
+    } finally {
+      setLoading(false);
+    }
+  }, [user, authenticatedFetch, authLoading]);
 
-    useEffect(() => {
+  useEffect(() => {
+    fetchVenues();
+  }, [fetchVenues]);
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    const params = new URLSearchParams(searchParams);
+    if (keyword.trim()) params.set('keyword', keyword);
+    else params.delete('keyword');
+    if (prefecture) params.set('prefecture', prefecture);
+    else params.delete('prefecture');
+    router.replace(`${pathname}?${params.toString()}`);
+  };
+
+  const handleDelete = async (e, id) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!confirm('この会場情報を削除しますか？')) return;
+    try {
+      const res = await authenticatedFetch(`${API_URL}/api/venues/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        toast.success('削除しました');
         fetchVenues();
-    }, [user]);
+      }
+    } catch (error) {
+      toast.error('削除に失敗しました');
+    }
+  };
 
-    const handleDelete = async (id) => {
-        if (!isAdmin) return;
-        if (!window.confirm('この会場情報を削除しますか？')) return;
-        const token = getToken();
-        try {
-            const res = await fetch(`${API_URL}/api/venues/${id}`, {
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (res.ok) {
-                toast.success('削除しました');
-                fetchVenues();
-            }
-        } catch (error) {
-            toast.error('削除に失敗しました');
-        }
-    };
+  const filteredVenues = venues.filter(v => {
+    const matchesKeyword = v.venueName.toLowerCase().includes(keyword.toLowerCase()) || 
+                          (v.address && v.address.toLowerCase().includes(keyword.toLowerCase()));
+    const matchesPrefecture = !prefecture || (v.address && v.address.includes(prefecture));
+    return matchesKeyword && matchesPrefecture;
+  });
 
-    // --- 表示フィルタリングのロジック ---
-    const filteredVenues = venues.filter(v => {
-        // 会場名または住所で検索
-        const matchesSearch = v.venueName.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                             (v.address && v.address.toLowerCase().includes(searchTerm.toLowerCase()));
-        
-        if (!matchesSearch) return false;
+  return (
+    <div className="bg-slate-50 min-h-screen py-10 font-sans text-gray-800">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex flex-col md:flex-row justify-between items-center mb-10 gap-6">
+          <div>
+            <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight mb-2">会場・施設を探す</h1>
+            <p className="text-gray-500 text-sm">推しへ想いを届けるための全国の会場データベース</p>
+          </div>
+          <Link href="/venues/add">
+            <span className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-pink-500 to-rose-500 text-white font-bold rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all cursor-pointer">
+              <FiPlus className="mr-2"/> 会場情報を教える
+            </span>
+          </Link>
+        </div>
 
-        // 管理者の場合は無条件にすべて表示
-        if (isAdmin) return true;
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-5 mb-10">
+          <form onSubmit={handleSearch} className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+            <div className="md:col-span-6">
+              <label className="block text-xs font-bold text-gray-500 mb-1 uppercase tracking-wider">キーワード</label>
+              <div className="relative">
+                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"/>
+                <input
+                  type="text"
+                  value={keyword}
+                  onChange={(e) => setKeyword(e.target.value)}
+                  placeholder="会場名、建物名など..."
+                  className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-pink-500 outline-none transition-all"
+                />
+              </div>
+            </div>
+            
+            <div className="md:col-span-4">
+              <label className="block text-xs font-bold text-gray-500 mb-1 uppercase tracking-wider">エリア</label>
+              <div className="relative">
+                <FiMapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"/>
+                <select
+                  value={prefecture}
+                  onChange={(e) => setPrefecture(e.target.value)}
+                  className="w-full pl-10 pr-8 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-pink-500 outline-none appearance-none cursor-pointer transition-all"
+                >
+                  <option value="">すべてのエリア</option>
+                  {PREFECTURES.map(pref => (
+                    <option key={pref} value={pref}>{pref}</option>
+                  ))}
+                </select>
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                    <FiFilter size={12} />
+                </div>
+              </div>
+            </div>
 
-        // 一般ユーザー（またはゲスト）の場合
-        // 1. すでに承認済み (isOfficial)
-        // 2. もしくは、自分が投稿したものである (submittedBy)
-        const isMySubmission = user && v.submittedBy === user.id;
-        
-        return v.isOfficial || isMySubmission;
-    });
+            <div className="md:col-span-2">
+              <button 
+                type="submit" 
+                className="w-full py-2.5 bg-slate-800 text-white font-bold rounded-xl hover:bg-slate-900 transition-colors shadow-md flex items-center justify-center"
+              >
+                検索
+              </button>
+            </div>
+          </form>
+        </div>
 
-    return (
-        <div className="min-h-screen bg-[#fafafa] p-4 md:p-8 font-sans pt-28">
-            <div className="max-w-6xl mx-auto">
-                
-                {/* ヘッダーセクション */}
-                <div className="flex flex-col md:flex-row justify-between items-end mb-12 gap-6 px-2">
-                    <div>
-                        <div className="flex items-center gap-2 mb-2">
-                            <span className="h-px w-8 bg-pink-500"></span>
-                            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-pink-500">Venue Directory</span>
-                        </div>
-                        <h1 className="text-4xl md:text-5xl font-black text-slate-900 tracking-tighter flex items-center gap-4">
-                            会場・施設一覧
-                        </h1>
-                        <p className="text-slate-400 mt-4 font-bold text-sm md:text-base leading-relaxed max-w-xl">
-                            推しへ想いを届けるための全国の会場データベースです。
-                            <br className="hidden md:block" />
-                            あなたが知っている会場情報もぜひ共有してください。
+        {loading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+             {[...Array(6)].map((_, i) => (
+                 <div key={i} className="bg-white rounded-2xl h-80 shadow-sm border border-gray-100 animate-pulse">
+                     <div className="h-48 bg-gray-200 rounded-t-2xl"></div>
+                     <div className="p-5 space-y-3">
+                         <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                         <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                     </div>
+                 </div>
+             ))}
+          </div>
+        ) : filteredVenues.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+            {filteredVenues.map((venue) => (
+              <Link key={venue.id} href={`/venues/${venue.id}`} className="group h-full block">
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-xl transition-all duration-300 hover:-translate-y-1 h-full flex flex-col relative">
+                  <div className="relative h-44 bg-gradient-to-br from-slate-100 to-indigo-50 flex items-center justify-center">
+                    <span className="text-6xl filter drop-shadow-sm transform group-hover:scale-110 transition-transform duration-500">🏛️</span>
+                    <div className="absolute top-3 right-3">
+                        {venue.isOfficial ? (
+                            <span className="bg-sky-500 text-white text-[10px] font-black px-3 py-1 rounded-full shadow-sm flex items-center gap-1">
+                                <FiShield size={10}/> OFFICIAL
+                            </span>
+                        ) : (
+                            <span className="bg-white/90 backdrop-blur text-amber-500 text-[10px] font-black px-3 py-1 rounded-full shadow-sm">USER SUBMITTED</span>
+                        )}
+                    </div>
+                  </div>
+                  <div className="p-5 flex flex-col flex-grow">
+                    <h2 className="text-lg font-bold text-gray-900 group-hover:text-pink-600 transition-colors line-clamp-2 mb-3 leading-snug">
+                        {venue.venueName}
+                    </h2>
+                    <div className="space-y-2 mb-4">
+                        <p className="text-xs text-gray-500 flex items-start">
+                            <FiMapPin className="mr-1.5 text-indigo-400 shrink-0 mt-0.5"/> 
+                            <span className="line-clamp-2">{venue.address || '所在地情報なし'}</span>
                         </p>
                     </div>
-                    <div className="flex flex-wrap gap-4">
-                        <Link href="/venues/add" className="bg-slate-900 text-white px-8 py-4 rounded-[2rem] font-black flex items-center gap-2 hover:bg-pink-600 transition-all shadow-xl active:scale-95">
-                            <FiPlus /> 新しい会場を教える
-                        </Link>
-                    </div>
-                </div>
-
-                {/* 検索バー */}
-                <div className="relative mb-12">
-                    <FiSearch className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300 size-6" />
-                    <input 
-                        type="text" 
-                        placeholder="会場名、または所在地で検索..." 
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-16 pr-8 py-6 bg-white border-2 border-slate-50 rounded-[2.5rem] shadow-sm outline-none focus:border-pink-200 transition-all font-bold text-xl placeholder:text-slate-200"
-                    />
-                </div>
-
-                {/* リスト表示 */}
-                {loading ? (
-                    <div className="py-32 text-center">
-                        <FiLoader className="animate-spin text-pink-500 size-12 mx-auto mb-6" />
-                        <p className="text-slate-400 font-black tracking-widest uppercase text-xs">Accessing Database...</p>
-                    </div>
-                ) : filteredVenues.length === 0 ? (
-                    <div className="bg-white rounded-[3rem] py-32 text-center border-2 border-dashed border-slate-100 px-6">
-                        <div className="bg-slate-50 size-20 rounded-full flex items-center justify-center mx-auto mb-6">
-                            <FiMapPin className="size-8 text-slate-200" />
+                    <div className="mt-auto pt-4 border-t border-gray-50 flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                            {venue.isStandAllowed ? (
+                                <span className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded border border-green-100 flex items-center gap-1"><FiCheckCircle/> 許可実績あり</span>
+                            ) : (
+                                <span className="text-[10px] font-bold text-slate-400 bg-slate-50 px-2 py-0.5 rounded border border-slate-100">要詳細確認</span>
+                            )}
                         </div>
-                        <p className="text-slate-400 font-black text-lg">該当する会場が見つかりませんでした</p>
+                        {user?.role === 'ADMIN' && (
+                            <button onClick={(e) => handleDelete(e, venue.id)} className="p-2 text-red-400 hover:bg-red-50 rounded-lg transition-colors">
+                                <FiTrash2 size={14}/>
+                            </button>
+                        )}
                     </div>
-                ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                        {filteredVenues.map(venue => (
-                            <div key={venue.id} className="bg-white rounded-[3rem] p-10 border border-slate-50 shadow-[0_10px_40px_rgba(0,0,0,0.02)] hover:shadow-[0_20px_60px_rgba(0,0,0,0.06)] hover:-translate-y-2 transition-all group relative overflow-hidden flex flex-col">
-                                
-                                {/* 承認状態バッジ */}
-                                {!venue.isOfficial ? (
-                                    <div className="absolute top-0 right-0 bg-amber-400 text-white px-6 py-2 rounded-bl-[1.5rem] text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
-                                        <FiClock className="animate-pulse" /> 承認待ち
-                                    </div>
-                                ) : (
-                                    <div className="absolute top-0 right-0 bg-sky-500 text-white px-6 py-2 rounded-bl-[1.5rem] text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
-                                        <FiShield /> 公式
-                                    </div>
-                                )}
-
-                                <div className="mb-8 flex-1">
-                                    <h3 className="text-2xl font-black text-slate-900 leading-tight group-hover:text-pink-600 transition-colors">
-                                        {venue.venueName}
-                                    </h3>
-                                    <div className="flex items-start gap-2 text-slate-400 mt-4">
-                                        <FiMapPin className="mt-1 shrink-0 text-pink-500/30" size={16}/>
-                                        <span className="text-sm font-bold leading-relaxed">{venue.address || '所在地情報なし'}</span>
-                                    </div>
-                                </div>
-
-                                <div className="space-y-4 mb-10">
-                                    <div className="flex items-center justify-between px-6 py-4 bg-slate-50 rounded-2xl border border-slate-100/50">
-                                        <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">フラスタ受入</span>
-                                        {venue.isStandAllowed ? (
-                                            <span className="text-sm font-black text-green-600 flex items-center gap-1.5 bg-green-50 px-3 py-1 rounded-full border border-green-100">
-                                                <FiCheckCircle /> 許可実績あり
-                                            </span>
-                                        ) : (
-                                            <span className="text-sm font-black text-slate-400 bg-white px-3 py-1 rounded-full border border-slate-100">
-                                                要確認
-                                            </span>
-                                        )}
-                                    </div>
-                                </div>
-
-                                <div className="flex gap-3 mt-auto">
-                                    <Link href={`/venues/${venue.id}`} className="flex-1 bg-slate-900 text-white py-4 rounded-2xl text-center font-black text-sm hover:bg-pink-600 transition-all shadow-lg active:scale-95">
-                                        詳細を見る
-                                    </Link>
-                                    
-                                    {isAdmin && (
-                                        <div className="flex gap-2">
-                                            <Link href={`/venues/${venue.id}/edit`} className="p-4 bg-slate-100 text-slate-400 rounded-2xl hover:bg-teal-500 hover:text-white transition-all">
-                                                <FiEdit2 size={18} />
-                                            </Link>
-                                            <button onClick={() => handleDelete(venue.id)} className="p-4 bg-slate-100 text-slate-400 rounded-2xl hover:bg-rose-500 hover:text-white transition-all">
-                                                <FiTrash2 size={18} />
-                                            </button>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                )}
-            </div>
-            <style jsx global>{` body { background-color: #fafafa; } `}</style>
-        </div>
-    );
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center py-20 bg-white rounded-3xl border-2 border-dashed border-gray-200 text-center">
+            <p className="text-gray-400 font-bold">該当する会場が見つかりませんでした</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
-export default function VenuesListPage() {
-    return (
-        <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><FiLoader className="animate-spin size-10 text-pink-500" /></div>}>
-            <VenuesListInner />
-        </Suspense>
-    );
+export default function VenuesPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50"><FiLoader className="animate-spin text-pink-500" /></div>}>
+      <VenuesContent />
+    </Suspense>
+  );
 }
