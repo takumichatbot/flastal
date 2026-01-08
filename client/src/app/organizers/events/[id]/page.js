@@ -6,7 +6,7 @@ import { useAuth } from '@/app/contexts/AuthContext';
 import { 
   FiSave, FiTrash2, FiArrowLeft, FiCalendar, FiMapPin, 
   FiInfo, FiCheckCircle, FiUsers, FiExternalLink, FiAlertCircle, 
-  FiImage, FiPlus, FiX, FiUpload, FiLoader, FiTwitter, FiInstagram, FiGlobe, FiMega, FiStar, FiEdit3
+  FiImage, FiPlus, FiX, FiUpload, FiLoader, FiTwitter, FiInstagram, FiGlobe, FiMegaphone, FiStar, FiEdit3
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
@@ -140,7 +140,7 @@ export default function OrganizerEventDetailPage() {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(eventData), // eventData全体を送信
+        body: JSON.stringify(eventData),
       });
 
       if (!res.ok) throw new Error('更新に失敗しました');
@@ -208,6 +208,7 @@ export default function OrganizerEventDetailPage() {
                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                                 {eventData.imageUrls?.map((url, idx) => (
                                     <div key={idx} className="relative aspect-square rounded-xl overflow-hidden group border border-slate-200 shadow-sm">
+                                        {/* eslint-disable-next-line @next/next/no-img-element */}
                                         <img src={url} alt="" className="w-full h-full object-cover transition-transform group-hover:scale-110" />
                                         <button 
                                             type="button"
@@ -228,7 +229,7 @@ export default function OrganizerEventDetailPage() {
 
                         {/* 主催者告知セクション */}
                         <div className="bg-indigo-600 rounded-xl p-5 text-white shadow-lg">
-                            <h3 className="font-bold mb-3 flex items-center gap-2"><FiMega /> 主催者からの最新告知</h3>
+                            <h3 className="font-bold mb-3 flex items-center gap-2"><FiMegaphone /> 主催者からの最新告知</h3>
                             <textarea 
                                 value={eventData.announcement}
                                 onChange={(e) => setEventData({...eventData, announcement: e.target.value})}
@@ -290,7 +291,7 @@ export default function OrganizerEventDetailPage() {
                             <select 
                                 value={eventData.venueId || ''}
                                 onChange={(e) => setEventData({...eventData, venueId: e.target.value})}
-                                className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none bg-white cursor-pointer"
+                                className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-indigo-500 outline-none appearance-none cursor-pointer"
                             >
                                 <option value="">会場未定 / その他</option>
                                 {venues.map(v => <option key={v.id} value={v.id}>{v.venueName}</option>)}

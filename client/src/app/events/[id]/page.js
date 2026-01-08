@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { 
   FiCalendar, FiMapPin, FiInfo, FiAlertTriangle, FiPlus, 
   FiExternalLink, FiCpu, FiUser, FiCheckCircle, FiX, FiImage,
-  FiChevronLeft, FiChevronRight, FiMega, FiGlobe, FiTwitter, FiInstagram, FiShield, FiStar, FiMail
+  FiChevronLeft, FiChevronRight, FiMegaphone, FiGlobe, FiTwitter, FiInstagram, FiShield, FiStar, FiMail, FiEdit3
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/app/contexts/AuthContext';
@@ -22,6 +22,7 @@ function ProjectCard({ project }) {
     <Link href={`/projects/${project.id}`} className="block bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-md hover:border-sky-300 transition-all overflow-hidden group">
       <div className="h-40 bg-gray-200 relative overflow-hidden">
         {project.imageUrl ? (
+          /* eslint-disable-next-line @next/next/no-img-element */
           <img src={project.imageUrl} alt={project.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-gray-400 bg-gray-100">No Image</div>
@@ -35,6 +36,7 @@ function ProjectCard({ project }) {
         <div className="flex items-center gap-2 text-xs text-gray-500 mb-3">
           <div className="flex items-center">
             {project.planner?.iconUrl ? (
+                /* eslint-disable-next-line @next/next/no-img-element */
                 <img src={project.planner.iconUrl} alt="planner" className="w-4 h-4 rounded-full mr-1 object-cover"/>
             ) : <span className="w-4 h-4 rounded-full bg-gray-300 mr-1 block"></span>}
             {project.planner?.handleName || '退会済みユーザー'}
@@ -134,18 +136,18 @@ export default function EventDetailPage() {
     setCurrentImageIndex((prev) => (prev - 1 + event.imageUrls.length) % event.imageUrls.length);
   };
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-sky-500"></div></div>;
+  if (loading) return <div className="flex items-center justify-center min-h-screen bg-slate-50"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-sky-500"></div></div>;
   if (!event) return <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 text-gray-500"><p className="mb-4">イベントが見つかりませんでした。</p><Link href="/events" className="text-indigo-600 font-bold hover:underline">イベント一覧へ戻る</Link></div>;
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans text-gray-800">
       
-      {/* 主催者からの告知セクション（最上部：なりすまし防止デザイン強化） */}
+      {/* 主催者からの告知セクション */}
       {event.announcement && (
         <div className="bg-indigo-600 text-white py-4 px-4 shadow-lg sticky top-0 z-40">
           <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-6">
              <div className="flex items-center gap-2 bg-white/20 px-3 py-1 rounded-full shrink-0 shadow-inner">
-                <FiMega className="animate-bounce" size={18}/>
+                <FiMegaphone className="animate-bounce" size={18}/>
                 <span className="text-xs font-black uppercase tracking-wider flex items-center gap-1">
                   <FiShield size={12}/> Official Announcement
                 </span>
@@ -167,6 +169,7 @@ export default function EventDetailPage() {
                <div className="aspect-[3/4] rounded-2xl bg-slate-100 overflow-hidden shadow-xl border border-slate-200 relative group">
                   {event.imageUrls && event.imageUrls.length > 0 ? (
                     <>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img 
                         src={event.imageUrls[currentImageIndex]} 
                         alt={`${event.title} - ${currentImageIndex + 1}`} 
