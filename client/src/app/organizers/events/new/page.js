@@ -11,7 +11,7 @@ import { useAuth } from '@/app/contexts/AuthContext';
 import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import { 
-  FiArrowLeft, FiCalendar, FiMapPin, FiLoader, FiType
+  FiArrowLeft, FiCalendar, FiMapPin, FiLoader, FiType, FiImage, FiLink, FiGlobe, FiInstagram, FiTwitter
 } from 'react-icons/fi';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
@@ -32,11 +32,15 @@ function CreateEventContent() {
     formState: { isSubmitting, errors } 
   } = useForm({
     defaultValues: {
-      title: '', // バックエンドの title カラムに合わせる
+      title: '', 
       eventDate: '',
       venueId: '',
       description: '',
-      genre: 'OTHER'
+      genre: 'OTHER',
+      imageUrl: '',
+      twitterUrl: '',
+      instagramUrl: '',
+      officialWebsite: ''
     }
   });
 
@@ -76,15 +80,14 @@ function CreateEventContent() {
     const toastId = toast.loading('イベントを登録中...');
 
     try {
-      // 日付の文字列パターンエラーを回避するため、ISO形式に整形
-      // input[type="date"] は "YYYY-MM-DD" を返すため、時刻を補填する
+      // 日付のISO形式変換
       const formattedDate = new Date(`${data.eventDate}T00:00:00`).toISOString();
 
       const res = await authenticatedFetch('/api/events/user-submit', {
         method: 'POST',
         body: JSON.stringify({
           ...data,
-          eventDate: formattedDate // 整形した日付を送る
+          eventDate: formattedDate 
         }),
       });
 
@@ -131,6 +134,10 @@ function CreateEventContent() {
       <div className="max-w-3xl mx-auto px-4 py-8">
         <form onSubmit={handleSubmit(onSubmit, onError)} className="space-y-8">
           <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden p-6 md:p-8 space-y-6">
+                
+                {/* 基本情報セクション */}
+                <h2 className="text-lg font-bold border-l-4 border-indigo-500 pl-3 mb-4">基本情報</h2>
+                
                 <div>
                     <label className="block text-sm font-bold text-gray-700 mb-1 flex items-center gap-2">
                         <FiType className="text-indigo-500" /> イベント名 *
@@ -187,12 +194,69 @@ function CreateEventContent() {
                     {errors.venueId && <p className="text-red-500 text-xs mt-1">{errors.venueId.message}</p>}
                 </div>
 
+                <hr className="border-gray-100" />
+
+                {/* メディア・リンク情報セクション */}
+                <h2 className="text-lg font-bold border-l-4 border-indigo-500 pl-3 mb-4">メディア・リンク情報</h2>
+
                 <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-1">説明</label>
+                    <label className="block text-sm font-bold text-gray-700 mb-1 flex items-center gap-2">
+                        <FiImage className="text-indigo-500" /> イベント画像URL
+                    </label>
+                    <input 
+                        type="url" 
+                        {...register('imageUrl')} 
+                        className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none"
+                        placeholder="https://... (メインビジュアル画像URL)"
+                    />
+                    <p className="text-[10px] text-gray-400 mt-1">※現時点では画像URLを直接入力してください</p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                      <label className="block text-sm font-bold text-gray-700 mb-1 flex items-center gap-2">
+                          <FiGlobe className="text-indigo-500" /> 公式サイトURL
+                      </label>
+                      <input 
+                          type="url" 
+                          {...register('officialWebsite')} 
+                          className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none"
+                          placeholder="https://..."
+                      />
+                  </div>
+                  <div>
+                      <label className="block text-sm font-bold text-gray-700 mb-1 flex items-center gap-2">
+                          <FiTwitter className="text-sky-400" /> X (Twitter) URL
+                      </label>
+                      <input 
+                          type="url" 
+                          {...register('twitterUrl')} 
+                          className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none"
+                          placeholder="https://x.com/..."
+                      />
+                  </div>
+                </div>
+
+                <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1 flex items-center gap-2">
+                        <FiInstagram className="text-pink-500" /> Instagram URL
+                    </label>
+                    <input 
+                        type="url" 
+                        {...register('instagramUrl')} 
+                        className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none"
+                        placeholder="https://instagram.com/..."
+                    />
+                </div>
+
+                <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1 flex items-center gap-2">
+                      <FiLoader className="text-indigo-500" /> イベント詳細
+                    </label>
                     <textarea 
                         {...register('description')} 
                         rows="4"
-                        placeholder="出演者や企画に関する補足情報があれば入力してください"
+                        placeholder="出演者や企画に関する補足情報、フラスタの搬入規定などがあれば入力してください"
                         className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none"
                     ></textarea>
                 </div>
@@ -202,13 +266,13 @@ function CreateEventContent() {
              <button 
                type="submit" 
                disabled={isSubmitting} 
-               className="w-full py-4 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all shadow-lg disabled:bg-gray-400 flex justify-center items-center gap-2"
+               className="w-full py-5 bg-indigo-600 text-white font-bold rounded-2xl hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 disabled:bg-gray-400 flex justify-center items-center gap-3 text-lg"
              >
                 {isSubmitting ? (
                   <>
                     <FiLoader className="animate-spin" /> 登録中...
                   </>
-                ) : 'イベントを登録する'}
+                ) : 'イベントを公開する'}
              </button>
           </div>
         </form>
