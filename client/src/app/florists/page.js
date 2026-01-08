@@ -34,8 +34,8 @@ const prefectures = [
 
 function SkeletonCard() {
   return (
-    <div className="bg-white rounded-2xl shadow-sm overflow-hidden h-full border border-gray-100 animate-pulse">
-      <div className="h-48 bg-gray-200" />
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden h-full animate-pulse">
+      <div className="h-52 bg-gray-200" />
       <div className="p-5 space-y-3">
         <div className="h-6 bg-gray-200 rounded w-3/4" />
         <div className="flex gap-1">
@@ -53,58 +53,68 @@ function FloristCard({ florist, projectId, onOffer, isOffering }) {
   const thumbnailSrc = florist.portfolioImages?.[0] || florist.iconUrl;
 
   const CardBody = () => (
-    <div className="group bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden h-full flex flex-col transition-all duration-300 hover:shadow-xl hover:-translate-y-1 relative">
-      <div className="relative h-56 w-full bg-gray-100 overflow-hidden">
+    <div className="group bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden h-full flex flex-col transition-all duration-300 hover:shadow-xl hover:-translate-y-1 relative">
+      <div className="relative h-52 bg-gray-100 overflow-hidden">
         {thumbnailSrc ? (
           <Image 
             src={thumbnailSrc} 
             alt={florist.platformName} 
             fill
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-            className="object-cover group-hover:scale-110 transition-transform duration-700 ease-in-out" 
+            className="object-cover group-hover:scale-105 transition-transform duration-500" 
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-4xl bg-pink-50">💐</div>
+          <div className="w-full h-full flex items-center justify-center text-4xl bg-slate-50 opacity-50">💐</div>
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-        <div className="absolute bottom-3 left-3 flex items-center gap-2 z-10">
-             {florist.iconUrl ? (
-               <div className="relative w-10 h-10 rounded-full border-2 border-white shadow-md overflow-hidden bg-white">
-                 <Image src={florist.iconUrl} alt="icon" fill className="object-cover" />
-               </div>
-             ) : (
-               <div className="w-10 h-10 rounded-full border-2 border-white shadow-md bg-white flex items-center justify-center text-xs text-gray-400">No Img</div>
-             )}
+        
+        <div className="absolute top-3 right-3 flex flex-col gap-2 z-10">
+            {florist.acceptsRushOrders && (
+                <div className="bg-white/90 backdrop-blur text-pink-600 text-[10px] font-black px-3 py-1 rounded-full shadow-sm flex items-center gap-1 border border-pink-100">
+                    <FiZap size={10} className="fill-pink-600"/> お急ぎOK
+                </div>
+            )}
         </div>
-        {florist.acceptsRushOrders && (
-            <div className="absolute top-3 right-3 bg-yellow-400/90 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-1 rounded-full shadow-lg flex items-center z-10">
-                <FiZap className="mr-0.5 fill-white"/> お急ぎOK
-            </div>
-        )}
       </div>
-      <div className="p-5 flex flex-col flex-grow">
-        <div className="flex justify-between items-start mb-1">
-          <h3 className="text-lg font-bold text-gray-800 line-clamp-1">{florist.platformName}</h3>
+
+      <div className="p-5 flex flex-col flex-grow relative">
+        {/* アイコンをカードの境界線に浮かせるデザイン */}
+        <div className="absolute -top-10 left-5 w-16 h-16 rounded-2xl border-4 border-white shadow-lg overflow-hidden bg-white">
+            {florist.iconUrl ? (
+                <Image src={florist.iconUrl} alt="" fill style={{objectFit: 'cover'}} />
+            ) : (
+                <div className="w-full h-full bg-slate-50 flex items-center justify-center text-gray-300"><FiAward size={24}/></div>
+            )}
         </div>
-        <div className="flex flex-wrap gap-1 mb-3 min-h-[24px]">
+
+        <div className="mt-6 mb-1">
+          <h3 className="text-lg font-bold text-gray-900 group-hover:text-pink-600 transition-colors line-clamp-1">{florist.platformName}</h3>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Florist Partner</p>
+        </div>
+
+        <div className="flex flex-wrap gap-1.5 mb-4">
             {Array.isArray(florist.specialties) && florist.specialties.slice(0, 3).map(tag => (
-                <span key={tag} className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md font-medium">
-                    {tag.split('/')[0]}
+                <span key={tag} className="text-[10px] bg-slate-50 text-slate-500 px-2 py-0.5 rounded border border-slate-100 font-bold">
+                    #{tag.split('/')[0]}
                 </span>
             ))}
             {Array.isArray(florist.specialties) && florist.specialties.length > 3 && (
-              <span className="text-[10px] text-gray-400 px-1">+{florist.specialties.length - 3}</span>
+              <span className="text-[10px] text-gray-400 font-bold px-1 flex items-center">+{florist.specialties.length - 3}</span>
             )}
         </div>
-        <div className="flex items-center text-xs text-gray-500 mb-4 gap-3">
-          <span className="flex items-center gap-0.5"><FiMapPin /> {florist.address || '未設定'}</span>
-          {florist.reviewCount > 0 && (
-             <span className="flex items-center gap-0.5 text-orange-500 font-bold">
-               <FiStar className="fill-orange-500"/> {florist.averageRating?.toFixed(1)} ({florist.reviewCount})
-             </span>
-          )}
-        </div>
-        <div className="mt-auto">
+
+        <div className="mt-auto space-y-3">
+          <div className="flex items-center justify-between text-xs font-medium pt-4 border-t border-gray-50">
+            <span className="flex items-center text-gray-500 truncate mr-2">
+                <FiMapPin className="mr-1.5 text-indigo-400 shrink-0" size={14}/> 
+                <span className="truncate">{florist.address || '全国対応'}</span>
+            </span>
+            {florist.reviewCount > 0 && (
+               <span className="flex items-center gap-1 text-yellow-500 font-black shrink-0">
+                 <FiStar size={14} className="fill-yellow-500"/> {florist.averageRating?.toFixed(1)}
+               </span>
+            )}
+          </div>
+
           {projectId ? (
             <button
               onClick={(e) => {
@@ -112,13 +122,13 @@ function FloristCard({ florist, projectId, onOffer, isOffering }) {
                 onOffer(florist.id);
               }}
               disabled={isOffering}
-              className="w-full py-2.5 px-4 bg-pink-500 text-white text-sm font-bold rounded-xl hover:bg-pink-600 transition-colors shadow-md disabled:bg-gray-300 transform active:scale-95"
+              className="w-full py-3 bg-slate-900 text-white text-xs font-black rounded-xl hover:bg-pink-600 transition-all shadow-md disabled:bg-gray-300"
             >
-              {isOffering ? '送信中...' : 'このお花屋さんにオファー'}
+              {isOffering ? <FiLoader className="animate-spin mx-auto"/> : 'この花屋さんにオファー'}
             </button>
           ) : (
-            <div className="w-full py-2 text-center text-sm font-bold text-pink-500 bg-pink-50 rounded-xl group-hover:bg-pink-500 group-hover:text-white transition-colors">
-              詳細を見る
+            <div className="w-full py-2.5 text-center text-xs font-black text-pink-500 bg-pink-50 rounded-xl group-hover:bg-pink-500 group-hover:text-white transition-all">
+              詳細を見る &rarr;
             </div>
           )}
         </div>
@@ -149,7 +159,6 @@ function FloristsListContent() {
     tag: '' 
   });
 
-  // URLパラメータの初期取得 (windowオブジェクトから直接)
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
@@ -260,91 +269,101 @@ function FloristsListContent() {
   };
 
   return (
-    <main className="bg-slate-50 min-h-screen pb-20 pt-20">
-      <div className="relative bg-gradient-to-r from-pink-500 to-rose-400 text-white overflow-hidden">
-        <div className="max-w-7xl mx-auto py-16 px-4 text-center relative z-10">
-          <h1 className="text-3xl md:text-4xl font-extrabold mb-4 tracking-tight">想いをカタチにする、最高のお花屋さんを見つけよう</h1>
+    <main className="bg-slate-50 min-h-screen py-10 font-sans text-gray-800">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        
+        {/* ヘッダーセクション */}
+        <div className="flex flex-col md:flex-row justify-between items-center mb-10 gap-6">
+          <div>
+            <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight mb-2">お花屋さんを探す</h1>
+            <p className="text-gray-500 text-sm">あなたの想いをカタチにする、プロフェッショナルな制作者たち</p>
+          </div>
           {projectId && (
-            <div className="inline-block bg-white/20 backdrop-blur-md px-6 py-2 rounded-full border border-white/30">
-                <p className="text-sm font-bold text-white flex items-center justify-center gap-2">
-                   <FiCheckCircle className="text-green-300"/> 企画ID: {projectId} のオファー先を選択中
-                </p>
-            </div>
+             <span className="inline-flex items-center px-6 py-3 bg-pink-500 text-white font-black rounded-xl shadow-lg border border-pink-400 animate-pulse">
+                オファー先を選択中 (企画: {projectId})
+             </span>
           )}
         </div>
-      </div>
-      
-      <div className="max-w-7xl mx-auto -mt-8 px-4 relative z-20">
-        <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-100 mb-10">
+
+        {/* 検索・フィルターエリア */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-10">
+            {/* AI画像検索ボタン */}
             <div className="mb-8 flex flex-col items-center">
                 <button 
                     onClick={() => fileInputRef.current.click()}
                     disabled={isSearchingImage || isOffering}
-                    className="w-full max-w-lg py-4 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white font-bold rounded-2xl shadow-lg transition-all flex items-center justify-center gap-3"
+                    className="w-full max-w-lg py-4 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 text-white font-black rounded-2xl shadow-lg hover:scale-[1.02] transition-all flex items-center justify-center gap-3"
                 >
-                    {isSearchingImage ? <FiLoader className="animate-spin text-xl"/> : <FiCamera className="text-2xl"/>}
-                    {isSearchingImage ? 'AIが画像を解析中...' : '理想の画像でAI検索する'}
+                    {isSearchingImage ? <FiLoader className="animate-spin text-xl"/> : <FiCamera className="text-xl"/>}
+                    {isSearchingImage ? 'AI解析中...' : '理想の画像でAI検索する'}
                 </button>
                 <input type="file" ref={fileInputRef} onChange={handleImageSearch} accept="image/*" className="hidden" />
+                
                 {detectedTags.length > 0 && (
-                    <div className="mt-4 p-4 bg-purple-50 rounded-xl w-full max-w-2xl text-center">
-                        <div className="flex flex-wrap justify-center gap-2">
-                            {detectedTags.map(tag => (
-                                <button key={tag} onClick={() => handleTagSelect(tag)} className={`px-3 py-1 rounded-full text-xs font-bold border ${filters.tag === tag ? 'bg-purple-600 text-white' : 'bg-white text-purple-600'}`}>#{tag}</button>
-                            ))}
-                        </div>
+                    <div className="mt-4 flex flex-wrap justify-center gap-2">
+                        {detectedTags.map(tag => (
+                            <button key={tag} onClick={() => handleTagSelect(tag)} className={`px-4 py-1.5 rounded-full text-xs font-bold border transition-all ${filters.tag === tag ? 'bg-purple-600 text-white border-purple-600' : 'bg-white text-purple-600 border-purple-200'}`}>#{tag}</button>
+                        ))}
                     </div>
                 )}
             </div>
 
+            {/* テキスト検索・条件フィルター */}
             <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
                 <div className="md:col-span-5 relative">
                     <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"/>
-                    <input type="text" name="keyword" value={filters.keyword} onChange={handleFilterChange} placeholder="キーワードで検索" className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none" />
+                    <input type="text" name="keyword" value={filters.keyword} onChange={handleFilterChange} placeholder="キーワード（店名、装飾など）" className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-pink-500 outline-none transition-all" />
                 </div>
                 <div className="md:col-span-3 relative">
                      <FiMapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"/>
-                     <select name="prefecture" value={filters.prefecture} onChange={handleFilterChange} className="w-full pl-10 pr-8 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none appearance-none">
+                     <select name="prefecture" value={filters.prefecture} onChange={handleFilterChange} className="w-full pl-10 pr-8 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none appearance-none cursor-pointer">
                         <option value="">すべてのエリア</option>
                         {prefectures.map(pref => <option key={pref} value={pref}>{pref}</option>)}
                     </select>
                 </div>
-                <div className="md:col-span-4 flex items-center justify-end">
-                    <label className="flex items-center cursor-pointer p-2.5 bg-yellow-50 border border-yellow-200 rounded-xl w-full md:w-auto justify-center">
-                        <input type="checkbox" name="isRush" checked={filters.isRush} onChange={handleFilterChange} className="w-5 h-5 text-yellow-600 rounded mr-2" />
-                        <span className="text-sm font-bold text-yellow-800 flex items-center gap-1"><FiZap className="fill-yellow-600"/> お急ぎ対応のみ</span>
+                <div className="md:col-span-4 flex items-center">
+                    <label className="flex items-center cursor-pointer p-3 bg-amber-50 border border-amber-100 rounded-xl w-full justify-center hover:bg-amber-100 transition-colors">
+                        <input type="checkbox" name="isRush" checked={filters.isRush} onChange={handleFilterChange} className="w-5 h-5 text-amber-600 rounded mr-2" />
+                        <span className="text-sm font-black text-amber-800 flex items-center gap-1.5"><FiZap size={16} className="fill-amber-600"/> お急ぎ対応可能のみ</span>
                     </label>
                 </div>
             </div>
 
+            {/* スタイルタグ */}
             <div className="mt-6 pt-6 border-t border-gray-100">
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Filter by Style</p>
                 <div className="flex flex-wrap gap-2">
                     {STYLE_TAGS.map(tag => (
-                        <button key={tag} onClick={() => handleTagSelect(tag)} className={`px-3 py-1.5 text-xs rounded-full font-bold transition-all border ${filters.tag === tag ? 'bg-pink-500 text-white border-pink-500' : 'bg-white text-gray-600 border-gray-200'}`}>{tag.split('/')[0]}</button>
+                        <button key={tag} onClick={() => handleTagSelect(tag)} className={`px-4 py-2 text-xs rounded-full font-bold transition-all border ${filters.tag === tag ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-gray-500 border-gray-200 hover:border-pink-300'}`}>{tag.split('/')[0]}</button>
                     ))}
                 </div>
             </div>
         </div>
 
-        <div className="mb-4">
-             <h2 className="text-xl font-bold text-gray-800">{loading ? '検索中...' : `${florists.length}件のお花屋さん`}</h2>
+        {/* 結果表示 */}
+        <div className="mb-8 flex justify-between items-end px-2">
+             <h2 className="text-lg font-black text-gray-900">{loading ? 'Searching...' : `${florists.length}件のお花屋さん`}</h2>
+             {!loading && (
+               <button onClick={handleResetSearch} className="text-xs font-bold text-gray-400 hover:text-pink-500 underline decoration-dotted">条件をすべてクリア</button>
+             )}
         </div>
 
         {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
              {[...Array(8)].map((_, i) => <SkeletonCard key={i} />)}
           </div>
         ) : (
           florists.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 animate-fadeIn">
               {florists.map((florist) => (
                 <FloristCard key={florist.id} florist={florist} projectId={projectId} onOffer={handleOffer} isOffering={isOffering} />
               ))}
             </div>
           ) : (
-            <div className="bg-white rounded-3xl border border-dashed border-gray-300 p-16 text-center">
-              <p className="text-xl font-bold text-gray-700">条件に合うお花屋さんが見つかりませんでした</p>
-              <button onClick={handleResetSearch} className="mt-6 px-6 py-3 bg-pink-500 text-white font-bold rounded-full">すべての条件をクリア</button>
+            <div className="bg-white rounded-3xl border-2 border-dashed border-gray-200 p-20 text-center">
+              <FiSearch size={48} className="mx-auto text-gray-200 mb-4" />
+              <p className="text-lg font-bold text-gray-400">条件に合うお花屋さんが見つかりませんでした</p>
+              <button onClick={handleResetSearch} className="mt-6 px-8 py-3 bg-pink-500 text-white font-black rounded-xl shadow-lg">検索条件を戻す</button>
             </div>
           )
         )}
