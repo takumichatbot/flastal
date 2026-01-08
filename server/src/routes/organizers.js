@@ -1,15 +1,19 @@
 import express from 'express';
-import * as organizerController from '../controllers/organizerController.js';
+import * as venueController from '../controllers/venueController.js';
+import * as eventController from '../controllers/eventController.js'; // 追加
 import { authenticateToken } from '../middleware/auth.js';
 
 const router = express.Router();
 
-router.post('/login', organizerController.loginOrganizer);
+// --- 主催者専用イベント管理 ---
+// イベント一覧取得
+router.get('/events', authenticateToken, venueController.getEvents); 
 
-// 主催者専用のイベント操作エンドポイント
-router.get('/events', authenticateToken, organizerController.getOrganizerEvents);
-router.post('/events', authenticateToken, organizerController.createOrganizerEvent);
-router.patch('/events/:id', authenticateToken, organizerController.updateOrganizerEvent);
-router.delete('/events/:id', authenticateToken, organizerController.deleteOrganizerEvent);
+// ★ ここが重要：新規登録
+// デザインや機能を変えず、共通の eventController.createEvent を使うようにマッピングします
+router.post('/events', authenticateToken, eventController.createEvent);
+
+// その他 (ログイン等、既存のルートがあればここに続く)
+// router.post('/login', ...); 
 
 export default router;

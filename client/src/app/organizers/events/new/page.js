@@ -1,5 +1,6 @@
 'use client';
 
+// Next.js 15 ビルドエラー回避
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
 
@@ -16,7 +17,7 @@ import {
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
 function CreateEventContent() {
-  const { user, isAuthenticated, loading: authLoading } = useAuth();
+  const { user, isAuthenticated, loading: authLoading, authenticatedFetch } = useAuth();
   const router = useRouter();
   const [isMounted, setIsMounted] = useState(false);
   const [venues, setVenues] = useState([]);
@@ -31,11 +32,11 @@ function CreateEventContent() {
     formState: { isSubmitting, errors } 
   } = useForm({
     defaultValues: {
-      eventName: '', 
+      title: '', // バックエンドの title カラムに合わせる
       eventDate: '',
       venueId: '',
       description: '',
-      twitterHashtag: ''
+      genre: 'OTHER'
     }
   });
 
@@ -50,27 +51,9 @@ function CreateEventContent() {
 
     const fetchVenues = async () => {
       try {
-        console.log("Fetching venues from:", `${API_URL}/api/venues`);
         const res = await fetch(`${API_URL}/api/venues`);
-        
-        if (!res.ok) {
-          // もし404なら /api 直下も試す（保険）
-          console.warn("Retrying with /api...");
-          const resRetry = await fetch(`${API_URL}/api`);
-          if (resRetry.ok) {
-            const data = await resRetry.json();
-            if (Array.isArray(data)) {
-               setVenues(data);
-               return;
-            }
-          }
-          throw new Error('会場リストを取得できませんでした');
-        }
-
+        if (!res.ok) throw new Error('会場リストを取得できませんでした');
         const data = await res.json();
-        console.log("Venues received:", data);
-        
-        // データの形式をチェックしてセット
         if (Array.isArray(data)) {
           setVenues(data);
         } else if (data && Array.isArray(data.venues)) {
@@ -78,15 +61,13 @@ function CreateEventContent() {
         }
       } catch (e) {
         console.error('Failed to fetch venues:', e);
-        toast.error('会場リストの読み込みに失敗しました。ページを再読み込みしてください。');
+        toast.error('会場リストの読み込みに失敗しました。');
       }
     };
     fetchVenues();
   }, [isMounted, authLoading, isAuthenticated, user, router]);
 
   const onSubmit = async (data) => {
-    console.log("Submit start with data:", data);
-
     if (!data.venueId) {
       toast.error('会場を選択してください');
       return;
@@ -95,31 +76,24 @@ function CreateEventContent() {
     const toastId = toast.loading('イベントを登録中...');
 
     try {
-      // 保存されているトークンの取得（複数のキーを試行して確実に取得）
-      const token = localStorage.getItem('flastal-token') || localStorage.getItem('authToken');
-      const cleanToken = token ? token.replace(/^"|"$/g, '') : null;
+      // 日付の文字列パターンエラーを回避するため、ISO形式に整形
+      // input[type="date"] は "YYYY-MM-DD" を返すため、時刻を補填する
+      const formattedDate = new Date(`${data.eventDate}T00:00:00`).toISOString();
 
-      if (!cleanToken) {
-        toast.error('ログインセッションが切れています。再ログインしてください。', { id: toastId });
-        return;
-      }
-      
-      const res = await fetch(`${API_URL}/api/events`, {
+      const res = await authenticatedFetch('/api/events/user-submit', {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${cleanToken}`
-        },
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          ...data,
+          eventDate: formattedDate // 整形した日付を送る
+        }),
       });
 
-      const resData = await res.json();
-
       if (!res.ok) {
+        const resData = await res.json();
         throw new Error(resData.message || '作成に失敗しました');
       }
 
-      toast.success('イベントを作成しました！', { id: toastId });
+      toast.success('イベントを作成しました（公式バッジ適用）', { id: toastId });
       router.push('/organizers/dashboard');
     } catch (error) {
       console.error('Submit Error:', error);
@@ -127,10 +101,9 @@ function CreateEventContent() {
     }
   };
 
-  // バリデーションエラー時の処理（ボタンが反応しない原因を特定するため）
   const onError = (errors) => {
     console.log("Validation Errors:", errors);
-    toast.error("入力内容に不備があります。赤枠の箇所を確認してください。");
+    toast.error("入力内容に不備があります。");
   };
 
   if (!isMounted || authLoading || !user) {
@@ -164,11 +137,11 @@ function CreateEventContent() {
                     </label>
                     <input 
                         type="text" 
-                        {...register('eventName', { required: 'イベント名は必須です' })} 
-                        className={`w-full p-3 bg-gray-50 border ${errors.eventName ? 'border-red-500' : 'border-gray-200'} rounded-xl focus:ring-2 focus:ring-indigo-100 outline-none transition-all`}
+                        {...register('title', { required: 'イベント名は必須です' })} 
+                        className={`w-full p-3 bg-gray-50 border ${errors.title ? 'border-red-500' : 'border-gray-200'} rounded-xl focus:ring-2 focus:ring-indigo-100 outline-none transition-all`}
                         placeholder="例: FLASTAL LIVE 2026"
                     />
-                    {errors.eventName && <p className="text-red-500 text-xs mt-1">{errors.eventName.message}</p>}
+                    {errors.title && <p className="text-red-500 text-xs mt-1">{errors.title.message}</p>}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -182,6 +155,21 @@ function CreateEventContent() {
                             className={`w-full p-3 bg-gray-50 border ${errors.eventDate ? 'border-red-500' : 'border-gray-200'} rounded-xl outline-none`}
                         />
                         {errors.eventDate && <p className="text-red-500 text-xs mt-1">{errors.eventDate.message}</p>}
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-bold text-gray-700 mb-1">ジャンル</label>
+                        <select 
+                            {...register('genre')} 
+                            className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none cursor-pointer bg-white"
+                        >
+                            <option value="IDOL">アイドル</option>
+                            <option value="VTUBER">VTuber</option>
+                            <option value="MUSIC">音楽・バンド</option>
+                            <option value="ANIME">アニメ・声優</option>
+                            <option value="STAGE">舞台・演劇</option>
+                            <option value="OTHER">その他</option>
+                        </select>
                     </div>
                 </div>
 
