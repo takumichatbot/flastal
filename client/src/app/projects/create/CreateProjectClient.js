@@ -14,7 +14,7 @@ import AiPlanGenerator from '@/app/components/AiPlanGenerator';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
-// 日付フォーマット関数
+// 日付フォーマット関数（datetime-localに対応するISO形式に変換）
 const formatToLocalISO = (dateString) => {
     if (!dateString) return '';
     try {
@@ -31,6 +31,7 @@ const formatToLocalISO = (dateString) => {
     }
 };
 
+// 日付フォーマット関数（表示用）
 const formatDisplayDate = (dateString) => {
     if (!dateString) return '日付未定';
     return new Date(dateString).toLocaleString('ja-JP', {
@@ -49,44 +50,60 @@ function AIGenerationModal({ onClose, onGenerate }) {
 
   const handleGenerate = async () => {
     if (!prompt.trim()) return toast.error('キーワードを入力してください');
+    
     setIsGenerating(true);
     try {
       const res = await authenticatedFetch(`${API_URL}/api/ai/generate-image`, {
         method: 'POST',
         body: JSON.stringify({ prompt }),
       });
+
       if (!res.ok) throw new Error('生成に失敗しました');
+      
       const data = await res.json();
       onGenerate(data.url);
       onClose();
       toast.success('イメージ画像を生成しました！');
     } catch (error) {
       console.error(error);
-      toast.error('画像の生成に失敗しました。');
+      toast.error('画像の生成に失敗しました。しばらく待ってからお試しください。');
     } finally {
       setIsGenerating(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 bg-black/70 flex justify-center items-center z-50 p-4 backdrop-blur-sm">
+    <div className="fixed inset-0 bg-black/70 flex justify-center items-center z-50 p-4 backdrop-blur-sm animate-fadeIn">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden border border-purple-100">
         <div className="bg-gradient-to-r from-purple-600 to-indigo-600 p-5 flex justify-between items-center">
-          <h3 className="text-lg font-bold text-white flex items-center"><FiCpu className="mr-2"/> AI ラフ画生成</h3>
-          <button onClick={onClose} disabled={isGenerating} className="text-white/80 hover:text-white text-2xl">×</button>
+          <h3 className="text-lg font-bold text-white flex items-center">
+            <FiCpu className="mr-2"/> AI ラフ画生成
+          </h3>
+          <button onClick={onClose} disabled={isGenerating} className="text-white/80 hover:text-white text-2xl transition-colors">×</button>
         </div>
+        
         <div className="p-6">
+          <p className="text-sm text-gray-600 mb-4 font-medium">
+            作りたいフラスタのイメージを言葉で入力してください。<br/>
+            AIが数秒でデザイン画を生成します。
+          </p>
+          
           <textarea
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
-            placeholder="イメージを言葉で入力..."
+            placeholder="例: 全体的にピンク色、大きなリボン、天使の羽、キラキラした装飾、かわいらしい雰囲気"
             rows="4"
-            className="w-full p-4 border border-purple-200 bg-purple-50/50 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none"
+            className="w-full p-4 border border-purple-200 bg-purple-50/50 rounded-xl focus:ring-2 focus:ring-purple-500 focus:bg-white outline-none text-gray-900 transition-all resize-none"
             disabled={isGenerating}
           ></textarea>
+
           <div className="mt-6 flex justify-end gap-3">
-            <button onClick={onClose} disabled={isGenerating} className="px-5 py-2.5 text-gray-600 bg-gray-100 rounded-xl font-bold">キャンセル</button>
-            <button onClick={handleGenerate} disabled={isGenerating || !prompt.trim()} className="px-6 py-2.5 bg-purple-600 text-white font-bold rounded-xl flex items-center">
+            <button onClick={onClose} disabled={isGenerating} className="px-5 py-2.5 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl font-bold transition-colors">キャンセル</button>
+            <button 
+              onClick={handleGenerate}
+              disabled={isGenerating || !prompt.trim()}
+              className="px-6 py-2.5 bg-purple-600 text-white font-bold rounded-xl hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center shadow-md transition-all transform hover:scale-105"
+            >
               {isGenerating ? <><FiLoader className="animate-spin mr-2"/> 生成中...</> : <><FiCpu className="mr-2"/> 生成する</>}
             </button>
           </div>
@@ -112,6 +129,7 @@ function EventSelectionModal({ onClose, onSelect }) {
           setFilteredEvents(data);
         }
       } catch (e) {
+        console.error(e);
         toast.error('イベント情報の取得に失敗しました');
       } finally {
         setLoading(false);
@@ -120,41 +138,80 @@ function EventSelectionModal({ onClose, onSelect }) {
     fetchEvents();
   }, []);
 
+  // 検索フィルタリング
   useEffect(() => {
     const query = searchQuery.toLowerCase();
-    setFilteredEvents(events.filter(e => e.title.toLowerCase().includes(query) || (e.venue?.venueName || '').toLowerCase().includes(query)));
+    setFilteredEvents(
+      events.filter(e => 
+        e.title.toLowerCase().includes(query) || 
+        (e.venue?.venueName || '').toLowerCase().includes(query)
+      )
+    );
   }, [searchQuery, events]);
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex justify-center items-center z-50 p-4 backdrop-blur-sm">
+    <div className="fixed inset-0 bg-black/60 flex justify-center items-center z-50 p-4 backdrop-blur-sm animate-fadeIn">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
         <div className="p-5 border-b flex justify-between items-center bg-indigo-50">
-          <h3 className="text-lg font-bold text-indigo-900 flex items-center gap-2"><FiCalendar className="text-indigo-600"/> 公式イベントを選択</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl">×</button>
+          <h3 className="text-lg font-bold text-indigo-900 flex items-center gap-2">
+              <FiCalendar className="text-indigo-600"/> 公式イベントを選択
+          </h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl transition-colors">×</button>
         </div>
+
         <div className="p-4 bg-white border-b">
             <div className="relative">
                 <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"/>
-                <input type="text" placeholder="検索..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-10 pr-4 py-2 bg-slate-100 border-none rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm"/>
+                <input 
+                    type="text" 
+                    placeholder="イベント名や会場名で検索..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 bg-slate-100 border-none rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+                />
             </div>
         </div>
+
         <div className="p-4 overflow-y-auto flex-grow bg-slate-50 space-y-3">
           {loading ? (
-            <div className="text-center py-10 text-gray-500"><FiLoader className="animate-spin text-3xl mx-auto mb-2 text-indigo-400"/>読み込み中...</div>
-          ) : filteredEvents.map(event => (
-              <button key={event.id} onClick={() => { onSelect(event); onClose(); }} className="w-full text-left p-5 bg-white border border-gray-200 rounded-xl hover:border-indigo-400 transition-all group relative overflow-hidden">
-                <span className="bg-indigo-100 text-indigo-700 text-[10px] px-2 py-1 rounded-full font-bold border border-indigo-200 mb-2 block w-fit uppercase">Official</span>
-                <h4 className="text-lg font-bold text-gray-800 mb-2 line-clamp-2">{event.title}</h4>
-                <div className="text-xs text-gray-500 space-y-1">
-                  <div className="flex items-center"><FiCalendar className="mr-2 text-indigo-400"/> {formatDisplayDate(event.eventDate)}</div>
-                  <div className="flex items-center"><FiMapPin className="mr-2 text-indigo-400"/> {event.venue ? event.venue.venueName : '会場未定'}</div>
+            <div className="text-center py-10 text-gray-500">
+                <FiLoader className="animate-spin text-3xl mx-auto mb-2 text-indigo-400"/>
+                読み込み中...
+            </div>
+          ) : filteredEvents.length === 0 ? (
+            <div className="text-center py-12 text-gray-500">
+              <p className="font-bold mb-2">該当するイベントが見つかりません。</p>
+            </div>
+          ) : (
+            filteredEvents.map(event => (
+              <button
+                key={event.id}
+                onClick={() => { onSelect(event); onClose(); }}
+                className="w-full text-left p-5 bg-white border border-gray-200 rounded-xl hover:border-indigo-400 hover:shadow-md transition-all group relative overflow-hidden"
+              >
+                <div className="flex justify-between items-start mb-2 relative z-10">
+                  <span className="bg-indigo-100 text-indigo-700 text-[10px] px-2 py-1 rounded-full font-bold border border-indigo-200 uppercase">
+                    {event.organizer?.name || 'Official'}
+                  </span>
+                  <span className="text-xs text-gray-400 font-mono font-bold">
+                    {new Date(event.eventDate).toLocaleDateString('ja-JP', { weekday: 'short' })}
+                  </span>
                 </div>
+                <h4 className="text-lg font-bold text-gray-800 group-hover:text-indigo-600 mb-3 relative z-10 line-clamp-2">{event.title}</h4>
+                <div className="text-sm text-gray-500 space-y-1 relative z-10">
+                  <div className="flex items-center"><FiCalendar className="mr-2 text-indigo-400 shrink-0"/> {formatDisplayDate(event.eventDate)}</div>
+                  <div className="flex items-center"><FiMapPin className="mr-2 text-indigo-400 shrink-0"/> {event.venue ? event.venue.venueName : '会場未定'}</div>
+                </div>
+
                 {event.isStandAllowed === false && (
-                  <div className="mt-2 text-[10px] bg-amber-50 text-amber-700 px-2 py-1 rounded border border-amber-100 inline-flex items-center font-bold"><FiAlertTriangle className="mr-1"/> 要確認</div>
+                  <div className="mt-3 text-[10px] bg-amber-50 text-amber-700 px-3 py-1.5 rounded-lg border border-amber-100 inline-flex items-center font-bold relative z-10">
+                    <FiAlertTriangle className="mr-1"/> スタンド花：要確認・問合せ
+                  </div>
                 )}
+                <div className="absolute inset-0 bg-indigo-50 opacity-0 group-hover:opacity-100 transition-opacity z-0"></div>
               </button>
             ))
-          }
+          )}
         </div>
       </div>
     </div>
@@ -169,9 +226,13 @@ function VenueSelectionModal({ onClose, onSelect }) {
     const fetchVenues = async () => {
       try {
         const res = await fetch(`${API_URL}/api/venues`);
-        if (res.ok) setVenues(await res.json());
+        if (res.ok) {
+          const data = await res.json();
+          setVenues(data);
+        }
       } catch (e) {
-        toast.error('会場リストの読み込み失敗');
+        console.error(e);
+        toast.error('会場リストの読み込みに失敗しました');
       } finally {
         setLoading(false);
       }
@@ -180,19 +241,32 @@ function VenueSelectionModal({ onClose, onSelect }) {
   }, []);
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex justify-center items-center z-50 p-4 backdrop-blur-sm">
+    <div className="fixed inset-0 bg-black/60 flex justify-center items-center z-50 p-4 backdrop-blur-sm animate-fadeIn">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
         <div className="p-5 border-b flex justify-between items-center bg-gray-50">
           <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2"><FiMapPin className="text-green-600"/> 会場を選択</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl">×</button>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl transition-colors">×</button>
         </div>
         <div className="p-4 overflow-y-auto flex-grow bg-slate-50 space-y-3">
-          {loading ? <div className="text-center py-10 text-gray-500">読み込み中...</div> : venues.map(venue => (
-              <button key={venue.id} onClick={() => { onSelect(venue); onClose(); }} className="w-full text-left p-4 bg-white border border-gray-200 rounded-xl hover:border-green-500 transition-all">
-                  <div className="font-bold text-gray-800 text-lg">{venue.venueName}</div>
+          {loading ? (
+            <div className="text-center py-10 text-gray-500">読み込み中...</div>
+          ) : (
+            venues.map(venue => (
+                <button
+                  key={venue.id}
+                  onClick={() => { onSelect(venue); onClose(); }}
+                  className="w-full text-left p-4 bg-white border border-gray-200 rounded-xl hover:border-green-500 hover:shadow-md transition-all group"
+                >
+                  <div className="flex justify-between items-center mb-1">
+                      <div className="font-bold text-gray-800 group-hover:text-green-700 text-lg">{venue.venueName}</div>
+                      {venue.isStandAllowed === false && (
+                          <span className="text-[10px] bg-amber-100 text-amber-700 px-2 py-1 rounded font-black whitespace-nowrap ml-2">要確認</span>
+                      )}
+                  </div>
                   <div className="text-xs text-gray-500 flex items-center"><FiMapPin className="mr-1"/> {venue.address}</div>
-              </button>
-          ))}
+                </button>
+            ))
+          )}
         </div>
       </div>
     </div>
@@ -206,6 +280,7 @@ function VenueSelectionModal({ onClose, onSelect }) {
 function CreateProjectForm() {
   const router = useRouter();
   const searchParams = useSearchParams(); 
+  
   const eventIdFromUrl = searchParams.get('eventId');
   const venueIdFromUrl = searchParams.get('venueId');
 
@@ -224,27 +299,46 @@ function CreateProjectForm() {
   const [eventLoading, setEventLoading] = useState(true);
 
   const [formData, setFormData] = useState({
-    title: '', description: '', targetAmount: '', deliveryAddress: '', 
-    venueId: '', eventId: '', deliveryDateTime: '', imageUrl: '',
-    designImageUrls: [], designDetails: '', size: '', flowerTypes: '',
-    projectType: 'PUBLIC', password: '',
+    title: '',
+    description: '',
+    targetAmount: '',
+    deliveryAddress: '', 
+    venueId: '',
+    eventId: '',
+    deliveryDateTime: '',
+    imageUrl: '',
+    designImageUrls: [], 
+    designDetails: '',
+    size: '',
+    flowerTypes: '',
+    projectType: 'PUBLIC',
+    password: '',
   });
 
+  // 汎用S3アップロード関数
   const uploadImageToS3 = async (file) => {
-    const res = await authenticatedFetch('/api/tools/s3-upload-url', {
-        method: 'POST',
-        body: JSON.stringify({ fileName: file.name, fileType: file.type })
-    });
-    if (!res.ok) throw new Error('S3署名取得失敗');
-    const { uploadUrl, fileUrl } = await res.json();
-    return new Promise((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        xhr.open('PUT', uploadUrl);
-        xhr.setRequestHeader('Content-Type', file.type);
-        xhr.onload = () => xhr.status === 200 ? resolve(fileUrl) : reject();
-        xhr.onerror = () => reject();
-        xhr.send(file);
-    });
+    try {
+        const res = await authenticatedFetch('/api/tools/s3-upload-url', {
+            method: 'POST',
+            body: JSON.stringify({ fileName: file.name, fileType: file.type })
+        });
+        if (!res.ok) throw new Error('署名付きURLの取得に失敗しました');
+        const { uploadUrl, fileUrl } = await res.json();
+
+        return new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.open('PUT', uploadUrl);
+            xhr.setRequestHeader('Content-Type', file.type);
+            xhr.onload = () => {
+                if (xhr.status === 200) resolve(fileUrl);
+                else reject(new Error('S3へのアップロードに失敗しました'));
+            };
+            xhr.onerror = () => reject(new Error('ネットワークエラーが発生しました'));
+            xhr.send(file);
+        });
+    } catch (error) {
+        throw error;
+    }
   };
 
   const handleImageUpload = async (e) => {
@@ -255,25 +349,33 @@ function CreateProjectForm() {
     try {
       const url = await uploadImageToS3(file);
       setFormData(prev => ({ ...prev, imageUrl: url }));
-      toast.success('メイン画像をアップロードしました', { id: toastId });
+      toast.success('メイン画像をアップロードしました！', { id: toastId });
     } catch (error) {
-      toast.error('アップロードに失敗しました', { id: toastId });
-    } finally { setIsUploading(false); }
+      toast.error('アップロードに失敗しました。', { id: toastId });
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const handleDesignImagesUpload = async (e) => {
     const files = Array.from(e.target.files);
-    if (!files.length) return;
+    if (files.length === 0) return;
     setIsDesignUploading(true);
-    const toastId = toast.loading('画像をアップロード中...');
+    const toastId = toast.loading(`${files.length}枚の画像をアップロード中...`);
+    const uploadedUrls = [];
     try {
-        const urls = [];
-        for (const file of files) { urls.push(await uploadImageToS3(file)); }
-        setFormData(prev => ({ ...prev, designImageUrls: [...prev.designImageUrls, ...urls] }));
-        toast.success('デザイン画像を追加しました', { id: toastId });
+        for (const file of files) {
+            const url = await uploadImageToS3(file);
+            uploadedUrls.push(url);
+        }
+        setFormData(prev => ({ ...prev, designImageUrls: [...prev.designImageUrls, ...uploadedUrls] }));
+        toast.success('デザイン画像をアップロードしました！', { id: toastId });
     } catch (error) {
-        toast.error('一部の画像で失敗しました', { id: toastId });
-    } finally { setIsDesignUploading(false); }
+        toast.error('一部の画像のアップロードに失敗しました', { id: toastId });
+    } finally {
+        setIsDesignUploading(false);
+        e.target.value = '';
+    }
   };
 
   const fetchEventDetails = useCallback(async (id) => {
@@ -283,11 +385,12 @@ function CreateProjectForm() {
         if (res.ok) {
             const data = await res.json();
             setSelectedEvent(data);
+            const isoDate = data.eventDate ? formatToLocalISO(data.eventDate) : '';
             setFormData(prev => ({
                 ...prev,
                 title: data.title ? `【企画】${data.title} フラスタ企画` : prev.title, 
                 eventId: data.id,
-                deliveryDateTime: formatToLocalISO(data.eventDate) || prev.deliveryDateTime,
+                deliveryDateTime: isoDate || prev.deliveryDateTime,
                 ...(data.venue ? { venueId: data.venue.id, deliveryAddress: data.venue.address || data.venue.venueName } : {})
             }));
             if (data.venue) setSelectedVenue(data.venue);
@@ -305,6 +408,20 @@ function CreateProjectForm() {
         }).catch(() => setEventLoading(false));
     } else { setEventLoading(false); }
   }, [user, authLoading, router, eventIdFromUrl, venueIdFromUrl, fetchEventDetails]);
+
+  const handleEventSelect = (event) => {
+    if (!event) return;
+    setSelectedEvent(event);
+    setFormData(prev => ({
+        ...prev,
+        title: `【企画】${event.title} フラスタ企画`, 
+        eventId: event.id,
+        deliveryDateTime: formatToLocalISO(event.eventDate),
+        ...(event.venue ? { venueId: event.venue.id, deliveryAddress: event.venue.address || event.venue.venueName } : {})
+    }));
+    if (event.venue) setSelectedVenue(event.venue);
+    toast.success('イベント情報を読み込みました！');
+  };
 
   const handleVenueSelect = (venue) => {
       if (venue) {
@@ -341,7 +458,7 @@ function CreateProjectForm() {
     const toastId = toast.loading('企画を保存して審査へ送っています...');
 
     try {
-      // サーバー側のモデル定義に合わせ、欠けている可能性のあるフィールドをデフォルト値で補完
+      // データベースモデルの期待値に合わせて、すべてのフィールドに値をセット
       const payload = {
         title: formData.title || "",
         description: formData.description || "",
@@ -357,9 +474,11 @@ function CreateProjectForm() {
         password: formData.password || null,
         venueId: selectedVenue?.id || null,
         eventId: selectedEvent?.id || null,
-        visibility: "PUBLIC", // 追加
-        isIllustratorRecruiting: false, // 公募機能の初期値（モデルで必須の場合）
-        illustratorRequirements: ""    // 公募機能の初期値
+        visibility: "PUBLIC", 
+        // 以下、Prisma Schemaで必須(Required)になっている可能性が高い項目を明示的にセット
+        isIllustratorRecruiting: false, 
+        illustratorRequirements: "",
+        status: "PENDING_APPROVAL" // 初期ステータス
       };
 
       const res = await authenticatedFetch(`${API_URL}/api/projects`, {
@@ -369,7 +488,7 @@ function CreateProjectForm() {
 
       if (!res.ok) {
           const errorData = await res.json().catch(() => ({}));
-          throw new Error(errorData.message || '作成に失敗しました。必須項目が不足している可能性があります。');
+          throw new Error(errorData.message || 'サーバー側のバリデーションエラーです。必須項目が不足している可能性があります。');
       }
 
       toast.success('企画を作成しました！審査をお待ちください。', { id: toastId });
@@ -406,7 +525,7 @@ function CreateProjectForm() {
         )}
 
         {selectedEvent && (
-            <div className="bg-gradient-to-r from-indigo-50 to-blue-50 border border-indigo-100 rounded-2xl p-5 mb-8 relative shadow-sm">
+            <div className="bg-gradient-to-r from-indigo-50 to-blue-50 border border-indigo-100 rounded-2xl p-5 mb-8 relative shadow-sm animate-fadeIn">
                 <span className="absolute top-0 right-0 bg-indigo-600 text-white text-[10px] px-3 py-1 rounded-bl-xl rounded-tr-xl font-bold tracking-widest uppercase">Official Event</span>
                 <h3 className="font-bold text-indigo-900 text-lg mb-2 flex items-center"><FiCalendar className="mr-2"/> {selectedEvent.title}</h3>
                 <p className="text-sm text-indigo-700 font-medium mb-3 flex items-center gap-3">
@@ -442,7 +561,7 @@ function CreateProjectForm() {
                 ))}
             </div>
             {formData.projectType === 'PRIVATE' && (
-                <div className="mt-5 bg-white p-4 rounded-xl border border-purple-100">
+                <div className="mt-5 bg-white p-4 rounded-xl border border-purple-100 animate-fadeIn">
                     <label className="block text-sm font-bold text-purple-800 mb-1">合言葉</label>
                     <input type="text" name="password" value={formData.password} onChange={handleChange} placeholder="例: oshi2026" className="w-full p-3 border border-purple-200 rounded-lg outline-none bg-purple-50 font-bold tracking-widest"/>
                 </div>
@@ -458,7 +577,7 @@ function CreateProjectForm() {
           <div className="space-y-6">
             <div>
                 <label className="block text-sm font-bold text-gray-700 mb-1">企画タイトル <span className="text-red-500">*</span></label>
-                <input type="text" name="title" required value={formData.title} onChange={handleChange} className="input-field font-bold" placeholder="例：祝！ライブ出演フラスタ企画"/>
+                <input type="text" name="title" required value={formData.title} onChange={handleChange} className="input-field font-bold" placeholder="例：○○さん出演祝いフラスタ企画"/>
             </div>
             <div>
                 <label className="block text-sm font-bold text-gray-700 mb-1">企画の詳しい説明 <span className="text-red-500">*</span></label>
@@ -509,13 +628,14 @@ function CreateProjectForm() {
             <div className="border-2 border-dashed border-gray-300 rounded-2xl p-6 text-center hover:bg-gray-50 cursor-pointer relative overflow-hidden group">
                 <input type="file" accept="image/*" onChange={handleImageUpload} disabled={isUploading} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"/>
                 {formData.imageUrl ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
                     <img src={formData.imageUrl} alt="プレビュー" className="max-h-64 mx-auto rounded-lg shadow-md" />
                 ) : (
                     <div className="py-8">
-                        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3 text-gray-400 group-hover:text-sky-500">
+                        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3 text-gray-400 group-hover:text-sky-500 transition-colors">
                             {isUploading ? <FiLoader className="animate-spin text-2xl"/> : <FiImage className="text-3xl"/>}
                         </div>
-                        <p className="text-sm font-bold text-gray-500">クリックして画像をアップロード</p>
+                        <p className="text-sm font-bold text-gray-500 group-hover:text-gray-700">クリックして画像をアップロード</p>
                     </div>
                 )}
             </div>
@@ -532,12 +652,13 @@ function CreateProjectForm() {
                     <div className="flex flex-wrap gap-3 mb-4">
                         {formData.designImageUrls.map((url, index) => (
                             <div key={index} className="relative w-24 h-24 group">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img src={url} alt={`デザイン ${index}`} className="w-full h-full object-cover rounded-xl border border-gray-200 shadow-sm" />
                                 <button type="button" onClick={() => setFormData(p => ({...p, designImageUrls: p.designImageUrls.filter((_, i) => i !== index)}))} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs shadow-md transform scale-0 group-hover:scale-100 transition-transform"><FiX /></button>
                             </div>
                         ))}
-                        <label className="w-24 h-24 border-2 border-dashed border-gray-300 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-sky-400 transition-all text-gray-400">
-                            {isDesignUploading ? <FiLoader className="animate-spin text-xl"/> : <FiPlus className="text-2xl"/>}
+                        <label className="w-24 h-24 border-2 border-dashed border-gray-300 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-sky-400 transition-all text-gray-400 group">
+                            {isDesignUploading ? <FiLoader className="animate-spin text-xl"/> : <FiPlus className="text-2xl group-hover:text-sky-500"/>}
                             <span className="text-[10px] font-bold mt-1">追加</span>
                             <input type="file" multiple accept="image/*" onChange={handleDesignImagesUpload} disabled={isDesignUploading} className="hidden" />
                         </label>
@@ -571,7 +692,16 @@ function CreateProjectForm() {
       {isVenueModalOpen && <VenueSelectionModal onClose={() => setIsVenueModalOpen(false)} onSelect={handleVenueSelect} />}
       {isEventModalOpen && <EventSelectionModal onClose={() => setIsEventModalOpen(false)} onSelect={handleEventSelect} />}
       {isAIModalOpen && <AIGenerationModal onClose={() => setIsAIModalOpen(false)} onGenerate={handleAIGenerated} />}
-      {isAiPlanModalOpen && <AiPlanGenerator onClose={() => setIsAiPlanModalOpen(false)} onGenerated={(title, description) => { setFormData(prev => ({ ...prev, title, description })); toast.success('AIが文章を作成しました！'); }} />}
+      
+      {isAiPlanModalOpen && (
+        <AiPlanGenerator 
+          onClose={() => setIsAiPlanModalOpen(false)}
+          onGenerated={(title, description) => {
+            setFormData(prev => ({ ...prev, title, description }));
+            toast.success('AIが文章を作成しました！');
+          }}
+        />
+      )}
 
       <style jsx>{`
         .input-field {
