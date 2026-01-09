@@ -12,7 +12,7 @@ import projectRoutes from './routes/projects.js';
 import userRoutes from './routes/users.js';
 import floristRoutes from './routes/florists.js';
 import venueRoutes from './routes/venues.js';
-import eventRoutes from './routes/events.js'; // 追加
+import eventRoutes from './routes/events.js'; 
 import toolRoutes from './routes/tools.js';
 import adminRoutes from './routes/admin.js';
 import paymentRoutes from './routes/payment.js';
@@ -152,9 +152,11 @@ app.post('/api/webhooks/stripe', express.raw({type: 'application/json'}), async 
 });
 
 // ==========================================
-// ★★★ 標準ミドルウェア ★★★
+// ★★★ 標準ミドルウェア (容量制限を緩和) ★★★
 // ==========================================
-app.use(express.json());
+// 修正：JSONリクエストの制限を 10MB に拡大（画像URLリスト等の送信に対応）
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 app.get('/', (req, res) => {
     res.send('FLASTAL API Server is running (v2)');
@@ -168,15 +170,20 @@ app.use('/api', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/florists', floristRoutes);
 app.use('/api/venues', venueRoutes); 
-
-// イベント関連を eventRoutes に接続
 app.use('/api/events', eventRoutes); 
-
 app.use('/api/projects', projectRoutes);
 app.use('/api/project-details', projectDetailRoutes);
 app.use('/api/organizers', organizerRoutes);
 app.use('/api/tools', toolRoutes);
 app.use('/api/payment', paymentRoutes);
 app.use('/api/admin', adminRoutes);
+
+// エラーハンドリングミドルウェア（詳細なエラーをログに出す）
+app.use((err, req, res, next) => {
+    console.error('Final Error Catch:', err);
+    res.status(err.status || 500).json({
+        message: err.message || '予期せぬサーバーエラーが発生しました。'
+    });
+});
 
 export default app;
