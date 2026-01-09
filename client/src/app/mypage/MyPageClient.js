@@ -23,7 +23,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onre
 // --- 進捗ステータスの日本語設定 ---
 const PROJECT_STATUS_CONFIG = {
   'PENDING_APPROVAL': { label: '確認中', color: 'text-orange-500', bg: 'bg-orange-50', border: 'border-orange-100', step: 1 },
-  'FUNDRAISING': { label: '募集中', color: 'text-pink-500', bg: 'bg-pink-50', border: 'border-pink-100', step: 2 },
+  'FUNDRAISING': { label: '募集中', color: 'text-[var(--oshi-color)]', bg: 'bg-[var(--oshi-color)]/5', border: 'border-[var(--oshi-color)]/10', step: 2 },
   'SUCCESSFUL': { label: '目標達成', color: 'text-emerald-500', bg: 'bg-emerald-50', border: 'border-emerald-100', step: 3 },
   'IN_PRODUCTION': { label: '制作中', color: 'text-sky-500', bg: 'bg-sky-50', border: 'border-sky-100', step: 4 },
   'COMPLETED': { label: '完了', color: 'text-purple-500', bg: 'bg-purple-50', border: 'border-purple-100', step: 5 },
@@ -41,10 +41,10 @@ const ProgressSteps = ({ currentStep }) => {
                 return (
                     <div key={s} className="flex-1 flex flex-col items-center gap-2 relative">
                         {i > 0 && (
-                            <div className={`absolute top-2 right-1/2 w-full h-[2px] -z-10 ${isActive ? 'bg-pink-300' : 'bg-gray-100'}`} />
+                            <div className={`absolute top-2 right-1/2 w-full h-[2px] -z-10 ${isActive ? 'bg-[var(--oshi-color)]/30' : 'bg-gray-100'}`} />
                         )}
-                        <div className={`w-4 h-4 rounded-full border-2 transition-all ${isActive ? 'bg-pink-500 border-pink-200' : 'bg-white border-gray-100'}`} />
-                        <span className={`text-[10px] font-bold ${isActive ? 'text-pink-600' : 'text-gray-300'}`}>{s}</span>
+                        <div className={`w-4 h-4 rounded-full border-2 transition-all ${isActive ? 'bg-[var(--oshi-color)] border-[var(--oshi-color)]/20' : 'bg-white border-gray-100'}`} />
+                        <span className={`text-[10px] font-bold ${isActive ? 'text-[var(--oshi-color)]' : 'text-gray-300'}`}>{s}</span>
                     </div>
                 );
             })}
@@ -58,12 +58,12 @@ function ProjectCard({ project, isOwner }) {
     const progress = project.targetAmount > 0 ? Math.min((project.collectedAmount / project.targetAmount) * 100, 100) : 0;
     
     return (
-        <div className="bg-white rounded-3xl border border-slate-100 hover:border-pink-200 hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col sm:flex-row group">
+        <div className="bg-white rounded-3xl border border-slate-100 hover:border-[var(--oshi-color)]/30 hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col sm:flex-row group">
             <div className="w-full sm:w-64 h-44 sm:h-auto relative shrink-0 overflow-hidden">
                 {project.imageUrl ? (
                     <Image src={project.imageUrl} alt={project.title} fill className="object-cover group-hover:scale-105 transition-transform duration-500" />
                 ) : (
-                    <div className="w-full h-full bg-pink-50 flex items-center justify-center text-pink-200 text-2xl">💐</div>
+                    <div className="w-full h-full bg-slate-50 flex items-center justify-center text-slate-200 text-2xl">💐</div>
                 )}
                 <div className={`absolute top-4 left-4 px-3 py-1 rounded-full text-[10px] font-black border shadow-sm backdrop-blur-md ${config.bg}/80 ${config.color} ${config.border}`}>
                     {config.label}
@@ -71,10 +71,10 @@ function ProjectCard({ project, isOwner }) {
             </div>
             <div className="p-6 flex-grow flex flex-col">
                 <Link href={`/projects/${project.id}`}>
-                    <h3 className="font-black text-slate-800 text-lg hover:text-pink-500 transition-colors line-clamp-2 leading-snug">{project.title}</h3>
+                    <h3 className="font-black text-slate-800 text-lg hover:text-[var(--oshi-color)] transition-colors line-clamp-2 leading-snug">{project.title}</h3>
                 </Link>
                 <div className="flex items-center gap-4 mt-3 text-[11px] text-slate-400 font-black uppercase tracking-widest">
-                    <span className="flex items-center gap-1.5"><FiClock className="text-pink-400"/> {new Date(project.deliveryDateTime).toLocaleDateString()}</span>
+                    <span className="flex items-center gap-1.5"><FiClock className="text-[var(--oshi-color)]"/> {new Date(project.deliveryDateTime).toLocaleDateString()}</span>
                     <span className="flex items-center gap-1.5"><FiUsers className="text-sky-400"/> {project.backerCount || 0}人参加</span>
                 </div>
                 <div className="mt-auto pt-6">
@@ -88,7 +88,7 @@ function ProjectCard({ project, isOwner }) {
                         </span>
                     </div>
                     <div className="w-full bg-slate-50 h-2.5 rounded-full overflow-hidden">
-                        <motion.div initial={{ width: 0 }} animate={{ width: `${progress}%` }} className="h-full bg-gradient-to-r from-pink-400 to-rose-400" />
+                        <motion.div initial={{ width: 0 }} animate={{ width: `${progress}%` }} className="h-full bg-[var(--oshi-color)]" />
                     </div>
                     <ProgressSteps currentStep={config.step} />
                 </div>
@@ -108,6 +108,11 @@ export default function MyPageClient() {
   const [notifications, setNotifications] = useState([]);
   const [myPosts, setMyPosts] = useState([]);
   const [loadingData, setLoadingData] = useState(true);
+
+  // マイページのテーマスタイルを決定
+  const oshiThemeStyle = useMemo(() => ({
+    '--oshi-color': user?.themeColor || '#ec4899', // デフォルトはピンク
+  }), [user?.themeColor]);
 
   const fetchMyData = useCallback(async () => {
     if (!user?.id) return;
@@ -137,22 +142,21 @@ export default function MyPageClient() {
   if (authLoading || !user) return <div className="min-h-screen flex items-center justify-center bg-white"><div className="animate-spin w-8 h-8 border-4 border-pink-500 border-t-transparent rounded-full" /></div>;
 
   const NavButton = ({ id, label, icon: Icon, badge, color = "text-slate-600" }) => (
-    <button onClick={() => setActiveTab(id)} className={`w-full flex items-center gap-4 px-8 py-4 text-[15px] font-bold transition-all relative ${activeTab === id ? 'text-pink-600 bg-pink-50/40' : `${color} hover:bg-slate-50`}`}>
-        <Icon size={20} className={activeTab === id ? "text-pink-500" : "text-slate-400"} />
+    <button onClick={() => setActiveTab(id)} className={`w-full flex items-center gap-4 px-8 py-4 text-[15px] font-bold transition-all relative ${activeTab === id ? 'text-[var(--oshi-color)] bg-[var(--oshi-color)]/5' : `${color} hover:bg-slate-50`}`}>
+        <Icon size={20} className={activeTab === id ? "text-[var(--oshi-color)]" : "text-slate-400"} />
         <span className="flex-grow text-left">{label}</span>
-        {badge > 0 && <span className="bg-pink-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full">{badge}</span>}
-        {activeTab === id && <div className="absolute left-0 w-1.5 h-full bg-pink-500" />}
+        {badge > 0 && <span className="bg-[var(--oshi-color)] text-white text-[10px] font-black px-2 py-0.5 rounded-full">{badge}</span>}
+        {activeTab === id && <div className="absolute left-0 w-1.5 h-full bg-[var(--oshi-color)]" />}
     </button>
   );
 
   return (
-    <div className="min-h-screen bg-slate-50/30 flex flex-col md:flex-row">
+    <div className="min-h-screen bg-slate-50/30 flex flex-col md:flex-row" style={oshiThemeStyle}>
       {/* --- サイドバー --- */}
       <aside className="w-full md:w-80 bg-white border-r border-slate-100 sticky top-0 md:h-screen overflow-y-auto flex flex-col z-20 shadow-sm">
         <div className="p-10 pb-6 flex flex-col items-center">
             <div className="w-24 h-24 rounded-[2rem] relative overflow-hidden border-4 border-white shadow-xl mb-5 group">
                 {user.iconUrl ? <Image src={user.iconUrl} alt="アイコン" fill className="object-cover" /> : <div className="w-full h-full bg-slate-50 flex items-center justify-center text-slate-200"><FiUser size={40}/></div>}
-                {/* ★修正: /mypage/settings から /mypage/edit へ変更 */}
                 <Link href="/mypage/edit" className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                     <FiCamera className="text-white" size={24} />
                 </Link>
@@ -167,7 +171,7 @@ export default function MyPageClient() {
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Point Balance</p>
                 <div className="flex justify-between items-center">
                     <p className="text-3xl font-black tracking-tight">{(user.points || 0).toLocaleString()}<span className="text-xs ml-1 text-slate-500">pt</span></p>
-                    <Link href="/points" className="bg-pink-500 hover:bg-pink-600 p-2.5 rounded-2xl transition-all shadow-lg shadow-pink-500/30 active:scale-90"><FiPlus size={20}/></Link>
+                    <Link href="/points" className="bg-[var(--oshi-color)] hover:opacity-90 p-2.5 rounded-2xl transition-all shadow-lg shadow-[var(--oshi-color)]/30 active:scale-90"><FiPlus size={20}/></Link>
                 </div>
             </div>
         </div>
@@ -205,12 +209,11 @@ export default function MyPageClient() {
                         </div>
                     </div>
 
-                    {/* ★追加: アクションショートカットボタン */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <Link href="/projects/create" className="flex items-center justify-center gap-3 bg-pink-500 text-white font-black px-8 py-6 rounded-[2rem] shadow-2xl shadow-pink-200 hover:bg-pink-600 transition-all active:scale-95 text-xl">
+                        <Link href="/projects/create" className="flex items-center justify-center gap-3 bg-[var(--oshi-color)] text-white font-black px-8 py-6 rounded-[2rem] shadow-2xl shadow-[var(--oshi-color)]/20 hover:opacity-90 transition-all active:scale-95 text-xl">
                             <FiPlus strokeWidth={3} /> 企画を立てる
                         </Link>
-                        <Link href="/projects" className="flex items-center justify-center gap-3 bg-white border-4 border-pink-500 text-pink-500 font-black px-8 py-6 rounded-[2rem] shadow-xl hover:bg-pink-50 transition-all active:scale-95 text-xl">
+                        <Link href="/projects" className="flex items-center justify-center gap-3 bg-white border-4 border-[var(--oshi-color)] text-[var(--oshi-color)] font-black px-8 py-6 rounded-[2rem] shadow-xl hover:bg-[var(--oshi-color)]/5 transition-all active:scale-95 text-xl">
                             <FiSearch strokeWidth={3} /> 企画を探す
                         </Link>
                     </div>
@@ -218,10 +221,10 @@ export default function MyPageClient() {
                     <section>
                         <div className="flex items-center justify-between mb-8">
                             <h2 className="text-xl font-black text-slate-900 flex items-center gap-3 tracking-tight">
-                                <span className="w-2 h-8 bg-pink-500 rounded-full" />
+                                <span className="w-2 h-8 bg-[var(--oshi-color)] rounded-full" />
                                 進行中のプロジェクト
                             </h2>
-                            <button onClick={() => setActiveTab('pledged')} className="text-xs font-black text-pink-500 uppercase tracking-widest border-b-2 border-pink-100 pb-1">View All</button>
+                            <button onClick={() => setActiveTab('pledged')} className="text-xs font-black text-[var(--oshi-color)] uppercase tracking-widest border-b-2 border-[var(--oshi-color)]/20 pb-1">View All</button>
                         </div>
                         <div className="grid grid-cols-1 gap-8">
                             {[...createdProjects, ...pledgedProjects.map(p => p.project)]
@@ -298,7 +301,7 @@ export default function MyPageClient() {
                                 }}
                                 className={`p-8 border-b border-slate-50 flex gap-6 cursor-pointer transition-all hover:bg-slate-50/50 ${n.isRead ? 'opacity-50' : ''}`}
                             >
-                                <div className={`w-3 h-3 rounded-full mt-2 shrink-0 ${n.isRead ? 'bg-slate-200' : 'bg-pink-500 animate-pulse'}`} />
+                                <div className={`w-3 h-3 rounded-full mt-2 shrink-0 ${n.isRead ? 'bg-slate-200' : 'bg-[var(--oshi-color)] animate-pulse'}`} />
                                 <div className="flex-1">
                                     <p className={`text-[15px] leading-relaxed ${n.isRead ? 'text-slate-500' : 'text-slate-900 font-bold'}`}>{n.message}</p>
                                     <p className="text-[11px] text-slate-300 mt-3 font-black uppercase tracking-widest">{new Date(n.createdAt).toLocaleString()}</p>
@@ -331,8 +334,8 @@ export default function MyPageClient() {
                             <div className="p-8 bg-slate-50 rounded-[2rem] border border-slate-100 group">
                                 <p className="text-[10px] font-black text-slate-400 mb-3 uppercase tracking-[0.2em]">招待用コード</p>
                                 <div className="flex items-center justify-between">
-                                    <span className="text-2xl font-black text-slate-900 tracking-widest font-mono group-hover:text-pink-500 transition-colors">{user.referralCode || '----'}</span>
-                                    <button onClick={() => {navigator.clipboard.writeText(user.referralCode); toast.success('コピーしました')}} className="text-slate-300 hover:text-pink-500 transition-all active:scale-90"><FiCheckCircle size={24}/></button>
+                                    <span className="text-2xl font-black text-slate-900 tracking-widest font-mono group-hover:text-[var(--oshi-color)] transition-colors">{user.referralCode || '----'}</span>
+                                    <button onClick={() => {navigator.clipboard.writeText(user.referralCode); toast.success('コピーしました')}} className="text-slate-300 hover:text-[var(--oshi-color)] transition-all active:scale-90"><FiCheckCircle size={24}/></button>
                                 </div>
                             </div>
                             <div className="p-8 bg-slate-50 rounded-[2rem] border border-slate-100">

@@ -1,11 +1,13 @@
 "use client";
 import { useState, useEffect, useRef } from 'react';
 import { FiCheck, FiRefreshCw } from 'react-icons/fi';
-import { IoColorPaletteOutline } from 'react-icons/io5'; // もし入っていなければ FiIcon 等で代用可
+import { IoColorPaletteOutline } from 'react-icons/io5';
+import { useAuth } from '@/app/contexts/AuthContext';
+import toast from 'react-hot-toast';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
 // 🎨 推し色プリセット詳細定義
-// H: 色相(0-360), S: 彩度(%), L: 輝度(%)
-// isLight: trueの場合、文字色を黒にする（イエローやホワイト用）
 const OSHI_COLORS = [
   { id: 'sky',    name: 'スカイ',   h: 204, s: '89%', l: '53%', hex: '#0ea5e9' },
   { id: 'red',    name: 'レッド',   h: 0,   s: '84%', l: '60%', hex: '#ef4444' },
@@ -21,20 +23,26 @@ const OSHI_COLORS = [
 ];
 
 export default function OshiColorPicker() {
+  const { user, authenticatedFetch } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [activeColorId, setActiveColorId] = useState('sky');
   const dropdownRef = useRef(null);
 
-  // 初回読み込み & クリック外判定
+  // 初回読み込み: DB設定優先、なければLocalStorage
   useEffect(() => {
-    // ローカルストレージから復元
-    const savedColorId = localStorage.getItem('oshi-color-id');
-    if (savedColorId) {
-      const color = OSHI_COLORS.find(c => c.id === savedColorId);
-      if (color) applyColor(color, false);
+    if (user?.themeColor) {
+      const dbColor = OSHI_COLORS.find(c => c.hex === user.themeColor);
+      if (dbColor) {
+        applyColor(dbColor, false, false);
+      }
+    } else {
+      const savedColorId = localStorage.getItem('oshi-color-id');
+      if (savedColorId) {
+        const color = OSHI_COLORS.find(c => c.id === savedColorId);
+        if (color) applyColor(color, false, false);
+      }
     }
 
-    // クリック外で閉じる
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setIsOpen(false);
@@ -42,29 +50,37 @@ export default function OshiColorPicker() {
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  }, [user]);
 
-  const applyColor = (color, save = true) => {
+  const applyColor = async (color, saveLocal = true, saveDB = true) => {
     const root = document.documentElement;
     setActiveColorId(color.id);
 
-    // 1. CSS変数を更新 (Tailwindのglobals.cssでこれらを使っている前提)
-    // --primary: H S L; という形式で更新
+    // CSS変数を更新
     root.style.setProperty('--primary', `${color.h} ${color.s} ${color.l}`);
     
-    // 2. 文字色のコントラスト制御
-    // 背景が明るい色(isLight)なら文字色は黒、それ以外は白
     if (color.isLight) {
-        root.style.setProperty('--primary-foreground', '222.2 47.4% 11.2%'); // 黒っぽい色
+        root.style.setProperty('--primary-foreground', '222.2 47.4% 11.2%');
     } else {
-        root.style.setProperty('--primary-foreground', '210 40% 98%'); // 白っぽい色
+        root.style.setProperty('--primary-foreground', '210 40% 98%');
+    }
+    root.style.setProperty('--primary-h', color.h);
+    root.style.setProperty('--oshi-theme-hex', color.hex);
+
+    if (saveLocal) {
+      localStorage.setItem('oshi-color-id', color.id);
     }
 
-    // 3. 個別変数も更新（必要に応じて）
-    root.style.setProperty('--primary-h', color.h);
-
-    if (save) {
-      localStorage.setItem('oshi-color-id', color.id);
+    // ログイン中ならDBへ保存
+    if (saveDB && user) {
+      try {
+        await authenticatedFetch(`${API_URL}/api/users/theme-color`, {
+          method: 'PATCH',
+          body: JSON.stringify({ themeColor: color.hex })
+        });
+      } catch (err) {
+        console.error("Theme color sync failed");
+      }
     }
   };
 
@@ -75,7 +91,6 @@ export default function OshiColorPicker() {
 
   return (
     <div className="relative" ref={dropdownRef}>
-      {/* トリガーボタン */}
       <button 
         onClick={() => setIsOpen(!isOpen)}
         className={`group flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all duration-300 ${isOpen ? 'bg-slate-100 border-slate-300' : 'bg-white border-slate-200 hover:border-slate-300 shadow-sm'}`}
@@ -91,17 +106,14 @@ export default function OshiColorPicker() {
         <span className="text-xs font-bold text-slate-600 hidden sm:block">Theme</span>
       </button>
 
-      {/* ドロップダウンメニュー */}
       {isOpen && (
         <div className="absolute right-0 mt-3 w-64 bg-white/95 backdrop-blur-xl rounded-2xl shadow-xl border border-white/50 ring-1 ring-slate-100 p-5 z-50 animate-fadeIn origin-top-right">
-          
           <div className="flex justify-between items-center mb-4">
             <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Select Oshi Color</h4>
             <button onClick={handleReset} className="text-slate-400 hover:text-slate-600 transition-colors" title="リセット">
                 <FiRefreshCw size={12} />
             </button>
           </div>
-
           <div className="grid grid-cols-5 gap-3">
             {OSHI_COLORS.map((c) => (
               <button
@@ -121,10 +133,9 @@ export default function OshiColorPicker() {
               </button>
             ))}
           </div>
-          
           <div className="mt-4 pt-3 border-t border-slate-100 text-center">
             <p className="text-[10px] text-slate-400">
-                アプリ全体のテーマカラーが<br/>
+                マイページとアプリのテーマが<br/>
                 <span className="font-bold text-slate-600">{OSHI_COLORS.find(c => c.id === activeColorId)?.name}</span> になります
             </p>
           </div>

@@ -236,3 +236,16 @@ export const requestUserPayout = async (req, res) => {
         res.status(400).json({ message: error.message || '申請エラー' });
     }
 };
+
+export const updateThemeColor = async (req, res) => {
+    try {
+        const { themeColor } = req.body;
+        const updatedUser = await prisma.user.update({
+            where: { id: req.user.id },
+            data: { themeColor }
+        });
+        res.json({ message: 'テーマカラーを更新しました', themeColor: updatedUser.themeColor });
+    } catch (error) {
+        res.status(500).json({ message: '更新に失敗しました' });
+    }
+};

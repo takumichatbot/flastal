@@ -150,6 +150,7 @@ model User {
   id                   String             @id @default(cuid())
   email                String             @unique
   handleName           String
+  themeColor    String?   @default("#6366f1")
   password             String
   floristPostLikes FloristPostLike[]
   createdEvents  Event[] @relation("EventCreator")
