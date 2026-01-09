@@ -8,7 +8,7 @@ import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/app/contexts/AuthContext';
 import toast from 'react-hot-toast';
-import { FiInfo, FiAlertTriangle, FiCalendar, FiMapPin, FiX, FiImage, FiCpu, FiLoader, FiPlus, FiExternalLink, FiUser, FiAward, FiSearch, FiCheckCircle } from 'react-icons/fi';
+import { FiInfo, FiAlertTriangle, FiCalendar, FiMapPin, FiX, FiImage, FiCpu, FiLoader, FiPlus, FiExternalLink, FiUser, FiAward, FiSearch, FiCheckCircle, FiShield } from 'react-icons/fi';
 import Image from 'next/image';
 import AiPlanGenerator from '@/app/components/AiPlanGenerator';
 
@@ -54,7 +54,7 @@ function AIGenerationModal({ onClose, onGenerate }) {
     
     setIsGenerating(true);
     try {
-      const res = await authenticatedFetch(`${API_URL}/api/ai/generate-image`, {
+      const res = await authenticatedFetch('/api/ai/generate-image', {
         method: 'POST',
         body: JSON.stringify({ prompt }),
       });
@@ -316,8 +316,8 @@ function CreateProjectForm() {
     password: '',
   });
 
-  // 汎用S3アップロード関数 (XMLHttpRequest版)
-  const uploadImageToS3 = async (file, type = 'main') => {
+  // 汎用S3アップロード関数
+  const uploadImageToS3 = async (file) => {
     try {
         const res = await authenticatedFetch('/api/tools/s3-upload-url', {
             method: 'POST',
@@ -446,13 +446,25 @@ function CreateProjectForm() {
     if (formData.projectType === 'PRIVATE' && !formData.password.trim()) return toast.error('合言葉を設定してください');
 
     setIsSubmitting(true);
+    
+    // 安全な日付変換（Safariエラー対策）
+    let finalISO;
+    try {
+        const d = new Date(formData.deliveryDateTime);
+        if (isNaN(d.getTime())) throw new Error();
+        finalISO = d.toISOString();
+    } catch (err) {
+        setIsSubmitting(false);
+        return toast.error('納品希望日時の形式が正しくありません');
+    }
+
     try {
       const res = await authenticatedFetch(`${API_URL}/api/projects`, {
         method: 'POST',
         body: JSON.stringify({
           ...formData,
           targetAmount: parseInt(formData.targetAmount, 10),
-          deliveryDateTime: new Date(formData.deliveryDateTime).toISOString(),
+          deliveryDateTime: finalISO,
         }),
       });
       if (!res.ok) {
@@ -582,7 +594,7 @@ function CreateProjectForm() {
                 <input type="number" name="targetAmount" required value={formData.targetAmount} onChange={handleChange} className="input-field !pl-8 !border-pink-200 !bg-white text-2xl font-bold text-pink-600 focus:!ring-pink-400" placeholder="30000" />
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-pink-300 text-xl font-bold">¥</span>
             </div>
-          </div>
+          </section>
 
           <div>
             <label className="block text-sm font-bold text-gray-700 mb-2">メイン画像 (一覧に表示)</label>
