@@ -81,11 +81,11 @@ function AIGenerationModal({ onClose, onGenerate }) {
             onChange={(e) => setPrompt(e.target.value)}
             placeholder="イメージを言葉で入力..."
             rows="4"
-            className="w-full p-4 border border-purple-200 bg-purple-50/50 rounded-xl focus:ring-2 focus:ring-purple-500 focus:bg-white outline-none"
+            className="w-full p-4 border border-purple-200 bg-purple-50/50 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none"
             disabled={isGenerating}
           ></textarea>
           <div className="mt-6 flex justify-end gap-3">
-            <button onClick={onClose} disabled={isGenerating} className="px-5 py-2.5 text-gray-600 bg-gray-100 rounded-xl font-bold">キャンセル</button>
+            <button onClick={onClose} disabled={isGenerating} className="px-5 py-2.5 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl font-bold">キャンセル</button>
             <button onClick={handleGenerate} disabled={isGenerating || !prompt.trim()} className="px-6 py-2.5 bg-purple-600 text-white font-bold rounded-xl flex items-center">
               {isGenerating ? <><FiLoader className="animate-spin mr-2"/> 生成中...</> : <><FiCpu className="mr-2"/> 生成する</>}
             </button>
@@ -135,7 +135,7 @@ function EventSelectionModal({ onClose, onSelect }) {
         <div className="p-4 bg-white border-b">
             <div className="relative">
                 <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"/>
-                <input type="text" placeholder="イベント名や会場名で検索..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-10 pr-4 py-2 bg-slate-100 border-none rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm"/>
+                <input type="text" placeholder="検索..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-10 pr-4 py-2 bg-slate-100 border-none rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm"/>
             </div>
         </div>
         <div className="p-4 overflow-y-auto flex-grow bg-slate-50 space-y-3">
@@ -143,8 +143,8 @@ function EventSelectionModal({ onClose, onSelect }) {
             <div className="text-center py-10 text-gray-500"><FiLoader className="animate-spin text-3xl mx-auto mb-2 text-indigo-400"/>読み込み中...</div>
           ) : filteredEvents.map(event => (
               <button key={event.id} onClick={() => { onSelect(event); onClose(); }} className="w-full text-left p-5 bg-white border border-gray-200 rounded-xl hover:border-indigo-400 transition-all group relative overflow-hidden">
-                <span className="bg-indigo-100 text-indigo-700 text-[10px] px-2 py-1 rounded-full font-bold border border-indigo-200 uppercase mb-2 block w-fit">{event.organizer?.name || 'Official'}</span>
-                <h4 className="text-lg font-bold text-gray-800 group-hover:text-indigo-600 mb-2">{event.title}</h4>
+                <span className="bg-indigo-100 text-indigo-700 text-[10px] px-2 py-1 rounded-full font-bold border border-indigo-200 mb-2 block w-fit uppercase">Official</span>
+                <h4 className="text-lg font-bold text-gray-800 mb-2 line-clamp-2">{event.title}</h4>
                 <div className="text-xs text-gray-500 space-y-1">
                   <div className="flex items-center"><FiCalendar className="mr-2 text-indigo-400"/> {formatDisplayDate(event.eventDate)}</div>
                   <div className="flex items-center"><FiMapPin className="mr-2 text-indigo-400"/> {event.venue ? event.venue.venueName : '会場未定'}</div>
@@ -171,7 +171,7 @@ function VenueSelectionModal({ onClose, onSelect }) {
         const res = await fetch(`${API_URL}/api/venues`);
         if (res.ok) setVenues(await res.json());
       } catch (e) {
-        toast.error('会場リストの読み込みに失敗しました');
+        toast.error('会場リストの読み込み失敗');
       } finally {
         setLoading(false);
       }
@@ -235,7 +235,7 @@ function CreateProjectForm() {
         method: 'POST',
         body: JSON.stringify({ fileName: file.name, fileType: file.type })
     });
-    if (!res.ok) throw new Error('取得失敗');
+    if (!res.ok) throw new Error('S3署名取得失敗');
     const { uploadUrl, fileUrl } = await res.json();
     return new Promise((resolve, reject) => {
         const xhr = new XMLHttpRequest();
@@ -255,9 +255,9 @@ function CreateProjectForm() {
     try {
       const url = await uploadImageToS3(file);
       setFormData(prev => ({ ...prev, imageUrl: url }));
-      toast.success('アップロード成功', { id: toastId });
+      toast.success('メイン画像をアップロードしました', { id: toastId });
     } catch (error) {
-      toast.error('アップロード失敗', { id: toastId });
+      toast.error('アップロードに失敗しました', { id: toastId });
     } finally { setIsUploading(false); }
   };
 
@@ -265,14 +265,14 @@ function CreateProjectForm() {
     const files = Array.from(e.target.files);
     if (!files.length) return;
     setIsDesignUploading(true);
-    const toastId = toast.loading('アップロード中...');
+    const toastId = toast.loading('画像をアップロード中...');
     try {
         const urls = [];
         for (const file of files) { urls.push(await uploadImageToS3(file)); }
         setFormData(prev => ({ ...prev, designImageUrls: [...prev.designImageUrls, ...urls] }));
-        toast.success('デザイン画像追加', { id: toastId });
+        toast.success('デザイン画像を追加しました', { id: toastId });
     } catch (error) {
-        toast.error('一部失敗', { id: toastId });
+        toast.error('一部の画像で失敗しました', { id: toastId });
     } finally { setIsDesignUploading(false); }
   };
 
@@ -323,25 +323,31 @@ function CreateProjectForm() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (isSubmitting) return; // 二重送信防止
-    if (!user) return;
+    if (isSubmitting) return; 
+
+    // 日時文字列の厳格な正規化（Safari/iOS対策）
+    let deliveryDateTimeISO;
+    try {
+        if (!formData.deliveryDateTime) throw new Error("日時を選択してください");
+        const dateObj = new Date(formData.deliveryDateTime);
+        if (isNaN(dateObj.getTime())) throw new Error("無効な日時形式です");
+        deliveryDateTimeISO = dateObj.toISOString();
+    } catch (err) {
+        return toast.error(err.message);
+    }
+
     if (parseInt(formData.targetAmount) < 1000) return toast.error('1,000pt以上で設定してください');
 
     setIsSubmitting(true);
-    const toastId = toast.loading('企画を保存中...');
+    const toastId = toast.loading('企画を保存して審査へ送っています...');
 
     try {
-      // 日時の安全なパース
-      const deliveryDate = new Date(formData.deliveryDateTime);
-      if (isNaN(deliveryDate.getTime())) {
-          setIsSubmitting(false);
-          return toast.error('納品希望日時を正しく入力してください', { id: toastId });
-      }
-
       const payload = {
         ...formData,
         targetAmount: parseInt(formData.targetAmount, 10),
-        deliveryDateTime: deliveryDate.toISOString(),
+        deliveryDateTime: deliveryDateTimeISO,
+        venueId: selectedVenue?.id || null,
+        eventId: selectedEvent?.id || null
       };
 
       const res = await authenticatedFetch(`${API_URL}/api/projects`, {
@@ -350,16 +356,17 @@ function CreateProjectForm() {
       });
 
       if (!res.ok) {
-          const data = await res.json();
+          const data = await res.json().catch(() => ({}));
           throw new Error(data.message || '作成に失敗しました');
       }
 
       toast.success('企画を作成しました！審査をお待ちください。', { id: toastId });
       
-      // Safari 404/Pattern エラー回避のための確実なリダイレクト
+      // Safariでのリダイレクトエラーを回避するための確実な遷移
+      router.refresh();
       setTimeout(() => {
-          window.location.href = '/mypage';
-      }, 500);
+          window.location.replace('/mypage');
+      }, 800);
 
     } catch (error) { 
         setIsSubmitting(false);
@@ -440,7 +447,7 @@ function CreateProjectForm() {
           <div className="space-y-6">
             <div>
                 <label className="block text-sm font-bold text-gray-700 mb-1">企画タイトル <span className="text-red-500">*</span></label>
-                <input type="text" name="title" required value={formData.title} onChange={handleChange} className="input-field font-bold" placeholder="例：祝！ライブ出演フラスタ企画"/>
+                <input type="text" name="title" required value={formData.title} onChange={handleChange} className="input-field font-bold" placeholder="例：○○さん出演祝いフラスタ企画"/>
             </div>
             <div>
                 <label className="block text-sm font-bold text-gray-700 mb-1">企画の詳しい説明 <span className="text-red-500">*</span></label>
@@ -514,7 +521,7 @@ function CreateProjectForm() {
                     <div className="flex flex-wrap gap-3 mb-4">
                         {formData.designImageUrls.map((url, index) => (
                             <div key={index} className="relative w-24 h-24 group">
-                                <img src={url} alt={`デザイン ${index}`} className="w-full h-full object-cover rounded-xl border border-gray-200" />
+                                <img src={url} alt={`デザイン ${index}`} className="w-full h-full object-cover rounded-xl border border-gray-200 shadow-sm" />
                                 <button type="button" onClick={() => setFormData(p => ({...p, designImageUrls: p.designImageUrls.filter((_, i) => i !== index)}))} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs shadow-md transform scale-0 group-hover:scale-100 transition-transform"><FiX /></button>
                             </div>
                         ))}
@@ -528,6 +535,16 @@ function CreateProjectForm() {
                 <div>
                     <label className="block text-sm font-bold text-gray-700 mb-1">デザインの雰囲気</label>
                     <textarea name="designDetails" value={formData.designDetails} onChange={handleChange} rows="2" className="input-field" placeholder="例：青色をベースに、クールな感じで"></textarea>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div>
+                        <label className="block text-sm font-bold text-gray-700 mb-1">希望サイズ</label>
+                        <input type="text" name="size" value={formData.size} onChange={handleChange} className="input-field" placeholder="例：高さ180cm程度"/>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-bold text-gray-700 mb-1">使いたいお花</label>
+                        <input type="text" name="flowerTypes" value={formData.flowerTypes} onChange={handleChange} className="input-field" placeholder="例：青いバラ、ユリ"/>
+                    </div>
                 </div>
              </div>
           </div>
@@ -543,7 +560,16 @@ function CreateProjectForm() {
       {isVenueModalOpen && <VenueSelectionModal onClose={() => setIsVenueModalOpen(false)} onSelect={handleVenueSelect} />}
       {isEventModalOpen && <EventSelectionModal onClose={() => setIsEventModalOpen(false)} onSelect={handleEventSelect} />}
       {isAIModalOpen && <AIGenerationModal onClose={() => setIsAIModalOpen(false)} onGenerate={handleAIGenerated} />}
-      {isAiPlanModalOpen && <AiPlanGenerator onClose={() => setIsAiPlanModalOpen(false)} onGenerated={(title, description) => { setFormData(prev => ({ ...prev, title, description })); toast.success('AIが文章を作成しました！'); }} />}
+      
+      {isAiPlanModalOpen && (
+        <AiPlanGenerator 
+          onClose={() => setIsAiPlanModalOpen(false)}
+          onGenerated={(title, description) => {
+            setFormData(prev => ({ ...prev, title, description }));
+            toast.success('AIが文章を作成しました！');
+          }}
+        />
+      )}
 
       <style jsx>{`
         .input-field {
@@ -566,8 +592,6 @@ function CreateProjectForm() {
     </div>
   );
 }
-
-const handleAIGenerated = (url) => { /* 内部関数を外に出さないようCreateProjectForm内で定義済 */ };
 
 export default function CreateProjectPage() {
   return (
