@@ -31,6 +31,7 @@ export const getProjects = async (req, res) => {
         });
         res.status(200).json(projects);
     } catch (error) {
+        console.error('企画一覧取得エラー:', error);
         res.status(500).json({ message: '企画の取得中にエラーが発生しました。' });
     }
 };
@@ -90,7 +91,7 @@ export const getProjectById = async (req, res) => {
                 messages: { orderBy: { createdAt: 'asc' }, include: { user: { select: { id: true, handleName: true } } } },
                 offer: { include: { florist: { select: { id: true, platformName: true } }, chatRoom: true } },
                 quotation: { include: { items: true } },
-                review: { include: { user: { select: { id: true, handleName: true, iconUrl: true } }, likes: true } },
+                review: { include: { user: { select: { handleName: true, iconUrl: true } }, likes: true } },
                 groupChatMessages: { orderBy: { createdAt: 'asc' }, include: { user: { select: { id: true, handleName: true } } } }
             },
         });
@@ -133,74 +134,87 @@ export const createProject = async (req, res) => {
             visibility, venueId, eventId, projectType, password
         } = req.body;
 
-        const plannerId = req.user.id;
+        // --- 1. デバッグログ（詳細に出力） ---
+        console.log("--- [START CREATE PROJECT] ---");
+        console.log("User ID from Auth:", req.user?.id);
+        console.log("Raw Body:", JSON.stringify(req.body));
 
-        // 1. 基本バリデーション（ここで落ちている可能性を排除）
-        if (!title) return res.status(400).json({ message: 'タイトルが不足しています。' });
+        // --- 2. 必須フィールドの存在チェック ---
+        if (!req.user || !req.user.id) {
+            return res.status(401).json({ message: '認証情報が不足しています。再ログインしてください。' });
+        }
+        if (!title) return res.status(400).json({ message: 'タイトルを入力してください。' });
         
         const amount = parseInt(targetAmount, 10);
+        if (isNaN(amount)) return res.status(400).json({ message: '目標金額を数値で入力してください。' });
+
         const deliveryDate = new Date(deliveryDateTime);
+        if (isNaN(deliveryDate.getTime())) {
+            return res.status(400).json({ message: '有効な日時を選択してください。' });
+        }
 
-        if (isNaN(amount)) return res.status(400).json({ message: '金額が不正です。' });
-        if (isNaN(deliveryDate.getTime())) return res.status(400).json({ message: '日時が不正です。' });
+        // --- 3. schema.prisma の必須フィールド（String[] 等）を完全補完 ---
+        const projectData = {
+            title: String(title).trim(),
+            description: description ? String(description) : "",
+            targetAmount: amount,
+            collectedAmount: 0,
+            deliveryAddress: deliveryAddress ? String(deliveryAddress) : "",
+            deliveryDateTime: deliveryDate,
+            plannerId: req.user.id,
+            imageUrl: imageUrl ? String(imageUrl) : null,
+            designDetails: designDetails ? String(designDetails) : "",
+            size: size ? String(size) : "",
+            flowerTypes: flowerTypes ? String(flowerTypes) : "",
+            
+            // Enum の正規化
+            status: 'PENDING_APPROVAL',
+            projectType: (projectType === 'PRIVATE' || projectType === 'SOLO') ? projectType : 'PUBLIC',
+            visibility: visibility === 'UNLISTED' ? 'UNLISTED' : 'PUBLIC',
+            password: password || null,
+            
+            // 外部キー
+            venueId: venueId || null,
+            eventId: eventId || null,
 
-        // --- Prisma Create 実行 ---
-        // schema.prisma の定義を 1つずつ確認し、Null 不可の項目をすべて網羅
+            // schema.prisma で @default([]) がない必須配列を明示的にセット
+            designImageUrls: Array.isArray(designImageUrls) ? designImageUrls : [],
+            completionImageUrls: [],
+            illustrationPanelUrls: [],
+            messagePanelUrls: [],
+            sponsorPanelUrls: [],
+            preEventPhotoUrls: [],
+            progressHistory: [],
+            
+            // 数値フィールドの初期化
+            cancellationFee: 0,
+            materialCost: 0,
+            refundStatus: "NONE",
+            productionStatus: "NOT_STARTED"
+        };
+
+        // --- 4. 実行 ---
         const newProject = await prisma.project.create({
-            data: {
-                title: String(title).trim(),
-                description: String(description || ""),
-                targetAmount: amount,
-                collectedAmount: 0, // 明示的に初期化
-                deliveryAddress: String(deliveryAddress || ""),
-                deliveryDateTime: deliveryDate,
-                plannerId: plannerId,
-                imageUrl: imageUrl ? String(imageUrl) : null,
-                designDetails: designDetails ? String(designDetails) : "",
-                size: size ? String(size) : "",
-                flowerTypes: flowerTypes ? String(flowerTypes) : "",
-                
-                // Enum 値の強制整合性
-                status: 'PENDING_APPROVAL',
-                projectType: (projectType === 'PRIVATE' || projectType === 'SOLO') ? projectType : 'PUBLIC',
-                visibility: (visibility === 'UNLISTED') ? 'UNLISTED' : 'PUBLIC',
-                password: password || null,
-                
-                // ID リレーション
-                venueId: venueId || null,
-                eventId: eventId || null,
-
-                // String[] などの配列型（Prismaで必須の場合、[] を送る必要がある）
-                designImageUrls: Array.isArray(designImageUrls) ? designImageUrls : [],
-                completionImageUrls: [],
-                illustrationPanelUrls: [],
-                messagePanelUrls: [],
-                sponsorPanelUrls: [],
-                preEventPhotoUrls: [],
-                progressHistory: [],
-
-                // その他、モデルに存在する可能性のある必須項目を安全に補完
-                cancellationFee: 0,
-                materialCost: 0,
-                refundStatus: "NONE",
-                productionStatus: "NOT_STARTED"
-            },
+            data: projectData,
         });
+
+        console.log("--- [PROJECT CREATED SUCCESSFULLY] --- ID:", newProject.id);
 
         sendEmail(req.user.email, '【FLASTAL】企画申請を受け付けました',
             `<p>${req.user.handleName} 様</p><p>企画「${title}」の申請を受け付けました。</p>`).catch(() => {});
 
         res.status(201).json({ project: newProject, message: '企画の作成申請が完了しました。' });
     } catch (error) {
-        // Render のコンソールログにエラーの詳細を出力
-        console.error('--- [CRITICAL: PROJECT CREATE FAILED] ---');
-        console.error('Message:', error.message);
-        if (error.code) console.error('Prisma Error Code:', error.code);
-        if (error.meta) console.error('Prisma Error Meta:', error.meta);
+        // --- 5. Renderログ用詳細出力 ---
+        console.error('--- [CRITICAL ERROR: createProject] ---');
+        console.error('Error Code:', error.code); // Prisma エラーコード (P2002等)
+        console.error('Error Message:', error.message);
+        if (error.meta) console.error('Error Meta:', JSON.stringify(error.meta));
 
         res.status(500).json({ 
             message: 'サーバー側のバリデーションエラーです。',
-            error: error.message 
+            details: error.message,
+            code: error.code
         });
     }
 };
