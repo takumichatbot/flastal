@@ -209,8 +209,8 @@ export const createProject = async (req, res) => {
 
         const plannerId = req.user.id;
 
-        // --- バリデーション強化 ---
-        if (!title || title.trim() === '') {
+        // --- バリデーションの徹底強化 ---
+        if (!title || String(title).trim() === '') {
             return res.status(400).json({ message: '企画タイトルを入力してください。' });
         }
 
@@ -219,15 +219,15 @@ export const createProject = async (req, res) => {
             return res.status(400).json({ message: '目標金額を正しく入力してください。' });
         }
 
-        // 日時パースの安全性を確保 (ISO 8601 形式でない場合への対応)
+        // 日時パースの安全性を確保
         let deliveryDate = new Date(deliveryDateTime);
-        if (isNaN(deliveryDate.getTime())) {
-            // Safariなどのブラウザで T が入っていない場合などを補正
-            deliveryDate = new Date(deliveryDateTime.replace(' ', 'T'));
+        if (isNaN(deliveryDate.getTime()) && deliveryDateTime) {
+            // 文字列内の空白をTに変換してリトライ
+            deliveryDate = new Date(String(deliveryDateTime).replace(' ', 'T'));
         }
 
         if (isNaN(deliveryDate.getTime())) {
-            return res.status(400).json({ message: '納品希望日時を正しく選択してください。' });
+            return res.status(400).json({ message: '納品希望日時が正しくありません。' });
         }
 
         let finalDeliveryAddress = deliveryAddress || "";
@@ -239,42 +239,42 @@ export const createProject = async (req, res) => {
         }
 
         // --- Prisma Create 実行 ---
+        // dataオブジェクトに送るすべてのフィールドを安全にパース
         const newProject = await prisma.project.create({
             data: {
-                title: title.trim(),
-                description: description || "",
+                title: String(title).trim(),
+                description: description ? String(description) : "",
                 targetAmount: amount,
-                deliveryAddress: finalDeliveryAddress,
+                deliveryAddress: String(finalDeliveryAddress),
                 deliveryDateTime: deliveryDate,
-                plannerId,
-                imageUrl: imageUrl || "",
-                designImageUrls: designImageUrls || [],
-                designDetails: designDetails || "",
-                size: size || "",
-                flowerTypes: flowerTypes || "",
+                plannerId: plannerId,
+                imageUrl: imageUrl ? String(imageUrl) : "",
+                designImageUrls: Array.isArray(designImageUrls) ? designImageUrls : [],
+                designDetails: designDetails ? String(designDetails) : "",
+                size: size ? String(size) : "",
+                flowerTypes: flowerTypes ? String(flowerTypes) : "",
                 projectType: projectType || 'PUBLIC',
                 password: password || null,
                 visibility: visibility || 'PUBLIC',
                 venueId: venueId || null,
                 eventId: eventId || null,
-                status: 'PENDING_APPROVAL', // ステータスの初期値を明示
-                // イラスト公募項目の初期化
+                status: 'PENDING_APPROVAL',
                 isIllustratorRecruiting: isIllustratorRecruiting === true || isIllustratorRecruiting === "true",
-                illustratorRequirements: illustratorRequirements || ""
+                illustratorRequirements: illustratorRequirements ? String(illustratorRequirements) : ""
             },
         });
 
-        // 非同期でメール送信（失敗してもレスポンスは返す）
+        // 非同期で通知/メール送信
         sendEmail(req.user.email, '【FLASTAL】企画申請を受け付けました',
-            `<p>${req.user.handleName} 様</p><p>企画「${title}」の申請を受け付けました。審査完了まで今しばらくお待ちください。</p>`).catch(e => console.error("Email notify error:", e));
+            `<p>${req.user.handleName} 様</p><p>企画「${title}」の申請を受け付けました。審査完了まで今しばらくお待ちください。</p>`)
+            .catch(e => console.error("Email Error:", e));
 
         res.status(201).json({ project: newProject, message: '企画の作成申請が完了しました。' });
     } catch (error) {
-        // エラー詳細をログに出力して特定しやすくする
-        console.error('企画作成エラー詳細 [Prisma/Internal]:', error);
+        console.error('企画作成エラー詳細 [Backend]:', error);
         res.status(500).json({ 
-            message: '企画の作成中にエラーが発生しました。入力内容を確認してください。',
-            error: process.env.NODE_ENV === 'development' ? error.message : undefined 
+            message: 'サーバー側で保存に失敗しました。必須項目が不足しているか、形式が正しくありません。',
+            details: error.message 
         });
     }
 };
@@ -695,7 +695,7 @@ export const getProjectPosts = async (req, res) => {
 };
 
 // ==========================================
-// 追加メモリ実装 (in-memory mock or partial)
+// 追加メモリ実装
 // ==========================================
 
 let MOOD_BOARDS = [];
