@@ -203,46 +203,59 @@ export const createProject = async (req, res) => {
         const {
             title, description, targetAmount, deliveryAddress, deliveryDateTime,
             imageUrl, designImageUrls, designDetails, size, flowerTypes,
-            visibility, venueId, eventId, projectType, password
+            visibility, venueId, eventId, projectType, password,
+            isIllustratorRecruiting, illustratorRequirements
         } = req.body;
 
         const plannerId = req.user.id;
+        
+        // 日時のパースを強化
         const deliveryDate = new Date(deliveryDateTime);
         const amount = parseInt(targetAmount, 10);
 
-        if (isNaN(deliveryDate.getTime())) return res.status(400).json({ message: '有効な納品希望日時を入力してください。' });
-        if (isNaN(amount)) return res.status(400).json({ message: '目標金額は数値で入力してください。' });
+        if (!title) return res.status(400).json({ message: '企画タイトルを入力してください。' });
+        if (isNaN(deliveryDate.getTime())) return res.status(400).json({ message: '納品希望日時を正しく入力してください。' });
+        if (isNaN(amount) || amount <= 0) return res.status(400).json({ message: '有効な目標金額を設定してください。' });
 
         let finalDeliveryAddress = deliveryAddress;
         if (venueId) {
             const venue = await prisma.venue.findUnique({ where: { id: venueId } });
-            if (!venue) return res.status(400).json({ message: '無効な会場IDです。' });
+            if (!venue) return res.status(400).json({ message: '指定された会場が見つかりません。' });
             finalDeliveryAddress = venue.address || deliveryAddress;
         }
 
         const newProject = await prisma.project.create({
             data: {
-                title, description, targetAmount: amount,
-                deliveryAddress: finalDeliveryAddress,
+                title, 
+                description: description || "", 
+                targetAmount: amount,
+                deliveryAddress: finalDeliveryAddress || "",
                 deliveryDateTime: deliveryDate,
-                plannerId, imageUrl,
+                plannerId, 
+                imageUrl: imageUrl || "",
                 designImageUrls: designImageUrls || [],
-                designDetails, size, flowerTypes,
+                designDetails: designDetails || "", 
+                size: size || "", 
+                flowerTypes: flowerTypes || "",
                 projectType: projectType || 'PUBLIC',
                 password: password || null,
                 visibility: visibility || 'PUBLIC',
                 venueId: venueId || null,
                 eventId: eventId || null,
+                status: 'PENDING_APPROVAL', // 明示的に初期ステータスをセット
+                isIllustratorRecruiting: isIllustratorRecruiting || false,
+                illustratorRequirements: illustratorRequirements || ""
             },
         });
 
-        await sendEmail(req.user.email, '【FLASTAL】企画申請を受け付けました',
-            `<p>${req.user.handleName} 様</p><p>企画「${title}」の申請を受け付けました。</p>`);
+        // 非同期でメール送信（エラーで作成を止めない）
+        sendEmail(req.user.email, '【FLASTAL】企画申請を受け付けました',
+            `<p>${req.user.handleName} 様</p><p>企画「${title}」の申請を受け付けました。審査完了まで今しばらくお待ちください。</p>`).catch(err => console.error("Email error:", err));
 
         res.status(201).json({ project: newProject, message: '企画の作成申請が完了しました。' });
     } catch (error) {
-        console.error('企画作成エラー:', error);
-        res.status(500).json({ message: '企画の作成中にエラーが発生しました。' });
+        console.error('企画作成エラー詳細:', error);
+        res.status(500).json({ message: '企画の作成中にエラーが発生しました。サーバー管理者に連絡してください。' });
     }
 };
 
@@ -386,7 +399,6 @@ export const cancelProject = async (req, res) => {
                                 where: { id: pledge.userId },
                                 data: { points: { increment: refundForPledge } }
                             });
-                            // 通知・メール送信ロジックは簡略化のため省略（実運用ではここに記述）
                         } else if (pledge.stripePaymentIntentId) {
                             try {
                                 await stripe.refunds.create({
@@ -551,16 +563,14 @@ export const updateProductionStatus = async (req, res) => {
 };
 
 // 汎用ステータス更新 (Florist/Admin)
-// 【修正】審査承認用の FUNDRAISING と却下用の REJECTED を許可リストに追加
 export const updateProjectStatus = async (req, res) => {
     const { projectId } = req.params;
     const { status } = req.body;
     
-    // 許可リストに承認後の募集開始状態を追加
     const VALID_STATUSES = [
         'PENDING', 
-        'FUNDRAISING', // 承認
-        'REJECTED',    // 却下
+        'FUNDRAISING', 
+        'REJECTED',    
         'OFFER_ACCEPTED', 
         'DESIGN_FIXED', 
         'MATERIAL_PREP', 
@@ -577,7 +587,6 @@ export const updateProjectStatus = async (req, res) => {
         const project = await prisma.project.findUnique({ where: { id: projectId }, include: { offer: true } });
         if (!project) return res.status(404).json({ message: '企画なし' });
 
-        // 管理者または担当花屋のみ許可
         const isFlorist = project.offer?.floristId === req.user.id;
         if (req.user.role !== 'ADMIN' && !isFlorist) return res.status(403).json({ message: '権限なし' });
 
@@ -586,7 +595,6 @@ export const updateProjectStatus = async (req, res) => {
             data: { status },
         });
         
-        // 企画者に通知
         await createNotification(
             project.plannerId, 
             'PROJECT_STATUS_UPDATE', 
@@ -673,7 +681,7 @@ export const getProjectPosts = async (req, res) => {
 };
 
 // ==========================================
-// 追加分: メモリ実装機能 & チャット取得
+// メモリ実装
 // ==========================================
 
 let MOOD_BOARDS = [];
