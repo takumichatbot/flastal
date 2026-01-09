@@ -81,7 +81,7 @@ function AIGenerationModal({ onClose, onGenerate }) {
             onChange={(e) => setPrompt(e.target.value)}
             placeholder="イメージを言葉で入力..."
             rows="4"
-            className="w-full p-4 border border-purple-200 bg-purple-50/50 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none"
+            className="w-full p-4 border border-purple-200 bg-purple-50/50 rounded-xl focus:ring-2 focus:ring-purple-500 focus:bg-white outline-none"
             disabled={isGenerating}
           ></textarea>
           <div className="mt-6 flex justify-end gap-3">
@@ -251,7 +251,7 @@ function CreateProjectForm() {
     const file = e.target.files[0];
     if (!file) return;
     setIsUploading(true);
-    const toastId = toast.loading('アップロード中...');
+    const toastId = toast.loading('メイン画像をアップロード中...');
     try {
       const url = await uploadImageToS3(file);
       setFormData(prev => ({ ...prev, imageUrl: url }));
@@ -342,12 +342,23 @@ function CreateProjectForm() {
     const toastId = toast.loading('企画を保存して審査へ送っています...');
 
     try {
+      // payloadに必要なすべてのフィールドを明示的にセット
       const payload = {
-        ...formData,
+        title: formData.title,
+        description: formData.description,
         targetAmount: parseInt(formData.targetAmount, 10),
+        deliveryAddress: formData.deliveryAddress,
         deliveryDateTime: deliveryDateTimeISO,
+        imageUrl: formData.imageUrl,
+        designImageUrls: formData.designImageUrls,
+        designDetails: formData.designDetails,
+        size: formData.size,
+        flowerTypes: formData.flowerTypes,
+        projectType: formData.projectType,
+        password: formData.password || null,
         venueId: selectedVenue?.id || null,
-        eventId: selectedEvent?.id || null
+        eventId: selectedEvent?.id || null,
+        visibility: 'PUBLIC' // 明示的にセット
       };
 
       const res = await authenticatedFetch(`${API_URL}/api/projects`, {
@@ -357,13 +368,12 @@ function CreateProjectForm() {
 
       if (!res.ok) {
           const data = await res.json().catch(() => ({}));
-          throw new Error(data.message || '作成に失敗しました');
+          throw new Error(data.message || '作成に失敗しました。サーバー側のバリデーションエラーです。');
       }
 
       toast.success('企画を作成しました！審査をお待ちください。', { id: toastId });
       
       // Safariでのリダイレクトエラーを回避するための確実な遷移
-      router.refresh();
       setTimeout(() => {
           window.location.replace('/mypage');
       }, 800);
@@ -395,7 +405,7 @@ function CreateProjectForm() {
         )}
 
         {selectedEvent && (
-            <div className="bg-gradient-to-r from-indigo-50 to-blue-50 border border-indigo-100 rounded-2xl p-5 mb-8 relative shadow-sm">
+            <div className="bg-gradient-to-r from-indigo-50 to-blue-50 border border-indigo-100 rounded-2xl p-5 mb-8 relative shadow-sm animate-fadeIn">
                 <span className="absolute top-0 right-0 bg-indigo-600 text-white text-[10px] px-3 py-1 rounded-bl-xl rounded-tr-xl font-bold tracking-widest uppercase">Official Event</span>
                 <h3 className="font-bold text-indigo-900 text-lg mb-2 flex items-center"><FiCalendar className="mr-2"/> {selectedEvent.title}</h3>
                 <p className="text-sm text-indigo-700 font-medium mb-3 flex items-center gap-3">
@@ -431,7 +441,7 @@ function CreateProjectForm() {
                 ))}
             </div>
             {formData.projectType === 'PRIVATE' && (
-                <div className="mt-5 bg-white p-4 rounded-xl border border-purple-100">
+                <div className="mt-5 bg-white p-4 rounded-xl border border-purple-100 animate-fadeIn">
                     <label className="block text-sm font-bold text-purple-800 mb-1">合言葉</label>
                     <input type="text" name="password" value={formData.password} onChange={handleChange} placeholder="例: oshi2026" className="w-full p-3 border border-purple-200 rounded-lg outline-none bg-purple-50 font-bold tracking-widest"/>
                 </div>
@@ -447,7 +457,7 @@ function CreateProjectForm() {
           <div className="space-y-6">
             <div>
                 <label className="block text-sm font-bold text-gray-700 mb-1">企画タイトル <span className="text-red-500">*</span></label>
-                <input type="text" name="title" required value={formData.title} onChange={handleChange} className="input-field font-bold" placeholder="例：○○さん出演祝いフラスタ企画"/>
+                <input type="text" name="title" required value={formData.title} onChange={handleChange} className="input-field font-bold" placeholder="例：祝！ライブ出演フラスタ企画"/>
             </div>
             <div>
                 <label className="block text-sm font-bold text-gray-700 mb-1">企画の詳しい説明 <span className="text-red-500">*</span></label>
@@ -498,13 +508,14 @@ function CreateProjectForm() {
             <div className="border-2 border-dashed border-gray-300 rounded-2xl p-6 text-center hover:bg-gray-50 cursor-pointer relative overflow-hidden group">
                 <input type="file" accept="image/*" onChange={handleImageUpload} disabled={isUploading} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"/>
                 {formData.imageUrl ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
                     <img src={formData.imageUrl} alt="プレビュー" className="max-h-64 mx-auto rounded-lg shadow-md" />
                 ) : (
                     <div className="py-8">
-                        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3 text-gray-400 group-hover:text-sky-500">
+                        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3 text-gray-400 group-hover:text-sky-500 transition-colors">
                             {isUploading ? <FiLoader className="animate-spin text-2xl"/> : <FiImage className="text-3xl"/>}
                         </div>
-                        <p className="text-sm font-bold text-gray-500">クリックして画像をアップロード</p>
+                        <p className="text-sm font-bold text-gray-500 group-hover:text-gray-700">クリックして画像をアップロード</p>
                     </div>
                 )}
             </div>
@@ -521,12 +532,13 @@ function CreateProjectForm() {
                     <div className="flex flex-wrap gap-3 mb-4">
                         {formData.designImageUrls.map((url, index) => (
                             <div key={index} className="relative w-24 h-24 group">
-                                <img src={url} alt={`デザイン ${index}`} className="w-full h-full object-cover rounded-xl border border-gray-200 shadow-sm" />
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={url} alt={`デザイン ${index}`} className="w-full h-full object-cover rounded-xl border border-gray-200" />
                                 <button type="button" onClick={() => setFormData(p => ({...p, designImageUrls: p.designImageUrls.filter((_, i) => i !== index)}))} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs shadow-md transform scale-0 group-hover:scale-100 transition-transform"><FiX /></button>
                             </div>
                         ))}
-                        <label className="w-24 h-24 border-2 border-dashed border-gray-300 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-sky-400 transition-all text-gray-400">
-                            {isDesignUploading ? <FiLoader className="animate-spin text-xl"/> : <FiPlus className="text-2xl"/>}
+                        <label className="w-24 h-24 border-2 border-dashed border-gray-300 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-sky-400 transition-all text-gray-400 group">
+                            {isDesignUploading ? <FiLoader className="animate-spin text-xl"/> : <FiPlus className="text-2xl group-hover:text-sky-500"/>}
                             <span className="text-[10px] font-bold mt-1">追加</span>
                             <input type="file" multiple accept="image/*" onChange={handleDesignImagesUpload} disabled={isDesignUploading} className="hidden" />
                         </label>
@@ -560,16 +572,7 @@ function CreateProjectForm() {
       {isVenueModalOpen && <VenueSelectionModal onClose={() => setIsVenueModalOpen(false)} onSelect={handleVenueSelect} />}
       {isEventModalOpen && <EventSelectionModal onClose={() => setIsEventModalOpen(false)} onSelect={handleEventSelect} />}
       {isAIModalOpen && <AIGenerationModal onClose={() => setIsAIModalOpen(false)} onGenerate={handleAIGenerated} />}
-      
-      {isAiPlanModalOpen && (
-        <AiPlanGenerator 
-          onClose={() => setIsAiPlanModalOpen(false)}
-          onGenerated={(title, description) => {
-            setFormData(prev => ({ ...prev, title, description }));
-            toast.success('AIが文章を作成しました！');
-          }}
-        />
-      )}
+      {isAiPlanModalOpen && <AiPlanGenerator onClose={() => setIsAiPlanModalOpen(false)} onGenerated={(title, description) => { setFormData(prev => ({ ...prev, title, description })); toast.success('AIが文章を作成しました！'); }} />}
 
       <style jsx>{`
         .input-field {
