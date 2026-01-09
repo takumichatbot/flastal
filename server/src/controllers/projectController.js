@@ -31,7 +31,6 @@ export const getProjects = async (req, res) => {
         });
         res.status(200).json(projects);
     } catch (error) {
-        console.error('企画一覧取得エラー:', error);
         res.status(500).json({ message: '企画の取得中にエラーが発生しました。' });
     }
 };
@@ -136,75 +135,72 @@ export const createProject = async (req, res) => {
 
         const plannerId = req.user.id;
 
-        // 1. 基本バリデーション
-        if (!title || String(title).trim() === '') {
-            return res.status(400).json({ message: '企画タイトルを入力してください。' });
-        }
-
+        // 1. 基本バリデーション（ここで落ちている可能性を排除）
+        if (!title) return res.status(400).json({ message: 'タイトルが不足しています。' });
+        
         const amount = parseInt(targetAmount, 10);
-        if (isNaN(amount) || amount <= 0) {
-            return res.status(400).json({ message: '目標金額を正しく入力してください。' });
-        }
+        const deliveryDate = new Date(deliveryDateTime);
 
-        let deliveryDate = new Date(deliveryDateTime);
-        if (isNaN(deliveryDate.getTime())) {
-            return res.status(400).json({ message: '納品希望日時を正しく選択してください。' });
-        }
+        if (isNaN(amount)) return res.status(400).json({ message: '金額が不正です。' });
+        if (isNaN(deliveryDate.getTime())) return res.status(400).json({ message: '日時が不正です。' });
 
-        // --- [重要] schema.prisma の定義に厳密に合わせたデータ整形 ---
-        const projectData = {
-            title: String(title).trim(),
-            description: String(description || ""),
-            targetAmount: amount,
-            deliveryAddress: String(deliveryAddress || ""),
-            deliveryDateTime: deliveryDate,
-            plannerId: plannerId,
-            imageUrl: imageUrl ? String(imageUrl) : null,
-            designDetails: designDetails ? String(designDetails) : "",
-            size: size ? String(size) : "",
-            flowerTypes: flowerTypes ? String(flowerTypes) : "",
-            
-            // Enum値の正規化 (schema.prismaに定義されている値に合わせる)
-            status: 'PENDING_APPROVAL',
-            projectType: (projectType === 'PRIVATE' || projectType === 'SOLO') ? projectType : 'PUBLIC',
-            visibility: visibility === 'UNLISTED' ? 'UNLISTED' : 'PUBLIC',
-            password: password || null,
-            
-            // リレーション設定
-            venueId: venueId || null,
-            eventId: eventId || null,
-
-            // schema.prisma で定義されているがデフォルト値がない配列を初期化
-            designImageUrls: Array.isArray(designImageUrls) ? designImageUrls : [],
-            completionImageUrls: [],
-            illustrationPanelUrls: [],
-            messagePanelUrls: [],
-            sponsorPanelUrls: [],
-            preEventPhotoUrls: [],
-            progressHistory: []
-        };
-
-        // 2. 作成実行
+        // --- Prisma Create 実行 ---
+        // schema.prisma の定義を 1つずつ確認し、Null 不可の項目をすべて網羅
         const newProject = await prisma.project.create({
-            data: projectData,
+            data: {
+                title: String(title).trim(),
+                description: String(description || ""),
+                targetAmount: amount,
+                collectedAmount: 0, // 明示的に初期化
+                deliveryAddress: String(deliveryAddress || ""),
+                deliveryDateTime: deliveryDate,
+                plannerId: plannerId,
+                imageUrl: imageUrl ? String(imageUrl) : null,
+                designDetails: designDetails ? String(designDetails) : "",
+                size: size ? String(size) : "",
+                flowerTypes: flowerTypes ? String(flowerTypes) : "",
+                
+                // Enum 値の強制整合性
+                status: 'PENDING_APPROVAL',
+                projectType: (projectType === 'PRIVATE' || projectType === 'SOLO') ? projectType : 'PUBLIC',
+                visibility: (visibility === 'UNLISTED') ? 'UNLISTED' : 'PUBLIC',
+                password: password || null,
+                
+                // ID リレーション
+                venueId: venueId || null,
+                eventId: eventId || null,
+
+                // String[] などの配列型（Prismaで必須の場合、[] を送る必要がある）
+                designImageUrls: Array.isArray(designImageUrls) ? designImageUrls : [],
+                completionImageUrls: [],
+                illustrationPanelUrls: [],
+                messagePanelUrls: [],
+                sponsorPanelUrls: [],
+                preEventPhotoUrls: [],
+                progressHistory: [],
+
+                // その他、モデルに存在する可能性のある必須項目を安全に補完
+                cancellationFee: 0,
+                materialCost: 0,
+                refundStatus: "NONE",
+                productionStatus: "NOT_STARTED"
+            },
         });
 
-        // 3. 非同期で通知/メール送信
         sendEmail(req.user.email, '【FLASTAL】企画申請を受け付けました',
-            `<p>${req.user.handleName} 様</p><p>企画「${title}」の申請を受け付けました。運営による審査完了までお待ちください。</p>`)
-            .catch(e => console.error("Email Error:", e));
+            `<p>${req.user.handleName} 様</p><p>企画「${title}」の申請を受け付けました。</p>`).catch(() => {});
 
         res.status(201).json({ project: newProject, message: '企画の作成申請が完了しました。' });
     } catch (error) {
-        // Renderのログで「何が原因か」を明確にするためのログ出力
-        console.error('--- [PROJECT CREATE ERROR DETAILS] ---');
-        console.error('Error Code:', error.code); // Prisma特有のエラーコード
-        console.error('Error Meta:', error.meta); // どのフィールドが悪いか
-        console.error('Error Message:', error.message);
+        // Render のコンソールログにエラーの詳細を出力
+        console.error('--- [CRITICAL: PROJECT CREATE FAILED] ---');
+        console.error('Message:', error.message);
+        if (error.code) console.error('Prisma Error Code:', error.code);
+        if (error.meta) console.error('Prisma Error Meta:', error.meta);
 
         res.status(500).json({ 
-            message: 'サーバー側のバリデーションエラーです。入力内容またはDBの制約を確認してください。',
-            details: error.message 
+            message: 'サーバー側のバリデーションエラーです。',
+            error: error.message 
         });
     }
 };
@@ -522,7 +518,7 @@ export const deleteMoodBoardItem = (req, res) => {
 };
 export const officialReact = (req, res) => {
     const { id } = req.params;
-    OFFICIAL_REACTIONS[id] = { timestamp: new Date(), comment: "Thank you!!" };
+    OFFICIAL_REACTIONS[id] = { timestamp: new Date(), comment: "応援ありがとうございます！" };
     res.json({ success: true });
 };
 export const getOfficialStatus = (req, res) => {
