@@ -3,11 +3,11 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-// アイコン
+// アイコンのインポートを修正
 import { 
   FiCalendar, FiMapPin, FiInfo, FiAlertTriangle, FiPlus, 
   FiExternalLink, FiCpu, FiUser, FiCheckCircle, FiX, FiImage,
-  FiChevronLeft, FiChevronRight, FiMegaphone, FiGlobe, FiTwitter, FiInstagram, FiShield, FiStar, FiMail, FiEdit3
+  FiChevronLeft, FiChevronRight, FiVolume2, FiGlobe, FiTwitter, FiInstagram, FiShield, FiStar, FiMail, FiEdit3
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/app/contexts/AuthContext';
@@ -147,7 +147,7 @@ export default function EventDetailPage() {
         <div className="bg-indigo-600 text-white py-4 px-4 shadow-lg sticky top-0 z-40">
           <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-6">
              <div className="flex items-center gap-2 bg-white/20 px-3 py-1 rounded-full shrink-0 shadow-inner">
-                <FiMegaphone className="animate-bounce" size={18}/>
+                <FiVolume2 className="animate-bounce" size={18}/>
                 <span className="text-xs font-black uppercase tracking-wider flex items-center gap-1">
                   <FiShield size={12}/> Official Announcement
                 </span>
@@ -215,7 +215,7 @@ export default function EventDetailPage() {
 
             {/* 右: テキスト情報 */}
             <div className="flex-1">
-              <div className="flex flex-wrap gap-2 mb-3">
+              <div className="flex gap-2 mb-3">
                 {event.organizer ? (
                    <div className="flex items-center gap-1.5 px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-xs font-black border border-indigo-200">
                      <FiShield size={12}/>

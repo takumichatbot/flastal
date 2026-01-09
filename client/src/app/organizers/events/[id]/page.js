@@ -6,7 +6,7 @@ import { useAuth } from '@/app/contexts/AuthContext';
 import { 
   FiSave, FiTrash2, FiArrowLeft, FiCalendar, FiMapPin, 
   FiInfo, FiCheckCircle, FiUsers, FiExternalLink, FiAlertCircle, 
-  FiImage, FiPlus, FiX, FiUpload, FiLoader, FiTwitter, FiInstagram, FiGlobe, FiMegaphone, FiStar, FiEdit3
+  FiImage, FiPlus, FiX, FiUpload, FiLoader, FiTwitter, FiInstagram, FiGlobe, FiVolume2, FiStar, FiEdit3, FiShield
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
@@ -140,7 +140,7 @@ export default function OrganizerEventDetailPage() {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(eventData),
+        body: JSON.stringify(eventData), 
       });
 
       if (!res.ok) throw new Error('更新に失敗しました');
@@ -229,7 +229,7 @@ export default function OrganizerEventDetailPage() {
 
                         {/* 主催者告知セクション */}
                         <div className="bg-indigo-600 rounded-xl p-5 text-white shadow-lg">
-                            <h3 className="font-bold mb-3 flex items-center gap-2"><FiMegaphone /> 主催者からの最新告知</h3>
+                            <h3 className="font-bold mb-3 flex items-center gap-2"><FiVolume2 /> 主催者からの最新告知</h3>
                             <textarea 
                                 value={eventData.announcement}
                                 onChange={(e) => setEventData({...eventData, announcement: e.target.value})}
