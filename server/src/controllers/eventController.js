@@ -6,9 +6,15 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 // --- イベント一覧取得 ---
 export const getEvents = async (req, res) => {
     try {
-        const { genre, keyword, sort } = req.query;
+        const { genre, keyword, sort, illustratorOnly } = req.query;
         
         let where = {};
+
+        // ★追加: イラスト公募中のイベントのみに絞り込む
+        if (illustratorOnly === 'true') {
+            where.isIllustratorRecruiting = true;
+        }
+
         if (genre && genre !== 'ALL') {
             where.genre = genre;
         }
@@ -70,7 +76,8 @@ export const createEvent = async (req, res) => {
     try {
         const { 
             title, eventName, eventDate, venueId, venue, description, 
-            genre, sourceUrl, imageUrl, imageUrls, twitterUrl, instagramUrl, officialWebsite 
+            genre, sourceUrl, imageUrl, imageUrls, twitterUrl, instagramUrl, officialWebsite,
+            announcement, isIllustratorRecruiting, illustratorRequirements
         } = req.body;
 
         const name = title || eventName;
@@ -86,8 +93,6 @@ export const createEvent = async (req, res) => {
         const officialRoles = ['ADMIN', 'VENUE', 'ORGANIZER'];
         const sourceType = officialRoles.includes(userRole) ? 'OFFICIAL' : 'USER';
 
-        // 修正ポイント: imageUrl (単数) を廃止し、imageUrls (複数配列) を使用
-        // フロントから imageUrl (単数) が送られてきた場合の互換性も持たせる
         const finalImageUrls = Array.isArray(imageUrls) ? imageUrls : (imageUrl ? [imageUrl] : []);
 
         const eventData = {
@@ -96,10 +101,13 @@ export const createEvent = async (req, res) => {
             eventDate: new Date(eventDate),
             genre: genre || 'OTHER',
             sourceUrl: sourceUrl || '',
-            imageUrls: finalImageUrls, // DBカラム名に合わせて複数形に修正
+            imageUrls: finalImageUrls,
             twitterUrl: twitterUrl || '',
             instagramUrl: instagramUrl || '',
             officialWebsite: officialWebsite || '',
+            announcement: announcement || '',
+            isIllustratorRecruiting: isIllustratorRecruiting || false,
+            illustratorRequirements: illustratorRequirements || '',
             venue: { connect: { id: targetVenueId } },
             sourceType: sourceType
         };
@@ -133,7 +141,8 @@ export const updateEvent = async (req, res) => {
         const { id } = req.params;
         const { 
             title, eventName, description, eventDate, venueId, genre, 
-            sourceUrl, imageUrl, imageUrls, twitterUrl, instagramUrl, officialWebsite 
+            sourceUrl, imageUrl, imageUrls, twitterUrl, instagramUrl, officialWebsite,
+            announcement, isIllustratorRecruiting, illustratorRequirements
         } = req.body;
 
         const event = await prisma.event.findUnique({ where: { id } });
@@ -147,7 +156,6 @@ export const updateEvent = async (req, res) => {
         const officialRoles = ['ADMIN', 'VENUE', 'ORGANIZER'];
         const newSourceType = officialRoles.includes(req.user.role) ? 'OFFICIAL' : event.sourceType;
 
-        // 修正ポイント: 更新時も imageUrls (複数配列) を優先
         const finalImageUrls = Array.isArray(imageUrls) ? imageUrls : (imageUrl ? [imageUrl] : undefined);
 
         const updated = await prisma.event.update({
@@ -155,15 +163,16 @@ export const updateEvent = async (req, res) => {
             data: {
                 title: title || eventName,
                 description: description,
-                isIllustratorRecruiting: isIllustratorRecruiting,
-                illustratorRequirements: illustratorRequirements,
                 eventDate: eventDate ? new Date(eventDate) : undefined,
                 genre: genre,
                 sourceUrl: sourceUrl,
-                imageUrls: finalImageUrls, // 複数形に修正
+                imageUrls: finalImageUrls,
                 twitterUrl: twitterUrl,
                 instagramUrl: instagramUrl,
                 officialWebsite: officialWebsite,
+                announcement: announcement,
+                isIllustratorRecruiting: isIllustratorRecruiting,
+                illustratorRequirements: illustratorRequirements,
                 venue: venueId ? { connect: { id: venueId } } : undefined,
                 sourceType: newSourceType,
                 lastEditor: req.user.role !== 'ORGANIZER' ? { connect: { id: req.user.id } } : undefined
@@ -203,22 +212,22 @@ export const aiParseEvent = async (req, res) => {
     const { text, sourceUrl, imageUrls } = req.body;
     const userId = req.user.id;
 
-    if (!text) return res.status(400).json({ message: 'テキストを入力してください' });
+    if (!text) return res.status(400).json({ message: '解析するテキストを入力してください' });
 
     try {
         const prompt = `
-            以下のテキストからイベント情報を抽出して、必ずJSON形式で出力してください。
-            現在の日時: ${new Date().toLocaleString('ja-JP')}
-
-            【出力項目】
-            - title: イベント名
-            - eventDate: ISO8601形式の完全な日時 (例: 2025-12-25T18:00:00)
-            - venueName: 会場名
-            - description: 内容の要約
-            - genre: IDOL, VTUBER, MUSIC, ANIME, STAGE, OTHER の中から選択
-            - officialWebsite: 公式サイトURL
-            - twitterUrl: X URL
-            - instagramUrl: Instagram URL
+            以下のイベント告知テキストから正確な情報を抽出し、JSON形式で出力してください。
+            
+            【抽出ルール】
+            - title: イベントの正式名称
+            - eventDate: ISO8601形式の完全な日時 (例: 2026-05-20T18:00:00)。時間が不明な場合は T00:00:00 とすること。
+            - venueName: 会場名。
+            - venueAddress: 会場の住所や場所（テキストから推測できる場合）。
+            - description: イベント内容の簡潔な要約（300文字以内）。
+            - genre: IDOL, VTUBER, MUSIC, ANIME, STAGE, OTHER から最適なものを1つ選択。
+            - officialWebsite: 公式サイトURL。
+            - twitterUrl: 公式X(Twitter)のURL。
+            - instagramUrl: 公式InstagramのURL。
 
             テキスト:
             "${text}"
@@ -226,7 +235,10 @@ export const aiParseEvent = async (req, res) => {
 
         const completion = await openai.chat.completions.create({
             model: "gpt-4-turbo-preview",
-            messages: [{ role: "system", content: "優秀な助手です。" }, { role: "user", content: prompt }],
+            messages: [
+                { role: "system", content: "あなたはイベント情報のデータ化のプロフェッショナルです。" },
+                { role: "user", content: prompt }
+            ],
             response_format: { type: "json_object" }
         });
 
@@ -237,10 +249,24 @@ export const aiParseEvent = async (req, res) => {
 
         let venueId = null;
         if (result.venueName) {
-            const existingVenue = await prisma.venue.findFirst({
+            let existingVenue = await prisma.venue.findFirst({
                 where: { venueName: { contains: result.venueName, mode: 'insensitive' } }
             });
-            if (existingVenue) venueId = existingVenue.id;
+
+            if (existingVenue) {
+                venueId = existingVenue.id;
+            } else {
+                const newVenue = await prisma.venue.create({
+                    data: {
+                        venueName: result.venueName,
+                        address: result.venueAddress || "住所不明（AI抽出）",
+                        email: `auto-${Date.now()}@flastal.com`,
+                        password: "temp-password",
+                        status: "PENDING"
+                    }
+                });
+                venueId = newVenue.id;
+            }
         }
 
         const newEvent = await prisma.event.create({
@@ -249,15 +275,17 @@ export const aiParseEvent = async (req, res) => {
                 eventDate: finalDate,
                 description: result.description || '',
                 venue: venueId ? { connect: { id: venueId } } : undefined,
-                regulationNote: venueId ? null : `候補会場: ${result.venueName || '不明'}`,
                 genre: result.genre || 'OTHER',
-                imageUrls: Array.isArray(imageUrls) ? imageUrls : [], // AI解析時も画像配列に対応
+                imageUrls: Array.isArray(imageUrls) ? imageUrls : [],
                 officialWebsite: result.officialWebsite || '',
                 twitterUrl: result.twitterUrl || '',
                 instagramUrl: result.instagramUrl || '',
                 sourceType: 'AI',
                 sourceUrl: sourceUrl || '',
-                creator: { connect: { id: userId } }
+                creator: { connect: { id: userId } },
+                announcement: '',
+                isIllustratorRecruiting: false,
+                illustratorRequirements: ''
             },
             include: { 
                 venue: true,
@@ -270,7 +298,7 @@ export const aiParseEvent = async (req, res) => {
 
     } catch (error) {
         console.error('AI Parse Error:', error);
-        res.status(500).json({ message: 'AI解析に失敗しました。' });
+        res.status(500).json({ message: 'AI解析中にエラーが発生しました。' });
     }
 };
 

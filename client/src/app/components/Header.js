@@ -7,8 +7,8 @@ import { useAuth } from '@/app/contexts/AuthContext';
 import { 
   Bell, ChevronDown, User, LogOut, Heart, CheckCircle2, Menu, X, 
   Calendar, MapPin, LayoutDashboard, Settings, Sparkles, Store, ShieldCheck, Briefcase, FileText,
-  UserCheck, ClipboardList, BarChart3, Building2, Package, Truck, Search, PlusCircle
-} from 'lucide-react';
+  UserCheck, ClipboardList, BarChart3, Building2, Package, Truck, Search, PlusCircle, Star
+} from 'lucide-react'; // Starを追加
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import OshiColorPicker from './OshiColorPicker'; 
@@ -199,9 +199,11 @@ export default function Header() {
   }, [user]);
 
   const navLinks = useMemo(() => {
+    // 共通リンク（絵師募集中を追加）
     const baseLinks = [
       { href: '/projects', label: '企画一覧', icon: <Heart size={18}/> },
       { href: '/events', label: 'イベント', icon: <Calendar size={18}/> },
+      { href: '/illustrators/recruitment', label: '絵師募集中', icon: <Star size={18}/>, highlight: true }, // ★追加
       { href: '/venues', label: '会場', icon: <MapPin size={18}/> },
       { href: '/florists', label: 'お花屋さん', icon: <Store size={18}/> },
     ];
@@ -224,6 +226,7 @@ export default function Header() {
       case 'ORGANIZER':
         return [
           { href: '/organizers/dashboard', label: '主催企画', icon: <LayoutDashboard size={18}/> },
+          { href: '/illustrators/recruitment', label: '絵師募集中', icon: <Star size={18}/>, highlight: true }, // ★主催者にも追加
           { href: '/projects/create', label: '企画を立てる', icon: <Sparkles size={18}/> },
           { href: '/florists', label: '花屋を探す', icon: <Store size={18}/> },
         ];
@@ -306,9 +309,15 @@ export default function Header() {
                 <Link 
                   key={link.href} 
                   href={link.href}
-                  className="px-4 py-2 rounded-full text-sm font-bold text-slate-500 hover:text-slate-900 hover:bg-slate-50 transition-all flex items-center gap-2 group"
+                  className={`px-4 py-2 rounded-full text-sm font-bold transition-all flex items-center gap-2 group ${
+                    link.highlight 
+                    ? 'text-rose-500 hover:bg-rose-50' 
+                    : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
+                  }`}
                 >
-                  <span className="text-slate-400 group-hover:text-pink-400 transition-colors">{link.icon}</span>
+                  <span className={`${link.highlight ? 'text-rose-400' : 'text-slate-400 group-hover:text-pink-400'} transition-colors`}>
+                    {link.highlight ? <Star size={18} className="fill-rose-400" /> : link.icon}
+                  </span>
                   {link.label}
                 </Link>
               ))}
@@ -467,10 +476,12 @@ export default function Header() {
                             <Link 
                                 key={link.href} href={link.href}
                                 onClick={() => setIsMobileMenuOpen(false)}
-                                className="flex items-center justify-between px-2 py-4 text-slate-800 font-bold border-b border-slate-50"
+                                className={`flex items-center justify-between px-2 py-4 font-bold border-b border-slate-50 ${link.highlight ? 'text-rose-600' : 'text-slate-800'}`}
                             >
                                 <div className="flex items-center gap-4">
-                                    <span className="text-slate-400">{link.icon}</span>
+                                    <span className={`${link.highlight ? 'text-rose-500' : 'text-slate-400'}`}>
+                                        {link.highlight ? <Star size={18} className="fill-rose-500" /> : link.icon}
+                                    </span>
                                     {link.label}
                                 </div>
                                 <ChevronDown size={18} className="-rotate-90 text-slate-300" />

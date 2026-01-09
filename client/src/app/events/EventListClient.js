@@ -6,7 +6,7 @@ import { useAuth } from '@/app/contexts/AuthContext';
 import { 
   FiCalendar, FiMapPin, FiSearch, FiAlertTriangle, FiCheckCircle, 
   FiPlus, FiCpu, FiLink, FiX, FiFilter, FiHeart, FiLoader,
-  FiEdit3, FiTrash2, FiUser, FiInfo, FiStar, FiImage, FiUpload
+  FiEdit3, FiTrash2, FiUser, FiInfo, FiStar, FiImage, FiUpload, FiMegaphone, FiGlobe, FiTwitter, FiInstagram, FiArrowRight
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
@@ -129,6 +129,7 @@ function EventListContent() {
     <div className="bg-slate-50 min-h-screen py-10 font-sans text-gray-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
+        {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-center mb-10 gap-6">
           <div className="flex items-center gap-4">
               <div className="bg-indigo-600 p-3 rounded-2xl text-white shadow-lg shadow-indigo-100">
@@ -155,6 +156,26 @@ function EventListContent() {
                </button>
           </div>
         </div>
+
+        {/* イラスト公募バナー (★追加) */}
+        <Link href="/illustrators/recruitment" className="block mb-10 overflow-hidden rounded-[2rem] shadow-xl shadow-rose-100 group">
+          <div className="bg-gradient-to-r from-rose-500 via-pink-500 to-orange-400 p-8 flex flex-col md:flex-row justify-between items-center gap-6 relative transition-all duration-500 group-hover:scale-[1.01]">
+            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:rotate-12 transition-transform duration-700">
+              <FiStar size={120} className="fill-white text-white" />
+            </div>
+            <div className="relative z-10 text-white text-center md:text-left">
+              <div className="flex items-center justify-center md:justify-start gap-2 mb-2">
+                <FiStar className="fill-white animate-pulse" />
+                <span className="text-xs font-black uppercase tracking-widest bg-white/20 px-2 py-0.5 rounded">Special Recruiting</span>
+              </div>
+              <h2 className="text-2xl md:text-3xl font-black mb-2">イラストレーターを募集中！</h2>
+              <p className="font-bold text-white/90">フラスタのパネルや装飾のイラストを描いてくれる神絵師を主催者が探しています</p>
+            </div>
+            <div className="relative z-10 flex items-center gap-3 px-6 py-3 bg-white text-rose-600 font-black rounded-2xl shadow-xl shadow-rose-900/20 group-hover:bg-rose-50 transition-colors whitespace-nowrap">
+              募集中のイベントを探す <FiArrowRight />
+            </div>
+          </div>
+        </Link>
 
         <div className="bg-white rounded-[2rem] shadow-sm border border-gray-100 p-6 mb-10">
           <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
@@ -263,13 +284,20 @@ function EventListContent() {
                             <div className="absolute top-4 left-4 bg-white/20 backdrop-blur-md text-white text-[10px] font-black px-3 py-1 rounded-full border border-white/30 uppercase tracking-widest shadow-sm">
                                 {genreData.label}
                             </div>
+                            
+                            {/* ★カード内にも公募バッジを追加 */}
+                            {event.isIllustratorRecruiting && (
+                                <div className="absolute bottom-4 right-4 bg-rose-600 text-white text-[8px] font-black px-2 py-1 rounded-lg shadow-lg flex items-center gap-1 animate-pulse">
+                                    <FiStar size={8} className="fill-white"/> 絵師募集中
+                                </div>
+                            )}
                         </div>
                         
                         <div className="p-7 flex flex-col flex-grow relative bg-white">
                             <div className="mb-4">
                                 {isOfficial ? (
                                   <span className="text-[10px] font-black bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-full border border-indigo-100 uppercase tracking-widest flex items-center w-fit shadow-sm">
-                                    <FiStar className="mr-1.5 fill-indigo-600"/> 公式・主催者
+                                    <FiShield className="mr-1.5 fill-indigo-600"/> 公式・主催者
                                   </span>
                                 ) : (
                                   <span className="text-[10px] font-black bg-slate-50 text-slate-500 px-3 py-1.5 rounded-full border border-slate-100 uppercase tracking-widest flex items-center w-fit">
@@ -360,9 +388,6 @@ function EventListContent() {
   );
 }
 
-/**
- * 共有アップロードコンポーネント (モーダル内用)
- */
 function ImageUploadArea({ images, setImages, isUploading, setIsUploading }) {
   const { authenticatedFetch } = useAuth();
 
@@ -411,7 +436,7 @@ function ImageUploadArea({ images, setImages, isUploading, setIsUploading }) {
         {images.map((url, i) => (
           <div key={i} className="relative aspect-square rounded-lg overflow-hidden border border-slate-100 group">
             <img src={url} className="w-full h-full object-cover" alt="" />
-            <button onClick={() => removeImg(i)} className="absolute top-0 right-0 p-1 bg-red-500 text-white rounded-bl-lg opacity-0 group-hover:opacity-100 transition-opacity"><FiX size={12}/></button>
+            <button type="button" onClick={() => removeImg(i)} className="absolute top-0 right-0 p-1 bg-red-500 text-white rounded-bl-lg opacity-0 group-hover:opacity-100 transition-opacity"><FiX size={12}/></button>
           </div>
         ))}
         <label className="aspect-square rounded-lg border-2 border-dashed border-slate-200 flex flex-col items-center justify-center cursor-pointer hover:bg-slate-50 transition-colors">
@@ -432,9 +457,9 @@ function AiAddModal({ onClose, onAdded }) {
   const { authenticatedFetch } = useAuth();
 
   const handleSubmit = async () => {
-    if (!text) return toast.error('テキストを入力してください');
+    if (!text) return toast.error('解析するテキストを入力してください');
     setIsSubmitting(true);
-    const toastId = toast.loading('AIが情報を解析中...');
+    const toastId = toast.loading('AIが情報を解析して登録中...');
     try {
       const res = await authenticatedFetch('/api/events/ai-parse', {
         method: 'POST',
@@ -451,41 +476,53 @@ function AiAddModal({ onClose, onAdded }) {
   return (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[100] p-4 backdrop-blur-md animate-fadeIn">
       <div className="bg-white rounded-[2.5rem] p-8 w-full max-w-lg shadow-2xl relative border border-white/20 max-h-[90vh] overflow-y-auto">
-        {/* バツマーク修正 */}
-        <button onClick={onClose} className="absolute top-6 right-6 text-gray-400 hover:text-gray-600 transition-colors z-10 p-2">
+        <button type="button" onClick={onClose} className="absolute top-6 right-6 text-gray-400 hover:text-gray-600 transition-colors z-10 p-2">
           <FiX size={28}/>
         </button>
         <div className="flex items-center gap-4 mb-6">
-            <div className="p-3 bg-indigo-600 text-white rounded-2xl shadow-lg shadow-indigo-100"><FiCpu size={28}/></div>
+            <div className="p-3 bg-gradient-to-br from-indigo-600 to-purple-600 text-white rounded-2xl shadow-lg shadow-indigo-100">
+              <FiCpu size={28}/>
+            </div>
             <div>
                 <h3 className="text-xl font-black text-gray-900">AI解析登録</h3>
                 <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest">Automatic Event Entry</p>
             </div>
         </div>
         <div className="space-y-5">
+            <div className="bg-amber-50 border border-amber-100 p-4 rounded-xl">
+              <p className="text-[11px] text-amber-700 leading-relaxed font-bold">
+                公式の告知ツイートやサイトの文章をそのまま貼り付けてください。AIが名前・日付・場所を自動で判別します。
+              </p>
+            </div>
             <textarea 
-                className="w-full p-4 border border-slate-100 rounded-2xl bg-slate-50 h-32 text-sm focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all resize-none shadow-inner" 
-                placeholder="告知テキストをそのまま貼り付けてください..." 
+                className="w-full p-4 border border-slate-100 rounded-2xl bg-slate-50 h-40 text-sm focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all resize-none shadow-inner" 
+                placeholder="ここに告知テキストをペーストしてください..." 
                 value={text} 
                 onChange={(e) => setText(e.target.value)} 
             />
-            <input 
-                className="w-full p-4 border border-slate-100 rounded-xl bg-slate-50 text-sm focus:bg-white outline-none shadow-inner" 
-                placeholder="参考URL (任意)" 
-                value={url} 
-                onChange={(e) => setUrl(e.target.value)} 
-            />
+            <div>
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">情報元のURL (任意)</label>
+              <input 
+                  className="w-full p-4 border border-slate-100 rounded-xl bg-slate-50 text-sm focus:bg-white outline-none shadow-inner" 
+                  placeholder="https://..." 
+                  value={url} 
+                  onChange={(e) => setUrl(e.target.value)} 
+              />
+            </div>
             
             <ImageUploadArea images={images} setImages={setImages} isUploading={isUploading} setIsUploading={setIsUploading} />
 
             <button 
                 onClick={handleSubmit} 
-                disabled={isSubmitting || isUploading} 
+                disabled={isSubmitting || isUploading || !text} 
                 className="w-full py-4 bg-indigo-600 text-white font-black rounded-2xl shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all flex items-center justify-center text-lg active:scale-95 disabled:opacity-50"
             >
               {isSubmitting ? <FiLoader className="animate-spin mr-3"/> : <FiCheckCircle className="mr-3"/>}
-              {isSubmitting ? '解析中...' : '解析して登録'}
+              {isSubmitting ? 'AI解析中...' : '解析してイベントを登録'}
             </button>
+            <p className="text-[10px] text-center text-gray-400">
+              ※AIによる抽出のため、登録後に詳細画面から情報の修正をお願いする場合があります。
+            </p>
         </div>
       </div>
     </div>
@@ -541,15 +578,9 @@ function ManualAddModal({ onClose, onAdded, editData = null }) {
       const url = editData ? `/api/events/${editData.id}` : `/api/events/user-submit`;
       const res = await authenticatedFetch(url, {
         method: editData ? 'PATCH' : 'POST',
-        // 修正ポイント: 古い imageUrl を削除し、imageUrls (複数形) で送る
         body: JSON.stringify({ 
-          title: formData.title,
-          eventDate: formData.eventDate,
-          description: formData.description,
-          genre: formData.genre,
-          sourceUrl: formData.sourceUrl,
-          venueId: formData.venueId,
-          imageUrls: images // ここを複数形にする
+          ...formData,
+          imageUrls: images 
         })
       });
       if (res.ok) { 
@@ -567,7 +598,6 @@ function ManualAddModal({ onClose, onAdded, editData = null }) {
   return (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[100] p-4 backdrop-blur-md">
       <div className="bg-white rounded-[2.5rem] p-8 w-full max-w-lg shadow-2xl relative max-h-[90vh] overflow-y-auto">
-        {/* バツマーク修正 */}
         <button type="button" onClick={onClose} className="absolute top-6 right-6 text-gray-400 hover:text-gray-600 transition-colors z-10 p-2">
           <FiX size={28}/>
         </button>
@@ -582,7 +612,7 @@ function ManualAddModal({ onClose, onAdded, editData = null }) {
 
           <div>
             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">開催会場</label>
-            <select required className="w-full p-4 border border-slate-100 bg-slate-50 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500 transition-all text-sm appearance-none" value={formData.venueId} onChange={e => setFormData({...formData, venueId: e.target.value})}>
+            <select required className="w-full p-4 border border-slate-100 bg-slate-50 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500 transition-all text-sm appearance-none cursor-pointer" value={formData.venueId} onChange={e => setFormData({...formData, venueId: e.target.value})}>
               <option value="">会場を選択してください</option>
               {venues.map(v => <option key={v.id} value={v.id}>{v.venueName}</option>)}
             </select>
@@ -615,7 +645,7 @@ function ManualAddModal({ onClose, onAdded, editData = null }) {
 
           <button type="submit" disabled={isSubmitting || isUploading} className="w-full mt-6 py-4 bg-indigo-600 text-white font-black rounded-2xl shadow-xl shadow-indigo-100 active:scale-95 transition-all">
             {isSubmitting ? <FiLoader className="animate-spin inline mr-2"/> : null}
-            {editData ? '更新を保存する' : 'イベントを登録する'}
+            {editTargetEvent ? '更新を保存する' : 'イベントを登録する'}
           </button>
         </form>
       </div>
