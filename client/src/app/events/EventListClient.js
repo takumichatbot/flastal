@@ -6,8 +6,10 @@ import { useAuth } from '@/app/contexts/AuthContext';
 import { 
   FiCalendar, FiMapPin, FiSearch, FiAlertTriangle, FiCheckCircle, 
   FiPlus, FiCpu, FiLink, FiX, FiFilter, FiHeart, FiLoader,
-  FiEdit3, FiTrash2, FiUser, FiInfo, FiStar, FiImage, FiUpload, FiMegaphone, FiGlobe, FiTwitter, FiInstagram, FiArrowRight
+  FiEdit3, FiTrash2, FiUser, FiInfo, FiStar, FiImage, FiUpload, FiGlobe, FiTwitter, FiInstagram, FiArrowRight
 } from 'react-icons/fi';
+// インポートエラー回避のため、メガホンとシールドはLucideを使用
+import { Megaphone, Shield } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
@@ -129,7 +131,6 @@ function EventListContent() {
     <div className="bg-slate-50 min-h-screen py-10 font-sans text-gray-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
-        {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-center mb-10 gap-6">
           <div className="flex items-center gap-4">
               <div className="bg-indigo-600 p-3 rounded-2xl text-white shadow-lg shadow-indigo-100">
@@ -157,7 +158,7 @@ function EventListContent() {
           </div>
         </div>
 
-        {/* イラスト公募バナー (★追加) */}
+        {/* イラスト公募バナー */}
         <Link href="/illustrators/recruitment" className="block mb-10 overflow-hidden rounded-[2rem] shadow-xl shadow-rose-100 group">
           <div className="bg-gradient-to-r from-rose-500 via-pink-500 to-orange-400 p-8 flex flex-col md:flex-row justify-between items-center gap-6 relative transition-all duration-500 group-hover:scale-[1.01]">
             <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:rotate-12 transition-transform duration-700">
@@ -285,7 +286,6 @@ function EventListContent() {
                                 {genreData.label}
                             </div>
                             
-                            {/* ★カード内にも公募バッジを追加 */}
                             {event.isIllustratorRecruiting && (
                                 <div className="absolute bottom-4 right-4 bg-rose-600 text-white text-[8px] font-black px-2 py-1 rounded-lg shadow-lg flex items-center gap-1 animate-pulse">
                                     <FiStar size={8} className="fill-white"/> 絵師募集中
@@ -297,7 +297,7 @@ function EventListContent() {
                             <div className="mb-4">
                                 {isOfficial ? (
                                   <span className="text-[10px] font-black bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-full border border-indigo-100 uppercase tracking-widest flex items-center w-fit shadow-sm">
-                                    <FiShield className="mr-1.5 fill-indigo-600"/> 公式・主催者
+                                    <Shield size={10} className="mr-1.5 fill-indigo-600"/> 公式・主催者
                                   </span>
                                 ) : (
                                   <span className="text-[10px] font-black bg-slate-50 text-slate-500 px-3 py-1.5 rounded-full border border-slate-100 uppercase tracking-widest flex items-center w-fit">
@@ -480,9 +480,7 @@ function AiAddModal({ onClose, onAdded }) {
           <FiX size={28}/>
         </button>
         <div className="flex items-center gap-4 mb-6">
-            <div className="p-3 bg-gradient-to-br from-indigo-600 to-purple-600 text-white rounded-2xl shadow-lg shadow-indigo-100">
-              <FiCpu size={28}/>
-            </div>
+            <div className="p-3 bg-indigo-600 text-white rounded-2xl shadow-lg shadow-indigo-100"><FiCpu size={28}/></div>
             <div>
                 <h3 className="text-xl font-black text-gray-900">AI解析登録</h3>
                 <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest">Automatic Event Entry</p>
