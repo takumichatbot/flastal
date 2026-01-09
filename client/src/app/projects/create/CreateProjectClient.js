@@ -440,29 +440,34 @@ function CreateProjectForm() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (isSubmitting) return; 
+    if (isSubmitting) return;
 
+    // 1. 日時のバリデーションと整形
     let deliveryDateTimeISO;
     try {
-        if (!formData.deliveryDateTime) throw new Error("日時を選択してください");
+        if (!formData.deliveryDateTime) throw new Error("納品希望日時を選択してください");
         const dateObj = new Date(formData.deliveryDateTime);
-        if (isNaN(dateObj.getTime())) throw new Error("無効な日時形式です");
+        if (isNaN(dateObj.getTime())) throw new Error("日時の形式が正しくありません");
         deliveryDateTimeISO = dateObj.toISOString();
     } catch (err) {
         return toast.error(err.message);
     }
 
-    if (parseInt(formData.targetAmount) < 1000) return toast.error('1,000pt以上で設定してください');
+    // 2. 目標金額のチェック
+    const amount = parseInt(formData.targetAmount, 10);
+    if (isNaN(amount) || amount < 1000) {
+        return toast.error('目標金額は1,000pt以上で設定してください');
+    }
 
     setIsSubmitting(true);
-    const toastId = toast.loading('企画を保存して審査へ送っています...');
+    const toastId = toast.loading('企画を保存中...');
 
     try {
-      // データベースモデルの期待値に合わせて、すべてのフィールドに値をセット
+      // ★ サーバー側が期待する「すべての」必須項目を明示的にセット
       const payload = {
         title: formData.title || "",
         description: formData.description || "",
-        targetAmount: parseInt(formData.targetAmount, 10),
+        targetAmount: amount,
         deliveryAddress: formData.deliveryAddress || (selectedVenue?.address || ""),
         deliveryDateTime: deliveryDateTimeISO,
         imageUrl: formData.imageUrl || "",
@@ -474,12 +479,14 @@ function CreateProjectForm() {
         password: formData.password || null,
         venueId: selectedVenue?.id || null,
         eventId: selectedEvent?.id || null,
+        
+        // --- 最近追加された可能性が高い必須フィールド ---
         visibility: "PUBLIC", 
-        // 以下、Prisma Schemaで必須(Required)になっている可能性が高い項目を明示的にセット
-        isIllustratorRecruiting: false, 
-        illustratorRequirements: "",
-        status: "PENDING_APPROVAL" // 初期ステータス
+        isIllustratorRecruiting: formData.isIllustratorRecruiting || false,
+        illustratorRequirements: formData.illustratorRequirements || ""
       };
+
+      console.log("Sending payload:", payload); // デバッグ用
 
       const res = await authenticatedFetch(`${API_URL}/api/projects`, {
         method: 'POST',
@@ -488,14 +495,15 @@ function CreateProjectForm() {
 
       if (!res.ok) {
           const errorData = await res.json().catch(() => ({}));
-          throw new Error(errorData.message || 'サーバー側のバリデーションエラーです。必須項目が不足している可能性があります。');
+          // サーバーから詳細なエラーが返ってきている場合はそれを表示
+          throw new Error(errorData.message || '作成に失敗しました。サーバー側のバリデーションエラーです。');
       }
 
       toast.success('企画を作成しました！審査をお待ちください。', { id: toastId });
       
-      router.refresh();
+      // 遷移エラーを防ぐため少し待ってから移動
       setTimeout(() => {
-          window.location.replace('/mypage');
+          window.location.href = '/mypage';
       }, 1000);
 
     } catch (error) { 
