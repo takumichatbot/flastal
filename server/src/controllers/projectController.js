@@ -131,94 +131,80 @@ export const createProject = async (req, res) => {
         const {
             title, description, targetAmount, deliveryAddress, deliveryDateTime,
             imageUrl, designImageUrls, designDetails, size, flowerTypes,
-            visibility, venueId, eventId, projectType, password,
-            isIllustratorRecruiting, illustratorRequirements
+            visibility, venueId, eventId, projectType, password
         } = req.body;
-
-        // ★ デバッグ用：受信データを詳しくログに出す
-        console.log("--- [INCOMING PROJECT DATA] ---", {
-            title, targetAmount, deliveryDateTime, projectType, plannerId: req.user.id
-        });
 
         const plannerId = req.user.id;
 
-        // 1. タイトルバリデーション
+        // 1. 基本バリデーション
         if (!title || String(title).trim() === '') {
-            console.warn("Validation Failed: Title is empty");
             return res.status(400).json({ message: '企画タイトルを入力してください。' });
         }
 
-        // 2. 金額バリデーション
         const amount = parseInt(targetAmount, 10);
         if (isNaN(amount) || amount <= 0) {
-            console.warn("Validation Failed: TargetAmount is invalid", targetAmount);
-            return res.status(400).json({ message: '目標金額を数値で正しく入力してください。' });
+            return res.status(400).json({ message: '目標金額を正しく入力してください。' });
         }
 
-        // 3. 日時バリデーション
         let deliveryDate = new Date(deliveryDateTime);
         if (isNaN(deliveryDate.getTime())) {
-            console.warn("Validation Failed: DeliveryDateTime is invalid", deliveryDateTime);
-            return res.status(400).json({ message: '納品希望日時を正しく入力してください。' });
+            return res.status(400).json({ message: '納品希望日時を正しく選択してください。' });
         }
 
-        // --- Prisma Create 実行 ---
-        // schema.prismaの定義に合わせ、必須の配列フィールドやEnum値を1つずつ手動でマッピング
+        // --- [重要] schema.prisma の定義に厳密に合わせたデータ整形 ---
+        const projectData = {
+            title: String(title).trim(),
+            description: String(description || ""),
+            targetAmount: amount,
+            deliveryAddress: String(deliveryAddress || ""),
+            deliveryDateTime: deliveryDate,
+            plannerId: plannerId,
+            imageUrl: imageUrl ? String(imageUrl) : null,
+            designDetails: designDetails ? String(designDetails) : "",
+            size: size ? String(size) : "",
+            flowerTypes: flowerTypes ? String(flowerTypes) : "",
+            
+            // Enum値の正規化 (schema.prismaに定義されている値に合わせる)
+            status: 'PENDING_APPROVAL',
+            projectType: (projectType === 'PRIVATE' || projectType === 'SOLO') ? projectType : 'PUBLIC',
+            visibility: visibility === 'UNLISTED' ? 'UNLISTED' : 'PUBLIC',
+            password: password || null,
+            
+            // リレーション設定
+            venueId: venueId || null,
+            eventId: eventId || null,
+
+            // schema.prisma で定義されているがデフォルト値がない配列を初期化
+            designImageUrls: Array.isArray(designImageUrls) ? designImageUrls : [],
+            completionImageUrls: [],
+            illustrationPanelUrls: [],
+            messagePanelUrls: [],
+            sponsorPanelUrls: [],
+            preEventPhotoUrls: [],
+            progressHistory: []
+        };
+
+        // 2. 作成実行
         const newProject = await prisma.project.create({
-            data: {
-                title: String(title).trim(),
-                description: description ? String(description) : "",
-                targetAmount: amount,
-                deliveryAddress: deliveryAddress ? String(deliveryAddress) : "",
-                deliveryDateTime: deliveryDate,
-                plannerId: plannerId,
-                imageUrl: imageUrl ? String(imageUrl) : null,
-                designDetails: designDetails ? String(designDetails) : "",
-                size: size ? String(size) : "",
-                flowerTypes: flowerTypes ? String(flowerTypes) : "",
-                
-                // Enum・型チェックの強制
-                status: 'PENDING_APPROVAL',
-                projectType: (projectType === 'PRIVATE' || projectType === 'SOLO') ? projectType : 'PUBLIC',
-                visibility: visibility === 'UNLISTED' ? 'UNLISTED' : 'PUBLIC',
-                password: password || null,
-                
-                // リレーションID
-                venueId: venueId || null,
-                eventId: eventId || null,
-
-                // schema.prisma で必須の配列フィールドを空配列で初期化
-                designImageUrls: Array.isArray(designImageUrls) ? designImageUrls : [],
-                completionImageUrls: [],
-                illustrationPanelUrls: [],
-                messagePanelUrls: [],
-                sponsorPanelUrls: [],
-                preEventPhotoUrls: [],
-                progressHistory: [],
-
-                // 追加モデルフィールド (Eventにもあるもの)
-                isIllustratorRecruiting: isIllustratorRecruiting === true || isIllustratorRecruiting === "true",
-                illustratorRequirements: illustratorRequirements ? String(illustratorRequirements) : ""
-            },
+            data: projectData,
         });
 
-        console.log("--- [PROJECT CREATE SUCCESS] --- ID:", newProject.id);
-
+        // 3. 非同期で通知/メール送信
         sendEmail(req.user.email, '【FLASTAL】企画申請を受け付けました',
-            `<p>${req.user.handleName} 様</p><p>企画「${title}」の申請を受け付けました。</p>`).catch(() => {});
+            `<p>${req.user.handleName} 様</p><p>企画「${title}」の申請を受け付けました。運営による審査完了までお待ちください。</p>`)
+            .catch(e => console.error("Email Error:", e));
 
         res.status(201).json({ project: newProject, message: '企画の作成申請が完了しました。' });
     } catch (error) {
-        // ★ エラーの正体をログに出す（これがRenderのログで見れるようになります）
-        console.error('--- [VALIDATION ERROR DETAILS] ---');
-        console.error('Error Name:', error.name);
+        // Renderのログで「何が原因か」を明確にするためのログ出力
+        console.error('--- [PROJECT CREATE ERROR DETAILS] ---');
+        console.error('Error Code:', error.code); // Prisma特有のエラーコード
+        console.error('Error Meta:', error.meta); // どのフィールドが悪いか
         console.error('Error Message:', error.message);
-        if (error.code) console.error('Prisma Error Code:', error.code);
-        if (error.meta) console.error('Prisma Error Meta:', error.meta);
 
         res.status(500).json({ 
-            message: 'サーバー側のバリデーションエラーです。入力形式が不正か、必須項目が不足しています。',
-            errorDetails: error.message 
+            message: 'サーバー側のバリデーションエラーです。入力内容またはDBの制約を確認してください。',
+            details: error.message 
         });
     }
 };
