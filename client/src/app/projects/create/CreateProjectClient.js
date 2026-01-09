@@ -20,7 +20,6 @@ const formatToLocalISO = (dateString) => {
     try {
         const date = new Date(dateString);
         if (isNaN(date.getTime())) return '';
-        // ブラウザのローカル時間に合わせた文字列を作成 (YYYY-MM-DDTHH:mm)
         const year = date.getFullYear();
         const month = String(date.getMonth() + 1).padStart(2, '0');
         const day = String(date.getDate()).padStart(2, '0');
@@ -139,7 +138,6 @@ function EventSelectionModal({ onClose, onSelect }) {
     fetchEvents();
   }, []);
 
-  // 検索フィルタリング
   useEffect(() => {
     const query = searchQuery.toLowerCase();
     setFilteredEvents(
@@ -316,7 +314,6 @@ function CreateProjectForm() {
     password: '',
   });
 
-  // 汎用S3アップロード関数
   const uploadImageToS3 = async (file) => {
     try {
         const res = await authenticatedFetch('/api/tools/s3-upload-url', {
@@ -446,8 +443,6 @@ function CreateProjectForm() {
     if (formData.projectType === 'PRIVATE' && !formData.password.trim()) return toast.error('合言葉を設定してください');
 
     setIsSubmitting(true);
-    
-    // 安全な日付変換（Safariエラー対策）
     let finalISO;
     try {
         const d = new Date(formData.deliveryDateTime);
@@ -594,13 +589,14 @@ function CreateProjectForm() {
                 <input type="number" name="targetAmount" required value={formData.targetAmount} onChange={handleChange} className="input-field !pl-8 !border-pink-200 !bg-white text-2xl font-bold text-pink-600 focus:!ring-pink-400" placeholder="30000" />
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-pink-300 text-xl font-bold">¥</span>
             </div>
-          </section>
+          </div>
 
           <div>
             <label className="block text-sm font-bold text-gray-700 mb-2">メイン画像 (一覧に表示)</label>
             <div className="border-2 border-dashed border-gray-300 rounded-2xl p-6 text-center hover:bg-gray-50 transition-colors cursor-pointer relative overflow-hidden group">
                 <input type="file" accept="image/*" onChange={handleImageUpload} disabled={isUploading} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"/>
                 {formData.imageUrl ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
                     <img src={formData.imageUrl} alt="プレビュー" className="max-h-64 mx-auto rounded-lg shadow-md" />
                 ) : (
                     <div className="py-8">
@@ -624,6 +620,7 @@ function CreateProjectForm() {
                     <div className="flex flex-wrap gap-3 mb-4">
                         {formData.designImageUrls.map((url, index) => (
                             <div key={index} className="relative w-24 h-24 group">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img src={url} alt={`デザイン ${index}`} className="w-full h-full object-cover rounded-xl border border-gray-200 shadow-sm" />
                                 <button type="button" onClick={() => setFormData(p => ({...p, designImageUrls: p.designImageUrls.filter((_, i) => i !== index)}))} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs shadow-md transform scale-0 group-hover:scale-100 transition-transform"><FiX /></button>
                             </div>
