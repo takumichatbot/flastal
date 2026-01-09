@@ -208,54 +208,74 @@ export const createProject = async (req, res) => {
         } = req.body;
 
         const plannerId = req.user.id;
-        
-        // 日時のパースを強化
-        const deliveryDate = new Date(deliveryDateTime);
-        const amount = parseInt(targetAmount, 10);
 
-        if (!title) return res.status(400).json({ message: '企画タイトルを入力してください。' });
-        if (isNaN(deliveryDate.getTime())) return res.status(400).json({ message: '納品希望日時を正しく入力してください。' });
-        if (isNaN(amount) || amount <= 0) return res.status(400).json({ message: '有効な目標金額を設定してください。' });
-
-        let finalDeliveryAddress = deliveryAddress;
-        if (venueId) {
-            const venue = await prisma.venue.findUnique({ where: { id: venueId } });
-            if (!venue) return res.status(400).json({ message: '指定された会場が見つかりません。' });
-            finalDeliveryAddress = venue.address || deliveryAddress;
+        // --- バリデーション強化 ---
+        if (!title || title.trim() === '') {
+            return res.status(400).json({ message: '企画タイトルを入力してください。' });
         }
 
+        const amount = parseInt(targetAmount, 10);
+        if (isNaN(amount) || amount <= 0) {
+            return res.status(400).json({ message: '目標金額を正しく入力してください。' });
+        }
+
+        // 日時パースの安全性を確保 (ISO 8601 形式でない場合への対応)
+        let deliveryDate = new Date(deliveryDateTime);
+        if (isNaN(deliveryDate.getTime())) {
+            // Safariなどのブラウザで T が入っていない場合などを補正
+            deliveryDate = new Date(deliveryDateTime.replace(' ', 'T'));
+        }
+
+        if (isNaN(deliveryDate.getTime())) {
+            return res.status(400).json({ message: '納品希望日時を正しく選択してください。' });
+        }
+
+        let finalDeliveryAddress = deliveryAddress || "";
+        if (venueId) {
+            const venue = await prisma.venue.findUnique({ where: { id: venueId } });
+            if (venue) {
+                finalDeliveryAddress = venue.address || venue.venueName || finalDeliveryAddress;
+            }
+        }
+
+        // --- Prisma Create 実行 ---
         const newProject = await prisma.project.create({
             data: {
-                title, 
-                description: description || "", 
+                title: title.trim(),
+                description: description || "",
                 targetAmount: amount,
-                deliveryAddress: finalDeliveryAddress || "",
+                deliveryAddress: finalDeliveryAddress,
                 deliveryDateTime: deliveryDate,
-                plannerId, 
+                plannerId,
                 imageUrl: imageUrl || "",
                 designImageUrls: designImageUrls || [],
-                designDetails: designDetails || "", 
-                size: size || "", 
+                designDetails: designDetails || "",
+                size: size || "",
                 flowerTypes: flowerTypes || "",
                 projectType: projectType || 'PUBLIC',
                 password: password || null,
                 visibility: visibility || 'PUBLIC',
                 venueId: venueId || null,
                 eventId: eventId || null,
-                status: 'PENDING_APPROVAL', // 明示的に初期ステータスをセット
-                isIllustratorRecruiting: isIllustratorRecruiting || false,
+                status: 'PENDING_APPROVAL', // ステータスの初期値を明示
+                // イラスト公募項目の初期化
+                isIllustratorRecruiting: isIllustratorRecruiting === true || isIllustratorRecruiting === "true",
                 illustratorRequirements: illustratorRequirements || ""
             },
         });
 
-        // 非同期でメール送信（エラーで作成を止めない）
+        // 非同期でメール送信（失敗してもレスポンスは返す）
         sendEmail(req.user.email, '【FLASTAL】企画申請を受け付けました',
-            `<p>${req.user.handleName} 様</p><p>企画「${title}」の申請を受け付けました。審査完了まで今しばらくお待ちください。</p>`).catch(err => console.error("Email error:", err));
+            `<p>${req.user.handleName} 様</p><p>企画「${title}」の申請を受け付けました。審査完了まで今しばらくお待ちください。</p>`).catch(e => console.error("Email notify error:", e));
 
         res.status(201).json({ project: newProject, message: '企画の作成申請が完了しました。' });
     } catch (error) {
-        console.error('企画作成エラー詳細:', error);
-        res.status(500).json({ message: '企画の作成中にエラーが発生しました。サーバー管理者に連絡してください。' });
+        // エラー詳細をログに出力して特定しやすくする
+        console.error('企画作成エラー詳細 [Prisma/Internal]:', error);
+        res.status(500).json({ 
+            message: '企画の作成中にエラーが発生しました。入力内容を確認してください。',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined 
+        });
     }
 };
 
@@ -376,7 +396,6 @@ export const cancelProject = async (req, res) => {
             if (project.plannerId !== userId) throw new Error('権限がありません。');
             if (['COMPLETED', 'CANCELED'].includes(project.status)) throw new Error('既に終了した企画です。');
 
-            // キャンセル料計算
             const now = new Date();
             const deliveryDate = new Date(project.deliveryDateTime);
             const diffDays = Math.ceil((deliveryDate - now) / (1000 * 60 * 60 * 24));
@@ -388,7 +407,6 @@ export const cancelProject = async (req, res) => {
             let totalCancelFee = Math.min(baseCancelFee + materialCost, collectedAmount);
             const totalRefundAmount = collectedAmount - totalCancelFee;
 
-            // 返金処理
             if (totalRefundAmount > 0 && collectedAmount > 0) {
                 const refundRatio = totalRefundAmount / collectedAmount;
                 for (const pledge of project.pledges) {
@@ -458,7 +476,6 @@ export const completeProject = async (req, res) => {
             },
         });
 
-        // 支援者への通知
         const pledges = await prisma.pledge.findMany({ where: { projectId }, distinct: ['userId'], include: { user: true } });
         for (const pledge of pledges) {
             if (pledge.user) {
@@ -614,7 +631,6 @@ export const updateProjectStatus = async (req, res) => {
 // ★★★ 4. その他 (Instruction, Board, Posts) ★★★
 // ==========================================
 
-// 指示書データ生成
 export const getInstructionSheet = async (req, res) => {
     const { projectId } = req.params;
     try {
@@ -637,7 +653,6 @@ export const getInstructionSheet = async (req, res) => {
     }
 };
 
-// 成功ストーリー投稿 (Post)
 export const createProjectPost = async (req, res) => {
     const { projectId } = req.params;
     const { content, postType } = req.body;
@@ -665,7 +680,6 @@ export const createProjectPost = async (req, res) => {
     }
 };
 
-// ストーリー投稿一覧取得
 export const getProjectPosts = async (req, res) => {
     const { projectId } = req.params;
     try {
@@ -681,7 +695,7 @@ export const getProjectPosts = async (req, res) => {
 };
 
 // ==========================================
-// メモリ実装
+// 追加メモリ実装 (in-memory mock or partial)
 // ==========================================
 
 let MOOD_BOARDS = [];
