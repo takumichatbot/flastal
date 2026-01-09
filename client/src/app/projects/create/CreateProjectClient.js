@@ -20,6 +20,7 @@ const formatToLocalISO = (dateString) => {
     try {
         const date = new Date(dateString);
         if (isNaN(date.getTime())) return '';
+        // Safari等のブラウザ互換性のためのローカル日時文字列生成 (YYYY-MM-DDTHH:mm)
         const year = date.getFullYear();
         const month = String(date.getMonth() + 1).padStart(2, '0');
         const day = String(date.getDate()).padStart(2, '0');
@@ -53,7 +54,7 @@ function AIGenerationModal({ onClose, onGenerate }) {
     
     setIsGenerating(true);
     try {
-      const res = await authenticatedFetch('/api/ai/generate-image', {
+      const res = await authenticatedFetch(`${API_URL}/api/ai/generate-image`, {
         method: 'POST',
         body: JSON.stringify({ prompt }),
       });
@@ -138,6 +139,7 @@ function EventSelectionModal({ onClose, onSelect }) {
     fetchEvents();
   }, []);
 
+  // 検索フィルタリング
   useEffect(() => {
     const query = searchQuery.toLowerCase();
     setFilteredEvents(
@@ -314,6 +316,7 @@ function CreateProjectForm() {
     password: '',
   });
 
+  // 汎用S3アップロード関数
   const uploadImageToS3 = async (file) => {
     try {
         const res = await authenticatedFetch('/api/tools/s3-upload-url', {
@@ -443,14 +446,18 @@ function CreateProjectForm() {
     if (formData.projectType === 'PRIVATE' && !formData.password.trim()) return toast.error('合言葉を設定してください');
 
     setIsSubmitting(true);
+    
+    // Safari等のエラー対策：安全にISO形式へ変換
     let finalISO;
     try {
-        const d = new Date(formData.deliveryDateTime);
-        if (isNaN(d.getTime())) throw new Error();
+        const dateInput = formData.deliveryDateTime;
+        if (!dateInput) throw new Error('日時が入力されていません');
+        const d = new Date(dateInput);
+        if (isNaN(d.getTime())) throw new Error('無効な日付です');
         finalISO = d.toISOString();
     } catch (err) {
         setIsSubmitting(false);
-        return toast.error('納品希望日時の形式が正しくありません');
+        return toast.error('日時の形式が正しくありません。');
     }
 
     try {
@@ -468,7 +475,11 @@ function CreateProjectForm() {
       }
       toast.success('企画を作成しました！審査をお待ちください。');
       router.push('/mypage'); 
-    } catch (error) { toast.error(error.message); } finally { setIsSubmitting(false); }
+    } catch (error) { 
+        toast.error(error.message); 
+    } finally { 
+        setIsSubmitting(false); 
+    }
   };
 
   if (authLoading || !user || eventLoading) {
