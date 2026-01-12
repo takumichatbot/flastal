@@ -8,10 +8,9 @@ import {
   Bell, ChevronDown, User, LogOut, Heart, CheckCircle2, Menu, X, 
   Calendar, MapPin, LayoutDashboard, Settings, Sparkles, Store, ShieldCheck, Briefcase, FileText,
   UserCheck, ClipboardList, BarChart3, Building2, Package, Truck, Search, PlusCircle, Star
-} from 'lucide-react'; // Starを追加
+} from 'lucide-react'; 
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
-import OshiColorPicker from './OshiColorPicker'; 
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -199,11 +198,10 @@ export default function Header() {
   }, [user]);
 
   const navLinks = useMemo(() => {
-    // 共通リンク（絵師募集中を追加）
     const baseLinks = [
       { href: '/projects', label: '企画一覧', icon: <Heart size={18}/> },
       { href: '/events', label: 'イベント', icon: <Calendar size={18}/> },
-      { href: '/illustrators/recruitment', label: '絵師募集中', icon: <Star size={18}/>, highlight: true }, // ★追加
+      { href: '/illustrators/recruitment', label: '絵師募集中', icon: <Star size={18}/>, highlight: true },
       { href: '/venues', label: '会場', icon: <MapPin size={18}/> },
       { href: '/florists', label: 'お花屋さん', icon: <Store size={18}/> },
     ];
@@ -226,7 +224,7 @@ export default function Header() {
       case 'ORGANIZER':
         return [
           { href: '/organizers/dashboard', label: '主催企画', icon: <LayoutDashboard size={18}/> },
-          { href: '/illustrators/recruitment', label: '絵師募集中', icon: <Star size={18}/>, highlight: true }, // ★主催者にも追加
+          { href: '/illustrators/recruitment', label: '絵師募集中', icon: <Star size={18}/>, highlight: true },
           { href: '/projects/create', label: '企画を立てる', icon: <Sparkles size={18}/> },
           { href: '/florists', label: '花屋を探す', icon: <Store size={18}/> },
         ];
@@ -325,10 +323,6 @@ export default function Header() {
           </div>
           
           <div className="flex items-center space-x-2 md:space-x-4">
-            <div className="hidden md:block scale-90">
-                <OshiColorPicker />
-            </div>
-
             {user ? (
               <>
                 <NotificationDropdown 
