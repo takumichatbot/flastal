@@ -53,7 +53,7 @@ function AIGenerationModal({ onClose, onGenerate }) {
     
     setIsGenerating(true);
     try {
-      const res = await authenticatedFetch(`${API_URL}/api/ai/generate-image`, {
+      const res = await authenticatedFetch(`${API_URL}/api/ai/generate-ai-image`, {
         method: 'POST',
         body: JSON.stringify({ prompt }),
       });
@@ -138,7 +138,6 @@ function EventSelectionModal({ onClose, onSelect }) {
     fetchEvents();
   }, []);
 
-  // 検索フィルタリング
   useEffect(() => {
     const query = searchQuery.toLowerCase();
     setFilteredEvents(
@@ -202,12 +201,6 @@ function EventSelectionModal({ onClose, onSelect }) {
                   <div className="flex items-center"><FiCalendar className="mr-2 text-indigo-400 shrink-0"/> {formatDisplayDate(event.eventDate)}</div>
                   <div className="flex items-center"><FiMapPin className="mr-2 text-indigo-400 shrink-0"/> {event.venue ? event.venue.venueName : '会場未定'}</div>
                 </div>
-
-                {event.isStandAllowed === false && (
-                  <div className="mt-3 text-[10px] bg-amber-50 text-amber-700 px-3 py-1.5 rounded-lg border border-amber-100 inline-flex items-center font-bold relative z-10">
-                    <FiAlertTriangle className="mr-1"/> スタンド花：要確認・問合せ
-                  </div>
-                )}
                 <div className="absolute inset-0 bg-indigo-50 opacity-0 group-hover:opacity-100 transition-opacity z-0"></div>
               </button>
             ))
@@ -257,12 +250,7 @@ function VenueSelectionModal({ onClose, onSelect }) {
                   onClick={() => { onSelect(venue); onClose(); }}
                   className="w-full text-left p-4 bg-white border border-gray-200 rounded-xl hover:border-green-500 hover:shadow-md transition-all group"
                 >
-                  <div className="flex justify-between items-center mb-1">
-                      <div className="font-bold text-gray-800 group-hover:text-green-700 text-lg">{venue.venueName}</div>
-                      {venue.isStandAllowed === false && (
-                          <span className="text-[10px] bg-amber-100 text-amber-700 px-2 py-1 rounded font-black whitespace-nowrap ml-2">要確認</span>
-                      )}
-                  </div>
+                  <div className="font-bold text-gray-800 group-hover:text-green-700 text-lg">{venue.venueName}</div>
                   <div className="text-xs text-gray-500 flex items-center"><FiMapPin className="mr-1"/> {venue.address}</div>
                 </button>
             ))
@@ -315,7 +303,6 @@ function CreateProjectForm() {
     password: '',
   });
 
-  // 汎用S3アップロード関数
   const uploadImageToS3 = async (file) => {
     try {
         const res = await authenticatedFetch('/api/tools/s3-upload-url', {
@@ -376,6 +363,14 @@ function CreateProjectForm() {
         setIsDesignUploading(false);
         e.target.value = '';
     }
+  };
+
+  // AI画像生成が完了した時の処理（ここが不足していたためエラーが発生していました）
+  const handleAIGenerated = (url) => {
+    setFormData(prev => ({
+      ...prev,
+      designImageUrls: [...prev.designImageUrls, url]
+    }));
   };
 
   const fetchEventDetails = useCallback(async (id) => {
@@ -442,7 +437,6 @@ function CreateProjectForm() {
     e.preventDefault();
     if (isSubmitting) return;
 
-    // 1. 日時のバリデーションと整形
     let deliveryDateTimeISO;
     try {
         if (!formData.deliveryDateTime) throw new Error("納品希望日時を選択してください");
@@ -453,7 +447,6 @@ function CreateProjectForm() {
         return toast.error(err.message);
     }
 
-    // 2. 目標金額のチェック
     const amount = parseInt(formData.targetAmount, 10);
     if (isNaN(amount) || amount < 1000) {
         return toast.error('目標金額は1,000pt以上で設定してください');
@@ -463,7 +456,6 @@ function CreateProjectForm() {
     const toastId = toast.loading('企画を保存中...');
 
     try {
-      // ★ サーバー側が期待する「すべての」必須項目を明示的にセット
       const payload = {
         title: formData.title || "",
         description: formData.description || "",
@@ -479,14 +471,8 @@ function CreateProjectForm() {
         password: formData.password || null,
         venueId: selectedVenue?.id || null,
         eventId: selectedEvent?.id || null,
-        
-        // --- 最近追加された可能性が高い必須フィールド ---
-        visibility: "PUBLIC", 
-        isIllustratorRecruiting: formData.isIllustratorRecruiting || false,
-        illustratorRequirements: formData.illustratorRequirements || ""
+        visibility: "PUBLIC"
       };
-
-      console.log("Sending payload:", payload); // デバッグ用
 
       const res = await authenticatedFetch(`${API_URL}/api/projects`, {
         method: 'POST',
@@ -495,13 +481,11 @@ function CreateProjectForm() {
 
       if (!res.ok) {
           const errorData = await res.json().catch(() => ({}));
-          // サーバーから詳細なエラーが返ってきている場合はそれを表示
           throw new Error(errorData.message || '作成に失敗しました。サーバー側のバリデーションエラーです。');
       }
 
       toast.success('企画を作成しました！審査をお待ちください。', { id: toastId });
       
-      // 遷移エラーを防ぐため少し待ってから移動
       setTimeout(() => {
           window.location.href = '/mypage';
       }, 1000);
@@ -540,13 +524,6 @@ function CreateProjectForm() {
                     <span className="bg-white/50 px-2 py-1 rounded">{formatDisplayDate(selectedEvent.eventDate)}</span>
                     <span className="bg-white/50 px-2 py-1 rounded">@ {selectedEvent.venue?.venueName || '会場未定'}</span>
                 </p>
-                {(selectedEvent.isStandAllowed === false || selectedEvent.regulationNote) && (
-                    <div className="mt-3 bg-white/80 p-4 rounded-xl border border-indigo-100 text-sm shadow-inner">
-                        <p className="font-bold text-indigo-800 mb-1 flex items-center"><FiAlertTriangle className="mr-1"/> 注意事項</p>
-                        {selectedEvent.isStandAllowed === false && <p className="text-amber-700 font-bold mb-1 flex items-center"><FiInfo className="mr-1"/> スタンド花：要確認（個別にお問合せください）</p>}
-                        {selectedEvent.regulationNote && <p className="text-gray-700 whitespace-pre-wrap leading-relaxed">{selectedEvent.regulationNote}</p>}
-                    </div>
-                )}
                 <button type="button" onClick={() => { setSelectedEvent(null); setSelectedVenue(null); setFormData(p => ({ ...p, eventId: '', title: '', deliveryDateTime: '', venueId: '', deliveryAddress: '' })); }} className="text-xs font-bold text-indigo-400 hover:text-red-500 underline mt-3">選択を解除して手動入力へ</button>
             </div>
         )}
@@ -607,12 +584,6 @@ function CreateProjectForm() {
                          </div>
                          <button type="button" onClick={() => handleVenueSelect(null)} className="text-xs text-green-400 font-bold hover:text-red-500 underline">解除</button>
                      </div>
-                     {selectedVenue.isStandAllowed === false && (
-                         <div className="mt-3 p-4 bg-amber-50 border border-amber-100 rounded-xl text-sm">
-                             <div className="font-bold text-amber-800 mb-1">この会場の注意事項</div>
-                             <p className="text-amber-700 font-bold">スタンド花：要確認（会場のルールを直接ご確認ください）</p>
-                         </div>
-                     )}
                  </div>
              ) : (
                  <input type="text" name="deliveryAddress" required value={formData.deliveryAddress} onChange={handleChange} className="input-field mb-4" placeholder="会場名と住所を入力してください" />
@@ -636,7 +607,6 @@ function CreateProjectForm() {
             <div className="border-2 border-dashed border-gray-300 rounded-2xl p-6 text-center hover:bg-gray-50 cursor-pointer relative overflow-hidden group">
                 <input type="file" accept="image/*" onChange={handleImageUpload} disabled={isUploading} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"/>
                 {formData.imageUrl ? (
-                    /* eslint-disable-next-line @next/next/no-img-element */
                     <img src={formData.imageUrl} alt="プレビュー" className="max-h-64 mx-auto rounded-lg shadow-md" />
                 ) : (
                     <div className="py-8">
@@ -660,7 +630,6 @@ function CreateProjectForm() {
                     <div className="flex flex-wrap gap-3 mb-4">
                         {formData.designImageUrls.map((url, index) => (
                             <div key={index} className="relative w-24 h-24 group">
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img src={url} alt={`デザイン ${index}`} className="w-full h-full object-cover rounded-xl border border-gray-200 shadow-sm" />
                                 <button type="button" onClick={() => setFormData(p => ({...p, designImageUrls: p.designImageUrls.filter((_, i) => i !== index)}))} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs shadow-md transform scale-0 group-hover:scale-100 transition-transform"><FiX /></button>
                             </div>
