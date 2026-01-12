@@ -53,27 +53,30 @@ export const getOrganizerProfile = async (req, res) => {
 
 // 主催者プロフィール更新 (歯車ボタン)
 export const updateOrganizerProfile = async (req, res) => {
-    const { id } = req.params;
-    const { name, website, email } = req.body;
-    const userId = req.user.id;
-
-    if (id !== userId && req.user.role !== 'ADMIN') {
-        return res.status(403).json({ message: '権限がありません。' });
-    }
-
     try {
+        // パラメータにIDがあればそれを使用、なければ認証済みの自分自身のIDを使用
+        const targetId = req.params.id || req.user.id;
+        const { name, website, email, imageUrls } = req.body;
+
+        // 他人のプロフィールを更新しようとしていないかチェック
+        if (targetId !== req.user.id && req.user.role !== 'ADMIN') {
+            return res.status(403).json({ message: '権限がありません。' });
+        }
+
         const updated = await prisma.organizer.update({
-            where: { id: id },
+            where: { id: targetId },
             data: {
                 name: name || undefined,
                 website: website || undefined,
-                email: email || undefined
+                email: email || undefined,
+                // プロフィール画像（複数枚対応している場合）
+                // imageUrls: Array.isArray(imageUrls) ? imageUrls : undefined
             }
         });
         const { password, ...cleanData } = updated;
-        res.json(cleanData);
-    } catch (e) {
-        console.error('updateOrganizerProfile Error:', e);
+        res.status(200).json(cleanData);
+    } catch (error) {
+        console.error('updateOrganizerProfile Error:', error);
         res.status(500).json({ message: 'プロフィールの更新に失敗しました。' });
     }
 };
@@ -151,12 +154,12 @@ export const updateOrganizerEvent = async (req, res) => {
                 title: name,
                 description: req.body.description,
                 eventDate: req.body.eventDate ? new Date(req.body.eventDate) : undefined,
-                venueId: req.body.venueId || undefined,
                 sourceType: 'OFFICIAL'
             }
         });
         res.json(updated);
     } catch (e) {
+        console.error('updateOrganizerEvent Error:', e);
         res.status(500).json({ message: '更新に失敗しました。' });
     }
 };
