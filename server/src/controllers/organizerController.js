@@ -37,14 +37,52 @@ export const loginOrganizer = async (req, res) => {
     }
 };
 
-/**
- * ★ 主催者によるイベント作成 ★
- * 主催者画面からの作成なので sourceType を強制的に OFFICIAL にします
- */
+// 主催者プロフィール取得
+export const getOrganizerProfile = async (req, res) => {
+    try {
+        const organizer = await prisma.organizer.findUnique({
+            where: { id: req.user.id }
+        });
+        if (!organizer) return res.status(404).json({ message: '主催者が見つかりません' });
+        const { password, ...cleanData } = organizer;
+        res.json(cleanData);
+    } catch (e) {
+        res.status(500).json({ message: 'プロフィールの取得に失敗しました' });
+    }
+};
+
+// 主催者プロフィール更新 (歯車ボタン)
+export const updateOrganizerProfile = async (req, res) => {
+    const { id } = req.params;
+    const { name, website, email } = req.body;
+    const userId = req.user.id;
+
+    if (id !== userId && req.user.role !== 'ADMIN') {
+        return res.status(403).json({ message: '権限がありません。' });
+    }
+
+    try {
+        const updated = await prisma.organizer.update({
+            where: { id: id },
+            data: {
+                name: name || undefined,
+                website: website || undefined,
+                email: email || undefined
+            }
+        });
+        const { password, ...cleanData } = updated;
+        res.json(cleanData);
+    } catch (e) {
+        console.error('updateOrganizerProfile Error:', e);
+        res.status(500).json({ message: 'プロフィールの更新に失敗しました。' });
+    }
+};
+
+// 主催者によるイベント作成
 export const createOrganizerEvent = async (req, res) => {
     try {
         const body = req.body;
-        const userId = req.user.id; // 主催者のID
+        const userId = req.user.id;
 
         const name = body.title || body.eventName;
         const targetVenueId = body.venueId || (body.venue ? body.venue.id : null);
@@ -59,8 +97,8 @@ export const createOrganizerEvent = async (req, res) => {
                 description: body.description || '',
                 eventDate: new Date(body.eventDate),
                 venue: { connect: { id: targetVenueId } },
-                organizer: { connect: { id: userId } }, // 主催者として紐付け
-                sourceType: 'OFFICIAL', // ★ ここで公式に固定
+                organizer: { connect: { id: userId } },
+                sourceType: 'OFFICIAL',
                 isStandAllowed: true
             }
         });
@@ -72,9 +110,7 @@ export const createOrganizerEvent = async (req, res) => {
     }
 };
 
-/**
- * ★ 主催者のイベント一覧取得 ★
- */
+// 主催者のイベント一覧取得
 export const getOrganizerEvents = async (req, res) => {
     try {
         const userId = req.user.id;
@@ -93,20 +129,16 @@ export const getOrganizerEvents = async (req, res) => {
         });
         res.json(events || []);
     } catch (e) {
-        console.error('getOrganizerEvents Error:', e);
         res.status(500).json({ message: 'データの取得に失敗しました。' });
     }
 };
 
-/**
- * ★ 主催者によるイベント更新 ★
- */
+// 主催者によるイベント更新
 export const updateOrganizerEvent = async (req, res) => {
     try {
         const { id } = req.params;
         const userId = req.user.id;
 
-        // 権限確認
         const existing = await prisma.event.findUnique({ where: { id } });
         if (!existing || (existing.organizerId !== userId && existing.creatorId !== userId)) {
             return res.status(403).json({ message: '編集権限がありません。' });
@@ -119,20 +151,17 @@ export const updateOrganizerEvent = async (req, res) => {
                 title: name,
                 description: req.body.description,
                 eventDate: req.body.eventDate ? new Date(req.body.eventDate) : undefined,
-                // 更新しても OFFICIAL 属性は維持
+                venueId: req.body.venueId || undefined,
                 sourceType: 'OFFICIAL'
             }
         });
         res.json(updated);
     } catch (e) {
-        console.error('updateOrganizerEvent Error:', e);
         res.status(500).json({ message: '更新に失敗しました。' });
     }
 };
 
-/**
- * ★ 主催者によるイベント削除 ★
- */
+// 主催者によるイベント削除
 export const deleteOrganizerEvent = async (req, res) => {
     try {
         const { id } = req.params;
@@ -146,7 +175,6 @@ export const deleteOrganizerEvent = async (req, res) => {
         await prisma.event.delete({ where: { id } });
         res.status(204).send();
     } catch (e) {
-        console.error('deleteOrganizerEvent Error:', e);
         res.status(500).json({ message: '削除に失敗しました。' });
     }
 };

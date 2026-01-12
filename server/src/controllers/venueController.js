@@ -90,7 +90,9 @@ export const updateVenueProfile = async (req, res) => {
                 standRegulation: data.standRegulation,
                 bowlRegulation: data.bowlRegulation,
                 retrievalRequired: data.retrievalRequired,
-                status: data.status
+                status: data.status,
+                // 画像複数枚対応
+                imageUrls: Array.isArray(data.imageUrls) ? data.imageUrls : undefined
             }
         });
         res.json(updated);
@@ -116,7 +118,7 @@ export const deleteVenue = async (req, res) => {
 // --- 物流情報の投稿 ---
 export const postLogisticsInfo = async (req, res) => {
     const { venueId } = req.params;
-    const { title, description } = req.body;
+    const { title, description, imageUrls } = req.body;
     const userId = req.user.id;
     const userRole = req.user.role;
 
@@ -139,6 +141,7 @@ export const postLogisticsInfo = async (req, res) => {
             data: { 
                 title, 
                 description,
+                imageUrls: Array.isArray(imageUrls) ? imageUrls : [],
                 venue: { connect: { id: venueId } },
                 contributor: { connect: { id: userId } }
             }
