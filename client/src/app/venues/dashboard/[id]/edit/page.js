@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/app/contexts/AuthContext';
 import toast from 'react-hot-toast';
-import { FiArrowLeft, FiSave, FiMapPin, FiInfo, FiCheckCircle, FiPlus, FiTrash2, FiImage } from 'react-icons/fi';
+import { FiArrowLeft, FiSave, FiMapPin, FiCheckCircle, FiUpload, FiX, FiImage, FiPlus } from 'react-icons/fi';
 import Link from 'next/link';
 import Image from 'next/image';
 
@@ -13,9 +13,12 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onre
 export default function VenueEditPage() {
   const { id } = useParams();
   const router = useRouter();
-  const { user } = useAuth();
+  const { authenticatedFetch } = useAuth();
+  const fileInputRef = useRef(null);
+  
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   
   const [formData, setFormData] = useState({
     venueName: '',
@@ -24,7 +27,7 @@ export default function VenueEditPage() {
     isStandAllowed: true,
     isBowlAllowed: true,
     retrievalRequired: true,
-    imageUrls: [] // 複数画像用の配列
+    imageUrls: []
   });
 
   useEffect(() => {
@@ -51,39 +54,59 @@ export default function VenueEditPage() {
     if (id) fetchVenueData();
   }, [id]);
 
-  // 画像URL入力欄を追加
-  const addImageUrl = () => {
-    setFormData({
-      ...formData,
-      imageUrls: [...formData.imageUrls, ""]
-    });
+  // 画像アップロード処理 (Cloudinary等のサーバーサイドAPIを介す想定)
+  const handleFileChange = async (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+
+    setUploading(true);
+    const toastId = toast.loading('画像をアップロード中...');
+
+    try {
+      const uploadPromises = files.map(async (file) => {
+        const fileFormData = new FormData();
+        fileFormData.append('image', file);
+
+        const res = await authenticatedFetch(`${API_URL}/api/tools/upload-image`, {
+          method: 'POST',
+          body: fileFormData,
+          // FormDataの場合はContent-Typeを指定しない（ブラウザが自動設定する）
+        });
+
+        if (!res.ok) throw new Error('アップロード失敗');
+        const data = await res.json();
+        return data.url;
+      });
+
+      const newUrls = await Promise.all(uploadPromises);
+      setFormData(prev => ({
+        ...prev,
+        imageUrls: [...prev.imageUrls, ...newUrls]
+      }));
+      toast.success('画像をアップロードしました', { id: toastId });
+    } catch (error) {
+      toast.error('画像のアップロードに失敗しました', { id: toastId });
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
   };
 
-  // 画像URLを更新
-  const updateImageUrl = (index, value) => {
-    const newUrls = [...formData.imageUrls];
-    newUrls[index] = value;
-    setFormData({ ...formData, imageUrls: newUrls });
-  };
-
-  // 指定したインデックスの画像を削除
-  const removeImageUrl = (index) => {
-    const newUrls = formData.imageUrls.filter((_, i) => i !== index);
-    setFormData({ ...formData, imageUrls: newUrls });
+  const removeImage = (index) => {
+    setFormData(prev => ({
+      ...prev,
+      imageUrls: prev.imageUrls.filter((_, i) => i !== index)
+    }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
-    const token = localStorage.getItem('flastal-token');
 
     try {
-      const response = await fetch(`${API_URL}/api/venues/${id}`, {
+      const response = await authenticatedFetch(`${API_URL}/api/venues/${id}`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
       });
 
@@ -113,35 +136,80 @@ export default function VenueEditPage() {
         <div className="bg-white rounded-[32px] shadow-xl border border-slate-100 overflow-hidden">
           <div className="bg-indigo-600 p-8 text-white">
             <h1 className="text-2xl font-black">会場情報の編集</h1>
-            <p className="text-indigo-100 text-sm mt-1">最新のレギュレーションをファンに届けましょう</p>
+            <p className="text-indigo-100 text-sm mt-1">写真やレギュレーションを最新に保ちましょう</p>
           </div>
 
           <form onSubmit={handleSubmit} className="p-8 space-y-6">
-            <div>
-              <label className="block text-sm font-bold text-slate-700 mb-2">会場名</label>
-              <input
-                type="text"
-                required
-                value={formData.venueName}
-                onChange={(e) => setFormData({...formData, venueName: e.target.value})}
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-bold text-slate-700 mb-2">住所</label>
-              <div className="relative">
-                <FiMapPin className="absolute left-4 top-4 text-slate-400" />
+            {/* 会場名・住所 */}
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">会場名</label>
                 <input
                   type="text"
                   required
-                  value={formData.address}
-                  onChange={(e) => setFormData({...formData, address: e.target.value})}
-                  className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition"
+                  value={formData.venueName}
+                  onChange={(e) => setFormData({...formData, venueName: e.target.value})}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition"
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">住所</label>
+                <div className="relative">
+                  <FiMapPin className="absolute left-4 top-4 text-slate-400" />
+                  <input
+                    type="text"
+                    required
+                    value={formData.address}
+                    onChange={(e) => setFormData({...formData, address: e.target.value})}
+                    className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition"
+                  />
+                </div>
               </div>
             </div>
 
+            {/* 画像アップロードセクション */}
+            <div className="pt-4 border-t border-slate-100">
+              <label className="block text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
+                <FiImage className="text-indigo-500" /> 会場写真
+              </label>
+              
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
+                {formData.imageUrls.map((url, index) => (
+                  <div key={index} className="relative aspect-video rounded-xl overflow-hidden border border-slate-200 group">
+                    <img src={url} alt={`Venue ${index}`} className="w-full h-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => removeImage(index)}
+                      className="absolute top-1 right-1 p-1.5 bg-white/90 text-red-500 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <FiX size={14} />
+                    </button>
+                  </div>
+                ))}
+                
+                {/* アップロードボタン */}
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  className="aspect-video rounded-xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center gap-2 text-slate-400 hover:border-indigo-400 hover:text-indigo-500 hover:bg-indigo-50/30 transition-all"
+                >
+                  <FiPlus size={24} />
+                  <span className="text-xs font-bold">写真を追加</span>
+                </button>
+              </div>
+              
+              <input 
+                type="file" 
+                ref={fileInputRef} 
+                onChange={handleFileChange} 
+                className="hidden" 
+                accept="image/*" 
+                multiple 
+              />
+            </div>
+
+            {/* 補足情報 */}
             <div>
               <label className="block text-sm font-bold text-slate-700 mb-2">搬入・受取に関する補足情報</label>
               <textarea
@@ -153,40 +221,7 @@ export default function VenueEditPage() {
               ></textarea>
             </div>
 
-            {/* 会場画像管理セクション */}
-            <div className="pt-4 border-t border-slate-100">
-              <label className="block text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
-                <FiImage className="text-indigo-500" /> 会場写真 (複数登録可能)
-              </label>
-              <div className="space-y-3">
-                {formData.imageUrls.map((url, index) => (
-                  <div key={index} className="flex gap-2">
-                    <input
-                      type="url"
-                      value={url}
-                      onChange={(e) => updateImageUrl(index, e.target.value)}
-                      placeholder="https://example.com/image.jpg"
-                      className="flex-1 px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none text-sm transition"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => removeImageUrl(index)}
-                      className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg transition"
-                    >
-                      <FiTrash2 size={20} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-              <button
-                type="button"
-                onClick={addImageUrl}
-                className="mt-3 flex items-center gap-1 text-sm font-bold text-indigo-600 hover:text-indigo-700 transition"
-              >
-                <FiPlus /> 写真を追加する
-              </button>
-            </div>
-
+            {/* レギュレーションチェック */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4">
               <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl">
                 <span className="text-sm font-bold text-slate-700 flex items-center gap-2">
@@ -196,7 +231,7 @@ export default function VenueEditPage() {
                   type="checkbox"
                   checked={formData.isStandAllowed}
                   onChange={(e) => setFormData({...formData, isStandAllowed: e.target.checked})}
-                  className="w-5 h-5 accent-indigo-600"
+                  className="w-5 h-5 accent-indigo-600 cursor-pointer"
                 />
               </div>
               <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl">
@@ -205,15 +240,16 @@ export default function VenueEditPage() {
                   type="checkbox"
                   checked={formData.isBowlAllowed}
                   onChange={(e) => setFormData({...formData, isBowlAllowed: e.target.checked})}
-                  className="w-5 h-5 accent-indigo-600"
+                  className="w-5 h-5 accent-indigo-600 cursor-pointer"
                 />
               </div>
             </div>
 
+            {/* 保存ボタン */}
             <button
               type="submit"
-              disabled={saving}
-              className={`w-full py-4 bg-indigo-600 text-white rounded-2xl font-black text-lg shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all flex items-center justify-center gap-2 ${saving ? 'opacity-70' : ''}`}
+              disabled={saving || uploading}
+              className={`w-full py-4 bg-indigo-600 text-white rounded-2xl font-black text-lg shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all flex items-center justify-center gap-2 ${(saving || uploading) ? 'opacity-70 cursor-not-allowed' : ''}`}
             >
               {saving ? '保存中...' : <><FiSave /> 設定を保存する</>}
             </button>
