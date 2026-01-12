@@ -208,23 +208,20 @@ export const createProject = async (req, res) => {
 
         // --- デバッグ用：受信データを詳しくログに出す ---
         console.log("--- [START CREATE PROJECT] ---");
-        console.log("User ID:", req.user?.id);
-        console.log("Body:", JSON.stringify(req.body));
+        console.log("User ID from Middleware:", req.user?.id);
 
         const plannerId = req.user.id;
 
-        // 1. タイトルの存在チェック
+        // 1. バリデーション
         if (!title || String(title).trim() === '') {
             return res.status(400).json({ message: '企画タイトルを入力してください。' });
         }
 
-        // 2. 金額を数値にパース
         const amount = parseInt(targetAmount, 10);
         if (isNaN(amount) || amount <= 0) {
-            return res.status(400).json({ message: '目標金額を数値で正しく入力してください。' });
+            return res.status(400).json({ message: '目標金額を正しく入力してください。' });
         }
 
-        // 3. 日時のパースを強化
         let deliveryDate = new Date(deliveryDateTime);
         if (isNaN(deliveryDate.getTime()) && deliveryDateTime) {
             deliveryDate = new Date(String(deliveryDateTime).replace(' ', 'T'));
@@ -234,7 +231,7 @@ export const createProject = async (req, res) => {
             return res.status(400).json({ message: '有効な納品希望日時を入力してください。' });
         }
 
-        // --- 4. schema.prisma の必須フィールド（String[] 等）を完全補完 ---
+        // --- 2. schema.prisma の必須フィールド（String[] 等）を完全補完 ---
         const projectData = {
             title: String(title).trim(),
             description: description ? String(description) : "",
@@ -258,33 +255,40 @@ export const createProject = async (req, res) => {
             venueId: venueId || null,
             eventId: eventId || null,
 
-            // schema.prisma で必須になっている配列を明示的にセット
+            // schema.prisma で必須になっている（@default([])がない）配列を明示的にセット
             designImageUrls: Array.isArray(designImageUrls) ? designImageUrls : [],
             completionImageUrls: [],
             illustrationPanelUrls: [],
             messagePanelUrls: [],
             sponsorPanelUrls: [],
             preEventPhotoUrls: [],
-            progressHistory: []
+            progressHistory: [],
+            
+            // 数値フィールドの初期化
+            cancellationFee: 0,
+            materialCost: 0,
+            refundStatus: "NONE",
+            productionStatus: "NOT_STARTED"
         };
 
-        // 5. Prisma Create 実行
+        // 3. Prisma Create 実行
         const newProject = await prisma.project.create({
             data: projectData,
         });
 
         console.log("--- [PROJECT CREATE SUCCESS] --- ID:", newProject.id);
 
-        await sendEmail(req.user.email, '【FLASTAL】企画申請を受け付けました',
-            `<p>${req.user.handleName} 様</p><p>企画「${title}」の申請を受け付けました。審査完了までお待ちください。</p>`);
+        sendEmail(req.user.email, '【FLASTAL】企画申請を受け付けました',
+            `<p>${req.user.handleName} 様</p><p>企画「${title}」の申請を受け付けました。運営による審査完了まで今しばらくお待ちください。</p>`)
+            .catch(e => console.error("Email Error:", e));
 
         res.status(201).json({ project: newProject, message: '企画の作成申請が完了しました。' });
     } catch (error) {
         // Renderのログで「何が原因か」を明確にするための詳細出力
         console.error('--- [CRITICAL: PROJECT CREATE ERROR] ---');
-        console.error('Prisma Code:', error.code);
-        console.error('Message:', error.message);
-        if (error.meta) console.error('Meta Data:', JSON.stringify(error.meta));
+        console.error('Prisma Code:', error.code); // P2002など
+        console.error('Error Message:', error.message);
+        if (error.meta) console.error('Error Meta:', JSON.stringify(error.meta));
 
         res.status(500).json({ 
             message: 'サーバー側のバリデーションエラーです。入力形式や必須項目を確認してください。',
@@ -605,12 +609,11 @@ export const updateProjectStatus = async (req, res) => {
         'PENDING_APPROVAL', 
         'FUNDRAISING', 
         'REJECTED',    
-        'OFFER_ACCEPTED', 
-        'DESIGN_FIXED', 
-        'MATERIAL_PREP', 
-        'PRODUCTION_IN_PROGRESS', 
+        'SUCCESSFUL', 
+        'PROCESSING', 
         'READY_FOR_DELIVERY', 
-        'DELIVERED_OR_FINISHED'
+        'COMPLETED',
+        'CANCELED'
     ];
 
     if (!VALID_STATUSES.includes(status)) {
@@ -618,11 +621,10 @@ export const updateProjectStatus = async (req, res) => {
     }
 
     try {
-        const project = await prisma.project.findUnique({ where: { id: projectId }, include: { offer: true } });
+        const project = await prisma.project.findUnique({ where: { id: projectId } });
         if (!project) return res.status(404).json({ message: '企画なし' });
 
-        const isFlorist = project.offer?.floristId === req.user.id;
-        if (req.user.role !== 'ADMIN' && !isFlorist) return res.status(403).json({ message: '権限なし' });
+        if (req.user.role !== 'ADMIN') return res.status(403).json({ message: '権限なし' });
 
         const updated = await prisma.project.update({
             where: { id: projectId },
@@ -632,7 +634,7 @@ export const updateProjectStatus = async (req, res) => {
         await createNotification(
             project.plannerId, 
             'PROJECT_STATUS_UPDATE', 
-            `企画「${project.title}」のステータスが「${status}」に更新されました。`, 
+            `企画「${project.title}」のステータスが更新されました。`, 
             projectId, 
             `/projects/${projectId}`
         );
@@ -715,7 +717,7 @@ export const getProjectPosts = async (req, res) => {
 };
 
 // ==========================================
-// 追加メモリ実装機能 (Mocks/Temporary)
+// その他メモリ実装機能
 // ==========================================
 
 let MOOD_BOARDS = [];
@@ -776,7 +778,7 @@ export const likeMoodBoardItem = (req, res) => {
     else { item.likedBy.splice(idx, 1); item.likes--; }
     res.json(item);
 };
-export const deleteMoodBoardItem = (req, res) => {
+export const deleteMoodBoardItem = (req, error, res) => {
     const { itemId } = req.params;
     const idx = MOOD_BOARDS.findIndex(i => i.id === itemId);
     if(idx !== -1) MOOD_BOARDS.splice(idx, 1);
