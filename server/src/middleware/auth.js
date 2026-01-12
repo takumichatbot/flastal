@@ -8,6 +8,7 @@ export const authenticateToken = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.warn('[Auth] No token provided');
       return res.status(401).json({ message: '認証トークンが必要です。' });
     }
 
@@ -29,8 +30,7 @@ export const authenticateToken = async (req, res, next) => {
         status: decoded.status || 'APPROVED'
     };
 
-    // 3. 【重要】会場ダッシュボードアクセスのための補完ロジック
-    // 会場テーブルにIDが存在する場合、強制的にロールを VENUE として扱う（トークンの不整合対策）
+    // 3. 権限補完ロジック (会場/花屋/主催者)
     try {
         const venueAccount = await prisma.venue.findUnique({ where: { id: userId } });
         if (venueAccount) {
@@ -58,6 +58,9 @@ export const authenticateToken = async (req, res, next) => {
   }
 };
 
+/**
+ * 管理者権限チェック
+ */
 export const requireAdmin = (req, res, next) => {
   if (req.user && req.user.role === 'ADMIN') {
       next();

@@ -1,45 +1,14 @@
 import multer from 'multer';
-import sharp from 'sharp';
-import cloudinary from '../config/cloudinary.js';
 
-// 基本設定: メモリストレージを使用
+// メモリ上に一時保存する設定（Cloudinary等へ送る場合に一般的）
 const storage = multer.memoryStorage();
-const upload = multer({ 
-    storage,
-    limits: { fileSize: 10 * 1024 * 1024 } // 10MB制限
+
+const upload = multer({
+    storage: storage,
+    limits: {
+        fileSize: 5 * 1024 * 1024 // 5MB
+    }
 });
 
-/**
- * 画像処理・Cloudinaryアップロードユーティリティ
- * コントローラー側で利用可能な共通関数として提供
- */
-export const uploadToCloudinary = async (file, folder = 'flastal') => {
-    try {
-        // sharpによる画像最適化 (WebP変換, 1200pxリサイズ)
-        const optimizedBuffer = await sharp(file.buffer)
-            .resize(1200, 1200, { fit: 'inside', withoutEnlargement: true })
-            .webp({ quality: 80 })
-            .toBuffer();
-
-        // Cloudinaryへのストリームアップロード
-        return new Promise((resolve, reject) => {
-            const uploadStream = cloudinary.uploader.upload_stream(
-                {
-                    folder: folder,
-                    resource_type: 'auto',
-                    format: 'webp'
-                },
-                (error, result) => {
-                    if (error) reject(error);
-                    else resolve(result.secure_url);
-                }
-            );
-            uploadStream.end(optimizedBuffer);
-        });
-    } catch (error) {
-        console.error('Cloudinary Upload Error:', error);
-        throw new Error('画像のアップロードに失敗しました。');
-    }
-};
-
+// 企画作成などで複数の画像を受け取る可能性があるため、汎用的にエクスポート
 export default upload;

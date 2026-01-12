@@ -67,7 +67,7 @@ app.use(cors({
 }));
 
 // ==========================================
-// ★★★ Stripe Webhook (JSONパース前に配置が必要) ★★★
+// ★★★ Stripe Webhook (JSONパース前に配置) ★★★
 // ==========================================
 app.post('/api/webhooks/stripe', express.raw({type: 'application/json'}), async (req, res) => {
     const sig = req.headers['stripe-signature'];
@@ -80,15 +80,13 @@ app.post('/api/webhooks/stripe', express.raw({type: 'application/json'}), async 
         return res.status(400).send(`Webhook Error: ${err.message}`);
     }
     
-    const session = event.data.object;
-    
     if (event.type === 'checkout.session.completed') {
+        const session = event.data.object;
         const userId = session.client_reference_id;
         const amount = session.amount_total;
 
         if (session.metadata && session.metadata.isGuestPledge === 'true') {
             const { projectId, tierId, comment, guestName, guestEmail } = session.metadata;
-
             try {
                 await prisma.$transaction(async (tx) => {
                     await tx.pledge.create({
@@ -103,13 +101,11 @@ app.post('/api/webhooks/stripe', express.raw({type: 'application/json'}), async 
                             stripePaymentIntentId: session.payment_intent
                         },
                     });
-
                     const updatedProject = await tx.project.update({
                         where: { id: projectId },
                         data: { collectedAmount: { increment: amount } },
                         include: { planner: true }
                     });
-
                     await createNotification(
                         updatedProject.plannerId,
                         'NEW_PLEDGE',
@@ -117,32 +113,14 @@ app.post('/api/webhooks/stripe', express.raw({type: 'application/json'}), async 
                         projectId,
                         `/projects/${projectId}`
                     );
-
-                    if (updatedProject.collectedAmount >= updatedProject.targetAmount && updatedProject.status !== 'SUCCESSFUL') {
-                        await tx.project.update({
-                            where: { id: projectId },
-                            data: { status: 'SUCCESSFUL' },
-                        });
-                        sendEmail(updatedProject.planner.email, '【FLASTAL】目標金額達成のお祝い', `<p>企画「${updatedProject.title}」が目標を達成しました！</p>`);
-                    }
                 });
             } catch (error) {
                 console.error(`[Webhook Error] Guest pledge failed:`, error);
             }
-        } 
-        else if (userId) { 
-            const pointsPurchased = parseInt(session.metadata.points) || amount;
+        } else if (userId) {
             try {
-                await prisma.$transaction(async (tx) => {
-                    const purchaser = await tx.user.findUnique({ where: { id: userId } });
-                    if (purchaser) {
-                        await tx.user.update({ where: { id: userId }, data: { points: { increment: pointsPurchased } } });
-                        if (!purchaser.hasMadeFirstPurchase && purchaser.referredById) {
-                            await tx.user.update({ where: { id: purchaser.referredById }, data: { points: { increment: 500 } } });
-                            await tx.user.update({ where: { id: userId }, data: { hasMadeFirstPurchase: true } });
-                        }
-                    }
-                });
+                const pointsPurchased = parseInt(session.metadata.points) || amount;
+                await prisma.user.update({ where: { id: userId }, data: { points: { increment: pointsPurchased } } });
             } catch(error) {
                 console.error(`[Webhook Error] Point purchase failed:`, error);
             }
@@ -152,11 +130,11 @@ app.post('/api/webhooks/stripe', express.raw({type: 'application/json'}), async 
 });
 
 // ==========================================
-// ★★★ 標準ミドルウェア (容量制限を緩和) ★★★
+// ★★★ 標準ミドルウェア ★★★
 // ==========================================
-// 修正：JSONリクエストの制限を 10MB に拡大（画像URLリスト等の送信に対応）
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ limit: '10mb', extended: true }));
+// JSONの容量制限を確実に適用
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 app.get('/', (req, res) => {
     res.send('FLASTAL API Server is running (v2)');
@@ -165,7 +143,6 @@ app.get('/', (req, res) => {
 // ==========================================
 // ★★★ ルーティングのマウント ★★★
 // ==========================================
-
 app.use('/api', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/florists', floristRoutes);
@@ -178,11 +155,22 @@ app.use('/api/tools', toolRoutes);
 app.use('/api/payment', paymentRoutes);
 app.use('/api/admin', adminRoutes);
 
-// エラーハンドリングミドルウェア（詳細なエラーをログに出す）
+// 404ハンドラー
+app.use((req, res) => {
+    res.status(404).json({ message: "Requested route not found" });
+});
+
+// エラーハンドリングミドルウェア
 app.use((err, req, res, next) => {
-    console.error('Final Error Catch:', err);
+    console.error('--- SERVER ERROR ---');
+    console.error('Method:', req.method);
+    console.error('URL:', req.url);
+    console.error('Body Keys:', Object.keys(req.body || {}));
+    console.error('Error Stack:', err.stack);
+    
     res.status(err.status || 500).json({
-        message: err.message || '予期せぬサーバーエラーが発生しました。'
+        message: 'サーバー側でエラーが発生しました。',
+        error: process.env.NODE_ENV === 'development' ? err.message : undefined
     });
 });
 
