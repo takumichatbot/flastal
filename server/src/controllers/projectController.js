@@ -206,9 +206,11 @@ export const createProject = async (req, res) => {
             visibility, venueId, eventId, projectType, password
         } = req.body;
 
-        console.log("--- [START CREATE PROJECT] ---");
+        console.log("--- [DEBUG: Received Project Body] ---", req.body);
+
         const plannerId = req.user.id;
 
+        // 1. バリデーション
         if (!title || String(title).trim() === '') {
             return res.status(400).json({ message: '企画タイトルを入力してください。' });
         }
@@ -219,56 +221,52 @@ export const createProject = async (req, res) => {
         }
 
         let deliveryDate = new Date(deliveryDateTime);
-        if (isNaN(deliveryDate.getTime()) && deliveryDateTime) {
-            deliveryDate = new Date(String(deliveryDateTime).replace(' ', 'T'));
-        }
-
         if (isNaN(deliveryDate.getTime())) {
             return res.status(400).json({ message: '有効な納品希望日時を入力してください。' });
         }
 
-        // Prismaのスキーマ定義に基づき、型を厳密に定義
-        const projectData = {
-            title: String(title).trim(),
-            description: description ? String(description) : "",
-            targetAmount: amount,
-            collectedAmount: 0,
-            deliveryAddress: deliveryAddress ? String(deliveryAddress) : "",
-            deliveryDateTime: deliveryDate,
-            plannerId: plannerId,
-            imageUrl: imageUrl ? String(imageUrl) : null,
-            designDetails: designDetails ? String(designDetails) : "",
-            size: size ? String(size) : "",
-            flowerTypes: flowerTypes ? String(flowerTypes) : "",
-            
-            // Enumの値を厳密に一致させる
-            status: 'PENDING_APPROVAL',
-            projectType: (projectType === 'PRIVATE' || projectType === 'SOLO') ? projectType : 'PUBLIC',
-            visibility: visibility === 'UNLISTED' ? 'UNLISTED' : 'PUBLIC',
-            password: password || null,
-            
-            // 外部キーの正規化
-            venueId: venueId || null,
-            eventId: eventId || null,
-
-            // スキーマで定義されている必須フィールド（配列含む）の初期化
-            designImageUrls: Array.isArray(designImageUrls) ? designImageUrls : [],
-            completionImageUrls: [],
-            illustrationPanelUrls: [],
-            messagePanelUrls: [],
-            sponsorPanelUrls: [],
-            preEventPhotoUrls: [],
-            progressHistory: [], // JSON配列として空をセット
-            
-            // デフォルト値があるものも明示的に初期化（エラー回避）
-            cancellationFee: 0,
-            refundStatus: "NONE",
-            materialCost: 0,
-            productionStatus: 'NOT_STARTED'
-        };
-
+        // 2. Prismaデータ作成 (schema.prismaの定義に厳密に合わせる)
         const newProject = await prisma.project.create({
-            data: projectData,
+            data: {
+                title: String(title).trim(),
+                description: description ? String(description) : "",
+                targetAmount: amount,
+                collectedAmount: 0,
+                deliveryAddress: deliveryAddress ? String(deliveryAddress) : "",
+                deliveryDateTime: deliveryDate,
+                plannerId: plannerId,
+                imageUrl: imageUrl ? String(imageUrl) : null,
+                designDetails: designDetails ? String(designDetails) : "",
+                size: size ? String(size) : "",
+                flowerTypes: flowerTypes ? String(flowerTypes) : "",
+                
+                // Enum
+                status: 'PENDING_APPROVAL',
+                projectType: (projectType === 'PRIVATE' || projectType === 'SOLO') ? projectType : 'PUBLIC',
+                visibility: (visibility === 'UNLISTED') ? 'UNLISTED' : 'PUBLIC',
+                password: password || null,
+                
+                // 外部キー
+                venueId: (venueId && venueId !== "") ? venueId : null,
+                eventId: (eventId && eventId !== "") ? eventId : null,
+
+                // スキーマで定義されている文字列配列の初期化
+                designImageUrls: Array.isArray(designImageUrls) ? designImageUrls : [],
+                completionImageUrls: [],
+                illustrationPanelUrls: [],
+                messagePanelUrls: [],
+                sponsorPanelUrls: [],
+                preEventPhotoUrls: [],
+                
+                // JSON型の初期化
+                progressHistory: [],
+
+                // 数値型の初期化
+                cancellationFee: 0,
+                materialCost: 0,
+                refundStatus: "NONE",
+                productionStatus: 'NOT_STARTED'
+            },
         });
 
         console.log("--- [PROJECT CREATE SUCCESS] --- ID:", newProject.id);
@@ -278,10 +276,11 @@ export const createProject = async (req, res) => {
 
         res.status(201).json({ project: newProject, message: '企画の作成申請が完了しました。' });
     } catch (error) {
-        console.error('--- [CRITICAL: PROJECT CREATE ERROR] ---');
-        console.error('Prisma Error Code:', error.code);
-        console.error('Full Error:', error);
-
+        console.error('--- [CRITICAL ERROR IN CREATE PROJECT] ---');
+        console.error('Error Name:', error.name);
+        console.error('Error Message:', error.message);
+        if (error.code) console.error('Prisma Error Code:', error.code);
+        
         res.status(500).json({ 
             message: 'サーバー側のバリデーションエラーです。入力形式や必須項目を確認してください。',
             details: error.message 
@@ -498,7 +497,7 @@ export const completeProject = async (req, res) => {
     }
 };
 
-// 制作状況の更新 (花屋・企画者共通)
+// 制作状況の更新
 export const updateProductionDetails = async (req, res) => {
     const { projectId } = req.params;
     const userId = req.user.id;
@@ -538,7 +537,7 @@ export const updateProductionDetails = async (req, res) => {
     }
 };
 
-// お花屋さんによる特注資材費の更新
+// 特注資材費の更新
 export const updateMaterialCost = async (req, res) => {
     const { projectId } = req.params;
     const { materialCost, materialDescription } = req.body;
@@ -565,7 +564,7 @@ export const updateMaterialCost = async (req, res) => {
     }
 };
 
-// お花屋さんによる制作ステータス更新 (詳細版)
+// 制作ステータス更新
 export const updateProductionStatus = async (req, res) => {
     const { projectId } = req.params;
     const { floristId, status } = req.body;
@@ -594,15 +593,9 @@ export const updateProjectStatus = async (req, res) => {
     const { status } = req.body;
     
     const VALID_STATUSES = [
-        'PENDING_APPROVAL', 
-        'FUNDRAISING', 
-        'REJECTED',    
-        'OFFER_ACCEPTED', 
-        'DESIGN_FIXED', 
-        'MATERIAL_PREP', 
-        'PRODUCTION_IN_PROGRESS', 
-        'READY_FOR_DELIVERY', 
-        'DELIVERED_OR_FINISHED'
+        'PENDING_APPROVAL', 'FUNDRAISING', 'REJECTED', 'OFFER_ACCEPTED', 
+        'DESIGN_FIXED', 'MATERIAL_PREP', 'PRODUCTION_IN_PROGRESS', 
+        'READY_FOR_DELIVERY', 'DELIVERED_OR_FINISHED'
     ];
 
     if (!VALID_STATUSES.includes(status)) {
@@ -622,11 +615,9 @@ export const updateProjectStatus = async (req, res) => {
         });
         
         await createNotification(
-            project.plannerId, 
-            'PROJECT_STATUS_UPDATE', 
+            project.plannerId, 'PROJECT_STATUS_UPDATE', 
             `企画「${project.title}」のステータスが「${status}」に更新されました。`, 
-            projectId, 
-            `/projects/${projectId}`
+            projectId, `/projects/${projectId}`
         );
         
         res.json(updated);
@@ -640,7 +631,6 @@ export const updateProjectStatus = async (req, res) => {
 // ★★★ 4. その他 (Instruction, Board, Posts) ★★★
 // ==========================================
 
-// 指示書データ生成
 export const getInstructionSheet = async (req, res) => {
     const { projectId } = req.params;
     try {
@@ -663,7 +653,6 @@ export const getInstructionSheet = async (req, res) => {
     }
 };
 
-// 成功ストーリー投稿 (Post)
 export const createProjectPost = async (req, res) => {
     const { projectId } = req.params;
     const { content, postType } = req.body;
@@ -691,7 +680,6 @@ export const createProjectPost = async (req, res) => {
     }
 };
 
-// ストーリー投稿一覧取得
 export const getProjectPosts = async (req, res) => {
     const { projectId } = req.params;
     try {
