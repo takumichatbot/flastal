@@ -282,7 +282,7 @@ export default function Header() {
         return [
           { href: '/mypage', label: '参加した企画', icon: <Heart size={16} /> },
           { href: '/mypage?tab=created', label: '主催した企画', icon: <ClipboardList size={16} /> },
-          { href: '/mypage/settings', label: 'プロフィール設定', icon: <Settings size={16} /> },
+          { href: '/mypage/edit', label: 'プロフィール設定', icon: <Settings size={16} /> },
         ];
     }
   }, [user]);

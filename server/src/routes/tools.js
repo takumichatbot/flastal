@@ -9,8 +9,9 @@ const upload = multer();
 // S3署名付きURL発行
 router.post('/s3-upload-url', authenticateToken, toolController.getS3UploadUrl);
 
-// AI説明文生成
+// AI説明文生成 (エイリアス含め両方に対応)
 router.post('/generate-plan-text', authenticateToken, toolController.generatePlanText);
+router.post('/generate-plan', authenticateToken, toolController.generatePlanText); // ★ 追加：/api/ai/generate-plan 対応用
 
 // AI画像生成
 router.post('/generate-ai-image', authenticateToken, toolController.generateAiImage);

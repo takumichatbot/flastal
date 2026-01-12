@@ -132,7 +132,6 @@ app.post('/api/webhooks/stripe', express.raw({type: 'application/json'}), async 
 // ==========================================
 // ★★★ 標準ミドルウェア ★★★
 // ==========================================
-// JSONの容量制限を確実に適用
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
@@ -152,6 +151,7 @@ app.use('/api/projects', projectRoutes);
 app.use('/api/project-details', projectDetailRoutes);
 app.use('/api/organizers', organizerRoutes);
 app.use('/api/tools', toolRoutes);
+app.use('/api/ai', toolRoutes); // ★ 追加：フロントエンドの /api/ai/... リクエストに対応
 app.use('/api/payment', paymentRoutes);
 app.use('/api/admin', adminRoutes);
 
