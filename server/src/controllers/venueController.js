@@ -38,7 +38,12 @@ export const getVenueById = async (req, res) => {
         
         if (!venue) return res.status(404).json({ message: '会場が見つかりません。' });
         const { password, ...cleanVenue } = venue;
+        
+        // プロジェクト配列の初期化保証
         if (!cleanVenue.projects) cleanVenue.projects = [];
+        // 画像配列の初期化保証
+        if (!cleanVenue.imageUrls) cleanVenue.imageUrls = [];
+
         res.json(cleanVenue);
     } catch (e) { 
         console.error('getVenueById Error:', e);
@@ -58,7 +63,8 @@ export const addVenueByUser = async (req, res) => {
                 password: 'temp_password_not_for_login',
                 isOfficial: false,
                 isStandAllowed: true, isBowlAllowed: true, retrievalRequired: true,
-                addedById: req.user.id 
+                addedById: req.user.id,
+                imageUrls: []
             }
         });
         res.status(201).json(newVenue);
@@ -73,25 +79,26 @@ export const updateVenueProfile = async (req, res) => {
     try {
         const venueId = req.params.id || req.user.id;
         const data = req.body;
+        
+        // 権限チェック
         const isSelf = req.user.role === 'VENUE' && req.user.id === venueId;
         const isAdmin = req.user.role === 'ADMIN';
-
         if (!isSelf && !isAdmin) return res.status(403).json({ message: '権限がありません。' });
 
         const updated = await prisma.venue.update({
             where: { id: venueId },
             data: {
-                venueName: data.venueName,
-                address: data.address,
-                isOfficial: data.isOfficial,
-                isStandAllowed: data.isStandAllowed,
-                isBowlAllowed: data.isBowlAllowed,
-                accessInfo: data.accessInfo,
-                standRegulation: data.standRegulation,
-                bowlRegulation: data.bowlRegulation,
-                retrievalRequired: data.retrievalRequired,
-                status: data.status,
-                // 画像複数枚対応
+                venueName: data.venueName !== undefined ? data.venueName : undefined,
+                address: data.address !== undefined ? data.address : undefined,
+                isOfficial: data.isOfficial !== undefined ? data.isOfficial : undefined,
+                isStandAllowed: data.isStandAllowed !== undefined ? data.isStandAllowed : undefined,
+                isBowlAllowed: data.isBowlAllowed !== undefined ? data.isBowlAllowed : undefined,
+                accessInfo: data.accessInfo !== undefined ? data.accessInfo : undefined,
+                standRegulation: data.standRegulation !== undefined ? data.standRegulation : undefined,
+                bowlRegulation: data.bowlRegulation !== undefined ? data.bowlRegulation : undefined,
+                retrievalRequired: data.retrievalRequired !== undefined ? data.retrievalRequired : undefined,
+                status: data.status !== undefined ? data.status : undefined,
+                // ★ 画像配列の保存を確実に実行
                 imageUrls: Array.isArray(data.imageUrls) ? data.imageUrls : undefined
             }
         });

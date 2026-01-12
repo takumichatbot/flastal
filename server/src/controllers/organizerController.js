@@ -44,9 +44,15 @@ export const getOrganizerProfile = async (req, res) => {
             where: { id: req.user.id }
         });
         if (!organizer) return res.status(404).json({ message: '主催者が見つかりません' });
+        
         const { password, ...cleanData } = organizer;
+        
+        // アイコンURLのフォールバック保証
+        if (!cleanData.iconUrl) cleanData.iconUrl = '';
+
         res.json(cleanData);
     } catch (e) {
+        console.error('getOrganizerProfile Error:', e);
         res.status(500).json({ message: 'プロフィールの取得に失敗しました' });
     }
 };
@@ -54,11 +60,9 @@ export const getOrganizerProfile = async (req, res) => {
 // 主催者プロフィール更新 (歯車ボタン)
 export const updateOrganizerProfile = async (req, res) => {
     try {
-        // パラメータにIDがあればそれを使用、なければ認証済みの自分自身のIDを使用
         const targetId = req.params.id || req.user.id;
-        const { name, website, email, imageUrls } = req.body;
+        const { name, website, email, bio, iconUrl } = req.body;
 
-        // 他人のプロフィールを更新しようとしていないかチェック
         if (targetId !== req.user.id && req.user.role !== 'ADMIN') {
             return res.status(403).json({ message: '権限がありません。' });
         }
@@ -66,13 +70,15 @@ export const updateOrganizerProfile = async (req, res) => {
         const updated = await prisma.organizer.update({
             where: { id: targetId },
             data: {
-                name: name || undefined,
-                website: website || undefined,
-                email: email || undefined,
-                // プロフィール画像（複数枚対応している場合）
-                // imageUrls: Array.isArray(imageUrls) ? imageUrls : undefined
+                name: name !== undefined ? name : undefined,
+                website: website !== undefined ? website : undefined,
+                email: email !== undefined ? email : undefined,
+                bio: bio !== undefined ? bio : undefined,
+                // ★ アイコンURL（単数）または画像配列（複数）の保存を確実に実行
+                iconUrl: iconUrl !== undefined ? iconUrl : undefined
             }
         });
+
         const { password, ...cleanData } = updated;
         res.status(200).json(cleanData);
     } catch (error) {
@@ -132,6 +138,7 @@ export const getOrganizerEvents = async (req, res) => {
         });
         res.json(events || []);
     } catch (e) {
+        console.error('getOrganizerEvents Error:', e);
         res.status(500).json({ message: 'データの取得に失敗しました。' });
     }
 };
@@ -178,6 +185,7 @@ export const deleteOrganizerEvent = async (req, res) => {
         await prisma.event.delete({ where: { id } });
         res.status(204).send();
     } catch (e) {
+        console.error('deleteOrganizerEvent Error:', e);
         res.status(500).json({ message: '削除に失敗しました。' });
     }
 };
