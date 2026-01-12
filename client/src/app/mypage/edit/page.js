@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
 export const dynamic = 'force-dynamic';
+
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
 import { useForm } from 'react-hook-form';
@@ -116,7 +117,6 @@ export default function ProfileEditPage() {
       if (!res.ok) throw new Error('更新に失敗しました');
       
       toast.success('プロフィールを更新しました！');
-      // 更新を即時反映させるため、MyPageへ戻る
       router.push('/mypage');
       router.refresh();
       

@@ -192,21 +192,21 @@ export const generatePlanText = async (req, res) => {
             必ず以下のJSON形式のみで出力してください。
             {"title": "企画タイトル", "description": "企画の詳しい説明文"}`;
 
+            // 修正箇所：timeoutをcreateの引数内から削除し、第2引数のオプションへ移動
             const completion = await openai.chat.completions.create({
                 model: "gpt-3.5-turbo",
                 messages: [{ role: "user", content: prompt }],
-                timeout: 15000,
+            }, {
+                timeout: 15000 // 正しい渡し方
             });
 
             const content = completion.choices[0].message.content;
             try {
-                // JSON部分のみを抽出（念のため）
                 const jsonMatch = content.match(/\{[\s\S]*\}/);
                 const parsed = JSON.parse(jsonMatch ? jsonMatch[0] : content);
                 title = parsed.title;
                 description = parsed.description;
             } catch (e) {
-                // パース失敗時は全文を説明文に入れる
                 title = `${targetName}様へフラスタを贈りましょう！`;
                 description = content;
             }
