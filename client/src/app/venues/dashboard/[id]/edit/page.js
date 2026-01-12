@@ -4,8 +4,9 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/app/contexts/AuthContext';
 import toast from 'react-hot-toast';
-import { FiArrowLeft, FiSave, FiMapPin, FiInfo, FiCheckCircle } from 'react-icons/fi';
+import { FiArrowLeft, FiSave, FiMapPin, FiInfo, FiCheckCircle, FiPlus, FiTrash2, FiImage } from 'react-icons/fi';
 import Link from 'next/link';
+import Image from 'next/image';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -22,7 +23,8 @@ export default function VenueEditPage() {
     accessInfo: '',
     isStandAllowed: true,
     isBowlAllowed: true,
-    retrievalRequired: true
+    retrievalRequired: true,
+    imageUrls: [] // 複数画像用の配列
   });
 
   useEffect(() => {
@@ -37,7 +39,8 @@ export default function VenueEditPage() {
           accessInfo: data.accessInfo || '',
           isStandAllowed: data.isStandAllowed ?? true,
           isBowlAllowed: data.isBowlAllowed ?? true,
-          retrievalRequired: data.retrievalRequired ?? true
+          retrievalRequired: data.retrievalRequired ?? true,
+          imageUrls: Array.isArray(data.imageUrls) ? data.imageUrls : []
         });
       } catch (error) {
         toast.error('会場情報の読み込みに失敗しました');
@@ -47,6 +50,27 @@ export default function VenueEditPage() {
     };
     if (id) fetchVenueData();
   }, [id]);
+
+  // 画像URL入力欄を追加
+  const addImageUrl = () => {
+    setFormData({
+      ...formData,
+      imageUrls: [...formData.imageUrls, ""]
+    });
+  };
+
+  // 画像URLを更新
+  const updateImageUrl = (index, value) => {
+    const newUrls = [...formData.imageUrls];
+    newUrls[index] = value;
+    setFormData({ ...formData, imageUrls: newUrls });
+  };
+
+  // 指定したインデックスの画像を削除
+  const removeImageUrl = (index) => {
+    const newUrls = formData.imageUrls.filter((_, i) => i !== index);
+    setFormData({ ...formData, imageUrls: newUrls });
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -129,9 +153,45 @@ export default function VenueEditPage() {
               ></textarea>
             </div>
 
+            {/* 会場画像管理セクション */}
+            <div className="pt-4 border-t border-slate-100">
+              <label className="block text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
+                <FiImage className="text-indigo-500" /> 会場写真 (複数登録可能)
+              </label>
+              <div className="space-y-3">
+                {formData.imageUrls.map((url, index) => (
+                  <div key={index} className="flex gap-2">
+                    <input
+                      type="url"
+                      value={url}
+                      onChange={(e) => updateImageUrl(index, e.target.value)}
+                      placeholder="https://example.com/image.jpg"
+                      className="flex-1 px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none text-sm transition"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeImageUrl(index)}
+                      className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg transition"
+                    >
+                      <FiTrash2 size={20} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={addImageUrl}
+                className="mt-3 flex items-center gap-1 text-sm font-bold text-indigo-600 hover:text-indigo-700 transition"
+              >
+                <FiPlus /> 写真を追加する
+              </button>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4">
               <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl">
-                <span className="text-sm font-bold text-slate-700">スタンド花の受入</span>
+                <span className="text-sm font-bold text-slate-700 flex items-center gap-2">
+                   スタンド花の受入
+                </span>
                 <input
                   type="checkbox"
                   checked={formData.isStandAllowed}
