@@ -16,31 +16,34 @@ const s3Client = new S3Client({
         accessKeyId: process.env.AWS_ACCESS_KEY_ID,
         secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
     },
+    forcePathStyle: false, 
 });
 
 // ==========================================
-// 1. AWS S3 署名付きURL発行 (新規追加)
+// 1. AWS S3 署名付きURL発行
 // ==========================================
 export const getS3UploadUrl = async (req, res) => {
-    const { fileName, fileType } = req.body;
-    
-    if (!fileName || !fileType) {
-        return res.status(400).json({ message: 'ファイル情報が不足しています。' });
-    }
-
-    // ファイル名の重複や特殊文字による署名エラーを避けるため、キーを正規化
-    const extension = fileName.split('.').pop();
-    const fileKey = `events/${Date.now()}.${extension}`;
-
-    const command = new PutObjectCommand({
-        Bucket: process.env.AWS_S3_BUCKET_NAME,
-        Key: fileKey,
-        ContentType: fileType, // フロントエンドの送付ヘッダーと一致させる
-    });
-
     try {
+        const { fileName, fileType } = req.body;
+        
+        if (!fileName || !fileType) {
+            return res.status(400).json({ message: 'ファイル情報が不足しています。' });
+        }
+
+        const extension = fileName.split('.').pop();
+        const fileKey = `events/${Date.now()}.${extension}`;
+
+        const command = new PutObjectCommand({
+            Bucket: process.env.AWS_S3_BUCKET_NAME,
+            Key: fileKey,
+            ContentType: fileType,
+        });
+
         // 5分間有効な署名付きURLを生成
-        const signedUrl = await getSignedUrl(s3Client, command, { expiresIn: 300 });
+        const signedUrl = await getSignedUrl(s3Client, command, { 
+            expiresIn: 300,
+            unhoistableHeaders: new Set(['content-type']),
+        });
         
         res.json({ 
             uploadUrl: signedUrl, 
@@ -143,7 +146,7 @@ export const generateAiImage = async (req, res) => {
         }
         res.status(200).json({ url: imageUrl });
     } catch (error) {
-        console.error(error);
+        console.error("AI画像生成エラー:", error);
         res.status(500).json({ message: '画像生成エラー' });
     }
 };
@@ -173,31 +176,48 @@ export const translateText = async (req, res) => {
         }
         res.json({ translatedText });
     } catch (error) {
+        console.error("翻訳エラー:", error);
         res.status(500).json({ message: '翻訳エラー' });
     }
 };
 
+// 企画説明文生成 (AIアシスタント)
 export const generatePlanText = async (req, res) => {
     const { targetName, eventName, tone, extraInfo } = req.body;
     try {
         let title = "", description = "";
+        
         if (process.env.OPENAI_API_KEY) {
-            const prompt = `推し: ${targetName}, イベント: ${eventName}, トーン: ${tone}, 補足: ${extraInfo}。JSON形式 {"title": "...", "description": "..."} で出力して。`;
+            const prompt = `推し: ${targetName}, イベント: ${eventName}, トーン: ${tone}, 補足: ${extraInfo}。支援者が参加したくなるようなフラスタ企画の説明文を作成してください。
+            必ず以下のJSON形式のみで出力してください。
+            {"title": "企画タイトル", "description": "企画の詳しい説明文"}`;
+
             const completion = await openai.chat.completions.create({
                 model: "gpt-3.5-turbo",
                 messages: [{ role: "user", content: prompt }],
+                timeout: 15000,
             });
+
+            const content = completion.choices[0].message.content;
             try {
-                const parsed = JSON.parse(completion.choices[0].message.content);
+                // JSON部分のみを抽出（念のため）
+                const jsonMatch = content.match(/\{[\s\S]*\}/);
+                const parsed = JSON.parse(jsonMatch ? jsonMatch[0] : content);
                 title = parsed.title;
                 description = parsed.description;
             } catch (e) {
-                description = completion.choices[0].message.content;
+                // パース失敗時は全文を説明文に入れる
+                title = `${targetName}様へフラスタを贈りましょう！`;
+                description = content;
             }
+        } else {
+            title = `${targetName}様への祝花企画`;
+            description = `${eventName}でのご出演を祝して、フラスタを贈る企画です。`;
         }
         res.json({ title, description });
     } catch (error) {
-        res.status(500).json({ message: '生成エラー' });
+        console.error("AIテキスト生成エラー:", error);
+        res.status(500).json({ message: 'AIによる文章生成に失敗しました。時間をおいてお試しください。' });
     }
 };
 
@@ -237,6 +257,7 @@ export const parseEventInfo = async (req, res) => {
         });
         res.status(201).json({ message: '登録しました', event: newEvent });
     } catch (error) {
+        console.error("イベント解析エラー:", error);
         res.status(500).json({ message: '解析エラー' });
     }
 };
@@ -255,6 +276,7 @@ export const subscribePush = async (req, res) => {
         });
         res.status(201).json({ message: '通知登録完了' });
     } catch (error) {
+        console.error("Push登録エラー:", error);
         res.status(500).json({ message: '登録エラー' });
     }
 };
@@ -300,5 +322,8 @@ export const searchFloristByImage = async (req, res) => {
             take: 6
         });
         res.json({ analyzedTags: targetTags, florists });
-    } catch(e) { res.status(500).json({ message: '解析エラー' }); }
+    } catch(e) { 
+        console.error("画像検索解析エラー:", e);
+        res.status(500).json({ message: '解析エラー' }); 
+    }
 };

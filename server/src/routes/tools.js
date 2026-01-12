@@ -1,47 +1,36 @@
 import express from 'express';
 import { authenticateToken } from '../middleware/auth.js';
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import * as toolController from '../controllers/toolController.js';
+import multer from 'multer';
 
 const router = express.Router();
+const upload = multer();
 
-const s3Client = new S3Client({
-    region: process.env.AWS_REGION, // "ap-northeast-1" であることを再確認してください
-    credentials: {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-    },
-    // 仮想ホスト形式 (bucket.s3.region.amazonaws.com) を使用
-    forcePathStyle: false, 
-});
+// S3署名付きURL発行
+router.post('/s3-upload-url', authenticateToken, toolController.getS3UploadUrl);
 
-router.post('/s3-upload-url', authenticateToken, async (req, res) => {
-    try {
-        const { fileName, fileType } = req.body;
-        
-        const extension = fileName.split('.').pop();
-        const fileKey = `events/${Date.now()}.${extension}`;
+// AI説明文生成
+router.post('/generate-plan-text', authenticateToken, toolController.generatePlanText);
 
-        const command = new PutObjectCommand({
-            Bucket: process.env.AWS_S3_BUCKET_NAME,
-            Key: fileKey,
-            ContentType: fileType,
-        });
+// AI画像生成
+router.post('/generate-ai-image', authenticateToken, toolController.generateAiImage);
 
-        // unhoistableHeaders を設定して、ブラウザが勝手にヘッダーを動かさないようにする
-        const signedUrl = await getSignedUrl(s3Client, command, { 
-            expiresIn: 300,
-            unhoistableHeaders: new Set(['content-type']),
-        });
+// 翻訳
+router.post('/translate', authenticateToken, toolController.translateText);
 
-        res.json({ 
-            uploadUrl: signedUrl, 
-            fileUrl: `https://${process.env.AWS_S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${fileKey}` 
-        });
-    } catch (err) {
-        console.error("S3 Error:", err);
-        res.status(500).json({ message: "署名付きURLの生成に失敗しました" });
-    }
-});
+// イベント情報解析
+router.post('/parse-event', authenticateToken, toolController.parseEventInfo);
+
+// ARパネル生成 (ファイルアップロードが必要なため)
+router.post('/create-ar-panel', authenticateToken, upload.single('image'), toolController.createArPanel);
+
+// Cloudinary直接アップロード
+router.post('/upload-image', authenticateToken, upload.single('image'), toolController.uploadImage);
+
+// 画像からお花屋さん検索
+router.post('/search-florist-by-image', authenticateToken, upload.single('image'), toolController.searchFloristByImage);
+
+// Push通知登録
+router.post('/subscribe-push', authenticateToken, toolController.subscribePush);
 
 export default router;
