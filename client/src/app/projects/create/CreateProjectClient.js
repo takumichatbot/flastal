@@ -8,7 +8,7 @@ import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/app/contexts/AuthContext';
 import toast from 'react-hot-toast';
-import { FiInfo, FiAlertTriangle, FiCalendar, FiMapPin, FiX, FiImage, FiCpu, FiLoader, FiPlus, FiExternalLink, FiUser, FiAward, FiSearch, FiCheckCircle, FiShield } from 'react-icons/fi';
+import { FiInfo, FiAlertTriangle, FiCalendar, FiMapPin, FiX, FiImage, FiCpu, FiLoader, FiPlus, FiExternalLink, FiUser, FiAward, FiSearch, FiCheckCircle, FiShield, FiZoomIn } from 'react-icons/fi';
 import Image from 'next/image';
 import AiPlanGenerator from '@/app/components/AiPlanGenerator';
 
@@ -261,6 +261,24 @@ function VenueSelectionModal({ onClose, onSelect }) {
   );
 }
 
+// 拡大プレビュー用のライトボックスモーダル
+function ImageLightbox({ url, onClose }) {
+  return (
+    <div className="fixed inset-0 bg-black/90 flex justify-center items-center z-[100] p-4 animate-fadeIn" onClick={onClose}>
+      <button onClick={onClose} className="absolute top-6 right-6 text-white hover:text-gray-300 transition-colors z-[110]">
+        <FiX size={32} />
+      </button>
+      <div className="relative w-full h-full flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
+        <img 
+          src={url} 
+          alt="Enlarged design" 
+          className="max-w-full max-h-full object-contain rounded-lg shadow-2xl animate-zoomIn"
+        />
+      </div>
+    </div>
+  );
+}
+
 // ===========================================
 // メインフォーム
 // ===========================================
@@ -281,6 +299,7 @@ function CreateProjectForm() {
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
   const [isAIModalOpen, setIsAIModalOpen] = useState(false); 
   const [isAiPlanModalOpen, setIsAiPlanModalOpen] = useState(false); 
+  const [previewImageUrl, setPreviewImageUrl] = useState(null); // ライトボックス用
 
   const [selectedVenue, setSelectedVenue] = useState(null);
   const [selectedEvent, setSelectedEvent] = useState(null);
@@ -365,7 +384,7 @@ function CreateProjectForm() {
     }
   };
 
-  // AI画像生成が完了した時の処理（ここが不足していたためエラーが発生していました）
+  // AI画像生成が完了した時の処理
   const handleAIGenerated = (url) => {
     setFormData(prev => ({
       ...prev,
@@ -607,7 +626,12 @@ function CreateProjectForm() {
             <div className="border-2 border-dashed border-gray-300 rounded-2xl p-6 text-center hover:bg-gray-50 cursor-pointer relative overflow-hidden group">
                 <input type="file" accept="image/*" onChange={handleImageUpload} disabled={isUploading} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"/>
                 {formData.imageUrl ? (
-                    <img src={formData.imageUrl} alt="プレビュー" className="max-h-64 mx-auto rounded-lg shadow-md" />
+                    <img 
+                      src={formData.imageUrl} 
+                      alt="プレビュー" 
+                      className="max-h-64 mx-auto rounded-lg shadow-md cursor-zoom-in" 
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); setPreviewImageUrl(formData.imageUrl); }}
+                    />
                 ) : (
                     <div className="py-8">
                         <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3 text-gray-400 group-hover:text-sky-500 transition-colors">
@@ -630,8 +654,16 @@ function CreateProjectForm() {
                     <div className="flex flex-wrap gap-3 mb-4">
                         {formData.designImageUrls.map((url, index) => (
                             <div key={index} className="relative w-24 h-24 group">
-                                <img src={url} alt={`デザイン ${index}`} className="w-full h-full object-cover rounded-xl border border-gray-200 shadow-sm" />
-                                <button type="button" onClick={() => setFormData(p => ({...p, designImageUrls: p.designImageUrls.filter((_, i) => i !== index)}))} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs shadow-md transform scale-0 group-hover:scale-100 transition-transform"><FiX /></button>
+                                <img 
+                                  src={url} 
+                                  alt={`デザイン ${index}`} 
+                                  className="w-full h-full object-cover rounded-xl border border-gray-200 shadow-sm cursor-zoom-in" 
+                                  onClick={() => setPreviewImageUrl(url)}
+                                />
+                                <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 flex items-center justify-center rounded-xl pointer-events-none transition-opacity">
+                                  <FiZoomIn className="text-white" />
+                                </div>
+                                <button type="button" onClick={() => setFormData(p => ({...p, designImageUrls: p.designImageUrls.filter((_, i) => i !== index)}))} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs shadow-md transform scale-0 group-hover:scale-100 transition-transform z-10"><FiX /></button>
                             </div>
                         ))}
                         <label className="w-24 h-24 border-2 border-dashed border-gray-300 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-sky-400 transition-all text-gray-400 group">
@@ -669,6 +701,7 @@ function CreateProjectForm() {
       {isVenueModalOpen && <VenueSelectionModal onClose={() => setIsVenueModalOpen(false)} onSelect={handleVenueSelect} />}
       {isEventModalOpen && <EventSelectionModal onClose={() => setIsEventModalOpen(false)} onSelect={handleEventSelect} />}
       {isAIModalOpen && <AIGenerationModal onClose={() => setIsAIModalOpen(false)} onGenerate={handleAIGenerated} />}
+      {previewImageUrl && <ImageLightbox url={previewImageUrl} onClose={() => setPreviewImageUrl(null)} />}
       
       {isAiPlanModalOpen && (
         <AiPlanGenerator 
@@ -696,6 +729,20 @@ function CreateProjectForm() {
           outline: none;
           box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
           background-color: #ffffff;
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes zoomIn {
+          from { transform: scale(0.9); opacity: 0; }
+          to { transform: scale(1); opacity: 1; }
+        }
+        .animate-fadeIn {
+          animation: fadeIn 0.2s ease-out;
+        }
+        .animate-zoomIn {
+          animation: zoomIn 0.2s ease-out;
         }
       `}</style>
     </div>
