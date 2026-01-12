@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/app/contexts/AuthContext';
 import toast from 'react-hot-toast';
-import { FiSave, FiArrowLeft, FiPlus, FiTrash2, FiImage } from 'react-icons/fi';
+import { FiSave, FiArrowLeft, FiPlus, FiTrash2, FiImage, FiCheckCircle } from 'react-icons/fi';
 import Link from 'next/link';
 import Image from 'next/image';
 
