@@ -206,10 +206,6 @@ export const createProject = async (req, res) => {
             visibility, venueId, eventId, projectType, password
         } = req.body;
 
-        console.log("--- [DEBUG: Received Project Body] ---", req.body);
-
-        const plannerId = req.user.id;
-
         // 1. バリデーション
         if (!title || String(title).trim() === '') {
             return res.status(400).json({ message: '企画タイトルを入力してください。' });
@@ -225,62 +221,62 @@ export const createProject = async (req, res) => {
             return res.status(400).json({ message: '有効な納品希望日時を入力してください。' });
         }
 
-        // 2. Prismaデータ作成 (schema.prismaの定義に厳密に合わせる)
+        // 2. Prismaデータ作成 (スキーマの型に完全に準拠させる)
+        const projectData = {
+            title: String(title).trim(),
+            description: description ? String(description) : "",
+            targetAmount: amount,
+            collectedAmount: 0,
+            deliveryAddress: deliveryAddress ? String(deliveryAddress) : "",
+            deliveryDateTime: deliveryDate,
+            plannerId: req.user.id,
+            imageUrl: imageUrl ? String(imageUrl) : null,
+            designDetails: designDetails ? String(designDetails) : "",
+            size: size ? String(size) : "",
+            flowerTypes: flowerTypes ? String(flowerTypes) : "",
+            
+            // Enumの不一致を避けるための正規化
+            status: 'PENDING_APPROVAL',
+            projectType: (projectType === 'PRIVATE' || projectType === 'SOLO') ? projectType : 'PUBLIC',
+            visibility: visibility === 'UNLISTED' ? 'UNLISTED' : 'PUBLIC',
+            password: (password && password !== "") ? String(password) : null,
+            
+            // ID系の処理（空文字が送られてきた場合にPrismaエラーになるのを防ぐ）
+            venueId: (venueId && String(venueId).trim() !== "") ? venueId : null,
+            eventId: (eventId && String(eventId).trim() !== "") ? eventId : null,
+
+            // 必須配列フィールドを確実に空配列で初期化
+            designImageUrls: Array.isArray(designImageUrls) ? designImageUrls : [],
+            completionImageUrls: [],
+            illustrationPanelUrls: [],
+            messagePanelUrls: [],
+            sponsorPanelUrls: [],
+            preEventPhotoUrls: [],
+            
+            // JSON配列
+            progressHistory: [],
+
+            // 数値型のデフォルト設定
+            cancellationFee: 0,
+            materialCost: 0,
+            refundStatus: "NONE",
+            productionStatus: 'NOT_STARTED'
+        };
+
         const newProject = await prisma.project.create({
-            data: {
-                title: String(title).trim(),
-                description: description ? String(description) : "",
-                targetAmount: amount,
-                collectedAmount: 0,
-                deliveryAddress: deliveryAddress ? String(deliveryAddress) : "",
-                deliveryDateTime: deliveryDate,
-                plannerId: plannerId,
-                imageUrl: imageUrl ? String(imageUrl) : null,
-                designDetails: designDetails ? String(designDetails) : "",
-                size: size ? String(size) : "",
-                flowerTypes: flowerTypes ? String(flowerTypes) : "",
-                
-                // Enum
-                status: 'PENDING_APPROVAL',
-                projectType: (projectType === 'PRIVATE' || projectType === 'SOLO') ? projectType : 'PUBLIC',
-                visibility: (visibility === 'UNLISTED') ? 'UNLISTED' : 'PUBLIC',
-                password: password || null,
-                
-                // 外部キー
-                venueId: (venueId && venueId !== "") ? venueId : null,
-                eventId: (eventId && eventId !== "") ? eventId : null,
-
-                // スキーマで定義されている文字列配列の初期化
-                designImageUrls: Array.isArray(designImageUrls) ? designImageUrls : [],
-                completionImageUrls: [],
-                illustrationPanelUrls: [],
-                messagePanelUrls: [],
-                sponsorPanelUrls: [],
-                preEventPhotoUrls: [],
-                
-                // JSON型の初期化
-                progressHistory: [],
-
-                // 数値型の初期化
-                cancellationFee: 0,
-                materialCost: 0,
-                refundStatus: "NONE",
-                productionStatus: 'NOT_STARTED'
-            },
+            data: projectData,
         });
-
-        console.log("--- [PROJECT CREATE SUCCESS] --- ID:", newProject.id);
 
         await sendEmail(req.user.email, '【FLASTAL】企画申請を受け付けました',
             `<p>${req.user.handleName} 様</p><p>企画「${title}」の申請を受け付けました。審査完了までお待ちください。</p>`);
 
         res.status(201).json({ project: newProject, message: '企画の作成申請が完了しました。' });
     } catch (error) {
-        console.error('--- [CRITICAL ERROR IN CREATE PROJECT] ---');
-        console.error('Error Name:', error.name);
-        console.error('Error Message:', error.message);
-        if (error.code) console.error('Prisma Error Code:', error.code);
+        console.error('--- [CRITICAL: PROJECT CREATE ERROR] ---');
+        console.error('Code:', error.code);
+        console.error('Message:', error.message);
         
+        // Prismaのバリデーションエラー(P2002等)や型エラーを拾う
         res.status(500).json({ 
             message: 'サーバー側のバリデーションエラーです。入力形式や必須項目を確認してください。',
             details: error.message 
@@ -564,7 +560,7 @@ export const updateMaterialCost = async (req, res) => {
     }
 };
 
-// 制作ステータス更新
+// 制作ステータス更新 (詳細)
 export const updateProductionStatus = async (req, res) => {
     const { projectId } = req.params;
     const { floristId, status } = req.body;
