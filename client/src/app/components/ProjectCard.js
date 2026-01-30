@@ -3,31 +3,28 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import ImageModal from './ImageModal';
-import { FiUser, FiMapPin, FiClock, FiZoomIn, FiCheckCircle } from 'react-icons/fi';
-import { FaHeart } from 'react-icons/fa'; // ハートアイコン用
+import ImageWithFallback from './ImageWithFallback'; // ★追加: 作成したコンポーネントをインポート
+import { FiUser, FiMapPin, FiClock, FiZoomIn } from 'react-icons/fi';
 
 export default function ProjectCard({ project }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // データガード
   if (!project || !project.id) return null;
 
   const collectedAmount = project.collectedAmount || 0;
   const targetAmount = project.targetAmount || 0;
   
-  // 達成率 (最大100%に丸めない。100%超えも表現できるようにするが、バーは100で止める)
   const rawPercentage = targetAmount > 0 ? (collectedAmount / targetAmount) * 100 : 0;
   const progressPercentage = Math.min(rawPercentage, 100);
 
-  // 画像拡大モーダルを開く（リンク遷移をキャンセル）
   const handleImageClick = (e) => {
-    e.preventDefault();  // リンク遷移を防ぐ
-    e.stopPropagation(); // 親要素へのイベント伝播を防ぐ
+    e.preventDefault(); 
+    e.stopPropagation();
     setIsModalOpen(true);
   };
 
-  // ステータスバッジのスタイル定義
   const getStatusBadge = (status) => {
+    // ... (既存のロジックそのまま) ...
     switch(status) {
         case 'FUNDRAISING': 
             return { label: '募集中', className: 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-pink-200' };
@@ -51,25 +48,23 @@ export default function ProjectCard({ project }) {
             
           {/* 画像エリア */}
           <div className="relative aspect-video bg-slate-100 overflow-hidden">
-            {project.imageUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img 
+            
+            {/* ★修正: ImageWithFallback を使用 */}
+            <ImageWithFallback 
                 src={project.imageUrl} 
                 alt={project.title} 
-                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center text-slate-300 bg-slate-50">
-                <span className="text-4xl">💐</span>
-              </div>
-            )}
+                fill 
+                sizes="(max-width: 768px) 100vw, 33vw"
+                style={{ objectFit: 'cover' }}
+                className="transition-transform duration-700 group-hover:scale-110"
+            />
             
-            {/* ステータスバッジ (左上) */}
+            {/* ステータスバッジ */}
             <div className={`absolute top-3 left-3 px-3 py-1 text-xs font-bold rounded-full shadow-lg z-10 ${statusObj.className}`}>
                 {statusObj.label}
             </div>
 
-            {/* ズームボタン (ホバーで出現) */}
+            {/* ズームボタン (画像がある場合のみ) */}
             {project.imageUrl && (
               <button
                 onClick={handleImageClick}
@@ -83,16 +78,15 @@ export default function ProjectCard({ project }) {
             )}
           </div>
 
-          {/* コンテンツエリア */}
+          {/* コンテンツエリア (以下変更なし) */}
           <div className="p-5 flex flex-col flex-grow">
-            
-            {/* タイトル */}
             <h3 className="text-lg font-bold text-slate-800 mb-2 line-clamp-2 group-hover:text-pink-600 transition-colors">
               {project.title}
             </h3>
-
-            {/* 補足情報 (場所・日付など) */}
-            <div className="flex flex-col gap-1 mb-4 text-xs text-slate-500">
+            
+            {/* ... (中略: 住所や日付など) ... */}
+            
+             <div className="flex flex-col gap-1 mb-4 text-xs text-slate-500">
                 <div className="flex items-center gap-1.5 truncate">
                     <FiMapPin className="shrink-0 text-slate-400"/>
                     <span className="truncate">{project.deliveryAddress || '場所未定'}</span>
@@ -106,7 +100,6 @@ export default function ProjectCard({ project }) {
             </div>
 
             <div className="mt-auto">
-                {/* 進捗バー */}
                 <div className="flex justify-between items-end mb-1">
                     <span className="text-2xl font-black text-slate-800">
                         {Math.floor(rawPercentage)}<span className="text-sm font-bold text-slate-500 ml-0.5">%</span>
@@ -127,26 +120,23 @@ export default function ProjectCard({ project }) {
                     ></div>
                 </div>
 
-                {/* フッター (企画者情報) */}
                 <div className="pt-3 border-t border-slate-50 flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                        {project.planner?.iconUrl ? (
-                             // eslint-disable-next-line @next/next/no-img-element
-                            <img src={project.planner.iconUrl} alt="" className="w-5 h-5 rounded-full object-cover border border-slate-200" />
-                        ) : (
-                            <div className="w-5 h-5 rounded-full bg-slate-200 flex items-center justify-center text-[10px] text-slate-500">
-                                <FiUser />
-                            </div>
-                        )}
+                        <div className="w-5 h-5 rounded-full overflow-hidden border border-slate-200 shrink-0">
+                           {/* アイコンもフォールバック対応 */}
+                           <ImageWithFallback 
+                              src={project.planner?.iconUrl} 
+                              alt="Planner" 
+                              width={20} 
+                              height={20} 
+                              fallbackText="" // アイコンなのでテキストなし
+                              className="object-cover"
+                           />
+                        </div>
                         <span className="text-xs text-slate-500 font-medium truncate max-w-[100px]">
                             {project.planner?.handleName || '企画者'}
                         </span>
                     </div>
-                    
-                    {/* いいね数など (あれば表示) */}
-                    {/* <div className="flex items-center gap-1 text-xs text-slate-400">
-                        <FaHeart className="text-pink-300" /> 12
-                    </div> */}
                 </div>
             </div>
 

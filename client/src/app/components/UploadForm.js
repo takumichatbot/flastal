@@ -1,13 +1,12 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { getPresignedUrl, savePostToDb } from '../actions'; 
 import { useAuth } from '../contexts/AuthContext';
 import { FiUpload, FiX, FiImage, FiCheck, FiLoader } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
 export default function UploadForm({ onUploadSuccess }) {
-  const { user } = useAuth();
+  const { user, authenticatedFetch } = useAuth(); // authenticatedFetchを取り出す
   const [file, setFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [eventName, setEventName] = useState('');
@@ -67,26 +66,30 @@ export default function UploadForm({ onUploadSuccess }) {
     const toastId = toast.loading('投稿を準備中...');
 
     try {
-      // 1. Presigned URL取得
-      const { uploadUrl, publicUrl } = await getPresignedUrl(file.name, file.type);
+      // 1. Presigned URL取得 (バックエンドAPIを直接叩く)
+      const presignRes = await authenticatedFetch('/api/tools/s3-upload-url', {
+        method: 'POST',
+        body: JSON.stringify({ fileName: file.name, fileType: file.type })
+      });
+      
+      if (!presignRes.ok) throw new Error('署名取得失敗');
+      const { uploadUrl, fileUrl } = await presignRes.json(); 
 
-      // 2. S3へアップロード
-      // toast.loading('画像をアップロード中...', { id: toastId });
-      const uploadRes = await fetch(uploadUrl, {
-        method: 'PUT',
-        body: file,
-        headers: { 'Content-Type': file.type },
+      // 2. S3へアップロード (変更なし)
+      await fetch(uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
+
+      // 3. DB保存 (バックエンドAPIを叩く)
+      const saveRes = await authenticatedFetch('/api/posts', {
+        method: 'POST',
+        body: JSON.stringify({
+           eventName, 
+           senderName, 
+           imageUrl: fileUrl, 
+           email: user.email 
+        })
       });
 
-      if (!uploadRes.ok) throw new Error('画像のアップロードに失敗しました');
-
-      // 3. DB保存
-      // toast.loading('情報を保存中...', { id: toastId });
-      await savePostToDb(
-        { eventName, senderName }, 
-        publicUrl, 
-        user.email
-      );
+      if (!saveRes.ok) throw new Error('保存失敗');
 
       toast.success('投稿が完了しました！', { id: toastId });
       

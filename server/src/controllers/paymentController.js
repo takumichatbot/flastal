@@ -1,6 +1,7 @@
 import prisma from '../config/prisma.js';
 import stripe from '../config/stripe.js';
 import { sendEmail } from '../utils/email.js';
+import { getIO } from '../config/socket.js';
 
 const LEVEL_CONFIG = { 'Bronze': 10000, 'Silver': 50000, 'Gold': 100000 };
 
@@ -20,6 +21,21 @@ async function checkUserLevelAndBadges(tx, userId) {
         await tx.user.update({ where: { id: userId }, data: { supportLevel: newLevel } });
     }
 }
+
+const broadcastTicker = (type, text, href) => {
+    try {
+        const io = getIO();
+        io.emit('publicTickerUpdate', { 
+            id: Date.now(), 
+            type, 
+            text, 
+            href,
+            createdAt: new Date()
+        });
+    } catch (e) {
+        console.warn('Socket emit failed:', e.message);
+    }
+};
 
 export const createPointSession = async (req, res) => {
     const { amount, points } = req.body;
@@ -120,11 +136,29 @@ export const createPledge = async (req, res) => {
             }
 
             await checkUserLevelAndBadges(tx, userId);
-            return newPledge;
+            return { newPledge, project, user };
         });
 
-        sendEmail(req.user.email, '支援完了のお知らせ', `<p>${pledgeAmount}ptの支援を完了しました。ありがとうございます！</p>`);
-        res.status(201).json(result);
+        if (result) {
+            const { newPledge, project, user } = result;
+            broadcastTicker(
+                'pledge', 
+                `${user.handleName}さんが『${project.title}』に支援しました！🎉`, 
+                `/projects/${project.id}`
+            );
+            
+            // 目標達成時の配信
+            if (result.project.collectedAmount >= result.project.targetAmount && result.project.status === 'SUCCESSFUL') {
+                broadcastTicker(
+                    'goal', 
+                    `🔥『${result.project.title}』が目標金額100%を達成しました！`, 
+                    `/projects/${result.project.id}`
+                );
+            }
+        }
+
+        sendEmail(req.user.email, '支援完了のお知らせ', `<p>${pledgeAmount}ptの支援を完了しました。</p>`);
+        res.status(201).json(result.newPledge); // 戻り値を調整
     } catch (error) {
         res.status(400).json({ message: error.message || '支援処理に失敗しました' });
     }
@@ -160,9 +194,18 @@ export const createGuestPledgeDirect = async (req, res) => {
             });
 
             sendEmail(guestEmail, '【FLASTAL】支援完了のお知らせ', `<p>${project.title}への支援を承りました。</p>`);
-            return newPledge;
+            return { newPledge, project: updatedProject };
         });
-        res.status(201).json({ message: 'ゲスト支援完了', pledge: result });
+
+        if (result) {
+            broadcastTicker(
+                'pledge', 
+                `ゲストの${req.body.guestName}さんが『${result.project.title}』に支援しました！🎉`, 
+                `/projects/${result.project.id}`
+            );
+        }
+
+        res.status(201).json({ message: 'ゲスト支援完了', pledge: result.newPledge });
     } catch (error) {
         res.status(400).json({ message: error.message || 'エラーが発生しました' });
     }

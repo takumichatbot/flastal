@@ -2,6 +2,7 @@ import prisma from '../config/prisma.js';
 import stripe from '../config/stripe.js';
 import { sendEmail, sendDynamicEmail } from '../utils/email.js';
 import { createNotification } from '../utils/notification.js';
+import { getIO } from '../config/socket.js';
 
 // ==========================================
 // ★★★ 1. 取得系 (Public) ★★★
@@ -617,6 +618,36 @@ export const updateProjectStatus = async (req, res) => {
         );
         
         res.json(updated);
+
+        const io = getIO();
+        let tickerType = 'info';
+        let tickerText = '';
+
+        switch (status) {
+            case 'PRODUCTION_IN_PROGRESS':
+                tickerType = 'production';
+                tickerText = `お花屋さんが『${project.title}』の制作を開始しました💐`;
+                break;
+            case 'DELIVERED_OR_FINISHED': // または 'COMPLETED'
+            case 'COMPLETED':
+                tickerType = 'delivery';
+                tickerText = `『${project.title}』のフラスタが設置完了しました📸`;
+                break;
+            // 必要に応じて他のステータスも追加
+        }
+
+        if (tickerText) {
+            io.emit('publicTickerUpdate', {
+                id: Date.now(),
+                type: tickerType,
+                text: tickerText,
+                href: `/projects/${projectId}`,
+                createdAt: new Date()
+            });
+        }
+        
+        res.json(updated);
+        
     } catch (error) {
         console.error('Status Update Error:', error);
         res.status(500).json({ message: 'エラーが発生しました。' });

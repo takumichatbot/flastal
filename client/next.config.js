@@ -31,10 +31,24 @@ const nextConfig = {
         protocol: 'https',
         hostname: 'cdn.worldvectorlogo.com', // 決済ロゴなど
       },
-      // ★★★ 追加したドメイン ★★★
+      // ★★★ 追加: AWS S3 (これがないとアップロード画像が表示されません) ★★★
+      {
+        protocol: 'https',
+        hostname: '*.s3.amazonaws.com', // S3汎用
+      },
+      {
+        protocol: 'https',
+        hostname: '*.s3.ap-northeast-1.amazonaws.com', // 東京リージョン指定
+      },
+      // ★★★ 追加終わり ★★★
+      
       {
         protocol: 'https',
         hostname: 'source.unsplash.com', // ダミー画像生成などに使用
+      },
+      {
+        protocol: 'https',
+        hostname: 'images.unsplash.com', // 追加: Unsplashの直接リンク用
       },
       {
         protocol: 'https',
@@ -44,13 +58,11 @@ const nextConfig = {
         protocol: 'https',
         hostname: 'flastal-backend.onrender.com', // 開発環境のバックエンドからの画像取得用
       },
-      // ★★★ 終わり ★★★
     ],
   },
   
-  // 💡 experimentalブロックからoutputFileTracingRootを削除（上記のトップレベルに移動したため）
+  // 💡 experimentalブロックからoutputFileTracingRootを削除
   experimental: {
-    // outputFileTracingRoot: path.join(__dirname, '../../'), // 削除
   },
 };
 
@@ -60,7 +72,6 @@ const withPWA = withPWAInit({
   register: true,
   skipWaiting: true,
   disable: process.env.NODE_ENV === 'development',
-  // ★★★ 追加: カスタムSWをインポート ★★★
   importScripts: ['/push-sw.js'], 
 });
 

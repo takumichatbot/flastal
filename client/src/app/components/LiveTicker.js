@@ -1,32 +1,65 @@
 "use client";
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { io } from 'socket.io-client'; // ★追加
 import { FiActivity, FiGift, FiTruck, FiCheckCircle, FiTrendingUp, FiInfo } from 'react-icons/fi';
 
-const TICKER_LOGS = [
-  { id: 1, type: 'pledge', text: 'たった今、Aさんが『星野アイ生誕祭2025』に 10,000pt 支援しました！🎉', href: '/projects/1' },
-  { id: 2, type: 'production', text: 'お花屋さんが『武道館ライブ』の制作を開始しました💐', href: '/projects/2' },
-  { id: 3, type: 'goal', text: '🔥『デビュー5周年記念』が目標金額100%を達成しました！おめでとうございます！', href: '/projects/3' },
-  { id: 4, type: 'new', text: '新着企画『夏の野外フェス祝い』が公開されました✨ 参加者募集中！', href: '/projects/4' },
-  { id: 5, type: 'delivery', text: '『Zepp Tour Final』のフラスタが設置完了しました📸 現地写真公開中', href: '/projects/5' },
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
+
+// 初期表示用のダミーデータ (接続までの間を持たせるため)
+const INITIAL_LOGS = [
+  { id: 'init-1', type: 'info', text: 'FLASTALへようこそ！推しにフラスタを贈ろう💐', href: '/projects' },
+  { id: 'init-2', type: 'new', text: '現在、多数の企画が進行中です✨', href: '/projects' },
 ];
 
 export default function LiveTicker() {
+  const [logs, setLogs] = useState(INITIAL_LOGS);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
 
+  // 1. Socket接続とイベント受信
   useEffect(() => {
+    const socket = io(API_URL, {
+      transports: ['websocket', 'polling'],
+      reconnectionAttempts: 3
+    });
+
+    socket.on('connect', () => {
+      console.log('Ticker connected to socket');
+    });
+
+    // バックエンドからの 'publicTickerUpdate' を受信
+    socket.on('publicTickerUpdate', (newLog) => {
+      setLogs((prevLogs) => {
+        // 新しいログを先頭に追加し、最大20件保持
+        const updated = [newLog, ...prevLogs].slice(0, 20);
+        return updated;
+      });
+      // 新着が来たら強制的にアニメーションして先頭（最新）を表示させる演出を入れても良いが、
+      // ここでは自然なローテーションを待つ設計にします。
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, []);
+
+  // 2. ローテーションアニメーション
+  useEffect(() => {
+    if (logs.length === 0) return;
+
     const interval = setInterval(() => {
       setIsAnimating(true);
       setTimeout(() => {
-        setCurrentIndex((prev) => (prev + 1) % TICKER_LOGS.length);
+        setCurrentIndex((prev) => (prev + 1) % logs.length);
         setIsAnimating(false);
-      }, 500);
-    }, 5000);
-    return () => clearInterval(interval);
-  }, []);
+      }, 500); // アニメーション時間
+    }, 5000); // 表示時間
 
-  const currentLog = TICKER_LOGS[currentIndex];
+    return () => clearInterval(interval);
+  }, [logs.length]); // logsが変わってもリセットしない方がスムーズかもだが、簡易実装
+
+  const currentLog = logs[currentIndex] || logs[0];
 
   const getLogStyle = (type) => {
     switch(type) {
@@ -39,12 +72,10 @@ export default function LiveTicker() {
     }
   };
 
-  const style = getLogStyle(currentLog.type);
+  const style = getLogStyle(currentLog?.type);
 
   return (
-    /* 修正ポイント: h-10 を維持しつつ、マージン・パディングを強制リセット */
     <div className="bg-slate-900 border-b border-slate-800 h-10 w-full overflow-hidden relative shadow-sm z-40 m-0 p-0 block">
-      {/* 修正ポイント: container を廃止し、w-full max-w-7xl mx-auto でレイアウトを制御 */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-center justify-between">
         
         <div className="flex items-center gap-4 flex-1 min-w-0 h-full">
@@ -58,7 +89,7 @@ export default function LiveTicker() {
 
           <div className="flex-1 overflow-hidden relative h-full flex items-center">
             <Link 
-                href={currentLog.href}
+                href={currentLog?.href || '#'}
                 className={`flex items-center gap-3 text-xs sm:text-sm text-slate-200 hover:text-white hover:underline transition-all duration-500 transform w-full truncate cursor-pointer ${
                     isAnimating ? 'translate-y-full opacity-0' : 'translate-y-0 opacity-100'
                 }`}
@@ -67,7 +98,7 @@ export default function LiveTicker() {
                     {style.icon}
                     <span className="hidden sm:inline text-[10px] border border-current px-1 rounded uppercase opacity-80">{style.label}</span>
                 </span>
-                <span className="truncate">{currentLog.text}</span>
+                <span className="truncate">{currentLog?.text}</span>
             </Link>
           </div>
         </div>

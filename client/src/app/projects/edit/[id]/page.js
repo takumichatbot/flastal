@@ -44,7 +44,7 @@ export default function EditProjectPage() {
         if (!res.ok) throw new Error('企画情報の読み込みに失敗しました');
         const data = await res.json();
         
-        if (data.plannerId !== user.id) {
+        if (String(data.plannerId) !== String(user.id)) {
           toast.error('編集権限がありません');
           router.push(`/projects/${projectId}`);
           return;

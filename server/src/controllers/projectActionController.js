@@ -277,53 +277,175 @@ export const getGalleryFeed = async (req, res) => {
     } catch(e) { res.status(500).json({ message: 'エラー' }); }
 };
 
-export const addToMoodBoard = (req, res) => {
-    const { id } = req.params;
+// ==========================================
+// DB版実装 (MoodBoard, OfficialReaction, DigitalFlowers)
+// ==========================================
+
+// --- ムードボード ---
+export const addToMoodBoard = async (req, res) => {
+    const { id } = req.params; // projectId
     const { imageUrl, comment } = req.body;
-    const item = { id: Date.now().toString(), projectId: id, userId: req.user.id, userName: req.user.handleName, userIcon: req.user.iconUrl, imageUrl, comment, likes: 0, likedBy: [] };
-    MOOD_BOARDS.push(item);
-    res.status(201).json(item);
+    try {
+        const item = await prisma.moodBoardItem.create({
+            data: {
+                projectId: id,
+                userId: req.user.id,
+                imageUrl,
+                comment
+            },
+            include: { user: { select: { handleName: true, iconUrl: true } } }
+        });
+        // フロントエンドの期待する形式に整形
+        res.status(201).json({
+            ...item,
+            userName: item.user.handleName,
+            userIcon: item.user.iconUrl,
+            likes: 0,
+            likedBy: []
+        });
+    } catch (error) {
+        res.status(500).json({ message: '追加に失敗しました' });
+    }
 };
 
-export const getMoodBoard = (req, res) => {
-    res.json(MOOD_BOARDS.filter(i => i.projectId === req.params.id));
+export const getMoodBoard = async (req, res) => {
+    const { id } = req.params; // projectId
+    try {
+        const items = await prisma.moodBoardItem.findMany({
+            where: { projectId: id },
+            include: {
+                user: { select: { handleName: true, iconUrl: true } },
+                likes: { select: { userId: true } },
+                _count: { select: { likes: true } }
+            },
+            orderBy: { createdAt: 'desc' }
+        });
+
+        // 整形
+        const formatted = items.map(item => ({
+            id: item.id,
+            imageUrl: item.imageUrl,
+            comment: item.comment,
+            userId: item.userId,
+            userName: item.user.handleName,
+            userIcon: item.user.iconUrl,
+            likes: item._count.likes,
+            likedBy: item.likes.map(l => l.userId), // 自分がいいねしたか判定用
+            createdAt: item.createdAt
+        }));
+
+        res.json(formatted);
+    } catch (error) {
+        res.status(500).json({ message: '取得に失敗しました' });
+    }
 };
 
-export const likeMoodBoardItem = (req, res) => {
+export const likeMoodBoardItem = async (req, res) => {
     const { itemId } = req.params;
-    const item = MOOD_BOARDS.find(i => i.id === itemId);
-    if(!item) return res.status(404).json({ message: 'Item not found' });
-    const idx = item.likedBy.indexOf(req.user.id);
-    if(idx === -1) { item.likedBy.push(req.user.id); item.likes++; }
-    else { item.likedBy.splice(idx, 1); item.likes--; }
-    res.json(item);
+    const userId = req.user.id;
+    try {
+        const existing = await prisma.moodBoardLike.findUnique({
+            where: { moodBoardItemId_userId: { moodBoardItemId: itemId, userId } }
+        });
+
+        if (existing) {
+            await prisma.moodBoardLike.delete({ where: { id: existing.id } });
+        } else {
+            await prisma.moodBoardLike.create({ data: { moodBoardItemId: itemId, userId } });
+        }
+
+        // 最新の状態を返却
+        const item = await prisma.moodBoardItem.findUnique({
+            where: { id: itemId },
+            include: { likes: { select: { userId: true } }, _count: { select: { likes: true } } }
+        });
+        
+        // 簡易返却 (必要なフィールドのみ)
+        res.json({
+            id: item.id,
+            likes: item._count.likes,
+            likedBy: item.likes.map(l => l.userId)
+        });
+    } catch (error) {
+        res.status(500).json({ message: 'いいね処理に失敗しました' });
+    }
 };
 
-export const deleteMoodBoardItem = (req, res) => {
+export const deleteMoodBoardItem = async (req, res) => {
     const { itemId } = req.params;
-    const idx = MOOD_BOARDS.findIndex(i => i.id === itemId);
-    if(idx !== -1) MOOD_BOARDS.splice(idx, 1);
-    res.status(204).send();
+    try {
+        const item = await prisma.moodBoardItem.findUnique({ where: { id: itemId } });
+        if (!item || item.userId !== req.user.id) {
+            return res.status(403).json({ message: '権限がありません' });
+        }
+        await prisma.moodBoardItem.delete({ where: { id: itemId } });
+        res.status(204).send();
+    } catch (error) {
+        res.status(500).json({ message: '削除に失敗しました' });
+    }
 };
 
-export const officialReact = (req, res) => {
+// --- 推しリアクション ---
+export const officialReact = async (req, res) => {
+    const { id } = req.params; // projectId
+    try {
+        await prisma.officialReaction.upsert({
+            where: { projectId: id },
+            update: { createdAt: new Date() }, // 時間更新
+            create: { projectId: id, comment: "応援ありがとうございます！" }
+        });
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ message: 'リアクション保存に失敗しました' });
+    }
+};
+
+export const getOfficialStatus = async (req, res) => {
     const { id } = req.params;
-    OFFICIAL_REACTIONS[id] = { timestamp: new Date(), comment: "応援ありがとうございます！" };
-    res.json({ success: true });
+    try {
+        const reaction = await prisma.officialReaction.findUnique({ where: { projectId: id } });
+        res.json(reaction ? { timestamp: reaction.createdAt, comment: reaction.comment } : null);
+    } catch (error) {
+        res.status(500).json({ message: '取得に失敗しました' });
+    }
 };
 
-export const getOfficialStatus = (req, res) => {
-    res.json(OFFICIAL_REACTIONS[req.params.id] || null);
+// --- デジタルフラスタ ---
+export const sendDigitalFlower = async (req, res) => {
+    const { id } = req.params; // projectId
+    const { senderName, color, message } = req.body;
+    try {
+        const flower = await prisma.digitalFlower.create({
+            data: {
+                projectId: id,
+                senderName,
+                color,
+                message
+            }
+        });
+        
+        // Socket.IOで配信
+        try {
+            const { getIO } = await import('../config/socket.js');
+            const io = getIO();
+            io.to(id).emit('newDigitalFlower', flower);
+        } catch(e) { console.warn("Socket emit failed"); }
+
+        res.status(201).json(flower);
+    } catch (error) {
+        res.status(500).json({ message: '送信に失敗しました' });
+    }
 };
 
-export const sendDigitalFlower = (req, res) => {
+export const getDigitalFlowers = async (req, res) => {
     const { id } = req.params;
-    const { senderName, color, message, style } = req.body;
-    const flower = { id: Date.now().toString(), projectId: id, senderName, color, message, style, createdAt: new Date() };
-    DIGITAL_FLOWERS.push(flower);
-    res.status(201).json(flower);
-};
-
-export const getDigitalFlowers = (req, res) => {
-    res.json(DIGITAL_FLOWERS.filter(f => f.projectId === req.params.id));
+    try {
+        const flowers = await prisma.digitalFlower.findMany({
+            where: { projectId: id },
+            orderBy: { createdAt: 'asc' }
+        });
+        res.json(flowers);
+    } catch (error) {
+        res.status(500).json({ message: '取得に失敗しました' });
+    }
 };

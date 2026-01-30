@@ -370,6 +370,8 @@ export const resetPassword = async (req, res) => {
     }
 };
 
+// ... (前略)
+
 // ==========================================
 // ★★★ 6. 管理者 (Admin) ★★★
 // ==========================================
@@ -379,16 +381,20 @@ export const loginAdmin = async (req, res) => {
         const { email, password } = req.body;
         const lowerEmail = email.toLowerCase();
         
-        if (password !== process.env.ADMIN_PASSWORD) {
-            return res.status(401).json({ message: '管理者パスワードが違います。' });
-        }
-
+        // 1. DBからユーザーを検索
         const adminUser = await prisma.user.findUnique({
-            where: { email: "takuminsitou946@gmail.com" }
+            where: { email: lowerEmail }
         });
 
-        if (!adminUser) {
-            return res.status(404).json({ message: '指定された管理者アカウントがシステムに存在しません。' });
+        // 2. 存在チェック & 権限チェック
+        if (!adminUser || adminUser.role !== 'ADMIN') {
+            return res.status(401).json({ message: '管理者権限がありません。' });
+        }
+
+        // 3. パスワード照合 (bcrypt)
+        const isMatch = await bcrypt.compare(password, adminUser.password);
+        if (!isMatch) {
+            return res.status(401).json({ message: 'パスワードが間違っています。' });
         }
 
         const token = generateToken({ 

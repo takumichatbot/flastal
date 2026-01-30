@@ -399,23 +399,82 @@ export const likeFloristPost = async (req, res) => {
 };
 
 let SPECIAL_DEALS = [];
-export const createDeal = (req, res) => {
+export const createDeal = async (req, res) => {
     if (req.user.role !== 'FLORIST') return res.status(403).json({ message: '権限がありません。' });
     const { color, flower, discount, message } = req.body;
-    const deal = { id: Date.now().toString(), floristId: req.user.id, floristName: req.user.shopName, color, flower, discount, message, createdAt: new Date() };
-    SPECIAL_DEALS.push(deal);
-    res.status(201).json(deal);
+    
+    try {
+        const deal = await prisma.floristDeal.create({
+            data: {
+                floristId: req.user.id,
+                color,
+                flower,
+                discount: parseInt(discount),
+                message
+            }
+        });
+        res.status(201).json(deal);
+    } catch (error) {
+        res.status(500).json({ message: 'キャンペーン作成に失敗しました' });
+    }
 };
-export const getMyDeals = (req, res) => {
-    res.json(SPECIAL_DEALS.filter(d => d.floristId === req.user.id));
+
+export const getMyDeals = async (req, res) => {
+    if (req.user.role !== 'FLORIST') return res.status(403).json({ message: '権限がありません。' });
+    try {
+        const deals = await prisma.floristDeal.findMany({
+            where: { floristId: req.user.id },
+            orderBy: { createdAt: 'desc' }
+        });
+        res.json(deals);
+    } catch (error) {
+        res.status(500).json({ message: '取得に失敗しました' });
+    }
 };
-export const searchDeals = (req, res) => {
+
+export const deleteDeal = async (req, res) => {
+    const { id } = req.params;
+    if (req.user.role !== 'FLORIST') return res.status(403).json({ message: '権限がありません。' });
+    
+    try {
+        // 自分の投稿か確認
+        const deal = await prisma.floristDeal.findUnique({ where: { id } });
+        if (!deal || deal.floristId !== req.user.id) {
+            return res.status(404).json({ message: '削除対象が見つかりません' });
+        }
+        
+        await prisma.floristDeal.delete({ where: { id } });
+        res.status(204).send();
+    } catch (error) {
+        res.status(500).json({ message: '削除に失敗しました' });
+    }
+};
+
+export const searchDeals = async (req, res) => {
     const { keyword } = req.query;
-    if (!keyword) return res.json(SPECIAL_DEALS);
-    const matches = SPECIAL_DEALS.filter(d => 
-        (d.color && d.color.includes(keyword)) || 
-        (d.flower && d.flower.includes(keyword)) || 
-        (d.message && d.message.includes(keyword))
-    );
-    res.json(matches);
+    try {
+        const where = keyword ? {
+            OR: [
+                { color: { contains: keyword, mode: 'insensitive' } },
+                { flower: { contains: keyword, mode: 'insensitive' } },
+                { message: { contains: keyword, mode: 'insensitive' } }
+            ]
+        } : {};
+
+        const deals = await prisma.floristDeal.findMany({
+            where,
+            orderBy: { createdAt: 'desc' },
+            include: { florist: { select: { shopName: true, platformName: true } } } // 店名も含めて返す
+        });
+        
+        // フロントエンドの形式に合わせて整形
+        const formatted = deals.map(d => ({
+            ...d,
+            floristName: d.florist.platformName || d.florist.shopName
+        }));
+        
+        res.json(formatted);
+    } catch (error) {
+        res.status(500).json({ message: '検索に失敗しました' });
+    }
 };

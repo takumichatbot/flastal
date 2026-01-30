@@ -5,7 +5,7 @@ import { jwtDecode } from 'jwt-decode';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 
-const BASE_BACKEND_URL = 'https://flastal-backend.onrender.com';
+const BASE_BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 const AuthContext = createContext({
   user: null,

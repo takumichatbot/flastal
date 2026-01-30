@@ -3,6 +3,7 @@ import cors from 'cors';
 import Stripe from 'stripe'; 
 import webpush from 'web-push';
 import prisma from './config/prisma.js';
+import postRoutes from './routes/posts.js';
 import { sendEmail } from './utils/email.js';
 import { createNotification } from './utils/notification.js';
 
@@ -154,6 +155,7 @@ app.use('/api/tools', toolRoutes);
 app.use('/api/ai', toolRoutes); // ★ 追加：フロントエンドの /api/ai/... リクエストに対応
 app.use('/api/payment', paymentRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/posts', postRoutes);
 
 // 404ハンドラー
 app.use((req, res) => {

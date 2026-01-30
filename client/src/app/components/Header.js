@@ -240,7 +240,9 @@ export default function Header() {
   }, [user]);
 
   const getPrimaryLink = useMemo(() => {
-    if (!user) return '/login';
+    // ★修正: userオブジェクトだけでなく、user.id の存在もチェック
+    if (!user || !user.id) return '/login';
+  
     switch (user.role) {
       case 'ADMIN': return '/admin';
       case 'FLORIST': return '/florists/dashboard';
