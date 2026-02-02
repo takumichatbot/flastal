@@ -1,7 +1,9 @@
 "use client";
 import { useState } from 'react';
 import toast from 'react-hot-toast';
-import { FiUser, FiMail, FiMessageSquare, FiCreditCard, FiCheck, FiInfo, FiLock } from 'react-icons/fi';
+import { FiUser, FiMail, FiMessageSquare, FiCreditCard, FiCheck, FiInfo, FiLock, FiLoader } from 'react-icons/fi';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
 export default function GuestPledgeForm({ projectId, projectTitle, onCancel, onSuccess }) {
   const [loading, setLoading] = useState(false);
@@ -16,7 +18,8 @@ export default function GuestPledgeForm({ projectId, projectTitle, onCancel, onS
   const PRESET_AMOUNTS = [1000, 3000, 5000, 10000];
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setFormData((prevState) => ({ ...prevState, [name]: value }));
   };
 
   const handleAmountPreset = (val) => {
@@ -34,16 +37,20 @@ export default function GuestPledgeForm({ projectId, projectTitle, onCancel, onS
     }
 
     setLoading(true);
-    const toastId = toast.loading('決済準備中...');
+    const toastId = toast.loading('決済ページへ移動中...');
 
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/payment/guest/pledges`, {
+      // ★修正: 決済セッション作成APIを呼び出す
+      const res = await fetch(`${API_URL}/api/payment/checkout/create-guest-session`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           projectId,
           ...formData,
-          amount: Number(formData.amount)
+          amount: Number(formData.amount),
+          // ★追加: 決済完了・キャンセル時の戻り先URL
+          successUrl: `${window.location.origin}/projects/${projectId}?payment=success`,
+          cancelUrl: `${window.location.origin}/projects/${projectId}?payment=cancelled`,
         })
       });
 
@@ -51,16 +58,12 @@ export default function GuestPledgeForm({ projectId, projectTitle, onCancel, onS
 
       if (!res.ok) throw new Error(data.message || 'エラーが発生しました');
 
-      // 決済URLがあればリダイレクト (Stripe Checkout等)
-      if (data.checkoutUrl) {
-          toast.loading('決済ページへ移動します...', { id: toastId });
-          window.location.href = data.checkoutUrl;
-          return;
+      // ★修正: sessionUrl が返ってくるのでリダイレクトする
+      if (data.sessionUrl) {
+          window.location.href = data.sessionUrl;
+      } else {
+          throw new Error('決済URLの取得に失敗しました');
       }
-
-      // URLがない場合は完了とする (銀行振込などの場合)
-      toast.success('ゲスト支援を受け付けました！メールをご確認ください。', { id: toastId });
-      if (onSuccess) onSuccess();
 
     } catch (error) {
       console.error(error);
@@ -197,6 +200,7 @@ export default function GuestPledgeForm({ projectId, projectTitle, onCancel, onS
           <button
             type="button"
             onClick={onCancel}
+            disabled={loading}
             className="flex-1 py-3.5 bg-white border border-gray-300 text-gray-700 rounded-xl font-bold hover:bg-gray-50 transition-colors"
           >
             キャンセル
@@ -207,7 +211,7 @@ export default function GuestPledgeForm({ projectId, projectTitle, onCancel, onS
             className="flex-[2] py-3.5 bg-gradient-to-r from-pink-500 to-rose-600 text-white rounded-xl font-bold shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2"
           >
             {loading ? (
-                <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+                <><FiLoader className="animate-spin" /> 準備中...</>
             ) : (
                 <><FiCreditCard /> 支払いに進む</>
             )}
