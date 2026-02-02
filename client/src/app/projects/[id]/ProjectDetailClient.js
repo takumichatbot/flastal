@@ -227,7 +227,7 @@ function PledgeForm({ project, user, onPledgeSubmit, isPledger }) {
     
     const loadingToast = toast.loading('Stripe決済ページへ移動中...');
     try {
-      const res = await fetch(`${API_URL}/api/checkout/create-guest-session`, {
+      const res = await fetch(`${API_URL}/api/payment/checkout/create-guest-session`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -771,7 +771,7 @@ export default function ProjectDetailClient() {
   const onPledgeSubmit = (data) => {
     if (!user) return toast.error('ログインが必要です。');
     const token = getAuthToken();
-    const promise = fetch(`${API_URL}/api/pledges`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify(data) }).then(res => { if(!res.ok) throw new Error('失敗'); return res.json(); });
+    const promise = fetch(`${API_URL}/api/payment/pledges`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify(data) }).then(res => { if(!res.ok) throw new Error('失敗'); return res.json(); });
     toast.promise(promise, { loading: '処理中...', success: () => { fetchProject(); return '支援完了！'; }, error: '失敗しました' });
   };
 

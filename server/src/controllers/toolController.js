@@ -128,26 +128,41 @@ export const generateAiImage = async (req, res) => {
     const { prompt } = req.body;
     if (!prompt) return res.status(400).json({ message: 'プロンプトが必要です。' });
 
+    // APIキーがない場合は即座にエラーを返す (Unsplashへのフォールバックは削除)
+    if (!process.env.OPENAI_API_KEY) {
+        console.error("OpenAI API Key is missing.");
+        return res.status(500).json({ message: 'サーバー側のAI設定が不足しています(API Key未設定)' });
+    }
+
     try {
-        let imageUrl = '';
-        if (process.env.OPENAI_API_KEY) {
-            const response = await openai.images.generate({
-                model: "dall-e-3",
-                prompt: `フラワースタンドのデザイン画。アニメやアイドルのライブイベント用。詳細: ${prompt}`,
-                n: 1,
-                size: "1024x1024",
-                quality: "standard",
-            });
-            const tempUrl = response.data[0].url;
-            const uploadResult = await cloudinary.uploader.upload(tempUrl, { folder: 'flastal_ai_generated' });
-            imageUrl = uploadResult.secure_url;
-        } else {
-            imageUrl = `https://source.unsplash.com/featured/?flower,arrangement&${Date.now()}`;
-        }
+        // 1. OpenAI (DALL-E 3) で画像を生成
+        const response = await openai.images.generate({
+            model: "dall-e-3",
+            prompt: `フラワースタンドのデザイン画。アニメやアイドルのライブイベント用。詳細: ${prompt}`,
+            n: 1,
+            size: "1024x1024",
+            quality: "standard",
+        });
+
+        const tempUrl = response.data[0].url;
+
+        // 2. Cloudinaryへアップロード (生成されたURLは一時的なものなので保存必須)
+        // ※ CLOUDINARY_... の環境変数が設定されているか確認してください
+        const uploadResult = await cloudinary.uploader.upload(tempUrl, { 
+            folder: 'flastal_ai_generated' 
+        });
+        
+        const imageUrl = uploadResult.secure_url;
+
         res.status(200).json({ url: imageUrl });
+
     } catch (error) {
         console.error("AI画像生成エラー:", error);
-        res.status(500).json({ message: '画像生成エラー' });
+        // エラー内容をフロントエンドに返す
+        res.status(500).json({ 
+            message: '画像の生成に失敗しました。', 
+            detail: error.message 
+        });
     }
 };
 

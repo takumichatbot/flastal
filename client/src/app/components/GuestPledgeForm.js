@@ -37,7 +37,7 @@ export default function GuestPledgeForm({ projectId, projectTitle, onCancel, onS
     const toastId = toast.loading('決済準備中...');
 
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/guest/pledges`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/payment/guest/pledges`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

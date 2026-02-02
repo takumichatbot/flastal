@@ -232,13 +232,22 @@ function FloristsListContent() {
     try {
         const formData = new FormData();
         formData.append('image', file);
-        const res = await fetch(`${API_URL}/api/ai/search-florist-by-image`, { method: 'POST', body: formData });
+        const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, ''); // トークン取得
+      
+        const res = await fetch(`${API_URL}/api/ai/search-florist-by-image`, { 
+            method: 'POST', 
+            body: formData,
+            headers: {
+                'Authorization': `Bearer ${token}` // ★この行を追加
+            }
+        });
         if (!res.ok) throw new Error('解析失敗');
         const data = await res.json();
         const firstTag = data.analyzedTags[0] || '';
         setDetectedTags(data.analyzedTags);
         setFilters(prev => ({ ...prev, tag: firstTag }));
         toast.success(`「${firstTag}」などの特徴が見つかりました！`, { id: toastId });
+        
     } catch (error) {
         toast.error('画像検索に失敗しました', { id: toastId });
     } finally {
