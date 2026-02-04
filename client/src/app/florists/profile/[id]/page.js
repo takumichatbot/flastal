@@ -90,18 +90,49 @@ export default function FloristProfileEditPage() {
   };
 
   const uploadFile = async (file) => {
-    const formData = new FormData();
-    formData.append('image', file);
-    
-    // FormData送信時はヘッダーをブラウザに任せるため options を調整
-    const res = await authenticatedFetch(`${API_URL}/api/upload`, {
-      method: 'POST',
-      body: formData,
-      headers: {} // authenticatedFetch内で結合される
-    });
-    
-    if (!res.ok) throw new Error('Upload failed');
-    return await res.json();
+    try {
+      // 1. バックエンドから署名付きURL (Presigned URL) を取得
+      const res = await authenticatedFetch(`${API_URL}/api/tools/s3-upload-url`, {
+        method: 'POST',
+        // JSONでファイル情報を送る
+        body: JSON.stringify({ 
+          fileName: file.name, 
+          fileType: file.type 
+        })
+      });
+      
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || '署名の取得に失敗しました');
+      }
+
+      const { uploadUrl, fileUrl } = await res.json();
+
+      // 2. そのURLを使って、S3へ直接アップロード (PUT)
+      // XMLHttpRequestを使うと進捗も取れますが、ここではシンプルにfetchでも可
+      // (今回は既存のコードに合わせてPromiseでラップしたXHR、またはfetchを使います)
+      await new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('PUT', uploadUrl);
+        xhr.setRequestHeader('Content-Type', file.type);
+        xhr.onload = () => {
+          if (xhr.status === 200) {
+            resolve();
+          } else {
+            reject(new Error('S3へのアップロードに失敗しました'));
+          }
+        };
+        xhr.onerror = () => reject(new Error('ネットワークエラー'));
+        xhr.send(file);
+      });
+
+      // 3. 成功したら画像の公開URLを返す
+      return { url: fileUrl };
+
+    } catch (error) {
+      console.error("Upload Error:", error);
+      throw error; // 呼び出し元でcatchさせる
+    }
   };
 
   const handleIconUpload = async (e) => {

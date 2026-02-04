@@ -66,8 +66,9 @@ export default function FloristPayoutsPage() {
 
       // 口座情報と履歴を並行取得
       const [bankRes, payoutRes] = await Promise.all([
-        fetch(`${API_URL}/api/bank-accounts`, { headers }),
-        fetch(`${API_URL}/api/payouts`, { headers })
+          // ★修正: /api/bank-accounts -> /api/florists/bank-accounts に変更
+          fetch(`${API_URL}/api/florists/bank-accounts`, { headers }),
+          fetch(`${API_URL}/api/florists/payouts`, { headers }) // こちらも念のため確認
       ]);
 
       if (bankRes.ok) {
@@ -123,7 +124,7 @@ export default function FloristPayoutsPage() {
     setIsSubmitting(true);
     try {
       const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
-      const res = await fetch(`${API_URL}/api/bank-accounts`, {
+      const res = await fetch(`${API_URL}/api/florists/bank-accounts`, {
         method: 'POST', // サーバー仕様に合わせて PUT or POST
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(bankForm)

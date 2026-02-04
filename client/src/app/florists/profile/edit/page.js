@@ -84,16 +84,33 @@ export default function FloristProfileEditPage() {
     setSelectedTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]);
   };
 
+  // ★修正: S3への直接アップロード方式に変更
   const uploadFile = async (file) => {
-    const formData = new FormData();
-    formData.append('image', file);
-    const res = await authenticatedFetch(`${API_URL}/api/upload`, {
-      method: 'POST',
-      body: formData,
-      headers: {}
-    });
-    if (!res.ok) throw new Error('Upload failed');
-    return await res.json();
+    try {
+      // 1. 署名付きURLを取得
+      const res = await authenticatedFetch(`${API_URL}/api/tools/s3-upload-url`, {
+        method: 'POST',
+        body: JSON.stringify({ fileName: file.name, fileType: file.type })
+      });
+      
+      if (!res.ok) throw new Error('アップロード用URLの取得に失敗しました');
+      const { uploadUrl, fileUrl } = await res.json();
+
+      // 2. S3へ直接アップロード
+      const uploadRes = await fetch(uploadUrl, {
+        method: 'PUT',
+        body: file,
+        headers: { 'Content-Type': file.type }
+      });
+
+      if (!uploadRes.ok) throw new Error('S3への保存に失敗しました');
+
+      // 3. 完了したURLを返す
+      return { url: fileUrl };
+    } catch (error) {
+      console.error("Upload Error:", error);
+      throw error;
+    }
   };
 
   const handleIconUpload = async (e) => {
@@ -106,7 +123,7 @@ export default function FloristProfileEditPage() {
       setIconUrl(data.url);
       toast.success('アイコンを変更しました', { id: toastId });
     } catch (error) {
-      toast.error('失敗しました', { id: toastId });
+      toast.error('失敗しました: ' + error.message, { id: toastId });
     } finally {
       setIsIconUploading(false);
     }
@@ -124,7 +141,7 @@ export default function FloristProfileEditPage() {
       }
       toast.success('追加しました', { id: toastId });
     } catch (error) {
-      toast.error('失敗しました', { id: toastId });
+      toast.error('失敗しました: ' + error.message, { id: toastId });
     } finally {
       setIsPortfolioUploading(false);
     }
@@ -170,7 +187,7 @@ export default function FloristProfileEditPage() {
             <button 
                 onClick={handleSubmit(onSubmit)}
                 disabled={isSubmitting || isIconUploading || isPortfolioUploading}
-                className="hidden sm:flex items-center px-6 py-2.5 bg-pink-600 text-white font-bold rounded-full"
+                className="hidden sm:flex items-center px-6 py-2.5 bg-pink-600 text-white font-bold rounded-full hover:bg-pink-700 disabled:bg-gray-400 transition-colors"
             >
                 {isSubmitting ? <FiLoader className="animate-spin mr-2"/> : <FiSave className="mr-2"/>}
                 変更を保存
