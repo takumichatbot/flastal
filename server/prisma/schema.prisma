@@ -309,6 +309,7 @@ model Florist {
   isVerified        Boolean  @default(false) // ★追加
   verificationToken String?                  // ★追加
   portfolioImages   String[]
+  bankAccount       BankAccount?
   address           String?
   phoneNumber       String?
   acceptsRushOrders Boolean       @default(false)
@@ -349,49 +350,7 @@ model FloristDeal {
   createdAt DateTime @default(now())
 }
 
-model MoodBoardItem {
-  id        String   @id @default(cuid())
-  projectId String
-  project   Project  @relation(fields: [projectId], references: [id])
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
-  imageUrl  String
-  comment   String?
-  createdAt DateTime @default(now())
-  likes     MoodBoardLike[]
-}
 
-// ムードボードへのいいね (MoodBoardLike)
-model MoodBoardLike {
-  id              String        @id @default(cuid())
-  moodBoardItemId String
-  item            MoodBoardItem @relation(fields: [moodBoardItemId], references: [id], onDelete: Cascade)
-  userId          String
-  user            User          @relation(fields: [userId], references: [id])
-  createdAt       DateTime      @default(now())
-
-  @@unique([moodBoardItemId, userId]) // 1人1いいね
-}
-
-// デジタルフラスタ (DigitalFlower)
-model DigitalFlower {
-  id         String   @id @default(cuid())
-  projectId  String
-  project    Project  @relation(fields: [projectId], references: [id])
-  senderName String
-  color      String
-  message    String?
-  createdAt  DateTime @default(now())
-}
-
-// 推しリアクション (OfficialReaction)
-model OfficialReaction {
-  id        String   @id @default(cuid())
-  projectId String   @unique
-  project   Project  @relation(fields: [projectId], references: [id])
-  comment   String?
-  createdAt DateTime @default(now())
-}
 
 model Offer {
   id        String      @id @default(cuid())
@@ -901,15 +860,21 @@ model AdminChatMessage {
 
 model BankAccount {
   id            String   @id @default(cuid())
-  userId        String   @unique // 1ユーザー1口座
-  bankName      String   // 銀行名
-  branchName    String   // 支店名
-  branchCode    String?  // 支店コード (任意)
-  accountType   String   // 口座種別 (普通/当座)
-  accountNumber String   // 口座番号
-  accountHolder String   // 口座名義 (全角カナ)
   
-  user          User     @relation(fields: [userId], references: [id])
+  // userIdを任意(String?)に変更
+  userId        String?  @unique 
+  user          User?    @relation(fields: [userId], references: [id])
+
+  // floristIdを追加
+  floristId     String?  @unique
+  florist       Florist? @relation(fields: [floristId], references: [id])
+
+  bankName      String
+  branchName    String
+  branchCode    String?
+  accountType   String
+  accountNumber String
+  accountHolder String
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }
@@ -931,3 +896,48 @@ model Payout {
   user          User     @relation(fields: [userId], references: [id])
 }
 // -----------------------------------------------------
+
+// ムードボード (MoodBoardItem)
+model MoodBoardItem {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id])
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  imageUrl  String
+  comment   String?
+  createdAt DateTime @default(now())
+  likes     MoodBoardLike[]
+}
+
+// ムードボードへのいいね (MoodBoardLike)
+model MoodBoardLike {
+  id              String        @id @default(cuid())
+  moodBoardItemId String
+  item            MoodBoardItem @relation(fields: [moodBoardItemId], references: [id], onDelete: Cascade)
+  userId          String
+  user            User          @relation(fields: [userId], references: [id])
+  createdAt       DateTime      @default(now())
+
+  @@unique([moodBoardItemId, userId]) // 1人1いいね
+}
+
+// デジタルフラスタ (DigitalFlower)
+model DigitalFlower {
+  id         String   @id @default(cuid())
+  projectId  String
+  project    Project  @relation(fields: [projectId], references: [id])
+  senderName String
+  color      String
+  message    String?
+  createdAt  DateTime @default(now())
+}
+
+// 推しリアクション (OfficialReaction)
+model OfficialReaction {
+  id        String   @id @default(cuid())
+  projectId String   @unique
+  project   Project  @relation(fields: [projectId], references: [id])
+  comment   String?
+  createdAt DateTime @default(now())
+}

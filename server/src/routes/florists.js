@@ -28,6 +28,9 @@ router.post('/posts', authenticateToken, floristController.createFloristPost);
 router.get('/deals', authenticateToken, floristController.getMyDeals);
 router.post('/deals', authenticateToken, floristController.createDeal);
 
+router.get('/bank-accounts', authenticateToken, floristController.getFloristBankAccount);
+router.post('/bank-accounts', authenticateToken, floristController.registerFloristBankAccount); // PUT/POST兼用
+
 // ==========================================
 // 2. 準静的ルート（PATCHなど）
 // ==========================================

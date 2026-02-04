@@ -14,26 +14,26 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
  */
 export const getFloristProfile = async (req, res) => {
     try {
-        if (!req.user || req.user.role !== 'FLORIST') {
-            return res.status(401).json({ message: '認証情報が不足しています。' });
+        const floristId = req.user.id; // トークンからID取得
+
+        // ★修正: req.user.raw がない場合のフォールバック検索を追加
+        let florist = req.user.raw;
+        if (!florist) {
+            florist = await prisma.florist.findUnique({
+                where: { id: floristId }
+            });
         }
 
-        // ミドルウェアで取得・保持されているデータをそのまま利用
-        // これにより Prisma の findUnique 失敗による 404 を回避する
-        const floristData = req.user.raw;
-
-        if (!floristData) {
-            return res.status(404).json({ message: 'お花屋さんの情報が取得できませんでした。' });
+        if (!florist) {
+            return res.status(404).json({ message: 'お花屋さん情報が見つかりません。' });
         }
 
-        // パスワードなどの機密情報を除外（念のため）
-        const { password, laruBotApiKey, ...safeData } = floristData;
-        
-        // 成功として返却
+        // パスワードを除外
+        const { password, laruBotApiKey, ...safeData } = florist;
         res.status(200).json(safeData);
     } catch (error) {
         console.error('getFloristProfile Error:', error);
-        res.status(500).json({ message: 'プロフィールの取得中にサーバーエラーが発生しました。' });
+        res.status(500).json({ message: 'サーバーエラーが発生しました。' });
     }
 };
 
@@ -283,23 +283,65 @@ export const finalizeQuotation = async (req, res) => {
 // ★★★ 3. お花屋さん管理 (Profile & Payouts) ★★★
 // ==========================================
 
+// ■ 2. 制作実績（ポートフォリオ）更新の修正
 export const updateFloristProfile = async (req, res) => {
     const floristId = req.user.id;
-    if (req.user.role !== 'FLORIST') return res.status(403).json({ message: '権限がありません。' });
-
-    const { shopName, platformName, contactName, address, phoneNumber, website, portfolio, laruBotApiKey, portfolioImages, businessHours, iconUrl, specialties, acceptsRushOrders } = req.body;
+    // ... (入力データの取得) ...
+    const { portfolioImages, ...otherData } = req.body; // 画像配列を取り出す
 
     try {
-        let dataToUpdate = { shopName, platformName, contactName, address, phoneNumber, website, portfolio, laruBotApiKey, businessHours, iconUrl, specialties, acceptsRushOrders };
-        if (portfolioImages && Array.isArray(portfolioImages)) {
-            dataToUpdate.portfolioImages = portfolioImages.map(item => typeof item === 'string' ? item : JSON.stringify(item));
+        let dataToUpdate = { ...otherData };
+
+        // ★修正: 画像配列が空でも更新できるように明示的に処理
+        if (Array.isArray(portfolioImages)) {
+            dataToUpdate.portfolioImages = portfolioImages;
         }
 
-        const updated = await prisma.florist.update({ where: { id: floristId }, data: dataToUpdate });
+        const updated = await prisma.florist.update({
+            where: { id: floristId },
+            data: dataToUpdate
+        });
+        
         const { password, ...clean } = updated;
         res.status(200).json(clean);
     } catch (error) {
+        console.error('Update Error:', error);
         res.status(500).json({ message: 'プロフィールの更新に失敗しました。' });
+    }
+};
+
+
+// ■ 3. 銀行口座の登録・更新 (新規追加)
+export const registerFloristBankAccount = async (req, res) => {
+    const { bankName, branchName, accountType, accountNumber, accountHolder } = req.body;
+    const floristId = req.user.id;
+
+    try {
+        const account = await prisma.bankAccount.upsert({
+            where: { floristId: floristId },
+            update: { bankName, branchName, accountType, accountNumber, accountHolder },
+            create: {
+                floristId: floristId,
+                userId: null, // 明示的にnull
+                bankName, branchName, accountType, accountNumber, accountHolder
+            }
+        });
+        res.json(account);
+    } catch (error) {
+        console.error('Bank Account Error:', error);
+        res.status(500).json({ message: '口座情報の保存に失敗しました' });
+    }
+};
+
+// ■ 4. 銀行口座の取得 (新規追加)
+export const getFloristBankAccount = async (req, res) => {
+    try {
+        const account = await prisma.bankAccount.findUnique({
+            where: { floristId: req.user.id }
+        });
+        res.json(account || {});
+    } catch (error) {
+        res.status(500).json({ message: '取得失敗' });
     }
 };
 
