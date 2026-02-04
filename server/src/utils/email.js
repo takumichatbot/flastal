@@ -4,6 +4,18 @@ import prisma from '../config/prisma.js';
 const resend = new Resend(process.env.RESEND_API_KEY);
 const FROM_EMAIL = process.env.EMAIL_FROM || 'FLASTAL <noreply@flastal.com>';
 
+// ★追加: データベースにない場合のデフォルトテンプレート定義
+const DEFAULT_TEMPLATES = {
+    'VERIFICATION_EMAIL': {
+        subject: '【FLASTAL】メールアドレスの確認',
+        body: '<p>{{userName}} 様</p><p>FLASTALにご登録ありがとうございます。</p><p>以下のリンクをクリックして、メールアドレスの認証を完了してください。</p><p><a href="{{verificationUrl}}">{{verificationUrl}}</a></p><p>※このリンクの有効期限は1時間です。</p>'
+    },
+    'WELCOME': {
+        subject: '【FLASTAL】登録完了のお知らせ',
+        body: '<p>{{userName}} 様</p><p>会員登録が完了しました。これからFLASTALで推し活をお楽しみください！</p>'
+    }
+};
+
 // 基本的なメール送信関数
 export async function sendEmail(to, subject, htmlContent) {
     const cleanTo = to ? to.trim() : '';
@@ -58,20 +70,37 @@ export async function sendDynamicEmail(toEmail, templateKey, variables = {}) {
     }
 
     try {
-        // DBからテンプレート取得
+        // 1. DBからテンプレート取得を試みる
         const template = await prisma.emailTemplate.findUnique({
             where: { key: templateKey }
         });
 
-        // テンプレートがない場合のデフォルト設定
-        let subjectTemplate = '【FLASTAL】お知らせ';
-        let bodyTemplate = '<p>通知が届きました。</p><p>{{message}}</p>';
+        let subjectTemplate = '';
+        let bodyTemplate = '';
 
         if (template) {
+            // DBにあればそれを使う
             subjectTemplate = template.subject;
             bodyTemplate = template.body;
         } else {
-            console.warn(`[Email Warning] Template not found for key: ${templateKey}. Using fallback.`);
+            // 2. DBになければコード内のデフォルトを使う (ここが修正ポイント)
+            const defaultTpl = DEFAULT_TEMPLATES[templateKey];
+            if (defaultTpl) {
+                console.log(`[Email Info] Using default template for key: ${templateKey}`);
+                subjectTemplate = defaultTpl.subject;
+                bodyTemplate = defaultTpl.body;
+            } else {
+                // デフォルトもなければ汎用メッセージ (最終手段)
+                console.warn(`[Email Warning] Template not found for key: ${templateKey}. Using fallback.`);
+                subjectTemplate = '【FLASTAL】お知らせ';
+                // 変数がある場合はそれを表示するように変更
+                bodyTemplate = '<p>通知が届きました。</p>';
+                if (variables.message) {
+                    bodyTemplate += '<p>{{message}}</p>';
+                } else {
+                    bodyTemplate += '<p>詳細をご確認ください。</p>';
+                }
+            }
         }
 
         // 変数置換の実行
