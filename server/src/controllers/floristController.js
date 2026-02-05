@@ -16,21 +16,54 @@ export const getFloristProfile = async (req, res) => {
     try {
         const floristId = req.user.id; // トークンからID取得
 
-        // ★修正: req.user.raw がない場合のフォールバック検索を追加
-        let florist = req.user.raw;
-        if (!florist) {
-            florist = await prisma.florist.findUnique({
-                where: { id: floristId }
-            });
-        }
+        // 1. 花屋の基本情報とオファーを取得
+        const florist = await prisma.florist.findUnique({
+            where: { id: floristId },
+            include: {
+                // オファー情報（プロジェクト内容も含む）
+                offers: {
+                    include: {
+                        project: {
+                            select: {
+                                id: true,
+                                title: true,
+                                targetAmount: true,
+                                deliveryDateTime: true,
+                                productionStatus: true
+                            }
+                        }
+                    },
+                    orderBy: { createdAt: 'desc' }
+                }
+            }
+        });
 
         if (!florist) {
             return res.status(404).json({ message: 'お花屋さん情報が見つかりません。' });
         }
 
-        // パスワードを除外
+        // 2. 制作アピール投稿を取得（公開・非公開問わず全て）
+        const appealPosts = await prisma.floristPost.findMany({
+            where: { floristId: floristId },
+            include: {
+                likes: true, 
+                _count: { select: { likes: true } } 
+            },
+            orderBy: { createdAt: 'desc' }
+        });
+
+        // 3. データを結合して返却
         const { password, laruBotApiKey, ...safeData } = florist;
-        res.status(200).json(safeData);
+        
+        // ダッシュボードが期待している形に整形
+        const responseData = {
+            ...safeData,
+            appealPosts: appealPosts, // ここに投稿リストが入ります
+            offers: florist.offers || []
+        };
+
+        res.status(200).json(responseData);
+
     } catch (error) {
         console.error('getFloristProfile Error:', error);
         res.status(500).json({ message: 'サーバーエラーが発生しました。' });
