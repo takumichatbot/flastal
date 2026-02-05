@@ -28,6 +28,9 @@ router.post('/posts', authenticateToken, floristController.createFloristPost);
 router.get('/deals', authenticateToken, floristController.getMyDeals);
 router.post('/deals', authenticateToken, floristController.createDeal);
 
+router.patch('/posts/:id', authenticateToken, floristController.updateFloristPost); // 更新用
+router.delete('/posts/:id', authenticateToken, floristController.deleteFloristPost); // 削除用
+
 router.get('/bank-accounts', authenticateToken, floristController.getFloristBankAccount);
 router.post('/bank-accounts', authenticateToken, floristController.registerFloristBankAccount); // PUT/POST兼用
 

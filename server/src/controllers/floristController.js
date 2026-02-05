@@ -70,6 +70,56 @@ export const getFloristProfile = async (req, res) => {
     }
 };
 
+// ★追加1: 投稿の更新 (公開/非公開の切り替え)
+export const updateFloristPost = async (req, res) => {
+    const { id } = req.params;
+    const floristId = req.user.id;
+    const { isPublic, content } = req.body;
+
+    if (req.user.role !== 'FLORIST') return res.status(403).json({ message: '権限がありません。' });
+
+    try {
+        const post = await prisma.floristPost.findUnique({ where: { id } });
+        if (!post || post.floristId !== floristId) {
+            return res.status(403).json({ message: '編集権限がありません。' });
+        }
+
+        const dataToUpdate = {};
+        if (isPublic !== undefined) dataToUpdate.isPublic = isPublic;
+        if (content !== undefined) dataToUpdate.content = content;
+
+        const updated = await prisma.floristPost.update({
+            where: { id },
+            data: dataToUpdate
+        });
+        res.json(updated);
+    } catch (error) {
+        console.error('updateFloristPost Error:', error);
+        res.status(500).json({ message: '更新に失敗しました。' });
+    }
+};
+
+// ★追加2: 投稿の削除
+export const deleteFloristPost = async (req, res) => {
+    const { id } = req.params;
+    const floristId = req.user.id;
+
+    if (req.user.role !== 'FLORIST') return res.status(403).json({ message: '権限がありません。' });
+
+    try {
+        const post = await prisma.floristPost.findUnique({ where: { id } });
+        if (!post || post.floristId !== floristId) {
+            return res.status(403).json({ message: '削除権限がありません。' });
+        }
+
+        await prisma.floristPost.delete({ where: { id } });
+        res.status(204).send();
+    } catch (error) {
+        console.error('deleteFloristPost Error:', error);
+        res.status(500).json({ message: '削除に失敗しました。' });
+    }
+};
+
 export const getFlorists = async (req, res) => {
     try {
         const { keyword, prefecture, rush, tag } = req.query;
