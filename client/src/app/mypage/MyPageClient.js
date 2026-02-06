@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useAuth } from '@/app/contexts/AuthContext';
@@ -7,16 +7,25 @@ import Link from 'next/link';
 import toast from 'react-hot-toast';
 import Image from 'next/image';
 import { 
-  FiUser, FiList, FiHeart, FiBell, FiSettings, 
-  FiPlus, FiActivity, FiCheckCircle, FiAlertCircle, 
-  FiShoppingCart, FiSearch, FiCamera, FiLogOut, FiChevronRight,
-  FiAward, FiMessageSquare, FiTrendingUp, FiClock, FiStar,
-  FiMapPin, FiFlag, FiCompass, FiZap, FiUsers, FiTag
+  FiUser, FiHeart, FiBell, FiSettings, 
+  FiPlus, FiActivity, FiSearch, FiCamera, 
+  FiAward, FiClock, FiUsers, FiStar
 } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 
 import UploadForm from '@/app/components/UploadForm'; 
 import SupportLevelBadge from '@/app/components/SupportLevelBadge'; 
+
+// ★追加: 新しいレイアウトコンポーネントをインポート
+import {
+  DashboardContainer,
+  DashboardSidebar,
+  DashboardMain,
+  NavButton,
+  NavSection,
+  PointsCard,
+  StatCard // 必要に応じて使用
+} from '@/app/components/DashboardLayout';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -52,7 +61,7 @@ const ProgressSteps = ({ currentStep }) => {
     );
 };
 
-// --- 企画カード（オーナー/バッカー識別バッジ付き） ---
+// --- 企画カード ---
 function ProjectCard({ project, roleType }) {
     const config = PROJECT_STATUS_CONFIG[project.status] || { label: project.status, color: 'text-gray-600', bg: 'bg-gray-50', border: 'border-gray-100', step: 0 };
     const progress = project.targetAmount > 0 ? Math.min((project.collectedAmount / project.targetAmount) * 100, 100) : 0;
@@ -66,7 +75,6 @@ function ProjectCard({ project, roleType }) {
                     <div className="w-full h-full bg-slate-50 flex items-center justify-center text-slate-200 text-3xl">💐</div>
                 )}
                 
-                {/* 役割バッジ (主催か参加か) */}
                 <div className="absolute top-4 right-4">
                     {roleType === 'owner' ? (
                         <span className="bg-slate-900 text-white text-[9px] font-black px-3 py-1.5 rounded-full shadow-lg flex items-center gap-1 uppercase tracking-widest">
@@ -128,10 +136,7 @@ export default function MyPageClient() {
   const [myPosts, setMyPosts] = useState([]);
   const [loadingData, setLoadingData] = useState(true);
 
-  const oshiThemeStyle = useMemo(() => ({
-    '--oshi-color': user?.themeColor || '#ec4899', 
-  }), [user?.themeColor]);
-
+  // データ取得
   const fetchMyData = useCallback(async () => {
     if (!user?.id) return;
     setLoadingData(true);
@@ -159,62 +164,42 @@ export default function MyPageClient() {
   
   if (authLoading || !user) return <div className="min-h-screen flex items-center justify-center bg-white"><div className="animate-spin w-8 h-8 border-4 border-pink-500 border-t-transparent rounded-full" /></div>;
 
-  const NavButton = ({ id, label, icon: Icon, badge, color = "text-slate-600" }) => (
-    <button onClick={() => setActiveTab(id)} className={`w-full flex items-center gap-4 px-8 py-4 text-[15px] font-bold transition-all relative ${activeTab === id ? 'text-[var(--oshi-color)] bg-[var(--oshi-color)]/5' : `${color} hover:bg-slate-50`}`}>
-        <Icon size={20} className={activeTab === id ? "text-[var(--oshi-color)]" : "text-slate-400"} />
-        <span className="flex-grow text-left">{label}</span>
-        {badge > 0 && <span className="bg-[var(--oshi-color)] text-white text-[10px] font-black px-2 py-0.5 rounded-full">{badge}</span>}
-        {activeTab === id && <div className="absolute left-0 w-1.5 h-full bg-[var(--oshi-color)]" />}
-    </button>
-  );
-
+  // ★ 修正: DashboardLayout を使用して全体をラップする
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row" style={oshiThemeStyle}>
-      {/* --- サイドバー --- */}
-      <aside className="w-full md:w-80 bg-white border-r border-slate-100 sticky top-0 md:h-screen overflow-y-auto flex flex-col z-20 shadow-sm">
-        <div className="p-10 pb-6 flex flex-col items-center border-b border-slate-50">
-            <div className="w-24 h-24 rounded-[2rem] relative overflow-hidden border-4 border-white shadow-2xl mb-5 group ring-4 ring-[var(--oshi-color)]/5">
-                {user.iconUrl ? <Image src={user.iconUrl} alt="アイコン" fill className="object-cover" /> : <div className="w-full h-full bg-slate-50 flex items-center justify-center text-slate-200"><FiUser size={40}/></div>}
-                <Link href="/mypage/edit" className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    <FiCamera className="text-white" size={24} />
-                </Link>
-            </div>
-            <h2 className="font-black text-slate-900 text-xl tracking-tighter">{user.handleName}</h2>
-            <div className="mt-3"><SupportLevelBadge level={user.supportLevel} /></div>
-        </div>
-
-        <div className="px-6 py-6">
-            <div className="bg-slate-900 rounded-[2rem] p-6 text-white shadow-2xl shadow-slate-300 relative overflow-hidden group">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16 transition-transform group-hover:scale-110" />
-                <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-2">My Points</p>
-                <div className="flex justify-between items-center relative z-10">
-                    <p className="text-3xl font-black tracking-tight">{(user.points || 0).toLocaleString()}<span className="text-xs ml-1 text-slate-500 uppercase">pt</span></p>
-                    <Link href="/points" className="bg-[var(--oshi-color)] hover:opacity-90 p-3 rounded-2xl transition-all shadow-lg shadow-[var(--oshi-color)]/20 active:scale-90"><FiPlus size={20}/></Link>
-                </div>
-            </div>
-        </div>
-
-        <nav className="mt-2 flex-grow pb-10">
-            <p className="px-8 text-[10px] font-black text-slate-300 uppercase tracking-[0.25em] mb-4 mt-4">Dashboard</p>
-            <NavButton id="home" label="マイ企画一覧" icon={FiActivity} />
-            <NavButton id="created" label="主催のみ" icon={FiStar} badge={createdProjects.length} />
-            <NavButton id="pledged" label="参加のみ" icon={FiHeart} badge={pledgedProjects.length} />
-            <NavButton id="album" label="アルバム" icon={FiCamera} />
+    <DashboardContainer themeColor={user?.themeColor || '#ec4899'}>
+      <DashboardSidebar
+        user={user}
+        badge={<div className="mt-3"><SupportLevelBadge level={user.supportLevel} /></div>}
+        pointsDisplay={
+           <PointsCard 
+             points={user.points || 0} 
+             onAddPoints={() => router.push('/points')}
+           />
+        }
+        navigation={
+          <>
+            <NavSection title="Dashboard" />
+            <NavButton id="home" label="マイ企画一覧" icon={FiActivity} activeTab={activeTab} onClick={setActiveTab} />
+            <NavButton id="created" label="主催のみ" icon={FiStar} badge={createdProjects.length} activeTab={activeTab} onClick={setActiveTab} />
+            <NavButton id="pledged" label="参加のみ" icon={FiHeart} badge={pledgedProjects.length} activeTab={activeTab} onClick={setActiveTab} />
+            <NavButton id="album" label="アルバム" icon={FiCamera} activeTab={activeTab} onClick={setActiveTab} />
             
-            <p className="px-8 text-[10px] font-black text-slate-300 uppercase tracking-[0.25em] mb-4 mt-8">Settings</p>
-            <NavButton id="notifications" label="お知らせ" icon={FiBell} badge={unreadCount} />
-            <NavButton id="settings" label="プロフィール設定" icon={FiSettings} />
-            <button onClick={logout} className="w-full flex items-center gap-4 px-8 py-6 text-[15px] font-bold text-red-400 hover:bg-red-50/50 transition-all mt-4 border-t border-slate-50">
-                <FiLogOut size={20} /><span>ログアウト</span>
-            </button>
-        </nav>
-      </aside>
+            <NavSection title="Settings" />
+            <NavButton id="notifications" label="お知らせ" icon={FiBell} badge={unreadCount} activeTab={activeTab} onClick={setActiveTab} />
+            <NavButton id="settings" label="プロフィール設定" icon={FiSettings} activeTab={activeTab} onClick={setActiveTab} />
+          </>
+        }
+        onLogout={() => {
+            logout();
+            router.push('/login');
+        }}
+      />
 
       {/* --- メインコンテンツ --- */}
-      <main className="flex-grow p-6 md:p-12 lg:p-20 overflow-y-auto">
+      <DashboardMain>
         <div className="max-w-4xl mx-auto">
             
-            {/* ホームタブ（ここがすぐ企画一覧になる） */}
+            {/* ホームタブ */}
             {activeTab === 'home' && (
                 <div className="space-y-12 animate-fadeIn">
                     <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
@@ -247,7 +232,7 @@ export default function MyPageClient() {
                                 <ProjectCard key={pledge.id} project={pledge.project} roleType="backer" />
                             ))}
 
-                            {/* 企画がゼロの場合の空状態デザイン */}
+                            {/* 企画がゼロの場合 */}
                             {createdProjects.length === 0 && pledgedProjects.length === 0 && (
                                 <div className="bg-white p-20 rounded-[3rem] border-4 border-dashed border-slate-100 text-center flex flex-col items-center">
                                     <div className="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center text-4xl mb-6 shadow-inner">🌸</div>
@@ -261,7 +246,7 @@ export default function MyPageClient() {
                 </div>
             )}
 
-            {/* その他のタブ（Created/Pledged）は個別の絞り込みとして維持 */}
+            {/* Created タブ */}
             {activeTab === 'created' && (
                 <div className="space-y-8 animate-fadeIn">
                     <h2 className="text-2xl font-black text-slate-900 tracking-tight">主催している企画のみ</h2>
@@ -271,6 +256,7 @@ export default function MyPageClient() {
                 </div>
             )}
 
+            {/* Pledged タブ */}
             {activeTab === 'pledged' && (
                 <div className="space-y-8 animate-fadeIn">
                     <h2 className="text-2xl font-black text-slate-900 tracking-tight">参加している企画のみ</h2>
@@ -282,11 +268,11 @@ export default function MyPageClient() {
                 </div>
             )}
 
-            {/* アルバムタブ、お知らせ、設定は以前のデザインを継承 */}
+            {/* アルバムタブ */}
             {activeTab === 'album' && (
                 <div className="space-y-10 animate-fadeIn">
                     <h2 className="text-2xl font-black text-slate-900 tracking-tight uppercase">Memory Album</h2>
-                    <div className="bg-white p-10 rounded-[2.5rem] border border-slate-100 shadow-sm"><UploadForm onUploadComplete={fetchMyData} /></div>
+                    <div className="bg-white p-10 rounded-[2.5rem] border border-slate-100 shadow-sm"><UploadForm onUploadSuccess={fetchMyData} /></div>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-6 mt-10">
                         {myPosts.map(post => (
                             <div key={post.id} className="relative aspect-square rounded-[2rem] overflow-hidden group shadow-lg border-4 border-white">
@@ -301,6 +287,7 @@ export default function MyPageClient() {
                 </div>
             )}
 
+            {/* 通知タブ */}
             {activeTab === 'notifications' && (
                 <div className="space-y-8 animate-fadeIn">
                     <h2 className="text-2xl font-black text-slate-900 tracking-tight uppercase">Notifications</h2>
@@ -324,6 +311,7 @@ export default function MyPageClient() {
                 </div>
             )}
 
+            {/* 設定タブ */}
             {activeTab === 'settings' && (
                 <div className="space-y-10 animate-fadeIn">
                     <h2 className="text-2xl font-black text-slate-900 tracking-tight uppercase">Account Settings</h2>
@@ -337,7 +325,6 @@ export default function MyPageClient() {
                                 <p className="text-slate-400 text-sm font-bold mt-2">{user.email}</p>
                                 <div className="mt-8 flex flex-wrap gap-4 justify-center md:justify-start">
                                     <Link href="/mypage/edit" className="px-10 py-3.5 bg-slate-900 text-white text-[11px] font-black rounded-full hover:bg-slate-800 transition-all uppercase tracking-[0.2em] shadow-xl">編集する</Link>
-                                    <button onClick={logout} className="px-10 py-3.5 border-2 border-slate-100 text-slate-400 text-[11px] font-black rounded-full hover:bg-red-50 hover:text-red-400 hover:border-red-100 transition-all uppercase tracking-[0.2em]">ログアウト</button>
                                 </div>
                             </div>
                         </div>
@@ -358,7 +345,7 @@ export default function MyPageClient() {
                 </div>
             )}
         </div>
-      </main>
-    </div>
+      </DashboardMain>
+    </DashboardContainer>
   );
 }
