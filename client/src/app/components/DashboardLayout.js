@@ -36,7 +36,7 @@ export function DashboardSidebar({
 
   return (
     <>
-      {/* --- モバイル用ヘッダー (md以上で非表示) --- */}
+      {/* --- モバイル用ヘッダー --- */}
       <div className="md:hidden bg-white/90 backdrop-blur-md border-b border-slate-100 p-4 sticky top-0 z-40 flex justify-between items-center shadow-sm h-16">
          <div className="flex items-center gap-3">
              <div className="w-9 h-9 rounded-full relative overflow-hidden border border-slate-200 shadow-sm bg-slate-100">
@@ -58,15 +58,14 @@ export function DashboardSidebar({
       </div>
 
       {/* --- サイドバー本体 --- 
-          修正点: モバイル時は fixed で画面左端、PC時は static で左カラムとして振る舞う
-          isMobileMenuOpen が false の時はモバイル画面外へ隠す (-translate-x-full)
+          修正: z-indexを z-[200] に強化して、フッターや他の要素より手前に表示
       */}
       <aside className={`
-          fixed inset-y-0 left-0 z-50 w-72 bg-white shadow-2xl transform transition-transform duration-300 ease-in-out
+          fixed inset-y-0 left-0 z-[200] w-72 bg-white shadow-2xl transform transition-transform duration-300 ease-in-out
           md:translate-x-0 md:static md:w-80 md:shadow-none md:border-r md:border-slate-100 md:h-screen md:sticky md:top-0 md:flex md:flex-col md:z-20
           ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
-          {/* モバイル用閉じるボタン (PCでは非表示) */}
+          {/* モバイル用閉じるボタン */}
           <div className="md:hidden p-4 flex justify-end border-b border-slate-50">
               <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 text-slate-400 hover:text-slate-600 bg-slate-50 rounded-full">
                   <FiX size={20} />
@@ -105,9 +104,11 @@ export function DashboardSidebar({
               </nav>
           </div>
 
-          {/* ログアウトボタン (下部固定) */}
+          {/* ログアウトボタン (下部固定) 
+              修正: pb-28 を追加してスマホのアドレスバー分を底上げ
+          */}
           {onLogout && (
-            <div className="p-4 border-t border-slate-50 bg-white md:bg-transparent mt-auto">
+            <div className="p-4 border-t border-slate-50 bg-white md:bg-transparent mt-auto pb-28 md:pb-4">
                 <button 
                 onClick={onLogout} 
                 className="w-full flex items-center justify-center gap-2 px-6 py-4 text-sm font-bold text-red-500 hover:bg-red-50 rounded-xl transition-all"
@@ -121,7 +122,7 @@ export function DashboardSidebar({
       {/* モバイル用バックドロップ (黒背景) */}
       {isMobileMenuOpen && (
           <div 
-            className="fixed inset-0 bg-black/40 z-40 md:hidden backdrop-blur-[2px] transition-opacity"
+            className="fixed inset-0 bg-black/40 z-[190] md:hidden backdrop-blur-[2px] transition-opacity"
             onClick={() => setIsMobileMenuOpen(false)}
           />
       )}
@@ -129,7 +130,7 @@ export function DashboardSidebar({
   );
 }
 
-// ... (他のコンポーネント NavButton, NavSection, DashboardMain などは変更なし) ...
+// ... (以下の NavButton, NavSection 等は変更なし) ...
 export function NavButton({ id, label, icon: Icon, badge, color = "text-slate-600", activeTab, onClick }) {
   const isActive = activeTab === id;
   
