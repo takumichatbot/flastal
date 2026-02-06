@@ -21,7 +21,7 @@ export function DashboardContainer({ children, themeColor = '#ec4899', className
 }
 
 /**
- * サイドバーコンポーネント (修正版)
+ * サイドバーコンポーネント (モバイル対応版)
  */
 export function DashboardSidebar({ 
   user, 
@@ -36,7 +36,7 @@ export function DashboardSidebar({
 
   return (
     <>
-      {/* --- モバイル用ヘッダー --- */}
+      {/* --- モバイル用ヘッダー (md以上で非表示) --- */}
       <div className="md:hidden bg-white/90 backdrop-blur-md border-b border-slate-100 p-4 sticky top-0 z-40 flex justify-between items-center shadow-sm h-16">
          <div className="flex items-center gap-3">
              <div className="w-9 h-9 rounded-full relative overflow-hidden border border-slate-200 shadow-sm bg-slate-100">
@@ -58,7 +58,7 @@ export function DashboardSidebar({
       </div>
 
       {/* --- サイドバー本体 --- 
-          修正: z-indexを z-[200] に強化して、フッターや他の要素より手前に表示
+          修正: z-indexを z-[200] に強化
       */}
       <aside className={`
           fixed inset-y-0 left-0 z-[200] w-72 bg-white shadow-2xl transform transition-transform duration-300 ease-in-out
@@ -130,7 +130,9 @@ export function DashboardSidebar({
   );
 }
 
-// ... (以下の NavButton, NavSection 等は変更なし) ...
+/**
+ * ナビゲーションボタン
+ */
 export function NavButton({ id, label, icon: Icon, badge, color = "text-slate-600", activeTab, onClick }) {
   const isActive = activeTab === id;
   
@@ -155,6 +157,9 @@ export function NavButton({ id, label, icon: Icon, badge, color = "text-slate-60
   );
 }
 
+/**
+ * ナビゲーションセクションヘッダー
+ */
 export function NavSection({ title }) {
   return (
     <p className="px-8 text-[10px] font-black text-slate-300 uppercase tracking-[0.25em] mb-3 mt-8">
@@ -163,6 +168,9 @@ export function NavSection({ title }) {
   );
 }
 
+/**
+ * メインコンテンツエリア
+ */
 export function DashboardMain({ children, maxWidth = '4xl' }) {
   return (
     <main className="flex-grow p-4 md:p-10 lg:p-16 w-full overflow-x-hidden">
@@ -173,6 +181,9 @@ export function DashboardMain({ children, maxWidth = '4xl' }) {
   );
 }
 
+/**
+ * ページヘッダー
+ */
 export function PageHeader({ title, description, actions }) {
   return (
     <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 md:gap-6 mb-8 md:mb-12">
@@ -194,6 +205,9 @@ export function PageHeader({ title, description, actions }) {
   );
 }
 
+/**
+ * 統計カード
+ */
 export function StatCard({ title, value, subValue, icon: Icon, color = 'sky', onClick, href }) {
   const colors = {
     pink: 'bg-pink-50 text-pink-600 border-pink-100',
@@ -227,6 +241,9 @@ export function StatCard({ title, value, subValue, icon: Icon, color = 'sky', on
   return content;
 }
 
+/**
+ * セクションカード
+ */
 export function SectionCard({ children, className = '' }) {
   return (
     <div className={`bg-white p-5 md:p-12 rounded-[2rem] md:rounded-[3rem] border border-slate-100 shadow-sm ${className}`}>
@@ -235,6 +252,9 @@ export function SectionCard({ children, className = '' }) {
   );
 }
 
+/**
+ * 空状態プレースホルダー
+ */
 export function EmptyState({ 
   icon = '🌸', 
   title = 'データがありません', 
@@ -263,6 +283,9 @@ export function EmptyState({
   );
 }
 
+/**
+ * ローディングスピナー
+ */
 export function LoadingSpinner({ size = 'md', message }) {
   const sizes = { sm: 'w-6 h-6', md: 'w-12 h-12', lg: 'w-16 h-16' };
   return (
@@ -275,6 +298,9 @@ export function LoadingSpinner({ size = 'md', message }) {
   );
 }
 
+/**
+ * ポイント表示カード
+ */
 export function PointsCard({ points = 0, onAddPoints }) {
   return (
     <div className="bg-slate-900 rounded-[1.5rem] md:rounded-[2rem] p-5 md:p-6 text-white shadow-xl shadow-slate-300 relative overflow-hidden group">
