@@ -1,12 +1,13 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { FiLogOut, FiCamera, FiUser, FiMenu, FiX } from 'react-icons/fi';
+import { FiLogOut, FiCamera, FiUser } from 'react-icons/fi';
 
 /**
  * ダッシュボードのメインレイアウト
+ * 変更点: 上部にパディングを追加して、固定ヘッダー（Header.js）との重なりを防ぐ
  */
 export function DashboardContainer({ children, themeColor = '#ec4899', className = '' }) {
   const oshiThemeStyle = useMemo(() => ({
@@ -14,14 +15,18 @@ export function DashboardContainer({ children, themeColor = '#ec4899', className
   }), [themeColor]);
 
   return (
-    <div className={`min-h-screen bg-slate-50 flex flex-col md:flex-row ${className}`} style={oshiThemeStyle}>
+    <div 
+      className={`min-h-screen bg-slate-50 flex flex-col md:flex-row pt-16 md:pt-20 ${className}`} 
+      style={oshiThemeStyle}
+    >
       {children}
     </div>
   );
 }
 
 /**
- * サイドバーコンポーネント (モバイル対応版)
+ * サイドバーコンポーネント (PC専用に変更)
+ * 変更点: モバイルヘッダーと開閉ロジックを削除し、PCのみ表示(hidden md:flex)
  */
 export function DashboardSidebar({ 
   user, 
@@ -32,52 +37,18 @@ export function DashboardSidebar({
   onLogout,
   editProfileHref = '/mypage/edit'
 }) {
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-
   return (
-    <>
-      {/* --- モバイル用ヘッダー (md以上で非表示) --- */}
-      <div className="md:hidden bg-white/90 backdrop-blur-md border-b border-slate-100 p-4 sticky top-0 z-40 flex justify-between items-center shadow-sm h-16">
-         <div className="flex items-center gap-3">
-             <div className="w-9 h-9 rounded-full relative overflow-hidden border border-slate-200 shadow-sm bg-slate-100">
-                {user?.iconUrl ? (
-                    <Image src={user.iconUrl} alt="icon" fill className="object-cover" />
-                ) : (
-                    <div className="w-full h-full flex items-center justify-center text-slate-300"><FiUser size={18}/></div>
-                )}
-             </div>
-             <span className="font-bold text-slate-800 text-sm truncate max-w-[150px]">{user?.handleName || 'User'}</span>
-         </div>
-         <button 
-            onClick={() => setIsMobileMenuOpen(true)}
-            className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg transition-colors"
-            aria-label="Menu"
-         >
-             <FiMenu size={24} />
-         </button>
-      </div>
-
-      {/* --- サイドバー本体 --- 
-          修正: z-indexを z-[200] に強化
-      */}
       <aside className={`
-          fixed inset-y-0 left-0 z-[200] w-72 bg-white shadow-2xl transform transition-transform duration-300 ease-in-out
-          md:translate-x-0 md:static md:w-80 md:shadow-none md:border-r md:border-slate-100 md:h-screen md:sticky md:top-0 md:flex md:flex-col md:z-20
-          ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
+          hidden md:flex flex-col
+          w-72 bg-white border-r border-slate-100 shadow-sm
+          sticky top-20 h-[calc(100vh-5rem)] overflow-y-auto z-40
       `}>
-          {/* モバイル用閉じるボタン */}
-          <div className="md:hidden p-4 flex justify-end border-b border-slate-50">
-              <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 text-slate-400 hover:text-slate-600 bg-slate-50 rounded-full">
-                  <FiX size={20} />
-              </button>
-          </div>
-
           <div className="flex-grow overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200">
               {/* プロフィールセクション */}
               <div className="p-8 pb-6 flex flex-col items-center border-b border-slate-50">
                 <div className="w-24 h-24 rounded-[2rem] relative overflow-hidden border-4 border-white shadow-xl mb-4 group ring-4 ring-[var(--oshi-color)]/5">
                   {user?.iconUrl ? (
-                    <Image src={user.iconUrl} alt="アイコン" fill className="object-cover" />
+                    <Image src={user.iconUrl} alt="icon" fill className="object-cover" />
                   ) : (
                     <div className="w-full h-full bg-slate-50 flex items-center justify-center text-slate-200">
                       <FiUser size={40}/>
@@ -104,11 +75,9 @@ export function DashboardSidebar({
               </nav>
           </div>
 
-          {/* ログアウトボタン (下部固定) 
-              修正: pb-28 を追加してスマホのアドレスバー分を底上げ
-          */}
+          {/* ログアウトボタン (下部固定) */}
           {onLogout && (
-            <div className="p-4 border-t border-slate-50 bg-white md:bg-transparent mt-auto pb-28 md:pb-4">
+            <div className="p-4 border-t border-slate-50 bg-white mt-auto">
                 <button 
                 onClick={onLogout} 
                 className="w-full flex items-center justify-center gap-2 px-6 py-4 text-sm font-bold text-red-500 hover:bg-red-50 rounded-xl transition-all"
@@ -118,21 +87,10 @@ export function DashboardSidebar({
             </div>
           )}
       </aside>
-
-      {/* モバイル用バックドロップ (黒背景) */}
-      {isMobileMenuOpen && (
-          <div 
-            className="fixed inset-0 bg-black/40 z-[190] md:hidden backdrop-blur-[2px] transition-opacity"
-            onClick={() => setIsMobileMenuOpen(false)}
-          />
-      )}
-    </>
   );
 }
 
-/**
- * ナビゲーションボタン
- */
+// ... (以下の NavButton, NavSection 等は変更なし) ...
 export function NavButton({ id, label, icon: Icon, badge, color = "text-slate-600", activeTab, onClick }) {
   const isActive = activeTab === id;
   
@@ -157,9 +115,6 @@ export function NavButton({ id, label, icon: Icon, badge, color = "text-slate-60
   );
 }
 
-/**
- * ナビゲーションセクションヘッダー
- */
 export function NavSection({ title }) {
   return (
     <p className="px-8 text-[10px] font-black text-slate-300 uppercase tracking-[0.25em] mb-3 mt-8">
@@ -168,9 +123,6 @@ export function NavSection({ title }) {
   );
 }
 
-/**
- * メインコンテンツエリア
- */
 export function DashboardMain({ children, maxWidth = '4xl' }) {
   return (
     <main className="flex-grow p-4 md:p-10 lg:p-16 w-full overflow-x-hidden">
@@ -181,9 +133,6 @@ export function DashboardMain({ children, maxWidth = '4xl' }) {
   );
 }
 
-/**
- * ページヘッダー
- */
 export function PageHeader({ title, description, actions }) {
   return (
     <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 md:gap-6 mb-8 md:mb-12">
@@ -205,9 +154,6 @@ export function PageHeader({ title, description, actions }) {
   );
 }
 
-/**
- * 統計カード
- */
 export function StatCard({ title, value, subValue, icon: Icon, color = 'sky', onClick, href }) {
   const colors = {
     pink: 'bg-pink-50 text-pink-600 border-pink-100',
@@ -241,9 +187,6 @@ export function StatCard({ title, value, subValue, icon: Icon, color = 'sky', on
   return content;
 }
 
-/**
- * セクションカード
- */
 export function SectionCard({ children, className = '' }) {
   return (
     <div className={`bg-white p-5 md:p-12 rounded-[2rem] md:rounded-[3rem] border border-slate-100 shadow-sm ${className}`}>
@@ -252,9 +195,6 @@ export function SectionCard({ children, className = '' }) {
   );
 }
 
-/**
- * 空状態プレースホルダー
- */
 export function EmptyState({ 
   icon = '🌸', 
   title = 'データがありません', 
@@ -283,9 +223,6 @@ export function EmptyState({
   );
 }
 
-/**
- * ローディングスピナー
- */
 export function LoadingSpinner({ size = 'md', message }) {
   const sizes = { sm: 'w-6 h-6', md: 'w-12 h-12', lg: 'w-16 h-16' };
   return (
@@ -298,9 +235,6 @@ export function LoadingSpinner({ size = 'md', message }) {
   );
 }
 
-/**
- * ポイント表示カード
- */
 export function PointsCard({ points = 0, onAddPoints }) {
   return (
     <div className="bg-slate-900 rounded-[1.5rem] md:rounded-[2rem] p-5 md:p-6 text-white shadow-xl shadow-slate-300 relative overflow-hidden group">

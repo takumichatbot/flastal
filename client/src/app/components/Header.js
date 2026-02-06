@@ -11,9 +11,11 @@ import {
 } from 'lucide-react'; 
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
+import { usePathname } from 'next/navigation'; // importは残しておいてOK
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
+// ... (NotificationDropdown コンポーネントは変更なしのため省略。既存のコードをそのまま維持してください) ...
 function NotificationDropdown({ notifications, fetchNotifications, unreadCount, authenticatedFetch }) {
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef(null);
@@ -149,9 +151,14 @@ export default function Header() {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); 
   const userMenuRef = useRef(null);
+  const pathname = usePathname();
+
+  // ★変更点: isDashboard 判定と return null を削除しました。
+  // これにより、すべてのページで共通ヘッダーが表示されます。
 
   const unreadCount = useMemo(() => notifications.filter(n => !n.isRead).length, [notifications]);
 
+  // ... (以下、元のコードと同じ) ...
   const fetchNotifications = useCallback(async () => {
     if (isLoading || !user) return;
     try {
