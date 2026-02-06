@@ -272,7 +272,8 @@ export default function Header() {
       case 'FLORIST':
         return [
           { href: '/florists/dashboard', label: '受注管理画面', icon: <Briefcase size={16} /> },
-          { href: '/florists/profile', label: '店舗プロフィール', icon: <Store size={16} /> },
+          // ★修正: /florists/profile -> /florists/${user.id}
+          { href: `/florists/${user.id}`, label: '店舗プロフィール', icon: <Store size={16} /> },
           { href: '/florists/payouts', label: '売上・出金', icon: <BarChart3 size={16} /> },
         ];
       case 'VENUE':

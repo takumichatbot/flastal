@@ -38,18 +38,21 @@ export function AuthProvider({ children }) {
       const decoded = jwtDecode(cleanToken);
       if (decoded.exp * 1000 < Date.now()) return null;
 
-      // extraData (ログインAPIのレスポンス) を優先、なければ decoded (JWT) から取得
+      // extraData (最新のプロフィール情報) を優先
       const role = extraData?.role || decoded.role;
       const venueName = extraData?.venueName || decoded.venueName;
       const shopName = extraData?.shopName || decoded.shopName;
+      const platformName = extraData?.platformName || decoded.platformName; // 追加
       const handleName = extraData?.handleName || decoded.handleName;
+      const iconUrl = extraData?.iconUrl || decoded.iconUrl; // 追加: アイコンも優先
 
       return {
         id: extraData?.id || decoded.id,
         email: extraData?.email || decoded.email,
         role: role,
         handleName: handleName,
-        iconUrl: extraData?.iconUrl || decoded.iconUrl,
+        platformName: platformName, // 追加
+        iconUrl: iconUrl,
         shopName: shopName,
         venueName: venueName,
         status: extraData?.status || decoded.status || 'APPROVED',
@@ -68,8 +71,9 @@ export function AuthProvider({ children }) {
       setToken(userData._token);
       if (typeof window !== 'undefined') {
         localStorage.setItem('authToken', userData._token);
-        localStorage.setItem('flastal-token', userData._token); // 互換性のため両方保存
-        localStorage.setItem('userStatus', userData.status);
+        localStorage.setItem('flastal-token', userData._token);
+        // ★修正: 最新のユーザー情報をキャッシュとして保存
+        localStorage.setItem('flastal-user-cache', JSON.stringify(extraData || {}));
       }
       return true;
     } else {
@@ -79,6 +83,7 @@ export function AuthProvider({ children }) {
         if (typeof window !== 'undefined') {
           localStorage.removeItem('authToken');
           localStorage.removeItem('flastal-token');
+          localStorage.removeItem('flastal-user-cache');
           localStorage.removeItem('userStatus');
         }
       }
@@ -146,9 +151,17 @@ export function AuthProvider({ children }) {
         if (typeof window !== 'undefined') {
           const storedToken = localStorage.getItem('flastal-token') || localStorage.getItem('authToken');
           if (storedToken && storedToken !== 'null') {
-            const storedStatus = localStorage.getItem('userStatus');
-            const storedVenue = localStorage.getItem('flastal-venue');
-            const extraData = storedVenue ? JSON.parse(storedVenue) : (storedStatus ? { status: storedStatus } : null);
+            // ★修正: キャッシュされたユーザー情報を読み込む
+            const storedCache = localStorage.getItem('flastal-user-cache');
+            const storedVenue = localStorage.getItem('flastal-venue'); // 互換性維持
+            
+            let extraData = {};
+            if (storedCache) {
+                try { extraData = JSON.parse(storedCache); } catch(e){}
+            } else if (storedVenue) {
+                try { extraData = JSON.parse(storedVenue); } catch(e){}
+            }
+            
             setSession(storedToken, extraData);
           }
         }
@@ -174,15 +187,26 @@ export function AuthProvider({ children }) {
     if (typeof window === 'undefined') return;
     localStorage.removeItem('authToken');
     localStorage.removeItem('flastal-token');
-    localStorage.removeItem('userStatus');
+    localStorage.removeItem('flastal-user-cache');
     localStorage.removeItem('flastal-venue');
+    localStorage.removeItem('userStatus');
     setUser(null);
     setToken(null);
     window.location.href = '/';
   }, []);
 
+  // ★修正: 更新時にローカルストレージも更新する
   const updateUser = useCallback((newUserData) => {
-    setUser(prev => prev ? { ...prev, ...newUserData } : null);
+    setUser(prev => {
+        const updated = prev ? { ...prev, ...newUserData } : null;
+        if (updated && typeof window !== 'undefined') {
+             // 既存のキャッシュとマージして保存
+             const currentCache = localStorage.getItem('flastal-user-cache');
+             const parsedCache = currentCache ? JSON.parse(currentCache) : {};
+             localStorage.setItem('flastal-user-cache', JSON.stringify({ ...parsedCache, ...newUserData }));
+        }
+        return updated;
+    });
   }, []);
 
   const register = useCallback(async (email, password, handleName, referralCode = '') => {
