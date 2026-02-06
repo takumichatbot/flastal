@@ -8,6 +8,7 @@ import React, { useRef, useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from './contexts/AuthContext';
+import Image from 'next/image';
 import { 
   motion, useScroll, useTransform, useSpring, useInView, useMotionValue, useMotionTemplate, AnimatePresence 
 } from 'framer-motion';
@@ -204,18 +205,27 @@ const FloristWorksSection = () => {
             <Reveal key={post.id} delay={i * 0.1}>
               <Link href={`/florists/${post.floristId}`} className="group block h-full">
                 <div className="relative aspect-square overflow-hidden rounded-2xl shadow-md border border-white">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img 
+                  {/* ★修正: next/image を使用 */}
+                  <Image 
                     src={post.imageUrl} 
-                    alt="制作実績" 
-                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                    alt={post.content || "制作実績"} 
+                    fill
+                    className="object-cover transition-transform duration-500 group-hover:scale-110"
+                    sizes="(max-width: 768px) 50vw, 25vw"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-4">
                     <p className="text-white text-xs font-bold line-clamp-2">{post.content}</p>
                     <div className="flex items-center gap-2 mt-2">
-                       <div className="w-5 h-5 rounded-full bg-white/20 overflow-hidden">
-                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                         {post.florist?.iconUrl && <img src={post.florist.iconUrl} className="w-full h-full object-cover"/>}
+                       <div className="w-5 h-5 rounded-full bg-white/20 overflow-hidden relative">
+                         {/* ★修正: アイコンも next/image に変更 (ある場合) */}
+                         {post.florist?.iconUrl && (
+                           <Image 
+                             src={post.florist.iconUrl} 
+                             alt="Florist Icon" 
+                             fill 
+                             className="object-cover"
+                           />
+                         )}
                        </div>
                        <span className="text-[10px] text-white/90 truncate">{post.florist?.platformName}</span>
                     </div>

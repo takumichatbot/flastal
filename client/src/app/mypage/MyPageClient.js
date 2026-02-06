@@ -9,22 +9,20 @@ import Image from 'next/image';
 import { 
   FiUser, FiHeart, FiBell, FiSettings, 
   FiPlus, FiActivity, FiSearch, FiCamera, 
-  FiAward, FiClock, FiUsers, FiStar
+  FiAward, FiClock, FiUsers, FiStar, FiCheckCircle // ★追加
 } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 
 import UploadForm from '@/app/components/UploadForm'; 
 import SupportLevelBadge from '@/app/components/SupportLevelBadge'; 
 
-// ★追加: 新しいレイアウトコンポーネントをインポート
 import {
   DashboardContainer,
   DashboardSidebar,
   DashboardMain,
   NavButton,
   NavSection,
-  PointsCard,
-  StatCard // 必要に応じて使用
+  PointsCard
 } from '@/app/components/DashboardLayout';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
@@ -136,7 +134,10 @@ export default function MyPageClient() {
   const [myPosts, setMyPosts] = useState([]);
   const [loadingData, setLoadingData] = useState(true);
 
-  // データ取得
+  const oshiThemeStyle = useMemo(() => ({
+    '--oshi-color': user?.themeColor || '#ec4899', 
+  }), [user?.themeColor]);
+
   const fetchMyData = useCallback(async () => {
     if (!user?.id) return;
     setLoadingData(true);
@@ -164,7 +165,6 @@ export default function MyPageClient() {
   
   if (authLoading || !user) return <div className="min-h-screen flex items-center justify-center bg-white"><div className="animate-spin w-8 h-8 border-4 border-pink-500 border-t-transparent rounded-full" /></div>;
 
-  // ★ 修正: DashboardLayout を使用して全体をラップする
   return (
     <DashboardContainer themeColor={user?.themeColor || '#ec4899'}>
       <DashboardSidebar
@@ -195,11 +195,9 @@ export default function MyPageClient() {
         }}
       />
 
-      {/* --- メインコンテンツ --- */}
       <DashboardMain>
         <div className="max-w-4xl mx-auto">
             
-            {/* ホームタブ */}
             {activeTab === 'home' && (
                 <div className="space-y-12 animate-fadeIn">
                     <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
@@ -222,17 +220,14 @@ export default function MyPageClient() {
 
                     <section className="space-y-8">
                         <div className="grid grid-cols-1 gap-6">
-                            {/* 主催した企画 */}
                             {createdProjects.map(p => (
                                 <ProjectCard key={p.id} project={p} roleType="owner" />
                             ))}
                             
-                            {/* 参加した企画 */}
                             {pledgedProjects.map(pledge => pledge.project && (
                                 <ProjectCard key={pledge.id} project={pledge.project} roleType="backer" />
                             ))}
 
-                            {/* 企画がゼロの場合 */}
                             {createdProjects.length === 0 && pledgedProjects.length === 0 && (
                                 <div className="bg-white p-20 rounded-[3rem] border-4 border-dashed border-slate-100 text-center flex flex-col items-center">
                                     <div className="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center text-4xl mb-6 shadow-inner">🌸</div>
@@ -246,7 +241,6 @@ export default function MyPageClient() {
                 </div>
             )}
 
-            {/* Created タブ */}
             {activeTab === 'created' && (
                 <div className="space-y-8 animate-fadeIn">
                     <h2 className="text-2xl font-black text-slate-900 tracking-tight">主催している企画のみ</h2>
@@ -256,7 +250,6 @@ export default function MyPageClient() {
                 </div>
             )}
 
-            {/* Pledged タブ */}
             {activeTab === 'pledged' && (
                 <div className="space-y-8 animate-fadeIn">
                     <h2 className="text-2xl font-black text-slate-900 tracking-tight">参加している企画のみ</h2>
@@ -268,7 +261,6 @@ export default function MyPageClient() {
                 </div>
             )}
 
-            {/* アルバムタブ */}
             {activeTab === 'album' && (
                 <div className="space-y-10 animate-fadeIn">
                     <h2 className="text-2xl font-black text-slate-900 tracking-tight uppercase">Memory Album</h2>
@@ -287,7 +279,6 @@ export default function MyPageClient() {
                 </div>
             )}
 
-            {/* 通知タブ */}
             {activeTab === 'notifications' && (
                 <div className="space-y-8 animate-fadeIn">
                     <h2 className="text-2xl font-black text-slate-900 tracking-tight uppercase">Notifications</h2>
@@ -311,7 +302,6 @@ export default function MyPageClient() {
                 </div>
             )}
 
-            {/* 設定タブ */}
             {activeTab === 'settings' && (
                 <div className="space-y-10 animate-fadeIn">
                     <h2 className="text-2xl font-black text-slate-900 tracking-tight uppercase">Account Settings</h2>
