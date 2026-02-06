@@ -9,7 +9,7 @@ import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
 import Image from 'next/image';
-import { FiSave, FiCamera, FiArrowLeft, FiTwitter, FiInstagram, FiUser, FiLoader, FiShield, FiCheck } from 'react-icons/fi';
+import { FiSave, FiCamera, FiArrowLeft, FiTwitter, FiInstagram, FiUser, FiLoader, FiShield, FiCheck, FiAlertCircle } from 'react-icons/fi';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -18,10 +18,13 @@ const GENRE_OPTIONS = [
 ];
 
 export default function ProfileEditPage() {
-  // ★修正1: updateUser を取得
   const { user, loading: authLoading, authenticatedFetch, updateUser } = useAuth(); 
   const router = useRouter();
-  const { register, handleSubmit, setValue, formState: { isSubmitting, errors } } = useForm();
+  
+  // バリデーションモードを 'onChange' にして、入力中に即座にエラー判定させる
+  const { register, handleSubmit, setValue, formState: { isSubmitting, errors } } = useForm({
+    mode: 'onChange' 
+  });
   
   const [selectedGenres, setSelectedGenres] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
@@ -61,7 +64,7 @@ export default function ProfileEditPage() {
     }
   };
 
-  // アイコンアップロード (S3直アップロード方式)
+  // アイコンアップロード
   const handleIconUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -102,23 +105,9 @@ export default function ProfileEditPage() {
     }
   };
 
+  // 送信処理
   const onSubmit = async (data) => {
     try {
-      // テストアカウント（ローカルストレージ）の場合の処理
-      const currentToken = localStorage.getItem('flastal-token');
-      const isTestAccount = user?.email && (
-        user.email === 'takuminsitou946@gmail.com' || 
-        user.email === 'admin@flastal.com' ||
-        user.email.includes('@test.com')
-      );
-
-      if (isTestAccount || !currentToken) {
-        // ... (テストアカウント用の処理は変更なし)
-        // ...
-        return;
-      }
-
-      // 実際のAPIサーバーへのリクエスト
       const res = await authenticatedFetch('/api/users/profile', {
         method: 'PATCH',
         body: JSON.stringify({
@@ -133,15 +122,16 @@ export default function ProfileEditPage() {
         throw new Error(errorData.message || `API Error: ${res.status}`);
       }
       
-      const updatedUser = await res.json(); // ★サーバーから返ってきた最新データを取得
+      const updatedUser = await res.json(); 
 
-      // ★修正2: アプリ内のユーザー情報を更新
-      updateUser(updatedUser);
+      // アプリ内のユーザー情報を更新
+      if (updateUser) updateUser(updatedUser);
       
-      // ★修正3: リロードしても反映されるようローカルストレージも更新
-      // (現在の仕様ではトークン内の情報よりローカルストレージが優先されるため)
+      // リロードしても反映されるようローカルストレージも更新
       if (typeof window !== 'undefined') {
-          localStorage.setItem('flastal-fan', JSON.stringify(updatedUser));
+          // トークン情報と整合性をとるため、基本的にはトークン再発行がベストですが、
+          // 簡易的にキャッシュを更新します
+          localStorage.setItem('flastal-user-cache', JSON.stringify(updatedUser));
       }
       
       toast.success('プロフィールを更新しました！');
@@ -150,7 +140,17 @@ export default function ProfileEditPage() {
       
     } catch (error) {
       console.error('Profile update error:', error);
-      toast.error(error.message || 'プロフィールの更新に失敗しました。しばらく待ってから再試行してください。');
+      toast.error(error.message || 'プロフィールの更新に失敗しました。');
+    }
+  };
+
+  // ★追加: 入力エラー時のハンドラ
+  const onError = (errors) => {
+    console.error("Validation Errors:", errors);
+    if (errors.handleName) {
+        toast.error(errors.handleName.message);
+    } else {
+        toast.error("入力内容に不備があります。赤字の項目を確認してください。");
     }
   };
 
@@ -162,7 +162,6 @@ export default function ProfileEditPage() {
     );
   }
 
-  // ... (return 以下のJSXは変更なし)
   return (
     <div className="min-h-screen bg-slate-50 py-12 px-4 sm:px-6 font-sans" style={oshiThemeStyle}>
       <div className="max-w-2xl mx-auto bg-white rounded-[2.5rem] shadow-xl shadow-slate-200/60 overflow-hidden border border-white">
@@ -177,7 +176,7 @@ export default function ProfileEditPage() {
             </Link>
           </div>
 
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-10">
+          <form onSubmit={handleSubmit(onSubmit, onError)} className="space-y-10">
             
             {/* アイコン設定 */}
             <div className="flex flex-col items-center">
@@ -217,9 +216,19 @@ export default function ProfileEditPage() {
                     <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2">ニックネーム <span className="text-red-500">*</span></label>
                     <input 
                       type="text" 
-                      {...register('handleName', {required: '名前を入力してください'})} 
-                      className="w-full p-4 bg-slate-50 border border-transparent rounded-2xl focus:bg-white focus:ring-2 focus:ring-[var(--oshi-color)] outline-none transition-all font-bold text-slate-800" 
+                      {...register('handleName', {
+                          required: 'ニックネームは必須です',
+                          maxLength: { value: 20, message: '20文字以内で入力してください' }
+                      })} 
+                      className={`w-full p-4 bg-slate-50 border rounded-2xl focus:bg-white focus:ring-2 focus:ring-[var(--oshi-color)] outline-none transition-all font-bold text-slate-800 ${errors.handleName ? 'border-red-500 bg-red-50' : 'border-transparent'}`}
+                      placeholder="表示名を入力"
                     />
+                    {/* ★エラーメッセージ表示を追加 */}
+                    {errors.handleName && (
+                        <p className="text-red-500 text-xs font-bold mt-2 ml-1 flex items-center">
+                            <FiAlertCircle className="mr-1"/> {errors.handleName.message}
+                        </p>
+                    )}
                 </div>
                 
                 <div>
@@ -286,7 +295,7 @@ export default function ProfileEditPage() {
                       <p className="text-sm font-black text-slate-800 flex items-center gap-2">
                         プロフィールを公開する <FiShield className="text-emerald-500" />
                       </p>
-                      <p className="text--[10px] text-slate-400 font-bold mt-1 leading-relaxed">ONにすると、あなたの参加企画やバッジが他のファンからも見えるようになり、交流のきっかけになります。</p>
+                      <p className="text-[10px] text-slate-400 font-bold mt-1 leading-relaxed">ONにすると、あなたの参加企画やバッジが他のファンからも見えるようになり、交流のきっかけになります。</p>
                   </div>
                 </label>
             </div>
