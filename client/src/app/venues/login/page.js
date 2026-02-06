@@ -1,143 +1,114 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
+import { useAuth } from '@/app/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import toast from 'react-hot-toast';
-import { FiEye, FiEyeOff, FiMail, FiLock, FiArrowLeft } from 'react-icons/fi';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
+import { FiMail, FiLock, FiArrowRight, FiMapPin, FiLoader } from 'react-icons/fi';
 
 export default function VenueLoginPage() {
+  const { login } = useAuth();
+  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [showResend, setShowResend] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const router = useRouter();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
-    setShowResend(false);
-    
-    try {
-      // 1. ログイン前に古いトークンや情報をクリア
-      localStorage.removeItem('flastal-token');
-      localStorage.removeItem('flastal-user');
-      localStorage.removeItem('flastal-venue');
 
-      const response = await fetch(`${API_URL}/api/venues/login`, {
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com'}/api/venues/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
 
-      const data = await response.json();
+      const data = await res.json();
 
-      if (!response.ok) {
-        if (response.status === 403 && (data.message.includes('認証') || data.message.includes('Verification'))) {
-            setShowResend(true);
-        }
+      if (!res.ok) {
         throw new Error(data.message || 'ログインに失敗しました');
       }
 
-      // 2. 【重要】トークンと会場情報を保存
-      if (data.token) {
-        localStorage.setItem('flastal-token', data.token);
-      }
-      localStorage.setItem('flastal-venue', JSON.stringify(data.venue));
-      
-      toast.success('ログインしました！');
-      
-      // ダッシュボードへ移動
-      router.push(`/venues/dashboard/${data.venue.id}`);
-      // 移動後に確実にリロードさせたい場合は以下（オプション）
-      // window.location.href = `/venues/dashboard/${data.venue.id}`;
+      // ★重要: ここで role: 'VENUE' を明示的に指定してログイン状態を保存
+      await login(data.token, { 
+        ...data.venue, 
+        role: 'VENUE' 
+      });
 
-    } catch (err) {
-      toast.error(err.message);
+      toast.success('会場としてログインしました');
+      
+      // ダッシュボードへ遷移 (IDが必要なため data.venue.id を使用)
+      router.push(`/venues/dashboard/${data.venue.id}`);
+
+    } catch (error) {
+      console.error(error);
+      toast.error(error.message);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleResendEmail = async () => {
-    const toastId = toast.loading('再送信中...');
-    try {
-      const res = await fetch(`${API_URL}/api/auth/resend-verification`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-            email, 
-            userType: 'VENUE'
-        }),
-      });
-      const data = await res.json();
-      
-      if (res.ok) {
-        toast.success(data.message || '認証メールを再送しました', { id: toastId });
-        setShowResend(false);
-      } else {
-        throw new Error(data.message);
-      }
-    } catch (error) {
-      toast.error(error.message, { id: toastId });
-    }
-  };
-  
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-green-50 to-white px-4">
-      <div className="w-full max-w-md p-8 bg-white rounded-2xl shadow-xl border border-green-100">
-        
-        <div className="text-center mb-8">
-          <Link href="/" className="inline-block text-green-600 hover:text-green-700 transition mb-2">
-            <span className="flex items-center text-sm font-medium"><FiArrowLeft className="mr-1"/> トップへ戻る</span>
-          </Link>
-          <h2 className="text-2xl font-bold text-gray-800">会場ログイン</h2>
-          <p className="text-sm text-gray-500 mt-2">スムーズな搬入管理と情報発信を</p>
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+      <div className="bg-white w-full max-w-md rounded-3xl shadow-xl overflow-hidden border border-slate-100">
+        <div className="bg-sky-500 p-8 text-center relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
+            <div className="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center mx-auto mb-4 text-white text-3xl shadow-inner">
+                <FiMapPin />
+            </div>
+            <h1 className="text-2xl font-black text-white tracking-tight">会場・ホール様 ログイン</h1>
+            <p className="text-sky-100 text-xs font-bold mt-2 uppercase tracking-widest">Venue Dashboard</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">メールアドレス</label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><FiMail className="text-gray-400" /></div>
-              <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 transition" placeholder="venue@example.com" />
+        <div className="p-8 pt-10">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="relative group">
+                <FiMail className="absolute top-4 left-4 text-slate-400 group-focus-within:text-sky-500 transition-colors" size={20} />
+                <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="メールアドレス"
+                    className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-2 focus:ring-sky-200 focus:border-sky-400 outline-none transition-all font-bold text-slate-700"
+                    required
+                />
             </div>
+            
+            <div className="relative group">
+                <FiLock className="absolute top-4 left-4 text-slate-400 group-focus-within:text-sky-500 transition-colors" size={20} />
+                <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="パスワード"
+                    className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-2 focus:ring-sky-200 focus:border-sky-400 outline-none transition-all font-bold text-slate-700"
+                    required
+                />
+            </div>
+
+            <div className="text-right">
+                <Link href="/forgot-password" className="text-xs font-bold text-slate-400 hover:text-sky-500 transition-colors">
+                    パスワードをお忘れですか？
+                </Link>
+            </div>
+
+            <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full py-4 bg-sky-500 text-white font-black rounded-2xl shadow-lg shadow-sky-200 hover:bg-sky-600 hover:shadow-sky-300 transition-all active:scale-95 flex items-center justify-center gap-2"
+            >
+                {isLoading ? <FiLoader className="animate-spin" /> : <>ログイン <FiArrowRight /></>}
+            </button>
+          </form>
+
+          <div className="mt-8 text-center">
+            <p className="text-xs font-bold text-slate-400">アカウントをお持ちでない場合</p>
+            <Link href="/venues/register" className="inline-block mt-2 text-sky-500 font-black hover:underline">
+                新規利用登録はこちら
+            </Link>
           </div>
-
-          <div>
-            <div className="flex justify-between items-center mb-1">
-              <label className="block text-sm font-semibold text-gray-700">パスワード</label>
-              <Link href="/forgot-password?userType=VENUE" className="text-xs text-green-600 hover:underline">忘れた方はこちら</Link>
-            </div>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><FiLock className="text-gray-400" /></div>
-              <input type={showPassword ? 'text' : 'password'} required value={password} onChange={(e) => setPassword(e.target.value)} className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 transition" placeholder="••••••••" />
-              <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-green-600 transition">{showPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}</button>
-            </div>
-          </div>
-
-          <button type="submit" disabled={isLoading} className={`w-full py-3.5 bg-green-600 text-white rounded-lg font-bold text-lg shadow-md hover:bg-green-700 transition-all ${isLoading ? 'opacity-70' : ''}`}>
-            {isLoading ? 'ログイン中...' : 'ログイン'}
-          </button>
-        </form>
-
-        {showResend && (
-            <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-xl text-center">
-                <p className="text-sm text-yellow-800 mb-3 font-medium">認証が完了していないようです</p>
-                <button onClick={handleResendEmail} className="inline-flex items-center px-4 py-2 bg-white border border-yellow-300 text-yellow-700 font-bold rounded-lg hover:bg-yellow-100 transition shadow-sm text-sm">
-                    <FiMail className="mr-2" /> 認証メールを再送する
-                </button>
-            </div>
-        )}
-
-        <div className="mt-8 pt-6 border-t border-gray-100 text-center">
-          <p className="text-sm text-gray-600">
-            アカウントをお持ちでないですか？<br/>
-            <Link href="/venues/register" className="font-bold text-green-600 hover:underline mt-1 inline-block">新規登録（無料）</Link>
-          </p>
         </div>
       </div>
     </div>
