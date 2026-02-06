@@ -49,6 +49,8 @@ router.post('/posts/:postId/like', authenticateToken, floristController.likeFlor
 // 3. 動的ルート（パラメータ）は最後に置く
 // ==========================================
 
+router.get('/posts/public', floristController.getRecentFloristPosts);
+
 // 全体検索
 router.get('/', floristController.getFlorists);
 

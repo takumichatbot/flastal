@@ -29,7 +29,6 @@ function cn(...classes) {
 
 /**
  * 日本語の変な改行を防ぐためのコンポーネント
- * 文章のカタマリを保持しながら、画面端では適切に折り返します
  */
 const JpText = ({ children, className }) => (
   <span className={cn("inline-block", className)}>{children}</span>
@@ -177,6 +176,63 @@ const KawaiiButton = ({ children, variant = "primary", icon: Icon, className, on
       <span className="relative z-10">{children}</span>
       {variant === 'primary' && <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:animate-shine" />}
     </motion.button>
+  );
+};
+
+// --- ★追加: お花屋さんの投稿ギャラリーセクション ---
+const FloristWorksSection = () => {
+  const [posts, setPosts] = React.useState([]);
+
+  React.useEffect(() => {
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com'}/api/florists/posts/public`)
+      .then(res => res.json())
+      .then(data => {
+        if(Array.isArray(data)) setPosts(data);
+      })
+      .catch(e => console.error(e));
+  }, []);
+
+  if (posts.length === 0) return null;
+
+  return (
+    <section className="py-20 bg-slate-50 relative overflow-hidden">
+      <div className="container mx-auto px-6">
+        <SectionHeader en="New Arrivals" ja="お花屋さんの最新作品" desc="パートナー花屋さんが制作した、こだわりのフラスタたち。" color="pink" />
+        
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+          {posts.map((post, i) => (
+            <Reveal key={post.id} delay={i * 0.1}>
+              <Link href={`/florists/${post.floristId}`} className="group block h-full">
+                <div className="relative aspect-square overflow-hidden rounded-2xl shadow-md border border-white">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img 
+                    src={post.imageUrl} 
+                    alt="制作実績" 
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-4">
+                    <p className="text-white text-xs font-bold line-clamp-2">{post.content}</p>
+                    <div className="flex items-center gap-2 mt-2">
+                       <div className="w-5 h-5 rounded-full bg-white/20 overflow-hidden">
+                         {/* eslint-disable-next-line @next/next/no-img-element */}
+                         {post.florist?.iconUrl && <img src={post.florist.iconUrl} className="w-full h-full object-cover"/>}
+                       </div>
+                       <span className="text-[10px] text-white/90 truncate">{post.florist?.platformName}</span>
+                    </div>
+                  </div>
+                </div>
+              </Link>
+            </Reveal>
+          ))}
+        </div>
+        
+        <div className="mt-12 text-center">
+             <Link href="/florists" className="inline-flex items-center gap-2 text-pink-600 font-bold hover:underline">
+                お花屋さん一覧を見る <ArrowRight size={16}/>
+             </Link>
+        </div>
+      </div>
+    </section>
   );
 };
 
@@ -354,7 +410,7 @@ const FeaturesSection = () => {
       title: "匿名・プライバシー保護",
       icon: <Lock size={28} aria-hidden="true" />,
       color: "emerald",
-      desc: "参加者はハンドルネームで支援可能。主催者の住所や本名がお花屋さんに伝わることもなく、安全な「匿名配送」を実現しました。"
+      desc: "参加者はハンドルネームで支援可能。主催者に本名や住所が伝わることもなく、安全な「匿名配送」を実現しました。"
     },
     {
       id: "illust",
@@ -687,7 +743,6 @@ const ContactAndCtaSection = () => (
 );
 
 // --- 🏠 DASHBOARD WRAPPER ---
-// 外部コンポーネント化し、より安定したレンダリングを確保
 const AuthenticatedHome = ({ user, logout }) => (
   <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 m-0">
     <div className="max-w-md w-full bg-white rounded-[40px] shadow-2xl p-10 text-center border border-slate-100">
@@ -697,7 +752,7 @@ const AuthenticatedHome = ({ user, logout }) => (
         <JpText>{user?.handleName || 'FLASTAL MEMBER'} Signed In</JpText>
       </p>
       <div className="space-y-4">
-        <Link href={user?.role === 'ADMIN' ? '/admin' : '/mypage'} className="flex items-center justify-center gap-2 w-full py-4 bg-slate-900 text-white font-black rounded-2xl hover:bg-slate-800 transition-all shadow-lg text-sm md:text-base text-center">DASHBOARD <ArrowRight size={18} aria-hidden="true" /></Link>
+        <Link href={user?.role === 'ADMIN' ? '/admin' : user?.role === 'FLORIST' ? '/florists/dashboard' : '/mypage'} className="flex items-center justify-center gap-2 w-full py-4 bg-slate-900 text-white font-black rounded-2xl hover:bg-slate-800 transition-all shadow-lg text-sm md:text-base text-center">DASHBOARD <ArrowRight size={18} aria-hidden="true" /></Link>
         <button onClick={logout} className="text-[10px] font-black text-slate-300 hover:text-red-500 transition-colors uppercase tracking-[0.2em] mt-4">Sign Out</button>
       </div>
     </div>
@@ -713,7 +768,6 @@ export default function HomePage() {
     setIsMounted(true);
   }, []);
 
-  // SEOメタデータの最適化（Next.js 13+ metadata API への適応準備。本来は別ファイル定義推奨だが、クライアントコンポーネント内ではタグで対応）
   useEffect(() => {
     if (isMounted) {
       document.title = "FLASTAL（フラスタル）| 推し活特化型クラウドファンディング";
@@ -739,6 +793,10 @@ export default function HomePage() {
       <MagicCursor />
       <HeroSection />
       <TickerSection />
+      
+      {/* ★ お花屋さんの最新作品ギャラリーを追加 */}
+      <FloristWorksSection />
+
       <CultureSection />
       <ProblemSection />
       <FeaturesSection />

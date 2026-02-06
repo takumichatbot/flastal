@@ -56,13 +56,11 @@ const ImageModal = ({ src, alt, onClose }) => {
 // ★★★ フィードカードコンポーネント ★★★
 // ===========================================
 function GalleryCard({ item, userId, onImageClick }) {
-    // 完了写真の1枚目を使用、なければダミー
-    const mainImage = item.completionImageUrls?.[0];
-    const latestPost = item.successPosts?.[0];
-    const [isLiked, setIsLiked] = useState(false); // 本来はAPIから取得
-    const [likeCount, setLikeCount] = useState(Math.floor(Math.random() * 50) + 10); // ダミー数
+    // 統一されたプロパティを使用
+    const mainImage = item.imageUrl;
+    const [isLiked, setIsLiked] = useState(false);
+    const [likeCount, setLikeCount] = useState(Math.floor(Math.random() * 50) + 10); // ダミー
 
-    // いいねハンドラ (楽観的UI)
     const handleLike = (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -71,74 +69,86 @@ function GalleryCard({ item, userId, onImageClick }) {
         if (!isLiked) toast.success("いいねしました！");
     };
 
-    return (
-        <div className="group bg-white rounded-2xl shadow-sm hover:shadow-xl border border-gray-100 overflow-hidden transition-all duration-300 flex flex-col h-full hover:-translate-y-1">
-            
-            {/* 1. 写真エリア */}
-            <div className="relative aspect-[4/5] bg-gray-100 overflow-hidden cursor-pointer">
-                {mainImage ? (
-                    <>
-                        <Image 
-                            src={mainImage} 
-                            alt={`${item.title} 完成写真`} 
-                            fill 
-                            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                            style={{ objectFit: 'cover' }}
-                            className="group-hover:scale-105 transition-transform duration-700 ease-in-out"
-                            onClick={() => onImageClick(mainImage)}
-                        />
-                        {/* ホバー時のオーバーレイ */}
-                        <div 
-                            className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center pointer-events-none"
-                        >
-                            <span className="bg-white/90 text-gray-800 px-4 py-2 rounded-full text-xs font-bold flex items-center gap-2 shadow-lg backdrop-blur-sm">
-                                <FiZoomIn /> 拡大する
-                            </span>
-                        </div>
-                    </>
-                ) : (
-                    <div className="w-full h-full flex items-center justify-center text-gray-400 bg-slate-50">
-                        <FiCamera size={32} />
-                    </div>
-                )}
-                
-                {/* 完了バッジ */}
-                <div className="absolute top-3 right-3">
-                    <span className="bg-green-500/90 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-1 rounded-full shadow-sm">
-                        COMPLETED
-                    </span>
-                </div>
-            </div>
+    // カードクリック時の動作（リンクがあれば遷移、なければ画像拡大のみ）
+    const CardWrapper = ({ children }) => {
+        if (item.link) {
+            return <Link href={item.link} className="block h-full group">{children}</Link>;
+        }
+        return <div className="block h-full group cursor-default">{children}</div>;
+    };
 
-            {/* 2. コンテンツエリア */}
-            <div className="p-4 flex flex-col flex-grow">
-                {/* 企画タイトル */}
-                <Link href={`/projects/${item.id}`} className="block mb-3">
-                    <h3 className="font-bold text-gray-800 text-lg leading-tight line-clamp-2 group-hover:text-pink-600 transition-colors">
+    return (
+        <CardWrapper>
+            <div className="bg-white rounded-2xl shadow-sm hover:shadow-xl border border-gray-100 overflow-hidden transition-all duration-300 flex flex-col h-full hover:-translate-y-1">
+                
+                {/* 1. 写真エリア */}
+                <div className="relative aspect-[4/5] bg-gray-100 overflow-hidden cursor-pointer" onClick={(e) => {
+                    // 画像クリック時は親のリンク遷移を止めて拡大表示
+                    if(item.link) e.preventDefault(); 
+                    onImageClick(mainImage);
+                }}>
+                    {mainImage ? (
+                        <>
+                            <Image 
+                                src={mainImage} 
+                                alt={item.title} 
+                                fill 
+                                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                                style={{ objectFit: 'cover' }}
+                                className="group-hover:scale-105 transition-transform duration-700 ease-in-out"
+                            />
+                            <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center pointer-events-none">
+                                <span className="bg-white/90 text-gray-800 px-4 py-2 rounded-full text-xs font-bold flex items-center gap-2 shadow-lg backdrop-blur-sm">
+                                    <FiZoomIn /> 拡大する
+                                </span>
+                            </div>
+                        </>
+                    ) : (
+                        <div className="w-full h-full flex items-center justify-center text-gray-400 bg-slate-50">
+                            <FiCamera size={32} />
+                        </div>
+                    )}
+                    
+                    {/* バッジ表示 */}
+                    <div className="absolute top-3 right-3">
+                        {item.type === 'PROJECT' ? (
+                            <span className="bg-green-500/90 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-1 rounded-full shadow-sm">
+                                COMPLETED
+                            </span>
+                        ) : (
+                            <span className="bg-pink-500/90 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-1 rounded-full shadow-sm">
+                                FAN POST
+                            </span>
+                        )}
+                    </div>
+                </div>
+
+                {/* 2. コンテンツエリア */}
+                <div className="p-4 flex flex-col flex-grow">
+                    <h3 className="font-bold text-gray-800 text-lg leading-tight line-clamp-2 group-hover:text-pink-600 transition-colors mb-2">
                         {item.title}
                     </h3>
-                </Link>
 
-                {/* メッセージ抜粋 (★修正箇所: エスケープ処理) */}
-                {latestPost && (
-                    <div className="bg-slate-50 p-3 rounded-xl mb-4 text-xs text-gray-600 relative mt-auto">
-                        <div className="absolute -top-1 left-4 w-2 h-2 bg-slate-50 rotate-45 transform"></div>
-                        <p className="line-clamp-2 italic">&quot;{latestPost.content}&quot;</p>
-                    </div>
-                )}
-
-                {/* フッター情報 */}
-                <div className="mt-auto flex items-center justify-between border-t border-gray-50 pt-3">
-                    <div className="flex items-center gap-2 min-w-0">
-                        <div className="w-6 h-6 rounded-full bg-pink-100 text-pink-500 flex items-center justify-center shrink-0">
-                            <FiUser size={12}/>
+                    {item.comment && (
+                        <div className="bg-slate-50 p-3 rounded-xl mb-4 text-xs text-gray-600 relative mt-auto">
+                            <p className="line-clamp-2 italic">&quot;{item.comment}&quot;</p>
                         </div>
-                        <span className="text-xs text-gray-500 truncate max-w-[100px]">
-                            {item.planner?.handleName || '匿名企画者'}
-                        </span>
-                    </div>
+                    )}
 
-                    <div className="flex items-center gap-3">
+                    <div className="mt-auto flex items-center justify-between border-t border-gray-50 pt-3">
+                        <div className="flex items-center gap-2 min-w-0">
+                            <div className="w-6 h-6 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center shrink-0 overflow-hidden">
+                                {item.user?.iconUrl ? (
+                                    <img src={item.user.iconUrl} alt="" className="w-full h-full object-cover"/>
+                                ) : (
+                                    <FiUser size={12}/>
+                                )}
+                            </div>
+                            <span className="text-xs text-gray-500 truncate max-w-[100px]">
+                                {item.user?.handleName || '匿名'}
+                            </span>
+                        </div>
+
                         <button 
                             onClick={handleLike}
                             className={`flex items-center gap-1 text-xs font-bold transition-colors ${isLiked ? 'text-pink-500' : 'text-gray-400 hover:text-pink-400'}`}
@@ -146,14 +156,10 @@ function GalleryCard({ item, userId, onImageClick }) {
                             <FiHeart size={16} className={isLiked ? "fill-pink-500" : ""} />
                             {likeCount}
                         </button>
-                        <Link href={`/projects/${item.id}`} className="flex items-center gap-1 text-xs font-bold text-gray-400 hover:text-sky-500 transition-colors">
-                            <FiMessageSquare size={16}/>
-                            {item.successPosts?.length || 0}
-                        </Link>
                     </div>
                 </div>
             </div>
-        </div>
+        </CardWrapper>
     );
 }
 

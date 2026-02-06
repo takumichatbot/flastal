@@ -120,6 +120,26 @@ export const deleteFloristPost = async (req, res) => {
     }
 };
 
+// ★追加: トップページ用・全お花屋さんの最新投稿を取得
+export const getRecentFloristPosts = async (req, res) => {
+    try {
+        const posts = await prisma.floristPost.findMany({
+            where: { isPublic: true }, // 公開のものだけ
+            include: {
+                florist: {
+                    select: { id: true, platformName: true, iconUrl: true }
+                }
+            },
+            orderBy: { createdAt: 'desc' }, // 新しい順
+            take: 8 // 最新8件を取得
+        });
+        res.json(posts);
+    } catch (error) {
+        console.error('getRecentFloristPosts Error:', error);
+        res.status(500).json({ message: '投稿の取得に失敗しました。' });
+    }
+};
+
 export const getFlorists = async (req, res) => {
     try {
         const { keyword, prefecture, rush, tag } = req.query;

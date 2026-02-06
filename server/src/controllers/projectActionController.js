@@ -265,16 +265,72 @@ export const reportProject = async (req, res) => {
     } catch(e) { res.status(500).json({ message: 'エラー' }); }
 };
 
+// ★修正: 企画(Project)とファン投稿(Post)をミックスして取得
 export const getGalleryFeed = async (req, res) => {
     try {
+        // 1. 完了した企画を取得
         const projects = await prisma.project.findMany({
             where: { status: 'COMPLETED', visibility: 'PUBLIC', completionImageUrls: { isEmpty: false } },
-            select: { id: true, title: true, planner: { select: { handleName: true, iconUrl: true } }, completionImageUrls: true, completionComment: true, createdAt: true },
+            select: { 
+                id: true, 
+                title: true, 
+                planner: { select: { handleName: true, iconUrl: true } }, 
+                completionImageUrls: true, 
+                completionComment: true, 
+                createdAt: true 
+            },
             orderBy: { deliveryDateTime: 'desc' },
             take: 20
         });
-        res.json(projects);
-    } catch(e) { res.status(500).json({ message: 'エラー' }); }
+
+        // 2. ファンの投稿を取得 (Postモデル)
+        // ※ Postモデルが存在し、公開ステータスなどが適切に設定されている前提
+        const fanPosts = await prisma.post.findMany({
+            where: { 
+                // status: 'PUBLISHED', // もしステータス管理がある場合
+                deletedAt: null 
+            },
+            include: { 
+                user: { select: { handleName: true, iconUrl: true } } 
+            },
+            orderBy: { createdAt: 'desc' },
+            take: 20
+        });
+
+        // 3. データを共通の形式（フィードアイテム）に変換
+        const formattedProjects = projects.map(p => ({
+            id: p.id,
+            type: 'PROJECT', // 識別用
+            title: p.title,
+            imageUrl: p.completionImageUrls[0], // 1枚目を採用
+            user: p.planner,
+            comment: p.completionComment,
+            date: p.createdAt,
+            link: `/projects/${p.id}` // リンク先
+        }));
+
+        const formattedPosts = fanPosts.map(p => ({
+            id: p.id,
+            type: 'FAN_POST', // 識別用
+            title: p.eventName || 'イベント記念', // イベント名をタイトル代わりに
+            imageUrl: p.imageUrl,
+            user: p.user || { handleName: p.senderName || 'ファン' },
+            comment: '', // Postにはコメントがない場合が多いので空文字等
+            date: p.createdAt,
+            link: null // リンク先なし（または画像拡大のみ）
+        }));
+
+        // 4. 結合して新しい順にソート
+        const feed = [...formattedProjects, ...formattedPosts]
+            .sort((a, b) => new Date(b.date) - new Date(a.date))
+            .slice(0, 40); // 合計40件まで表示
+
+        res.json(feed);
+
+    } catch(e) { 
+        console.error(e);
+        res.status(500).json({ message: 'ギャラリーの取得に失敗しました' }); 
+    }
 };
 
 // ==========================================
@@ -409,6 +465,7 @@ export const getOfficialStatus = async (req, res) => {
         res.status(500).json({ message: '取得に失敗しました' });
     }
 };
+
 
 // --- デジタルフラスタ ---
 export const sendDigitalFlower = async (req, res) => {
