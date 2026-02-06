@@ -568,8 +568,7 @@ const ProgressTracker = ({ project, isAssignedFlorist, fetchProject }) => {
                                 ))
                             }
                             {currentOrder >= (PROGRESS_STEPS.find(s => s.key === 'READY_FOR_DELIVERY')?.order || 5) && 
-                                <button
-                                    onClick={() => handleStatusUpdate('COMPLETED')}
+                                <button onClick={() => handleStatusUpdate('DELIVERED_OR_FINISHED')}
                                     className="px-5 py-2 text-xs font-bold bg-green-500 text-white rounded-full hover:bg-green-600 transition-colors shadow-md hover:shadow-lg"
                                 >
                                     納品完了にする

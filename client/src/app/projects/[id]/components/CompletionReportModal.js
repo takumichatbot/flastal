@@ -27,10 +27,16 @@ export default function CompletionReportModal({ project, user, onClose, onReport
     const toastId = toast.loading(`${files.length}枚の画像をアップロード中...`);
     
     try {
+        const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, ''); // ★トークン取得を追加
         const uploadPromises = files.map(async (file) => {
             const formData = new FormData();
             formData.append('image', file);
-            const res = await fetch(`${API_URL}/api/upload`, { method: 'POST', body: formData });
+            // ★headersにAuthorizationを追加
+            const res = await fetch(`${API_URL}/api/upload`, { 
+                method: 'POST', 
+                headers: { 'Authorization': `Bearer ${token}` }, 
+                body: formData 
+            });
             if (!res.ok) throw new Error('アップロード失敗');
             return await res.json();
         });
