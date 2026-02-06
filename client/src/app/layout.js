@@ -57,7 +57,7 @@ export default function RootLayout({ children }) {
       <body className="font-sans antialiased text-slate-900 bg-white min-h-screen flex flex-col m-0 p-0 overflow-x-hidden">
         <ThemeController />
         <AuthProvider>
-          {/* 修正ポイント：isolate を追加し、背景色 bg-white を適用。1pxの白い目隠しで微細な隙間も完全遮断 */}
+          {/* ヘッダー部分は変更なし */}
           <header className="w-full flex flex-col m-0 p-0 border-none bg-white relative z-[100] isolate">
             <Header />
             <LiveTicker />
@@ -65,8 +65,8 @@ export default function RootLayout({ children }) {
           </header>
           
           <Suspense fallback={null}>
-            {/* main 自体の余白を完全にゼロにし、子要素（HomePageContent）を直後に接続 */}
-            <main className="flex-grow w-full m-0 p-0 relative z-0">
+            {/* ★修正: relative z-0 を削除し、単なる relative のみにする */}
+            <main className="flex-grow w-full m-0 p-0 relative">
               {children}
             </main>
             <FloatingMenu />
