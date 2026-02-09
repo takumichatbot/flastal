@@ -527,42 +527,83 @@ const SafetySection = () => {
 
 const PartnerJoinSection = () => {
   const partners = [
-    { title: "お花屋さん", icon: Store, color: "pink", hrefL: "/florists/login", hrefR: "/florists/register", desc: "未払いリスクゼロで、確実に売上を。ファンの熱量が高い「推し花」需要を取り込みませんか？" },
-    { title: "会場・ホール", icon: MapPin, color: "sky", hrefL: "/venues/login", hrefR: "/venues/register", desc: "搬入出のトラブル防止に. 公式のレギュレーションを周知し、許可されたフラスタのみを受け入れ可能。" },
-    { title: "イベント主催者", icon: Ticket, color: "purple", hrefL: "/organizers/login", hrefR: "/organizers/register", desc: "ファンの応援企画を公認・把握。安全な応援文化を醸成し、イベントの盛り上がりを可視化します。" }
+    {
+      role: 'FLORIST',
+      title: 'お花屋さん',
+      desc: '未払いリスクゼロで、確実に売上を。ファンの熱量が高い「推し花」需要を取り込みませんか？',
+      icon: <Store size={32} />,
+      color: 'pink',
+      login: '/florists/login',
+      register: '/florists/register',
+      features: ['事前決済で安心', 'ヒアリングコスト削減', '配送トラブル防止']
+    },
+    {
+      role: 'VENUE',
+      title: '会場・ホール様',
+      desc: '搬入出のトラブル防止に。公式のレギュレーションを周知し、許可されたフラスタのみを受け入れ可能。',
+      icon: <MapPin size={32} />,
+      color: 'emerald',
+      login: '/venues/login',
+      register: '/venues/register',
+      features: ['搬入一元管理', 'レギュレーション周知', '配置図の共有']
+    },
+    {
+      role: 'ORGANIZER',
+      title: 'イベント主催者様',
+      desc: 'ファンの応援企画を公認・把握。安全な応援文化を醸成し、イベントの盛り上がりを可視化します。',
+      icon: <LayoutDashboard size={32} />,
+      color: 'indigo',
+      login: '/organizers/login',
+      register: '/organizers/register',
+      features: ['企画の公認/非公認', '搬入数の把握', 'ファンとの信頼構築']
+    },
+    // ★追加: 絵師様
+    {
+      role: 'ILLUSTRATOR',
+      title: '絵師様',
+      desc: 'ファンの「描いてほしい」を叶える。フラスタ用パネルイラストの受注で、創作活動の幅を広げませんか？',
+      icon: <Palette size={32} />,
+      color: 'orange',
+      login: '/illustrators/login',     // ※未作成の場合は作成が必要です
+      register: '/illustrators/register', // ※未作成の場合は作成が必要です
+      features: ['パネル案件の受注', 'ポートフォリオ掲載', 'トラブル回避の仲介']
+    }
   ];
 
   return (
-    <section className="py-20 bg-white relative overflow-hidden">
+    <section className="py-20 bg-white">
       <div className="container mx-auto px-6">
-        <SectionHeader en="For Professionals" ja="FLASTALで広がる可能性" desc="お花屋さん、ライブ会場、イベンターの方へ。FLASTALのエコシステムに参加しませんか？" color="purple" />
-        <div className="flex overflow-x-auto pb-8 md:grid md:grid-cols-3 gap-8 snap-x no-scrollbar -mx-6 px-6 md:mx-0 md:px-0">
+        <SectionHeader en="Join FLASTAL" ja="FLASTALで広がる可能性" desc="花屋、会場、主催者、そしてクリエイター。全てのステークホルダーをつなぎます。" />
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mt-12">
           {partners.map((p, i) => (
-            <div key={i} className="min-w-[300px] md:min-w-0 snap-center h-full">
-              <Reveal delay={i * 0.1}>
-                <TiltCard className="h-full" glowColor={p.color}>
-                  <div className={cn("p-8 rounded-[40px] border shadow-lg text-center h-full flex flex-col bg-white min-h-[480px]", 
-                    p.color === "pink" ? "border-pink-100" : 
-                    p.color === "sky" ? "border-sky-100" : 
-                    "border-purple-100")}>
-                    <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6 shadow-md text-slate-500 shrink-0">
-                      <p.icon size={40} aria-hidden="true" />
-                    </div>
-                    <h3 className="text-xl font-bold text-slate-800 mb-2"><JpText>{p.title}</JpText></h3>
-                    <p className="text-sm text-slate-500 mb-6 flex-grow leading-relaxed"><JpText>{p.desc}</JpText></p>
-                    <div className="flex flex-col gap-3 shrink-0">
-                      <Link href={p.hrefL} className={cn("w-full py-3 rounded-xl border-2 font-bold transition-colors text-center", 
-                        p.color === "pink" ? "border-pink-200 text-pink-500 hover:bg-pink-50" : 
-                        p.color === "sky" ? "border-sky-200 text-sky-500 hover:bg-sky-50" : 
-                        "border-purple-200 text-purple-500 hover:bg-purple-50")}>ログイン</Link>
-                      <Link href={p.hrefR} className={cn("w-full py-3 rounded-xl text-white font-bold shadow-md transition-colors text-center", 
-                        p.color === "pink" ? "bg-pink-500 hover:bg-pink-600 shadow-pink-200" : 
-                        p.color === "sky" ? "bg-sky-500 hover:bg-sky-600 shadow-sky-200" : 
-                        "bg-purple-500 hover:bg-purple-600 shadow-purple-200")}>新規登録</Link>
-                    </div>
-                  </div>
-                </TiltCard>
-              </Reveal>
+            <div key={i} className={`group relative bg-white rounded-[2rem] border-2 border-slate-100 hover:border-${p.color}-500/30 p-8 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col`}>
+              <div className={`w-16 h-16 rounded-2xl bg-${p.color}-50 text-${p.color}-500 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform`}>
+                {p.icon}
+              </div>
+              
+              <h3 className="text-xl font-black text-slate-800 mb-3">{p.title}</h3>
+              <p className="text-sm font-bold text-slate-500 leading-relaxed mb-6 flex-grow">
+                {p.desc}
+              </p>
+
+              <ul className="space-y-2 mb-8">
+                {p.features.map((f, idx) => (
+                  <li key={idx} className="flex items-center gap-2 text-xs font-bold text-slate-600">
+                    <CheckCircle2 size={14} className={`text-${p.color}-500`} />
+                    {f}
+                  </li>
+                ))}
+              </ul>
+
+              <div className="grid grid-cols-2 gap-3 mt-auto">
+                <Link href={p.login} className="flex items-center justify-center py-3 rounded-xl border-2 border-slate-100 font-bold text-slate-600 hover:border-slate-200 hover:bg-slate-50 transition-all text-sm">
+                  ログイン
+                </Link>
+                <Link href={p.register} className={`flex items-center justify-center py-3 rounded-xl bg-${p.color}-500 text-white font-bold shadow-lg shadow-${p.color}-200 hover:opacity-90 transition-all text-sm`}>
+                  新規登録
+                </Link>
+              </div>
             </div>
           ))}
         </div>
