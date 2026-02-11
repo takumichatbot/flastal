@@ -1,6 +1,7 @@
 import prisma from '../config/prisma.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto'; // ★追加: cryptoをインポート
 import { sendDynamicEmail } from '../utils/email.js';
 
 // --- 登録 ---
@@ -14,7 +15,9 @@ export const registerIllustrator = async (req, res) => {
     if (existing) return res.status(409).json({ message: 'このメールアドレスは既に使用されています。' });
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const verificationToken = require('crypto').randomBytes(32).toString('hex');
+    
+    // ★修正: require('crypto') ではなく、インポートした crypto を使用
+    const verificationToken = crypto.randomBytes(32).toString('hex');
 
     await prisma.illustrator.create({
       data: {

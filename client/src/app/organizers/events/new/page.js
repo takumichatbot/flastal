@@ -11,7 +11,7 @@ import { useAuth } from '@/app/contexts/AuthContext';
 import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import { 
-  FiArrowLeft, FiCalendar, FiMapPin, FiLoader, FiType, FiImage, FiLink, FiGlobe, FiInstagram, FiTwitter, FiUpload, FiX, FiInfo, FiPlus
+  FiArrowLeft, FiCalendar, FiMapPin, FiLoader, FiType, FiImage, FiLink, FiGlobe, FiInstagram, FiTwitter, FiUpload, FiX, FiInfo, FiPlus, FiCpu // ★ FiCpuを追加
 } from 'react-icons/fi';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
@@ -22,9 +22,14 @@ function CreateEventContent() {
   const [isMounted, setIsMounted] = useState(false);
   const [venues, setVenues] = useState([]);
   
-  // 画像アップロード用状態 (複数枚対応)
+  // 画像アップロード用状態
   const [imageUrls, setImageUrls] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
+
+  // ★ AI解析用の状態
+  const [showAiModal, setShowAiModal] = useState(false);
+  const [aiInputText, setAiInputText] = useState('');
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
@@ -33,6 +38,7 @@ function CreateEventContent() {
   const { 
     register, 
     handleSubmit, 
+    setValue, // ★ setValueを追加 (AI解析結果を反映するため)
     formState: { isSubmitting, errors } 
   } = useForm({
     defaultValues: {
@@ -70,7 +76,47 @@ function CreateEventContent() {
     fetchVenues();
   }, [isMounted, authLoading, isAuthenticated, user, router]);
 
-  // AWS S3へのアップロード関数 (最安定版)
+  // ★ AI解析実行関数
+  const handleAiAnalyze = async () => {
+    if (!aiInputText.trim()) return toast.error('テキストを入力してください');
+    
+    setIsAnalyzing(true);
+    const toastId = toast.loading('AIが解析中...');
+
+    try {
+      // 内部APIルートを呼び出し
+      const res = await fetch('/api/events/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: aiInputText })
+      });
+
+      if (!res.ok) throw new Error('解析に失敗しました');
+      
+      const data = await res.json();
+
+      // フォームに値をセット
+      if (data.title) setValue('title', data.title);
+      if (data.eventDate) setValue('eventDate', data.eventDate);
+      if (data.venueId) setValue('venueId', data.venueId); // 会場IDのマッチング結果
+      if (data.description) setValue('description', data.description);
+      if (data.genre) setValue('genre', data.genre);
+      if (data.officialWebsite) setValue('officialWebsite', data.officialWebsite);
+      if (data.twitterUrl) setValue('twitterUrl', data.twitterUrl);
+
+      toast.success('解析完了！情報を入力しました', { id: toastId });
+      setShowAiModal(false);
+      setAiInputText('');
+
+    } catch (error) {
+      console.error(error);
+      toast.error('解析できませんでした', { id: toastId });
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  // S3アップロード関数
   const uploadToS3 = async (file) => {
     const res = await authenticatedFetch('/api/tools/s3-upload-url', {
       method: 'POST',
@@ -91,7 +137,6 @@ function CreateEventContent() {
     });
   };
 
-  // 画像ファイル選択時の処理
   const handleImageChange = async (e) => {
     const files = Array.from(e.target.files);
     if (!files.length) return;
@@ -115,11 +160,10 @@ function CreateEventContent() {
       toast.error('アップロードに失敗しました', { id: toastId });
     } finally {
       setIsUploading(false);
-      e.target.value = ''; // 同じファイルを再度選べるようにリセット
+      e.target.value = ''; 
     }
   };
 
-  // 画像削除
   const removeImage = (idx) => {
     setImageUrls(prev => prev.filter((_, i) => i !== idx));
   };
@@ -133,14 +177,13 @@ function CreateEventContent() {
     const toastId = toast.loading('イベントを登録中...');
 
     try {
-      // 日付のISO形式変換
       const formattedDate = new Date(`${data.eventDate}T00:00:00`).toISOString();
 
       const res = await authenticatedFetch('/api/events/user-submit', {
         method: 'POST',
         body: JSON.stringify({
           ...data,
-          imageUrls: imageUrls, // 配列で送信
+          imageUrls: imageUrls, 
           eventDate: formattedDate 
         }),
       });
@@ -182,8 +225,44 @@ function CreateEventContent() {
                 </Link>
                 <h1 className="text-xl font-bold text-gray-900">新規イベント作成</h1>
               </div>
+              
+              {/* ★ AI解析ボタンの追加 */}
+              <button 
+                onClick={() => setShowAiModal(true)}
+                className="flex items-center gap-2 bg-gradient-to-r from-violet-600 to-indigo-600 text-white px-4 py-2 rounded-full text-sm font-bold shadow-md hover:shadow-lg transition-all active:scale-95"
+              >
+                <FiCpu /> AIで情報入力
+              </button>
           </div>
       </div>
+
+      {/* ★ AI解析モーダル */}
+      {showAiModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden">
+            <div className="bg-indigo-600 p-4 text-white flex justify-between items-center">
+              <h3 className="font-bold flex items-center gap-2"><FiCpu /> イベント情報の自動解析</h3>
+              <button onClick={() => setShowAiModal(false)}><FiX size={20} /></button>
+            </div>
+            <div className="p-6">
+              <p className="text-sm text-gray-600 mb-3">公式サイトの「開催概要」などのテキストを貼り付けてください。AIが自動で項目を埋めます。</p>
+              <textarea 
+                className="w-full h-40 p-3 border border-gray-200 rounded-xl bg-gray-50 focus:ring-2 focus:ring-indigo-500 outline-none text-sm resize-none"
+                placeholder="例：『FLASTAL LIVE 2026』開催決定！日時：2026年12月25日 会場：東京ドーム..."
+                value={aiInputText}
+                onChange={(e) => setAiInputText(e.target.value)}
+              ></textarea>
+              <button 
+                onClick={handleAiAnalyze}
+                disabled={isAnalyzing}
+                className="w-full mt-4 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all disabled:opacity-70 flex justify-center items-center gap-2"
+              >
+                {isAnalyzing ? <><FiLoader className="animate-spin" /> 解析中...</> : '解析して反映する'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="max-w-3xl mx-auto px-4 py-8">
         <form onSubmit={handleSubmit(onSubmit, onError)} className="space-y-8">
