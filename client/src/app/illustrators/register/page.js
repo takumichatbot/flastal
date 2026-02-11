@@ -10,15 +10,14 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onre
 
 export default function IllustratorRegisterPage() {
   const [formData, setFormData] = useState({
-    activityName: '', // ペンネーム
+    activityName: '',
     email: '',
     password: '',
   });
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
-  const router = useRouter();
-
+  
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
@@ -28,7 +27,7 @@ export default function IllustratorRegisterPage() {
     setIsLoading(true);
     
     try {
-      // イラストレーター用登録API
+      // 本番用APIリクエスト
       const res = await fetch(`${API_URL}/api/illustrators/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -36,11 +35,16 @@ export default function IllustratorRegisterPage() {
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message);
+
+      if (!res.ok) {
+        // 本番用なので、エラーはそのままユーザーに通知する
+        throw new Error(data.message || '登録処理に失敗しました');
+      }
 
       setIsSubmitted(true);
       toast.success('申請を送信しました');
     } catch (err) {
+      console.error(err);
       toast.error(err.message);
     } finally {
       setIsLoading(false);

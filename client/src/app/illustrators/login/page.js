@@ -26,7 +26,6 @@ export default function IllustratorLoginPage() {
     setShowResend(false);
 
     try {
-      // イラストレーター用ログインAPI (バックエンドの実装が必要です)
       const res = await fetch(`${API_URL}/api/illustrators/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -42,14 +41,13 @@ export default function IllustratorLoginPage() {
         throw new Error(data.message || 'ログインに失敗しました');
       }
 
-      // role: 'ILLUSTRATOR' を明示してログイン
       await login(data.token, { 
         ...data.illustrator, 
         role: 'ILLUSTRATOR' 
       });
       
       toast.success('イラストレーターとしてログインしました');
-      router.push('/illustrators/dashboard'); // ダッシュボードへ (後で作成が必要)
+      router.push('/illustrators/dashboard');
 
     } catch (error) {
       toast.error(error.message);

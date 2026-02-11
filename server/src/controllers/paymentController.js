@@ -3,6 +3,7 @@ import stripe from '../config/stripe.js';
 import { sendEmail } from '../utils/email.js';
 import { getIO } from '../config/socket.js';
 
+// ... (LEVEL_CONFIG, checkUserLevelAndBadges, broadcastTicker は変更なし) ...
 const LEVEL_CONFIG = { 'Bronze': 10000, 'Silver': 50000, 'Gold': 100000 };
 
 async function checkUserLevelAndBadges(tx, userId) {
@@ -38,6 +39,7 @@ const broadcastTicker = (type, text, href) => {
 };
 
 export const createPointSession = async (req, res) => {
+    // ... (変更なし) ...
     const { amount, points } = req.body;
     const userId = req.user.id;
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
@@ -61,10 +63,12 @@ export const createPointSession = async (req, res) => {
         });
         res.json({ url: session.url });
     } catch (error) {
+        console.error("Stripe Session Error:", error); // エラーログ追加
         res.status(500).json({ message: 'セッション作成に失敗しました' });
     }
 };
 
+// ★修正箇所: エラーログを追加
 export const createGuestSession = async (req, res) => {
     const { projectId, amount, comment, tierId, guestName, guestEmail, successUrl, cancelUrl } = req.body;
     if (!amount || amount <= 0) return res.status(400).json({ message: '金額が無効です' });
@@ -83,15 +87,24 @@ export const createGuestSession = async (req, res) => {
             mode: 'payment',
             success_url: successUrl,
             cancel_url: cancelUrl,
-            metadata: { projectId, tierId: tierId || 'none', comment: comment || '', isGuestPledge: 'true', guestName, guestEmail },
+            metadata: { 
+                projectId, 
+                tierId: tierId || 'none', 
+                comment: comment || '', 
+                isGuestPledge: 'true', 
+                guestName, 
+                guestEmail 
+            },
             customer_email: guestEmail,
         });
         res.json({ sessionUrl: session.url });
     } catch (error) {
-        res.status(500).json({ message: 'チェックアウトセッションの作成に失敗しました' });
+        console.error("Guest Session Error:", error); // ★ここが重要: サーバーログにエラーを出す
+        res.status(500).json({ message: 'チェックアウトセッションの作成に失敗しました: ' + error.message });
     }
 };
 
+// ... (createPledge, createGuestPledgeDirect も変更なし) ...
 export const createPledge = async (req, res) => {
     const userId = req.user.id;
     const { projectId, amount, comment, tierId } = req.body;
@@ -147,7 +160,6 @@ export const createPledge = async (req, res) => {
                 `/projects/${project.id}`
             );
             
-            // 目標達成時の配信
             if (result.project.collectedAmount >= result.project.targetAmount && result.project.status === 'SUCCESSFUL') {
                 broadcastTicker(
                     'goal', 
@@ -158,7 +170,7 @@ export const createPledge = async (req, res) => {
         }
 
         sendEmail(req.user.email, '支援完了のお知らせ', `<p>${pledgeAmount}ptの支援を完了しました。</p>`);
-        res.status(201).json(result.newPledge); // 戻り値を調整
+        res.status(201).json(result.newPledge); 
     } catch (error) {
         res.status(400).json({ message: error.message || '支援処理に失敗しました' });
     }

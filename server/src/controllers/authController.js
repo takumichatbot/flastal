@@ -293,6 +293,11 @@ export const verifyEmail = async (req, res) => {
             if (record) userType = 'organizer'; 
         }
 
+        if (!record) {
+            record = await prisma.illustrator.findFirst({ where: { verificationToken: token } });
+            if (record) userType = 'illustrator';
+        }
+
         if (!record) return res.status(400).json({ message: '無効または期限切れのトークンです。' });
 
         await prisma[userType].update({ 
@@ -310,7 +315,7 @@ export const verifyEmail = async (req, res) => {
 export const resendVerification = async (req, res) => {
     const { email, userType } = req.body;
     try {
-        const models = { FLORIST: 'florist', VENUE: 'venue', ORGANIZER: 'organizer', USER: 'user' };
+        const models = { FLORIST: 'florist', VENUE: 'venue', ORGANIZER: 'organizer', USER: 'user', ILLUSTRATOR: 'illustrator' };
         const modelName = models[userType] || 'user';
         
         const account = await prisma[modelName].findUnique({ where: { email: email.toLowerCase() } });
@@ -335,7 +340,7 @@ export const resendVerification = async (req, res) => {
 export const forgotPassword = async (req, res) => {
     const { email, userType } = req.body;
     try {
-        const models = { USER: 'user', FLORIST: 'florist', VENUE: 'venue', ORGANIZER: 'organizer' };
+        const models = { USER: 'user', FLORIST: 'florist', VENUE: 'venue', ORGANIZER: 'organizer', ILLUSTRATOR: 'illustrator' };
         const modelName = models[userType] || 'user';
         
         const user = await prisma[modelName].findUnique({ where: { email: email.toLowerCase() } });
@@ -356,7 +361,7 @@ export const resetPassword = async (req, res) => {
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         const hashedPassword = await bcrypt.hash(password, 10);
-        const models = { USER: 'user', FLORIST: 'florist', VENUE: 'venue', ORGANIZER: 'organizer' };
+        const models = { USER: 'user', FLORIST: 'florist', VENUE: 'venue', ORGANIZER: 'organizer', ILLUSTRATOR: 'illustrator' };
         
         await prisma[models[decoded.type]].update({ 
             where: { id: decoded.id }, 

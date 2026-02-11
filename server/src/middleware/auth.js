@@ -43,7 +43,11 @@ export const authenticateToken = async (req, res, next) => {
         } else if (userRole === 'ORGANIZER') {
             const organizerAccount = await prisma.organizer.findUnique({ where: { id: userId } });
             if (organizerAccount) req.user.raw = organizerAccount;
+        } else if (userRole === 'ILLUSTRATOR') { // ★追加
+            const illustratorAccount = await prisma.illustrator.findUnique({ where: { id: userId } });
+            if (illustratorAccount) req.user.raw = illustratorAccount;
         }
+        
     } catch (dbErr) {
         console.error('[Middleware] DB check failed:', dbErr.message);
     }

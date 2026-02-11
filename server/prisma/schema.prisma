@@ -104,6 +104,7 @@ enum UserRole {
   FLORIST    // ★ 追加
   VENUE      // ★ 追加
   ORGANIZER  // ★ 追加
+  ILLUSTRATOR
 }
 
 enum EventSource {
@@ -877,6 +878,9 @@ model BankAccount {
   accountHolder String
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  illustratorId String?      @unique
+  illustrator   Illustrator? @relation(fields: [illustratorId], references: [id])
+  // -----------------------------------------------
 }
 
 // ★★★ 新規追加: 出金申請履歴 ★★★
@@ -940,4 +944,29 @@ model OfficialReaction {
   project   Project  @relation(fields: [projectId], references: [id])
   comment   String?
   createdAt DateTime @default(now())
+}
+
+model Illustrator {
+  id                String   @id @default(cuid())
+  email             String   @unique
+  password          String
+  
+  activityName      String   // 活動名・ペンネーム
+  isVerified        Boolean  @default(false)
+  verificationToken String?
+  
+  status            ApprovalStatus @default(PENDING) // 審査ステータス
+
+  // プロフィール情報
+  iconUrl           String?
+  bio               String?  @db.Text
+  portfolioUrl      String?  // ポートフォリオサイト等のURL
+  portfolioImages   String[] // 作品画像
+  specialties       String[] // 得意なジャンル・画風
+
+  // 銀行口座 (報酬振込用)
+  bankAccount       BankAccount?
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 }

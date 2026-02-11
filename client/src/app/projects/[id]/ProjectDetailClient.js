@@ -819,7 +819,12 @@ export default function ProjectDetailClient() {
             
             {project.status !== 'COMPLETED' && project.imageUrl && (
               <div className="h-80 md:h-96 bg-gray-200 relative group cursor-pointer" onClick={() => { setModalImageSrc(project.imageUrl); setIsImageModalOpen(true); }}>
-                <Image src={project.imageUrl} alt={project.title} fill sizes="(max-width: 1024px) 100vw, 66vw" style={{ objectFit: 'cover' }} className="transition-transform duration-500 group-hover:scale-105" />
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img 
+                  src={project.imageUrl} 
+                  alt={project.title} 
+                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
+                />
                 <div className="absolute inset-0 bg-black/10 group-hover:bg-black/20 transition-colors"></div>
               </div>
             )}
@@ -834,7 +839,12 @@ export default function ProjectDetailClient() {
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
                             {project.completionImageUrls.map((url, i) => (
                               <div key={i} className="relative aspect-square rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow cursor-pointer" onClick={() => { setModalImageSrc(url); setIsImageModalOpen(true); }}>
-                                <Image src={url} alt={`完了写真 ${i}`} fill sizes="(max-width: 768px) 50vw, 33vw" style={{ objectFit: 'cover' }} />
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img 
+                                  src={url} 
+                                  alt={`完了写真 ${i}`} 
+                                  className="w-full h-full object-cover" 
+                                />
                               </div>
                             ))}
                         </div>
@@ -851,7 +861,14 @@ export default function ProjectDetailClient() {
               <h1 className="text-2xl md:text-4xl font-extrabold text-gray-900 mb-2 leading-tight">{project.title}</h1>
               <div className="flex items-center gap-3 text-gray-500 mb-8">
                   <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center overflow-hidden">
-                      {project.planner?.iconUrl ? <Image src={project.planner.iconUrl} width={32} height={32} alt=""/> : <FiUser />}
+                      {project.planner?.iconUrl ? (
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                        <img 
+                          src={project.planner.iconUrl} 
+                          alt="" 
+                          className="w-full h-full object-cover"
+                        />
+                      ) : <FiUser />}
                   </div>
                   <span className="font-medium">企画者: {project.planner?.handleName}</span>
               </div>
@@ -1017,7 +1034,12 @@ export default function ProjectDetailClient() {
                                     <div className="flex flex-wrap gap-3">
                                         {project.preEventPhotoUrls.map((url, i) => (
                                             <div key={i} className="relative w-24 h-24 rounded-xl overflow-hidden border-2 border-white shadow-md cursor-pointer hover:scale-105 transition-transform" onClick={()=>{setModalImageSrc(url); setIsImageModalOpen(true)}}>
-                                                <Image src={url} alt={`前日写真 ${i}`} fill style={{ objectFit: 'cover' }} />
+                                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                <img 
+                                                  src={url} 
+                                                  alt={`前日写真 ${i}`} 
+                                                  className="w-full h-full object-cover" 
+                                                />
                                             </div>
                                         ))}
                                     </div>
@@ -1231,4 +1253,4 @@ export default function ProjectDetailClient() {
       <FlowerScrollIndicator collected={project.collectedAmount} target={project.targetAmount} />
     </>
   );
-}
+}a

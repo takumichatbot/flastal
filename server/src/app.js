@@ -7,6 +7,7 @@ import postRoutes from './routes/posts.js';
 import { sendEmail } from './utils/email.js';
 import { createNotification } from './utils/notification.js';
 
+
 // --- ルーティングファイルのインポート ---
 import authRoutes from './routes/auth.js';
 import projectRoutes from './routes/projects.js';
@@ -19,6 +20,7 @@ import adminRoutes from './routes/admin.js';
 import paymentRoutes from './routes/payment.js';
 import projectDetailRoutes from './routes/projectDetails.js';
 import organizerRoutes from './routes/organizers.js';
+import illustratorRoutes from './routes/illustrators.js';
 
 const app = express();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
@@ -151,6 +153,7 @@ app.use('/api/events', eventRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/project-details', projectDetailRoutes);
 app.use('/api/organizers', organizerRoutes);
+app.use('/api/illustrators', illustratorRoutes);
 app.use('/api/tools', toolRoutes);
 app.use('/api/ai', toolRoutes); // ★ 追加：フロントエンドの /api/ai/... リクエストに対応
 app.use('/api/payment', paymentRoutes);
