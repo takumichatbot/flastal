@@ -11,11 +11,10 @@ import {
 } from 'lucide-react'; 
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
-import { usePathname } from 'next/navigation'; // importは残しておいてOK
+import { usePathname } from 'next/navigation';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
-// ... (NotificationDropdown コンポーネントは変更なしのため省略。既存のコードをそのまま維持してください) ...
 function NotificationDropdown({ notifications, fetchNotifications, unreadCount, authenticatedFetch }) {
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef(null);
@@ -153,12 +152,8 @@ export default function Header() {
   const userMenuRef = useRef(null);
   const pathname = usePathname();
 
-  // ★変更点: isDashboard 判定と return null を削除しました。
-  // これにより、すべてのページで共通ヘッダーが表示されます。
-
   const unreadCount = useMemo(() => notifications.filter(n => !n.isRead).length, [notifications]);
 
-  // ... (以下、元のコードと同じ) ...
   const fetchNotifications = useCallback(async () => {
     if (isLoading || !user) return;
     try {
@@ -208,7 +203,8 @@ export default function Header() {
     const baseLinks = [
       { href: '/projects', label: '企画一覧', icon: <Heart size={18}/> },
       { href: '/events', label: 'イベント', icon: <Calendar size={18}/> },
-      { href: '/illustrators/recruitment', label: '絵師募集中', icon: <Star size={18}/>, highlight: true },
+      // ★修正: highlight: true を削除してデザインを統一
+      { href: '/illustrators/recruitment', label: '絵師募集中', icon: <Star size={18}/> }, 
       { href: '/venues', label: '会場', icon: <MapPin size={18}/> },
       { href: '/florists', label: 'お花屋さん', icon: <Store size={18}/> },
     ];
@@ -231,7 +227,7 @@ export default function Header() {
       case 'ORGANIZER':
         return [
           { href: '/organizers/dashboard', label: '主催企画', icon: <LayoutDashboard size={18}/> },
-          { href: '/illustrators/recruitment', label: '絵師募集中', icon: <Star size={18}/>, highlight: true },
+          { href: '/illustrators/recruitment', label: '絵師募集中', icon: <Star size={18}/> },
           { href: '/projects/create', label: '企画を立てる', icon: <Sparkles size={18}/> },
           { href: '/florists', label: '花屋を探す', icon: <Store size={18}/> },
         ];
@@ -247,7 +243,6 @@ export default function Header() {
   }, [user]);
 
   const getPrimaryLink = useMemo(() => {
-    // ★修正: userオブジェクトだけでなく、user.id の存在もチェック
     if (!user || !user.id) return '/login';
   
     switch (user.role) {
@@ -272,7 +267,6 @@ export default function Header() {
       case 'FLORIST':
         return [
           { href: '/florists/dashboard', label: '受注管理画面', icon: <Briefcase size={16} /> },
-          // ★修正: /florists/profile -> /florists/${user.id}
           { href: `/florists/${user.id}`, label: '店舗プロフィール', icon: <Store size={16} /> },
           { href: '/florists/payouts', label: '売上・出金', icon: <BarChart3 size={16} /> },
         ];
