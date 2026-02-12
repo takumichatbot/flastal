@@ -643,7 +643,8 @@ function ManualAddModal({ onClose, onAdded, editData = null }) {
 
           <button type="submit" disabled={isSubmitting || isUploading} className="w-full mt-6 py-4 bg-indigo-600 text-white font-black rounded-2xl shadow-xl shadow-indigo-100 active:scale-95 transition-all">
             {isSubmitting ? <FiLoader className="animate-spin inline mr-2"/> : null}
-            {editTargetEvent ? '更新を保存する' : 'イベントを登録する'}
+            {/* 修正箇所: editTargetEvent ではなく editData を使用 */}
+            {editData ? '更新を保存する' : 'イベントを登録する'}
           </button>
         </form>
       </div>
