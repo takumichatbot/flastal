@@ -84,10 +84,9 @@ function CreateEventContent() {
     const toastId = toast.loading('AIが解析中...');
 
     try {
-      // 内部APIルートを呼び出し
-      const res = await fetch('/api/events/analyze', {
+      // 変更点: API_URL を使用し、authenticatedFetch で認証トークンを送る
+      const res = await authenticatedFetch(`${API_URL}/api/events/analyze`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: aiInputText })
       });
 
@@ -98,7 +97,7 @@ function CreateEventContent() {
       // フォームに値をセット
       if (data.title) setValue('title', data.title);
       if (data.eventDate) setValue('eventDate', data.eventDate);
-      if (data.venueId) setValue('venueId', data.venueId); // 会場IDのマッチング結果
+      if (data.venueId) setValue('venueId', data.venueId);
       if (data.description) setValue('description', data.description);
       if (data.genre) setValue('genre', data.genre);
       if (data.officialWebsite) setValue('officialWebsite', data.officialWebsite);

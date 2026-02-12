@@ -99,6 +99,7 @@ function EditEventContent() {
   }, [isMounted, authLoading, isAuthenticated, user, router, eventId, authenticatedFetch, reset]);
 
   // ★ AI解析実行関数 (APIルートを使用)
+  // ★ 修正: バックエンドAPIを呼び出すように変更
   const handleAiAnalyze = async () => {
     if (!aiInputText.trim()) return toast.error('テキストを入力してください');
     
@@ -106,17 +107,16 @@ function EditEventContent() {
     const toastId = toast.loading('AIが解析中...');
 
     try {
-      // APIルート呼び出し (サーバー側でOpenAIを実行)
-      const res = await fetch('/api/events/analyze', {
+      // 変更点: API_URL を使用し、authenticatedFetch で認証トークンを送る
+      const res = await authenticatedFetch(`${API_URL}/api/events/analyze`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: aiInputText })
       });
 
       if (!res.ok) throw new Error('解析に失敗しました');
       const data = await res.json();
 
-      // フォームに値を反映 (空でない場合のみ上書き)
+      // フォームに値を反映
       if (data.title) setValue('title', data.title);
       if (data.eventDate) setValue('eventDate', data.eventDate);
       if (data.venueId) setValue('venueId', data.venueId);

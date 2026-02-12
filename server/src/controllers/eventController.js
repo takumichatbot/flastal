@@ -3,6 +3,59 @@ import OpenAI from 'openai';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
+export const analyzeEvent = async (req, res) => {
+  try {
+    const { text } = req.body;
+
+    if (!text || text.length < 10) {
+      return res.status(400).json({ message: '解析するテキストが短すぎます' });
+    }
+
+    // 1. 登録済みの会場リストを取得
+    const venues = await prisma.venue.findMany({
+      select: { id: true, venueName: true }
+    });
+
+    const venueListString = venues.map(v => `ID: "${v.id}", Name: "${v.venueName}"`).join('\n');
+
+    // 2. OpenAIに解析を依頼
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o", // または "gpt-3.5-turbo"
+      messages: [
+        {
+          role: "system",
+          content: `
+            あなたはイベント情報の解析アシスタントです。
+            ユーザーから提供されたイベント概要テキストから、以下の情報を抽出してJSON形式で返してください。
+            
+            【抽出ルール】
+            - title: イベント名
+            - eventDate: 開催日 (YYYY-MM-DD形式)
+            - venueId: 以下の会場リストの中から、最も名前が一致する会場のIDを選んでください。リストにない場合は null または空文字にしてください。
+            - description: イベントの詳細説明
+            - genre: ジャンル (IDOL, VTUBER, MUSIC, ANIME, STAGE, OTHER のいずれか)
+            - officialWebsite: 公式サイトのURLがあれば
+            - twitterUrl: Twitter(X)のURLがあれば
+
+            【会場リスト】
+            ${venueListString}
+          `
+        },
+        { role: "user", content: text }
+      ],
+      response_format: { type: "json_object" },
+      temperature: 0.1,
+    });
+
+    const result = JSON.parse(completion.choices[0].message.content);
+    res.json(result);
+
+  } catch (error) {
+    console.error('AI Analysis Error:', error);
+    res.status(500).json({ message: '解析に失敗しました' });
+  }
+};
+
 // --- イベント一覧取得 ---
 export const getEvents = async (req, res) => {
     try {
