@@ -12,7 +12,7 @@ router.get('/public', eventController.getEvents);
 // AI解析登録: /api/events/ai-parse
 router.post('/ai-parse', authenticateToken, eventController.aiParseEvent);
 
-router.post('/analyze', authenticateToken, controller.analyzeEvent);
+router.post('/analyze', authenticateToken, eventController.analyzeEvent);
 
 // ユーザー手動登録: /api/events/user-submit
 router.post('/user-submit', authenticateToken, eventController.createEvent);
