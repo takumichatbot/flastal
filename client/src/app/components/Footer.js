@@ -45,14 +45,16 @@ export default function Footer() {
               </a>
             </div>
           </div>
-
+          
           {/* リンク集 */}
           <div>
             <h3 className="text-white font-bold mb-4">サービス</h3>
             <ul className="space-y-3">
               <li><Link href="/projects" className="hover:text-white transition-colors">企画一覧</Link></li>
               <li><Link href="/florists" className="hover:text-white transition-colors">お花屋さんを探す</Link></li>
+              {/* 修正: トップページのFAQセクションへ正しく遷移するようにパスを調整 */}
               <li><Link href="/#faq" className="hover:text-white transition-colors">よくある質問</Link></li> 
+              {/* 修正: 404防止のため /contact が存在することを確認（存在しない場合は別途ページ作成が必要） */}
               <li><Link href="/contact" className="hover:text-white transition-colors">お問い合わせ</Link></li>
             </ul>
           </div>

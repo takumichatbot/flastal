@@ -413,16 +413,39 @@ function CreateProjectForm() {
   }, []);
 
   useEffect(() => {
-    if (!authLoading && !user) { router.push('/login'); }
-    if (eventIdFromUrl) { fetchEventDetails(eventIdFromUrl); } 
-    else if (venueIdFromUrl) {
-        fetch(`${API_URL}/api/venues/${venueIdFromUrl}`).then(res => res.json()).then(v => {
-            if(v) handleVenueSelect(v);
-            setEventLoading(false);
-        }).catch(() => setEventLoading(false));
-    } else { setEventLoading(false); }
-  }, [user, authLoading, router, eventIdFromUrl, venueIdFromUrl, fetchEventDetails]);
+    // 認証情報の読み込みが完了するまで待つ
+    if (authLoading) return;
 
+    if (!user) {
+        // 未ログイン時はログインへリダイレクト
+        router.push('/login');
+        return;
+    }
+
+    // ★修正: ロールガードを追加
+    // 一般ユーザー(USER)または主催者(ORGANIZER)以外が企画作成に来た場合に追い出す
+    if (user.role !== 'USER' && user.role !== 'ORGANIZER') {
+        toast.error('企画作成は一般ユーザーまたは主催者アカウントのみ可能です。');
+        router.push('/');
+        return;
+    }
+
+    if (eventIdFromUrl) {
+        fetchEventDetails(eventIdFromUrl);
+    } 
+    else if (venueIdFromUrl) {
+        fetch(`${API_URL}/api/venues/${venueIdFromUrl}`)
+            .then(res => res.json())
+            .then(v => {
+                if(v) handleVenueSelect(v);
+                setEventLoading(false);
+            })
+            .catch(() => setEventLoading(false));
+    } else {
+        setEventLoading(false);
+    }
+  }, [user, authLoading, router, eventIdFromUrl, venueIdFromUrl, fetchEventDetails]);
+  
   const handleEventSelect = (event) => {
     if (!event) return;
     setSelectedEvent(event);

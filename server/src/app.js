@@ -132,6 +132,17 @@ app.post('/api/webhooks/stripe', express.raw({type: 'application/json'}), async 
     res.json({ received: true });
 });
 
+app.post('/api/contact', async (req, res) => {
+    const { name, email, message } = req.body;
+    try {
+        // 管理者宛にメールを飛ばすなどの処理
+        await sendEmail("admin@flastal.com", `【お問い合わせ】${name}様より`, `<p>${message}</p><p>返信先: ${email}</p>`);
+        res.json({ message: "お問い合わせを送信しました。" });
+    } catch (e) {
+        res.status(500).json({ message: "送信に失敗しました。" });
+    }
+});
+
 // ==========================================
 // ★★★ 標準ミドルウェア ★★★
 // ==========================================

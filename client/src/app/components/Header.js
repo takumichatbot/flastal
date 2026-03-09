@@ -200,10 +200,10 @@ export default function Header() {
   }, [user]);
 
   const navLinks = useMemo(() => {
+    // 未ログイン時のベースリンク
     const baseLinks = [
       { href: '/projects', label: '企画一覧', icon: <Heart size={18}/> },
       { href: '/events', label: 'イベント', icon: <Calendar size={18}/> },
-      // ★修正: highlight: true を削除してデザインを統一
       { href: '/illustrators/recruitment', label: '絵師募集中', icon: <Star size={18}/> }, 
       { href: '/venues', label: '会場', icon: <MapPin size={18}/> },
       { href: '/florists', label: 'お花屋さん', icon: <Store size={18}/> },
@@ -238,7 +238,11 @@ export default function Header() {
           { href: '/admin/settings', label: 'システム設定', icon: <Settings size={18}/> },
         ];
       default:
-        return baseLinks;
+        // 一般ユーザー(USER)はベースリンクに「企画を立てる」を追加
+        return [
+          ...baseLinks,
+          { href: '/projects/create', label: '企画を立てる', icon: <PlusCircle size={18}/> },
+        ];
     }
   }, [user]);
 
@@ -268,6 +272,7 @@ export default function Header() {
         return [
           { href: '/florists/dashboard', label: '受注管理画面', icon: <Briefcase size={16} /> },
           { href: `/florists/${user.id}`, label: '店舗プロフィール', icon: <Store size={16} /> },
+          { href: '/florists/profile/edit', label: 'プロフィール編集', icon: <Settings size={16} /> }, // 修正: 明示的な編集リンク
           { href: '/florists/payouts', label: '売上・出金', icon: <BarChart3 size={16} /> },
         ];
       case 'VENUE':

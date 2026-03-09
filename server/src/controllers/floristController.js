@@ -14,13 +14,12 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
  */
 export const getFloristProfile = async (req, res) => {
     try {
-        const floristId = req.user.id; // トークンからID取得
+        const floristId = req.user.id; 
 
         // 1. 花屋の基本情報とオファーを取得
         const florist = await prisma.florist.findUnique({
             where: { id: floristId },
             include: {
-                // オファー情報（プロジェクト内容も含む）
                 offers: {
                     include: {
                         project: {
@@ -38,27 +37,26 @@ export const getFloristProfile = async (req, res) => {
             }
         });
 
+        // ★レポート対応: 見つからない場合は role 不一致の可能性を考慮
         if (!florist) {
-            return res.status(404).json({ message: 'お花屋さん情報が見つかりません。' });
+            console.warn(`[Florist Error] ID: ${floristId} not found in florist table. User Role: ${req.user.role}`);
+            return res.status(404).json({ message: 'お花屋さん情報が見つかりません。アカウント権限を確認してください。' });
         }
 
-        // 2. 制作アピール投稿を取得（公開・非公開問わず全て）
+        // 2. 制作アピール投稿を取得
         const appealPosts = await prisma.floristPost.findMany({
             where: { floristId: floristId },
             include: {
-                likes: true, 
                 _count: { select: { likes: true } } 
             },
             orderBy: { createdAt: 'desc' }
         });
 
-        // 3. データを結合して返却
         const { password, laruBotApiKey, ...safeData } = florist;
         
-        // ダッシュボードが期待している形に整形
         const responseData = {
             ...safeData,
-            appealPosts: appealPosts, // ここに投稿リストが入ります
+            appealPosts: appealPosts,
             offers: florist.offers || []
         };
 
