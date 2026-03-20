@@ -443,8 +443,7 @@ export default function HomePage() {
       <TickerSection />
       <AboutSection />
       <FeaturedProjectsSection />
-      <WhyFlastalSection />
-      <FeaturesSection />
+      <FeaturesSection /> {/* WhyFlastalSection の行を削除して詰める */}
       <PartnerBanner />
       <FaqMini />
       <ContactAndCtaSection />
