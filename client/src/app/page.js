@@ -16,7 +16,7 @@ import {
   Heart, Sparkles, ShieldCheck, ChevronDown, 
   Star, HelpCircle, ArrowRight, Search, Users,
   Flower, CreditCard, Lock, Loader2, PlusCircle, Gift, 
-  MessageCircle, Clock, Award, PenTool, Video, Music, MapPin, Store
+  MessageCircle, Clock, Award, PenTool, Video, Music, MapPin, Store, CheckCircle2
 } from 'lucide-react';
 
 function cn(...classes) {
