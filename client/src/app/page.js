@@ -17,7 +17,7 @@ import {
   Star, HelpCircle, ArrowRight, Search, Users,
   Flower, CreditCard, Lock, Loader2, PlusCircle, Gift, 
   MessageCircle, Clock, Award, PenTool, Video, Music, MapPin, Store,
-  User, CheckCircle2
+  User, CheckCircle2, Ticket // ←追加
 } from 'lucide-react';
 
 function cn(...classes) {
@@ -594,10 +594,11 @@ const PartnerBanner = () => (
             FLASTALは、お花屋さん、ライブ会場、イベント主催者、イラストレーターの皆様と<br className="hidden md:block"/>
             ファンをつなぐ安全なエコシステムを提供します。初期費用・月額費用は無料です。
           </p>
-          <div className="flex flex-col sm:flex-row flex-wrap justify-center gap-3 md:gap-4">
+          <div className="flex flex-col sm:flex-row flex-wrap justify-center gap-4">
             {[
               { href: "/florists/register", label: "お花屋さん無料登録", icon: Flower },
               { href: "/venues/register", label: "会場・ホール登録", icon: MapPin },
+              { href: "/organizers/register", label: "イベント主催者登録", icon: Ticket }, // ←追加
               { href: "/illustrators/register", label: "イラストレーター登録", icon: PenTool },
             ].map((btn, i) => (
               <Link key={i} href={btn.href} className="px-5 py-3 md:px-6 md:py-3.5 bg-white/10 hover:bg-white text-white hover:text-slate-900 text-xs md:text-sm font-bold rounded-full border border-white/20 transition-all flex items-center justify-center gap-2 backdrop-blur-md">
