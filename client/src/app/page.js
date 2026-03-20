@@ -12,7 +12,7 @@ import { motion, useScroll, useSpring } from 'framer-motion';
 
 import { 
   Heart, Sparkles, Star, Search, ArrowRight, CheckCircle2, 
-  ShieldCheck, HelpCircle, Flower, CreditCard, Lock, Loader2, PlusCircle
+  ShieldCheck, HelpCircle, Flower, CreditCard, Lock, Loader2, PlusCircle, ChevronDown
 } from 'lucide-react';
 
 function cn(...classes) {
