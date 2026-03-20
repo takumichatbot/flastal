@@ -1,19 +1,21 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+export const dynamic = 'force-dynamic';
+
+import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/app/contexts/AuthContext';
 import ApprovalPendingCard from '@/components/dashboard/ApprovalPendingCard'; 
 import FloristAppealPostForm from '@/components/dashboard/FloristAppealPostForm';
 
 import { 
-  FiCheckCircle, FiFileText, FiRefreshCw, FiCalendar, FiMapPin, 
+  FiCheckCircle, FiFileText, FiCalendar, FiMapPin, 
   FiClock, FiChevronLeft, FiChevronRight, FiCamera, FiUser, 
-  FiShare, FiEye, FiEyeOff, FiTrash2, FiDollarSign, FiLogOut, FiSettings, FiArrowRight,
-  FiBriefcase, FiAlertCircle
+  FiEye, FiEyeOff, FiTrash2, FiDollarSign, FiLogOut, FiArrowRight,
+  FiBriefcase, FiAlertCircle, FiLoader
 } from 'react-icons/fi'; 
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
@@ -120,26 +122,28 @@ function CalendarView({ events }) {
   );
 }
 
-// --- メインページ ---
-export default function FloristDashboardPage() {
+// --- メインページコンテンツ (useSearchParamsを使用するため独立させる) ---
+function DashboardContent() {
   const { user, logout, isLoading, authenticatedFetch } = useAuth(); 
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [data, setData] = useState(null);
   const [errorInfo, setErrorInfo] = useState(null);
-  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'pending');
+  const [activeTab, setActiveTab] = useState('pending');
+  const isFetching = useRef(false);
+
+  // URLが変わった時にタブを切り替える同期処理
   useEffect(() => {
     const tab = searchParams.get('tab');
     if (tab) setActiveTab(tab);
   }, [searchParams]);
-  const isFetching = useRef(false);
 
   // データ取得
   const fetchData = useCallback(async () => {
     if (isFetching.current) return;
     isFetching.current = true;
     try {
-      // dashboardRes, payoutsRes, scheduleRes を並列取得
       const [dashboardRes, scheduleRes] = await Promise.all([
         authenticatedFetch(`${API_URL}/api/florists/profile`),
         authenticatedFetch(`${API_URL}/api/florists/schedule`).catch(() => null)
@@ -171,7 +175,6 @@ export default function FloristDashboardPage() {
     }
   }, [isLoading, user, fetchData]);
 
-  // ハンドラ: 削除
   const handleDeleteAppealPost = async (postId) => {
     if (!window.confirm("本当に削除しますか？")) return;
     const toastId = toast.loading('削除中...');
@@ -183,7 +186,6 @@ export default function FloristDashboardPage() {
     } catch (e) { toast.error(e.message, { id: toastId }); }
   };
 
-  // ハンドラ: 公開切り替え
   const handleToggleVisibility = async (post) => {
     const toastId = toast.loading('更新中...');
     try {
@@ -230,7 +232,7 @@ export default function FloristDashboardPage() {
     return <div className="min-h-screen flex items-center justify-center bg-slate-50 text-slate-400 font-bold">同期中...</div>;
   }
 
-  const { offers = [], appealPosts = [], scheduleEvents = [], balance = 0, platformName, id: floristId } = data;
+  const { offers = [], appealPosts = [], scheduleEvents = [], balance = 0, platformName } = data;
   const pendingOffers = offers.filter(o => o.status === 'PENDING');
   const acceptedOffers = offers.filter(o => o.status === 'ACCEPTED');
 
@@ -343,5 +345,14 @@ export default function FloristDashboardPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+// 最後に default export として Suspense で囲んだコンポーネントを返す
+export default function FloristDashboardPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50"><FiLoader className="animate-spin text-pink-500 w-10 h-10" /></div>}>
+      <DashboardContent />
+    </Suspense>
   );
 }
