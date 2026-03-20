@@ -215,7 +215,8 @@ export default function Header() {
       case 'FLORIST':
         return [
           { href: '/florists/dashboard', label: '受注管理', icon: <ClipboardList size={18}/> },
-          { href: '/florists/offers', label: '届いたオファー', icon: <FileText size={18}/> },
+          // ★修正: 実体のないパスを避け、ダッシュボードのタブ(pending)へ誘導する
+          { href: '/florists/dashboard?tab=pending', label: '届いたオファー', icon: <FileText size={18}/> },
           { href: '/venues', label: '配送先会場', icon: <MapPin size={18}/> },
         ];
       case 'VENUE':
@@ -251,7 +252,8 @@ export default function Header() {
   
     switch (user.role) {
       case 'ADMIN': return '/admin';
-      case 'FLORIST': return '/florists/dashboard';
+      // ★修正: ダッシュボードではなく「店舗プロフィール(公開ページ)」または「編集ページ」へ
+      case 'FLORIST': return `/florists/${user.id}`; 
       case 'VENUE': return `/venues/dashboard/${user.id}`;
       case 'ORGANIZER': return '/organizers/dashboard';
       default: return '/mypage';

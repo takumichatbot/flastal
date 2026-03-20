@@ -200,7 +200,13 @@ export default function FloristDetailPage() {
         <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 text-center p-6">
             <FiAlertCircle size={48} className="text-gray-300 mb-4" />
             <h2 className="text-xl font-bold text-gray-800 mb-2">Florist Not Found</h2>
-            <Link href="/florists" className="text-pink-500 font-bold hover:underline">お花屋さん一覧へ戻る</Link>
+            {/* ★修正: ログイン中のお花屋さんならダッシュボードへ、それ以外は一覧へ */}
+            <Link 
+                href={user?.role === 'FLORIST' ? "/florists/dashboard" : "/florists"} 
+                className="text-pink-500 font-bold hover:underline"
+            >
+                {user?.role === 'FLORIST' ? "ダッシュボードへ戻る" : "お花屋さん一覧へ戻る"}
+            </Link>
         </div>
     );
   }

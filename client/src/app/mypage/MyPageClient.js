@@ -186,7 +186,16 @@ export default function MyPageClient() {
             
             <NavSection title="Settings" />
             <NavButton id="notifications" label="お知らせ" icon={FiBell} badge={unreadCount} activeTab={activeTab} onClick={setActiveTab} />
-            <NavButton id="settings" label="プロフィール設定" icon={FiSettings} activeTab={activeTab} onClick={setActiveTab} />
+            <NavButton 
+              id="settings" 
+              label="プロフィール設定" 
+              icon={FiSettings} 
+              activeTab={activeTab} 
+              onClick={() => {
+                // タブ切り替えではなく、直接編集ページへ遷移
+                router.push('/mypage/edit');
+              }} 
+            />
           </>
         }
         onLogout={() => {

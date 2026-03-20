@@ -127,7 +127,11 @@ export default function FloristDashboardPage() {
 
   const [data, setData] = useState(null);
   const [errorInfo, setErrorInfo] = useState(null);
-  const [activeTab, setActiveTab] = useState('pending');
+  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'pending');
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab) setActiveTab(tab);
+  }, [searchParams]);
   const isFetching = useRef(false);
 
   // データ取得
