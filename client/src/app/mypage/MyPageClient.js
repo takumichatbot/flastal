@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, Suspense } from 'react';
 import { useAuth } from '@/app/contexts/AuthContext';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -9,14 +9,14 @@ import Image from 'next/image';
 import { 
   FiUser, FiHeart, FiBell, FiSettings, 
   FiPlus, FiSearch, FiCamera, FiClock, FiUsers, 
-  FiStar, FiCheckCircle, FiChevronRight, FiLogOut, FiAward // ← FiAward を追加
+  FiStar, FiCheckCircle, FiChevronRight, FiLogOut, FiAward, FiActivity // ★修正: FiActivity を追加しました
 } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2 } from 'lucide-react'; // ← Loader2 を追加
+import { Loader2 } from 'lucide-react';
 
-import UploadForm from '@/app/components/UploadForm';
+import UploadForm from '@/app/components/UploadForm'; 
 import SupportLevelBadge from '@/app/components/SupportLevelBadge'; 
-import { PointsCard } from '@/app/components/DashboardLayout'; // Sidebar等は使わずPointsCardのみ利用
+import { PointsCard } from '@/app/components/DashboardLayout';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -67,7 +67,11 @@ const ProgressSteps = ({ currentStep }) => {
 // --- 透明感のある企画カード ---
 function ProjectCard({ project, roleType }) {
   const config = PROJECT_STATUS_CONFIG[project.status] || { label: project.status, color: 'text-slate-600', bg: 'bg-slate-500', bgLight: 'bg-slate-50', step: 0 };
-  const percent = project.targetAmount > 0 ? Math.min((project.collectedAmount / project.targetAmount) * 100, 100) : 0;
+  
+  // ★追加: 数値が未定義の際のエラー(NaN)を防ぐ安全処理
+  const targetAmount = project.targetAmount || 0;
+  const collectedAmount = project.collectedAmount || 0;
+  const percent = targetAmount > 0 ? Math.min((collectedAmount / targetAmount) * 100, 100) : 0;
   const isOrganizer = roleType === 'owner';
   
   return (
@@ -76,7 +80,7 @@ function ProjectCard({ project, roleType }) {
         {/* アイキャッチ画像 */}
         <div className="relative w-full aspect-[4/3] rounded-[2rem] overflow-hidden shadow-inner bg-slate-100 shrink-0">
           {project.imageUrl ? (
-            <Image src={project.imageUrl} alt={project.title} fill className="object-cover group-hover:scale-105 transition-transform duration-700" />
+            <Image src={project.imageUrl} alt={project.title || "企画画像"} fill className="object-cover group-hover:scale-105 transition-transform duration-700" />
           ) : (
             <div className="absolute inset-0 bg-gradient-to-br from-pink-100 to-sky-100 flex items-center justify-center text-4xl">💐</div>
           )}
@@ -108,7 +112,7 @@ function ProjectCard({ project, roleType }) {
           
           <div className="mt-auto">
             <div className="flex items-center gap-4 text-[10px] text-slate-400 font-bold mb-4">
-              <span className="flex items-center gap-1.5"><FiClock className="text-pink-400"/> {new Date(project.deliveryDateTime).toLocaleDateString()}</span>
+              <span className="flex items-center gap-1.5"><FiClock className="text-pink-400"/> {project.deliveryDateTime ? new Date(project.deliveryDateTime).toLocaleDateString() : '未定'}</span>
               <span className="flex items-center gap-1.5"><FiUsers className="text-sky-400"/> {project.backerCount || 0}人参加</span>
             </div>
 
@@ -116,8 +120,8 @@ function ProjectCard({ project, roleType }) {
               <div>
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Current</p>
                 <p className="text-lg font-black text-slate-800 leading-none">
-                  ¥{project.collectedAmount.toLocaleString()}
-                  <span className="text-[10px] text-slate-400 font-medium ml-1">/ ¥{project.targetAmount.toLocaleString()}</span>
+                  ¥{collectedAmount.toLocaleString()}
+                  <span className="text-[10px] text-slate-400 font-medium ml-1">/ ¥{targetAmount.toLocaleString()}</span>
                 </p>
               </div>
               <span className={cn("text-2xl font-black font-mono leading-none", percent >= 100 ? "text-emerald-500" : "text-pink-500")}>
@@ -141,9 +145,9 @@ function ProjectCard({ project, roleType }) {
 }
 
 // ==========================================
-// 👑 MAIN COMPONENT
+// 💡 メインのダッシュボードコンポーネント (Suspenseで囲む中身)
 // ==========================================
-export default function MyPageClient() {
+function DashboardContent() {
   const { user, isLoading: authLoading, logout, authenticatedFetch } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams(); 
@@ -428,5 +432,16 @@ export default function MyPageClient() {
         </AnimatePresence>
       </div>
     </div>
+  );
+}
+
+// ==========================================
+// 👑 ROOT EXPORT (Wrapped in Suspense)
+// ==========================================
+export default function MyPageClientPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50"><Loader2 className="w-10 h-10 text-pink-500 animate-spin" /></div>}>
+      <DashboardContent />
+    </Suspense>
   );
 }
