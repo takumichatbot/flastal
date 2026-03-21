@@ -16,7 +16,7 @@ import AiPlanGenerator from '@/app/components/AiPlanGenerator';
 import { 
   Calendar, MapPin, X, Image as ImageIcon, Loader2, Plus, 
   User, Award, Search, CheckCircle2, ZoomIn, Sparkles, 
-  Heart, Wand2, Lock, Globe, UploadCloud, ArrowRight, Paintbrush, FileText
+  Heart, Wand2, Lock, Globe, UploadCloud, ArrowRight, Paintbrush, FileText, Clock // ← Clock を追加
 } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';

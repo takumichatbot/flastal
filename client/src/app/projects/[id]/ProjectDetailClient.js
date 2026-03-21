@@ -20,7 +20,7 @@ import {
   ChevronLeft, Send, Image as ImageIcon, 
   Award, Plus, Search, Loader2, X,
   FileText, Printer, Info, Lock, PenTool, Check, Wand2, 
-  MessageSquare, Trash2, Box, UploadCloud, RefreshCw, Pen, Book, Users, Sparkles
+  MessageSquare, Trash2, Box, UploadCloud, RefreshCw, Pen, Book, Users, Sparkles, Edit3 // ← Edit3 を追加
 } from 'lucide-react';
 
 // --- Components ---
@@ -109,6 +109,23 @@ const Reveal = ({ children, delay = 0, className = "" }) => (
 // ===========================================
 // Sub Components
 // ===========================================
+
+
+function ImageLightbox({ url, onClose }) {
+  return (
+    <div className="fixed inset-0 bg-slate-900/90 flex justify-center items-center z-[100] p-4 backdrop-blur-sm" onClick={onClose}>
+      <button onClick={onClose} className="absolute top-6 right-6 w-12 h-12 bg-white/10 rounded-full flex items-center justify-center text-white hover:bg-white/20 transition-colors z-[110] backdrop-blur-md border border-white/20">
+        <X size={24} />
+      </button>
+      <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="relative w-full h-full flex items-center justify-center pointer-events-none">
+        <img src={url} alt="Enlarged design" className="max-w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl" />
+      </motion.div>
+    </div>
+  );
+}
+
+function InstructionSheetModal({ project, onClose }) {
+// ...
 
 function InstructionSheetModal({ project, onClose }) {
   const images = [
