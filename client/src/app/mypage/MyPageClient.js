@@ -9,11 +9,12 @@ import Image from 'next/image';
 import { 
   FiUser, FiHeart, FiBell, FiSettings, 
   FiPlus, FiSearch, FiCamera, FiClock, FiUsers, 
-  FiStar, FiCheckCircle, FiChevronRight, FiLogOut
+  FiStar, FiCheckCircle, FiChevronRight, FiLogOut, FiAward // ← FiAward を追加
 } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Loader2 } from 'lucide-react'; // ← Loader2 を追加
 
-import UploadForm from '@/app/components/UploadForm'; 
+import UploadForm from '@/app/components/UploadForm';
 import SupportLevelBadge from '@/app/components/SupportLevelBadge'; 
 import { PointsCard } from '@/app/components/DashboardLayout'; // Sidebar等は使わずPointsCardのみ利用
 
