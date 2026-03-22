@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Share2, Star, Heart, Sparkles, Loader2 } from 'lucide-react';
+import { ArrowLeft, Share2, Star, Heart, Sparkles, Loader2, User, MessageCircle } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 

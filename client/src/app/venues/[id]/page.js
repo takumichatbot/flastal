@@ -6,10 +6,10 @@ import Link from 'next/link';
 import { useAuth } from '../../contexts/AuthContext';
 import { motion } from 'framer-motion';
 
-// lucide-reactに統一
+// 修正後 (User, Camera を追加):
 import { 
   MapPin, Info, AlertTriangle, CheckCircle2, 
-  XCircle, ArrowRight, Edit3, Settings, Calendar, Truck, ExternalLink, Image as ImageIcon, Loader2
+  XCircle, ArrowRight, Edit3, Settings, Calendar, Truck, ExternalLink, Image as ImageIcon, Loader2, User, Camera
 } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';

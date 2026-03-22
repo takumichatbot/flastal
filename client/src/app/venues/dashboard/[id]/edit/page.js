@@ -9,9 +9,8 @@ import toast from 'react-hot-toast';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 
-// lucide-reactに統一
 import { 
-  ArrowLeft, Save, MapPin, CheckCircle2, X, Image as ImageIcon, Plus, Loader2, Edit3, Settings 
+  ArrowLeft, Save, MapPin, CheckCircle2, X, Image as ImageIcon, Plus, Loader2, Edit3, Settings, Camera
 } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';

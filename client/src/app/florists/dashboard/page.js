@@ -26,6 +26,7 @@ function cn(...classes) {
   return classes.filter(Boolean).join(' ');
 }
 
+
 // 🎨 Glassmorphism UI Components
 const GlassCard = ({ children, className }) => (
   <div className={cn("bg-white/80 backdrop-blur-xl border border-white shadow-[0_8px_30px_rgba(0,0,0,0.04)] rounded-[2.5rem] p-6 md:p-8", className)}>
@@ -38,7 +39,6 @@ const Reveal = ({ children, delay = 0 }) => (
     {children}
   </motion.div>
 );
-
 const JpText = ({ children, className }) => <span className={cn("inline-block", className)}>{children}</span>;
 
 const StatCard = ({ title, value, icon: Icon, color = "sky" }) => {
