@@ -26,6 +26,8 @@ const getAuthToken = () => {
 
 function cn(...classes) { return classes.filter(Boolean).join(' '); }
 
+const JpText = ({ children, className }) => <span className={cn("inline-block", className)}>{children}</span>;
+
 // ふわふわ浮かぶパーティクル（清潔感のあるスカイ〜インディゴ）
 const FloatingParticles = () => {
   const [windowSize, setWindowSize] = useState({ width: 1000, height: 1000 });

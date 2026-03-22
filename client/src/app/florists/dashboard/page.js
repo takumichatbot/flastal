@@ -33,6 +33,14 @@ const GlassCard = ({ children, className }) => (
   </div>
 );
 
+const Reveal = ({ children, delay = 0 }) => (
+  <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay, ease: "easeOut" }}>
+    {children}
+  </motion.div>
+);
+
+const JpText = ({ children, className }) => <span className={cn("inline-block", className)}>{children}</span>;
+
 const StatCard = ({ title, value, icon: Icon, color = "sky" }) => {
   const colors = {
     sky: "bg-sky-50 text-sky-500 border-sky-100",

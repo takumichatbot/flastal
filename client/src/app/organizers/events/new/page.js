@@ -14,7 +14,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 // lucide-reactに統一
 import { 
   ArrowLeft, Calendar, MapPin, Loader2, Type, Image as ImageIcon, 
-  Globe, Instagram, Twitter, X, Info, Plus, Cpu, Sparkles 
+  Globe, Instagram, Twitter, X, Info, Plus, Cpu, Sparkles, Camera
 } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';

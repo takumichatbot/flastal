@@ -12,8 +12,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 // lucide-reactに統一
 import { 
-  Search, MapPin, Camera, Loader2, X, Zap, Award, Filter, Star, CheckCircle2, Sparkles, ChevronRight
-} from 'lucide-react'; 
+  Search, MapPin, Camera, Loader2, X, Zap, Award, Filter, Star, CheckCircle2, Sparkles, ChevronRight, User
+} from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
