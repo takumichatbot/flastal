@@ -1,6 +1,5 @@
 'use client';
 
-// Next.js 15 ビルドエラー回避
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
 
@@ -10,11 +9,39 @@ import Link from 'next/link';
 import { useAuth } from '@/app/contexts/AuthContext';
 import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
+import { motion, AnimatePresence } from 'framer-motion';
+
+// lucide-reactに統一
 import { 
-  FiArrowLeft, FiCalendar, FiMapPin, FiLoader, FiType, FiImage, FiLink, FiGlobe, FiInstagram, FiTwitter, FiUpload, FiX, FiInfo, FiPlus, FiCpu // ★ FiCpuを追加
-} from 'react-icons/fi';
+  ArrowLeft, Calendar, MapPin, Loader2, Type, Image as ImageIcon, 
+  Globe, Instagram, Twitter, X, Info, Plus, Cpu, Sparkles 
+} from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
+
+function cn(...classes) { return classes.filter(Boolean).join(' '); }
+
+const FloatingParticles = () => {
+  const [windowSize, setWindowSize] = useState({ width: 1000, height: 1000 });
+  useEffect(() => { setWindowSize({ width: window.innerWidth, height: window.innerHeight }); }, []);
+  return (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+      {[...Array(12)].map((_, i) => (
+        <motion.div key={i} className="absolute w-3 h-3 bg-indigo-300 rounded-full mix-blend-multiply filter blur-[1px] opacity-30"
+          initial={{ x: Math.random() * windowSize.width, y: Math.random() * windowSize.height }}
+          animate={{ y: [null, Math.random() * -200], x: [null, (Math.random() - 0.5) * 100], opacity: [0.2, 0.5, 0.2], scale: [1, 1.5, 1] }}
+          transition={{ duration: Math.random() * 10 + 15, repeat: Infinity, ease: "linear" }}
+        />
+      ))}
+    </div>
+  );
+};
+
+const GlassCard = ({ children, className }) => (
+  <div className={cn("bg-white/80 backdrop-blur-xl border border-white shadow-[0_8px_30px_rgba(79,70,229,0.05)] rounded-[2.5rem] p-6 md:p-10", className)}>
+    {children}
+  </div>
+);
 
 function CreateEventContent() {
   const { user, isAuthenticated, loading: authLoading, authenticatedFetch } = useAuth();
@@ -22,41 +49,21 @@ function CreateEventContent() {
   const [isMounted, setIsMounted] = useState(false);
   const [venues, setVenues] = useState([]);
   
-  // 画像アップロード用状態
   const [imageUrls, setImageUrls] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
 
-  // ★ AI解析用の状態
   const [showAiModal, setShowAiModal] = useState(false);
   const [aiInputText, setAiInputText] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
+  useEffect(() => { setIsMounted(true); }, []);
 
-  const { 
-    register, 
-    handleSubmit, 
-    setValue, // ★ setValueを追加 (AI解析結果を反映するため)
-    formState: { isSubmitting, errors } 
-  } = useForm({
-    defaultValues: {
-      title: '', 
-      eventDate: '',
-      venueId: '',
-      description: '',
-      genre: 'OTHER',
-      twitterUrl: '',
-      instagramUrl: '',
-      officialWebsite: ''
-    }
+  const { register, handleSubmit, setValue, formState: { isSubmitting, errors } } = useForm({
+    defaultValues: { title: '', eventDate: '', venueId: '', description: '', genre: 'OTHER', twitterUrl: '', instagramUrl: '', officialWebsite: '' }
   });
 
-  // 会場一覧の取得
   useEffect(() => {
     if (!isMounted || authLoading) return;
-
     if (!isAuthenticated || (user?.role !== 'ORGANIZER' && user?.role !== 'ADMIN')) {
       router.push('/organizers/login');
       return;
@@ -69,14 +76,12 @@ function CreateEventContent() {
         const data = await res.json();
         setVenues(Array.isArray(data) ? data : (data.venues || []));
       } catch (e) {
-        console.error('Failed to fetch venues:', e);
         toast.error('会場リストの読み込みに失敗しました。');
       }
     };
     fetchVenues();
   }, [isMounted, authLoading, isAuthenticated, user, router]);
 
-  // ★ AI解析実行関数
   const handleAiAnalyze = async () => {
     if (!aiInputText.trim()) return toast.error('テキストを入力してください');
     
@@ -84,17 +89,14 @@ function CreateEventContent() {
     const toastId = toast.loading('AIが解析中...');
 
     try {
-      // 変更点: API_URL を使用し、authenticatedFetch で認証トークンを送る
       const res = await authenticatedFetch(`${API_URL}/api/events/analyze`, {
         method: 'POST',
         body: JSON.stringify({ text: aiInputText })
       });
 
       if (!res.ok) throw new Error('解析に失敗しました');
-      
       const data = await res.json();
 
-      // フォームに値をセット
       if (data.title) setValue('title', data.title);
       if (data.eventDate) setValue('eventDate', data.eventDate);
       if (data.venueId) setValue('venueId', data.venueId);
@@ -106,22 +108,17 @@ function CreateEventContent() {
       toast.success('解析完了！情報を入力しました', { id: toastId });
       setShowAiModal(false);
       setAiInputText('');
-
     } catch (error) {
-      console.error(error);
       toast.error('解析できませんでした', { id: toastId });
     } finally {
       setIsAnalyzing(false);
     }
   };
 
-  // S3アップロード関数
   const uploadToS3 = async (file) => {
     const res = await authenticatedFetch('/api/tools/s3-upload-url', {
-      method: 'POST',
-      body: JSON.stringify({ fileName: file.name, fileType: file.type })
+      method: 'POST', body: JSON.stringify({ fileName: file.name, fileType: file.type })
     });
-    
     if (!res.ok) throw new Error('署名取得失敗');
     const { uploadUrl, fileUrl } = await res.json();
 
@@ -168,11 +165,7 @@ function CreateEventContent() {
   };
 
   const onSubmit = async (data) => {
-    if (!data.venueId) {
-      toast.error('会場を選択してください');
-      return;
-    }
-
+    if (!data.venueId) return toast.error('会場を選択してください');
     const toastId = toast.loading('イベントを登録中...');
 
     try {
@@ -180,11 +173,7 @@ function CreateEventContent() {
 
       const res = await authenticatedFetch('/api/events/user-submit', {
         method: 'POST',
-        body: JSON.stringify({
-          ...data,
-          imageUrls: imageUrls, 
-          eventDate: formattedDate 
-        }),
+        body: JSON.stringify({ ...data, imageUrls: imageUrls, eventDate: formattedDate }),
       });
 
       if (!res.ok) {
@@ -195,253 +184,195 @@ function CreateEventContent() {
       toast.success('イベントを作成しました！', { id: toastId });
       router.push('/organizers/dashboard');
     } catch (error) {
-      console.error('Submit Error:', error);
       toast.error(error.message || '予期せぬエラーが発生しました', { id: toastId });
     }
   };
 
-  const onError = (errors) => {
-    console.log("Validation Errors:", errors);
-    toast.error("入力内容に不備があります。");
-  };
-
   if (!isMounted || authLoading || !user) {
       return (
-        <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50">
-            <FiLoader className="animate-spin text-indigo-500 w-10 h-10 mb-4" />
-            <p className="text-slate-400 font-medium">読み込み中...</p>
+        <div className="flex flex-col items-center justify-center min-h-screen bg-indigo-50/50">
+            <Loader2 className="animate-spin text-indigo-500 w-12 h-12 mb-4" />
         </div>
       );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-gray-800">
-      <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
-          <div className="max-w-3xl mx-auto px-4 py-4 flex items-center justify-between">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50/50 to-purple-50/50 font-sans text-slate-800 relative overflow-hidden pb-24">
+      <FloatingParticles />
+      <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-indigo-200/30 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/3 pointer-events-none z-0" />
+      <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-purple-200/30 rounded-full blur-[100px] translate-y-1/3 -translate-x-1/3 pointer-events-none z-0" />
+
+      <div className="bg-white/80 backdrop-blur-xl border-b border-white sticky top-0 z-40 shadow-sm">
+          <div className="max-w-4xl mx-auto px-4 py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div className="flex items-center gap-4">
-                <Link href="/organizers/dashboard" className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500">
-                    <FiArrowLeft size={20} />
+                <Link href="/organizers/dashboard" className="p-2 hover:bg-indigo-50 rounded-full transition-colors text-slate-400 hover:text-indigo-600">
+                    <ArrowLeft size={20} />
                 </Link>
-                <h1 className="text-xl font-bold text-gray-900">新規イベント作成</h1>
+                <h1 className="text-xl md:text-2xl font-black text-slate-800 tracking-tighter">新規イベント作成</h1>
               </div>
               
-              {/* ★ AI解析ボタンの追加 */}
-              <button 
+              <motion.button 
+                whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
                 onClick={() => setShowAiModal(true)}
-                className="flex items-center gap-2 bg-gradient-to-r from-violet-600 to-indigo-600 text-white px-4 py-2 rounded-full text-sm font-bold shadow-md hover:shadow-lg transition-all active:scale-95"
+                className="flex items-center justify-center gap-2 bg-gradient-to-r from-violet-500 to-indigo-500 text-white px-6 py-2.5 rounded-full text-sm font-black shadow-lg hover:shadow-indigo-200 transition-all w-full sm:w-auto"
               >
-                <FiCpu /> AIで情報入力
-              </button>
+                <Cpu size={16}/> AIで情報を自動入力
+              </motion.button>
           </div>
       </div>
 
-      {/* ★ AI解析モーダル */}
-      {showAiModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-fadeIn">
-          <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden">
-            <div className="bg-indigo-600 p-4 text-white flex justify-between items-center">
-              <h3 className="font-bold flex items-center gap-2"><FiCpu /> イベント情報の自動解析</h3>
-              <button onClick={() => setShowAiModal(false)}><FiX size={20} /></button>
-            </div>
-            <div className="p-6">
-              <p className="text-sm text-gray-600 mb-3">公式サイトの「開催概要」などのテキストを貼り付けてください。AIが自動で項目を埋めます。</p>
-              <textarea 
-                className="w-full h-40 p-3 border border-gray-200 rounded-xl bg-gray-50 focus:ring-2 focus:ring-indigo-500 outline-none text-sm resize-none"
-                placeholder="例：『FLASTAL LIVE 2026』開催決定！日時：2026年12月25日 会場：東京ドーム..."
-                value={aiInputText}
-                onChange={(e) => setAiInputText(e.target.value)}
-              ></textarea>
-              <button 
-                onClick={handleAiAnalyze}
-                disabled={isAnalyzing}
-                className="w-full mt-4 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all disabled:opacity-70 flex justify-center items-center gap-2"
-              >
-                {isAnalyzing ? <><FiLoader className="animate-spin" /> 解析中...</> : '解析して反映する'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div className="max-w-3xl mx-auto px-4 py-8">
-        <form onSubmit={handleSubmit(onSubmit, onError)} className="space-y-8">
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden p-6 md:p-8 space-y-6">
+      <div className="max-w-4xl mx-auto px-4 py-8 relative z-10">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+          
+          <GlassCard className="space-y-8">
+                <div className="flex items-center gap-2 border-b border-slate-100 pb-4">
+                    <Type className="text-indigo-500" size={24}/>
+                    <h2 className="text-xl font-black text-slate-800">基本情報</h2>
+                </div>
                 
-                <h2 className="text-lg font-bold border-l-4 border-indigo-500 pl-3 mb-4">基本情報</h2>
-                
-                <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-1 flex items-center gap-2">
-                        <FiType className="text-indigo-500" /> イベント名 *
-                    </label>
-                    <input 
-                        type="text" 
-                        {...register('title', { required: 'イベント名は必須です' })} 
-                        className={`w-full p-3 bg-gray-50 border ${errors.title ? 'border-red-500' : 'border-gray-200'} rounded-xl focus:ring-2 focus:ring-indigo-100 outline-none transition-all`}
-                        placeholder="例: FLASTAL LIVE 2026"
-                    />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label className="block text-sm font-bold text-gray-700 mb-1 flex items-center gap-2">
-                            <FiCalendar className="text-indigo-500" /> 開催日 *
-                        </label>
-                        <input 
-                            type="date" 
-                            {...register('eventDate', { required: '開催日は必須です' })} 
-                            className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none"
-                        />
-                    </div>
-
-                    <div>
-                        <label className="block text-sm font-bold text-gray-700 mb-1">ジャンル</label>
-                        <select 
-                            {...register('genre')} 
-                            className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none cursor-pointer bg-white"
-                        >
-                            <option value="IDOL">アイドル</option>
-                            <option value="VTUBER">VTuber</option>
-                            <option value="MUSIC">音楽・バンド</option>
-                            <option value="ANIME">アニメ・声優</option>
-                            <option value="STAGE">舞台・演劇</option>
-                            <option value="OTHER">その他</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-1 flex items-center gap-2">
-                        <FiMapPin className="text-indigo-500" /> 会場 *
-                    </label>
-                    <select 
-                        {...register('venueId', { required: '会場の選択は必須です' })} 
-                        className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none cursor-pointer bg-white"
-                    >
-                        <option value="">会場を選択してください</option>
-                        {venues.map(v => <option key={v.id} value={v.id}>{v.venueName}</option>)}
-                    </select>
-                </div>
-
-                <hr className="border-gray-100" />
-
-                <h2 className="text-lg font-bold border-l-4 border-indigo-500 pl-3 mb-4">メディア・画像</h2>
-
-                <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-2 flex items-center gap-2">
-                        <FiImage className="text-indigo-500" /> イベント画像 (複数追加可)
-                    </label>
-                    
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-4">
-                        {imageUrls.map((url, idx) => (
-                            <div key={idx} className="relative aspect-video rounded-xl overflow-hidden shadow-sm group border border-gray-200">
-                                <img src={url} className="w-full h-full object-cover" alt="Preview" />
-                                <button 
-                                    type="button"
-                                    onClick={() => removeImage(idx)}
-                                    className="absolute top-1 right-1 p-1.5 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-all shadow-md"
-                                >
-                                    <FiX size={14} />
-                                </button>
-                                {idx === 0 && (
-                                  <div className="absolute bottom-0 left-0 right-0 bg-indigo-600 text-white text-[10px] text-center py-0.5 font-bold">カバー</div>
-                                )}
-                            </div>
-                        ))}
-                        
-                        <label className="flex flex-col items-center justify-center aspect-video border-2 border-dashed border-gray-200 rounded-xl bg-gray-50 hover:bg-indigo-50 hover:border-indigo-300 transition-all cursor-pointer">
-                            {isUploading ? (
-                              <FiLoader className="animate-spin text-indigo-500" size={24} />
-                            ) : (
-                              <>
-                                <FiPlus className="text-indigo-400 mb-1" size={24} />
-                                <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">画像を追加</span>
-                              </>
-                            )}
-                            <input 
-                                type="file" 
-                                multiple 
-                                accept="image/*" 
-                                className="hidden" 
-                                onChange={handleImageChange}
-                                disabled={isUploading}
-                            />
-                        </label>
-                    </div>
-                    <p className="text-[10px] text-gray-400">※1枚目の画像が一覧のカバー写真として使用されます。</p>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-6">
                   <div>
-                      <label className="block text-sm font-bold text-gray-700 mb-1 flex items-center gap-2">
-                          <FiGlobe className="text-indigo-500" /> 公式サイトURL
-                      </label>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">イベント名 <span className="text-pink-500">*</span></label>
                       <input 
-                          type="url" 
-                          {...register('officialWebsite')} 
-                          className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none transition-all"
-                          placeholder="https://..."
+                          type="text" {...register('title', { required: '必須です' })} 
+                          className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-indigo-50 focus:border-indigo-300 outline-none transition-all font-bold text-slate-800 text-lg"
+                          placeholder="例: FLASTAL LIVE 2026"
                       />
+                      {errors.title && <p className="text-rose-500 text-xs mt-1 font-bold">{errors.title.message}</p>}
                   </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">開催日 <span className="text-pink-500">*</span></label>
+                          <input 
+                              type="date" {...register('eventDate', { required: '必須です' })} 
+                              className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-indigo-50 focus:border-indigo-300 outline-none transition-all font-bold text-slate-800 cursor-pointer"
+                          />
+                      </div>
+
+                      <div>
+                          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">ジャンル</label>
+                          <select {...register('genre')} className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-indigo-50 focus:border-indigo-300 outline-none transition-all font-bold text-slate-800 cursor-pointer appearance-none">
+                              <option value="IDOL">アイドル</option>
+                              <option value="VTUBER">VTuber</option>
+                              <option value="MUSIC">音楽・バンド</option>
+                              <option value="ANIME">アニメ・声優</option>
+                              <option value="STAGE">舞台・演劇</option>
+                              <option value="OTHER">その他</option>
+                          </select>
+                      </div>
+                  </div>
+
                   <div>
-                      <label className="block text-sm font-bold text-gray-700 mb-1 flex items-center gap-2">
-                          <FiTwitter className="text-sky-400" /> X (Twitter) URL
-                      </label>
-                      <input 
-                          type="url" 
-                          {...register('twitterUrl')} 
-                          className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none transition-all"
-                          placeholder="https://x.com/..."
-                      />
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">会場 <span className="text-pink-500">*</span></label>
+                      <select {...register('venueId', { required: '必須です' })} className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-indigo-50 focus:border-indigo-300 outline-none transition-all font-bold text-slate-800 cursor-pointer appearance-none">
+                          <option value="">会場を選択してください</option>
+                          {venues.map(v => <option key={v.id} value={v.id}>{v.venueName}</option>)}
+                      </select>
                   </div>
                 </div>
+          </GlassCard>
 
-                <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-1 flex items-center gap-2">
-                        <FiInstagram className="text-pink-500" /> Instagram URL
-                    </label>
-                    <input 
-                        type="url" 
-                        {...register('instagramUrl')} 
-                        className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none transition-all"
-                        placeholder="https://instagram.com/..."
-                    />
+          <GlassCard className="space-y-8">
+                <div className="flex items-center gap-2 border-b border-slate-100 pb-4">
+                    <ImageIcon className="text-purple-500" size={24}/>
+                    <h2 className="text-xl font-black text-slate-800">メディア・詳細情報</h2>
                 </div>
 
-                <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-1 flex items-center gap-2">
-                      <FiInfo className="text-indigo-500" /> イベント詳細
-                    </label>
-                    <textarea 
-                        {...register('description')} 
-                        rows="4"
-                        placeholder="出演者やフラスタの搬入規定など"
-                        className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none"
-                    ></textarea>
-                </div>
-          </div>
+                <div className="space-y-6">
+                  <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">イベント画像 <span className="text-slate-400 lowercase font-bold">(複数追加可)</span></label>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 md:gap-6 mb-2">
+                          {imageUrls.map((url, idx) => (
+                              <div key={idx} className="relative aspect-video rounded-2xl overflow-hidden shadow-sm group border-2 border-white">
+                                  <img src={url} className="w-full h-full object-cover" alt="Preview" />
+                                  <button type="button" onClick={() => removeImage(idx)} className="absolute top-2 right-2 p-2 bg-rose-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-all shadow-md hover:scale-110">
+                                      <X size={14} />
+                                  </button>
+                                  {idx === 0 && <div className="absolute bottom-0 left-0 right-0 bg-indigo-500/90 backdrop-blur-sm text-white text-[10px] text-center py-1 font-black uppercase tracking-widest">Cover</div>}
+                              </div>
+                          ))}
+                          
+                          <label className="flex flex-col items-center justify-center aspect-video border-2 border-dashed border-slate-300 rounded-2xl bg-slate-50 hover:bg-indigo-50 hover:border-indigo-300 hover:text-indigo-500 transition-all cursor-pointer text-slate-400">
+                              {isUploading ? <Loader2 className="animate-spin mb-2" size={28} /> : <Camera className="mb-2" size={28} />}
+                              <span className="text-[10px] font-black uppercase tracking-widest">Add Image</span>
+                              <input type="file" multiple accept="image/*" className="hidden" onChange={handleImageChange} disabled={isUploading} />
+                          </label>
+                      </div>
+                      <p className="text-[10px] font-bold text-slate-400">※1枚目の画像が一覧のカバー写真として使用されます。</p>
+                  </div>
 
-          <div className="flex gap-4">
-             <button 
-               type="submit" 
-               disabled={isSubmitting || isUploading} 
-               className="w-full py-5 bg-indigo-600 text-white font-bold rounded-2xl hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 disabled:bg-gray-400 flex justify-center items-center gap-3 text-lg active:scale-95 transition-transform"
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1"><Globe size={14}/> 公式サイトURL</label>
+                        <input type="url" {...register('officialWebsite')} className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:bg-white focus:border-indigo-300 focus:ring-4 focus:ring-indigo-50 outline-none transition-all font-bold text-slate-800" placeholder="https://..." />
+                    </div>
+                    <div>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1"><Twitter size={14}/> X (Twitter) URL</label>
+                        <input type="url" {...register('twitterUrl')} className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:bg-white focus:border-sky-300 focus:ring-4 focus:ring-sky-50 outline-none transition-all font-bold text-slate-800" placeholder="https://x.com/..." />
+                    </div>
+                  </div>
+
+                  <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1"><Instagram size={14}/> Instagram URL</label>
+                      <input type="url" {...register('instagramUrl')} className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:bg-white focus:border-pink-300 focus:ring-4 focus:ring-pink-50 outline-none transition-all font-bold text-slate-800" placeholder="https://instagram.com/..." />
+                  </div>
+
+                  <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1"><Info size={14}/> イベント詳細</label>
+                      <textarea 
+                          {...register('description')} rows="5" placeholder="出演者やフラスタの搬入規定など"
+                          className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:bg-white focus:border-indigo-300 focus:ring-4 focus:ring-indigo-50 outline-none transition-all font-bold text-slate-800 resize-none leading-relaxed"
+                      ></textarea>
+                  </div>
+                </div>
+          </GlassCard>
+
+          <div className="pt-4 pb-12">
+             <motion.button 
+               whileHover={{ scale: 1.02, boxShadow: "0 10px 30px rgba(79,70,229,0.3)" }} whileTap={{ scale: 0.98 }}
+               type="submit" disabled={isSubmitting || isUploading} 
+               className="w-full py-5 md:py-6 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-black rounded-full transition-all shadow-xl disabled:opacity-50 flex justify-center items-center gap-3 text-lg md:text-xl"
              >
-                {(isSubmitting || isUploading) ? (
-                  <>
-                    <FiLoader className="animate-spin" /> {isUploading ? '画像をアップロード中...' : '登録中...'}
-                  </>
-                ) : 'イベントを公開する'}
-             </button>
+                {(isSubmitting || isUploading) ? <Loader2 className="animate-spin" size={24}/> : <Sparkles size={24}/>}
+                {(isSubmitting || isUploading) ? (isUploading ? '画像をアップロード中...' : '登録中...') : 'イベントを公開する'}
+             </motion.button>
           </div>
         </form>
       </div>
+
+      {/* AI解析モーダル */}
+      <AnimatePresence>
+        {showAiModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-md">
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white rounded-[3rem] w-full max-w-lg shadow-2xl overflow-hidden border border-white">
+              <div className="bg-gradient-to-r from-indigo-500 to-purple-500 p-6 text-white flex justify-between items-center relative overflow-hidden">
+                <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-30" />
+                <h3 className="font-black flex items-center gap-2 text-lg relative z-10"><Cpu size={20}/> 情報の自動入力</h3>
+                <button onClick={() => setShowAiModal(false)} className="relative z-10 bg-white/20 hover:bg-white/30 rounded-full p-2 transition-colors"><X size={18} /></button>
+              </div>
+              <div className="p-8">
+                <p className="text-xs font-bold text-slate-500 mb-4 leading-relaxed">公式サイトの「開催概要」などのテキストを貼り付けてください。AIが自動で項目を解析して埋めます。</p>
+                <textarea 
+                  className="w-full h-40 p-4 border-2 border-slate-100 rounded-2xl bg-slate-50 focus:bg-white focus:border-indigo-400 focus:ring-4 focus:ring-indigo-50 outline-none text-sm font-medium resize-none text-slate-800"
+                  placeholder="例：『FLASTAL LIVE 2026』開催決定！日時：2026年12月25日 会場：東京ドーム..."
+                  value={aiInputText} onChange={(e) => setAiInputText(e.target.value)}
+                ></textarea>
+                <button onClick={handleAiAnalyze} disabled={isAnalyzing} className="w-full mt-6 py-4 bg-slate-900 text-white font-black rounded-full hover:bg-slate-800 transition-all shadow-lg flex justify-center items-center gap-2">
+                  {isAnalyzing ? <><Loader2 className="animate-spin" size={18}/> 解析中...</> : <><Sparkles size={18}/> 解析して反映する</>}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
 
 export default function NewEventPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-slate-50 flex items-center justify-center"><FiLoader className="animate-spin text-indigo-500 w-10 h-10" /></div>}>
+    <Suspense fallback={<div className="min-h-screen bg-indigo-50/50 flex items-center justify-center"><Loader2 className="animate-spin text-indigo-500 w-12 h-12" /></div>}>
       <CreateEventContent />
     </Suspense>
   );

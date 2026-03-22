@@ -1,31 +1,20 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useAuth } from '@/app/contexts/AuthContext';
 import toast from 'react-hot-toast';
-import { 
-  FiMapPin, FiInfo, FiPlus, FiThumbsUp, FiArrowLeft, FiCamera, 
-  FiTruck, FiCheckCircle, FiExternalLink, FiUser, FiX 
-} from 'react-icons/fi';
+import { motion, AnimatePresence } from 'framer-motion';
 
-// 簡易的な画像拡大モーダル（コンポーネントがない場合用）
-const SimpleImageModal = ({ src, onClose }) => {
-  if (!src) return null;
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4" onClick={onClose}>
-      <div className="relative max-w-4xl max-h-screen w-full h-full flex items-center justify-center">
-        <button onClick={onClose} className="absolute top-4 right-4 text-white p-2 rounded-full bg-black/50 hover:bg-white/20 transition-colors">
-          <FiX size={24} />
-        </button>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={src} alt="Enlarged" className="max-w-full max-h-full object-contain rounded-lg" />
-      </div>
-    </div>
-  );
-};
+// lucide-reactに統一
+import { 
+  MapPin, Info, Plus, ThumbsUp, ArrowLeft, Camera, 
+  Truck, CheckCircle2, ExternalLink, User, X, Loader2, Send
+} from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -33,6 +22,46 @@ const getAuthToken = () => {
   if (typeof window === 'undefined') return null;
   const rawToken = localStorage.getItem('authToken');
   return rawToken ? rawToken.replace(/^"|"$/g, '') : null;
+};
+
+function cn(...classes) { return classes.filter(Boolean).join(' '); }
+
+// ふわふわ浮かぶパーティクル（清潔感のあるスカイ〜インディゴ）
+const FloatingParticles = () => {
+  const [windowSize, setWindowSize] = useState({ width: 1000, height: 1000 });
+  useEffect(() => { setWindowSize({ width: window.innerWidth, height: window.innerHeight }); }, []);
+  return (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+      {[...Array(12)].map((_, i) => (
+        <motion.div key={i} className="absolute w-3 h-3 bg-sky-300 rounded-full mix-blend-multiply filter blur-[1px] opacity-40"
+          initial={{ x: Math.random() * windowSize.width, y: Math.random() * windowSize.height }}
+          animate={{ y: [null, Math.random() * -200], x: [null, (Math.random() - 0.5) * 100], opacity: [0.2, 0.6, 0.2], scale: [1, 1.5, 1] }}
+          transition={{ duration: Math.random() * 10 + 15, repeat: Infinity, ease: "linear" }}
+        />
+      ))}
+    </div>
+  );
+};
+
+const GlassCard = ({ children, className }) => (
+  <div className={cn("bg-white/80 backdrop-blur-xl border border-white shadow-[0_8px_30px_rgba(56,189,248,0.05)] rounded-[2.5rem] p-6 md:p-10", className)}>
+    {children}
+  </div>
+);
+
+// 簡易的な画像拡大モーダル
+const SimpleImageModal = ({ src, onClose }) => {
+  if (!src) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/90 backdrop-blur-sm p-4 animate-fadeIn" onClick={onClose}>
+      <div className="relative max-w-4xl max-h-screen w-full h-full flex items-center justify-center">
+        <button onClick={onClose} className="absolute top-4 right-4 text-white p-3 rounded-full bg-white/10 hover:bg-white/20 transition-colors border border-white/20 backdrop-blur-md">
+          <X size={24} />
+        </button>
+        <motion.img initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} src={src} alt="Enlarged" className="max-w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl" />
+      </div>
+    </div>
+  );
 };
 
 export default function VenueLogisticsPage() {
@@ -44,16 +73,13 @@ export default function VenueLogisticsPage() {
   const [logistics, setLogistics] = useState([]);
   const [loading, setLoading] = useState(true);
   
-  // モーダル関連
   const [modalImage, setModalImage] = useState(null);
 
-  // 投稿フォーム
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({ title: '', description: '', imageUrls: [] });
   const [isUploading, setIsUploading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // データ取得
   const fetchData = useCallback(async () => {
     const token = getAuthToken();
     try {
@@ -65,7 +91,6 @@ export default function VenueLogisticsPage() {
       if (venueRes.ok) setVenue(await venueRes.json());
       if (logisticsRes.ok) setLogistics(await logisticsRes.json());
     } catch (error) {
-      console.error(error);
       toast.error('データの読み込みに失敗しました');
     } finally {
       setLoading(false);
@@ -81,31 +106,30 @@ export default function VenueLogisticsPage() {
     fetchData();
   }, [id, user, authLoading, router, fetchData]);
 
-  // 画像アップロード (並行処理化)
   const handleImageUpload = async (e) => {
     const files = Array.from(e.target.files);
     if (files.length === 0) return;
     
-    // 枚数制限
     if (formData.imageUrls.length + files.length > 4) {
       return toast.error('画像は一度に4枚まで投稿できます');
     }
 
     setIsUploading(true);
     const token = getAuthToken();
-    const uploadPromises = files.map(async (file) => {
-        const formData = new FormData();
-        formData.append('image', file);
-        const res = await fetch(`${API_URL}/api/upload`, {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${token}` },
-          body: formData
-        });
-        if (!res.ok) throw new Error('Upload failed');
-        return await res.json();
-    });
-
+    
     try {
+      const uploadPromises = files.map(async (file) => {
+          const fileData = new FormData();
+          fileData.append('image', file);
+          const res = await fetch(`${API_URL}/api/upload`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` },
+            body: fileData
+          });
+          if (!res.ok) throw new Error('Upload failed');
+          return await res.json();
+      });
+
       const results = await Promise.all(uploadPromises);
       const urls = results.map(r => r.url);
       setFormData(prev => ({ ...prev, imageUrls: [...prev.imageUrls, ...urls] }));
@@ -114,11 +138,10 @@ export default function VenueLogisticsPage() {
       toast.error('画像のアップロードに失敗しました');
     } finally {
       setIsUploading(false);
-      e.target.value = ''; // Reset input
+      e.target.value = ''; 
     }
   };
 
-  // 投稿送信
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.title || !formData.description) return toast.error('タイトルと詳細を入力してください');
@@ -128,10 +151,7 @@ export default function VenueLogisticsPage() {
     try {
       const res = await fetch(`${API_URL}/api/venues/${id}/logistics`, {
         method: 'POST',
-        headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-        },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(formData)
       });
       
@@ -140,7 +160,7 @@ export default function VenueLogisticsPage() {
       toast.success('情報を共有しました！ご協力ありがとうございます🌸');
       setShowForm(false);
       setFormData({ title: '', description: '', imageUrls: [] });
-      fetchData(); // リロード
+      fetchData(); 
     } catch (e) {
       toast.error('投稿に失敗しました');
     } finally {
@@ -148,266 +168,221 @@ export default function VenueLogisticsPage() {
     }
   };
 
-  // 「役に立った」ボタン
   const handleHelpful = async (infoId) => {
     const token = getAuthToken();
-    // 楽観的UI更新 (即座に反応させる)
     setLogistics(prev => prev.map(item => 
       item.id === infoId ? { ...item, helpfulCount: (item.helpfulCount || 0) + 1 } : item
     ));
 
     try {
         await fetch(`${API_URL}/api/logistics/${infoId}/helpful`, {
-            method: 'PATCH',
-            headers: { 'Authorization': `Bearer ${token}` }
+            method: 'PATCH', headers: { 'Authorization': `Bearer ${token}` }
         });
         toast.success('「役に立った」を送りました');
     } catch (e) {
-        // エラーなら戻す等の処理が必要だが今回は省略
         console.error(e);
     }
   };
 
-  // 画像削除
   const removeImage = (index) => {
-      setFormData(prev => ({
-          ...prev,
-          imageUrls: prev.imageUrls.filter((_, i) => i !== index)
-      }));
+      setFormData(prev => ({ ...prev, imageUrls: prev.imageUrls.filter((_, i) => i !== index) }));
   };
 
   if (loading || authLoading) {
       return (
-        <div className="flex items-center justify-center min-h-screen bg-slate-50">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
+        <div className="flex items-center justify-center min-h-screen bg-slate-50/50">
+            <Loader2 className="animate-spin text-sky-500" size={40} />
         </div>
       );
   }
 
-  if (!venue) return <div className="p-10 text-center text-gray-500">会場が見つかりません</div>;
+  if (!venue) return <div className="p-20 text-center text-slate-400 font-bold text-lg bg-slate-50 min-h-screen">会場が見つかりません</div>;
 
   return (
-    <div className="min-h-screen bg-slate-50 p-4 md:p-8 font-sans text-gray-800">
-      <div className="max-w-4xl mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50/50 to-sky-50/50 font-sans text-slate-800 relative overflow-hidden pb-24">
+      <FloatingParticles />
+      <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-sky-200/30 rounded-full blur-[100px] -translate-y-1/2 -translate-x-1/3 pointer-events-none z-0" />
+      
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 relative z-10 pt-8">
         
         {/* ナビゲーション */}
-        <div className="mb-6">
-            <Link href="/florists/dashboard" className="inline-flex items-center text-sm font-medium text-gray-500 hover:text-indigo-600 transition-colors">
-                <FiArrowLeft className="mr-2"/> ダッシュボードへ戻る
+        <div className="mb-6 flex items-center justify-between">
+            <Link href="/florists/dashboard" className="inline-flex items-center gap-2 px-5 py-2.5 bg-white/60 backdrop-blur-sm rounded-full text-sm font-black text-slate-500 hover:text-indigo-600 hover:bg-white shadow-sm border border-white transition-all">
+                <ArrowLeft size={16}/> ダッシュボードへ戻る
             </Link>
         </div>
 
         {/* ヘッダーカード */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-8">
-            <div className="bg-gradient-to-r from-indigo-600 to-indigo-800 p-6 text-white">
-                <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
+        <GlassCard className="!p-0 overflow-hidden mb-8 relative group">
+            <div className="absolute inset-0 bg-gradient-to-br from-indigo-500 to-sky-500 opacity-90 z-0"></div>
+            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-30 z-0"></div>
+            
+            <div className="relative z-10 p-8 md:p-12 text-white">
+                <div className="flex flex-col md:flex-row md:justify-between md:items-end gap-6">
                     <div>
-                        <div className="flex items-center gap-2 mb-2">
-                             <span className="bg-white/20 backdrop-blur-sm text-white text-xs font-bold px-2 py-1 rounded flex items-center gap-1">
-                                <FiTruck /> 搬入情報Wiki
+                        <div className="flex items-center gap-2 mb-4">
+                             <span className="bg-white/20 backdrop-blur-md text-white text-[10px] font-black px-3 py-1.5 rounded-full flex items-center gap-1.5 uppercase tracking-widest border border-white/30 shadow-sm">
+                                <Truck size={14}/> 搬入情報Wiki
                              </span>
                         </div>
-                        <h1 className="text-2xl md:text-3xl font-bold mb-2">{venue.venueName}</h1>
-                        <p className="flex items-center text-indigo-100 text-sm">
-                            <FiMapPin className="mr-2"/> {venue.address}
+                        <h1 className="text-3xl md:text-4xl font-black mb-3 tracking-tighter drop-shadow-md">{venue.venueName}</h1>
+                        <p className="flex items-center text-sky-100 text-sm font-bold">
+                            <MapPin className="mr-2 shrink-0"/> {venue.address}
                         </p>
                     </div>
-                    {/* Google Mapリンク */}
                     <a 
                         href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(venue.venueName + ' ' + venue.address)}`} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-2 bg-white text-indigo-700 px-4 py-2.5 rounded-lg font-bold text-sm shadow-lg hover:bg-gray-100 transition-colors whitespace-nowrap"
+                        target="_blank" rel="noopener noreferrer"
+                        className="flex items-center justify-center gap-2 bg-white text-indigo-600 px-6 py-3.5 rounded-full font-black text-sm shadow-xl hover:scale-105 transition-all whitespace-nowrap"
                     >
-                        <FiExternalLink /> 地図アプリで開く
+                        <ExternalLink size={16}/> 地図アプリで開く
                     </a>
                 </div>
             </div>
 
-            {/* 公式アクセス情報 */}
             {venue.accessInfo && (
-                <div className="p-6 bg-yellow-50 border-b border-yellow-100">
-                    <h3 className="text-sm font-bold text-yellow-800 flex items-center gap-2 mb-2">
-                        <FiInfo className="text-yellow-600"/> 会場からの公式アクセス情報
+                <div className="relative z-10 p-6 md:p-8 bg-white border-t border-slate-100">
+                    <h3 className="text-xs font-black text-amber-500 flex items-center gap-1.5 mb-3 uppercase tracking-widest">
+                        <Info size={16}/> 会場からの公式アクセス情報
                     </h3>
-                    <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
+                    <p className="text-sm text-slate-600 whitespace-pre-wrap leading-relaxed font-medium">
                         {venue.accessInfo}
                     </p>
                 </div>
             )}
-        </div>
+        </GlassCard>
 
         {/* 投稿フォームエリア */}
-        <div className="mb-8">
+        <div className="mb-12">
             {!showForm ? (
-                <button 
+                <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
                     onClick={() => setShowForm(true)} 
-                    className="w-full py-4 bg-white border-2 border-dashed border-indigo-200 rounded-2xl text-indigo-600 font-bold hover:bg-indigo-50 hover:border-indigo-300 transition-all flex flex-col items-center justify-center gap-2 shadow-sm"
+                    className="w-full py-6 md:py-8 bg-white/60 backdrop-blur-md border-2 border-dashed border-indigo-200 rounded-[2.5rem] text-indigo-600 font-black hover:bg-white hover:border-indigo-300 hover:shadow-lg transition-all flex flex-col items-center justify-center gap-3"
                 >
-                    <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center">
-                        <FiPlus size={24} />
+                    <div className="w-14 h-14 bg-indigo-50 rounded-full flex items-center justify-center text-indigo-500 shadow-inner">
+                        <Plus size={28} />
                     </div>
-                    <span>新しい搬入情報を共有する</span>
-                    <span className="text-xs text-indigo-400 font-normal">駐車場、搬入口、注意点など</span>
-                </button>
+                    <span className="text-lg">新しい搬入情報を共有する</span>
+                    <span className="text-xs text-indigo-400 font-bold">駐車場、搬入口、注意点などをみんなにシェア🌸</span>
+                </motion.button>
             ) : (
-                <div className="bg-white p-6 rounded-2xl shadow-lg border border-indigo-100 animate-fadeIn relative">
-                    <button onClick={() => setShowForm(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"><FiX size={20}/></button>
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white p-6 md:p-10 rounded-[2.5rem] shadow-2xl border border-indigo-100 relative">
+                    <button onClick={() => setShowForm(false)} className="absolute top-6 right-6 w-10 h-10 bg-slate-50 text-slate-400 hover:bg-slate-100 hover:text-slate-600 rounded-full flex items-center justify-center transition-colors"><X size={18}/></button>
                     
-                    <h3 className="font-bold text-lg mb-1 text-gray-800">情報を共有する</h3>
-                    <p className="text-xs text-gray-500 mb-6">あなたの情報が、他の花屋さんの助けになります。</p>
+                    <h3 className="font-black text-xl mb-2 text-slate-800">情報を共有する</h3>
+                    <p className="text-xs font-bold text-slate-500 mb-8">あなたの情報が、他の花屋さんの助けになります✨</p>
                     
-                    <form onSubmit={handleSubmit} className="space-y-5">
+                    <form onSubmit={handleSubmit} className="space-y-6">
                         <div>
-                            <label className="block text-sm font-bold text-gray-700 mb-1">タイトル <span className="text-red-500">*</span></label>
-                            <input 
-                                type="text" 
-                                required 
-                                value={formData.title}
-                                onChange={e => setFormData({...formData, title: e.target.value})}
-                                placeholder="例: 搬入口の段差について / 控え室へのルート"
-                                className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-indigo-500 outline-none transition-all"
-                            />
+                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">タイトル <span className="text-pink-500">*</span></label>
+                            <input type="text" required value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} placeholder="例: 搬入口の段差について / 控え室へのルート" className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:bg-white focus:border-indigo-300 focus:ring-4 focus:ring-indigo-50 outline-none transition-all font-bold text-slate-800" />
                         </div>
                         <div>
-                            <label className="block text-sm font-bold text-gray-700 mb-1">詳細情報 <span className="text-red-500">*</span></label>
-                            <textarea 
-                                required 
-                                rows="4"
-                                value={formData.description}
-                                onChange={e => setFormData({...formData, description: e.target.value})}
-                                placeholder="例: 裏口のシャッターは10時に開きます。台車はスロープあり。担当者の〇〇さんに声をかけるとスムーズです。"
-                                className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-indigo-500 outline-none transition-all resize-none"
-                            />
+                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">詳細情報 <span className="text-pink-500">*</span></label>
+                            <textarea required rows="5" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} placeholder="例: 裏口のシャッターは10時に開きます。台車はスロープあり。担当者の〇〇さんに声をかけるとスムーズです。" className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:bg-white focus:border-indigo-300 focus:ring-4 focus:ring-indigo-50 outline-none transition-all resize-none font-bold text-slate-700 leading-relaxed" />
                         </div>
                         
-                        {/* 画像アップロード */}
                         <div>
-                            <label className="block text-sm font-bold text-gray-700 mb-2">写真 (任意・最大4枚)</label>
-                            <div className="flex flex-wrap gap-3">
+                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">写真 <span className="lowercase font-bold">(任意・最大4枚)</span></label>
+                            <div className="flex flex-wrap gap-4">
                                 {formData.imageUrls.map((url, i) => (
-                                    <div key={i} className="relative group w-20 h-20">
-                                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                                        <img src={url} alt="Uploaded" className="w-full h-full object-cover rounded-lg border border-gray-200"/>
-                                        <button 
-                                            type="button"
-                                            onClick={() => removeImage(i)}
-                                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs shadow-md"
-                                        >
-                                            <FiX />
+                                    <div key={i} className="relative group w-24 h-24 rounded-2xl overflow-hidden border-2 border-white shadow-sm">
+                                        <Image src={url} alt="Uploaded" fill className="object-cover"/>
+                                        <button type="button" onClick={() => removeImage(i)} className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center shadow-md hover:scale-110 transition-transform">
+                                            <X size={14}/>
                                         </button>
                                     </div>
                                 ))}
                                 
                                 {formData.imageUrls.length < 4 && (
-                                    <label className={`w-20 h-20 border-2 border-dashed border-gray-300 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50 hover:border-indigo-400 hover:text-indigo-500 transition-colors ${isUploading ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                                        {isUploading ? (
-                                            <div className="animate-spin rounded-full h-5 w-5 border-2 border-indigo-500 border-t-transparent"></div>
-                                        ) : (
-                                            <>
-                                                <FiCamera size={20} className="mb-1"/>
-                                                <span className="text-[10px] font-bold">追加</span>
-                                            </>
-                                        )}
+                                    <label className={cn("w-24 h-24 border-2 border-dashed border-slate-300 bg-slate-50 rounded-2xl flex flex-col items-center justify-center cursor-pointer hover:bg-indigo-50 hover:border-indigo-300 hover:text-indigo-500 transition-all shadow-inner text-slate-400", isUploading ? 'opacity-50 cursor-not-allowed' : '')}>
+                                        {isUploading ? <Loader2 className="animate-spin" size={24} /> : <><Camera size={24} className="mb-1"/><span className="text-[10px] font-black uppercase tracking-widest">Add</span></>}
                                         <input type="file" multiple accept="image/*" onChange={handleImageUpload} className="hidden" disabled={isUploading}/>
                                     </label>
                                 )}
                             </div>
                         </div>
 
-                        <div className="flex gap-3 pt-4 border-t border-gray-100">
-                            <button type="button" onClick={() => setShowForm(false)} className="flex-1 py-3 bg-white border border-gray-200 text-gray-600 font-bold rounded-xl hover:bg-gray-50 transition-colors">キャンセル</button>
-                            <button type="submit" disabled={isSubmitting || isUploading} className="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 shadow-md shadow-indigo-200 disabled:bg-gray-300 transition-all">
-                                {isSubmitting ? '送信中...' : '情報を投稿する'}
-                            </button>
+                        <div className="flex flex-col sm:flex-row gap-3 pt-6 border-t border-slate-100/50">
+                            <button type="button" onClick={() => setShowForm(false)} className="w-full sm:w-auto px-8 py-4 bg-slate-100 text-slate-500 font-black rounded-full hover:bg-slate-200 transition-colors">キャンセル</button>
+                            <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} type="submit" disabled={isSubmitting || isUploading} className="w-full flex-1 py-4 bg-gradient-to-r from-indigo-500 to-sky-500 text-white font-black rounded-full shadow-xl disabled:opacity-50 transition-all flex items-center justify-center gap-2">
+                                {isSubmitting ? <><Loader2 className="animate-spin" size={18}/> 送信中...</> : <><Send size={18}/> 情報を投稿する</>}
+                            </motion.button>
                         </div>
                     </form>
-                </div>
+                </motion.div>
             )}
         </div>
 
         {/* タイムライン */}
-        <div className="space-y-6">
-            <div className="flex items-center justify-between border-b border-gray-200 pb-3 mb-4">
-                <h2 className="font-bold text-gray-800 text-lg flex items-center gap-2">
-                    <FiTruck /> 共有された情報 <span className="text-gray-400 text-sm font-normal">({logistics.length}件)</span>
+        <div className="space-y-6 relative z-10">
+            <div className="flex items-center justify-between border-b border-slate-200/60 pb-4 mb-6">
+                <h2 className="font-black text-slate-800 text-xl flex items-center gap-2">
+                    <Truck className="text-indigo-500" size={24}/> 共有された情報 <span className="text-slate-400 text-sm font-bold bg-white px-2 py-0.5 rounded-full border border-slate-200 shadow-sm">{logistics.length}件</span>
                 </h2>
             </div>
             
             {logistics.length === 0 ? (
-                <div className="text-center py-16 bg-white rounded-2xl border border-dashed border-gray-200">
-                    <div className="bg-gray-50 p-4 rounded-full inline-block mb-3">
-                        <FiTruck className="text-gray-400 text-2xl"/>
+                <GlassCard className="text-center py-24 text-slate-400 font-bold border-2 border-dashed border-white">
+                    <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm border border-slate-100 text-slate-300">
+                        <Truck size={36}/>
                     </div>
-                    <p className="text-gray-500 font-bold">まだ情報がありません</p>
-                    <p className="text-sm text-gray-400 mt-1">最初の投稿者になって、みんなを助けましょう！</p>
-                </div>
+                    <p className="text-lg text-slate-600 mb-1">まだ情報がありません</p>
+                    <p className="text-sm">最初の投稿者になって、みんなを助けましょう！</p>
+                </GlassCard>
             ) : (
-                <div className="grid gap-6">
+                <div className="grid gap-6 md:gap-8">
                     {logistics.map(info => (
-                        <div key={info.id} className={`bg-white p-6 rounded-2xl shadow-sm border transition-all hover:shadow-md ${info.isOfficial ? 'border-yellow-400 ring-4 ring-yellow-50' : 'border-gray-100'}`}>
+                        <div key={info.id} className={cn("bg-white/80 backdrop-blur-md p-6 md:p-8 rounded-[2.5rem] shadow-sm border transition-all hover:shadow-[0_10px_30px_rgba(0,0,0,0.05)]", info.isOfficial ? 'border-amber-300 ring-4 ring-amber-50' : 'border-white')}>
                             
-                            {/* カードヘッダー */}
-                            <div className="flex justify-between items-start mb-4">
-                                <div className="flex items-start gap-3">
-                                    <div className="mt-1">
+                            <div className="flex justify-between items-start mb-6">
+                                <div className="flex items-start gap-4">
+                                    <div className="shrink-0 w-12 h-12 rounded-2xl border-2 border-white shadow-md bg-slate-100 overflow-hidden relative">
                                         {info.contributor?.iconUrl ? (
-                                            /* eslint-disable-next-line @next/next/no-img-element */
-                                            <img src={info.contributor.iconUrl} alt="User" className="w-10 h-10 rounded-full border border-gray-100 object-cover"/>
+                                            <Image src={info.contributor.iconUrl} alt="User" fill className="object-cover"/>
                                         ) : (
-                                            <div className="w-10 h-10 bg-indigo-50 text-indigo-300 rounded-full flex items-center justify-center">
-                                                <FiUser />
-                                            </div>
+                                            <div className="w-full h-full text-slate-300 flex items-center justify-center"><User size={24}/></div>
                                         )}
                                     </div>
                                     <div>
-                                        <div className="flex items-center gap-2">
-                                            <h3 className="font-bold text-lg text-gray-900">{info.title}</h3>
+                                        <div className="flex flex-wrap items-center gap-2 mb-1">
+                                            <h3 className="font-black text-lg text-slate-800 leading-tight">{info.title}</h3>
                                             {info.isOfficial && (
-                                                <span className="bg-yellow-100 text-yellow-700 text-[10px] px-2 py-0.5 rounded-full font-bold flex items-center gap-1 border border-yellow-200">
-                                                    <FiCheckCircle size={10}/> 公式
+                                                <span className="bg-amber-100 text-amber-700 text-[9px] px-2 py-0.5 rounded-md font-black flex items-center gap-1 uppercase tracking-widest border border-amber-200">
+                                                    <CheckCircle2 size={10}/> 公式
                                                 </span>
                                             )}
                                         </div>
-                                        <div className="flex items-center gap-2 text-xs text-gray-400 mt-0.5">
+                                        <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
                                             <span>{info.contributor?.platformName || '匿名ユーザー'}</span>
-                                            <span>•</span>
+                                            <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
                                             <span>{new Date(info.createdAt).toLocaleDateString('ja-JP')}</span>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                             
-                            {/* 本文 */}
-                            <div className="bg-slate-50 p-4 rounded-xl mb-4">
-                                <p className="text-gray-700 whitespace-pre-wrap text-sm leading-relaxed">{info.description}</p>
+                            <div className="bg-slate-50/80 p-5 md:p-6 rounded-[1.5rem] mb-6 border border-slate-100">
+                                <p className="text-slate-700 whitespace-pre-wrap text-sm leading-relaxed font-medium"><JpText>{info.description}</JpText></p>
                             </div>
                             
-                            {/* 画像ギャラリー */}
                             {info.imageUrls && info.imageUrls.length > 0 && (
-                                <div className="flex flex-wrap gap-2 mb-4">
+                                <div className="flex flex-wrap gap-3 mb-6">
                                     {info.imageUrls.map((url, i) => (
-                                        // eslint-disable-next-line @next/next/no-img-element
-                                        <img 
-                                            key={i} 
-                                            src={url} 
-                                            alt="Logistics info"
-                                            onClick={() => setModalImage(url)}
-                                            className="w-24 h-24 object-cover rounded-xl border border-gray-200 hover:opacity-90 cursor-zoom-in transition-opacity"
-                                        />
+                                        <div key={i} className="relative w-28 h-28 rounded-[1.5rem] overflow-hidden border-2 border-white shadow-sm cursor-zoom-in group hover:shadow-md transition-all" onClick={() => setModalImage(url)}>
+                                            <Image src={url} alt="Logistics info" fill className="object-cover group-hover:scale-110 transition-transform duration-500" />
+                                        </div>
                                     ))}
                                 </div>
                             )}
 
-                            {/* フッターアクション */}
-                            <div className="flex justify-end pt-2">
-                                <button 
-                                    onClick={() => handleHelpful(info.id)}
-                                    className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all active:scale-95"
+                            <div className="flex justify-end pt-4 border-t border-slate-100/50">
+                                <button onClick={() => handleHelpful(info.id)}
+                                    className="flex items-center gap-2 px-6 py-2.5 rounded-full text-sm font-black text-slate-500 hover:text-indigo-600 bg-slate-50 hover:bg-indigo-50 border border-slate-100 hover:border-indigo-200 transition-all active:scale-95 shadow-sm"
                                 >
-                                    <FiThumbsUp className={info.helpfulCount > 0 ? "text-indigo-500" : ""}/> 
+                                    <ThumbsUp size={16} className={info.helpfulCount > 0 ? "text-indigo-500 fill-indigo-100" : ""}/> 
                                     <span>役に立った</span>
-                                    {info.helpfulCount > 0 && <span className="bg-indigo-100 text-indigo-600 px-2 py-0.5 rounded-full text-xs ml-1">{info.helpfulCount}</span>}
+                                    {info.helpfulCount > 0 && <span className="bg-indigo-100 text-indigo-600 px-2.5 py-0.5 rounded-full text-[10px] ml-1 shadow-inner">{info.helpfulCount}</span>}
                                 </button>
                             </div>
                         </div>
@@ -416,7 +391,6 @@ export default function VenueLogisticsPage() {
             )}
         </div>
 
-        {/* 簡易画像モーダル */}
         {modalImage && <SimpleImageModal src={modalImage} onClose={() => setModalImage(null)} />}
       </div>
     </div>

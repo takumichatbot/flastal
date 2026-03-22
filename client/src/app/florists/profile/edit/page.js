@@ -7,10 +7,13 @@ import Image from 'next/image';
 import { useAuth } from '@/app/contexts/AuthContext';
 import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
+import { motion } from 'framer-motion';
+
+// lucide-reactに統一
 import { 
-  FiSave, FiCamera, FiArrowLeft, FiZap, FiCheck, FiMapPin, 
-  FiPhone, FiGlobe, FiUser, FiImage, FiTrash2, FiLoader 
-} from 'react-icons/fi';
+  Save, Camera, ArrowLeft, Zap, Check, MapPin, 
+  Phone, Globe, User, Image as ImageIcon, Trash2, Loader2, Sparkles, Building
+} from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -20,6 +23,33 @@ const STYLE_TAGS = [
   'バルーン装飾', 'ペーパーフラワー', '布・リボン装飾', 'キャラクター/モチーフ',
   '大型/連結', '卓上/楽屋花', 'リーズナブル'
 ];
+
+function cn(...classes) {
+  return classes.filter(Boolean).join(' ');
+}
+
+// 🎨 Glassmorphism Components
+const GlassCard = ({ children, className }) => (
+  <div className={cn("bg-white/80 backdrop-blur-xl border border-white shadow-[0_8px_30px_rgba(0,0,0,0.04)] rounded-[2.5rem] p-6 md:p-8", className)}>
+    {children}
+  </div>
+);
+
+const FloatingParticles = () => {
+  const [windowSize, setWindowSize] = useState({ width: 1000, height: 1000 });
+  useEffect(() => { setWindowSize({ width: window.innerWidth, height: window.innerHeight }); }, []);
+  return (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+      {[...Array(12)].map((_, i) => (
+        <motion.div key={i} className="absolute w-3 h-3 bg-emerald-300 rounded-full mix-blend-multiply filter blur-[1px] opacity-30"
+          initial={{ x: Math.random() * windowSize.width, y: Math.random() * windowSize.height }}
+          animate={{ y: [null, Math.random() * -200], x: [null, (Math.random() - 0.5) * 100], opacity: [0.2, 0.5, 0.2], scale: [1, 1.5, 1] }}
+          transition={{ duration: Math.random() * 10 + 15, repeat: Infinity, ease: "linear" }}
+        />
+      ))}
+    </div>
+  );
+};
 
 export default function FloristProfileEditPage() {
   const { user, isLoading: authLoading, authenticatedFetch, logout } = useAuth();
@@ -84,10 +114,8 @@ export default function FloristProfileEditPage() {
     setSelectedTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]);
   };
 
-  // ★修正: S3への直接アップロード方式に変更
   const uploadFile = async (file) => {
     try {
-      // 1. 署名付きURLを取得
       const res = await authenticatedFetch(`${API_URL}/api/tools/s3-upload-url`, {
         method: 'POST',
         body: JSON.stringify({ fileName: file.name, fileType: file.type })
@@ -96,7 +124,6 @@ export default function FloristProfileEditPage() {
       if (!res.ok) throw new Error('アップロード用URLの取得に失敗しました');
       const { uploadUrl, fileUrl } = await res.json();
 
-      // 2. S3へ直接アップロード
       const uploadRes = await fetch(uploadUrl, {
         method: 'PUT',
         body: file,
@@ -105,7 +132,6 @@ export default function FloristProfileEditPage() {
 
       if (!uploadRes.ok) throw new Error('S3への保存に失敗しました');
 
-      // 3. 完了したURLを返す
       return { url: fileUrl };
     } catch (error) {
       console.error("Upload Error:", error);
@@ -168,100 +194,203 @@ export default function FloristProfileEditPage() {
 
   if (authLoading || loadingData) {
       return (
-        <div className="flex items-center justify-center min-h-screen bg-gray-50">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-pink-500"></div>
+        <div className="flex items-center justify-center min-h-screen bg-slate-50">
+            <Loader2 className="animate-spin text-pink-500" size={40} />
         </div>
       );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 font-sans text-gray-800">
-      <div className="max-w-4xl mx-auto">
-        <div className="flex items-center justify-between mb-6 sticky top-0 z-20 bg-gray-50/90 backdrop-blur-sm py-4">
-            <div className="flex items-center gap-4">
-                <Link href="/florists/dashboard" className="p-2 bg-white rounded-full text-gray-500 hover:text-pink-600 border border-gray-200">
-                    <FiArrowLeft size={20}/>
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50/50 to-sky-50/50 font-sans text-slate-800 relative overflow-hidden pb-24">
+      <FloatingParticles />
+      <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-pink-200/30 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/3 pointer-events-none z-0" />
+      
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 relative z-10 pt-8">
+        {/* ヘッダー */}
+        <div className="flex flex-col sm:flex-row items-center justify-between mb-8 gap-4 bg-white/80 backdrop-blur-md p-4 rounded-full shadow-sm border border-white">
+            <div className="flex items-center gap-4 w-full sm:w-auto">
+                <Link href="/florists/dashboard" className="w-10 h-10 flex items-center justify-center bg-white rounded-full text-slate-400 hover:text-pink-600 shadow-sm border border-slate-100 transition-colors shrink-0">
+                    <ArrowLeft size={20}/>
                 </Link>
-                <h1 className="text-2xl font-bold text-gray-800">プロフィール編集</h1>
+                <h1 className="text-xl md:text-2xl font-black text-slate-800 tracking-tighter flex items-center gap-2">
+                    <Building className="text-emerald-500" size={24}/> プロフィール編集
+                </h1>
             </div>
-            <button 
+            <motion.button 
+                whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
                 onClick={handleSubmit(onSubmit)}
                 disabled={isSubmitting || isIconUploading || isPortfolioUploading}
-                className="hidden sm:flex items-center px-6 py-2.5 bg-pink-600 text-white font-bold rounded-full hover:bg-pink-700 disabled:bg-gray-400 transition-colors"
+                className="w-full sm:w-auto flex items-center justify-center px-8 py-3.5 bg-slate-900 text-white font-black rounded-full hover:bg-slate-800 shadow-lg transition-all disabled:opacity-50"
             >
-                {isSubmitting ? <FiLoader className="animate-spin mr-2"/> : <FiSave className="mr-2"/>}
+                {isSubmitting ? <Loader2 className="animate-spin mr-2" size={18}/> : <Save className="mr-2" size={18}/>}
                 変更を保存
-            </button>
+            </motion.button>
         </div>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 pb-20">
-            <section className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden p-6 md:p-8">
-                <div className="flex flex-col md:flex-row gap-8">
-                    <div className="flex flex-col items-center gap-3">
-                        <div 
-                            className="relative w-32 h-32 rounded-full border-4 border-gray-100 shadow-md bg-gray-200 overflow-hidden cursor-pointer group"
-                            onClick={() => iconInputRef.current.click()}
-                        >
-                            {iconUrl ? <Image src={iconUrl} alt="Icon" fill className="object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-400"><FiUser size={48} /></div>}
-                            <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"><FiCamera className="text-white text-2xl"/></div>
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+            {/* 基本情報 */}
+            <GlassCard className="!p-0 overflow-hidden">
+                <div className="bg-slate-50/50 px-8 py-5 border-b border-slate-100">
+                    <h2 className="font-black text-slate-800 flex items-center gap-2 text-lg">
+                        <User className="text-sky-500" size={20}/> 基本情報
+                    </h2>
+                </div>
+                <div className="p-8">
+                    <div className="flex flex-col md:flex-row gap-10">
+                        <div className="flex flex-col items-center gap-3">
+                            <div 
+                                className="relative w-32 h-32 rounded-[2rem] border-4 border-white shadow-xl bg-slate-100 overflow-hidden cursor-pointer group rotate-3 hover:rotate-0 transition-transform"
+                                onClick={() => iconInputRef.current.click()}
+                            >
+                                {iconUrl ? <Image src={iconUrl} alt="Icon" fill className="object-cover" /> : <div className="w-full h-full flex items-center justify-center text-slate-300"><User size={48} /></div>}
+                                <div className="absolute inset-0 bg-slate-900/40 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white backdrop-blur-sm">
+                                    <Camera size={24} className="mb-1"/>
+                                    <span className="text-[10px] font-black tracking-widest uppercase">Change</span>
+                                </div>
+                            </div>
+                            <input type="file" ref={iconInputRef} accept="image/*" onChange={handleIconUpload} className="hidden" />
                         </div>
-                        <input type="file" ref={iconInputRef} accept="image/*" onChange={handleIconUpload} className="hidden" />
+                        <div className="flex-1 space-y-6">
+                            <div>
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">活動名 (ユーザーに公開) <span className="text-pink-500">*</span></label>
+                                <input type="text" {...register('platformName', { required: true })} className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:bg-white focus:border-emerald-300 focus:ring-4 focus:ring-emerald-50 outline-none transition-all font-bold text-slate-800" placeholder="FLASTAL 花子" />
+                            </div>
+                            <div>
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">店舗名 (正式名称・非公開)</label>
+                                <input type="text" {...register('shopName')} className="w-full p-4 bg-slate-100 border-2 border-slate-200 rounded-2xl text-slate-500 cursor-not-allowed font-bold" readOnly />
+                                <p className="text-[10px] font-bold text-slate-400 mt-2">※ 正式名称の変更は運営への申請が必要です</p>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">担当者名</label>
+                                    <input type="text" {...register('contactName')} className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:bg-white focus:border-emerald-300 focus:ring-4 focus:ring-emerald-50 outline-none transition-all font-bold text-slate-800" placeholder="山田 太郎" />
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-1"><Phone size={12}/> 電話番号</label>
+                                    <input type="tel" {...register('phoneNumber')} className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:bg-white focus:border-emerald-300 focus:ring-4 focus:ring-emerald-50 outline-none transition-all font-bold text-slate-800 font-mono" placeholder="03-1234-5678" />
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <div className="flex-1 space-y-4">
+                </div>
+            </GlassCard>
+
+            {/* 店舗詳細・Web */}
+            <GlassCard className="!p-0 overflow-hidden">
+                <div className="bg-slate-50/50 px-8 py-5 border-b border-slate-100">
+                    <h2 className="font-black text-slate-800 flex items-center gap-2 text-lg">
+                        <MapPin className="text-pink-500" size={20}/> 店舗詳細・Web
+                    </h2>
+                </div>
+                <div className="p-8 space-y-6">
+                    <div>
+                       <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">住所</label>
+                       <input type="text" {...register('address')} className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:bg-white focus:border-pink-300 focus:ring-4 focus:ring-pink-50 outline-none transition-all font-bold text-slate-800" placeholder="〒000-0000 東京都渋谷区..." />
+                    </div>
+                    <div>
+                       <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-1"><Globe size={12}/> ウェブサイト / SNS</label>
+                       <input type="url" {...register('website')} className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:bg-white focus:border-pink-300 focus:ring-4 focus:ring-pink-50 outline-none transition-all font-bold text-slate-800" placeholder="https://instagram.com/..." />
+                    </div>
+                </div>
+            </GlassCard>
+
+            {/* お急ぎ便対応 */}
+            <GlassCard className="bg-gradient-to-r from-amber-50 to-orange-50 !border-amber-200 relative overflow-hidden">
+                <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+                    <div className="flex items-start gap-4">
+                        <div className="p-4 bg-amber-400 text-white rounded-2xl shadow-lg shrink-0 rotate-3">
+                            <Zap size={28}/>
+                        </div>
                         <div>
-                            <label className="block text-sm font-bold text-gray-700">活動名</label>
-                            <input type="text" {...register('platformName', { required: true })} className="w-full p-3 bg-gray-50 border rounded-xl outline-none" />
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div><label className="block text-sm font-bold">担当者名</label><input type="text" {...register('contactName')} className="w-full p-3 bg-gray-50 border rounded-xl" /></div>
-                            <div><label className="block text-sm font-bold">電話番号</label><input type="tel" {...register('phoneNumber')} className="w-full p-3 bg-gray-50 border rounded-xl" /></div>
+                            <h3 className="text-xl font-black text-amber-900 mb-1">お急ぎ便 (Rush Order) 対応</h3>
+                            <p className="text-xs font-bold text-amber-700/80 leading-relaxed">
+                                直前の依頼も受け付けますか？ オンにするとお急ぎ検索で上位に表示されます。
+                            </p>
                         </div>
                     </div>
+                    <label className="inline-flex items-center cursor-pointer group shrink-0">
+                        <input type="checkbox" {...register('acceptsRushOrders')} className="sr-only peer" />
+                        <div className="relative w-16 h-8 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:bg-amber-400 after:content-[''] after:absolute after:top-1 after:start-[4px] after:bg-white after:rounded-full after:h-6 after:w-6 after:transition-all shadow-inner"></div>
+                        <span className="ms-3 text-sm font-black text-amber-800">対応を受け付ける</span>
+                    </label>
                 </div>
-            </section>
+                <Zap className="absolute -bottom-10 -right-10 text-[10rem] text-amber-400 opacity-10 rotate-12 pointer-events-none" />
+            </GlassCard>
 
-            <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 md:p-8">
-                <label className="block text-sm font-bold mb-2">住所</label>
-                <input type="text" {...register('address')} className="w-full p-3 bg-gray-50 border rounded-xl mb-4" />
-                <label className="block text-sm font-bold mb-2">サイト/SNS</label>
-                <input type="url" {...register('website')} className="w-full p-3 bg-gray-50 border rounded-xl" />
-            </section>
-
-            <section className="bg-white rounded-2xl border border-gray-100 p-6">
-                <div className="flex items-center justify-between">
-                    <div><h3 className="font-bold">お急ぎ便対応</h3><p className="text-xs text-gray-500">直前の依頼も受け付けます</p></div>
-                    <input type="checkbox" {...register('acceptsRushOrders')} className="w-6 h-6 accent-pink-500" />
+            {/* 特徴タグ */}
+            <GlassCard className="!p-0 overflow-hidden">
+                <div className="bg-slate-50/50 px-8 py-5 border-b border-slate-100">
+                    <h2 className="font-black text-slate-800 flex items-center gap-2 text-lg">
+                        <Check className="text-emerald-500" size={20}/> 特徴タグ
+                    </h2>
                 </div>
-            </section>
-
-            <section className="bg-white rounded-2xl border border-gray-100 p-6">
-                <h3 className="font-bold mb-4">特徴タグ</h3>
-                <div className="flex flex-wrap gap-2">
-                    {STYLE_TAGS.map(tag => (
-                        <button key={tag} type="button" onClick={() => toggleTag(tag)} className={`px-4 py-2 rounded-full text-xs font-bold border ${selectedTags.includes(tag) ? 'bg-pink-500 text-white border-pink-500' : 'bg-white text-gray-600'}`}>{tag}</button>
-                    ))}
+                <div className="p-8">
+                    <div className="flex flex-wrap gap-2 md:gap-3">
+                        {STYLE_TAGS.map(tag => (
+                            <button
+                                key={tag}
+                                type="button"
+                                onClick={() => toggleTag(tag)}
+                                className={cn(
+                                  "px-5 py-2.5 rounded-full text-xs font-black border transition-all",
+                                  selectedTags.includes(tag) 
+                                      ? 'bg-emerald-500 text-white border-emerald-500 shadow-md' 
+                                      : 'bg-slate-50 text-slate-500 border-slate-200 hover:border-emerald-300'
+                                )}
+                            >
+                                {tag}
+                            </button>
+                        ))}
+                    </div>
                 </div>
-            </section>
+            </GlassCard>
 
-            <section className="bg-white rounded-2xl border border-gray-100 p-6">
-                <h3 className="font-bold mb-4">制作実績写真</h3>
-                <div className="grid grid-cols-3 md:grid-cols-4 gap-4 mb-6">
-                    {portfolioImages.map((url, i) => (
-                        <div key={i} className="relative aspect-square rounded-xl overflow-hidden group">
-                            <Image src={url} alt="work" fill className="object-cover" />
-                            <button type="button" onClick={() => setPortfolioImages(prev => prev.filter((_, idx) => idx !== i))} className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full"><FiTrash2 size={14}/></button>
+            {/* 制作実績と自己紹介 */}
+            <GlassCard className="!p-0 overflow-hidden">
+                <div className="bg-slate-50/50 px-8 py-5 border-b border-slate-100">
+                    <h2 className="font-black text-slate-800 flex items-center gap-2 text-lg">
+                        <ImageIcon className="text-purple-500" size={20}/> 制作実績 & 自己紹介
+                    </h2>
+                </div>
+                <div className="p-8 space-y-8">
+                    <div>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Portfolio Images (Max 6)</p>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+                            {portfolioImages.map((url, i) => (
+                                <div key={i} className="relative aspect-square rounded-[1.5rem] overflow-hidden border-2 border-white shadow-sm group">
+                                    <Image src={url} alt="work" fill className="object-cover group-hover:scale-110 transition-transform duration-500" />
+                                    <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                        <button
+                                            type="button"
+                                            onClick={() => setPortfolioImages(prev => prev.filter((_, idx) => idx !== i))}
+                                            className="w-12 h-12 bg-rose-500 text-white rounded-full flex items-center justify-center hover:bg-rose-600 transition-colors shadow-lg hover:scale-110"
+                                        >
+                                            <Trash2 size={20} />
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                            {portfolioImages.length < 6 && (
+                                <label className="aspect-square border-2 border-dashed border-slate-300 bg-slate-50 rounded-[1.5rem] flex flex-col items-center justify-center cursor-pointer hover:bg-white hover:border-purple-300 hover:text-purple-500 transition-all text-slate-400 group shadow-inner">
+                                    {isPortfolioUploading ? <Loader2 className="animate-spin text-purple-500 mb-2" size={28}/> : <Camera className="mb-2 group-hover:scale-110 transition-transform" size={32}/>}
+                                    <span className="text-[10px] font-black tracking-widest uppercase">Add Image</span>
+                                    <input type="file" multiple accept="image/*" onChange={handlePortfolioUpload} disabled={isPortfolioUploading} className="hidden"/>
+                                </label>
+                            )}
                         </div>
-                    ))}
-                    {portfolioImages.length < 6 && (
-                        <label className="aspect-square border-2 border-dashed rounded-xl flex items-center justify-center cursor-pointer hover:bg-gray-50 transition-all"><FiCamera size={24}/><input type="file" multiple accept="image/*" onChange={handlePortfolioUpload} className="hidden"/></label>
-                    )}
+                    </div>
+                    <div>
+                         <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Self Introduction</label>
+                         <textarea 
+                            {...register('portfolio')} 
+                            rows="6" 
+                            className="w-full p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:bg-white focus:border-purple-300 focus:ring-4 focus:ring-purple-50 outline-none transition-all font-bold text-slate-800 resize-none" 
+                            placeholder="こだわりの内容を自由に記載してください。"
+                         ></textarea>
+                    </div>
                 </div>
-                <label className="block text-sm font-bold mb-2">自己紹介</label>
-                <textarea {...register('portfolio')} rows="5" className="w-full p-4 bg-gray-50 border rounded-xl outline-none" placeholder="メッセージを入力"></textarea>
-            </section>
+            </GlassCard>
         </form>
-
-        <div className="sm:hidden fixed bottom-6 left-4 right-4 z-30"><button onClick={handleSubmit(onSubmit)} disabled={isSubmitting} className="w-full py-4 bg-pink-600 text-white font-bold rounded-full shadow-lg">変更を保存</button></div>
       </div>
     </div>
   );
