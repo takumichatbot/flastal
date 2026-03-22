@@ -124,8 +124,6 @@ function ImageLightbox({ url, onClose }) {
   );
 }
 
-function InstructionSheetModal({ project, onClose }) {
-// ...
 
 function InstructionSheetModal({ project, onClose }) {
   const images = [
