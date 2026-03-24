@@ -1,21 +1,29 @@
-// src/app/admin/florists/page.js
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/app/contexts/AuthContext';
+import { motion } from 'framer-motion';
 import { 
-    FiAward, FiDollarSign, FiEdit, FiRefreshCw, FiSearch, 
-    FiFilter, FiTrendingUp, FiUsers, FiAlertCircle 
-} from 'react-icons/fi';
+    Award, DollarSign, Edit3, RefreshCw, Search, 
+    Filter, TrendingUp, Users, AlertTriangle, ArrowLeft, Loader2
+} from 'lucide-react';
 import FloristFeeModal from '../components/FloristFeeModal';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 const getAuthToken = () => localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
 
-export default function AdminFloristsPage() {
+function cn(...classes) { return classes.filter(Boolean).join(' '); }
+
+const GlassCard = ({ children, className }) => (
+  <div className={cn("bg-white/80 backdrop-blur-xl border border-white shadow-[0_8px_30px_rgba(0,0,0,0.04)] rounded-[2.5rem] p-6", className)}>
+    {children}
+  </div>
+);
+
+function AdminFloristsInner() {
     const { user, loading: authLoading, isAuthenticated } = useAuth();
     const router = useRouter();
 
@@ -23,24 +31,18 @@ export default function AdminFloristsPage() {
     const [loading, setLoading] = useState(true);
     const [targetFloristId, setTargetFloristId] = useState(null);
 
-    // フィルター & ソート用ステート
     const [searchTerm, setSearchTerm] = useState('');
-    const [statusFilter, setStatusFilter] = useState('ALL'); // ALL, APPROVED, PENDING, REJECTED
+    const [statusFilter, setStatusFilter] = useState('ALL'); 
     const [sortConfig, setSortConfig] = useState({ key: 'createdAt', direction: 'desc' });
 
-    // データ取得
     const fetchFlorists = useCallback(async () => {
         if (!isAuthenticated || user?.role !== 'ADMIN') return;
         setLoading(true);
         try {
             const token = getAuthToken();
-            const res = await fetch(`${API_URL}/api/admin/florists/all`, { 
-                headers: { 'Authorization': `Bearer ${token}` } 
-            });
+            const res = await fetch(`${API_URL}/api/admin/florists/all`, { headers: { 'Authorization': `Bearer ${token}` } });
             if (!res.ok) throw new Error('花屋リストの取得に失敗しました。');
-            
             const data = await res.json();
-            // 配列チェック
             setFlorists(Array.isArray(data) ? data : []);
         } catch (error) {
             toast.error(error.message);
@@ -52,205 +54,138 @@ export default function AdminFloristsPage() {
 
     useEffect(() => {
         if (authLoading) return;
-        if (!isAuthenticated || user?.role !== 'ADMIN') {
-            toast.error('管理者権限がありません。');
-            router.push('/admin');
-            return;
-        }
+        if (!isAuthenticated || user?.role !== 'ADMIN') return router.push('/admin');
         fetchFlorists();
     }, [authLoading, isAuthenticated, user, router, fetchFlorists]);
 
-    // モーダル更新後の処理
-    const handleFeeUpdated = () => {
-        setTargetFloristId(null);
-        fetchFlorists(); 
-    };
+    const handleFeeUpdated = () => { setTargetFloristId(null); fetchFlorists(); };
 
-    // フィルタリングとソートのロジック
     const processedFlorists = useMemo(() => {
         let data = [...florists];
-
-        // 1. ステータスフィルター
-        if (statusFilter !== 'ALL') {
-            data = data.filter(f => f.status === statusFilter);
-        }
-
-        // 2. キーワード検索
+        if (statusFilter !== 'ALL') data = data.filter(f => f.status === statusFilter);
         if (searchTerm) {
             const lowerTerm = searchTerm.toLowerCase();
-            data = data.filter(f => 
-                (f.platformName && f.platformName.toLowerCase().includes(lowerTerm)) ||
-                (f.shopName && f.shopName.toLowerCase().includes(lowerTerm)) ||
-                (f.email && f.email.toLowerCase().includes(lowerTerm))
-            );
+            data = data.filter(f => (f.platformName && f.platformName.toLowerCase().includes(lowerTerm)) || (f.shopName && f.shopName.toLowerCase().includes(lowerTerm)) || (f.email && f.email.toLowerCase().includes(lowerTerm)));
         }
-
-        // 3. ソート
         data.sort((a, b) => {
             let aValue = a[sortConfig.key];
             let bValue = b[sortConfig.key];
-
-            // 手数料率のソート特例 (nullの場合は0扱いまたは無限大扱いなど)
             if (sortConfig.key === 'customFeeRate') {
-                aValue = a.customFeeRate ?? -1; // -1は未設定
+                aValue = a.customFeeRate ?? -1;
                 bValue = b.customFeeRate ?? -1;
             }
-
             if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
             if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
             return 0;
         });
-
         return data;
     }, [florists, searchTerm, statusFilter, sortConfig]);
 
-    // 統計データ
     const stats = useMemo(() => {
-        return {
-            total: florists.length,
-            approved: florists.filter(f => f.status === 'APPROVED').length,
-            customFee: florists.filter(f => f.customFeeRate !== null).length,
-        };
+        return { total: florists.length, approved: florists.filter(f => f.status === 'APPROVED').length, customFee: florists.filter(f => f.customFeeRate !== null).length };
     }, [florists]);
 
-    // ソート切り替えハンドラ
     const handleSort = (key) => {
-        setSortConfig(current => ({
-            key,
-            direction: current.key === key && current.direction === 'desc' ? 'asc' : 'desc'
-        }));
+        setSortConfig(current => ({ key, direction: current.key === key && current.direction === 'desc' ? 'asc' : 'desc' }));
     };
 
-    if (authLoading) return <div className="min-h-screen flex items-center justify-center"><FiRefreshCw className="animate-spin text-3xl text-gray-400"/></div>;
+    if (authLoading) return <div className="min-h-screen flex items-center justify-center bg-slate-50"><Loader2 className="animate-spin text-3xl text-pink-500"/></div>;
     if (!isAuthenticated || user?.role !== 'ADMIN') return null;
 
     return (
-        <div className="min-h-screen bg-gray-50 py-8 font-sans text-gray-800">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                
-                {/* ヘッダーエリア */}
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-                    <div>
-                        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                            <FiAward className="text-pink-600"/> お花屋さん管理・手数料設定
-                        </h1>
-                        <p className="text-sm text-gray-500 mt-1">登録されている花屋のステータス管理および手数料率の個別設定を行います。</p>
-                    </div>
-                    <div className="flex gap-2">
-                        <Link href="/admin" className="px-4 py-2 bg-white border border-gray-300 text-gray-600 rounded-lg text-sm font-bold hover:bg-gray-50">
-                            ダッシュボードへ戻る
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 to-pink-50/30 py-8 md:py-12 font-sans text-slate-800 relative overflow-hidden pb-24">
+            <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-pink-200/20 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/3 pointer-events-none z-0" />
+            
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-10 gap-6">
+                    <div className="space-y-3">
+                        <Link href="/admin" className="inline-flex items-center text-[10px] font-black text-slate-400 hover:text-pink-600 transition-colors uppercase tracking-widest bg-white px-4 py-2 rounded-full shadow-sm border border-slate-100">
+                            <ArrowLeft size={14} className="mr-1.5"/> ダッシュボードに戻る
                         </Link>
-                        <button onClick={fetchFlorists} disabled={loading} className="px-4 py-2 bg-pink-600 text-white rounded-lg text-sm font-bold hover:bg-pink-700 flex items-center gap-2 transition-colors">
-                            <FiRefreshCw className={loading ? "animate-spin" : ""}/>
-                            データ更新
-                        </button>
+                        <h1 className="text-3xl md:text-5xl font-black text-slate-900 tracking-tighter uppercase flex items-center gap-3"><Award className="text-pink-500"/> Florist Management</h1>
+                        <p className="text-slate-500 font-bold text-xs tracking-widest uppercase">お花屋さんのステータス管理と手数料率設定</p>
                     </div>
+                    <button onClick={fetchFlorists} disabled={loading} className="px-6 py-3.5 bg-white text-slate-500 rounded-full text-xs font-black hover:bg-slate-50 flex items-center gap-2 transition-all shadow-sm border border-slate-200">
+                        <RefreshCw size={16} className={loading ? "animate-spin" : ""}/> データ同期
+                    </button>
                 </div>
 
-                {/* 統計カード (KPI) */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                    <StatCard icon={<FiUsers/>} label="登録花屋総数" value={`${stats.total}件`} color="blue" />
-                    <StatCard icon={<FiAward/>} label="承認済みアカウント" value={`${stats.approved}件`} color="green" />
-                    <StatCard icon={<FiDollarSign/>} label="個別手数料 適用中" value={`${stats.customFee}件`} color="pink" />
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+                    <StatCard icon={<Users/>} label="登録花屋総数" value={`${stats.total}件`} color="sky" />
+                    <StatCard icon={<Award/>} label="承認済みアカウント" value={`${stats.approved}件`} color="emerald" />
+                    <StatCard icon={<DollarSign/>} label="個別手数料 適用中" value={`${stats.customFee}件`} color="pink" />
                 </div>
 
-                {/* フィルター & 検索バー */}
-                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
-                    {/* タブフィルター */}
-                    <div className="flex bg-gray-100 p-1 rounded-lg w-full md:w-auto">
+                <GlassCard className="mb-8 !p-4 flex flex-col md:flex-row justify-between items-center gap-4">
+                    <div className="flex bg-slate-100/80 backdrop-blur-sm p-1.5 rounded-2xl w-full md:w-auto border border-white">
                         {['ALL', 'APPROVED', 'PENDING'].map(status => (
-                            <button
-                                key={status}
-                                onClick={() => setStatusFilter(status)}
-                                className={`px-4 py-2 text-xs font-bold rounded-md transition-all ${
-                                    statusFilter === status 
-                                    ? 'bg-white text-gray-800 shadow-sm' 
-                                    : 'text-gray-500 hover:text-gray-700'
-                                }`}
+                            <button key={status} onClick={() => setStatusFilter(status)}
+                                className={cn("px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all", statusFilter === status ? 'bg-white text-pink-600 shadow-sm' : 'text-slate-400 hover:text-slate-600')}
                             >
                                 {status === 'ALL' ? 'すべて' : status === 'APPROVED' ? '承認済み' : '審査待ち'}
                             </button>
                         ))}
                     </div>
-
-                    {/* 検索ボックス */}
-                    <div className="relative w-full md:w-80">
-                        <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                        <input 
-                            type="text" 
-                            placeholder="名前、店舗名、メールで検索..." 
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-pink-500/50"
+                    <div className="relative w-full md:w-80 group">
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 size-4 group-focus-within:text-pink-500 transition-colors" />
+                        <input type="text" placeholder="名前、店舗名、メールで検索..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full pl-10 pr-4 py-3 bg-slate-50 border-2 border-transparent rounded-2xl text-sm font-bold focus:bg-white focus:border-pink-200 outline-none transition-all placeholder:text-slate-300"
                         />
                     </div>
-                </div>
+                </GlassCard>
 
-                {/* データテーブル */}
-                <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
-                    <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-200">
-                            <thead className="bg-gray-50/50">
+                <div className="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 overflow-hidden min-h-[400px]">
+                    <div className="overflow-x-auto no-scrollbar">
+                        <table className="min-w-full text-left border-collapse">
+                            <thead className="bg-slate-50/80 border-b border-slate-100">
                                 <tr>
                                     <SortableTh label="花屋情報" sortKey="platformName" currentSort={sortConfig} onSort={handleSort} />
-                                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">連絡先</th>
+                                    <th className="px-8 py-5 text-xs font-black text-slate-400 uppercase tracking-widest">連絡先</th>
                                     <SortableTh label="ステータス" sortKey="status" currentSort={sortConfig} onSort={handleSort} />
                                     <SortableTh label="適用手数料率" sortKey="customFeeRate" currentSort={sortConfig} onSort={handleSort} align="right" />
-                                    <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">設定</th>
+                                    <th className="px-8 py-5 text-center text-xs font-black text-slate-400 uppercase tracking-widest">設定</th>
                                 </tr>
                             </thead>
-                            <tbody className="bg-white divide-y divide-gray-200">
+                            <tbody className="divide-y divide-slate-50 bg-white">
                                 {loading ? (
-                                    <tr>
-                                        <td colSpan="5" className="px-6 py-12 text-center text-gray-400">
-                                            読み込み中...
-                                        </td>
-                                    </tr>
+                                    <tr><td colSpan="5" className="px-8 py-20 text-center"><Loader2 className="animate-spin text-pink-500 size-8 mx-auto"/></td></tr>
                                 ) : processedFlorists.length === 0 ? (
-                                    <tr>
-                                        <td colSpan="5" className="px-6 py-12 text-center text-gray-400">
-                                            該当する花屋が見つかりません。
-                                        </td>
-                                    </tr>
+                                    <tr><td colSpan="5" className="px-8 py-20 text-center text-slate-400 font-bold">該当するデータが見つかりません</td></tr>
                                 ) : (
                                     processedFlorists.map((florist) => (
-                                        <tr key={florist.id} className="hover:bg-gray-50 transition-colors">
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <div className="flex items-center">
-                                                    <div className="flex-shrink-0 h-10 w-10 bg-gradient-to-br from-pink-100 to-rose-100 rounded-full flex items-center justify-center text-pink-500 font-bold">
+                                        <tr key={florist.id} className="hover:bg-slate-50/50 transition-colors group">
+                                            <td className="px-8 py-5 whitespace-nowrap">
+                                                <div className="flex items-center gap-4">
+                                                    <div className="h-10 w-10 bg-pink-50 rounded-[1rem] flex items-center justify-center text-pink-500 font-black shadow-sm border border-pink-100">
                                                         {florist.platformName?.[0] || 'F'}
                                                     </div>
-                                                    <div className="ml-4">
-                                                        <div className="text-sm font-bold text-gray-900">{florist.platformName || '名称未設定'}</div>
-                                                        <div className="text-xs text-gray-500">ID: {florist.id.substring(0, 8)}...</div>
+                                                    <div>
+                                                        <div className="text-sm font-black text-slate-800">{florist.platformName || '名称未設定'}</div>
+                                                        <div className="text-[10px] font-bold text-slate-400 mt-0.5 uppercase tracking-widest">ID: {florist.id.substring(0, 8)}...</div>
                                                     </div>
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <div className="text-sm text-gray-900">{florist.email}</div>
-                                                <div className="text-xs text-gray-500">{florist.shopName || '-'}</div>
+                                            <td className="px-8 py-5 whitespace-nowrap">
+                                                <div className="text-sm font-bold text-slate-700">{florist.email}</div>
+                                                <div className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-widest">{florist.shopName || '-'}</div>
                                             </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
+                                            <td className="px-8 py-5 whitespace-nowrap">
                                                 <StatusBadge status={florist.status} />
                                             </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-right">
+                                            <td className="px-8 py-5 whitespace-nowrap text-right">
                                                 {florist.customFeeRate !== null ? (
-                                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-bold bg-pink-50 text-pink-700 border border-pink-200">
-                                                        <FiDollarSign className="mr-1" size={14}/>
-                                                        {(florist.customFeeRate * 100).toFixed(1)}%
+                                                    <span className="inline-flex items-center px-3 py-1 rounded-lg text-[10px] font-black bg-pink-50 text-pink-600 border border-pink-100 shadow-sm gap-1">
+                                                        <DollarSign size={12}/> {(florist.customFeeRate * 100).toFixed(1)}%
                                                     </span>
                                                 ) : (
-                                                    <span className="text-sm text-gray-400 font-medium">
+                                                    <span className="text-[10px] font-bold text-slate-400 bg-slate-50 px-3 py-1 rounded-lg border border-slate-100">
                                                         全体設定 (標準)
                                                     </span>
                                                 )}
                                             </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                                <button 
-                                                    onClick={() => setTargetFloristId(florist.id)}
-                                                    className="text-indigo-600 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition-colors inline-flex items-center gap-1"
-                                                >
-                                                    <FiEdit size={14}/> 手数料設定
+                                            <td className="px-8 py-5 text-center">
+                                                <button onClick={() => setTargetFloristId(florist.id)} className="text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-pink-600 bg-white border border-slate-200 hover:border-pink-200 hover:bg-pink-50 px-4 py-2 rounded-xl transition-all shadow-sm flex items-center justify-center gap-1.5 mx-auto">
+                                                    <Edit3 size={14}/> 手数料設定
                                                 </button>
                                             </td>
                                         </tr>
@@ -259,79 +194,55 @@ export default function AdminFloristsPage() {
                             </tbody>
                         </table>
                     </div>
-                    
-                    {/* 件数表示フッター */}
-                    <div className="bg-gray-50 px-6 py-3 border-t border-gray-200 text-xs text-gray-500 flex justify-between items-center">
-                        <span>全 {florists.length} 件中 {processedFlorists.length} 件を表示</span>
-                        {/* ページネーションが必要ならここに配置 */}
-                    </div>
                 </div>
 
-                {/* モーダル表示 */}
                 {targetFloristId && (
-                    <FloristFeeModal 
-                        floristId={targetFloristId} 
-                        onClose={() => setTargetFloristId(null)} 
-                        onFeeUpdated={handleFeeUpdated}
-                    />
+                    <FloristFeeModal floristId={targetFloristId} onClose={() => setTargetFloristId(null)} onFeeUpdated={handleFeeUpdated} />
                 )}
             </div>
         </div>
     );
 }
 
-// サブコンポーネント: 統計カード
+export default function AdminFloristsPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50"><Loader2 className="animate-spin text-pink-500 size-12" /></div>}>
+      <AdminFloristsInner />
+    </Suspense>
+  );
+}
+
 const StatCard = ({ icon, label, value, color }) => {
-    const colorClasses = {
-        blue: 'bg-blue-50 text-blue-600 border-blue-100',
-        green: 'bg-green-50 text-green-600 border-green-100',
+    const colors = {
+        sky: 'bg-sky-50 text-sky-600 border-sky-100',
+        emerald: 'bg-emerald-50 text-emerald-600 border-emerald-100',
         pink: 'bg-pink-50 text-pink-600 border-pink-100',
     };
     return (
-        <div className={`p-4 rounded-xl border ${colorClasses[color]} flex items-center gap-4 shadow-sm`}>
-            <div className={`p-3 rounded-full bg-white shadow-sm text-xl`}>
-                {icon}
-            </div>
+        <GlassCard className="!p-6 flex items-center gap-5 hover:-translate-y-1 transition-transform">
+            <div className={cn("p-4 rounded-[1.25rem] shadow-inner border", colors[color])}>{icon}</div>
             <div>
-                <p className="text-xs font-bold opacity-70 uppercase tracking-wider">{label}</p>
-                <p className="text-2xl font-extrabold">{value}</p>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{label}</p>
+                <p className="text-3xl font-black text-slate-800 tracking-tighter">{value}</p>
             </div>
-        </div>
+        </GlassCard>
     );
 };
 
-// サブコンポーネント: ソート可能なヘッダー
 const SortableTh = ({ label, sortKey, currentSort, onSort, align = 'left' }) => (
-    <th 
-        className={`px-6 py-3 text-${align} text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors select-none group`}
-        onClick={() => onSort(sortKey)}
-    >
-        <div className={`flex items-center gap-1 ${align === 'right' ? 'justify-end' : ''}`}>
+    <th className={cn("px-8 py-5 text-xs font-black text-slate-400 uppercase tracking-widest cursor-pointer hover:bg-slate-100 transition-colors select-none group", align === 'right' ? 'text-right' : 'text-left')} onClick={() => onSort(sortKey)}>
+        <div className={cn("flex items-center gap-1.5", align === 'right' ? 'justify-end' : '')}>
             {label}
-            <div className="flex flex-col text-[10px] text-gray-400">
-                <span className={currentSort.key === sortKey && currentSort.direction === 'asc' ? 'text-gray-800' : ''}>▲</span>
-                <span className={currentSort.key === sortKey && currentSort.direction === 'desc' ? 'text-gray-800' : ''}>▼</span>
+            <div className="flex flex-col text-[8px] text-slate-300">
+                <span className={currentSort.key === sortKey && currentSort.direction === 'asc' ? 'text-pink-500' : ''}>▲</span>
+                <span className={currentSort.key === sortKey && currentSort.direction === 'desc' ? 'text-pink-500' : ''}>▼</span>
             </div>
         </div>
     </th>
 );
 
-// サブコンポーネント: ステータスバッジ
 const StatusBadge = ({ status }) => {
-    const styles = {
-        APPROVED: 'bg-green-100 text-green-700 border-green-200',
-        PENDING: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-        REJECTED: 'bg-red-100 text-red-700 border-red-200',
-    };
-    const labels = {
-        APPROVED: '承認済み',
-        PENDING: '審査待ち',
-        REJECTED: '却下/停止',
-    };
-
-    return (
-        <span className={`px-2.5 py-1 inline-flex text-xs leading-5 font-bold rounded-full border ${styles[status] || 'bg-gray-100 text-gray-800'}`}>
-            {labels[status] || status}
-        </span>
-    );
+    const styles = { APPROVED: 'bg-emerald-50 text-emerald-600 border-emerald-200', PENDING: 'bg-amber-50 text-amber-600 border-amber-200', REJECTED: 'bg-rose-50 text-rose-600 border-rose-200' };
+    const labels = { APPROVED: '承認済み', PENDING: '審査待ち', REJECTED: '却下/停止' };
+    return <span className={cn("px-3 py-1.5 inline-flex text-[10px] font-black rounded-md border uppercase tracking-widest shadow-sm", styles[status] || 'bg-slate-50 text-slate-500 border-slate-200')}>{labels[status] || status}</span>;
 };

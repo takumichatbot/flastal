@@ -4,23 +4,31 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
+import { motion, AnimatePresence } from 'framer-motion';
+
+// lucide-reactに統一
 import { 
-    FiCheckCircle, FiXCircle, FiClock, FiUsers, FiAward, 
-    FiMapPin, FiCalendar, FiLogOut, FiRefreshCw, FiLoader, 
-    FiSearch, FiEye, FiX, FiAlertTriangle, FiArrowLeft
-} from 'react-icons/fi';
+    CheckCircle2, XCircle, Clock, Users, Award, 
+    MapPin, Calendar, LogOut, RefreshCw, Loader2, 
+    Search, Eye, X, AlertTriangle, ArrowLeft, ShieldCheck
+} from 'lucide-react';
 import { useAuth } from '@/app/contexts/AuthContext';
 
 const API_URL = 'https://flastal-backend.onrender.com';
 
-// 認証トークンを確実に取得する関数
+function cn(...classes) { return classes.filter(Boolean).join(' '); }
+
 const getAuthToken = () => {
     if (typeof window === 'undefined') return null;
     const rawToken = localStorage.getItem('authToken');
-    if (!rawToken) return null;
-    // トークンの前後にある引用符を徹底的に削除
-    return rawToken.replace(/^["']|["']$/g, '').trim();
+    return rawToken ? rawToken.replace(/^["']|["']$/g, '').trim() : null;
 };
+
+const GlassCard = ({ children, className }) => (
+  <div className={cn("bg-white/80 backdrop-blur-xl border border-white shadow-[0_8px_30px_rgba(0,0,0,0.04)] rounded-[2.5rem] p-6", className)}>
+    {children}
+  </div>
+);
 
 // --- 詳細確認モーダル ---
 function DetailModal({ isOpen, onClose, item, type, onAction }) {
@@ -50,42 +58,34 @@ function DetailModal({ isOpen, onClose, item, type, onAction }) {
     ];
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
-            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col font-sans">
-                <div className="px-8 py-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 text-slate-800">
-                    <h3 className="text-xl font-black flex items-center gap-2 italic">
-                        <span className="bg-blue-500 text-white px-3 py-1 rounded-lg text-[10px] uppercase font-black tracking-widest">
-                            {type === 'Florist' ? '花屋' : type === 'Venue' ? '会場' : '主催者'}
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-[3rem] shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col border border-white">
+                <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/80">
+                    <h3 className="text-xl font-black flex items-center gap-2 text-slate-800">
+                        <span className="bg-sky-500 text-white px-3 py-1 rounded-lg text-[10px] uppercase font-black tracking-widest shadow-sm">
+                            {type === 'Florist' ? 'お花屋さん' : type === 'Venue' ? '会場' : '主催者'}
                         </span>
                         申請内容の確認
                     </h3>
-                    <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-400">
-                        <FiX size={24} />
+                    <button onClick={onClose} className="p-2 bg-white shadow-sm hover:bg-slate-100 rounded-full transition-colors text-slate-400">
+                        <X size={20} />
                     </button>
                 </div>
 
-                <div className="p-8 overflow-y-auto flex-1 space-y-6">
+                <div className="p-8 overflow-y-auto flex-1 space-y-6 bg-white">
                     <div className="grid grid-cols-1 gap-6">
                         {details.map((detail, idx) => (
                             detail.value && (
-                                <div key={idx} className="border-b border-gray-50 pb-4 last:border-0">
-                                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">
-                                        {detail.label}
-                                    </span>
+                                <div key={idx} className="border-b border-slate-50 pb-4 last:border-0">
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">{detail.label}</span>
                                     {detail.isLongText ? (
-                                        <p className="text-sm text-gray-800 whitespace-pre-wrap bg-gray-50 p-4 rounded-2xl border border-gray-100 font-medium leading-relaxed">
-                                            {detail.value}
-                                        </p>
+                                        <p className="text-sm text-slate-700 whitespace-pre-wrap bg-slate-50/80 p-5 rounded-[1.5rem] border border-slate-100 font-bold leading-relaxed">{detail.value}</p>
                                     ) : detail.isLink ? (
-                                        <a href={detail.value} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline break-all font-bold text-sm">
-                                            {detail.value}
-                                        </a>
+                                        <a href={detail.value} target="_blank" rel="noreferrer" className="text-sky-600 hover:underline break-all font-black text-sm">{detail.value}</a>
                                     ) : detail.isBadge ? (
-                                        <span className="bg-orange-100 text-orange-700 text-[10px] px-3 py-1 rounded-full font-black uppercase tracking-widest text-slate-800">
-                                            {detail.value}
-                                        </span>
+                                        <span className="bg-amber-100 text-amber-700 text-[10px] px-3 py-1 rounded-full font-black uppercase tracking-widest border border-amber-200">{detail.value}</span>
                                     ) : (
-                                        <p className="text-sm text-gray-900 font-bold">{detail.value}</p>
+                                        <p className="text-sm text-slate-800 font-black">{detail.value}</p>
                                     )}
                                 </div>
                             )
@@ -93,26 +93,19 @@ function DetailModal({ isOpen, onClose, item, type, onAction }) {
                     </div>
                 </div>
 
-                <div className="p-8 border-t border-gray-100 bg-gray-50 flex gap-4">
-                    <button
-                        onClick={() => onAction('REJECTED')}
-                        className="flex-1 bg-white border-2 border-gray-200 text-gray-500 font-black py-4 rounded-2xl hover:bg-rose-50 hover:text-rose-500 hover:border-rose-100 transition-all flex items-center justify-center gap-2 text-sm"
-                    >
-                        <FiXCircle /> 申請を却下
+                <div className="p-6 md:p-8 border-t border-slate-100 bg-slate-50 flex flex-col md:flex-row gap-4">
+                    <button onClick={() => onAction('REJECTED')} className="flex-1 bg-white border-2 border-slate-200 text-slate-500 font-black py-4 rounded-2xl hover:bg-rose-50 hover:text-rose-500 hover:border-rose-200 transition-all flex items-center justify-center gap-2 text-sm shadow-sm">
+                        <XCircle size={18}/> 申請を却下
                     </button>
-                    <button
-                        onClick={() => onAction('APPROVED')}
-                        className="flex-[2] bg-slate-900 text-white font-black py-4 rounded-2xl hover:bg-pink-600 shadow-xl transition-all flex items-center justify-center gap-2 text-sm"
-                    >
-                        <FiCheckCircle /> 承認して登録
+                    <button onClick={() => onAction('APPROVED')} className="flex-[2] bg-slate-900 text-white font-black py-4 rounded-2xl hover:bg-sky-500 shadow-xl transition-all flex items-center justify-center gap-2 text-sm">
+                        <CheckCircle2 size={18}/> 承認して登録
                     </button>
                 </div>
-            </div>
+            </motion.div>
         </div>
     );
 }
 
-// --- リストカード ---
 function ReviewCard({ item, type, onOpenDetail }) {
     const getDisplayName = () => {
         if (type === 'Florist') return item.platformName || item.shopName || '名称未設定';
@@ -122,35 +115,31 @@ function ReviewCard({ item, type, onOpenDetail }) {
     };
 
     return (
-        <div className="bg-white p-6 rounded-3xl shadow-sm hover:shadow-xl border border-gray-100 transition-all duration-300 group relative overflow-hidden text-slate-800">
-            <div className="flex justify-between items-start mb-4">
-                <div className="space-y-1">
-                    <span className="text-[10px] font-black uppercase text-pink-500 tracking-widest block">
+        <GlassCard className="!p-8 transition-all duration-300 group relative overflow-hidden hover:-translate-y-1 hover:border-sky-200">
+            <div className="flex justify-between items-start mb-6">
+                <div className="space-y-2">
+                    <span className="text-[10px] font-black uppercase text-sky-500 tracking-widest block bg-sky-50 w-fit px-2 py-0.5 rounded-md border border-sky-100">
                         {type === 'Florist' ? 'お花屋さん' : type === 'Venue' ? '会場施設' : '主催者'}
                     </span>
-                    <h3 className="text-lg font-black text-gray-900 line-clamp-1 italic">{getDisplayName()}</h3>
+                    <h3 className="text-xl font-black text-slate-800 line-clamp-1">{getDisplayName()}</h3>
                 </div>
-                <div className="bg-orange-50 text-orange-500 p-2 rounded-xl">
-                    <FiClock size={18} className="animate-pulse" />
+                <div className="bg-amber-50 text-amber-500 p-2.5 rounded-xl border border-amber-100 shadow-sm shrink-0">
+                    <Clock size={18} className="animate-pulse" />
                 </div>
             </div>
 
-            <div className="text-[11px] text-gray-400 space-y-2 mb-6 font-bold">
-                <p className="truncate flex items-center gap-2 font-black text-slate-800"><span className="text-gray-200 uppercase">Email</span> {item.email}</p>
-                <p className="flex items-center gap-2 font-black text-slate-800"><span className="text-gray-200 uppercase">Date</span> {new Date(item.createdAt).toLocaleDateString()}</p>
+            <div className="text-xs text-slate-500 space-y-3 mb-8 font-bold bg-slate-50/80 p-4 rounded-2xl border border-slate-100">
+                <p className="truncate flex items-center gap-2"><span className="text-[9px] text-slate-400 uppercase tracking-widest w-10">Email</span> <span className="text-slate-700">{item.email}</span></p>
+                <p className="flex items-center gap-2"><span className="text-[9px] text-slate-400 uppercase tracking-widest w-10">Date</span> <span className="text-slate-700">{new Date(item.createdAt).toLocaleDateString()}</span></p>
             </div>
 
-            <button
-                onClick={() => onOpenDetail(item)}
-                className="w-full py-4 bg-gray-50 text-gray-900 text-xs font-black rounded-2xl hover:bg-slate-900 hover:text-white transition-all flex items-center justify-center gap-2 border border-gray-100 uppercase tracking-widest shadow-sm"
-            >
-                <FiEye /> 内容を確認
+            <button onClick={() => onOpenDetail(item)} className="w-full py-4 bg-slate-900 text-white text-xs font-black rounded-2xl hover:bg-sky-500 transition-all flex items-center justify-center gap-2 tracking-widest shadow-lg">
+                <Eye size={16}/> 内容を確認
             </button>
-        </div>
+        </GlassCard>
     );
 }
 
-// --- メインページ ---
 export default function AdminApprovalPage() {
     const { user, loading: authLoading, logout } = useAuth();
     const router = useRouter();
@@ -174,13 +163,7 @@ export default function AdminApprovalPage() {
         }
 
         try {
-            const fetchOptions = { 
-                headers: { 
-                    'Authorization': `Bearer ${token}`,
-                    'Cache-Control': 'no-cache'
-                } 
-            };
-            
+            const fetchOptions = { headers: { 'Authorization': `Bearer ${token}`, 'Cache-Control': 'no-cache' } };
             const [floristRes, venueRes, organizerRes] = await Promise.all([
                 fetch(`${API_URL}/api/admin/florists/pending`, fetchOptions),
                 fetch(`${API_URL}/api/admin/venues/pending`, fetchOptions),
@@ -211,11 +194,8 @@ export default function AdminApprovalPage() {
 
     useEffect(() => {
         if (!authLoading) {
-            if (user?.role !== 'ADMIN') {
-                router.push('/login');
-            } else {
-                fetchPendingData();
-            }
+            if (user?.role !== 'ADMIN') router.push('/login');
+            else fetchPendingData();
         }
     }, [authLoading, user, router, fetchPendingData]);
 
@@ -232,10 +212,7 @@ export default function AdminApprovalPage() {
         try {
             const res = await fetch(apiUrl, {
                 method: 'PATCH',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify({ status })
             });
 
@@ -244,7 +221,6 @@ export default function AdminApprovalPage() {
             toast.success(`申請を${status === 'APPROVED' ? '承認' : '却下'}しました`, { id: toastId });
             setSelectedItem(null);
             fetchPendingData();
-
         } catch (error) {
             toast.error(error.message, { id: toastId });
         }
@@ -264,111 +240,93 @@ export default function AdminApprovalPage() {
 
     const totalPending = pendingData.florists.length + pendingData.venues.length + pendingData.organizers.length;
     
-    if (authLoading || (loading && !errorInfo)) return <div className="min-h-screen bg-white flex items-center justify-center"><FiLoader className="animate-spin text-pink-500 size-12"/></div>;
+    if (authLoading || (loading && !errorInfo)) return <div className="min-h-screen bg-slate-50 flex items-center justify-center"><Loader2 className="animate-spin text-sky-500 size-12"/></div>;
 
     return (
-        <div className="min-h-screen bg-[#fafafa] font-sans text-slate-800 pt-28">
-            <header className="bg-white/80 backdrop-blur-md border-b border-slate-100 fixed top-0 w-full z-40">
-                <div className="max-w-7xl mx-auto px-6 h-20 flex justify-between items-center text-slate-800">
-                    <div className="flex items-center gap-3">
-                        <div className="bg-slate-900 text-white p-2 rounded-xl italic font-black text-xs shadow-lg">FL</div>
-                        <h1 className="text-xl font-black text-slate-900 tracking-tighter italic uppercase">審査管理</h1>
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 to-sky-50/50 font-sans text-slate-800 pb-24 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-sky-200/20 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/3 pointer-events-none z-0" />
+
+            <header className="bg-white/80 backdrop-blur-xl border-b border-white sticky top-0 z-40 shadow-[0_4px_20px_rgba(0,0,0,0.02)]">
+                <div className="max-w-7xl mx-auto px-6 h-20 flex justify-between items-center">
+                    <div className="flex items-center gap-4">
+                        <div className="bg-slate-900 text-white p-2.5 rounded-xl font-black text-xs shadow-lg">FL</div>
+                        <h1 className="text-xl font-black text-slate-800 tracking-tighter flex items-center gap-2"><ShieldCheck className="text-sky-500" size={20}/> 審査管理</h1>
                     </div>
-                    <div className="flex items-center gap-6 text-slate-800">
-                        <div className="hidden md:flex items-center gap-2 bg-orange-50 px-4 py-2 rounded-2xl border border-orange-100 text-slate-800">
-                            <span className="text-[10px] font-black text-orange-400 uppercase tracking-widest text-slate-800">未処理</span>
-                            <span className="text-sm font-black text-orange-600 text-slate-800">{totalPending}件</span>
+                    <div className="flex items-center gap-4 md:gap-6">
+                        <div className="hidden md:flex items-center gap-2 bg-amber-50 px-4 py-2 rounded-full border border-amber-100 shadow-sm">
+                            <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest">未処理</span>
+                            <span className="text-sm font-black text-amber-700">{totalPending}件</span>
                         </div>
-                        <Link href="/admin" className="text-xs font-black text-slate-400 hover:text-slate-900 transition-all uppercase tracking-widest flex items-center gap-2">
-                            <FiArrowLeft /> 戻る
+                        <Link href="/admin" className="text-[10px] font-black text-slate-400 hover:text-slate-900 transition-all uppercase tracking-widest flex items-center gap-1.5 bg-white px-4 py-2.5 rounded-full shadow-sm border border-slate-100">
+                            <ArrowLeft size={14}/> Dashboard
                         </Link>
                     </div>
                 </div>
             </header>
 
-            <main className="max-w-7xl mx-auto py-12 px-6">
+            <main className="max-w-7xl mx-auto py-10 px-4 sm:px-6 relative z-10">
                 {errorInfo && (
-                    <div className="mb-12 bg-rose-50 border-2 border-rose-100 p-10 rounded-[2.5rem] flex flex-col md:flex-row items-center justify-between gap-8 shadow-xl shadow-rose-500/5 text-slate-800">
-                        <div className="flex items-center gap-6 text-slate-800">
-                            <div className="bg-rose-500 text-white p-4 rounded-2xl shadow-xl"><FiAlertTriangle size={32} /></div>
-                            <div className="space-y-1 text-slate-800">
-                                <p className="font-black text-rose-900 text-xl tracking-tight italic text-slate-800">アクセスエラー</p>
-                                <p className="text-rose-700/60 text-sm font-bold uppercase tracking-widest text-slate-800">{errorInfo}</p>
+                    <div className="mb-10 bg-rose-50 border-2 border-rose-100 p-8 rounded-[2.5rem] flex flex-col md:flex-row items-center justify-between gap-6 shadow-lg shadow-rose-500/5">
+                        <div className="flex items-center gap-6">
+                            <div className="bg-rose-500 text-white p-4 rounded-2xl shadow-xl"><AlertTriangle size={28} /></div>
+                            <div>
+                                <p className="font-black text-rose-900 text-lg tracking-tight">アクセスエラー</p>
+                                <p className="text-rose-700/80 text-xs font-bold uppercase tracking-widest mt-1">{errorInfo}</p>
                             </div>
                         </div>
-                        <button onClick={() => { logout(); router.push('/login'); }} className="px-10 py-5 bg-rose-500 text-white rounded-2xl font-black text-xs uppercase hover:bg-rose-600 transition-all shadow-lg shadow-rose-200 active:scale-95">再ログインして修復</button>
+                        <button onClick={() => { logout(); router.push('/login'); }} className="px-8 py-4 bg-rose-500 text-white rounded-2xl font-black text-xs uppercase hover:bg-rose-600 transition-all shadow-md active:scale-95">再ログインして修復</button>
                     </div>
                 )}
 
-                <div className="flex flex-col lg:flex-row justify-between items-end lg:items-center gap-8 mb-12">
-                    <nav className="flex space-x-2 bg-white p-2 rounded-[2rem] shadow-sm border border-slate-100 text-slate-800">
+                <div className="flex flex-col lg:flex-row justify-between items-end lg:items-center gap-6 mb-10">
+                    <nav className="flex space-x-2 bg-white/80 backdrop-blur-md p-2 rounded-full shadow-sm border border-white overflow-x-auto no-scrollbar w-full lg:w-auto">
                         {[
-                            { id: 'florists', label: 'お花屋さん', icon: <FiAward /> },
-                            { id: 'venues', label: '会場施設', icon: <FiMapPin /> },
-                            { id: 'organizers', label: 'イベント主催者', icon: <FiCalendar /> }
+                            { id: 'florists', label: 'お花屋さん', icon: <Award size={16}/> },
+                            { id: 'venues', label: '会場施設', icon: <MapPin size={16}/> },
+                            { id: 'organizers', label: '主催者', icon: <Calendar size={16}/> }
                         ].map((tab) => (
-                            <button
-                                key={tab.id}
-                                onClick={() => { setActiveTab(tab.id); setSearchTerm(''); }}
-                                className={`flex items-center gap-3 px-8 py-4 rounded-[1.5rem] text-xs font-black transition-all uppercase tracking-widest ${activeTab === tab.id ? 'bg-slate-900 text-white shadow-xl scale-105' : 'text-slate-400 hover:bg-slate-50'}`}
+                            <button key={tab.id} onClick={() => { setActiveTab(tab.id); setSearchTerm(''); }}
+                                className={cn("flex items-center gap-2 px-6 py-3.5 rounded-full text-xs font-black transition-all uppercase tracking-widest shrink-0", activeTab === tab.id ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50')}
                             >
                                 {tab.icon} {tab.label}
-                                <span className={`ml-1 px-2 py-0.5 rounded-lg text-[10px] ${activeTab === tab.id ? 'bg-pink-500 text-white' : 'bg-slate-100 text-slate-400'}`}>
-                                    {pendingData[tab.id].length}
-                                </span>
+                                <span className={cn("ml-1 px-2 py-0.5 rounded-full text-[10px]", activeTab === tab.id ? 'bg-sky-500 text-white' : 'bg-slate-100 text-slate-400')}>{pendingData[tab.id].length}</span>
                             </button>
                         ))}
                     </nav>
 
-                    <div className="flex items-center gap-4 w-full lg:w-auto">
-                        <div className="relative flex-1 lg:w-80 group text-slate-800">
-                            <FiSearch className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-pink-500 transition-colors" size={20}/>
-                            <input 
-                                type="text"
-                                placeholder="名前やメールで検索..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full pl-14 pr-6 py-5 bg-white border border-slate-100 rounded-[1.5rem] text-sm font-bold shadow-sm outline-none focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 transition-all placeholder:text-slate-200 text-slate-800"
+                    <div className="flex items-center gap-3 w-full lg:w-auto">
+                        <div className="relative flex-1 lg:w-72">
+                            <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 size-5" />
+                            <input type="text" placeholder="名前やメールで検索..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
+                                className="w-full pl-12 pr-6 py-4 bg-white/80 backdrop-blur-sm border-2 border-white rounded-full text-sm font-bold shadow-sm outline-none focus:ring-4 focus:ring-sky-100 focus:border-sky-300 transition-all placeholder:text-slate-300"
                             />
                         </div>
-                        <button onClick={fetchPendingData} className="p-5 bg-slate-900 text-white rounded-[1.5rem] hover:bg-pink-600 transition-all shadow-xl active:scale-90">
-                            <FiRefreshCw className={loading ? 'animate-spin' : ''} size={22}/>
+                        <button onClick={fetchPendingData} className="w-14 h-14 shrink-0 flex items-center justify-center bg-white border border-slate-200 text-slate-500 rounded-full hover:bg-slate-50 hover:text-sky-600 transition-all shadow-sm active:scale-90">
+                            <RefreshCw className={loading ? 'animate-spin' : ''} size={20}/>
                         </button>
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 md:gap-8">
                     {filteredList.length > 0 ? (
-                        filteredList.map(item => (
-                            <ReviewCard 
-                                key={item.id} 
-                                item={item} 
-                                type={tabTypeToStr(activeTab)} 
-                                onOpenDetail={setSelectedItem}
-                            />
-                        ))
+                        filteredList.map(item => <ReviewCard key={item.id} item={item} type={tabTypeToStr(activeTab)} onOpenDetail={setSelectedItem} />)
                     ) : (
-                        <div className="col-span-full py-40 text-center bg-white rounded-[4rem] border-2 border-dashed border-slate-100 shadow-[0_20px_50px_rgba(0,0,0,0.02)]">
-                            <div className="bg-slate-50 size-24 rounded-full flex items-center justify-center mx-auto mb-6 text-slate-200 shadow-inner">
-                                <FiCheckCircle size={48} />
+                        <div className="col-span-full py-32 text-center bg-white/60 backdrop-blur-md rounded-[3rem] border border-white shadow-sm">
+                            <div className="bg-slate-100 size-20 rounded-full flex items-center justify-center mx-auto mb-6 text-slate-300 shadow-inner">
+                                <CheckCircle2 size={40} />
                             </div>
-                            <h3 className="text-2xl font-black text-slate-300 italic uppercase tracking-widest text-slate-800">未処理の申請はありません</h3>
-                            <p className="text-slate-300 text-sm mt-3 font-bold uppercase tracking-widest">現在、すべての申請が処理済みです</p>
+                            <h3 className="text-xl font-black text-slate-800 mb-2">未処理の申請はありません</h3>
+                            <p className="text-slate-500 text-xs font-bold uppercase tracking-widest">現在、すべての申請が処理済みです🎉</p>
                         </div>
                     )}
                 </div>
             </main>
 
-            {selectedItem && (
-                <DetailModal 
-                    isOpen={!!selectedItem}
-                    onClose={() => setSelectedItem(null)}
-                    item={selectedItem}
-                    type={tabTypeToStr(activeTab)}
-                    onAction={handleAction}
-                />
-            )}
-            <style jsx global>{` body { background-color: #fafafa; } `}</style>
+            <AnimatePresence>
+                {selectedItem && (
+                    <DetailModal isOpen={!!selectedItem} onClose={() => setSelectedItem(null)} item={selectedItem} type={tabTypeToStr(activeTab)} onAction={handleAction} />
+                )}
+            </AnimatePresence>
         </div>
     );
 }

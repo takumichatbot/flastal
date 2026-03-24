@@ -17,7 +17,7 @@ import {
   Star, HelpCircle, ArrowRight, Search, Users,
   Flower, CreditCard, Lock, Loader2, PlusCircle, Gift, 
   MessageCircle, Clock, Award, PenTool, Video, Music, MapPin, Store,
-  User, CheckCircle2, Ticket // ←追加
+  User, CheckCircle2, Ticket, LogOut
 } from 'lucide-react';
 
 function cn(...classes) {
@@ -58,13 +58,13 @@ const SectionTitle = ({ en, ja, desc, color = "pink", align = "center", icon: Ic
     emerald: "text-emerald-500 bg-emerald-50 border-emerald-100",
   };
   return (
-    <div className={cn("mb-12 md:mb-16 px-4 relative z-10", align === "center" ? "text-center" : "text-left")}>
+    <div className={cn("mb-10 md:mb-16 px-4 relative z-10", align === "center" ? "text-center" : "text-left")}>
       <Reveal>
         <span className={cn("inline-flex items-center gap-2 px-4 py-1.5 rounded-full backdrop-blur-md border shadow-sm mb-4", 
           "font-mono text-[10px] md:text-xs font-bold tracking-[0.2em] uppercase", colors[color] || colors.pink)}>
           {Icon ? <Icon size={14} /> : <Sparkles size={14} />} {en}
         </span>
-        <h2 className="text-2xl md:text-4xl lg:text-5xl font-black text-slate-800 mb-6 tracking-tighter leading-tight">
+        <h2 className="text-3xl md:text-4xl lg:text-5xl font-black text-slate-800 mb-4 md:mb-6 tracking-tighter leading-tight">
           {ja}
         </h2>
         {desc && <p className="text-slate-500 max-w-2xl text-xs md:text-sm font-medium leading-relaxed mt-4" style={align === "center" ? {margin: "0 auto"} : {}}><JpText>{desc}</JpText></p>}
@@ -74,7 +74,7 @@ const SectionTitle = ({ en, ja, desc, color = "pink", align = "center", icon: Ic
 };
 
 const GlassCard = ({ children, className }) => (
-  <div className={cn("bg-white/70 backdrop-blur-xl border border-white shadow-[0_8px_32px_rgba(0,0,0,0.04)] rounded-[2rem]", className)}>
+  <div className={cn("bg-white/70 backdrop-blur-xl border border-white shadow-[0_8px_30px_rgba(0,0,0,0.04)] rounded-[2rem]", className)}>
     {children}
   </div>
 );
@@ -360,12 +360,13 @@ const TickerSection = () => {
   );
 };
 
+// ★修正点1: Aboutセクションのカードをスマホで横スワイプできるように変更
 const AboutSection = () => (
   <section className="py-20 md:py-32 bg-[#FAFAFC] relative overflow-hidden">
     <div className="absolute top-0 right-0 w-[50vw] h-[50vw] bg-sky-100/40 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/3 pointer-events-none" />
     <div className="absolute bottom-0 left-0 w-[50vw] h-[50vw] bg-pink-100/40 rounded-full blur-[100px] translate-y-1/3 -translate-x-1/3 pointer-events-none" />
 
-    <div className="container mx-auto px-6 max-w-6xl relative z-10 text-center">
+    <div className="container mx-auto px-0 md:px-6 max-w-6xl relative z-10 text-center">
       <SectionTitle 
         en="About" 
         ja={<span>みんなの「おめでとう」を、<br/>大きなお花に。</span>}
@@ -373,22 +374,23 @@ const AboutSection = () => (
         color="pink"
       />
 
-      <div className="relative mt-16 bg-white md:bg-slate-50 rounded-[3rem] p-8 md:p-12 md:border border-slate-100 md:shadow-inner">
-        <div className="grid md:grid-cols-3 gap-8 relative z-10">
+      <div className="relative mt-16 bg-transparent md:bg-white md:rounded-[3rem] p-0 md:p-12 md:border border-slate-100 md:shadow-inner">
+        {/* スマホでは横スワイプ (snap-x)、PCではグリッド表示 */}
+        <div className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar px-6 md:px-0 md:grid md:grid-cols-3 gap-6 md:gap-8 relative z-10 pb-8 md:pb-0">
           {[
             { step: 1, title: "企画を立ち上げる", icon: SvgPanel, text: "贈りたい相手やイベント、予算を決めて専用ページを作成。イラストパネルの募集も可能です。" },
             { step: 2, title: "支援を集める", icon: SvgBouquet, text: "URLをSNSでシェアして参加者を募集。1口1,000円から、クレジットカード等で匿名支援が可能。" },
             { step: 3, title: "お花を届ける", icon: SvgFlowerStand, text: "目標を達成したら、FLASTALが提携するプロのお花屋さんへシステム経由で発注し、会場へお届け！" },
           ].map((item, i) => (
-            <Reveal key={i} delay={i * 0.15}>
-              <GlassCard className="p-8 text-center h-full flex flex-col relative overflow-hidden group">
+            <Reveal key={i} delay={i * 0.15} className="min-w-[85vw] sm:min-w-[300px] md:min-w-0 snap-center flex-shrink-0">
+              <GlassCard className="p-8 text-center h-full flex flex-col relative overflow-hidden group bg-white md:bg-white/70">
                 <div className="absolute inset-0 bg-gradient-to-b from-white/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                 <div className="w-24 h-24 mx-auto mb-6 relative z-10 transform group-hover:scale-110 transition-transform duration-500">
                   <item.icon className="w-full h-full drop-shadow-md" />
                 </div>
                 <h3 className="text-lg md:text-xl font-black text-slate-800 mb-4 relative z-10"><JpText>{item.title}</JpText></h3>
                 <p className="text-sm text-slate-500 leading-relaxed font-medium relative z-10"><JpText>{item.text}</JpText></p>
-                <div className="absolute top-4 right-6 text-4xl md:text-6xl font-black text-slate-100/50 font-serif italic z-0 select-none">
+                <div className="absolute top-4 right-6 text-5xl md:text-6xl font-black text-slate-100/50 font-serif italic z-0 select-none">
                   {item.step}
                 </div>
               </GlassCard>
@@ -403,16 +405,16 @@ const AboutSection = () => (
         </div>
       </div>
 
-      <div className="mt-24">
-        <p className="text-center text-sm font-bold text-slate-400 mb-8 uppercase tracking-widest">対応ジャンル</p>
-        <div className="flex flex-wrap justify-center gap-4">
+      <div className="mt-16 md:mt-24 px-6 md:px-0">
+        <p className="text-center text-[10px] md:text-sm font-bold text-slate-400 mb-6 uppercase tracking-widest">対応ジャンル</p>
+        <div className="flex flex-wrap justify-center gap-3 md:gap-4">
           {CATEGORIES.map((cat, i) => (
             <Reveal key={cat.id} delay={i * 0.05}>
-              <div className={cn("flex items-center gap-2 px-5 py-3 rounded-full bg-white shadow-sm border border-slate-100 hover:shadow-md transition-all cursor-pointer group")}>
-                <div className={cn("w-8 h-8 rounded-full flex items-center justify-center text-white bg-gradient-to-br shadow-inner group-hover:scale-110 transition-transform", cat.color, cat.shadow)}>
+              <div className={cn("flex items-center gap-2 px-4 py-2 md:px-5 md:py-3 rounded-full bg-white shadow-sm border border-slate-100 hover:shadow-md transition-all cursor-pointer group")}>
+                <div className={cn("w-6 h-6 md:w-8 md:h-8 rounded-full flex items-center justify-center text-white bg-gradient-to-br shadow-inner group-hover:scale-110 transition-transform", cat.color, cat.shadow)}>
                   {cat.icon}
                 </div>
-                <span className="font-bold text-slate-700 text-sm">{cat.name}</span>
+                <span className="font-bold text-slate-700 text-xs md:text-sm">{cat.name}</span>
               </div>
             </Reveal>
           ))}
@@ -428,9 +430,9 @@ const ProjectCardWrapper = ({ project, index }) => {
   return (
     <Reveal delay={index * 0.1} className="h-full min-w-[85vw] sm:min-w-[320px] md:min-w-0 snap-center">
       <Link href={`/projects`} className="block group h-full">
-        <GlassCard className="h-full flex flex-col overflow-hidden hover:-translate-y-2 transition-all duration-300 hover:border-pink-300 bg-white">
+        <GlassCard className="h-full flex flex-col overflow-hidden hover:-translate-y-2 transition-all duration-300 hover:border-pink-300 bg-white p-0 md:p-0">
           <div className="relative aspect-[4/3] overflow-hidden bg-slate-100">
-            <Image src={project.imgUrl} alt={project.title} fill className="object-cover transition-transform duration-700 group-hover:scale-110" sizes="(max-width: 768px) 85vw, 33vw" />
+            <Image src={project.imgUrl} alt={project.title} fill className="object-cover transition-transform duration-700 group-hover:scale-105" sizes="(max-width: 768px) 85vw, 33vw" />
             <div className="absolute top-3 left-3 flex flex-col gap-2">
               <span className={cn("px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider backdrop-blur-md border shadow-sm", 
                 project.status === 'COMPLETED' ? "bg-slate-900/80 text-white border-slate-700" :
@@ -494,11 +496,11 @@ const FeaturesSection = () => (
   <section className="py-20 md:py-32 bg-white relative overflow-hidden">
     <div className="container mx-auto px-4 md:px-6 max-w-6xl relative z-10">
       <SectionTitle en="Why Choose Us" ja={<>お金のトラブルをゼロに。<br className="hidden md:block"/>推し活をもっと純粋に。</>} desc="個人情報の管理から集金催促まで、フラスタ企画の面倒な裏方はすべてFLASTALが引き受けます。" color="sky" align="center" Icon={ShieldCheck}/>
-      <div className="grid md:grid-cols-2 gap-8 md:gap-12 mt-12 md:mt-16">
+      <div className="grid md:grid-cols-2 gap-6 md:gap-12 mt-12 md:mt-16">
         <Reveal delay={0.1}>
           <GlassCard className="bg-slate-50 border-slate-100 p-6 md:p-10 h-full">
             <div className="flex items-center gap-4 mb-6 md:mb-8">
-              <div className="w-12 h-12 md:w-14 md:h-14 bg-pink-100 rounded-[1rem] flex items-center justify-center text-pink-500 border border-pink-200 shadow-inner"><Award size={24} /></div>
+              <div className="w-12 h-12 md:w-14 md:h-14 bg-pink-100 rounded-[1rem] flex items-center justify-center text-pink-500 border border-pink-200 shadow-inner shrink-0"><Award size={24} /></div>
               <h3 className="text-lg md:text-2xl font-black text-slate-800">企画する人のメリット</h3>
             </div>
             <ul className="space-y-4 md:space-y-6">
@@ -521,7 +523,7 @@ const FeaturesSection = () => (
         <Reveal delay={0.2}>
           <GlassCard className="bg-slate-50 border-slate-100 p-6 md:p-10 h-full">
             <div className="flex items-center gap-4 mb-6 md:mb-8">
-              <div className="w-12 h-12 md:w-14 md:h-14 bg-sky-100 rounded-[1rem] flex items-center justify-center text-sky-500 border border-sky-200 shadow-inner"><Heart size={24} /></div>
+              <div className="w-12 h-12 md:w-14 md:h-14 bg-sky-100 rounded-[1rem] flex items-center justify-center text-sky-500 border border-sky-200 shadow-inner shrink-0"><Heart size={24} /></div>
               <h3 className="text-lg md:text-2xl font-black text-slate-800">参加する人のメリット</h3>
             </div>
             <ul className="space-y-4 md:space-y-6">
@@ -546,20 +548,21 @@ const FeaturesSection = () => (
   </section>
 );
 
+// ★修正点2: スマホでの表記崩れ（高さのバラつき）を解消
 const VoiceSection = () => (
   <section className="py-20 md:py-32 bg-[#FAFAFC] relative overflow-hidden">
     <div className="container mx-auto max-w-6xl px-0 md:px-6">
       <SectionTitle en="Testimonials" ja="ご利用いただいた皆様の声" color="sky" Icon={MessageCircle} />
-      <div className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar pb-8 px-4 md:px-0 md:grid md:grid-cols-3 gap-4 md:gap-8 mt-8 md:mt-12">
+      <div className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar pb-8 px-4 md:px-0 md:grid md:grid-cols-3 gap-4 md:gap-8 mt-8 md:mt-12 items-stretch">
         {VOICES.map((v, i) => (
-          <div key={i} className="min-w-[85vw] sm:min-w-[300px] md:min-w-0 snap-center flex-shrink-0">
-            <Reveal delay={i * 0.15} className="h-full">
-              <GlassCard className="p-6 md:p-8 h-full relative group bg-white hover:-translate-y-2 transition-transform duration-300 shadow-sm border border-slate-100">
+          <div key={i} className="min-w-[85vw] sm:min-w-[300px] md:min-w-0 snap-center flex-shrink-0 flex">
+            <Reveal delay={i * 0.15} className="w-full flex">
+              <GlassCard className="p-6 md:p-8 w-full flex flex-col relative group bg-white hover:-translate-y-2 transition-transform duration-300 shadow-sm border border-slate-100">
                 <div className="absolute top-4 right-6 opacity-10 text-slate-900 group-hover:text-pink-500 transition-colors">
                   <svg width="40" height="40" viewBox="0 0 24 24" fill="currentColor"><path d="M14.017 21L16.411 14.502H10.457V3H21.543V14.502L18.423 21H14.017ZM3.56 21L5.954 14.502H0V3H11.086V14.502L7.966 21H3.56Z"/></svg>
                 </div>
                 <div className="flex items-center gap-4 mb-4 md:mb-6">
-                  <div className="w-12 h-12 md:w-14 md:h-14 rounded-full overflow-hidden relative shadow-md">
+                  <div className="w-12 h-12 md:w-14 md:h-14 rounded-full overflow-hidden relative shadow-md shrink-0">
                     <Image src={v.avatar} alt="User" fill className="object-cover" />
                   </div>
                   <div>
@@ -571,7 +574,7 @@ const VoiceSection = () => (
                     <p className="font-bold text-slate-800 text-xs md:text-sm mt-1">{v.name}</p>
                   </div>
                 </div>
-                <p className="text-xs md:text-sm text-slate-600 leading-relaxed font-medium relative z-10"><JpText>{v.text}</JpText></p>
+                <p className="text-xs md:text-sm text-slate-600 leading-relaxed font-medium relative z-10 flex-grow"><JpText>{v.text}</JpText></p>
               </GlassCard>
             </Reveal>
           </div>
@@ -598,7 +601,7 @@ const PartnerBanner = () => (
             {[
               { href: "/florists/register", label: "お花屋さん無料登録", icon: Flower },
               { href: "/venues/register", label: "会場・ホール登録", icon: MapPin },
-              { href: "/organizers/register", label: "イベント主催者登録", icon: Ticket }, // ←追加
+              { href: "/organizers/register", label: "イベント主催者登録", icon: Ticket },
               { href: "/illustrators/register", label: "イラストレーター登録", icon: PenTool },
             ].map((btn, i) => (
               <Link key={i} href={btn.href} className="px-5 py-3 md:px-6 md:py-3.5 bg-white/10 hover:bg-white text-white hover:text-slate-900 text-xs md:text-sm font-bold rounded-full border border-white/20 transition-all flex items-center justify-center gap-2 backdrop-blur-md">
@@ -669,22 +672,29 @@ const ContactAndCtaSection = () => (
   </section>
 );
 
+// ★修正点3: ログイン後のホーム画面をスマホでも見やすく修正
 const AuthenticatedHome = ({ user, logout }) => (
-  <div className="min-h-screen bg-gradient-to-br from-pink-50 to-sky-50 flex items-center justify-center p-4 md:p-6 m-0 relative overflow-hidden">
+  // min-h-[100dvh] に変更し、スマホでの高さを最適化。マージンを調整。
+  <div className="min-h-[100dvh] bg-gradient-to-br from-pink-50 to-sky-50 flex items-center justify-center p-4 m-0 relative overflow-hidden">
     <FloatingParticles />
     <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.5 }}
-      className="max-w-md w-full bg-white/90 backdrop-blur-xl rounded-[2rem] md:rounded-[3rem] shadow-2xl p-8 md:p-12 text-center border border-white relative z-10"
+      // pb-10 などを追加して下部の余白を確保
+      className="max-w-md w-full bg-white/90 backdrop-blur-xl rounded-[2rem] md:rounded-[3rem] shadow-2xl p-8 pb-10 md:p-12 text-center border border-white relative z-10 my-auto"
     >
       <div className="w-16 h-16 md:w-20 md:h-20 bg-pink-100 text-pink-500 rounded-[1rem] md:rounded-[1.5rem] rotate-3 flex items-center justify-center mx-auto mb-4 md:mb-6 shadow-inner"><ShieldCheck size={32} /></div>
       <h1 className="text-xl md:text-2xl font-black text-slate-800 mb-2 tracking-tight">おかえりなさい！</h1>
-      <p className="text-slate-400 mb-6 md:mb-8 font-bold text-[10px] md:text-xs uppercase tracking-widest">
-        {user?.handleName || user?.shopName || 'MEMBER'} Signed In
+      <p className="text-slate-400 mb-8 font-bold text-[10px] md:text-xs uppercase tracking-widest">
+        {user?.handleName || user?.shopName || user?.name || 'MEMBER'} Signed In
       </p>
-      <div className="space-y-3 md:space-y-4">
-        <Link href={user?.role === 'ADMIN' ? '/admin' : user?.role === 'FLORIST' ? '/florists/dashboard' : '/mypage'} className="flex items-center justify-center gap-2 w-full py-3.5 md:py-4 bg-slate-900 text-white font-black rounded-xl md:rounded-2xl hover:bg-slate-800 transition-all shadow-xl shadow-slate-200/50 text-sm">
+      <div className="space-y-4">
+        <Link href={user?.role === 'ADMIN' ? '/admin' : user?.role === 'FLORIST' ? '/florists/dashboard' : user?.role === 'VENUE' ? `/venues/dashboard/${user.id}` : user?.role === 'ORGANIZER' ? '/organizers/dashboard' : '/mypage'} 
+          className="flex items-center justify-center gap-2 w-full py-4 bg-slate-900 text-white font-black rounded-xl md:rounded-2xl hover:bg-slate-800 transition-all shadow-xl shadow-slate-200/50 text-sm active:scale-95"
+        >
           マイページへ進む <ArrowRight size={16} />
         </Link>
-        <button onClick={logout} className="text-[10px] md:text-xs font-bold text-slate-400 hover:text-pink-500 transition-colors mt-2 md:mt-4 p-2 underline decoration-transparent hover:decoration-pink-500 underline-offset-4">ログアウト</button>
+        <button onClick={logout} className="flex items-center justify-center gap-1.5 w-full py-4 text-[10px] md:text-xs font-bold text-slate-400 hover:text-pink-500 bg-slate-50 rounded-xl md:rounded-2xl transition-colors active:scale-95">
+          <LogOut size={14}/> ログアウト
+        </button>
       </div>
     </motion.div>
   </div>
