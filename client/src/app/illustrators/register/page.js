@@ -1,12 +1,40 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
-import { FiEye, FiEyeOff, FiPenTool, FiMail, FiLock, FiArrowLeft, FiCheckCircle } from 'react-icons/fi';
+import { motion } from 'framer-motion';
+
+// lucide-reactに統一
+import { 
+  Eye, EyeOff, PenTool, Mail, Lock, ArrowLeft, 
+  CheckCircle2, Sparkles, Loader2 
+} from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
+
+// ★ cn関数を定義（ビルドエラー解消）
+function cn(...classes) {
+  return classes.filter(Boolean).join(' ');
+}
+
+// ふわふわ浮かぶパーティクル（クリエイター向けのアンバー系）
+const FloatingParticles = () => {
+  const [windowSize, setWindowSize] = useState({ width: 1000, height: 1000 });
+  useEffect(() => { setWindowSize({ width: window.innerWidth, height: window.innerHeight }); }, []);
+  return (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+      {[...Array(12)].map((_, i) => (
+        <motion.div key={i} className="absolute w-3 h-3 bg-amber-300 rounded-full mix-blend-multiply filter blur-[1px] opacity-40"
+          initial={{ x: Math.random() * windowSize.width, y: Math.random() * windowSize.height }}
+          animate={{ y: [null, Math.random() * -200], x: [null, (Math.random() - 0.5) * 100], opacity: [0.2, 0.6, 0.2], scale: [1, 1.5, 1] }}
+          transition={{ duration: Math.random() * 10 + 15, repeat: Infinity, ease: "linear" }}
+        />
+      ))}
+    </div>
+  );
+};
 
 export default function IllustratorRegisterPage() {
   const [formData, setFormData] = useState({
@@ -17,6 +45,7 @@ export default function IllustratorRegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const router = useRouter();
   
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -27,7 +56,6 @@ export default function IllustratorRegisterPage() {
     setIsLoading(true);
     
     try {
-      // 本番用APIリクエスト
       const res = await fetch(`${API_URL}/api/illustrators/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -37,7 +65,6 @@ export default function IllustratorRegisterPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        // 本番用なので、エラーはそのままユーザーに通知する
         throw new Error(data.message || '登録処理に失敗しました');
       }
 
@@ -51,82 +78,142 @@ export default function IllustratorRegisterPage() {
     }
   };
 
+  // ★ 送信完了画面
   if (isSubmitted) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-amber-50 to-white flex items-center justify-center p-4">
-        <div className="w-full max-w-lg p-8 bg-white rounded-2xl shadow-xl border border-amber-100 text-center">
+      <div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-50/50 flex items-center justify-center p-4 relative overflow-hidden font-sans">
+        <FloatingParticles />
+        <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-amber-200/40 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/3 pointer-events-none z-0" />
+        
+        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-white/80 backdrop-blur-xl max-w-lg w-full p-8 md:p-10 border border-white rounded-[2.5rem] shadow-[0_8px_30px_rgba(245,158,11,0.15)] relative z-10 text-center">
           <div className="mb-6 flex justify-center">
-            <div className="bg-amber-100 p-4 rounded-full">
-              <FiCheckCircle className="text-amber-500 w-12 h-12" />
+            <div className="w-20 h-20 bg-gradient-to-br from-amber-100 to-orange-100 rounded-full flex items-center justify-center shadow-inner border-4 border-white">
+              <CheckCircle2 className="text-amber-500 w-10 h-10" />
             </div>
           </div>
-          <h2 className="text-3xl font-bold text-gray-800 mb-4">登録申請ありがとうございます</h2>
-          <div className="bg-amber-50 border border-amber-100 rounded-xl p-6 mb-8 text-left">
-            <p className="text-gray-700 font-medium mb-2">今後の流れ：</p>
-            <ul className="text-sm text-gray-600 space-y-3">
+          <h2 className="text-2xl font-black text-slate-800 mb-2 tracking-tight">申請ありがとうございます！</h2>
+          <p className="text-sm font-bold text-slate-500 mb-8">イラストレーター登録の第一歩です🎨</p>
+          
+          <div className="bg-white/60 border border-amber-100/50 rounded-[1.5rem] p-6 mb-8 text-left shadow-sm relative overflow-hidden">
+            <p className="text-[10px] font-black text-amber-500 tracking-widest uppercase mb-4 flex items-center gap-1"><Sparkles size={14}/> 今後の流れ</p>
+            <ul className="text-sm text-slate-600 space-y-4 font-medium">
               <li className="flex items-start">
-                <span className="bg-amber-200 text-amber-800 rounded-full w-5 h-5 flex items-center justify-center text-xs mt-0.5 mr-2 shrink-0">1</span>
-                <span>本人確認メールを送信しました。メール内のボタンをクリックして認証を完了してください。</span>
+                <span className="bg-amber-100 text-amber-600 rounded-full w-6 h-6 flex items-center justify-center font-black text-[10px] mt-0.5 mr-3 shrink-0 shadow-sm border border-white">1</span>
+                <span className="leading-relaxed">本人確認メールを送信しました。メール内のボタンをクリックして認証を完了してください。</span>
               </li>
               <li className="flex items-start">
-                <span className="bg-amber-200 text-amber-800 rounded-full w-5 h-5 flex items-center justify-center text-xs mt-0.5 mr-2 shrink-0">2</span>
-                <span>事務局にてポートフォリオ等の審査を行います（通常1〜3営業日）。</span>
+                <span className="bg-orange-100 text-orange-600 rounded-full w-6 h-6 flex items-center justify-center font-black text-[10px] mt-0.5 mr-3 shrink-0 shadow-sm border border-white">2</span>
+                <span className="leading-relaxed">事務局にてポートフォリオ等の審査を行います（通常1〜3営業日）。</span>
               </li>
               <li className="flex items-start">
-                <span className="bg-amber-200 text-amber-800 rounded-full w-5 h-5 flex items-center justify-center text-xs mt-0.5 mr-2 shrink-0">3</span>
-                <span>承認後、ログインして案件の募集やポートフォリオの公開が可能になります。</span>
+                <span className="bg-yellow-100 text-yellow-600 rounded-full w-6 h-6 flex items-center justify-center font-black text-[10px] mt-0.5 mr-3 shrink-0 shadow-sm border border-white">3</span>
+                <span className="leading-relaxed">承認後、ログインして案件の募集やポートフォリオの公開が可能になります。</span>
               </li>
             </ul>
           </div>
-          <Link href="/illustrators/login" className="block w-full py-3.5 bg-amber-500 text-white rounded-lg font-bold text-lg shadow-md hover:bg-amber-600 transition-all">
-            ログインページへ移動
+          <p className="text-xs font-bold text-slate-400 mb-8">※メールが届かない場合は、ログイン画面から再送が可能です。</p>
+          <Link href="/illustrators/login">
+            <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-base shadow-xl flex items-center justify-center gap-2">
+              ログインページへ移動
+            </motion.button>
           </Link>
-        </div>
+        </motion.div>
       </div>
     );
   }
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-amber-50 to-white px-4">
-      <div className="w-full max-w-md p-8 bg-white rounded-2xl shadow-xl border border-amber-100">
-        <div className="text-center mb-8">
-          <Link href="/" className="inline-block text-amber-600 hover:text-amber-700 transition mb-2">
-            <span className="flex items-center text-sm font-medium"><FiArrowLeft className="mr-1"/> トップへ戻る</span>
+    <div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-50/50 flex items-center justify-center p-4 relative overflow-hidden font-sans pb-24">
+      <FloatingParticles />
+      <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-amber-200/40 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/3 pointer-events-none z-0" />
+      <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-orange-200/30 rounded-full blur-[100px] translate-y-1/3 -translate-x-1/3 pointer-events-none z-0" />
+
+      <motion.div 
+        initial={{ opacity: 0, y: 20, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.5, ease: "easeOut" }}
+        className="bg-white/80 backdrop-blur-xl max-w-md w-full p-8 md:p-10 border border-white rounded-[2.5rem] shadow-[0_8px_30px_rgba(245,158,11,0.15)] relative z-10 mt-8"
+      >
+        <div className="text-center mb-8 relative">
+          <Link href="/" className="absolute left-0 top-0 text-slate-400 hover:text-amber-500 transition-colors p-2 -ml-2 -mt-2 rounded-full hover:bg-amber-50">
+            <ArrowLeft size={20} />
           </Link>
-          <h2 className="text-2xl font-bold text-gray-800">クリエイター登録</h2>
-          <p className="text-sm text-gray-500 mt-2">あなたのイラストで「推し活」を彩りましょう</p>
+          
+          <div className="w-16 h-16 bg-gradient-to-br from-amber-100 to-orange-100 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-inner -rotate-3">
+            <PenTool className="text-amber-500" size={28} />
+          </div>
+          
+          <h2 className="text-2xl font-black text-slate-800 tracking-tight">クリエイター登録</h2>
+          <p className="text-[10px] md:text-xs font-bold text-slate-400 mt-2 tracking-widest uppercase flex items-center justify-center gap-1">
+            <Sparkles size={12} className="text-amber-400"/> あなたのイラストで推し活を彩る
+          </p>
         </div>
-        <form onSubmit={handleSubmit} className="space-y-5">
+
+        <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">活動名（ペンネーム）</label>
+            <label className="block text-[10px] font-black text-slate-500 mb-1.5 tracking-widest uppercase">活動名（ペンネーム） <span className="text-amber-500">*</span></label>
             <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><FiPenTool className="text-gray-400" /></div>
-              <input name="activityName" type="text" required value={formData.activityName} onChange={handleChange} className="w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 transition" placeholder="FLASTAL 絵師" />
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                <PenTool className="text-slate-400" size={18} />
+              </div>
+              <input 
+                name="activityName" type="text" required value={formData.activityName} onChange={handleChange} 
+                className="w-full pl-12 pr-4 py-3.5 bg-white/50 border border-slate-200 rounded-2xl focus:outline-none focus:border-amber-400 focus:ring-4 focus:ring-amber-100 transition-all font-bold text-slate-700 placeholder:text-slate-300"
+                placeholder="FLASTAL 絵師" 
+              />
             </div>
           </div>
+          
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">メールアドレス</label>
+            <label className="block text-[10px] font-black text-slate-500 mb-1.5 tracking-widest uppercase">Email <span className="text-amber-500">*</span></label>
             <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><FiMail className="text-gray-400" /></div>
-              <input name="email" type="email" required value={formData.email} onChange={handleChange} className="w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 transition" placeholder="illustrator@example.com" />
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                <Mail className="text-slate-400" size={18} />
+              </div>
+              <input 
+                name="email" type="email" required value={formData.email} onChange={handleChange} 
+                className="w-full pl-12 pr-4 py-3.5 bg-white/50 border border-slate-200 rounded-2xl focus:outline-none focus:border-amber-400 focus:ring-4 focus:ring-amber-100 transition-all font-bold text-slate-700 placeholder:text-slate-300"
+                placeholder="illustrator@example.com" 
+              />
             </div>
           </div>
+          
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">パスワード</label>
+            <label className="block text-[10px] font-black text-slate-500 mb-1.5 tracking-widest uppercase">Password <span className="text-amber-500">*</span></label>
             <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><FiLock className="text-gray-400" /></div>
-              <input type={showPassword ? 'text' : 'password'} name="password" required value={formData.password} onChange={handleChange} className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 transition" placeholder="8文字以上" />
-              <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-amber-600 transition">{showPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}</button>
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                <Lock className="text-slate-400" size={18} />
+              </div>
+              <input 
+                type={showPassword ? 'text' : 'password'} name="password" required value={formData.password} onChange={handleChange} 
+                className="w-full pl-12 pr-12 py-3.5 bg-white/50 border border-slate-200 rounded-2xl focus:outline-none focus:border-amber-400 focus:ring-4 focus:ring-amber-100 transition-all font-bold text-slate-700 placeholder:text-slate-300"
+                placeholder="8文字以上" 
+              />
+              <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 hover:text-amber-500 transition-colors">
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
             </div>
           </div>
-          <button type="submit" disabled={isLoading} className={`w-full py-3.5 bg-amber-500 text-white rounded-lg font-bold text-lg shadow-md hover:bg-amber-600 transition-all ${isLoading ? 'opacity-70' : ''}`}>
-            {isLoading ? '登録中...' : '登録を申請する'}
-          </button>
+
+          <div className="pt-2">
+            <motion.button 
+              whileHover={{ scale: 1.02, boxShadow: "0 10px 25px rgba(245,158,11,0.4)" }} whileTap={{ scale: 0.98 }}
+              type="submit" disabled={isLoading} 
+              className={cn("w-full py-4 bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-2xl font-black text-base shadow-xl flex items-center justify-center gap-2 transition-all", isLoading ? 'opacity-70 cursor-not-allowed' : '')}
+            >
+              {isLoading ? <Loader2 className="animate-spin" size={18}/> : <Sparkles size={18}/>}
+              {isLoading ? '登録中...' : '登録を申請する'}
+            </motion.button>
+          </div>
         </form>
-        <div className="mt-8 pt-6 border-t border-gray-100 text-center">
-          <p className="text-sm text-gray-600">すでにアカウントをお持ちですか？ <Link href="/illustrators/login" className="font-bold text-amber-600 hover:underline">ログイン</Link></p>
+
+        <div className="text-center mt-8 pt-6 border-t border-slate-100/50">
+          <p className="text-xs text-slate-400 font-bold mb-3">すでにアカウントをお持ちですか？</p>
+          <Link href="/illustrators/login">
+            <span className="inline-block px-8 py-3 bg-white text-amber-600 border-2 border-amber-100 font-black rounded-full hover:bg-amber-50 hover:border-amber-300 transition-all text-sm shadow-sm">
+              ログイン画面へ
+            </span>
+          </Link>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }
