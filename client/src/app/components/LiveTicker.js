@@ -1,12 +1,11 @@
 "use client";
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { io } from 'socket.io-client'; // ★追加
+import { io } from 'socket.io-client';
 import { FiActivity, FiGift, FiTruck, FiCheckCircle, FiTrendingUp, FiInfo } from 'react-icons/fi';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
-// 初期表示用のダミーデータ (接続までの間を持たせるため)
 const INITIAL_LOGS = [
   { id: 'init-1', type: 'info', text: 'FLASTALへようこそ！推しにフラスタを贈ろう💐', href: '/projects' },
   { id: 'init-2', type: 'new', text: '現在、多数の企画が進行中です✨', href: '/projects' },
@@ -17,7 +16,6 @@ export default function LiveTicker() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
 
-  // 1. Socket接続とイベント受信
   useEffect(() => {
     const socket = io(API_URL, {
       transports: ['websocket', 'polling'],
@@ -28,15 +26,11 @@ export default function LiveTicker() {
       console.log('Ticker connected to socket');
     });
 
-    // バックエンドからの 'publicTickerUpdate' を受信
     socket.on('publicTickerUpdate', (newLog) => {
       setLogs((prevLogs) => {
-        // 新しいログを先頭に追加し、最大20件保持
         const updated = [newLog, ...prevLogs].slice(0, 20);
         return updated;
       });
-      // 新着が来たら強制的にアニメーションして先頭（最新）を表示させる演出を入れても良いが、
-      // ここでは自然なローテーションを待つ設計にします。
     });
 
     return () => {
@@ -44,7 +38,6 @@ export default function LiveTicker() {
     };
   }, []);
 
-  // 2. ローテーションアニメーション
   useEffect(() => {
     if (logs.length === 0) return;
 
@@ -53,11 +46,11 @@ export default function LiveTicker() {
       setTimeout(() => {
         setCurrentIndex((prev) => (prev + 1) % logs.length);
         setIsAnimating(false);
-      }, 500); // アニメーション時間
-    }, 5000); // 表示時間
+      }, 500); 
+    }, 5000); 
 
     return () => clearInterval(interval);
-  }, [logs.length]); // logsが変わってもリセットしない方がスムーズかもだが、簡易実装
+  }, [logs.length]);
 
   const currentLog = logs[currentIndex] || logs[0];
 
@@ -75,7 +68,8 @@ export default function LiveTicker() {
   const style = getLogStyle(currentLog?.type);
 
   return (
-    <div className="bg-slate-900 border-b border-slate-800 h-10 w-full overflow-hidden relative shadow-sm z-40 m-0 p-0 block">
+    // ★ 変更点: fixed top-0 left-0 right-0 z-[110] を追加し、一番上に固定
+    <div className="fixed top-0 left-0 right-0 z-[110] bg-slate-900 border-b border-slate-800 h-10 w-full overflow-hidden shadow-sm m-0 p-0 block">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-center justify-between">
         
         <div className="flex items-center gap-4 flex-1 min-w-0 h-full">
