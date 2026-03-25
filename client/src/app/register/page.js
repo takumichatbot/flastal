@@ -8,11 +8,14 @@ import { useAuth } from '../contexts/AuthContext';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { motion } from 'framer-motion';
+
+// lucide-reactに統一
 import { 
   User, Mail, Lock, Eye, EyeOff, Gift, 
   ArrowLeft, Loader2, Sparkles, CheckCircle2, Heart 
 } from 'lucide-react';
 
+// ★ ここにcn関数を定義（ビルドエラー解消）
 function cn(...classes) {
   return classes.filter(Boolean).join(' ');
 }
@@ -167,7 +170,7 @@ export default function RegisterPage() {
           
           {/* ハンドルネーム */}
           <div>
-            <label className="block text-xs font-black text-slate-500 mb-1.5 tracking-widest uppercase">Name <span className="text-pink-500">*</span></label>
+            <label className="block text-[10px] font-black text-slate-500 mb-1.5 tracking-widest uppercase">Name <span className="text-pink-500">*</span></label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                 <User className="text-slate-400" size={18} />
@@ -178,14 +181,14 @@ export default function RegisterPage() {
                 onChange={(e) => setFormData({...formData, handleName: e.target.value})} 
                 required 
                 placeholder="フラスタ太郎" 
-                className="w-full pl-12 pr-4 py-3.5 bg-white/50 border border-slate-200 rounded-2xl focus:outline-none focus:border-pink-400 focus:ring-4 focus:ring-pink-100 transition-all font-medium text-slate-700 placeholder:text-slate-300" 
+                className="w-full pl-12 pr-4 py-3.5 bg-white/50 border border-slate-200 rounded-2xl focus:outline-none focus:border-pink-400 focus:ring-4 focus:ring-pink-100 transition-all font-bold text-slate-700 placeholder:text-slate-300" 
               />
             </div>
           </div>
 
           {/* メールアドレス */}
           <div>
-            <label className="block text-xs font-black text-slate-500 mb-1.5 tracking-widest uppercase">Email <span className="text-pink-500">*</span></label>
+            <label className="block text-[10px] font-black text-slate-500 mb-1.5 tracking-widest uppercase">Email <span className="text-pink-500">*</span></label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                 <Mail className="text-slate-400" size={18} />
@@ -196,14 +199,14 @@ export default function RegisterPage() {
                 onChange={(e) => setFormData({...formData, email: e.target.value})} 
                 required 
                 placeholder="example@email.com" 
-                className="w-full pl-12 pr-4 py-3.5 bg-white/50 border border-slate-200 rounded-2xl focus:outline-none focus:border-pink-400 focus:ring-4 focus:ring-pink-100 transition-all font-medium text-slate-700 placeholder:text-slate-300" 
+                className="w-full pl-12 pr-4 py-3.5 bg-white/50 border border-slate-200 rounded-2xl focus:outline-none focus:border-pink-400 focus:ring-4 focus:ring-pink-100 transition-all font-bold text-slate-700 placeholder:text-slate-300" 
               />
             </div>
           </div>
 
           {/* パスワード */}
           <div>
-            <label className="block text-xs font-black text-slate-500 mb-1.5 tracking-widest uppercase">Password <span className="text-pink-500">*</span></label>
+            <label className="block text-[10px] font-black text-slate-500 mb-1.5 tracking-widest uppercase">Password <span className="text-pink-500">*</span></label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                 <Lock className="text-slate-400" size={18} />
@@ -214,7 +217,7 @@ export default function RegisterPage() {
                 onChange={(e) => setFormData({...formData, password: e.target.value})} 
                 required 
                 placeholder="8文字以上の英数字"
-                className="w-full pl-12 pr-12 py-3.5 bg-white/50 border border-slate-200 rounded-2xl focus:outline-none focus:border-pink-400 focus:ring-4 focus:ring-pink-100 transition-all font-medium text-slate-700 placeholder:text-slate-300" 
+                className="w-full pl-12 pr-12 py-3.5 bg-white/50 border border-slate-200 rounded-2xl focus:outline-none focus:border-pink-400 focus:ring-4 focus:ring-pink-100 transition-all font-bold text-slate-700 placeholder:text-slate-300" 
               />
               <button 
                 type="button" 
@@ -228,7 +231,7 @@ export default function RegisterPage() {
 
           {/* 紹介コード */}
           <div>
-            <label className="block text-xs font-black text-slate-500 mb-1.5 tracking-widest uppercase flex items-center gap-1">
+            <label className="block text-[10px] font-black text-slate-500 mb-1.5 tracking-widest uppercase flex items-center gap-1">
               Referral Code <span className="text-slate-300 text-[9px] font-bold lowercase tracking-normal">(お持ちの方のみ)</span>
             </label>
             <div className="relative">
@@ -240,24 +243,26 @@ export default function RegisterPage() {
                 value={formData.referralCode} 
                 onChange={(e) => setFormData({...formData, referralCode: e.target.value})} 
                 placeholder="コードを入力" 
-                className="w-full pl-12 pr-4 py-3.5 bg-white/50 border border-slate-200 rounded-2xl focus:outline-none focus:border-sky-400 focus:ring-4 focus:ring-sky-100 transition-all font-medium text-slate-700 placeholder:text-slate-300" 
+                className="w-full pl-12 pr-4 py-3.5 bg-white/50 border border-slate-200 rounded-2xl focus:outline-none focus:border-sky-400 focus:ring-4 focus:ring-sky-100 transition-all font-bold text-slate-700 placeholder:text-slate-300" 
               />
             </div>
           </div>
 
-          <motion.button 
-            whileHover={{ scale: 1.02, boxShadow: "0 10px 25px rgba(244,114,182,0.4)" }}
-            whileTap={{ scale: 0.98 }}
-            type="submit" 
-            disabled={isLoading}
-            className={cn(
-              "w-full py-4 mt-4 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-2xl font-black text-base shadow-xl flex items-center justify-center gap-2 transition-all",
-              isLoading ? 'opacity-70 cursor-not-allowed' : ''
-            )}
-          >
-            {isLoading && <Loader2 className="animate-spin" size={18} />}
-            {isLoading ? '登録処理中...' : 'アカウントを作成'}
-          </motion.button>
+          <div className="pt-2">
+             <motion.button 
+               whileHover={{ scale: 1.02, boxShadow: "0 10px 25px rgba(244,114,182,0.4)" }}
+               whileTap={{ scale: 0.98 }}
+               type="submit" 
+               disabled={isLoading}
+               className={cn(
+                 "w-full py-4 mt-4 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-2xl font-black text-base shadow-xl flex items-center justify-center gap-2 transition-all",
+                 isLoading ? 'opacity-70 cursor-not-allowed' : ''
+               )}
+             >
+               {isLoading && <Loader2 className="animate-spin" size={18} />}
+               {isLoading ? '登録処理中...' : 'アカウントを作成'}
+             </motion.button>
+          </div>
         </form>
 
         <div className="text-center mt-8 pt-6 border-t border-slate-100/50">
