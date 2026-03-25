@@ -13,7 +13,13 @@ import { motion, AnimatePresence, useScroll, useMotionValueEvent } from 'framer-
 import toast from 'react-hot-toast';
 import { usePathname } from 'next/navigation';
 
+
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
+
+function cn(...classes) {
+  return classes.filter(Boolean).join(' ');
+}
 
 function NotificationDropdown({ notifications, fetchNotifications, unreadCount, authenticatedFetch }) {
     const [isOpen, setIsOpen] = useState(false);

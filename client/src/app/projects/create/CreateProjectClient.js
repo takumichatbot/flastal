@@ -19,6 +19,7 @@ import {
   Heart, Wand2, Lock, Globe, UploadCloud, ArrowRight, Paintbrush, FileText, Clock // ← Clock を追加
 } from 'lucide-react';
 
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
 function cn(...classes) {
