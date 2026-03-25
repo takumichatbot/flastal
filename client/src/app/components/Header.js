@@ -15,7 +15,6 @@ import { usePathname } from 'next/navigation';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
-// クラス名を結合する便利関数
 function cn(...classes) {
   return classes.filter(Boolean).join(' ');
 }
@@ -141,9 +140,7 @@ export default function Header() {
 
   useMotionValueEvent(scrollY, "change", (latest) => {
     const previous = scrollY.getPrevious();
-    // 20px以上スクロールしたら「フローティング・ピル」化する
     setIsScrolled(latest > 20);
-    // 下にスクロールしている最中は隠す、上にスクロールしたら見せる
     if (latest > previous && latest > 150) {
       setIsHidden(true);
       setIsUserMenuOpen(false); 
@@ -280,17 +277,18 @@ export default function Header() {
   }, [user]);
 
   return (
-    // ★ 修正ポイント: 
-    // flexを外し、ブロック要素として振る舞わせることで子要素のはみ出しを防止
+    // ★ 修正ポイント:
+    // 親要素を `flex flex-col justify-center` にし、初期状態の高さ(h-16 md:h-20)を明記することで、
+    // ボーダー(border-b)が確実に要素の【一番下】に描画されるようにしました。
     <motion.header 
       variants={{ visible: { y: 0, opacity: 1 }, hidden: { y: "-120%", opacity: 0 } }}
       animate={isHidden ? "hidden" : "visible"}
       transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }} 
       className={cn(
-        "fixed top-0 inset-x-0 z-[100] transition-all duration-500",
+        "fixed top-0 inset-x-0 z-[100] transition-all duration-500 flex flex-col justify-center",
         isScrolled 
-          ? "pt-2 md:pt-4 px-2 md:px-4" 
-          : "bg-white/95 backdrop-blur-md border-b border-slate-200/60"
+          ? "pt-3 md:pt-5 px-2 md:px-4 bg-transparent border-transparent" 
+          : "bg-white/95 backdrop-blur-md border-b border-slate-200/60 h-16 md:h-20"
       )}
     >
       <div 
@@ -298,7 +296,7 @@ export default function Header() {
             "mx-auto flex items-center justify-between w-full max-w-7xl transition-all duration-500",
             isScrolled 
               ? "bg-white/90 backdrop-blur-xl shadow-[0_10px_40px_rgba(0,0,0,0.08)] border border-slate-200/50 h-14 md:h-16 rounded-full px-4 md:px-6"
-              : "h-16 md:h-20 px-4 sm:px-6 lg:px-8"
+              : "h-full px-4 sm:px-6 lg:px-8"
         )}
       >
           <div className="flex items-center gap-4 md:gap-6">
@@ -406,7 +404,7 @@ export default function Header() {
               </>
             ) : (
               <div className="flex items-center gap-2 md:gap-3">
-                <Link href="/login" className="hidden md:flex items-center gap-2 px-5 py-2 text-sm font-bold text-slate-600 bg-white hover:bg-slate-50 rounded-full transition-all">
+                <Link href="/login" className="hidden md:flex items-center gap-2 px-5 py-2 text-sm font-bold text-slate-600 bg-white hover:bg-slate-50 rounded-full transition-all border border-slate-200">
                   ログイン
                 </Link>
                 <Link href="/register">
