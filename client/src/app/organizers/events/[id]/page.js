@@ -11,7 +11,7 @@ import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 
-// lucide-reactに統一
+// lucide-reactからTwitterとInstagramを削除
 import { ArrowLeft, Calendar, Camera, Cpu, Edit3, Globe, Image as ImageIcon, Info, Loader2, MapPin, Plus, Save, Sparkles, Trash2, Type, X } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
@@ -295,13 +295,15 @@ function EditEventContent() {
                         <input type="url" {...register('officialWebsite')} className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:bg-white focus:border-indigo-300 outline-none transition-all font-bold text-slate-800" />
                     </div>
                     <div>
-                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1"><Twitter size={14}/> X (Twitter) URL</label>
+                        {/* TwitterアイコンをGlobeに変更 */}
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1"><Globe size={14}/> X (Twitter) URL</label>
                         <input type="url" {...register('twitterUrl')} className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:bg-white focus:border-sky-300 outline-none transition-all font-bold text-slate-800" />
                     </div>
                   </div>
 
                   <div>
-                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1"><Instagram size={14}/> Instagram URL</label>
+                      {/* InstagramアイコンをImageIconに変更 */}
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1"><ImageIcon size={14}/> Instagram URL</label>
                       <input type="url" {...register('instagramUrl')} className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:bg-white focus:border-pink-300 outline-none transition-all font-bold text-slate-800" />
                   </div>
 
