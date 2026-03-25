@@ -135,9 +135,20 @@ export default function Header() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isHidden, setIsHidden] = useState(false);
 
+  // ★ 修正ポイント: LiveTicker の高さ (h-10 = 40px) 分だけ初期位置をずらすための状態
+  const [tickerOffset, setTickerOffset] = useState("top-10"); 
+
   useMotionValueEvent(scrollY, "change", (latest) => {
     const previous = scrollY.getPrevious();
     setIsScrolled(latest > 20);
+    
+    // スクロールしたら Ticker の分の offset を消して画面上部にぴったりつける
+    if (latest > 40) {
+        setTickerOffset("top-0");
+    } else {
+        setTickerOffset("top-10"); // h-10 と同じ 40px
+    }
+
     if (latest > previous && latest > 150) {
       setIsHidden(true);
       setIsUserMenuOpen(false); 
@@ -274,25 +285,25 @@ export default function Header() {
   }, [user]);
 
   return (
-    // ★ 修正ポイント: 
-    // 外枠には絶対配置とZインデックスのみを指定。高さ固定 (h-XX) を排除。
-    // fixed top-0 inset-x-0 によって画面全体に広がる。
     <motion.header 
       variants={{ visible: { y: 0 }, hidden: { y: "-100%" } }}
       animate={isHidden ? "hidden" : "visible"}
       transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }} 
-      className="fixed top-0 inset-x-0 z-[100] transition-transform duration-500"
+      // ★ 修正ポイント: 初期状態は tickerOffset (top-10) にして LiveTicker に重ならないようにする
+      className={cn(
+        "fixed inset-x-0 z-[100] transition-colors duration-300",
+        tickerOffset,
+        isScrolled 
+          ? "bg-transparent pointer-events-none border-transparent" 
+          : "bg-white/95 backdrop-blur-md border-b border-slate-200/60 pointer-events-auto"
+      )}
     >
-      {/* ★ 修正ポイント: 
-        中身の div が背景やボーダー、パディングを担当。
-        要素が大きくなってもパディング分だけ高さが自動で広がるため、ボーダーが貫通しない。
-      */}
       <div 
         className={cn(
             "mx-auto flex items-center justify-between transition-all duration-500",
             isScrolled 
-              ? "max-w-6xl mt-2 md:mt-4 bg-white/90 backdrop-blur-xl shadow-lg border border-slate-200/50 rounded-full px-5 md:px-8 py-2 md:py-3"
-              : "w-full bg-white/95 backdrop-blur-md border-b border-slate-200/60 px-4 sm:px-6 lg:px-8 py-3 md:py-4"
+              ? "max-w-6xl h-14 md:h-16 mt-3 md:mt-5 bg-white/90 backdrop-blur-xl shadow-[0_10px_40px_rgba(0,0,0,0.08)] border border-slate-200/50 rounded-full px-5 md:px-8 pointer-events-auto"
+              : "max-w-7xl w-full h-16 md:h-20 px-4 sm:px-6 lg:px-8"
         )}
       >
           <div className="flex items-center gap-4 md:gap-6">
