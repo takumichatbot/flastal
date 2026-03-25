@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
-import { motion } from 'framer-motion';
+
+import { motion, AnimatePresence } from 'framer-motion';
 
 // lucide-reactに統一
 import { 
