@@ -277,18 +277,16 @@ export default function Header() {
   }, [user]);
 
   return (
-    // ★ 修正ポイント:
-    // 親要素を `flex flex-col justify-center` にし、初期状態の高さ(h-16 md:h-20)を明記することで、
-    // ボーダー(border-b)が確実に要素の【一番下】に描画されるようにしました。
     <motion.header 
       variants={{ visible: { y: 0, opacity: 1 }, hidden: { y: "-120%", opacity: 0 } }}
       animate={isHidden ? "hidden" : "visible"}
       transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }} 
       className={cn(
-        "fixed top-0 inset-x-0 z-[100] transition-all duration-500 flex flex-col justify-center",
+        "fixed -top-[1px] pt-[1px] inset-x-0 z-[100] transition-all duration-500 flex flex-col justify-center",
         isScrolled 
-          ? "pt-3 md:pt-5 px-2 md:px-4 bg-transparent border-transparent" 
-          : "bg-white/95 backdrop-blur-md border-b border-slate-200/60 h-16 md:h-20"
+          ? "pt-3 md:pt-5 px-2 md:px-4 bg-transparent" 
+          // ★修正ポイント: border-bを完全に削除し、透明感のある背景（bg-white/80）だけにしました
+          : "bg-white/80 backdrop-blur-xl border-none h-[65px] md:h-[81px]"
       )}
     >
       <div 
