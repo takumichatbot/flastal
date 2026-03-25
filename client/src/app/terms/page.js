@@ -7,6 +7,10 @@ import {
   FiHelpCircle, FiCheckSquare 
 } from 'react-icons/fi';
 
+function cn(...classes) {
+  return classes.filter(Boolean).join(' ');
+}
+
 export default function TermsOfServicePage() {
   
   const handlePrint = () => {
