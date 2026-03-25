@@ -264,8 +264,10 @@ const VOICES = [
 // 🧩 SECTIONS
 // ==========================================
 
+// --- 🚀 1. HERO SECTION (FV) ---
 const HeroSection = () => (
-  <section className="relative w-full min-h-[85vh] flex items-center justify-center overflow-hidden bg-gradient-to-b from-pink-50/80 to-white px-4 md:px-6 pt-20 pb-12">
+  // ▼ 末尾に -mt-[2px] と z-10 を追加してヘッダーとの隙間の白線を消します
+  <section className="relative w-full min-h-[85vh] flex items-center justify-center overflow-hidden bg-gradient-to-b from-pink-50/80 to-white px-4 md:px-6 pt-20 pb-12 -mt-[2px] z-10">
     <div className="absolute inset-0 bg-[radial-gradient(#fbcfe8_1px,transparent_1px)] [background-size:24px_24px] opacity-50 z-0" />
     <FloatingParticles />
     
@@ -325,6 +327,7 @@ const HeroSection = () => (
             <Image src="https://images.unsplash.com/photo-1501004318641-b39e6451bec6?q=80&w=1000" alt="Flasta" fill className="object-cover transition-transform duration-1000 group-hover:scale-105" priority />
             <div className="absolute inset-0 bg-gradient-to-t from-pink-900/80 via-transparent to-transparent" />
             
+            {/* 浮かぶ装飾バッジ */}
             <motion.div animate={{ y: [0, -10, 0] }} transition={{ duration: 4, repeat: Infinity }} className="absolute top-6 left-6 bg-white/90 backdrop-blur-md px-4 py-2 rounded-2xl shadow-lg flex items-center gap-2">
               <div className="bg-green-100 text-green-500 p-1.5 rounded-full"><Users size={14}/></div>
               <span className="text-xs font-bold text-slate-700">85人が参加中!</span>
