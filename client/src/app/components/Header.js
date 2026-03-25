@@ -11,7 +11,6 @@ import {
 } from 'lucide-react'; 
 import { motion, AnimatePresence, useScroll, useMotionValueEvent } from 'framer-motion';
 import toast from 'react-hot-toast';
-import { usePathname } from 'next/navigation';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -130,10 +129,7 @@ export default function Header() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); 
   const userMenuRef = useRef(null);
   
-  // Magic Hover用のステート
   const [hoveredNav, setHoveredNav] = useState(null);
-  
-  // Smart Header用のステート
   const { scrollY } = useScroll();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isHidden, setIsHidden] = useState(false);
@@ -198,7 +194,7 @@ export default function Header() {
     const baseLinks = [
       { href: '/projects', label: '企画一覧', icon: <Heart size={16}/> },
       { href: '/events', label: 'イベント', icon: <Calendar size={16}/> },
-      { href: '/illustrators/recruitment', label: '絵師募集中', icon: <Star size={16}/> }, 
+      { href: '/illustrators/recruitment', label: '絵師募集', icon: <Star size={16}/> }, 
       { href: '/venues', label: '会場', icon: <MapPin size={16}/> },
       { href: '/florists', label: 'お花屋さん', icon: <Store size={16}/> },
     ];
@@ -219,7 +215,6 @@ export default function Header() {
           { href: '/organizers/dashboard', label: '主催企画', icon: <LayoutDashboard size={16}/> },
           { href: '/illustrators/recruitment', label: '絵師募集中', icon: <Star size={16}/> },
           { href: '/projects/create', label: '企画を立てる', icon: <Sparkles size={16}/> },
-          { href: '/florists', label: '花屋を探す', icon: <Store size={16}/> },
       ];
       case 'ADMIN': return [
           { href: '/admin', label: '管理ホーム', icon: <BarChart3 size={16}/> },
@@ -277,24 +272,25 @@ export default function Header() {
   }, [user]);
 
   return (
+    // ★ 修正ポイント: 完全に背景と下線を制御する一番外側のブロック要素（flexを排除）
     <motion.header 
-      variants={{ visible: { y: 0, opacity: 1 }, hidden: { y: "-120%", opacity: 0 } }}
+      variants={{ visible: { y: 0 }, hidden: { y: "-100%" } }}
       animate={isHidden ? "hidden" : "visible"}
       transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }} 
       className={cn(
-        "fixed -top-[1px] pt-[1px] inset-x-0 z-[100] transition-all duration-500 flex flex-col justify-center",
+        "fixed top-0 left-0 w-full z-[100] transition-colors duration-300",
         isScrolled 
-          ? "pt-3 md:pt-5 px-2 md:px-4 bg-transparent" 
-          // ★修正ポイント: border-bを完全に削除し、透明感のある背景（bg-white/80）だけにしました
-          : "bg-white/80 backdrop-blur-xl border-none h-[65px] md:h-[81px]"
+          ? "bg-transparent pointer-events-none border-transparent" 
+          : "bg-white/95 backdrop-blur-md border-b border-slate-200/60 pointer-events-auto"
       )}
     >
+      {/* 内部のレイアウト用コンテナ */}
       <div 
         className={cn(
-            "mx-auto flex items-center justify-between w-full max-w-7xl transition-all duration-500",
+            "mx-auto flex items-center justify-between transition-all duration-500",
             isScrolled 
-              ? "bg-white/90 backdrop-blur-xl shadow-[0_10px_40px_rgba(0,0,0,0.08)] border border-slate-200/50 h-14 md:h-16 rounded-full px-4 md:px-6"
-              : "h-full px-4 sm:px-6 lg:px-8"
+              ? "max-w-5xl h-14 md:h-16 mt-3 md:mt-5 bg-white/90 backdrop-blur-xl shadow-[0_10px_40px_rgba(0,0,0,0.08)] border border-slate-200/50 rounded-full px-5 md:px-8 pointer-events-auto"
+              : "max-w-7xl w-full h-16 md:h-20 px-4 sm:px-6 lg:px-8"
         )}
       >
           <div className="flex items-center gap-4 md:gap-6">
@@ -428,7 +424,7 @@ export default function Header() {
         {isMobileMenuOpen && (
             <motion.div
                 initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 200 }}
-                className="lg:hidden fixed inset-0 top-0 left-0 w-full h-[100dvh] bg-white/95 backdrop-blur-2xl z-[200] overflow-y-auto"
+                className="lg:hidden fixed inset-0 top-0 left-0 w-full h-[100dvh] bg-white/95 backdrop-blur-2xl z-[200] overflow-y-auto pointer-events-auto"
             >
                 <div className="p-4 flex justify-between items-center border-b border-slate-100 bg-white sticky top-0 z-10">
                     <span className="text-xl font-black text-slate-900 tracking-tighter">FLASTAL</span>
