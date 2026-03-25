@@ -13,23 +13,23 @@ import { motion, AnimatePresence, useScroll, useMotionValueEvent } from 'framer-
 import toast from 'react-hot-toast';
 import { usePathname } from 'next/navigation';
 
-
-
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
+// クラス名を結合する便利関数
 function cn(...classes) {
   return classes.filter(Boolean).join(' ');
 }
 
+// ==========================================
+// 🔔 通知ドロップダウン コンポーネント
+// ==========================================
 function NotificationDropdown({ notifications, fetchNotifications, unreadCount, authenticatedFetch }) {
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef(null);
   
     useEffect(() => {
       const handleClickOutside = (event) => {
-        if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-          setIsOpen(false);
-        }
+        if (dropdownRef.current && !dropdownRef.current.contains(event.target)) setIsOpen(false);
       };
       document.addEventListener('mousedown', handleClickOutside);
       return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -121,6 +121,9 @@ function NotificationDropdown({ notifications, fetchNotifications, unreadCount, 
     );
 }
 
+// ==========================================
+// 🚀 ヘッダー メインコンポーネント
+// ==========================================
 export default function Header() {
   const { user, logout, isLoading, authenticatedFetch } = useAuth();
   const [notifications, setNotifications] = useState([]);
@@ -128,10 +131,10 @@ export default function Header() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); 
   const userMenuRef = useRef(null);
   
-  // ★ Magic Hover用のステート
+  // Magic Hover用のステート
   const [hoveredNav, setHoveredNav] = useState(null);
   
-  // ★ Smart Header用のステート
+  // Smart Header用のステート
   const { scrollY } = useScroll();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isHidden, setIsHidden] = useState(false);
@@ -143,7 +146,7 @@ export default function Header() {
     // 下にスクロールしている最中は隠す、上にスクロールしたら見せる
     if (latest > previous && latest > 150) {
       setIsHidden(true);
-      setIsUserMenuOpen(false); // 隠れる時はメニューも閉じる
+      setIsUserMenuOpen(false); 
     } else {
       setIsHidden(false);
     }
@@ -277,22 +280,24 @@ export default function Header() {
   }, [user]);
 
   return (
-    // ★ Smart Hide & Smart Floating
+    // ★ 修正ポイント: 全幅(100%)で背景とボーダーを適用し、中身だけを max-w-7xl に制限する
     <motion.header 
-      variants={{
-        visible: { y: 0, opacity: 1 },
-        hidden: { y: "-120%", opacity: 0 }
-      }}
+      variants={{ visible: { y: 0, opacity: 1 }, hidden: { y: "-120%", opacity: 0 } }}
       animate={isHidden ? "hidden" : "visible"}
-      transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }} // Apple風のなめらかなイージング
-      className={`fixed top-0 inset-x-0 z-[100] flex justify-center transition-all duration-500 ${isScrolled ? 'pt-2 md:pt-4 px-2 md:px-4' : 'pt-0 px-0'}`}
+      transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }} 
+      className={cn(
+        "fixed top-0 inset-x-0 z-[100] flex justify-center transition-all duration-500",
+        isScrolled 
+          ? "pt-2 md:pt-4 px-2 md:px-4 bg-transparent border-transparent" // スクロール時: 背景を消してカプセルを下げる
+          : "bg-white/95 backdrop-blur-md border-b border-slate-200/60 h-16 md:h-20" // 初期状態: 全幅背景＆下線
+      )}
     >
       <div 
         className={cn(
-            "flex items-center justify-between w-full max-w-7xl transition-all duration-500",
+            "flex items-center justify-between w-full max-w-7xl transition-all duration-500 mx-auto",
             isScrolled 
-              ? 'bg-white/85 backdrop-blur-xl shadow-[0_10px_40px_rgba(0,0,0,0.08)] border border-white/60 h-14 md:h-16 rounded-[2rem] px-4 md:px-6' 
-              : 'bg-white/95 backdrop-blur-md border-b border-slate-200/60 h-16 md:h-20 px-4 sm:px-6 lg:px-8'
+              ? "bg-white/85 backdrop-blur-xl shadow-[0_10px_40px_rgba(0,0,0,0.08)] border border-slate-200/50 h-14 md:h-16 rounded-full px-4 md:px-6" // カプセル状
+              : "h-full px-4 sm:px-6 lg:px-8 bg-transparent border-transparent" // 初期状態: 背景や線は外枠に任せる
         )}
       >
           <div className="flex items-center gap-4 md:gap-6">
@@ -300,13 +305,11 @@ export default function Header() {
               <div className="relative w-8 h-8 overflow-hidden rounded-[10px] shadow-sm group-hover:scale-105 transition-transform duration-300">
                 <Image src="/icon-512x512.png" alt="FLASTAL" fill className="object-cover" priority />
               </div>
-              {/* スクロール時はロゴテキストを隠してスッキリさせる（モバイルのみ） */}
               <span className={`font-black bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-600 tracking-tighter group-hover:from-pink-500 group-hover:to-purple-500 transition-all duration-300 ${isScrolled ? 'hidden sm:block text-xl' : 'text-xl md:text-2xl'}`}>
                 FLASTAL
               </span>
             </Link>
 
-            {/* ★ Magic Hover Navigation */}
             <nav className="hidden lg:flex items-center relative" onMouseLeave={() => setHoveredNav(null)}>
               {navLinks.map((link) => (
                 <Link 
