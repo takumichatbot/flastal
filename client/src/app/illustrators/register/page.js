@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -14,7 +16,7 @@ import {
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
-// ★ cn関数を定義（ビルドエラー解消）
+// ★ ここに cn 関数を確実に定義します（これがないとエラーになります）
 function cn(...classes) {
   return classes.filter(Boolean).join(' ');
 }
