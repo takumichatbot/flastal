@@ -130,6 +130,7 @@ export default function Header() {
   const userMenuRef = useRef(null);
   
   const [hoveredNav, setHoveredNav] = useState(null);
+  
   const { scrollY } = useScroll();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isHidden, setIsHidden] = useState(false);
@@ -194,7 +195,7 @@ export default function Header() {
     const baseLinks = [
       { href: '/projects', label: '企画一覧', icon: <Heart size={16}/> },
       { href: '/events', label: 'イベント', icon: <Calendar size={16}/> },
-      { href: '/illustrators/recruitment', label: '絵師募集', icon: <Star size={16}/> }, 
+      { href: '/illustrators/recruitment', label: '絵師募集中', icon: <Star size={16}/> }, 
       { href: '/venues', label: '会場', icon: <MapPin size={16}/> },
       { href: '/florists', label: 'お花屋さん', icon: <Store size={16}/> },
     ];
@@ -215,6 +216,7 @@ export default function Header() {
           { href: '/organizers/dashboard', label: '主催企画', icon: <LayoutDashboard size={16}/> },
           { href: '/illustrators/recruitment', label: '絵師募集中', icon: <Star size={16}/> },
           { href: '/projects/create', label: '企画を立てる', icon: <Sparkles size={16}/> },
+          { href: '/florists', label: '花屋を探す', icon: <Store size={16}/> },
       ];
       case 'ADMIN': return [
           { href: '/admin', label: '管理ホーム', icon: <BarChart3 size={16}/> },
@@ -272,25 +274,25 @@ export default function Header() {
   }, [user]);
 
   return (
-    // ★ 修正ポイント: 完全に背景と下線を制御する一番外側のブロック要素（flexを排除）
+    // ★ 修正ポイント: 
+    // 外枠には絶対配置とZインデックスのみを指定。高さ固定 (h-XX) を排除。
+    // fixed top-0 inset-x-0 によって画面全体に広がる。
     <motion.header 
       variants={{ visible: { y: 0 }, hidden: { y: "-100%" } }}
       animate={isHidden ? "hidden" : "visible"}
       transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }} 
-      className={cn(
-        "fixed top-0 left-0 w-full z-[100] transition-colors duration-300",
-        isScrolled 
-          ? "bg-transparent pointer-events-none border-transparent" 
-          : "bg-white/95 backdrop-blur-md border-b border-slate-200/60 pointer-events-auto"
-      )}
+      className="fixed top-0 inset-x-0 z-[100] transition-transform duration-500"
     >
-      {/* 内部のレイアウト用コンテナ */}
+      {/* ★ 修正ポイント: 
+        中身の div が背景やボーダー、パディングを担当。
+        要素が大きくなってもパディング分だけ高さが自動で広がるため、ボーダーが貫通しない。
+      */}
       <div 
         className={cn(
             "mx-auto flex items-center justify-between transition-all duration-500",
             isScrolled 
-              ? "max-w-5xl h-14 md:h-16 mt-3 md:mt-5 bg-white/90 backdrop-blur-xl shadow-[0_10px_40px_rgba(0,0,0,0.08)] border border-slate-200/50 rounded-full px-5 md:px-8 pointer-events-auto"
-              : "max-w-7xl w-full h-16 md:h-20 px-4 sm:px-6 lg:px-8"
+              ? "max-w-6xl mt-2 md:mt-4 bg-white/90 backdrop-blur-xl shadow-lg border border-slate-200/50 rounded-full px-5 md:px-8 py-2 md:py-3"
+              : "w-full bg-white/95 backdrop-blur-md border-b border-slate-200/60 px-4 sm:px-6 lg:px-8 py-3 md:py-4"
         )}
       >
           <div className="flex items-center gap-4 md:gap-6">
