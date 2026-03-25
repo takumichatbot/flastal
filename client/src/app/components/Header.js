@@ -280,24 +280,25 @@ export default function Header() {
   }, [user]);
 
   return (
-    // ★ 修正ポイント: 外枠は「画面幅100%」のブロック要素にする
+    // ★ 修正ポイント: 
+    // flexを外し、ブロック要素として振る舞わせることで子要素のはみ出しを防止
     <motion.header 
       variants={{ visible: { y: 0, opacity: 1 }, hidden: { y: "-120%", opacity: 0 } }}
       animate={isHidden ? "hidden" : "visible"}
       transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }} 
       className={cn(
-        "fixed top-0 left-0 right-0 z-[100] transition-all duration-500",
+        "fixed top-0 inset-x-0 z-[100] transition-all duration-500",
         isScrolled 
-          ? "pt-2 md:pt-4" // スクロール時: 背景なし、パディングだけ
-          : "bg-white/95 backdrop-blur-md border-b border-slate-200/60" // 初期状態: 全幅背景＆下線
+          ? "pt-2 md:pt-4 px-2 md:px-4" 
+          : "bg-white/95 backdrop-blur-md border-b border-slate-200/60"
       )}
     >
       <div 
         className={cn(
             "mx-auto flex items-center justify-between w-full max-w-7xl transition-all duration-500",
             isScrolled 
-              ? "bg-white/90 backdrop-blur-xl shadow-[0_10px_40px_rgba(0,0,0,0.08)] border border-slate-200/60 h-14 md:h-16 rounded-full px-4 md:px-6" // カプセル状
-              : "h-16 md:h-20 px-4 sm:px-6 lg:px-8" // 初期状態: コンテンツエリアの高さ
+              ? "bg-white/90 backdrop-blur-xl shadow-[0_10px_40px_rgba(0,0,0,0.08)] border border-slate-200/50 h-14 md:h-16 rounded-full px-4 md:px-6"
+              : "h-16 md:h-20 px-4 sm:px-6 lg:px-8"
         )}
       >
           <div className="flex items-center gap-4 md:gap-6">
