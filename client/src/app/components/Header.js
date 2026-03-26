@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'; 
 import { motion, AnimatePresence, useScroll, useMotionValueEvent } from 'framer-motion';
 import toast from 'react-hot-toast';
+import { usePathname } from 'next/navigation';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -135,7 +136,6 @@ export default function Header() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isHidden, setIsHidden] = useState(false);
 
-  // ★ 修正ポイント: LiveTicker の高さ (h-10 = 40px) 分だけ初期位置をずらすための状態
   const [tickerOffset, setTickerOffset] = useState("top-10"); 
 
   useMotionValueEvent(scrollY, "change", (latest) => {
@@ -146,7 +146,7 @@ export default function Header() {
     if (latest > 40) {
         setTickerOffset("top-0");
     } else {
-        setTickerOffset("top-10"); // h-10 と同じ 40px
+        setTickerOffset("top-10");
     }
 
     if (latest > previous && latest > 150) {
@@ -285,235 +285,239 @@ export default function Header() {
   }, [user]);
 
   return (
-    <motion.header 
-      variants={{ visible: { y: 0 }, hidden: { y: "-100%" } }}
-      animate={isHidden ? "hidden" : "visible"}
-      transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }} 
-      // ★ 修正ポイント: 初期状態は tickerOffset (top-10) にして LiveTicker に重ならないようにする
-      className={cn(
-        "fixed inset-x-0 z-[100] transition-colors duration-300",
-        tickerOffset,
-        isScrolled 
-          ? "bg-transparent pointer-events-none border-transparent" 
-          : "bg-white/95 backdrop-blur-md border-b border-slate-200/60 pointer-events-auto"
-      )}
-    >
-      <div 
+    <>
+      {/* ★ 新規追加: ヘッダーの下敷きになるのを防ぐための「透明なスペーサー」 */}
+      <div className="w-full shrink-0 pointer-events-none bg-transparent h-[104px] md:h-[120px]" aria-hidden="true" />
+
+      <motion.header 
+        variants={{ visible: { y: 0 }, hidden: { y: "-100%" } }}
+        animate={isHidden ? "hidden" : "visible"}
+        transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }} 
         className={cn(
-            "mx-auto flex items-center justify-between transition-all duration-500",
-            isScrolled 
-              ? "max-w-6xl h-14 md:h-16 mt-3 md:mt-5 bg-white/90 backdrop-blur-xl shadow-[0_10px_40px_rgba(0,0,0,0.08)] border border-slate-200/50 rounded-full px-5 md:px-8 pointer-events-auto"
-              : "max-w-7xl w-full h-16 md:h-20 px-4 sm:px-6 lg:px-8"
+          "fixed inset-x-0 z-[100] transition-all duration-500",
+          tickerOffset,
+          isScrolled 
+            ? "bg-transparent pointer-events-none border-transparent" 
+            : "bg-white/95 backdrop-blur-md border-b border-slate-200/60 pointer-events-auto"
         )}
       >
-          <div className="flex items-center gap-4 md:gap-6">
-            <Link href="/" className="flex items-center gap-2 group shrink-0">
-              <div className="relative w-8 h-8 overflow-hidden rounded-[10px] shadow-sm group-hover:scale-105 transition-transform duration-300">
-                <Image src="/icon-512x512.png" alt="FLASTAL" fill className="object-cover" priority />
-              </div>
-              <span className={`font-black bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-600 tracking-tighter group-hover:from-pink-500 group-hover:to-purple-500 transition-all duration-300 ${isScrolled ? 'hidden sm:block text-xl' : 'text-xl md:text-2xl'}`}>
-                FLASTAL
-              </span>
-            </Link>
+        <div 
+          className={cn(
+              "mx-auto flex items-center justify-between w-full max-w-7xl transition-all duration-500",
+              isScrolled 
+                ? "max-w-6xl h-14 md:h-16 mt-3 md:mt-5 bg-white/90 backdrop-blur-xl shadow-[0_10px_40px_rgba(0,0,0,0.08)] border border-slate-200/50 rounded-full px-5 md:px-8 pointer-events-auto"
+                : "h-16 md:h-20 px-4 sm:px-6 lg:px-8"
+          )}
+        >
+            <div className="flex items-center gap-4 md:gap-6">
+              <Link href="/" className="flex items-center gap-2 group shrink-0">
+                <div className="relative w-8 h-8 overflow-hidden rounded-[10px] shadow-sm group-hover:scale-105 transition-transform duration-300">
+                  <Image src="/icon-512x512.png" alt="FLASTAL" fill className="object-cover" priority />
+                </div>
+                <span className={`font-black bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-600 tracking-tighter group-hover:from-pink-500 group-hover:to-purple-500 transition-all duration-300 ${isScrolled ? 'hidden sm:block text-xl' : 'text-xl md:text-2xl'}`}>
+                  FLASTAL
+                </span>
+              </Link>
 
-            <nav className="hidden lg:flex items-center relative" onMouseLeave={() => setHoveredNav(null)}>
-              {navLinks.map((link) => (
-                <Link 
-                  key={link.href} 
-                  href={link.href}
-                  onMouseEnter={() => setHoveredNav(link.href)}
-                  className="relative px-4 py-2 text-sm font-bold flex items-center gap-2 group z-10"
-                >
-                  {hoveredNav === link.href && (
-                    <motion.div
-                      layoutId="magic-nav-pill"
-                      className="absolute inset-0 bg-slate-100/80 rounded-full -z-10"
-                      transition={{ type: "spring", bounce: 0.15, duration: 0.5 }}
-                    />
-                  )}
-                  <span className={cn("transition-colors flex items-center gap-2", link.highlight ? 'text-rose-500' : 'text-slate-600 group-hover:text-slate-900')}>
-                    <span className={cn("transition-colors inline-block group-hover:scale-110 duration-300", link.highlight ? 'text-rose-400' : 'text-slate-400 group-hover:text-pink-500')}>
-                      {link.highlight ? <Star size={16} className="fill-rose-400" /> : link.icon}
-                    </span>
-                    {link.label}
-                  </span>
-                </Link>
-              ))}
-            </nav>
-          </div>
-          
-          <div className="flex items-center space-x-1 md:space-x-3">
-            {user ? (
-              <>
-                <NotificationDropdown 
-                    notifications={notifications} 
-                    fetchNotifications={fetchNotifications} 
-                    unreadCount={unreadCount}
-                    authenticatedFetch={authenticatedFetch}
-                />
-
-                <div className="relative" ref={userMenuRef}>
-                  <button 
-                    onClick={() => setIsUserMenuOpen(!isUserMenuOpen)} 
-                    className={cn(
-                        "flex items-center gap-2 py-1 rounded-full bg-white hover:bg-slate-50 transition-all group",
-                        isScrolled ? 'pr-1 pl-1 border-transparent' : 'pr-1 pl-1 md:pr-3 border border-slate-200 hover:shadow-sm'
-                    )}
+              <nav className="hidden lg:flex items-center relative" onMouseLeave={() => setHoveredNav(null)}>
+                {navLinks.map((link) => (
+                  <Link 
+                    key={link.href} 
+                    href={link.href}
+                    onMouseEnter={() => setHoveredNav(link.href)}
+                    className="relative px-4 py-2 text-sm font-bold flex items-center gap-2 group z-10"
                   >
-                    <div className="relative w-8 h-8 rounded-full overflow-hidden bg-indigo-50 border border-indigo-100 shrink-0 transition-transform group-hover:scale-105">
-                        {user.iconUrl ? (
-                            <Image src={user.iconUrl} alt="User Icon" fill className="object-cover" />
-                        ) : (
-                            <div className="w-full h-full flex items-center justify-center text-indigo-400"><User size={16}/></div>
-                        )}
-                    </div>
-                    {!isScrolled && (
-                        <>
-                           <span className="text-sm font-bold hidden sm:block text-slate-700 max-w-[100px] truncate">{displayName}</span>
-                           <ChevronDown size={14} className={`text-slate-400 transition-transform hidden md:block duration-300 ${isUserMenuOpen ? 'rotate-180' : ''}`} />
-                        </>
+                    {hoveredNav === link.href && (
+                      <motion.div
+                        layoutId="magic-nav-pill"
+                        className="absolute inset-0 bg-slate-100/80 rounded-full -z-10"
+                        transition={{ type: "spring", bounce: 0.15, duration: 0.5 }}
+                      />
                     )}
-                  </button>
+                    <span className={cn("transition-colors flex items-center gap-2", link.highlight ? 'text-rose-500' : 'text-slate-600 group-hover:text-slate-900')}>
+                      <span className={cn("transition-colors inline-block group-hover:scale-110 duration-300", link.highlight ? 'text-rose-400' : 'text-slate-400 group-hover:text-pink-500')}>
+                        {link.highlight ? <Star size={16} className="fill-rose-400" /> : link.icon}
+                      </span>
+                      {link.label}
+                    </span>
+                  </Link>
+                ))}
+              </nav>
+            </div>
+            
+            <div className="flex items-center space-x-1 md:space-x-3">
+              {user ? (
+                <>
+                  <NotificationDropdown 
+                      notifications={notifications} 
+                      fetchNotifications={fetchNotifications} 
+                      unreadCount={unreadCount}
+                      authenticatedFetch={authenticatedFetch}
+                  />
 
-                  <AnimatePresence>
-                    {isUserMenuOpen && (
-                        <motion.div
-                            initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: 0.95 }} transition={{ duration: 0.2 }}
-                            className="absolute right-0 mt-3 w-64 bg-white/95 backdrop-blur-xl border border-white/50 rounded-3xl shadow-[0_10px_40px_rgba(0,0,0,0.1)] z-50 overflow-hidden ring-1 ring-slate-100 origin-top-right"
-                        >
-                        <Link href={getPrimaryLink} onClick={() => setIsUserMenuOpen(false)} className="block px-6 py-5 border-b border-slate-50 bg-gradient-to-br from-slate-50 to-white hover:from-pink-50 hover:to-white transition-colors">
-                            <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest mb-1">Signed in as</p>
-                            <p className="text-sm font-black text-slate-800 truncate">{displayName}</p>
-                            <div className="mt-2">
-                                <span className="text-[9px] font-black px-2 py-0.5 rounded-md bg-pink-100 text-pink-600 border border-pink-200 inline-block uppercase tracking-widest">
-                                    {user.role}
-                                </span>
-                            </div>
-                        </Link>
-                        <div className="p-3 space-y-1">
-                            {userMenuItems.map((item) => (
-                                <Link key={item.href} href={item.href} onClick={() => setIsUserMenuOpen(false)} 
-                                    className="flex items-center px-4 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-50 hover:text-pink-600 rounded-2xl transition-colors group"
-                                >
-                                    <span className="mr-3 text-slate-400 group-hover:text-pink-400 transition-colors group-hover:scale-110">{item.icon}</span>
-                                    {item.label}
-                                </Link>
-                            ))}
-                            <div className="h-px bg-slate-100 my-2 mx-3"></div>
-                            <button onClick={handleLogout} className="flex items-center w-full px-4 py-2.5 text-sm font-bold text-rose-500 hover:bg-rose-50 rounded-2xl transition-colors group">
-                                <LogOut className="mr-3 group-hover:scale-110 transition-transform" size={14} /> ログアウト
-                            </button>
-                        </div>
-                        </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              </>
-            ) : (
-              <div className="flex items-center gap-2 md:gap-3">
-                <Link href="/login" className="hidden md:flex items-center gap-2 px-5 py-2 text-sm font-bold text-slate-600 bg-white hover:bg-slate-50 rounded-full transition-all border border-slate-200">
-                  ログイン
-                </Link>
-                <Link href="/register">
-                    <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="flex items-center gap-2 px-5 py-2 text-sm font-bold text-white bg-slate-900 rounded-full shadow-lg hover:shadow-xl transition-all">
-                        <Sparkles size={14} className="text-pink-400"/> 登録
-                    </motion.button>
-                </Link>
-              </div>
-            )}
-
-            <button 
-                className="lg:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
-                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                aria-label="Toggle menu"
-            >
-                {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-            </button>
-          </div>
-      </div>
-
-      {/* Mobile Menu Overlay */}
-      <AnimatePresence>
-        {isMobileMenuOpen && (
-            <motion.div
-                initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 200 }}
-                className="lg:hidden fixed inset-0 top-0 left-0 w-full h-[100dvh] bg-white/95 backdrop-blur-2xl z-[200] overflow-y-auto pointer-events-auto"
-            >
-                <div className="p-4 flex justify-between items-center border-b border-slate-100 bg-white sticky top-0 z-10">
-                    <span className="text-xl font-black text-slate-900 tracking-tighter">FLASTAL</span>
-                    <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 bg-slate-50 rounded-full hover:bg-slate-100 transition-colors">
-                        <X size={24} />
+                  <div className="relative" ref={userMenuRef}>
+                    <button 
+                      onClick={() => setIsUserMenuOpen(!isUserMenuOpen)} 
+                      className={cn(
+                          "flex items-center gap-2 py-1 rounded-full bg-white hover:bg-slate-50 transition-all group",
+                          isScrolled ? 'pr-1 pl-1 border-transparent' : 'pr-1 pl-1 md:pr-3 border border-slate-200 hover:shadow-sm'
+                      )}
+                    >
+                      <div className="relative w-8 h-8 rounded-full overflow-hidden bg-indigo-50 border border-indigo-100 shrink-0 transition-transform group-hover:scale-105">
+                          {user.iconUrl ? (
+                              <Image src={user.iconUrl} alt="User Icon" fill className="object-cover" />
+                          ) : (
+                              <div className="w-full h-full flex items-center justify-center text-indigo-400"><User size={16}/></div>
+                          )}
+                      </div>
+                      {!isScrolled && (
+                          <>
+                             <span className="text-sm font-bold hidden sm:block text-slate-700 max-w-[100px] truncate">{displayName}</span>
+                             <ChevronDown size={14} className={`text-slate-400 transition-transform hidden md:block duration-300 ${isUserMenuOpen ? 'rotate-180' : ''}`} />
+                          </>
+                      )}
                     </button>
+
+                    <AnimatePresence>
+                      {isUserMenuOpen && (
+                          <motion.div
+                              initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: 0.95 }} transition={{ duration: 0.2 }}
+                              className="absolute right-0 mt-3 w-64 bg-white/95 backdrop-blur-xl border border-white/50 rounded-3xl shadow-[0_10px_40px_rgba(0,0,0,0.1)] z-50 overflow-hidden ring-1 ring-slate-100 origin-top-right"
+                          >
+                          <Link href={getPrimaryLink} onClick={() => setIsUserMenuOpen(false)} className="block px-6 py-5 border-b border-slate-50 bg-gradient-to-br from-slate-50 to-white hover:from-pink-50 hover:to-white transition-colors">
+                              <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest mb-1">Signed in as</p>
+                              <p className="text-sm font-black text-slate-800 truncate">{displayName}</p>
+                              <div className="mt-2">
+                                  <span className="text-[9px] font-black px-2 py-0.5 rounded-md bg-pink-100 text-pink-600 border border-pink-200 inline-block uppercase tracking-widest">
+                                      {user.role}
+                                  </span>
+                              </div>
+                          </Link>
+                          <div className="p-3 space-y-1">
+                              {userMenuItems.map((item) => (
+                                  <Link key={item.href} href={item.href} onClick={() => setIsUserMenuOpen(false)} 
+                                      className="flex items-center px-4 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-50 hover:text-pink-600 rounded-2xl transition-colors group"
+                                  >
+                                      <span className="mr-3 text-slate-400 group-hover:text-pink-400 transition-colors group-hover:scale-110">{item.icon}</span>
+                                      {item.label}
+                                  </Link>
+                              ))}
+                              <div className="h-px bg-slate-100 my-2 mx-3"></div>
+                              <button onClick={handleLogout} className="flex items-center w-full px-4 py-2.5 text-sm font-bold text-rose-500 hover:bg-rose-50 rounded-2xl transition-colors group">
+                                  <LogOut className="mr-3 group-hover:scale-110 transition-transform" size={14} /> ログアウト
+                              </button>
+                          </div>
+                          </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                </>
+              ) : (
+                <div className="flex items-center gap-2 md:gap-3">
+                  <Link href="/login" className="hidden md:flex items-center gap-2 px-5 py-2 text-sm font-bold text-slate-600 bg-white hover:bg-slate-50 rounded-full transition-all border border-slate-200">
+                    ログイン
+                  </Link>
+                  <Link href="/register">
+                      <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="flex items-center gap-2 px-5 py-2 text-sm font-bold text-white bg-slate-900 rounded-full shadow-lg hover:shadow-xl transition-all">
+                          <Sparkles size={14} className="text-pink-400"/> 登録
+                      </motion.button>
+                  </Link>
                 </div>
+              )}
 
-                <nav className="p-6 space-y-8 pb-32">
-                    {user && (
-                        <div className="flex items-center justify-between bg-slate-50/80 p-5 rounded-[2rem] border border-slate-100 shadow-sm">
-                            <div className="flex items-center gap-4">
-                                <div className="relative w-14 h-14 rounded-full overflow-hidden bg-white border-2 border-white shadow-sm">
-                                    {user.iconUrl ? <Image src={user.iconUrl} alt="User Avatar" fill className="object-cover" /> : <User size={24} className="m-3 text-slate-300" />}
-                                </div>
-                                <div>
-                                    <p className="font-black text-lg text-slate-800">{displayName}</p>
-                                    <Link href={getPrimaryLink} onClick={() => setIsMobileMenuOpen(false)} className="text-[10px] font-black text-pink-500 uppercase tracking-widest mt-1 block">マイページへ &rarr;</Link>
-                                </div>
-                            </div>
-                        </div>
-                    )}
+              <button 
+                  className="lg:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
+                  onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                  aria-label="Toggle menu"
+              >
+                  {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+              </button>
+            </div>
+        </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                        <Link href="/projects/create" onClick={() => setIsMobileMenuOpen(false)} className="flex flex-col items-center justify-center gap-2 py-6 bg-gradient-to-br from-pink-500 to-rose-500 text-white rounded-[2rem] font-black shadow-lg shadow-pink-200 transition-transform active:scale-95">
-                            <PlusCircle size={28} /> 企画を立てる
-                        </Link>
-                        <Link href="/projects" onClick={() => setIsMobileMenuOpen(false)} className="flex flex-col items-center justify-center gap-2 py-6 bg-white border-2 border-pink-50 text-pink-500 hover:bg-pink-50 rounded-[2rem] font-black transition-transform active:scale-95 shadow-sm">
-                            <Search size={28} /> 企画を探す
-                        </Link>
-                    </div>
+        {/* Mobile Menu Overlay */}
+        <AnimatePresence>
+          {isMobileMenuOpen && (
+              <motion.div
+                  initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 200 }}
+                  className="lg:hidden fixed inset-0 top-0 left-0 w-full h-[100dvh] bg-white/95 backdrop-blur-2xl z-[200] overflow-y-auto pointer-events-auto"
+              >
+                  <div className="p-4 flex justify-between items-center border-b border-slate-100 bg-white sticky top-0 z-10">
+                      <span className="text-xl font-black text-slate-900 tracking-tighter">FLASTAL</span>
+                      <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 bg-slate-50 rounded-full hover:bg-slate-100 transition-colors">
+                          <X size={24} />
+                      </button>
+                  </div>
 
-                    <div className="space-y-1">
-                        {navLinks.map((link) => (
-                            <Link key={link.href} href={link.href} onClick={() => setIsMobileMenuOpen(false)}
-                                className={`flex items-center justify-between px-4 py-4 font-black rounded-2xl transition-colors ${link.highlight ? 'text-rose-600 bg-rose-50' : 'text-slate-700 hover:bg-slate-50'}`}
-                            >
-                                <div className="flex items-center gap-4">
-                                    <span className={`${link.highlight ? 'text-rose-500' : 'text-slate-400'}`}>
-                                        {link.highlight ? <Star size={20} className="fill-rose-500" /> : link.icon}
-                                    </span>
-                                    {link.label}
-                                </div>
-                                <ChevronDown size={18} className="-rotate-90 text-slate-300" />
-                            </Link>
-                        ))}
-                    </div>
+                  <nav className="p-6 space-y-8 pb-32">
+                      {user && (
+                          <div className="flex items-center justify-between bg-slate-50/80 p-5 rounded-[2rem] border border-slate-100 shadow-sm">
+                              <div className="flex items-center gap-4">
+                                  <div className="relative w-14 h-14 rounded-full overflow-hidden bg-white border-2 border-white shadow-sm">
+                                      {user.iconUrl ? <Image src={user.iconUrl} alt="User Avatar" fill className="object-cover" /> : <User size={24} className="m-3 text-slate-300" />}
+                                  </div>
+                                  <div>
+                                      <p className="font-black text-lg text-slate-800">{displayName}</p>
+                                      <Link href={getPrimaryLink} onClick={() => setIsMobileMenuOpen(false)} className="text-[10px] font-black text-pink-500 uppercase tracking-widest mt-1 block">マイページへ &rarr;</Link>
+                                  </div>
+                              </div>
+                          </div>
+                      )}
 
-                    {user && (
-                        <div className="space-y-1 pt-6 border-t border-slate-100">
-                            <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.3em] mb-4 pl-4">Account Menu</p>
-                            {userMenuItems.map((item) => (
-                                <Link key={item.href} href={item.href} onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-4 px-4 py-3.5 text-slate-600 font-bold hover:bg-slate-50 rounded-2xl transition-colors">
-                                    <span className="text-slate-400">{item.icon}</span>
-                                    {item.label}
-                                </Link>
-                            ))}
-                        </div>
-                    )}
+                      <div className="grid grid-cols-2 gap-4">
+                          <Link href="/projects/create" onClick={() => setIsMobileMenuOpen(false)} className="flex flex-col items-center justify-center gap-2 py-6 bg-gradient-to-br from-pink-500 to-rose-500 text-white rounded-[2rem] font-black shadow-lg shadow-pink-200 transition-transform active:scale-95">
+                              <PlusCircle size={28} /> 企画を立てる
+                          </Link>
+                          <Link href="/projects" onClick={() => setIsMobileMenuOpen(false)} className="flex flex-col items-center justify-center gap-2 py-6 bg-white border-2 border-pink-50 text-pink-500 hover:bg-pink-50 rounded-[2rem] font-black transition-transform active:scale-95 shadow-sm">
+                              <Search size={28} /> 企画を探す
+                          </Link>
+                      </div>
 
-                    {!user && (
-                        <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-100">
-                            <Link href="/login" onClick={() => setIsMobileMenuOpen(false)} className="flex justify-center py-4 bg-slate-100 rounded-2xl font-black text-slate-600">ログイン</Link>
-                            <Link href="/register" onClick={() => setIsMobileMenuOpen(false)} className="flex justify-center py-4 bg-slate-900 text-white rounded-2xl font-black">新規登録</Link>
-                        </div>
-                    )}
+                      <div className="space-y-1">
+                          {navLinks.map((link) => (
+                              <Link key={link.href} href={link.href} onClick={() => setIsMobileMenuOpen(false)}
+                                  className={`flex items-center justify-between px-4 py-4 font-black rounded-2xl transition-colors ${link.highlight ? 'text-rose-600 bg-rose-50' : 'text-slate-700 hover:bg-slate-50'}`}
+                              >
+                                  <div className="flex items-center gap-4">
+                                      <span className={`${link.highlight ? 'text-rose-500' : 'text-slate-400'}`}>
+                                          {link.highlight ? <Star size={20} className="fill-rose-500" /> : link.icon}
+                                      </span>
+                                      {link.label}
+                                  </div>
+                                  <ChevronDown size={18} className="-rotate-90 text-slate-300" />
+                              </Link>
+                          ))}
+                      </div>
 
-                    {user && (
-                        <button onClick={handleLogout} className="w-full mt-4 py-5 text-rose-500 font-black border-2 border-rose-50 rounded-[2rem] hover:bg-rose-50 transition-colors flex items-center justify-center gap-2 active:scale-95">
-                            <LogOut size={18} /> ログアウト
-                        </button>
-                    )}
-                </nav>
-            </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.header>
+                      {user && (
+                          <div className="space-y-1 pt-6 border-t border-slate-100">
+                              <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.3em] mb-4 pl-4">Account Menu</p>
+                              {userMenuItems.map((item) => (
+                                  <Link key={item.href} href={item.href} onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-4 px-4 py-3.5 text-slate-600 font-bold hover:bg-slate-50 rounded-2xl transition-colors">
+                                      <span className="text-slate-400">{item.icon}</span>
+                                      {item.label}
+                                  </Link>
+                              ))}
+                          </div>
+                      )}
+
+                      {!user && (
+                          <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-100">
+                              <Link href="/login" onClick={() => setIsMobileMenuOpen(false)} className="flex justify-center py-4 bg-slate-100 rounded-2xl font-black text-slate-600">ログイン</Link>
+                              <Link href="/register" onClick={() => setIsMobileMenuOpen(false)} className="flex justify-center py-4 bg-slate-900 text-white rounded-2xl font-black">新規登録</Link>
+                          </div>
+                      )}
+
+                      {user && (
+                          <button onClick={handleLogout} className="w-full mt-4 py-5 text-rose-500 font-black border-2 border-rose-50 rounded-[2rem] hover:bg-rose-50 transition-colors flex items-center justify-center gap-2 active:scale-95">
+                              <LogOut size={18} /> ログアウト
+                          </button>
+                      )}
+                  </nav>
+              </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.header>
+    </>
   );
 }
