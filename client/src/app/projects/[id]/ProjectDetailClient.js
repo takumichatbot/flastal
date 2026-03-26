@@ -20,7 +20,7 @@ import {
   ChevronLeft, Send, Image as ImageIcon, 
   Award, Plus, Search, Loader2, X,
   FileText, Printer, Info, Lock, PenTool, Check, Wand2, 
-  MessageSquare, Trash2, Box, UploadCloud, RefreshCw, Pen, Book, Users, Sparkles, Edit3 // ← Edit3 を追加
+  MessageSquare, Trash2, Box, UploadCloud, RefreshCw, Pen, Book, Users, Sparkles, Edit3
 } from 'lucide-react';
 
 // --- Components ---
@@ -100,16 +100,9 @@ const GlassCard = ({ children, className }) => (
   </div>
 );
 
-const Reveal = ({ children, delay = 0, className = "" }) => (
-  <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay, ease: "easeOut" }} className={className}>
-    {children}
-  </motion.div>
-);
-
 // ===========================================
 // Sub Components
 // ===========================================
-
 
 function ImageLightbox({ url, onClose }) {
   return (
@@ -123,7 +116,6 @@ function ImageLightbox({ url, onClose }) {
     </div>
   );
 }
-
 
 function InstructionSheetModal({ project, onClose }) {
   const images = [
@@ -168,11 +160,6 @@ function InstructionSheetModal({ project, onClose }) {
     const printWindow = window.open('', '_blank');
     printWindow.document.write(`<html><body>${contentHtml}<script>window.print();</script></body></html>`);
     printWindow.document.close();
-  };
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(`制作指示書 - ${project.title}\n...`);
-    toast.success('コピーしました');
   };
 
   return (
@@ -427,8 +414,7 @@ export default function ProjectDetailClient() {
   const { id } = params;
   const [activeTab, setActiveTab] = useState('overview'); 
   const [aiSummary, setAiSummary] = useState(null);
-  const [showGuestPledgeModal, setShowGuestPledgeModal] = useState(false);
-  const { user } = useAuth(); 
+  const { user, authenticatedFetch } = useAuth(); 
   const componentRef = useRef();
 
   const [project, setProject] = useState(null);
@@ -504,15 +490,49 @@ export default function ProjectDetailClient() {
     return () => newSocket.disconnect();
   }, [id, user]);
 
+  // ★ 不足していたハンドラを定義（これでクラッシュしなくなります）
+  const handleGenerateAr = async () => {
+      toast('AR生成機能は準備中です', { icon: '🚧' });
+  };
+
+  const handleSelectCompletedImage = (url) => {
+      toast('画像選択機能は準備中です', { icon: '🚧' });
+  };
+
+  const handleUpload = (e, type) => {
+      toast('ファイルアップロード機能は準備中です', { icon: '🚧' });
+  };
+
+  const handleAddExpense = (e) => {
+      e.preventDefault();
+      toast('支出の追加機能は準備中です', { icon: '🚧' });
+  };
+
+  const handleDeleteExpense = (expenseId) => {
+      toast('支出の削除機能は準備中です', { icon: '🚧' });
+  };
+
+  const handleToggleTask = (taskId, isCompleted) => {
+      toast('タスクの切り替え機能は準備中です', { icon: '🚧' });
+  };
+
+  const handleDeleteTask = (taskId) => {
+      toast('タスクの削除機能は準備中です', { icon: '🚧' });
+  };
+
+  const onPledgeSubmit = async (data) => {
+      toast('ポイント支援機能は準備中です', { icon: '🚧' });
+  };
+
   const isAssignedFlorist = user && user.role === 'FLORIST' && project?.offer?.floristId === user.id;
   const isPledger = user && (project?.pledges || []).some(p => p.userId === user.id);
   const isPlanner = user && user.id === project?.planner?.id;
   const isFlorist = user && user.role === 'FLORIST';
   const isMounted = useIsMounted();
   
-  if (loading) return <div className="min-h-screen flex items-center justify-center bg-pink-50/50"><Loader2 className="animate-spin text-pink-500" size={40} /></div>;
-  if (!project) return <div className="text-center py-32 text-slate-400 font-bold text-lg bg-slate-50 min-h-screen">企画が見つかりませんでした。</div>;
   if (!isMounted) return null;
+  if (loading) return <div className="min-h-[100dvh] flex items-center justify-center bg-pink-50/50"><Loader2 className="animate-spin text-pink-500" size={40} /></div>;
+  if (!project) return <div className="text-center py-32 text-slate-400 font-bold text-lg bg-slate-50 min-h-screen">企画が見つかりませんでした。</div>;
 
   const totalExpense = (project.expenses || []).reduce((sum, exp) => sum + exp.amount, 0);
   const balance = project.collectedAmount - totalExpense;
@@ -526,10 +546,12 @@ export default function ProjectDetailClient() {
 
   return (
     <>
+      {/* 💥 コンテンツ全体をラップする div 💥 */}
       <div className="min-h-screen bg-gradient-to-br from-pink-50/50 to-sky-50/50 pb-24 font-sans text-slate-800 relative overflow-hidden">
         <FloatingParticles />
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-pink-200/30 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/3 pointer-events-none" />
 
+        {/* --- Progress Tracker --- */}
         {(isAssignedFlorist || project.status === 'SUCCESSFUL' || project.status === 'COMPLETED' || project.status === 'FUNDRAISING') && (
           <div className="sticky top-0 z-40 px-4 pt-6 pb-2">
             <div className="max-w-6xl mx-auto">
@@ -862,29 +884,34 @@ export default function ProjectDetailClient() {
                     </GlassCard>
                 )}
 
-                {/* 運営への通報 */}
+                {/* 運営への通報（タグ修正済み） */}
                 <div className="text-center pt-4">
-                  <button onClick={() => setReportModalOpen(true)} className="text-[10px] font-bold text-slate-400 hover:text-slate-600 flex items-center justify-center gap-1 mx-auto transition-colors"><AlertTriangle size={12}/> 問題を報告する</button>
+                  <button onClick={() => setReportModalOpen(true)} className="text-[10px] font-bold text-slate-400 hover:text-slate-600 flex items-center justify-center gap-1 mx-auto transition-colors">
+                    <AlertTriangle size={12}/> 問題を報告する
+                  </button>
                 </div>
             </div>
           </div>
         </div>
       </div> 
-      
-      {/* MODALS */}
+      {/* 💥 親の div をここで閉じる 💥 */}
+
+      {/* --- MODALS --- */}
       <AnimatePresence>
         {isImageModalOpen && <ImageLightbox url={modalImageSrc} onClose={() => setIsImageModalOpen(false)} />}
         {isReportModalOpen && <ReportModal projectId={id} user={user} onClose={() => setReportModalOpen(false)} />}
         {isCompletionModalOpen && <CompletionReportModal project={project} user={user} onClose={() => setIsCompletionModalOpen(false)} onReportSubmitted={fetchProject} />}
         {isTargetAmountModalOpen && <TargetAmountModal project={project} user={user} onClose={() => setIsTargetAmountModalOpen(false)} onUpdate={fetchProject} />}
         {isInstructionModalOpen && <InstructionSheetModal project={project} onClose={() => setIsInstructionModalOpen(false)} />}
-        <FloristMaterialModal isOpen={isMaterialModalOpen} onClose={() => setIsMaterialModalOpen(false)} project={project} onUpdate={setProject} />
-        <ProjectCancelModal isOpen={isCancelModalOpen} onClose={() => setIsCancelModalOpen(false)} project={project} onCancelComplete={() => { fetchProject(); router.push('/mypage'); }} />
+        
+        {/* AnimatePresence の中で条件分岐なしで置かれていたモーダルを修正（状態管理に変更、または表示状態を含める） */}
+        {isMaterialModalOpen && <FloristMaterialModal isOpen={isMaterialModalOpen} onClose={() => setIsMaterialModalOpen(false)} project={project} onUpdate={setProject} />}
+        {isCancelModalOpen && <ProjectCancelModal isOpen={isCancelModalOpen} onClose={() => setIsCancelModalOpen(false)} project={project} onCancelComplete={() => { fetchProject(); router.push('/mypage'); }} />}
 
         {/* AR Modal */}
         {isArModalOpen && (
           <div className="fixed inset-0 bg-slate-900/80 flex justify-center items-center z-50 p-4 backdrop-blur-md">
-            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-[3rem] w-full max-w-lg overflow-hidden relative shadow-2xl flex flex-col max-h-[90vh] border border-white">
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="bg-white rounded-[3rem] w-full max-w-lg overflow-hidden relative shadow-2xl flex flex-col max-h-[90vh] border border-white">
               <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
                   <h3 className="font-black text-lg text-slate-800 flex items-center"><Box className="mr-2 text-indigo-500"/> ARシミュレーター</h3>
                   <button onClick={() => setIsArModalOpen(false)} className="bg-white hover:bg-slate-100 rounded-full p-2 transition-colors shadow-sm"><X size={20}/></button>
