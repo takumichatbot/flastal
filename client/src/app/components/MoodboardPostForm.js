@@ -1,98 +1,174 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { useAuth } from '../contexts/AuthContext';
-import { FiImage, FiLoader, FiSend } from 'react-icons/fi'; // FiZoomIn, FiHeart, FiUser, FiTrash2 を削除
+import { useAuth } from '@/app/contexts/AuthContext';
 import toast from 'react-hot-toast';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Image as ImageIcon, MessageSquare, Send, X, Loader2, UploadCloud } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
-// ★修正: 投稿機能のみに専念させ、リスト表示ロジックを削除
+function cn(...classes) {
+  return classes.filter(Boolean).join(' ');
+}
+
 export default function MoodboardPostForm({ projectId, onPostSuccess }) {
-  const { user } = useAuth();
-  const [isUploading, setIsUploading] = useState(false);
+  const { authenticatedFetch } = useAuth();
+  const [imageFile, setImageFile] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(null);
   const [comment, setComment] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef(null);
 
-  // アップロード処理
-  const handleUpload = async (e) => {
+  const handleImageChange = (e) => {
     const file = e.target.files[0];
-    if (!file) return;
+    if (file) {
+      setImageFile(file);
+      setPreviewUrl(URL.createObjectURL(file));
+    }
+  };
 
-    if (file.size > 5 * 1024 * 1024) {
-        toast.error('ファイルサイズは5MB以下にしてください');
-        return;
+  const removeImage = () => {
+    setImageFile(null);
+    setPreviewUrl(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const uploadImageToS3 = async (file) => {
+    try {
+        const res = await authenticatedFetch(`${API_URL}/api/tools/s3-upload-url`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fileName: file.name, fileType: file.type })
+        });
+        if (!res.ok) throw new Error('アップロードURLの取得に失敗しました');
+        const { uploadUrl, fileUrl } = await res.json();
+
+        return new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.open('PUT', uploadUrl);
+            xhr.setRequestHeader('Content-Type', file.type);
+            xhr.onload = () => {
+                if (xhr.status === 200) resolve(fileUrl);
+                else reject(new Error('画像のアップロードに失敗しました'));
+            };
+            xhr.onerror = () => reject(new Error('ネットワークエラーが発生しました'));
+            xhr.send(file);
+        });
+    } catch (error) {
+        throw error;
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!imageFile && !comment.trim()) {
+      return toast.error('画像かコメントのどちらかを入力してください');
     }
 
     setIsUploading(true);
-    const toastId = toast.loading('ボードに追加中...');
+    const toastId = toast.loading('ムードボードに投稿中...');
 
     try {
-      const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
-      if (!token) throw new Error('ログインが必要です');
-      
-      // 1. 画像アップロード
-      const formData = new FormData();
-      formData.append('image', file);
-      const uploadRes = await fetch(`${API_URL}/api/upload`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` },
-        body: formData
-      });
-      if (!uploadRes.ok) throw new Error('画像のアップロード失敗');
-      const { url } = await uploadRes.json();
+      let finalImageUrl = null;
 
-      // 2. ムードボードに追加
-      const res = await fetch(`${API_URL}/api/projects/${projectId}/moodboard`, {
+      // 1. S3へ画像をアップロード
+      if (imageFile) {
+        finalImageUrl = await uploadImageToS3(imageFile);
+      }
+
+      // 2. ムードボードに投稿データを送信
+      const res = await authenticatedFetch(`${API_URL}/api/projects/${projectId}/moodboard`, {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json', 
-          'Authorization': `Bearer ${token}` 
-        },
-        body: JSON.stringify({ imageUrl: url, comment: comment })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          imageUrl: finalImageUrl,
+          comment: comment.trim()
+        })
       });
 
-      if (!res.ok) throw new Error('追加失敗');
+      if (!res.ok) throw new Error('投稿に失敗しました');
+
+      toast.success('投稿しました！✨', { id: toastId });
       
-      toast.success('イメージを追加しました！', { id: toastId });
+      // フォームの初期化
+      removeImage();
       setComment('');
-      if(fileInputRef.current) fileInputRef.current.value = '';
-      
-      // 親コンポーネント（ProjectDetailClient）に更新を通知
       if (onPostSuccess) onPostSuccess();
 
     } catch (error) {
-      toast.error(error.message || 'エラーが発生しました', { id: toastId });
+      console.error(error);
+      toast.error(error.message, { id: toastId });
     } finally {
       setIsUploading(false);
     }
   };
 
   return (
-    <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 mb-8 flex flex-col md:flex-row gap-3 items-stretch">
-        <label className={`cursor-pointer bg-slate-100 hover:bg-slate-200 text-slate-600 px-6 rounded-lg border-2 border-dashed border-slate-300 font-bold text-sm flex items-center justify-center transition-all ${isUploading ? 'opacity-50 cursor-not-allowed' : ''}`}>
-            {isUploading ? <FiLoader className="animate-spin mr-2"/> : <FiImage className="mr-2 text-lg"/>}
-            {isUploading ? '送信中...' : '画像を追加'}
-            <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={handleUpload} disabled={isUploading} />
-        </label>
-        <div className="flex-grow relative flex gap-2">
-            <input 
-                type="text" 
-                placeholder="メモ: 例『衣装のリボン部分の参考にしたいです』" 
-                value={comment}
-                onChange={(e) => setComment(e.target.value)}
-                className="w-full h-full p-3 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-indigo-400 focus:border-transparent outline-none transition-all"
-                disabled={isUploading}
-            />
-            {/* テキスト入力だけで送信したい場合のためのボタン（画像必須なら無くてもOK） */}
-             <button 
-                onClick={() => { if(!fileInputRef.current.files[0]) toast.error('画像を選択してください') }}
-                disabled={isUploading}
-                className="bg-indigo-600 text-white p-3 rounded-lg hover:bg-indigo-700 transition-colors"
-            >
-                <FiSend />
-            </button>
+    <div className="bg-white/80 backdrop-blur-md p-6 md:p-8 rounded-[2rem] border border-white shadow-sm">
+      <form onSubmit={handleSubmit} className="space-y-6">
+        
+        {/* コメント入力エリア */}
+        <div className="relative">
+          <div className="absolute top-4 left-4 text-slate-400">
+            <MessageSquare size={20} />
+          </div>
+          <textarea
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            placeholder="デザインのアイデアや、共有したいイメージを書いてください✨"
+            rows="3"
+            disabled={isUploading}
+            className="w-full pl-12 pr-4 py-4 bg-slate-50/50 border-2 border-slate-100 rounded-2xl focus:outline-none focus:border-pink-300 focus:ring-4 focus:ring-pink-50 transition-all text-sm font-medium text-slate-700 placeholder:text-slate-400 resize-none"
+          />
         </div>
+
+        {/* 画像プレビュー & アップロードボタン */}
+        <div className="flex flex-col sm:flex-row items-center gap-4">
+          <AnimatePresence>
+            {previewUrl ? (
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}
+                className="relative w-32 h-32 rounded-[1.5rem] overflow-hidden border-4 border-white shadow-md group shrink-0"
+              >
+                <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />
+                <div className="absolute inset-0 bg-slate-900/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  <button type="button" onClick={removeImage} disabled={isUploading} className="bg-rose-500 text-white p-2 rounded-full hover:bg-rose-600 transition-transform hover:scale-110 shadow-lg">
+                    <X size={16} />
+                  </button>
+                </div>
+              </motion.div>
+            ) : (
+              <motion.label 
+                initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
+                className="w-full sm:w-32 h-32 rounded-[1.5rem] border-2 border-dashed border-pink-200 bg-pink-50/50 flex flex-col items-center justify-center cursor-pointer hover:bg-pink-50 hover:border-pink-300 transition-all group shrink-0"
+              >
+                <UploadCloud className="text-pink-300 group-hover:text-pink-500 group-hover:-translate-y-1 transition-all duration-300 mb-2" size={28} />
+                <span className="text-[10px] font-black text-pink-400 uppercase tracking-widest">Image</span>
+                <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageChange} disabled={isUploading} className="hidden" />
+              </motion.label>
+            )}
+          </AnimatePresence>
+
+          <div className="flex-1 flex justify-end w-full">
+            <motion.button 
+              whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+              type="submit" 
+              disabled={isUploading || (!imageFile && !comment.trim())}
+              className={cn(
+                "w-full sm:w-auto px-8 py-4 rounded-2xl font-black text-sm flex items-center justify-center gap-2 shadow-lg transition-all",
+                isUploading || (!imageFile && !comment.trim()) 
+                  ? 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none' 
+                  : 'bg-gradient-to-r from-pink-500 to-rose-500 text-white hover:shadow-pink-300'
+              )}
+            >
+              {isUploading ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
+              {isUploading ? '送信中...' : 'ムードボードに投稿'}
+            </motion.button>
+          </div>
+        </div>
+
+      </form>
     </div>
   );
 }

@@ -2,11 +2,16 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { FiBell, FiLoader, FiCheck, FiX } from 'react-icons/fi';
+import { Bell, Loader2, Check, X } from 'lucide-react'; // lucide-react に変更
 import toast from 'react-hot-toast';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 const PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+
+function cn(...classes) {
+  return classes.filter(Boolean).join(' ');
+}
 
 function urlBase64ToUint8Array(base64String) {
   const padding = '='.repeat((4 - base64String.length % 4) % 4);
@@ -37,7 +42,6 @@ export default function PushNotificationManager() {
 
   const checkSubscription = async () => {
     try {
-      // readyではなくgetRegistrationを使い、無限待機を回避する
       const registration = await navigator.serviceWorker.getRegistration();
       if (registration && registration.pushManager) {
         const subscription = await registration.pushManager.getSubscription();
@@ -63,19 +67,20 @@ export default function PushNotificationManager() {
     try {
       toastId = toast.loading('通知を設定中...');
 
-      // 1. 通知の許可をリクエスト（ユーザーが拒否している場合はエラーを投げる）
+      // 1. 通知の許可をリクエスト
       const permission = await Notification.requestPermission();
       if (permission !== 'granted') {
         throw new Error('ブラウザの通知がブロックされています。設定から許可してください。');
       }
 
-      // 2. Service Workerの明示的な取得と登録
-      // （navigator.serviceWorker.ready は未登録時に無限待機するため使用しない）
+      // 2. Service Workerの登録とアクティブ化の【完全待機】
       let registration = await navigator.serviceWorker.getRegistration();
       if (!registration) {
-        // next-pwa のデフォルトである /sw.js を登録する
-        registration = await navigator.serviceWorker.register('/sw.js');
+        await navigator.serviceWorker.register('/sw.js');
       }
+      
+      // ★ 修正ポイント: 登録された Service Worker が確実に「active (ready)」になるまで待つ
+      registration = await navigator.serviceWorker.ready;
 
       if (!registration || !registration.pushManager) {
         throw new Error('プッシュ通知がサポートされていない環境です。');
@@ -98,7 +103,9 @@ export default function PushNotificationManager() {
 
       toast.success('通知をオンにしました！', { id: toastId });
       setSuccess(true);
-      setTimeout(() => setIsSubscribed(true), 2000);
+      
+      // 少し待ってからポップアップを消す
+      setTimeout(() => setIsSubscribed(true), 2500);
 
     } catch (error) {
       console.error('Push Notification Error:', error);
@@ -115,35 +122,55 @@ export default function PushNotificationManager() {
   if (!user || !isSupported || (isSubscribed && !success) || !isVisible) return null;
 
   return (
-    <div className="fixed bottom-24 left-4 right-4 md:left-auto md:right-8 md:w-80 z-[90] animate-fadeIn">
-      <div className="bg-slate-900 text-white p-5 rounded-3xl shadow-2xl border border-slate-800 relative overflow-hidden">
-        <button onClick={() => setIsVisible(false)} className="absolute top-3 right-3 text-slate-500 hover:text-white transition-colors">
-          <FiX size={18} />
-        </button>
-        <div className="flex gap-4 items-start">
-          <div className="bg-pink-500 p-3 rounded-2xl shrink-0">
-            {success ? <FiCheck size={24} /> : loading ? <FiLoader size={24} className="animate-spin" /> : <FiBell size={24} />}
+    <AnimatePresence>
+      {isVisible && (
+        <motion.div 
+          initial={{ opacity: 0, y: 20, scale: 0.95 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: 20, scale: 0.95 }}
+          transition={{ duration: 0.3 }}
+          className="fixed bottom-24 left-4 right-4 md:left-auto md:right-8 md:w-[340px] z-[90]"
+        >
+          <div className="bg-slate-900/95 backdrop-blur-xl text-white p-5 md:p-6 rounded-[2rem] shadow-[0_20px_40px_rgba(0,0,0,0.2)] border border-slate-700 relative overflow-hidden">
+            <button onClick={() => setIsVisible(false)} className="absolute top-4 right-4 text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 p-1.5 rounded-full transition-colors">
+              <X size={16} />
+            </button>
+            <div className="flex gap-4 items-start">
+              <div className={cn(
+                "p-3.5 rounded-2xl shrink-0 shadow-inner transition-colors duration-500",
+                success ? "bg-emerald-500 text-white" : "bg-pink-500 text-white"
+              )}>
+                {success ? <Check size={24} /> : loading ? <Loader2 size={24} className="animate-spin" /> : <Bell size={24} />}
+              </div>
+              <div className="flex-1 pt-1">
+                <h4 className="font-black text-base tracking-tight mb-1">{success ? '設定完了！' : '通知をオンにしますか？'}</h4>
+                {!success && (
+                  <>
+                    <p className="text-slate-400 text-xs leading-relaxed font-medium mb-4">
+                      支援した企画の進捗や新着メッセージをリアルタイムでお知らせします。
+                    </p>
+                    <motion.button 
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={subscribeToPush}
+                      disabled={loading}
+                      className="w-full bg-white text-slate-900 py-3 rounded-xl text-sm font-black hover:bg-pink-50 transition-all disabled:opacity-50 flex justify-center items-center gap-2 shadow-md"
+                    >
+                      {loading && <Loader2 size={16} className="animate-spin" />}
+                      {loading ? '設定中...' : '通知を受け取る'}
+                    </motion.button>
+                  </>
+                )}
+                {success && (
+                  <p className="text-emerald-400 text-xs font-bold mt-1">
+                    これでお知らせを見逃しません✨
+                  </p>
+                )}
+              </div>
+            </div>
           </div>
-          <div className="flex-1">
-            <h4 className="font-bold text-sm">{success ? '設定完了！' : '通知をオンにしますか？'}</h4>
-            {!success && (
-              <>
-                <p className="text-slate-400 text-[11px] mt-1 leading-relaxed">
-                  支援した企画の進捗や新着メッセージをリアルタイムでお知らせします。
-                </p>
-                <button 
-                  onClick={subscribeToPush}
-                  disabled={loading}
-                  className="mt-4 w-full bg-white text-slate-900 py-2 rounded-xl text-xs font-black hover:bg-slate-100 transition-all disabled:opacity-50 flex justify-center items-center gap-2"
-                >
-                  {loading && <FiLoader size={14} className="animate-spin" />}
-                  {loading ? '設定中...' : '通知を受け取る'}
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
