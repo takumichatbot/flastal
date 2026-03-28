@@ -23,7 +23,6 @@ export default function MoodboardPostForm({ projectId, onPostSuccess }) {
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      // 5MB以上の画像は弾く（AWS S3の安定性のため）
       if (file.size > 5 * 1024 * 1024) {
         return toast.error('画像サイズは5MB以下にしてください');
       }
@@ -38,29 +37,33 @@ export default function MoodboardPostForm({ projectId, onPostSuccess }) {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  // ★ 安定した /api/upload (バックエンド経由のS3アップロード) を使用
-  const uploadImage = async (file) => {
-    const formData = new FormData();
-    formData.append('image', file);
-
-    const res = await authenticatedFetch(`${API_URL}/api/upload`, {
-      method: 'POST',
-      body: formData, // FormDataは自動でContent-Typeが設定されるのでheadersは不要
+  const uploadImageToS3 = async (file) => {
+    const res = await authenticatedFetch(`${API_URL}/api/tools/s3-upload-url`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileName: file.name, fileType: file.type })
     });
+    
+    if (!res.ok) throw new Error('アップロード用URLの取得に失敗しました');
+    const { uploadUrl, fileUrl } = await res.json();
 
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.message || '画像のアップロードに失敗しました');
-    }
-
-    const data = await res.json();
-    return data.imageUrl; // バックエンドから返ってきたS3のURL
+    return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('PUT', uploadUrl);
+        xhr.setRequestHeader('Content-Type', file.type);
+        xhr.onload = () => {
+            if (xhr.status === 200) resolve(fileUrl);
+            else reject(new Error('S3へのアップロードに失敗しました'));
+        };
+        xhr.onerror = () => reject(new Error('ネットワークエラーが発生しました'));
+        xhr.send(file);
+    });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!imageFile && !comment.trim()) {
-      return toast.error('画像かコメントのどちらかを入力してください');
+      return toast.error('画像かコメントを入力してください');
     }
 
     setIsUploading(true);
@@ -69,12 +72,10 @@ export default function MoodboardPostForm({ projectId, onPostSuccess }) {
     try {
       let finalImageUrl = null;
 
-      // 1. 画像があればアップロード
       if (imageFile) {
-        finalImageUrl = await uploadImage(imageFile);
+        finalImageUrl = await uploadImageToS3(imageFile);
       }
 
-      // 2. ムードボードに投稿データを送信
       const res = await authenticatedFetch(`${API_URL}/api/projects/${projectId}/moodboard`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -85,19 +86,18 @@ export default function MoodboardPostForm({ projectId, onPostSuccess }) {
       });
 
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.message || '投稿に失敗しました');
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.message || '投稿に失敗しました');
       }
 
       toast.success('投稿しました！✨', { id: toastId });
       
-      // フォームの初期化
       removeImage();
       setComment('');
       if (onPostSuccess) onPostSuccess();
 
     } catch (error) {
-      console.error(error);
+      console.error('Moodboard Post Error:', error);
       toast.error(error.message || 'エラーが発生しました', { id: toastId });
     } finally {
       setIsUploading(false);
@@ -108,7 +108,6 @@ export default function MoodboardPostForm({ projectId, onPostSuccess }) {
     <div className="bg-white/80 backdrop-blur-md p-6 md:p-8 rounded-[2rem] border border-white shadow-sm">
       <form onSubmit={handleSubmit} className="space-y-6">
         
-        {/* コメント入力エリア */}
         <div className="relative">
           <div className="absolute top-4 left-4 text-slate-400">
             <MessageSquare size={20} />
@@ -123,7 +122,6 @@ export default function MoodboardPostForm({ projectId, onPostSuccess }) {
           />
         </div>
 
-        {/* 画像プレビュー & アップロードボタン */}
         <div className="flex flex-col sm:flex-row items-center gap-4">
           <AnimatePresence>
             {previewUrl ? (
