@@ -37,12 +37,12 @@ export default function MoodboardPostForm({ projectId, onPostSuccess }) {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  // ★ 安定した /api/upload (バックエンド経由のS3アップロード) を使用
+  // ★ 修正: 正しいエンドポイント /api/tools/upload-image に変更
   const uploadImage = async (file) => {
     const formData = new FormData();
     formData.append('image', file);
 
-    const res = await authenticatedFetch(`${API_URL}/api/upload`, {
+    const res = await authenticatedFetch(`${API_URL}/api/tools/upload-image`, {
       method: 'POST',
       body: formData, 
     });
@@ -53,7 +53,7 @@ export default function MoodboardPostForm({ projectId, onPostSuccess }) {
     }
 
     const data = await res.json();
-    return data.imageUrl; // バックエンドから返ってきたS3のURL
+    return data.url; // ★ 修正: ツールコントローラーの返り値は { url: '...' } になっています
   };
 
   const handleSubmit = async (e) => {
@@ -66,7 +66,7 @@ export default function MoodboardPostForm({ projectId, onPostSuccess }) {
     const toastId = toast.loading('ムードボードに投稿中...');
 
     try {
-      let finalImageUrl = ""; // nullではなく空文字を初期値にする
+      let finalImageUrl = "";
 
       // 1. 画像があればアップロード
       if (imageFile) {
@@ -78,7 +78,6 @@ export default function MoodboardPostForm({ projectId, onPostSuccess }) {
           comment: comment.trim(),
       };
       
-      // 画像URLがある場合のみペイロードに追加（バックエンドのバリデーションエラー回避）
       if (finalImageUrl) {
           payload.imageUrl = finalImageUrl;
       }
@@ -96,7 +95,6 @@ export default function MoodboardPostForm({ projectId, onPostSuccess }) {
 
       toast.success('投稿しました！✨', { id: toastId });
       
-      // フォームの初期化
       removeImage();
       setComment('');
       if (onPostSuccess) onPostSuccess();
@@ -112,8 +110,6 @@ export default function MoodboardPostForm({ projectId, onPostSuccess }) {
   return (
     <div className="bg-white/80 backdrop-blur-md p-6 md:p-8 rounded-[2rem] border border-white shadow-sm">
       <form onSubmit={handleSubmit} className="space-y-6">
-        
-        {/* コメント入力エリア */}
         <div className="relative">
           <div className="absolute top-4 left-4 text-slate-400">
             <MessageSquare size={20} />
@@ -128,7 +124,6 @@ export default function MoodboardPostForm({ projectId, onPostSuccess }) {
           />
         </div>
 
-        {/* 画像プレビュー & アップロードボタン */}
         <div className="flex flex-col sm:flex-row items-center gap-4">
           <AnimatePresence>
             {previewUrl ? (
@@ -172,7 +167,6 @@ export default function MoodboardPostForm({ projectId, onPostSuccess }) {
             </motion.button>
           </div>
         </div>
-
       </form>
     </div>
   );

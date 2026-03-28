@@ -53,37 +53,47 @@ export default function PushNotificationManager() {
 
   const subscribeToPush = async () => {
     if (!user) return toast.error('ログインが必要です');
-    if (!PUBLIC_KEY) return toast.error('システムエラー：通知の公開鍵が設定されていません');
+    if (!PUBLIC_KEY) return toast.error('システムエラー：公開鍵が設定されていません');
 
     setLoading(true);
-    let toastId = toast.loading('ブラウザの設定を確認中...');
+    let toastId = toast.loading('通知を設定中...');
 
     try {
-      // 1. 通知の許可をリクエスト
-      const permission = await Notification.requestPermission();
-      if (permission !== 'granted') {
-        throw new Error('ブラウザの通知がブロックされています。設定から許可してください。');
+      // 1. ブラウザサポートチェック (iOS SafariのPWA外などでのクラッシュを防止)
+      if (!('Notification' in window)) {
+        throw new Error('お使いのブラウザはプッシュ通知をサポートしていません。\niPhoneの場合は「ホーム画面に追加」からアプリを開いてお試しください。');
       }
 
-      toast.loading('Service Workerを起動中...', { id: toastId });
+      // 2. 通知の許可をリクエスト (新旧Safari両方の仕様に対応)
+      let permission = Notification.permission;
+      if (permission !== 'granted') {
+        permission = await new Promise((resolve) => {
+          const result = Notification.requestPermission(resolve);
+          if (result && result.then) {
+              result.then(resolve);
+          }
+        });
+      }
 
-      // 2. Service Workerの登録と待機 (シンプルに)
+      if (permission !== 'granted') {
+        throw new Error('通知がブロックされています。設定から許可してください。');
+      }
+
+      // 3. Service Workerの登録と待機
       const registration = await navigator.serviceWorker.register('/sw.js');
-      await navigator.serviceWorker.ready; // 完全に準備が整うのを待つ
+      await navigator.serviceWorker.ready; 
 
-      if (!registration.pushManager) {
+      if (!registration || !registration.pushManager) {
         throw new Error('プッシュ通知がサポートされていない環境です。');
       }
 
-      toast.loading('サーバーへ登録中...', { id: toastId });
-
-      // 3. Push Managerへのサブスクライブ
+      // 4. Push Managerへのサブスクライブ
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(PUBLIC_KEY)
       });
 
-      // 4. サーバーへ登録情報を送信
+      // 5. サーバーへ登録情報を送信
       const res = await authenticatedFetch(`${API_URL}/api/tools/subscribe-push`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
