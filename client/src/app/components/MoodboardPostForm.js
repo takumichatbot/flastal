@@ -37,27 +37,23 @@ export default function MoodboardPostForm({ projectId, onPostSuccess }) {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const uploadImageToS3 = async (file) => {
-    const res = await authenticatedFetch(`${API_URL}/api/tools/s3-upload-url`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fileName: file.name, fileType: file.type })
-    });
-    
-    if (!res.ok) throw new Error('アップロード用URLの取得に失敗しました');
-    const { uploadUrl, fileUrl } = await res.json();
+  // ★ 修正ポイント: S3への直接アップロードをやめ、安定した /api/upload を経由する
+  const uploadImage = async (file) => {
+    const formData = new FormData();
+    formData.append('image', file);
 
-    return new Promise((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        xhr.open('PUT', uploadUrl);
-        xhr.setRequestHeader('Content-Type', file.type);
-        xhr.onload = () => {
-            if (xhr.status === 200) resolve(fileUrl);
-            else reject(new Error('S3へのアップロードに失敗しました'));
-        };
-        xhr.onerror = () => reject(new Error('ネットワークエラーが発生しました'));
-        xhr.send(file);
+    const res = await authenticatedFetch(`${API_URL}/api/upload`, {
+      method: 'POST',
+      body: formData, // FormDataはContent-Type自動設定のためheaders不要
     });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || '画像のアップロードに失敗しました');
+    }
+
+    const data = await res.json();
+    return data.imageUrl; // バックエンドから返ってきた画像URL
   };
 
   const handleSubmit = async (e) => {
@@ -72,10 +68,12 @@ export default function MoodboardPostForm({ projectId, onPostSuccess }) {
     try {
       let finalImageUrl = null;
 
+      // 1. 画像があればバックエンド経由でアップロード
       if (imageFile) {
-        finalImageUrl = await uploadImageToS3(imageFile);
+        finalImageUrl = await uploadImage(imageFile);
       }
 
+      // 2. ムードボードに投稿データを送信
       const res = await authenticatedFetch(`${API_URL}/api/projects/${projectId}/moodboard`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

@@ -65,13 +65,13 @@ export default function PushNotificationManager() {
         throw new Error('ブラウザの通知がブロックされています。設定から許可してください。');
       }
 
-      // 2. Service Workerの登録と待機
+      // 2. Service Workerの登録
       let registration = await navigator.serviceWorker.getRegistration();
       if (!registration) {
         registration = await navigator.serviceWorker.register('/sw.js');
       }
       
-      // ready が返ってくるまで最大5秒待つタイムアウト処理（無限待機防止）
+      // ★ 修正ポイント: 準備完了(ready)を待つが、5秒でタイムアウトしてエラーを出す（無限ローディング防止）
       const readyPromise = navigator.serviceWorker.ready;
       const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Service Workerの起動がタイムアウトしました')), 5000));
       registration = await Promise.race([readyPromise, timeoutPromise]);
