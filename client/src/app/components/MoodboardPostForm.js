@@ -37,14 +37,14 @@ export default function MoodboardPostForm({ projectId, onPostSuccess }) {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  // ★ 修正ポイント: S3への直接アップロードをやめ、安定した /api/upload を経由する
+  // ★ 安定した /api/upload (バックエンド経由のS3アップロード) を使用
   const uploadImage = async (file) => {
     const formData = new FormData();
     formData.append('image', file);
 
     const res = await authenticatedFetch(`${API_URL}/api/upload`, {
       method: 'POST',
-      body: formData, // FormDataはContent-Type自動設定のためheaders不要
+      body: formData, 
     });
 
     if (!res.ok) {
@@ -53,7 +53,7 @@ export default function MoodboardPostForm({ projectId, onPostSuccess }) {
     }
 
     const data = await res.json();
-    return data.imageUrl; // バックエンドから返ってきた画像URL
+    return data.imageUrl; // バックエンドから返ってきたS3のURL
   };
 
   const handleSubmit = async (e) => {
@@ -66,30 +66,37 @@ export default function MoodboardPostForm({ projectId, onPostSuccess }) {
     const toastId = toast.loading('ムードボードに投稿中...');
 
     try {
-      let finalImageUrl = null;
+      let finalImageUrl = ""; // nullではなく空文字を初期値にする
 
-      // 1. 画像があればバックエンド経由でアップロード
+      // 1. 画像があればアップロード
       if (imageFile) {
         finalImageUrl = await uploadImage(imageFile);
       }
 
       // 2. ムードボードに投稿データを送信
+      const payload = {
+          comment: comment.trim(),
+      };
+      
+      // 画像URLがある場合のみペイロードに追加（バックエンドのバリデーションエラー回避）
+      if (finalImageUrl) {
+          payload.imageUrl = finalImageUrl;
+      }
+
       const res = await authenticatedFetch(`${API_URL}/api/projects/${projectId}/moodboard`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          imageUrl: finalImageUrl,
-          comment: comment.trim()
-        })
+        body: JSON.stringify(payload)
       });
 
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.message || '投稿に失敗しました');
+        throw new Error(errData.message || `投稿に失敗しました (ステータス: ${res.status})`);
       }
 
       toast.success('投稿しました！✨', { id: toastId });
       
+      // フォームの初期化
       removeImage();
       setComment('');
       if (onPostSuccess) onPostSuccess();
@@ -106,6 +113,7 @@ export default function MoodboardPostForm({ projectId, onPostSuccess }) {
     <div className="bg-white/80 backdrop-blur-md p-6 md:p-8 rounded-[2rem] border border-white shadow-sm">
       <form onSubmit={handleSubmit} className="space-y-6">
         
+        {/* コメント入力エリア */}
         <div className="relative">
           <div className="absolute top-4 left-4 text-slate-400">
             <MessageSquare size={20} />
@@ -120,6 +128,7 @@ export default function MoodboardPostForm({ projectId, onPostSuccess }) {
           />
         </div>
 
+        {/* 画像プレビュー & アップロードボタン */}
         <div className="flex flex-col sm:flex-row items-center gap-4">
           <AnimatePresence>
             {previewUrl ? (
