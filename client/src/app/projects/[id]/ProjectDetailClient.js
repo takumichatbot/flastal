@@ -232,7 +232,6 @@ function PledgeForm({ project, user, onPledgeSubmit, isPledger }) {
         </div>
       )}
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        {/* iOS Segmented Control Style */}
         <div className="flex bg-slate-100 p-1 rounded-xl">
           <label className={cn("flex-1 text-center py-2.5 rounded-lg cursor-pointer text-sm font-black transition-all", pledgeType === 'tier' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400 hover:text-slate-600')}>
             <input type="radio" {...register('pledgeType')} value="tier" className="hidden" /> コースから選ぶ
@@ -389,7 +388,10 @@ export default function ProjectDetailClient() {
   const params = useParams();
   const router = useRouter();
   const { id } = params;
+  
   const [activeTab, setActiveTab] = useState('overview'); 
+  const [collabTab, setCollabTab] = useState('chat'); // ★ 新規: コラボタブ内の状態管理
+
   const [aiSummary, setAiSummary] = useState(null);
   const { user, authenticatedFetch } = useAuth(); 
   const componentRef = useRef();
@@ -413,7 +415,7 @@ export default function ProjectDetailClient() {
   const [showAnnouncementForm, setShowAnnouncementForm] = useState(false);
   const [announcementTitle, setAnnouncementTitle] = useState('');
   const [announcementContent, setAnnouncementContent] = useState('');
-  const [isPostingAnnouncement, setIsPostingAnnouncement] = useState(false); // ★ 送信中ステートを追加
+  const [isPostingAnnouncement, setIsPostingAnnouncement] = useState(false);
   
   const [expenseName, setExpenseName] = useState('');
   const [expenseAmount, setExpenseAmount] = useState('');
@@ -459,14 +461,13 @@ export default function ProjectDetailClient() {
     return () => newSocket.disconnect();
   }, [id, user]);
 
-  // ★ 活動報告の投稿処理
   const handlePostAnnouncement = async (e) => {
-    e.preventDefault(); // これが超重要
+    e.preventDefault(); 
     if (!announcementTitle.trim() || !announcementContent.trim()) {
         return toast.error('タイトルと本文を入力してください');
     }
     
-    setIsPostingAnnouncement(true); // 送信中状態にする
+    setIsPostingAnnouncement(true); 
     const toastId = toast.loading('投稿中...');
     
     try {
@@ -481,15 +482,14 @@ export default function ProjectDetailClient() {
         setShowAnnouncementForm(false);
         setAnnouncementTitle('');
         setAnnouncementContent('');
-        fetchProject(); // 画面をリフレッシュ
+        fetchProject(); 
     } catch (error) {
         toast.error(error.message, { id: toastId });
     } finally {
-        setIsPostingAnnouncement(false); // 送信中状態を解除
+        setIsPostingAnnouncement(false); 
     }
   };
 
-  // Mock handlers
   const handleGenerateAr = async () => { toast('AR機能は準備中です', { icon: '🚧' }); };
   const handleSelectCompletedImage = () => { toast('画像選択機能は準備中です', { icon: '🚧' }); };
   const handleUpload = () => { toast('アップロード機能は準備中です', { icon: '🚧' }); };
@@ -497,6 +497,7 @@ export default function ProjectDetailClient() {
   const handleDeleteExpense = () => { toast('削除機能は準備中です', { icon: '🚧' }); };
   const handleToggleTask = () => { toast('タスク管理は準備中です', { icon: '🚧' }); };
   const handleDeleteTask = () => { toast('タスク管理は準備中です', { icon: '🚧' }); };
+  const handleAddTask = (e) => { e.preventDefault(); toast('タスク追加機能は準備中です', { icon: '🚧' }); };
   const onPledgeSubmit = () => { toast('決済機能は準備中です', { icon: '🚧' }); };
 
   const isAssignedFlorist = user && user.role === 'FLORIST' && project?.offer?.floristId === user.id;
@@ -514,7 +515,7 @@ export default function ProjectDetailClient() {
 
   const TABS = [
     { id: 'overview', label: '概要と報告', icon: Book }, 
-    { id: 'collaboration', label: '共同作業', icon: PenTool }, 
+    { id: 'collaboration', label: '共同作業・チャット', icon: PenTool }, 
     { id: 'finance', label: '収支報告', icon: DollarSign }
   ];
 
@@ -553,7 +554,7 @@ export default function ProjectDetailClient() {
         <div className="lg:col-span-8 space-y-6">
           
           {/* Organizer Info & Progress */}
-          <AppCard className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+          <AppCard className="p-6 md:p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
             <div className="flex items-center gap-4 w-full md:w-auto">
                 <div className="w-14 h-14 bg-slate-100 rounded-full flex items-center justify-center overflow-hidden border border-slate-200 shrink-0">
                     {project.planner?.iconUrl ? <Image src={project.planner.iconUrl} alt="" width={56} height={56} className="object-cover" /> : <User size={24} className="text-slate-400"/>}
@@ -609,7 +610,7 @@ export default function ProjectDetailClient() {
                           </AppCard>
                       )}
 
-                      {/* ★ 活動報告 (アプリ風UIに修正) */}
+                      {/* 活動報告 */}
                       <div className="pt-4">
                           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6 px-2">
                               <h2 className="text-xl font-black text-slate-800 flex items-center gap-2">活動報告</h2>
@@ -620,7 +621,6 @@ export default function ProjectDetailClient() {
                               )}
                           </div>
                           
-                          {/* 投稿フォーム (完全に動作するように修正) */}
                           <AnimatePresence>
                             {isPlanner && showAnnouncementForm && (
                                 <motion.form 
@@ -641,7 +641,7 @@ export default function ProjectDetailClient() {
                             )}
                           </AnimatePresence>
 
-                          {/* 投稿リスト (SNSフィード風) */}
+                          {/* 投稿リスト */}
                           {project.announcements?.length > 0 ? (
                               <div className="space-y-4">
                                   {project.announcements.map(a=>(
@@ -670,82 +670,148 @@ export default function ProjectDetailClient() {
                   </div>
               )}
 
-              {/* --- TAB: COLLABORATION --- */}
+              {/* --- TAB: COLLABORATION (App-like sub navigation) --- */}
               {activeTab === 'collaboration' && (
-                <div className="space-y-6">
+                <div className="space-y-4">
+                    {/* AI Summary Banner */}
                     {aiSummary && (
-                        <AppCard className="bg-slate-900 text-white border-slate-800">
-                            <h2 className="text-sm font-black text-slate-300 mb-4 flex items-center"><Wand2 className="mr-2" size={16}/> AI Summary</h2>
-                            <div className="text-sm leading-relaxed font-medium prose prose-invert max-w-none"><Markdown>{aiSummary}</Markdown></div>
+                        <AppCard className="bg-slate-900 text-white border-slate-800 !p-4 md:!p-6">
+                            <h2 className="text-sm font-black text-slate-300 mb-2 flex items-center"><Wand2 className="mr-2 text-indigo-400" size={16}/> AI Summary</h2>
+                            <div className="text-xs leading-relaxed font-medium prose prose-invert max-w-none line-clamp-3"><Markdown>{aiSummary}</Markdown></div>
                         </AppCard>
                     )}
 
+                    {/* 権限がないユーザーへのロック画面 */}
+                    {!(isPlanner || isPledger || isFlorist) && (
+                        <AppCard className="text-center py-16 bg-slate-50">
+                            <Lock size={32} className="mx-auto text-slate-300 mb-4" />
+                            <h3 className="text-lg font-black text-slate-700 mb-2">参加者限定スペース</h3>
+                            <p className="text-slate-500 font-bold text-sm">共同作業は、支援者と関係者のみ利用できます。</p>
+                        </AppCard>
+                    )}
+
+                    {/* ★ 新規: 横スクロールのピルメニュー（アプリ風） */}
                     {(isPlanner || isPledger || isFlorist) && (
-                        <AppCard>
-                            <h2 className="text-lg font-black text-slate-800 mb-6 flex items-center gap-2"><ImageIcon className="text-slate-400"/> ムードボード</h2>
-                            <MoodboardPostForm projectId={project.id} onPostSuccess={fetchProject} /> 
-                            <div className="mt-8 pt-6 border-t border-slate-100"><MoodboardDisplay projectId={project.id} /></div>
-                        </AppCard>
-                    )}
+                        <>
+                            <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2">
+                                <button onClick={() => setCollabTab('chat')} className={cn("px-5 py-2.5 rounded-full text-xs font-black flex items-center gap-2 whitespace-nowrap transition-colors", collabTab === 'chat' ? 'bg-sky-500 text-white' : 'bg-white text-slate-500 hover:bg-sky-50 hover:text-sky-600 shadow-sm border border-slate-100')}>
+                                    <MessageSquare size={14}/> チャット
+                                </button>
+                                <button onClick={() => setCollabTab('board')} className={cn("px-5 py-2.5 rounded-full text-xs font-black flex items-center gap-2 whitespace-nowrap transition-colors", collabTab === 'board' ? 'bg-pink-500 text-white' : 'bg-white text-slate-500 hover:bg-pink-50 hover:text-pink-600 shadow-sm border border-slate-100')}>
+                                    <ImageIcon size={14}/> ムードボード
+                                </button>
+                                {isPlanner && (
+                                    <button onClick={() => setCollabTab('tasks')} className={cn("px-5 py-2.5 rounded-full text-xs font-black flex items-center gap-2 whitespace-nowrap transition-colors", collabTab === 'tasks' ? 'bg-emerald-500 text-white' : 'bg-white text-slate-500 hover:bg-emerald-50 hover:text-emerald-600 shadow-sm border border-slate-100')}>
+                                        <CheckCircle2 size={14}/> タスク管理
+                                    </button>
+                                )}
+                                <button onClick={() => setCollabTab('tools')} className={cn("px-5 py-2.5 rounded-full text-xs font-black flex items-center gap-2 whitespace-nowrap transition-colors", collabTab === 'tools' ? 'bg-indigo-500 text-white' : 'bg-white text-slate-500 hover:bg-indigo-50 hover:text-indigo-600 shadow-sm border border-slate-100')}>
+                                    <Box size={14}/> ツール・データ
+                                </button>
+                            </div>
 
-                    {(isPlanner || isPledger || isFlorist) && (
-                        <AppCard className="!p-0 overflow-hidden flex flex-col h-[600px]">
-                            <div className="p-4 border-b border-slate-100 bg-slate-50 flex items-center gap-2">
-                                <MessageSquare className="text-slate-400" size={18}/>
-                                <h2 className="text-sm font-black text-slate-800">企画チャット</h2>
-                            </div>
-                            <div className="flex-1 overflow-hidden relative">
-                                <GroupChat project={project} user={user} isPlanner={isPlanner} isPledger={isPledger} socket={socket} onSummaryUpdate={setAiSummary} summary={aiSummary} />
-                            </div>
-                        </AppCard>
-                    )}
+                            <AnimatePresence mode="wait">
+                                <motion.div key={collabTab} initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} transition={{ duration: 0.2 }}>
+                                    
+                                    {/* 1. チャット */}
+                                    {collabTab === 'chat' && (
+                                        <AppCard className="!p-0 overflow-hidden flex flex-col h-[600px] border-sky-100 ring-4 ring-sky-50">
+                                            <div className="p-4 border-b border-slate-100 bg-sky-50 flex items-center justify-between">
+                                                <div className="flex items-center gap-2">
+                                                  <MessageSquare className="text-sky-500" size={18}/>
+                                                  <h2 className="text-sm font-black text-slate-800">企画チャット</h2>
+                                                </div>
+                                            </div>
+                                            <div className="flex-1 overflow-hidden relative bg-white">
+                                                <GroupChat project={project} user={user} isPlanner={isPlanner} isPledger={isPledger} socket={socket} onSummaryUpdate={setAiSummary} summary={aiSummary} />
+                                            </div>
+                                        </AppCard>
+                                    )}
 
-                    {isPlanner && (
-                        <AppCard>
-                            <h2 className="text-lg font-black text-slate-800 mb-6 flex items-center gap-2"><CheckCircle2 className="text-slate-400"/> タスク管理</h2>
-                            <div className="flex flex-col sm:flex-row gap-2 mb-6">
-                                <input type="text" value={newTaskTitle} onChange={(e)=>setNewTaskTitle(e.target.value)} placeholder="新しいタスクを追加" className="p-3 border border-slate-200 rounded-xl flex-grow bg-slate-50 focus:bg-white focus:ring-2 focus:ring-slate-200 outline-none transition-all text-sm font-bold"/>
-                                <button type="submit" className="px-6 py-3 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition-colors shadow-sm font-black text-sm">追加</button>
-                            </div>
-                            <div className="space-y-2">
-                                {project.tasks?.map(t=>(
-                                    <div key={t.id} className="flex justify-between items-center p-3 bg-slate-50 rounded-xl group">
-                                        <div className="flex items-center gap-3">
-                                            <input type="checkbox" checked={t.isCompleted} onChange={()=>handleToggleTask(t.id, t.isCompleted)} className="w-5 h-5 text-slate-900 rounded focus:ring-slate-900 border-slate-300 cursor-pointer"/>
-                                            <span className={cn("text-sm font-bold transition-colors", t.isCompleted ? 'line-through text-slate-400' : 'text-slate-700')}>{t.title}</span>
+                                    {/* 2. ムードボード */}
+                                    {collabTab === 'board' && (
+                                        <AppCard className="border-pink-100 ring-4 ring-pink-50 !p-4 md:!p-6 bg-slate-50/50">
+                                            <MoodboardPostForm projectId={project.id} onPostSuccess={fetchProject} /> 
+                                            <div className="mt-6 pt-6 border-t border-slate-200/60"><MoodboardDisplay projectId={project.id} /></div>
+                                        </AppCard>
+                                    )}
+
+                                    {/* 3. タスク */}
+                                    {isPlanner && collabTab === 'tasks' && (
+                                        <AppCard className="border-emerald-100 ring-4 ring-emerald-50">
+                                            <div className="flex flex-col sm:flex-row gap-2 mb-6">
+                                                <input type="text" value={newTaskTitle} onChange={(e)=>setNewTaskTitle(e.target.value)} placeholder="新しいタスクを追加" className="p-3 border border-slate-200 rounded-xl flex-grow bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-200 outline-none transition-all text-sm font-bold"/>
+                                                <button type="submit" onClick={handleAddTask} className="px-6 py-3 bg-emerald-500 text-white rounded-xl hover:bg-emerald-600 transition-colors shadow-sm font-black text-sm">追加</button>
+                                            </div>
+                                            <div className="space-y-2">
+                                                {project.tasks?.map(t=>(
+                                                    <div key={t.id} className="flex justify-between items-center p-3 bg-slate-50 rounded-xl group">
+                                                        <div className="flex items-center gap-3">
+                                                            <input type="checkbox" checked={t.isCompleted} onChange={()=>handleToggleTask(t.id, t.isCompleted)} className="w-5 h-5 text-emerald-500 rounded focus:ring-emerald-500 border-slate-300 cursor-pointer"/>
+                                                            <span className={cn("text-sm font-bold transition-colors", t.isCompleted ? 'line-through text-slate-400' : 'text-slate-700')}>{t.title}</span>
+                                                        </div>
+                                                        <button onClick={()=>handleDeleteTask(t.id)} className="text-slate-300 hover:text-rose-500 p-1.5 rounded-lg hover:bg-white transition-colors"><Trash2 size={16}/></button>
+                                                    </div>
+                                                ))}
+                                                {(!project.tasks || project.tasks.length === 0) && <p className="text-center text-slate-400 text-sm font-bold py-10">タスクはありません</p>}
+                                            </div>
+                                        </AppCard>
+                                    )}
+
+                                    {/* 4. ツール */}
+                                    {collabTab === 'tools' && (
+                                        <div className="space-y-4">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                <AppCard className="!p-6 flex flex-col justify-between bg-gradient-to-br from-indigo-50/50 to-white border-indigo-100">
+                                                    <div>
+                                                        <h3 className="font-black text-indigo-900 mb-1 flex items-center text-base"><Box className="mr-2 text-indigo-500" size={18}/> ARプレビュー</h3>
+                                                        <p className="text-xs font-bold text-indigo-700/70 mb-6">スマホをかざして実際のサイズ感を確認できます。</p>
+                                                    </div>
+                                                    <button onClick={() => setIsArModalOpen(true)} className="w-full py-3 bg-indigo-500 text-white text-sm font-black rounded-xl hover:bg-indigo-600 transition-all shadow-md">起動する</button>
+                                                </AppCard>
+                                                
+                                                {(isPlanner || isFlorist) && (
+                                                    <AppCard className="!p-6 flex flex-col justify-between bg-slate-50 border-slate-100">
+                                                        <div>
+                                                            <h3 className="font-black text-slate-800 mb-1 flex items-center text-base"><UploadCloud className="mr-2 text-slate-400" size={18}/> データ提出</h3>
+                                                            <p className="text-xs font-bold text-slate-500 mb-6">入稿データなどをアップロードします。</p>
+                                                        </div>
+                                                        <PanelPreviewer onImageSelected={(file) => handleUpload({ target: { files: [file] } }, 'illustration')} />
+                                                    </AppCard>
+                                                )}
+                                            </div>
+                                            
+                                            {/* Pre-event photos */}
+                                            {((isPlanner || isFlorist) || project.productionStatus === 'PRE_COMPLETION') && (
+                                                <AppCard className="border-indigo-100">
+                                                    <h3 className="font-black text-slate-800 mb-4 flex items-center text-sm"><CheckCircle2 className="mr-2 text-emerald-500" size={16}/> 仕上がり確認 (前日写真)</h3>
+                                                    {project.preEventPhotoUrls?.length > 0 ? (
+                                                        <div className="flex flex-wrap gap-3">
+                                                            {project.preEventPhotoUrls.map((url, i) => (
+                                                                <div key={i} className="relative w-24 h-24 rounded-xl overflow-hidden border border-slate-200 shadow-sm cursor-zoom-in hover:scale-105 transition-transform" onClick={()=>{setModalImageSrc(url); setIsImageModalOpen(true)}}>
+                                                                    <Image src={url} alt={`前日写真 ${i}`} fill className="object-cover" />
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    ) : (
+                                                        <p className="text-xs font-bold text-slate-400 py-4 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200">まだ写真はアップロードされていません。</p>
+                                                    )}
+                                                    {isFlorist && (
+                                                        <div className="mt-4">
+                                                            <label className="inline-flex items-center px-5 py-2.5 bg-white border border-slate-200 text-slate-700 text-xs font-black rounded-xl cursor-pointer hover:bg-slate-50 shadow-sm transition-all w-full justify-center">
+                                                                <UploadCloud className="mr-2" size={14}/> 写真を追加
+                                                                <input type="file" className="hidden" onChange={(e) => handleUpload(e, 'pre_photo')} />
+                                                            </label>
+                                                        </div>
+                                                    )}
+                                                </AppCard>
+                                            )}
                                         </div>
-                                        <button onClick={()=>handleDeleteTask(t.id)} className="text-slate-300 hover:text-rose-500 p-1.5 rounded-lg hover:bg-white transition-colors"><Trash2 size={16}/></button>
-                                    </div>
-                                ))}
-                                {(!project.tasks || project.tasks.length === 0) && <p className="text-center text-slate-400 text-sm font-bold py-6">タスクはありません</p>}
-                            </div>
-                        </AppCard>
+                                    )}
+                                </motion.div>
+                            </AnimatePresence>
+                        </>
                     )}
-
-                    <div>
-                        <h2 className="text-lg font-black text-slate-800 mb-4 px-2">各種ツール</h2>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <AppCard className="!p-6 flex flex-col justify-between">
-                                <div>
-                                    <h3 className="font-black text-slate-800 mb-1 flex items-center text-base"><Box className="mr-2 text-slate-400" size={18}/> ARプレビュー</h3>
-                                    <p className="text-xs font-bold text-slate-500 mb-6">スマホをかざして実際のサイズ感を確認できます。</p>
-                                </div>
-                                <button onClick={() => setIsArModalOpen(true)} className="w-full py-3 bg-slate-100 text-slate-700 text-sm font-black rounded-xl hover:bg-slate-200 transition-all">起動する</button>
-                            </AppCard>
-                            {(isPlanner || isFlorist) && (
-                                <AppCard className="!p-6 flex flex-col justify-between">
-                                    <div>
-                                        <h3 className="font-black text-slate-800 mb-1 flex items-center text-base"><UploadCloud className="mr-2 text-slate-400" size={18}/> データ提出</h3>
-                                        <p className="text-xs font-bold text-slate-500 mb-6">入稿データなどをアップロードします。</p>
-                                    </div>
-                                    <PanelPreviewer onImageSelected={(file) => {
-                                        const dummyEvent = { target: { files: [file] } };
-                                        handleUpload(dummyEvent, 'illustration');
-                                    }} />
-                                </AppCard>
-                            )}
-                        </div>
-                    </div>
                 </div> 
               )}
 
@@ -836,8 +902,65 @@ export default function ProjectDetailClient() {
         {isImageModalOpen && <ImageLightbox url={modalImageSrc} onClose={() => setIsImageModalOpen(false)} />}
         {isReportModalOpen && <ReportModal projectId={id} user={user} onClose={() => setReportModalOpen(false)} />}
         {isCompletionModalOpen && <CompletionReportModal project={project} user={user} onClose={() => setIsCompletionModalOpen(false)} onReportSubmitted={fetchProject} />}
+        {isTargetAmountModalOpen && <TargetAmountModal project={project} user={user} onClose={() => setIsTargetAmountModalOpen(false)} onUpdate={fetchProject} />}
         {isInstructionModalOpen && <InstructionSheetModal project={project} onClose={() => setIsInstructionModalOpen(false)} />}
+        
+        {isMaterialModalOpen && <FloristMaterialModal isOpen={isMaterialModalOpen} onClose={() => setIsMaterialModalOpen(false)} project={project} onUpdate={setProject} />}
         {isCancelModalOpen && <ProjectCancelModal isOpen={isCancelModalOpen} onClose={() => setIsCancelModalOpen(false)} project={project} onCancelComplete={() => { fetchProject(); router.push('/mypage'); }} />}
+
+        {/* AR Modal */}
+        {isArModalOpen && (
+          <div className="fixed inset-0 bg-slate-900/80 flex justify-center items-center z-50 p-4 backdrop-blur-md">
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="bg-white rounded-[3rem] w-full max-w-lg overflow-hidden relative shadow-2xl flex flex-col max-h-[90vh] border border-white">
+              <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                  <h3 className="font-black text-lg text-slate-800 flex items-center"><Box className="mr-2 text-indigo-500"/> ARシミュレーター</h3>
+                  <button onClick={() => setIsArModalOpen(false)} className="bg-white hover:bg-slate-100 rounded-full p-2 transition-colors shadow-sm"><X size={20}/></button>
+              </div>
+              <div className="p-8 overflow-y-auto">
+                {!arSrc ? (
+                    <div className="space-y-8">
+                        <div className="text-center">
+                            <p className="text-sm font-bold text-slate-500 mb-6 leading-relaxed">お持ちの画像や完了写真をアップロードして、<br/>実際のサイズ感で部屋に配置してみましょう🌸</p>
+                            {project.status === 'COMPLETED' && (isPledger || isPlanner || isFlorist) && project.completionImageUrls?.length > 0 && (
+                                <div className="bg-emerald-50 border border-emerald-100 p-5 rounded-2xl mb-6 text-left">
+                                  <h4 className="font-black text-emerald-800 mb-3 flex items-center text-sm"><CheckCircle2 className="mr-2" size={16}/> 完成写真から作成</h4>
+                                  <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar">
+                                      {project.completionImageUrls.map((url, i) => (
+                                          <div key={i} className="flex-shrink-0 cursor-pointer group relative w-20 h-20 rounded-xl overflow-hidden border-2 border-transparent hover:border-emerald-400 transition-all shadow-sm" onClick={() => handleSelectCompletedImage(url)}>
+                                              <Image src={url} alt="" fill className="object-cover" />
+                                          </div>
+                                      ))}
+                                  </div>
+                                </div>
+                            )}
+                        </div>
+                        <div className="space-y-4">
+                            <div className="p-8 border-2 border-dashed border-pink-200 bg-pink-50/50 rounded-[2rem] hover:bg-pink-50 transition-colors text-center cursor-pointer relative" onClick={() => document.getElementById('ar-upload').click()}>
+                                {arImageFile ? (
+                                    <div><p className="text-sm font-black text-emerald-500 mb-1 flex items-center justify-center"><Check className="mr-1"/> 選択済み</p><p className="text-xs font-bold text-slate-400">{arImageFile.name}</p></div>
+                                ) : (
+                                    <div><UploadCloud className="w-10 h-10 text-pink-300 mx-auto mb-3" /><p className="text-sm font-black text-slate-600">画像をアップロード</p></div>
+                                )}
+                                <input id="ar-upload" type="file" className="hidden" accept="image/*" onChange={(e) => setArImageFile(e.target.files[0])} />
+                            </div>
+                            <div className="bg-slate-50 p-5 rounded-[1.5rem] flex items-center gap-4 border border-slate-100">
+                                <span className="text-xs font-black text-slate-500 whitespace-nowrap uppercase tracking-widest">高さ (cm)</span>
+                                <input type="number" value={arHeight} onChange={(e) => setArHeight(e.target.value)} className="w-full p-3 bg-white border-2 border-slate-100 rounded-xl text-center font-black text-slate-800 outline-none focus:border-indigo-300"/>
+                            </div>
+                        </div>
+                        <button onClick={handleGenerateAr} disabled={arGenLoading || !arImageFile} className="w-full py-4 bg-slate-900 text-white font-black rounded-2xl hover:bg-slate-800 disabled:opacity-50 transition-all flex justify-center items-center shadow-lg">{arGenLoading ? <><Loader2 className="animate-spin mr-2"/> 生成中...</> : 'ARモデルを生成する'}</button>
+                    </div>
+                ) : (
+                    <div className="flex flex-col items-center">
+                        <p className="text-sm text-center text-slate-600 mb-6 font-bold leading-relaxed">カメラを起動して、平らな床に向けてください。<br/>高さ <strong className="text-pink-500">{arHeight}cm</strong> のパネルが表示されます。</p>
+                        <div className="w-full aspect-[3/4] bg-black rounded-[2rem] overflow-hidden shadow-2xl border-4 border-slate-800"><ArViewer src={arSrc} alt="AR" /></div>
+                        <button onClick={() => { setArSrc(null); setArImageFile(null); }} className="mt-8 px-6 py-3 bg-slate-100 rounded-full text-sm font-black text-slate-500 flex items-center hover:bg-slate-200 transition-colors"><RefreshCw className="mr-2" size={16}/> 別の画像で試す</button>
+                    </div>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
       </AnimatePresence>
 
     </div>
