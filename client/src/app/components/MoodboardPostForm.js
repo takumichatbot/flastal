@@ -4,7 +4,7 @@ import { useState, useRef } from 'react';
 import { useAuth } from '@/app/contexts/AuthContext';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Image as ImageIcon, MessageSquare, Send, X, Loader2, UploadCloud } from 'lucide-react';
+import { MessageSquare, Send, X, Loader2, UploadCloud } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -23,6 +23,10 @@ export default function MoodboardPostForm({ projectId, onPostSuccess }) {
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
+      // 5MB以上の画像は弾く（AWS S3の安定性のため）
+      if (file.size > 5 * 1024 * 1024) {
+        return toast.error('画像サイズは5MB以下にしてください');
+      }
       setImageFile(file);
       setPreviewUrl(URL.createObjectURL(file));
     }
@@ -34,30 +38,23 @@ export default function MoodboardPostForm({ projectId, onPostSuccess }) {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const uploadImageToS3 = async (file) => {
-    try {
-        const res = await authenticatedFetch(`${API_URL}/api/tools/s3-upload-url`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ fileName: file.name, fileType: file.type })
-        });
-        if (!res.ok) throw new Error('アップロードURLの取得に失敗しました');
-        const { uploadUrl, fileUrl } = await res.json();
+  // ★ 安定した /api/upload (バックエンド経由のS3アップロード) を使用
+  const uploadImage = async (file) => {
+    const formData = new FormData();
+    formData.append('image', file);
 
-        return new Promise((resolve, reject) => {
-            const xhr = new XMLHttpRequest();
-            xhr.open('PUT', uploadUrl);
-            xhr.setRequestHeader('Content-Type', file.type);
-            xhr.onload = () => {
-                if (xhr.status === 200) resolve(fileUrl);
-                else reject(new Error('画像のアップロードに失敗しました'));
-            };
-            xhr.onerror = () => reject(new Error('ネットワークエラーが発生しました'));
-            xhr.send(file);
-        });
-    } catch (error) {
-        throw error;
+    const res = await authenticatedFetch(`${API_URL}/api/upload`, {
+      method: 'POST',
+      body: formData, // FormDataは自動でContent-Typeが設定されるのでheadersは不要
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || '画像のアップロードに失敗しました');
     }
+
+    const data = await res.json();
+    return data.imageUrl; // バックエンドから返ってきたS3のURL
   };
 
   const handleSubmit = async (e) => {
@@ -72,9 +69,9 @@ export default function MoodboardPostForm({ projectId, onPostSuccess }) {
     try {
       let finalImageUrl = null;
 
-      // 1. S3へ画像をアップロード
+      // 1. 画像があればアップロード
       if (imageFile) {
-        finalImageUrl = await uploadImageToS3(imageFile);
+        finalImageUrl = await uploadImage(imageFile);
       }
 
       // 2. ムードボードに投稿データを送信
@@ -87,7 +84,10 @@ export default function MoodboardPostForm({ projectId, onPostSuccess }) {
         })
       });
 
-      if (!res.ok) throw new Error('投稿に失敗しました');
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || '投稿に失敗しました');
+      }
 
       toast.success('投稿しました！✨', { id: toastId });
       
@@ -98,7 +98,7 @@ export default function MoodboardPostForm({ projectId, onPostSuccess }) {
 
     } catch (error) {
       console.error(error);
-      toast.error(error.message, { id: toastId });
+      toast.error(error.message || 'エラーが発生しました', { id: toastId });
     } finally {
       setIsUploading(false);
     }
@@ -119,7 +119,7 @@ export default function MoodboardPostForm({ projectId, onPostSuccess }) {
             placeholder="デザインのアイデアや、共有したいイメージを書いてください✨"
             rows="3"
             disabled={isUploading}
-            className="w-full pl-12 pr-4 py-4 bg-slate-50/50 border-2 border-slate-100 rounded-2xl focus:outline-none focus:border-pink-300 focus:ring-4 focus:ring-pink-50 transition-all text-sm font-medium text-slate-700 placeholder:text-slate-400 resize-none"
+            className="w-full pl-12 pr-4 py-4 bg-slate-50/50 border-2 border-slate-100 rounded-2xl focus:outline-none focus:border-pink-300 focus:ring-4 focus:ring-pink-50 transition-all text-sm font-medium text-slate-700 placeholder:text-slate-400 resize-none disabled:opacity-50"
           />
         </div>
 
