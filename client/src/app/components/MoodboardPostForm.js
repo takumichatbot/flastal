@@ -1,201 +1,173 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '../contexts/AuthContext';
-import { FiHeart, FiZoomIn, FiImage, FiUser, FiTrash2 } from 'react-icons/fi';
+import { useState, useRef } from 'react';
+import { useAuth } from '@/app/contexts/AuthContext';
 import toast from 'react-hot-toast';
-import ImageModal from './ImageModal'; 
+import { motion, AnimatePresence } from 'framer-motion';
+import { MessageSquare, Send, X, Loader2, UploadCloud } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
-export default function MoodboardDisplay({ projectId }) {
-  const { user, authenticatedFetch } = useAuth();
-  const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedImage, setSelectedImage] = useState(null);
+function cn(...classes) {
+  return classes.filter(Boolean).join(' ');
+}
 
-  const fetchItems = useCallback(async () => {
-    if(items.length === 0) setLoading(true);
-    try {
-      // ★修正: 取得先を /api/project-details/projects/... に変更
-      const res = await fetch(`${API_URL}/api/project-details/projects/${projectId}/moodboard`);
-      if (!res.ok) throw new Error('取得失敗');
-      const data = await res.json();
-      setItems(data);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setLoading(false);
-    }
-  }, [projectId]);
+export default function MoodboardPostForm({ projectId, onPostSuccess }) {
+  const { authenticatedFetch } = useAuth();
+  const [imageFile, setImageFile] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(null);
+  const [comment, setComment] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef(null);
 
-  useEffect(() => {
-    fetchItems();
-  }, [fetchItems]);
-
-  const handleLike = async (itemId) => {
-    if (!user) return toast.error('いいねするにはログインが必要です');
-    
-    const previousItems = [...items];
-
-    setItems(prevItems => prevItems.map(item => {
-      if (item.id === itemId) {
-        const wasLiked = item.likedBy.includes(user.id);
-        return {
-          ...item,
-          likes: wasLiked ? item.likes - 1 : item.likes + 1,
-          likedBy: wasLiked 
-            ? item.likedBy.filter(id => id !== user.id) 
-            : [...item.likedBy, user.id]
-        };
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        return toast.error('画像サイズは5MB以下にしてください');
       }
-      return item;
-    }));
-
-    try {
-      // ★修正: いいね先を /api/project-details/moodboard/... に変更
-      const res = await authenticatedFetch(`${API_URL}/api/project-details/moodboard/${itemId}/like`, {
-        method: 'PATCH',
-      });
-
-      if (!res.ok) throw new Error('API Error');
-    } catch (error) {
-      setItems(previousItems);
-      toast.error('いいねに失敗しました');
+      setImageFile(file);
+      setPreviewUrl(URL.createObjectURL(file));
     }
   };
 
-  const handleDelete = async (itemId) => {
-    if (!window.confirm('この投稿を削除しますか？')) return;
-    
-    try {
-      // ★修正: 削除先を /api/project-details/moodboard/... に変更
-      const res = await authenticatedFetch(`${API_URL}/api/project-details/moodboard/${itemId}`, {
-        method: 'DELETE',
-      });
-
-      if (!res.ok) throw new Error('削除失敗');
-      toast.success('削除しました');
-      fetchItems();
-    } catch (error) {
-      toast.error('削除に失敗しました');
-    }
+  const removeImage = () => {
+    setImageFile(null);
+    setPreviewUrl(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  if (loading) {
-    return (
-        <div className="mt-8">
-            <h2 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-                <FiImage /> アイデアボード
-            </h2>
-            <div className="columns-2 md:columns-3 lg:columns-4 gap-4 space-y-4">
-                {[...Array(6)].map((_, i) => (
-                    <div key={i} className="bg-gray-200 rounded-xl animate-pulse h-48 break-inside-avoid"></div>
-                ))}
-            </div>
-        </div>
-    );
-  }
+  const uploadImage = async (file) => {
+    const formData = new FormData();
+    formData.append('image', file);
+
+    // ★修正1: 画像アップロードは /api/tools/upload-image
+    const res = await authenticatedFetch(`${API_URL}/api/tools/upload-image`, {
+      method: 'POST',
+      body: formData, 
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || '画像のアップロードに失敗しました');
+    }
+
+    const data = await res.json();
+    // ★修正2: 戻り値は data.url
+    return data.url; 
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!imageFile && !comment.trim()) {
+      return toast.error('画像かコメントを入力してください');
+    }
+
+    setIsUploading(true);
+    const toastId = toast.loading('ムードボードに投稿中...');
+
+    try {
+      let finalImageUrl = "";
+
+      if (imageFile) {
+        finalImageUrl = await uploadImage(imageFile);
+      }
+
+      const payload = {
+          comment: comment.trim(),
+      };
+      
+      if (finalImageUrl) {
+          payload.imageUrl = finalImageUrl;
+      }
+
+      // ★修正3: 投稿先は /api/project-details/projects/...
+      const res = await authenticatedFetch(`${API_URL}/api/project-details/projects/${projectId}/moodboard`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.message || `投稿に失敗しました`);
+      }
+
+      toast.success('投稿しました！✨', { id: toastId });
+      
+      removeImage();
+      setComment('');
+      if (onPostSuccess) onPostSuccess();
+
+    } catch (error) {
+      console.error('Moodboard Post Error:', error);
+      toast.error(error.message || 'エラーが発生しました', { id: toastId });
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   return (
-    <div className="mt-12">
-      {selectedImage && (
-        <ImageModal src={selectedImage} onClose={() => setSelectedImage(null)} />
-      )}
-
-      <div className="flex items-end justify-between mb-6 border-b border-gray-100 pb-4">
-        <div>
-            <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                <FiImage className="text-indigo-500" /> アイデアボード
-            </h2>
-            <p className="text-xs text-gray-500 mt-1">
-                参加者が持ち寄ったイメージ画像 ({items.length}件)
-            </p>
-        </div>
-      </div>
-      
-      {items.length === 0 ? (
-        <div className="text-center py-16 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 text-slate-400">
-          <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-3 shadow-sm">
-            <FiImage size={24} />
+    <div className="bg-white/80 backdrop-blur-md p-6 md:p-8 rounded-[2rem] border border-white shadow-sm">
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="relative">
+          <div className="absolute top-4 left-4 text-slate-400">
+            <MessageSquare size={20} />
           </div>
-          <p className="font-bold">まだアイデアがありません</p>
-          <p className="text-xs mt-1">最初の1枚を投稿して企画を盛り上げましょう！</p>
+          <textarea
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            placeholder="デザインのアイデアや、共有したいイメージを書いてください✨"
+            rows="3"
+            disabled={isUploading}
+            className="w-full pl-12 pr-4 py-4 bg-slate-50/50 border-2 border-slate-100 rounded-2xl focus:outline-none focus:border-pink-300 focus:ring-4 focus:ring-pink-50 transition-all text-sm font-medium text-slate-700 placeholder:text-slate-400 resize-none disabled:opacity-50"
+          />
         </div>
-      ) : (
-        <div className="columns-2 md:columns-3 lg:columns-4 gap-4 space-y-4">
-          {items.map(item => {
-            const isLiked = user && item.likedBy?.includes(user.id);
-            const isOwner = user && item.userId === user.id;
-            
-            return (
-              <div key={item.id} className="break-inside-avoid bg-white rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 border border-slate-100 overflow-hidden group hover:-translate-y-1 relative">
-                
-                {/* 削除ボタン */}
-                {isOwner && (
-                  <button 
-                    onClick={() => handleDelete(item.id)}
-                    className="absolute top-2 right-2 bg-white/90 text-slate-400 hover:text-red-500 p-1.5 rounded-full shadow-sm opacity-0 group-hover:opacity-100 transition-all z-10 hover:rotate-90"
-                  >
-                    <FiTrash2 size={14} />
+
+        <div className="flex flex-col sm:flex-row items-center gap-4">
+          <AnimatePresence>
+            {previewUrl ? (
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}
+                className="relative w-32 h-32 rounded-[1.5rem] overflow-hidden border-4 border-white shadow-md group shrink-0"
+              >
+                <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />
+                <div className="absolute inset-0 bg-slate-900/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  <button type="button" onClick={removeImage} disabled={isUploading} className="bg-rose-500 text-white p-2 rounded-full hover:bg-rose-600 transition-transform hover:scale-110 shadow-lg">
+                    <X size={16} />
                   </button>
-                )}
-
-                <div 
-                    className="relative cursor-zoom-in bg-slate-100"
-                    onClick={() => setSelectedImage(item.imageUrl)}
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img 
-                    src={item.imageUrl} 
-                    alt={item.comment || 'Idea'} 
-                    className="w-full h-auto object-cover block"
-                    loading="lazy"
-                  />
-                  <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <FiZoomIn className="text-white text-2xl drop-shadow-md" />
-                  </div>
                 </div>
+              </motion.div>
+            ) : (
+              <motion.label 
+                initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
+                className="w-full sm:w-32 h-32 rounded-[1.5rem] border-2 border-dashed border-pink-200 bg-pink-50/50 flex flex-col items-center justify-center cursor-pointer hover:bg-pink-50 hover:border-pink-300 transition-all group shrink-0"
+              >
+                <UploadCloud className="text-pink-300 group-hover:text-pink-500 group-hover:-translate-y-1 transition-all duration-300 mb-2" size={28} />
+                <span className="text-[10px] font-black text-pink-400 uppercase tracking-widest">Image</span>
+                <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageChange} disabled={isUploading} className="hidden" />
+              </motion.label>
+            )}
+          </AnimatePresence>
 
-                <div className="p-3">
-                  {item.comment && (
-                    <p className="text-xs text-slate-700 font-medium mb-3 leading-relaxed break-words">
-                      {item.comment}
-                    </p>
-                  )}
-
-                  <div className="flex justify-between items-center pt-2 border-t border-slate-50">
-                    <div className="flex items-center gap-1.5 overflow-hidden">
-                      {item.userIcon ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={item.userIcon} alt="" className="w-5 h-5 rounded-full object-cover border border-slate-100 shrink-0"/>
-                      ) : (
-                        <div className="w-5 h-5 rounded-full bg-slate-200 flex items-center justify-center text-slate-400 shrink-0"><FiUser size={10}/></div>
-                      )}
-                      <span className="text-[10px] text-slate-500 truncate max-w-[80px]">{item.userName || 'Guest'}</span>
-                    </div>
-                    
-                    <button
-                      onClick={(e) => {
-                          e.stopPropagation(); 
-                          handleLike(item.id);
-                      }}
-                      className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs transition-all active:scale-90 ${
-                          isLiked 
-                          ? 'bg-pink-50 text-pink-500 font-bold' 
-                          : 'bg-slate-50 text-slate-400 hover:bg-pink-50 hover:text-pink-400'
-                      }`}
-                    >
-                      <FiHeart className={isLiked ? 'fill-pink-500' : ''} />
-                      <span>{item.likes > 0 ? item.likes : ''}</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+          <div className="flex-1 flex justify-end w-full">
+            <motion.button 
+              whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+              type="submit" 
+              disabled={isUploading || (!imageFile && !comment.trim())}
+              className={cn(
+                "w-full sm:w-auto px-8 py-4 rounded-2xl font-black text-sm flex items-center justify-center gap-2 shadow-lg transition-all",
+                isUploading || (!imageFile && !comment.trim()) 
+                  ? 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none' 
+                  : 'bg-gradient-to-r from-pink-500 to-rose-500 text-white hover:shadow-pink-300'
+              )}
+            >
+              {isUploading ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
+              {isUploading ? '送信中...' : 'ムードボードに投稿'}
+            </motion.button>
+          </div>
         </div>
-      )}
+      </form>
     </div>
   );
 }

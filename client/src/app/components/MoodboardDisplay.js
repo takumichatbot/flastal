@@ -2,22 +2,22 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { FiHeart, FiZoomIn, FiImage, FiUser } from 'react-icons/fi';
+import { FiHeart, FiZoomIn, FiImage, FiUser, FiTrash2 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import ImageModal from './ImageModal'; 
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
 export default function MoodboardDisplay({ projectId }) {
-  const { user } = useAuth();
+  const { user, authenticatedFetch } = useAuth();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedImage, setSelectedImage] = useState(null); 
+  const [selectedImage, setSelectedImage] = useState(null);
 
   const fetchItems = useCallback(async () => {
     if(items.length === 0) setLoading(true);
     try {
-      // ★修正: /api/project-details/projects/... に変更
+      // ★修正: 取得先を /api/project-details/projects/... に変更
       const res = await fetch(`${API_URL}/api/project-details/projects/${projectId}/moodboard`);
       if (!res.ok) throw new Error('取得失敗');
       const data = await res.json();
@@ -53,20 +53,32 @@ export default function MoodboardDisplay({ projectId }) {
     }));
 
     try {
-      const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
-      // ★修正: /api/project-details/moodboard/... に変更
-      const res = await fetch(`${API_URL}/api/project-details/moodboard/${itemId}/like`, {
+      // ★修正: いいね先を /api/project-details/moodboard/... に変更
+      const res = await authenticatedFetch(`${API_URL}/api/project-details/moodboard/${itemId}/like`, {
         method: 'PATCH',
-        headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-        }
       });
 
       if (!res.ok) throw new Error('API Error');
     } catch (error) {
       setItems(previousItems);
       toast.error('いいねに失敗しました');
+    }
+  };
+
+  const handleDelete = async (itemId) => {
+    if (!window.confirm('この投稿を削除しますか？')) return;
+    
+    try {
+      // ★修正: 削除先を /api/project-details/moodboard/... に変更
+      const res = await authenticatedFetch(`${API_URL}/api/project-details/moodboard/${itemId}`, {
+        method: 'DELETE',
+      });
+
+      if (!res.ok) throw new Error('削除失敗');
+      toast.success('削除しました');
+      fetchItems();
+    } catch (error) {
+      toast.error('削除に失敗しました');
     }
   };
 
@@ -114,10 +126,21 @@ export default function MoodboardDisplay({ projectId }) {
         <div className="columns-2 md:columns-3 lg:columns-4 gap-4 space-y-4">
           {items.map(item => {
             const isLiked = user && item.likedBy?.includes(user.id);
+            const isOwner = user && item.userId === user.id;
             
             return (
-              <div key={item.id} className="break-inside-avoid bg-white rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 border border-slate-100 overflow-hidden group hover:-translate-y-1">
+              <div key={item.id} className="break-inside-avoid bg-white rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 border border-slate-100 overflow-hidden group hover:-translate-y-1 relative">
                 
+                {/* 削除ボタン */}
+                {isOwner && (
+                  <button 
+                    onClick={() => handleDelete(item.id)}
+                    className="absolute top-2 right-2 bg-white/90 text-slate-400 hover:text-red-500 p-1.5 rounded-full shadow-sm opacity-0 group-hover:opacity-100 transition-all z-10 hover:rotate-90"
+                  >
+                    <FiTrash2 size={14} />
+                  </button>
+                )}
+
                 <div 
                     className="relative cursor-zoom-in bg-slate-100"
                     onClick={() => setSelectedImage(item.imageUrl)}
