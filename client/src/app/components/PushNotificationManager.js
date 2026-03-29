@@ -33,6 +33,7 @@ export default function PushNotificationManager() {
   const [isVisible, setIsVisible] = useState(true);
 
   useEffect(() => {
+    // 基本的なサポートチェック
     if (typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window) {
       setIsSupported(true);
       checkSubscription();
@@ -59,41 +60,51 @@ export default function PushNotificationManager() {
     let toastId = toast.loading('通知を設定中...');
 
     try {
-      // 1. ブラウザサポートチェック (iOS SafariのPWA外などでのクラッシュを防止)
+      // 1. サポートチェック
       if (!('Notification' in window)) {
-        throw new Error('お使いのブラウザはプッシュ通知をサポートしていません。\niPhoneの場合は「ホーム画面に追加」からアプリを開いてお試しください。');
+        throw new Error('お使いのブラウザはプッシュ通知をサポートしていません。');
       }
 
-      // 2. 通知の許可をリクエスト (新旧Safari両方の仕様に対応)
+      // 2. 許可リクエスト (コールバック互換性対応)
       let permission = Notification.permission;
-      if (permission !== 'granted') {
+      if (permission === 'default') {
         permission = await new Promise((resolve) => {
           const result = Notification.requestPermission(resolve);
-          if (result && result.then) {
-              result.then(resolve);
-          }
+          if (result && result.then) result.then(resolve);
         });
       }
-
+      
       if (permission !== 'granted') {
-        throw new Error('通知がブロックされています。設定から許可してください。');
+        throw new Error('通知がブロックされています。端末の設定から許可してください。');
       }
 
-      // 3. Service Workerの登録と待機
-      const registration = await navigator.serviceWorker.register('/sw.js');
-      await navigator.serviceWorker.ready; 
+      toast.loading('通信設定を準備中...', { id: toastId });
+
+      // 3. Service Worker の取得・登録
+      let registration = await navigator.serviceWorker.getRegistration();
+      if (!registration) {
+        registration = await navigator.serviceWorker.register('/sw.js');
+      }
+
+      // ★ 修正ポイント: 永遠にフリーズするのを防ぐため、5秒でタイムアウトさせる
+      registration = await Promise.race([
+        navigator.serviceWorker.ready,
+        new Promise((_, reject) => setTimeout(() => reject(new Error('バックグラウンド処理の準備がタイムアウトしました。ページを更新して再試行してください。')), 5000))
+      ]);
 
       if (!registration || !registration.pushManager) {
-        throw new Error('プッシュ通知がサポートされていない環境です。');
+        throw new Error('プッシュ通知がサポートされていない環境です。\niPhoneの場合は「ホーム画面に追加」から開いてください。');
       }
 
-      // 4. Push Managerへのサブスクライブ
+      toast.loading('サーバーへ登録中...', { id: toastId });
+
+      // 4. サブスクライブ
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(PUBLIC_KEY)
       });
 
-      // 5. サーバーへ登録情報を送信
+      // 5. サーバー送信
       const res = await authenticatedFetch(`${API_URL}/api/tools/subscribe-push`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -110,8 +121,8 @@ export default function PushNotificationManager() {
       setTimeout(() => { setIsVisible(false); setIsSubscribed(true); }, 2500);
 
     } catch (error) {
-      console.error('Push Notification Error:', error);
-      toast.error(error.message || '登録に失敗しました', { id: toastId });
+      console.error('Push Error:', error);
+      toast.error(error.message || '登録に失敗しました', { id: toastId, duration: 6000 });
     } finally {
       setLoading(false);
     }
