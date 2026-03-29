@@ -37,12 +37,11 @@ export default function MoodboardPostForm({ projectId, onPostSuccess }) {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  // ★ 修正: 正しいエンドポイント /api/tools/upload-image に変更
   const uploadImage = async (file) => {
     const formData = new FormData();
     formData.append('image', file);
 
-    const res = await authenticatedFetch(`${API_URL}/api/tools/upload-image`, {
+    const res = await authenticatedFetch(`${API_URL}/api/upload`, {
       method: 'POST',
       body: formData, 
     });
@@ -53,7 +52,7 @@ export default function MoodboardPostForm({ projectId, onPostSuccess }) {
     }
 
     const data = await res.json();
-    return data.url; // ★ 修正: ツールコントローラーの返り値は { url: '...' } になっています
+    return data.imageUrl; 
   };
 
   const handleSubmit = async (e) => {
@@ -68,12 +67,10 @@ export default function MoodboardPostForm({ projectId, onPostSuccess }) {
     try {
       let finalImageUrl = "";
 
-      // 1. 画像があればアップロード
       if (imageFile) {
         finalImageUrl = await uploadImage(imageFile);
       }
 
-      // 2. ムードボードに投稿データを送信
       const payload = {
           comment: comment.trim(),
       };
@@ -82,7 +79,8 @@ export default function MoodboardPostForm({ projectId, onPostSuccess }) {
           payload.imageUrl = finalImageUrl;
       }
 
-      const res = await authenticatedFetch(`${API_URL}/api/projects/${projectId}/moodboard`, {
+      // ★修正: 正しいAPIエンドポイント（/api/project-details/...）に変更
+      const res = await authenticatedFetch(`${API_URL}/api/project-details/projects/${projectId}/moodboard`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -90,7 +88,7 @@ export default function MoodboardPostForm({ projectId, onPostSuccess }) {
 
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.message || `投稿に失敗しました (ステータス: ${res.status})`);
+        throw new Error(errData.message || `投稿に失敗しました`);
       }
 
       toast.success('投稿しました！✨', { id: toastId });

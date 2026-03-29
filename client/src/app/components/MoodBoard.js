@@ -2,18 +2,18 @@
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { FiPlus, FiHeart, FiTrash2, FiImage, FiZoomIn, FiLoader } from 'react-icons/fi';
-import ImageModal from './ImageModal'; // 既存のモーダルを再利用
+import ImageModal from './ImageModal'; 
 
 export default function MoodBoard({ projectId, user }) {
   const [items, setItems] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
   const [comment, setComment] = useState('');
-  const [selectedImage, setSelectedImage] = useState(null); // モーダル表示用
+  const [selectedImage, setSelectedImage] = useState(null); 
 
-  // データ取得
   const fetchItems = async () => {
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/projects/${projectId}/moodboard`);
+      // ★修正: /api/project-details/projects/... に変更
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/project-details/projects/${projectId}/moodboard`);
       if (res.ok) setItems(await res.json());
     } catch (e) { console.error(e); }
   };
@@ -22,12 +22,10 @@ export default function MoodBoard({ projectId, user }) {
     fetchItems();
   }, [projectId]);
 
-  // アップロード処理
   const handleUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    // ファイルサイズチェック (5MB)
     if (file.size > 5 * 1024 * 1024) {
         toast.error('ファイルサイズは5MB以下にしてください');
         return;
@@ -40,7 +38,6 @@ export default function MoodBoard({ projectId, user }) {
       const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
       if (!token) throw new Error('ログインが必要です');
       
-      // 1. 画像アップロード
       const formData = new FormData();
       formData.append('image', file);
       const uploadRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/upload`, {
@@ -49,23 +46,23 @@ export default function MoodBoard({ projectId, user }) {
         body: formData
       });
       if (!uploadRes.ok) throw new Error('画像のアップロード失敗');
-      const { url } = await uploadRes.json();
+      const { imageUrl } = await uploadRes.json();
 
-      // 2. ムードボードに追加
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/projects/${projectId}/moodboard`, {
+      // ★修正: /api/project-details/projects/... に変更
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/project-details/projects/${projectId}/moodboard`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json', 
           'Authorization': `Bearer ${token}` 
         },
-        body: JSON.stringify({ imageUrl: url, comment: comment })
+        body: JSON.stringify({ imageUrl: imageUrl, comment: comment })
       });
 
       if (!res.ok) throw new Error('追加失敗');
       
       toast.success('イメージを追加しました！', { id: toastId });
       setComment('');
-      e.target.value = ''; // inputリセット
+      e.target.value = ''; 
       fetchItems();
 
     } catch (error) {
@@ -75,12 +72,10 @@ export default function MoodBoard({ projectId, user }) {
     }
   };
 
-  // いいね処理
   const handleLike = async (itemId) => {
     const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
     if (!token) return toast.error('ログインしてください');
 
-    // 楽観的UI更新 (サーバーレスポンスを待たずにUI更新)
     setItems(prevItems => prevItems.map(item => {
         if (item.id === itemId) {
             const isLiked = item.likedBy?.includes(user?.id);
@@ -94,25 +89,25 @@ export default function MoodBoard({ projectId, user }) {
     }));
 
     try {
-        await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/moodboard/${itemId}/like`, {
+        // ★修正: /api/project-details/moodboard/... に変更
+        await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/project-details/moodboard/${itemId}/like`, {
             method: 'PATCH',
             headers: { 'Authorization': `Bearer ${token}` }
         });
-        // 成功したらサイレントに再フェッチして整合性を取る
         fetchItems(); 
     } catch (e) {
         console.error(e);
-        fetchItems(); // 失敗したら元に戻す
+        fetchItems(); 
     }
   };
 
-  // 削除処理
   const handleDelete = async (itemId) => {
     if (!confirm('この画像をボードから削除しますか？')) return;
     const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
     
     try {
-        await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/moodboard/${itemId}`, {
+        // ★修正: /api/project-details/moodboard/... に変更
+        await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/project-details/moodboard/${itemId}`, {
             method: 'DELETE',
             headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -126,12 +121,10 @@ export default function MoodBoard({ projectId, user }) {
   return (
     <div className="bg-white rounded-3xl border border-indigo-100 shadow-xl overflow-hidden">
       
-      {/* モーダル */}
       {selectedImage && (
         <ImageModal src={selectedImage} onClose={() => setSelectedImage(null)} />
       )}
 
-      {/* ヘッダー */}
       <div className="bg-gradient-to-r from-indigo-500 to-purple-600 p-6 text-white">
         <h3 className="font-bold text-xl flex items-center gap-2">
            📌 Vision Board <span className="text-xs bg-white/20 px-2 py-1 rounded-full font-normal">イメージ共有</span>
@@ -142,7 +135,6 @@ export default function MoodBoard({ projectId, user }) {
       </div>
 
       <div className="p-6 bg-slate-50 min-h-[300px]">
-        {/* 投稿フォーム */}
         {user && (
             <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 mb-8 flex flex-col md:flex-row gap-3 items-stretch">
                 <label className={`cursor-pointer bg-slate-100 hover:bg-slate-200 text-slate-600 px-6 rounded-lg border-2 border-dashed border-slate-300 font-bold text-sm flex items-center justify-center transition-all ${isUploading ? 'opacity-50 cursor-not-allowed' : ''}`}>
@@ -163,7 +155,6 @@ export default function MoodBoard({ projectId, user }) {
             </div>
         )}
 
-        {/* ボード一覧 */}
         {items.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center border-2 border-dashed border-slate-300 rounded-2xl bg-white/50">
                 <div className="bg-indigo-50 p-4 rounded-full mb-3">
@@ -177,7 +168,6 @@ export default function MoodBoard({ projectId, user }) {
                 {items.map(item => (
                     <div key={item.id} className="group relative bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 border border-slate-100 hover:-translate-y-1">
                         
-                        {/* 画像エリア */}
                         <div 
                             className="aspect-square relative cursor-zoom-in overflow-hidden bg-slate-200"
                             onClick={() => setSelectedImage(item.imageUrl)}
@@ -189,7 +179,6 @@ export default function MoodBoard({ projectId, user }) {
                                 className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
                             />
                             
-                            {/* オーバーレイアクション */}
                             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center gap-2">
                                 <span className="bg-white/20 backdrop-blur text-white p-2 rounded-full">
                                     <FiZoomIn size={20} />
@@ -197,7 +186,6 @@ export default function MoodBoard({ projectId, user }) {
                             </div>
                         </div>
                         
-                        {/* キャプション & アクション */}
                         <div className="p-3">
                             {item.comment && (
                                 <p className="text-xs font-bold text-slate-700 mb-2 leading-relaxed break-words">
@@ -206,7 +194,6 @@ export default function MoodBoard({ projectId, user }) {
                             )}
                             
                             <div className="flex justify-between items-center pt-2 border-t border-slate-50">
-                                {/* 投稿者 */}
                                 <div className="flex items-center gap-1.5 opacity-70">
                                     {item.userIcon ? (
                                         // eslint-disable-next-line @next/next/no-img-element
@@ -219,7 +206,6 @@ export default function MoodBoard({ projectId, user }) {
                                     </span>
                                 </div>
                                 
-                                {/* いいねボタン */}
                                 <button 
                                     onClick={(e) => { e.stopPropagation(); handleLike(item.id); }}
                                     className={`flex items-center gap-1 text-xs px-2 py-1 rounded-full transition-all active:scale-95 ${
@@ -234,7 +220,6 @@ export default function MoodBoard({ projectId, user }) {
                             </div>
                         </div>
 
-                        {/* 削除ボタン (右上に配置) */}
                         {user && item.userId === user.id && (
                             <button 
                                 onClick={(e) => { e.stopPropagation(); handleDelete(item.id); }}

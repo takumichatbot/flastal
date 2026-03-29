@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { FiHeart, FiZoomIn, FiImage, FiUser } from 'react-icons/fi';
 import toast from 'react-hot-toast';
-import ImageModal from './ImageModal'; // ★ 作成済みのモーダルをインポート
+import ImageModal from './ImageModal'; 
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -12,19 +12,18 @@ export default function MoodboardDisplay({ projectId }) {
   const { user } = useAuth();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedImage, setSelectedImage] = useState(null); // モーダル用
+  const [selectedImage, setSelectedImage] = useState(null); 
 
   const fetchItems = useCallback(async () => {
-    // 初回のみローディング表示（いいね等の再取得時は表示しない）
     if(items.length === 0) setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/api/projects/${projectId}/moodboard`);
+      // ★修正: /api/project-details/projects/... に変更
+      const res = await fetch(`${API_URL}/api/project-details/projects/${projectId}/moodboard`);
       if (!res.ok) throw new Error('取得失敗');
       const data = await res.json();
       setItems(data);
     } catch (error) {
       console.error(error);
-      // 静かに失敗させる（トーストは出さない）
     } finally {
       setLoading(false);
     }
@@ -34,14 +33,11 @@ export default function MoodboardDisplay({ projectId }) {
     fetchItems();
   }, [fetchItems]);
 
-  // いいね処理（楽観的UI更新）
   const handleLike = async (itemId) => {
     if (!user) return toast.error('いいねするにはログインが必要です');
     
-    // 1. 現在の状態を保存（ロールバック用）
     const previousItems = [...items];
 
-    // 2. UIを先に更新（Optimistic Update）
     setItems(prevItems => prevItems.map(item => {
       if (item.id === itemId) {
         const wasLiked = item.likedBy.includes(user.id);
@@ -58,7 +54,8 @@ export default function MoodboardDisplay({ projectId }) {
 
     try {
       const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
-      const res = await fetch(`${API_URL}/api/moodboard/${itemId}/like`, {
+      // ★修正: /api/project-details/moodboard/... に変更
+      const res = await fetch(`${API_URL}/api/project-details/moodboard/${itemId}/like`, {
         method: 'PATCH',
         headers: {
             'Authorization': `Bearer ${token}`,
@@ -67,12 +64,7 @@ export default function MoodboardDisplay({ projectId }) {
       });
 
       if (!res.ok) throw new Error('API Error');
-      
-      // 成功時はサイレントに整合性を取るために再フェッチしても良いが、
-      // ここではレスポンスを使わず楽観的更新のままで完了とする
-
     } catch (error) {
-      // 失敗したら元に戻す
       setItems(previousItems);
       toast.error('いいねに失敗しました');
     }
@@ -95,7 +87,6 @@ export default function MoodboardDisplay({ projectId }) {
 
   return (
     <div className="mt-12">
-      {/* モーダル表示 */}
       {selectedImage && (
         <ImageModal src={selectedImage} onClose={() => setSelectedImage(null)} />
       )}
@@ -120,7 +111,6 @@ export default function MoodboardDisplay({ projectId }) {
           <p className="text-xs mt-1">最初の1枚を投稿して企画を盛り上げましょう！</p>
         </div>
       ) : (
-        /* Pinterest風レイアウト (CSS Columnsを使用) */
         <div className="columns-2 md:columns-3 lg:columns-4 gap-4 space-y-4">
           {items.map(item => {
             const isLiked = user && item.likedBy?.includes(user.id);
@@ -128,7 +118,6 @@ export default function MoodboardDisplay({ projectId }) {
             return (
               <div key={item.id} className="break-inside-avoid bg-white rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 border border-slate-100 overflow-hidden group hover:-translate-y-1">
                 
-                {/* 画像エリア (クリックで拡大) */}
                 <div 
                     className="relative cursor-zoom-in bg-slate-100"
                     onClick={() => setSelectedImage(item.imageUrl)}
@@ -140,13 +129,11 @@ export default function MoodboardDisplay({ projectId }) {
                     className="w-full h-auto object-cover block"
                     loading="lazy"
                   />
-                  {/* ホバー時のオーバーレイ */}
                   <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                     <FiZoomIn className="text-white text-2xl drop-shadow-md" />
                   </div>
                 </div>
 
-                {/* 情報エリア */}
                 <div className="p-3">
                   {item.comment && (
                     <p className="text-xs text-slate-700 font-medium mb-3 leading-relaxed break-words">
@@ -165,10 +152,9 @@ export default function MoodboardDisplay({ projectId }) {
                       <span className="text-[10px] text-slate-500 truncate max-w-[80px]">{item.userName || 'Guest'}</span>
                     </div>
                     
-                    {/* いいねボタン */}
                     <button
                       onClick={(e) => {
-                          e.stopPropagation(); // 親要素へのバブリング停止
+                          e.stopPropagation(); 
                           handleLike(item.id);
                       }}
                       className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs transition-all active:scale-90 ${
