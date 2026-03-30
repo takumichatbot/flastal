@@ -159,7 +159,6 @@ function InstructionSheetModal({ project, onClose }) {
   );
 }
 
-// ★ 新規: 見積もり承認・発注モーダル
 function QuotationApprovalModal({ project, user, onClose, onUpdate }) {
   const [approvalMethod, setApprovalMethod] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -212,7 +211,6 @@ function QuotationApprovalModal({ project, user, onClose, onUpdate }) {
         </div>
         
         <div className="p-5 md:p-8 overflow-y-auto bg-slate-50/50 space-y-5">
-            {/* 金額サマリー */}
             <div className="bg-white p-5 md:p-6 rounded-2xl border border-slate-200 shadow-sm flex justify-between items-center relative overflow-hidden">
                 <div className="absolute top-0 left-0 w-1 h-full bg-pink-500"></div>
                 <div>
@@ -228,7 +226,6 @@ function QuotationApprovalModal({ project, user, onClose, onUpdate }) {
             <h3 className="font-black text-slate-700 text-xs md:text-sm uppercase tracking-widest">支払い方法の選択</h3>
             
             <form id="approvalForm" onSubmit={handleApprove} className="space-y-3">
-                {/* 1. FULL */}
                 <label className={cn("block p-4 md:p-5 border-2 rounded-2xl cursor-pointer transition-all relative overflow-hidden", canFull ? (approvalMethod === 'FULL' ? 'border-sky-500 bg-sky-50/30 shadow-md ring-4 ring-sky-50' : 'border-slate-200 bg-white hover:border-sky-300') : 'border-slate-100 bg-slate-50 opacity-50 cursor-not-allowed')}>
                     <input type="radio" value="FULL" disabled={!canFull} checked={approvalMethod === 'FULL'} onChange={(e)=>setApprovalMethod(e.target.value)} className="hidden" />
                     <div className="flex justify-between items-start">
@@ -240,7 +237,6 @@ function QuotationApprovalModal({ project, user, onClose, onUpdate }) {
                     </div>
                 </label>
 
-                {/* 2. GUARANTEE (立替) */}
                 {shortfall > 0 && (
                     <label className={cn("block p-4 md:p-5 border-2 rounded-2xl cursor-pointer transition-all relative overflow-hidden", canGuarantee ? (approvalMethod === 'GUARANTEE' ? 'border-pink-500 bg-pink-50/30 shadow-md ring-4 ring-pink-50' : 'border-slate-200 bg-white hover:border-pink-300') : 'border-slate-100 bg-slate-50 opacity-50 cursor-not-allowed')}>
                         <input type="radio" value="GUARANTEE" disabled={!canGuarantee} checked={approvalMethod === 'GUARANTEE'} onChange={(e)=>setApprovalMethod(e.target.value)} className="hidden" />
@@ -254,7 +250,6 @@ function QuotationApprovalModal({ project, user, onClose, onUpdate }) {
                     </label>
                 )}
 
-                {/* 3. FLEXIBLE (おまかせ) */}
                 {shortfall > 0 && (
                     <label className={cn("block p-4 md:p-5 border-2 rounded-2xl cursor-pointer transition-all relative overflow-hidden", canFlexible ? (approvalMethod === 'FLEXIBLE' ? 'border-emerald-500 bg-emerald-50/30 shadow-md ring-4 ring-emerald-50' : 'border-slate-200 bg-white hover:border-emerald-300') : 'border-slate-100 bg-slate-50 opacity-50 cursor-not-allowed')}>
                         <input type="radio" value="FLEXIBLE" disabled={!canFlexible} checked={approvalMethod === 'FLEXIBLE'} onChange={(e)=>setApprovalMethod(e.target.value)} className="hidden" />
@@ -473,7 +468,7 @@ export default function ProjectDetailClient() {
   const [isInstructionModalOpen, setIsInstructionModalOpen] = useState(false);
   const [isArModalOpen, setIsArModalOpen] = useState(false);
   const [isMaterialModalOpen, setIsMaterialModalOpen] = useState(false);
-  const [isQuotationModalOpen, setIsQuotationModalOpen] = useState(false); // ★ 新規: 見積もり承認モーダル
+  const [isQuotationModalOpen, setIsQuotationModalOpen] = useState(false); 
 
   // Forms state
   const [showAnnouncementForm, setShowAnnouncementForm] = useState(false);
@@ -987,8 +982,7 @@ export default function ProjectDetailClient() {
                                                             <p className="text-xs font-bold text-slate-500 mb-6">入稿データなどをアップロードします。</p>
                                                         </div>
                                                         <PanelPreviewer onImageSelected={(file) => handleUpload({ target: { files: [file] } }, 'illustration')} />
-        
-                                                        {/* ▼ 追加: アップロードされた画像を表示するエリア ▼ */}
+                                                        
                                                         {project.illustrationPanelUrls?.length > 0 && (
                                                             <div className="mt-4 pt-4 border-t border-slate-200">
                                                                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">提出済みデータ</p>
@@ -1099,7 +1093,6 @@ export default function ProjectDetailClient() {
                           <button onClick={()=>setIsTargetAmountModalOpen(true)} className="w-full text-left p-3 bg-white/10 hover:bg-white/20 rounded-lg text-xs md:text-sm font-bold text-white transition-colors flex items-center"><DollarSign className="mr-2.5 text-emerald-400" size={14}/> 目標金額の変更</button>
                           <Link href={`/projects/edit/${id}`} className="w-full text-left p-3 bg-white/10 hover:bg-white/20 rounded-lg text-xs md:text-sm font-bold text-white transition-colors flex items-center"><Edit3 className="mr-2.5 text-sky-400" size={14}/> 企画内容の編集</Link>
                           
-                          {/* ★ 修正: 安全なプロパティ参照 */}
                           {project?.quotation && project.quotation.isApproved === false ? (
                               <button onClick={()=>setIsQuotationModalOpen(true)} className="w-full mt-3 bg-gradient-to-r from-pink-500 to-rose-500 text-white p-3 rounded-lg text-sm font-black transition-transform hover:scale-[1.02] shadow-md flex items-center justify-center gap-2">
                                   <FileText size={16}/> 見積もりを承認して発注
@@ -1164,7 +1157,7 @@ export default function ProjectDetailClient() {
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 bg-slate-900/80 flex justify-center items-center z-[100] p-4 backdrop-blur-md"
           >
-            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="bg-white rounded-[3rem] w-full max-w-lg overflow-hidden relative shadow-2xl flex flex-col max-h-[90vh] border border-white"></motion.div>
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="bg-white rounded-[3rem] w-full max-w-lg overflow-hidden relative shadow-2xl flex flex-col max-h-[90vh] border border-white">
               <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
                   <h3 className="font-black text-lg text-slate-800 flex items-center"><Box className="mr-2 text-indigo-500"/> ARシミュレーター</h3>
                   <button onClick={() => setIsArModalOpen(false)} className="bg-white hover:bg-slate-100 rounded-full p-2 transition-colors shadow-sm"><X size={20}/></button>
@@ -1200,7 +1193,7 @@ export default function ProjectDetailClient() {
                 )}
               </div>
             </motion.div>
-          </div>
+          </motion.div>
         )}
       </AnimatePresence>
 
