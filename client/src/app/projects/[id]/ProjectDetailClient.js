@@ -987,6 +987,20 @@ export default function ProjectDetailClient() {
                                                             <p className="text-xs font-bold text-slate-500 mb-6">入稿データなどをアップロードします。</p>
                                                         </div>
                                                         <PanelPreviewer onImageSelected={(file) => handleUpload({ target: { files: [file] } }, 'illustration')} />
+        
+                                                        {/* ▼ 追加: アップロードされた画像を表示するエリア ▼ */}
+                                                        {project.illustrationPanelUrls?.length > 0 && (
+                                                            <div className="mt-4 pt-4 border-t border-slate-200">
+                                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">提出済みデータ</p>
+                                                                <div className="flex flex-wrap gap-2">
+                                                                    {project.illustrationPanelUrls.map((url, i) => (
+                                                                        <div key={i} className="relative w-16 h-16 rounded-lg overflow-hidden border border-slate-200 shadow-sm cursor-zoom-in hover:scale-105 transition-transform" onClick={()=>{setModalImageSrc(url); setIsImageModalOpen(true)}}>
+                                                                            <Image src={url} alt={`提出データ ${i}`} fill className="object-cover" />
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        )}
                                                     </AppCard>
                                                 )}
                                             </div>
@@ -1085,8 +1099,8 @@ export default function ProjectDetailClient() {
                           <button onClick={()=>setIsTargetAmountModalOpen(true)} className="w-full text-left p-3 bg-white/10 hover:bg-white/20 rounded-lg text-xs md:text-sm font-bold text-white transition-colors flex items-center"><DollarSign className="mr-2.5 text-emerald-400" size={14}/> 目標金額の変更</button>
                           <Link href={`/projects/edit/${id}`} className="w-full text-left p-3 bg-white/10 hover:bg-white/20 rounded-lg text-xs md:text-sm font-bold text-white transition-colors flex items-center"><Edit3 className="mr-2.5 text-sky-400" size={14}/> 企画内容の編集</Link>
                           
-                          {/* ★ 新規: 見積もりが来ていて未承認なら「見積もり承認」ボタンを表示 */}
-                          {project.quotation && !project.quotation.isApproved ? (
+                          {/* ★ 修正: 安全なプロパティ参照 */}
+                          {project?.quotation && project.quotation.isApproved === false ? (
                               <button onClick={()=>setIsQuotationModalOpen(true)} className="w-full mt-3 bg-gradient-to-r from-pink-500 to-rose-500 text-white p-3 rounded-lg text-sm font-black transition-transform hover:scale-[1.02] shadow-md flex items-center justify-center gap-2">
                                   <FileText size={16}/> 見積もりを承認して発注
                               </button>
@@ -1146,8 +1160,11 @@ export default function ProjectDetailClient() {
         
         {/* AR Modal */}
         {isArModalOpen && (
-          <div className="fixed inset-0 bg-slate-900/80 flex justify-center items-center z-50 p-4 backdrop-blur-md">
-            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="bg-white rounded-[3rem] w-full max-w-lg overflow-hidden relative shadow-2xl flex flex-col max-h-[90vh] border border-white">
+          <motion.div 
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-slate-900/80 flex justify-center items-center z-[100] p-4 backdrop-blur-md"
+          >
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="bg-white rounded-[3rem] w-full max-w-lg overflow-hidden relative shadow-2xl flex flex-col max-h-[90vh] border border-white"></motion.div>
               <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
                   <h3 className="font-black text-lg text-slate-800 flex items-center"><Box className="mr-2 text-indigo-500"/> ARシミュレーター</h3>
                   <button onClick={() => setIsArModalOpen(false)} className="bg-white hover:bg-slate-100 rounded-full p-2 transition-colors shadow-sm"><X size={20}/></button>
