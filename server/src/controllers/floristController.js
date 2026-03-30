@@ -8,15 +8,10 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 // ★★★ 1. お花屋さん検索・取得 ★★★
 // ==========================================
 
-/**
- * ログイン中のお花屋さん自身の情報を取得
- * 【超重要】DB再検索に失敗するため、認証済みのユーザー情報をそのまま返却する方式へ変更
- */
 export const getFloristProfile = async (req, res) => {
     try {
         const floristId = req.user.id; 
 
-        // 1. 花屋の基本情報とオファーを取得
         const florist = await prisma.florist.findUnique({
             where: { id: floristId },
             include: {
@@ -24,11 +19,8 @@ export const getFloristProfile = async (req, res) => {
                     include: {
                         project: {
                             select: {
-                                id: true,
-                                title: true,
-                                targetAmount: true,
-                                deliveryDateTime: true,
-                                productionStatus: true
+                                id: true, title: true, targetAmount: true,
+                                deliveryDateTime: true, productionStatus: true
                             }
                         }
                     },
@@ -37,18 +29,14 @@ export const getFloristProfile = async (req, res) => {
             }
         });
 
-        // ★レポート対応: 見つからない場合は role 不一致の可能性を考慮
         if (!florist) {
             console.warn(`[Florist Error] ID: ${floristId} not found in florist table. User Role: ${req.user.role}`);
             return res.status(404).json({ message: 'お花屋さん情報が見つかりません。アカウント権限を確認してください。' });
         }
 
-        // 2. 制作アピール投稿を取得
         const appealPosts = await prisma.floristPost.findMany({
             where: { floristId: floristId },
-            include: {
-                _count: { select: { likes: true } } 
-            },
+            include: { _count: { select: { likes: true } } },
             orderBy: { createdAt: 'desc' }
         });
 
@@ -68,7 +56,6 @@ export const getFloristProfile = async (req, res) => {
     }
 };
 
-// ★追加1: 投稿の更新 (公開/非公開の切り替え)
 export const updateFloristPost = async (req, res) => {
     const { id } = req.params;
     const floristId = req.user.id;
@@ -97,7 +84,6 @@ export const updateFloristPost = async (req, res) => {
     }
 };
 
-// ★追加2: 投稿の削除
 export const deleteFloristPost = async (req, res) => {
     const { id } = req.params;
     const floristId = req.user.id;
@@ -118,18 +104,13 @@ export const deleteFloristPost = async (req, res) => {
     }
 };
 
-// ★追加: トップページ用・全お花屋さんの最新投稿を取得
 export const getRecentFloristPosts = async (req, res) => {
     try {
         const posts = await prisma.floristPost.findMany({
-            where: { isPublic: true }, // 公開のものだけ
-            include: {
-                florist: {
-                    select: { id: true, platformName: true, iconUrl: true }
-                }
-            },
-            orderBy: { createdAt: 'desc' }, // 新しい順
-            take: 8 // 最新8件を取得
+            where: { isPublic: true },
+            include: { florist: { select: { id: true, platformName: true, iconUrl: true } } },
+            orderBy: { createdAt: 'desc' },
+            take: 8
         });
         res.json(posts);
     } catch (error) {
@@ -321,9 +302,12 @@ export const createQuotation = async (req, res) => {
     }
 };
 
+// ★★★ 劇的進化: 承認方法を自由に選べる見積もり承認機能 ★★★
 export const approveQuotation = async (req, res) => {
     const { id } = req.params;
     const userId = req.user.id;
+    // フロントから送られる承認方法 ( 'FULL' | 'GUARANTEE' | 'FLEXIBLE' )
+    const { approvalMethod = 'FULL' } = req.body; 
 
     try {
         const result = await prisma.$transaction(async (tx) => {
@@ -332,27 +316,85 @@ export const approveQuotation = async (req, res) => {
             if (quotation.isApproved) throw new Error('既に承認済みです。');
 
             const project = quotation.project;
-            if (project.collectedAmount < quotation.totalAmount) throw new Error('企画の集計金額が見積額に達していません。');
+            let finalQuotationAmount = quotation.totalAmount;
+            const shortfall = quotation.totalAmount - project.collectedAmount;
 
+            // 1. 支払い・承認方法に応じた分岐処理
+            if (approvalMethod === 'GUARANTEE') {
+                // 【企画者立替】不足分を企画者の所持ポイントから自動補填
+                if (shortfall > 0) {
+                    const user = await tx.user.findUnique({ where: { id: userId } });
+                    if (user.points < shortfall) {
+                        throw new Error(`立替のためのポイントが足りません（不足額: ${shortfall.toLocaleString()}pt）。先にポイントをチャージしてください。`);
+                    }
+                    
+                    // 企画者のポイントを減らす
+                    await tx.user.update({
+                        where: { id: userId },
+                        data: { points: { decrement: shortfall }, totalPledgedAmount: { increment: shortfall } }
+                    });
+                    
+                    // プロジェクトの集計額に不足分をチャージし、立替分のPledge履歴も残す
+                    await tx.project.update({
+                        where: { id: project.id },
+                        data: { collectedAmount: { increment: shortfall } }
+                    });
+
+                    await tx.pledge.create({
+                        data: { amount: shortfall, projectId: project.id, userId: userId, comment: "企画進行のための立替支援" }
+                    });
+                }
+            } else if (approvalMethod === 'FLEXIBLE') {
+                // 【おまかせ】集まった金額に合わせて見積額を下方修正
+                if (project.collectedAmount < 1000) {
+                    throw new Error('集まった金額が少なすぎるため、おまかせプランは適用できません（最低1000pt必要）。');
+                }
+                
+                finalQuotationAmount = project.collectedAmount; 
+                
+                // DB上の見積額も上書き
+                await tx.quotation.update({
+                    where: { id },
+                    data: { totalAmount: finalQuotationAmount }
+                });
+            } else {
+                // 'FULL' または デフォルト (全額集まっている場合のみ)
+                if (shortfall > 0) {
+                    throw new Error('企画の集計金額が見積額に達していません。ポイント立替か、おまかせプランを選択してください。');
+                }
+            }
+
+            // 2. お花屋さんの売上と手数料の計算
             const offer = await tx.offer.findUnique({ where: { projectId: project.id }, include: { florist: true } });
             
             const systemSettings = await tx.systemSettings.findFirst() || { platformFeeRate: 0.10 };
             const feeRate = offer.florist.customFeeRate ?? systemSettings.platformFeeRate ?? 0.10;
-            const commission = Math.floor(quotation.totalAmount * feeRate);
-            const netPayout = quotation.totalAmount - commission;
+            const commission = Math.floor(finalQuotationAmount * feeRate);
+            const netPayout = finalQuotationAmount - commission;
 
+            // 3. お花屋さんの売上残高を追加
             await tx.florist.update({
                 where: { id: offer.floristId },
                 data: { balance: { increment: netPayout } },
             });
+
+            // 手数料の記録
             await tx.commission.create({ data: { amount: commission, projectId: project.id } });
             
+            // 4. 見積もりの承認フラグを立てる
             const approved = await tx.quotation.update({
                 where: { id },
                 data: { isApproved: true }
             });
 
-            await createNotification(offer.floristId, 'QUOTATION_APPROVED', `見積もりが承認されました。売上確定: ${netPayout.toLocaleString()}pt`, project.id, `/florists/offers/${offer.id}`);
+            // 5. お花屋さんに通知を送信
+            await createNotification(
+                offer.floristId, 
+                'QUOTATION_APPROVED', 
+                `見積もりが承認されました！制作を開始してください。(確定売上: ${netPayout.toLocaleString()}pt)`, 
+                project.id, 
+                `/florists/offers/${offer.id}`
+            );
             
             return approved;
         });
@@ -384,16 +426,13 @@ export const finalizeQuotation = async (req, res) => {
 // ★★★ 3. お花屋さん管理 (Profile & Payouts) ★★★
 // ==========================================
 
-// ■ 2. 制作実績（ポートフォリオ）更新の修正
 export const updateFloristProfile = async (req, res) => {
     const floristId = req.user.id;
-    // ... (入力データの取得) ...
-    const { portfolioImages, ...otherData } = req.body; // 画像配列を取り出す
+    const { portfolioImages, ...otherData } = req.body; 
 
     try {
         let dataToUpdate = { ...otherData };
 
-        // ★修正: 画像配列が空でも更新できるように明示的に処理
         if (Array.isArray(portfolioImages)) {
             dataToUpdate.portfolioImages = portfolioImages;
         }
@@ -411,8 +450,6 @@ export const updateFloristProfile = async (req, res) => {
     }
 };
 
-
-// ■ 3. 銀行口座の登録・更新 (新規追加)
 export const registerFloristBankAccount = async (req, res) => {
     const { bankName, branchName, accountType, accountNumber, accountHolder } = req.body;
     const floristId = req.user.id;
@@ -423,7 +460,7 @@ export const registerFloristBankAccount = async (req, res) => {
             update: { bankName, branchName, accountType, accountNumber, accountHolder },
             create: {
                 floristId: floristId,
-                userId: null, // 明示的にnull
+                userId: null, 
                 bankName, branchName, accountType, accountNumber, accountHolder
             }
         });
@@ -434,7 +471,6 @@ export const registerFloristBankAccount = async (req, res) => {
     }
 };
 
-// ■ 4. 銀行口座の取得 (新規追加)
 export const getFloristBankAccount = async (req, res) => {
     try {
         const account = await prisma.bankAccount.findUnique({
@@ -541,7 +577,6 @@ export const likeFloristPost = async (req, res) => {
     }
 };
 
-let SPECIAL_DEALS = [];
 export const createDeal = async (req, res) => {
     if (req.user.role !== 'FLORIST') return res.status(403).json({ message: '権限がありません。' });
     const { color, flower, discount, message } = req.body;
@@ -580,7 +615,6 @@ export const deleteDeal = async (req, res) => {
     if (req.user.role !== 'FLORIST') return res.status(403).json({ message: '権限がありません。' });
     
     try {
-        // 自分の投稿か確認
         const deal = await prisma.floristDeal.findUnique({ where: { id } });
         if (!deal || deal.floristId !== req.user.id) {
             return res.status(404).json({ message: '削除対象が見つかりません' });
@@ -607,10 +641,9 @@ export const searchDeals = async (req, res) => {
         const deals = await prisma.floristDeal.findMany({
             where,
             orderBy: { createdAt: 'desc' },
-            include: { florist: { select: { shopName: true, platformName: true } } } // 店名も含めて返す
+            include: { florist: { select: { shopName: true, platformName: true } } } 
         });
         
-        // フロントエンドの形式に合わせて整形
         const formatted = deals.map(d => ({
             ...d,
             floristName: d.florist.platformName || d.florist.shopName

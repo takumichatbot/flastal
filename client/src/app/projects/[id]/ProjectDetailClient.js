@@ -72,7 +72,7 @@ const useIsMounted = () => {
 };
 
 // ===========================================
-// 🎨 UI COMPONENTS 
+// 🎨 UI COMPONENTS
 // ===========================================
 const AppCard = ({ children, className, id }) => (
   <div id={id} className={cn("bg-white rounded-2xl md:rounded-[2rem] shadow-[0_4px_20px_rgb(0,0,0,0.03)] md:shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4 sm:p-6 md:p-8", className)}>
@@ -80,25 +80,6 @@ const AppCard = ({ children, className, id }) => (
   </div>
 );
 
-const FloatingParticles = () => {
-  const [windowSize, setWindowSize] = useState({ width: 1000, height: 1000 });
-  useEffect(() => { setWindowSize({ width: window.innerWidth, height: window.innerHeight }); }, []);
-  return (
-    <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
-      {[...Array(8)].map((_, i) => (
-        <motion.div key={i} className="absolute w-4 h-4 bg-pink-200 rounded-full mix-blend-multiply filter blur-[2px] opacity-30"
-          initial={{ x: Math.random() * windowSize.width, y: Math.random() * windowSize.height }}
-          animate={{ y: [null, Math.random() * -100], x: [null, (Math.random() - 0.5) * 50], opacity: [0.2, 0.4, 0.2], scale: [1, 1.2, 1] }}
-          transition={{ duration: Math.random() * 10 + 10, repeat: Infinity, ease: "linear" }}
-        />
-      ))}
-    </div>
-  );
-};
-
-// ===========================================
-// Sub Components
-// ===========================================
 function ImageLightbox({ url, onClose }) {
   return (
     <div className="fixed inset-0 bg-slate-900/95 flex justify-center items-center z-[100] p-4 backdrop-blur-md" onClick={onClose}>
@@ -172,6 +153,128 @@ function InstructionSheetModal({ project, onClose }) {
           <button onClick={handlePrint} className="px-5 py-2.5 bg-gradient-to-r from-sky-500 to-indigo-500 text-white rounded-xl font-black flex items-center gap-2 hover:scale-105 transition-transform shadow-md">
             <Printer size={16}/> 印刷 / PDF
           </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
+// ★ 新規: 見積もり承認・発注モーダル
+function QuotationApprovalModal({ project, user, onClose, onUpdate }) {
+  const [approvalMethod, setApprovalMethod] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const quotationAmount = project.quotation?.totalAmount || 0;
+  const collectedAmount = project.collectedAmount || 0;
+  const shortfall = quotationAmount - collectedAmount;
+  const userPoints = user?.points || 0;
+
+  const canFull = shortfall <= 0;
+  const canGuarantee = shortfall > 0 && userPoints >= shortfall;
+  const canFlexible = shortfall > 0 && collectedAmount >= 1000;
+
+  const handleApprove = async (e) => {
+    e.preventDefault();
+    if (!approvalMethod) return toast.error('支払い方法を選択してください');
+    
+    setIsSubmitting(true);
+    const toastId = toast.loading('発注処理中...');
+    try {
+      const token = getAuthToken();
+      const res = await fetch(`${API_URL}/api/florists/quotations/${project.quotation.id}/approve`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ approvalMethod })
+      });
+      
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'エラーが発生しました');
+      
+      toast.success('見積もりを承認し、発注が完了しました！🎉', { id: toastId });
+      onUpdate();
+      onClose();
+    } catch (error) {
+      toast.error(error.message, { id: toastId });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-slate-900/80 flex justify-center items-center z-[100] p-4 backdrop-blur-sm">
+      <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-[2rem] shadow-2xl w-full max-w-xl overflow-hidden flex flex-col max-h-[95vh] border border-white">
+        <div className="p-5 md:p-6 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
+          <div>
+            <h2 className="text-lg md:text-xl font-black text-slate-800 flex items-center gap-2"><FileText className="text-pink-500" size={24}/> 見積もりの承認・発注</h2>
+            <p className="text-[10px] md:text-xs font-bold text-slate-500 mt-1">お花屋さんの制作を開始するために支払い方法を選んでください</p>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 bg-white p-2 rounded-full shadow-sm"><X size={20}/></button>
+        </div>
+        
+        <div className="p-5 md:p-8 overflow-y-auto bg-slate-50/50 space-y-5">
+            {/* 金額サマリー */}
+            <div className="bg-white p-5 md:p-6 rounded-2xl border border-slate-200 shadow-sm flex justify-between items-center relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-1 h-full bg-pink-500"></div>
+                <div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">お見積り総額</p>
+                    <p className="text-3xl font-black text-slate-800 tracking-tight">{quotationAmount.toLocaleString()} <span className="text-sm font-bold text-slate-500">pt</span></p>
+                </div>
+                <div className="text-right">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">現在の支援額</p>
+                    <p className="text-xl font-black text-sky-500 tracking-tight">{collectedAmount.toLocaleString()} <span className="text-sm font-bold text-sky-300">pt</span></p>
+                </div>
+            </div>
+
+            <h3 className="font-black text-slate-700 text-xs md:text-sm uppercase tracking-widest">支払い方法の選択</h3>
+            
+            <form id="approvalForm" onSubmit={handleApprove} className="space-y-3">
+                {/* 1. FULL */}
+                <label className={cn("block p-4 md:p-5 border-2 rounded-2xl cursor-pointer transition-all relative overflow-hidden", canFull ? (approvalMethod === 'FULL' ? 'border-sky-500 bg-sky-50/30 shadow-md ring-4 ring-sky-50' : 'border-slate-200 bg-white hover:border-sky-300') : 'border-slate-100 bg-slate-50 opacity-50 cursor-not-allowed')}>
+                    <input type="radio" value="FULL" disabled={!canFull} checked={approvalMethod === 'FULL'} onChange={(e)=>setApprovalMethod(e.target.value)} className="hidden" />
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <p className="font-black text-slate-800 text-sm md:text-base flex items-center gap-2"><CheckCircle2 size={18} className={approvalMethod === 'FULL' ? 'text-sky-500' : 'text-slate-300'}/> 見積り通りに発注</p>
+                            <p className="text-xs text-slate-500 mt-1.5 font-medium leading-relaxed">集まった支援額から全額支払います。</p>
+                            {!canFull && <p className="text-[10px] text-rose-500 font-bold mt-2 flex items-center gap-1"><AlertTriangle size={12}/>支援額が {shortfall.toLocaleString()} pt不足しています</p>}
+                        </div>
+                    </div>
+                </label>
+
+                {/* 2. GUARANTEE (立替) */}
+                {shortfall > 0 && (
+                    <label className={cn("block p-4 md:p-5 border-2 rounded-2xl cursor-pointer transition-all relative overflow-hidden", canGuarantee ? (approvalMethod === 'GUARANTEE' ? 'border-pink-500 bg-pink-50/30 shadow-md ring-4 ring-pink-50' : 'border-slate-200 bg-white hover:border-pink-300') : 'border-slate-100 bg-slate-50 opacity-50 cursor-not-allowed')}>
+                        <input type="radio" value="GUARANTEE" disabled={!canGuarantee} checked={approvalMethod === 'GUARANTEE'} onChange={(e)=>setApprovalMethod(e.target.value)} className="hidden" />
+                        <div className="flex justify-between items-start">
+                            <div>
+                                <p className="font-black text-slate-800 text-sm md:text-base flex items-center gap-2"><CheckCircle2 size={18} className={approvalMethod === 'GUARANTEE' ? 'text-pink-500' : 'text-slate-300'}/> 不足分を立て替える <span className="bg-pink-100 text-pink-600 px-2 py-0.5 rounded-md text-[10px] tracking-wider ml-1">推奨</span></p>
+                                <p className="text-xs text-slate-500 mt-1.5 font-medium leading-relaxed">あなたの所持ポイントから不足分 <b className="text-pink-500">{shortfall.toLocaleString()} pt</b> を支払って今すぐ発注します。※募集はイベント直前まで継続できます。</p>
+                                {!canGuarantee && <p className="text-[10px] text-rose-500 font-bold mt-2 flex items-center gap-1"><AlertTriangle size={12}/>所持ポイントが不足しています (所持: {userPoints.toLocaleString()} pt)</p>}
+                            </div>
+                        </div>
+                    </label>
+                )}
+
+                {/* 3. FLEXIBLE (おまかせ) */}
+                {shortfall > 0 && (
+                    <label className={cn("block p-4 md:p-5 border-2 rounded-2xl cursor-pointer transition-all relative overflow-hidden", canFlexible ? (approvalMethod === 'FLEXIBLE' ? 'border-emerald-500 bg-emerald-50/30 shadow-md ring-4 ring-emerald-50' : 'border-slate-200 bg-white hover:border-emerald-300') : 'border-slate-100 bg-slate-50 opacity-50 cursor-not-allowed')}>
+                        <input type="radio" value="FLEXIBLE" disabled={!canFlexible} checked={approvalMethod === 'FLEXIBLE'} onChange={(e)=>setApprovalMethod(e.target.value)} className="hidden" />
+                        <div className="flex justify-between items-start">
+                            <div>
+                                <p className="font-black text-slate-800 text-sm md:text-base flex items-center gap-2"><CheckCircle2 size={18} className={approvalMethod === 'FLEXIBLE' ? 'text-emerald-500' : 'text-slate-300'}/> おまかせ発注 (金額に合わせて作成)</p>
+                                <p className="text-xs text-slate-500 mt-1.5 font-medium leading-relaxed">現在の支援総額 <b className="text-emerald-500">{collectedAmount.toLocaleString()} pt</b> に合わせて、お花屋さんにデザインと予算を調整して作ってもらいます。</p>
+                                {!canFlexible && <p className="text-[10px] text-rose-500 font-bold mt-2 flex items-center gap-1"><AlertTriangle size={12}/>おまかせプランは1,000 pt以上集まっている必要があります</p>}
+                            </div>
+                        </div>
+                    </label>
+                )}
+            </form>
+        </div>
+
+        <div className="p-5 md:p-6 bg-white border-t border-slate-100">
+            <button type="submit" form="approvalForm" disabled={!approvalMethod || isSubmitting} className="w-full py-4 bg-slate-900 text-white rounded-xl font-black shadow-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-800 transition-colors flex items-center justify-center gap-2">
+                {isSubmitting ? <Loader2 size={18} className="animate-spin"/> : <Send size={18}/>}
+                この内容で発注を確定する
+            </button>
         </div>
       </motion.div>
     </div>
@@ -341,73 +444,6 @@ function TargetAmountModal({ project, user, onClose, onUpdate }) {
   );
 }
 
-const ProgressTracker = ({ project, isAssignedFlorist, fetchProject }) => {
-    const token = getAuthToken();
-    const currentStatusKey = project?.status;
-    const currentStatus = PROGRESS_STEPS.find(s => s.key === currentStatusKey);
-    const currentOrder = currentStatus ? currentStatus.order : 0;
-    
-    const handleStatusUpdate = async (newStatusKey) => {
-        if(!window.confirm(`ステータスを更新しますか？`)) return;
-        try {
-            const res = await fetch(`${API_URL}/api/projects/${project.id}/status`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({ status: newStatusKey })
-            });
-            if (!res.ok) throw new Error('Update failed');
-            toast.success('更新しました');
-            fetchProject();
-        } catch (e) { toast.error('エラー'); }
-    };
-    
-    const stepsToDisplay = PROGRESS_STEPS.filter(s => s.order > 0);
-    if (!isAssignedFlorist && currentOrder < 1 && project.status !== 'SUCCESSFUL' && project.status !== 'COMPLETED') return null;
-
-    return (
-        <div className="bg-white/80 backdrop-blur-md rounded-2xl md:rounded-[2rem] p-4 md:p-6 mb-6 shadow-sm ring-1 ring-slate-100 overflow-hidden">
-            <div className="relative px-2 md:px-6 overflow-x-auto no-scrollbar pb-2">
-                <div className="min-w-[400px] relative pt-2">
-                    <div className="absolute top-6 left-4 right-4 h-1 bg-slate-100 rounded-full -z-10"></div>
-                    <div className="absolute top-6 left-4 h-1 bg-pink-400 rounded-full transition-all duration-1000 ease-out -z-10" style={{ width: `${(currentOrder / (PROGRESS_STEPS.length - 1)) * 100}%` }}></div>
-                    <div className="flex justify-between items-start">
-                        {stepsToDisplay.map((step, index) => {
-                            const isCompleted = step.order <= currentOrder;
-                            const isCurrent = step.order === currentOrder;
-                            return (
-                                <div key={step.key} className="flex flex-col items-center w-12 md:w-16 relative">
-                                    <motion.div 
-                                        animate={{ scale: isCurrent ? 1.1 : 1 }}
-                                        className={cn(
-                                            "w-6 h-6 md:w-8 md:h-8 rounded-full flex items-center justify-center font-black text-[10px] md:text-xs shadow-sm transition-colors duration-500 bg-white", 
-                                            isCompleted ? "border-2 border-pink-500 text-pink-500" : "border-2 border-slate-200 text-slate-300",
-                                            isCurrent && "ring-4 ring-pink-50"
-                                        )}>
-                                        {isCompleted ? <Check size={12} strokeWidth={4} /> : index + 1}
-                                    </motion.div>
-                                    <span className={cn("text-[8px] md:text-[9px] mt-2 text-center font-bold tracking-wider whitespace-nowrap", isCompleted ? "text-pink-600" : "text-slate-400")}>
-                                        {step.label}
-                                    </span>
-                                </div>
-                            );
-                        })}
-                    </div>
-                </div>
-            </div>
-            {isAssignedFlorist && currentStatusKey !== 'COMPLETED' && (
-                <div className="mt-4 flex flex-wrap gap-2 justify-end border-t border-slate-100 pt-3">
-                    {stepsToDisplay.filter(s => s.order > currentOrder && s.key !== 'COMPLETED').slice(0, 2).map(nextStep => (
-                        <button key={nextStep.key} onClick={() => handleStatusUpdate(nextStep.key)} className="px-4 py-2 text-[10px] md:text-xs font-black bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 shadow-sm transition-colors">
-                            {nextStep.label} に進む
-                        </button>
-                    ))}
-                    {currentOrder >= 5 && <button onClick={() => handleStatusUpdate('DELIVERED_OR_FINISHED')} className="px-4 py-2 text-[10px] md:text-xs font-black bg-slate-900 text-white rounded-lg hover:bg-slate-800 shadow-md">納品完了にする</button>}
-                </div>
-            )}
-        </div>
-    );
-};
-
 // ===========================================
 // Main Component
 // ===========================================
@@ -437,6 +473,7 @@ export default function ProjectDetailClient() {
   const [isInstructionModalOpen, setIsInstructionModalOpen] = useState(false);
   const [isArModalOpen, setIsArModalOpen] = useState(false);
   const [isMaterialModalOpen, setIsMaterialModalOpen] = useState(false);
+  const [isQuotationModalOpen, setIsQuotationModalOpen] = useState(false); // ★ 新規: 見積もり承認モーダル
 
   // Forms state
   const [showAnnouncementForm, setShowAnnouncementForm] = useState(false);
@@ -488,8 +525,6 @@ export default function ProjectDetailClient() {
     return () => newSocket.disconnect();
   }, [id, user]);
 
-  // --- 実装されたハンドラ群 ---
-  
   const handlePostAnnouncement = async (e) => {
     e.preventDefault(); 
     if (!announcementTitle.trim() || !announcementContent.trim()) {
@@ -678,19 +713,6 @@ export default function ProjectDetailClient() {
       }
   };
 
-  const handleSelectCompletedImage = async (url) => {
-      try {
-          const toastId = toast.loading('画像を取得中...');
-          const res = await fetch(url);
-          const blob = await res.blob();
-          const file = new File([blob], "completed_image.jpg", { type: blob.type });
-          setArImageFile(file);
-          toast.success('画像を選択しました！', { id: toastId });
-      } catch (e) {
-          toast.error('画像の取得に失敗しました');
-      }
-  };
-
   const isAssignedFlorist = user && user.role === 'FLORIST' && project?.offer?.floristId === user.id;
   const isPledger = user && (project?.pledges || []).some(p => p.userId === user.id);
   const isPlanner = user && user.id === project?.planner?.id;
@@ -842,7 +864,7 @@ export default function ProjectDetailClient() {
                                                 {project.planner?.iconUrl ? <Image src={project.planner.iconUrl} alt="" width={32} height={32} className="object-cover" /> : <User size={14} className="text-slate-400"/>}
                                             </div>
                                             <div>
-                                                <p className="text-[10px] font-black text-slate-800">{project.planner?.handleName}</p>
+                                                <p className="text-[10px] font-black text-slate-800">{project.planner?.handleName || project.planner?.name}</p>
                                                 <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">{new Date(a.createdAt).toLocaleDateString('ja-JP', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
                                             </div>
                                           </div>
@@ -1060,9 +1082,17 @@ export default function ProjectDetailClient() {
                   <AppCard id="planner-menu" className="!p-5 md:!p-6 bg-slate-900 text-white">
                       <h3 className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Planner Menu</h3>
                       <div className="space-y-1.5 md:space-y-2">
-                          <button onClick={()=>setIsTargetAmountModalOpen(true)} className="w-full text-left p-3 bg-white/10 hover:bg-white/20 rounded-lg text-xs md:text-sm font-bold text-white transition-colors flex items-center"><DollarSign className="mr-2.5 text-slate-400" size={14}/> 目標金額の変更</button>
-                          <Link href={`/projects/edit/${id}`} className="w-full text-left p-3 bg-white/10 hover:bg-white/20 rounded-lg text-xs md:text-sm font-bold text-white transition-colors flex items-center"><Edit3 className="mr-2.5 text-slate-400" size={14}/> 企画内容の編集</Link>
-                          <Link href={`/florists?projectId=${id}`} className="w-full text-left p-3 bg-white/10 hover:bg-white/20 rounded-lg text-xs md:text-sm font-bold text-white transition-colors flex items-center"><Search className="mr-2.5 text-slate-400" size={14}/> お花屋さんを探す</Link>
+                          <button onClick={()=>setIsTargetAmountModalOpen(true)} className="w-full text-left p-3 bg-white/10 hover:bg-white/20 rounded-lg text-xs md:text-sm font-bold text-white transition-colors flex items-center"><DollarSign className="mr-2.5 text-emerald-400" size={14}/> 目標金額の変更</button>
+                          <Link href={`/projects/edit/${id}`} className="w-full text-left p-3 bg-white/10 hover:bg-white/20 rounded-lg text-xs md:text-sm font-bold text-white transition-colors flex items-center"><Edit3 className="mr-2.5 text-sky-400" size={14}/> 企画内容の編集</Link>
+                          
+                          {/* ★ 新規: 見積もりが来ていて未承認なら「見積もり承認」ボタンを表示 */}
+                          {project.quotation && !project.quotation.isApproved ? (
+                              <button onClick={()=>setIsQuotationModalOpen(true)} className="w-full mt-3 bg-gradient-to-r from-pink-500 to-rose-500 text-white p-3 rounded-lg text-sm font-black transition-transform hover:scale-[1.02] shadow-md flex items-center justify-center gap-2">
+                                  <FileText size={16}/> 見積もりを承認して発注
+                              </button>
+                          ) : (
+                              <Link href={`/florists?projectId=${id}`} className="w-full text-left p-3 bg-white/10 hover:bg-white/20 rounded-lg text-xs md:text-sm font-bold text-white transition-colors flex items-center"><Search className="mr-2.5 text-pink-400" size={14}/> お花屋さんを探す</Link>
+                          )}
                           
                           {project.status==='SUCCESSFUL' && (
                               <button onClick={()=>setIsCompletionModalOpen(true)} className="w-full mt-3 bg-white text-slate-900 p-3 rounded-lg text-sm font-black transition-transform hover:scale-[1.02]">完了報告する</button>
@@ -1111,7 +1141,50 @@ export default function ProjectDetailClient() {
         {isReportModalOpen && <ReportModal projectId={id} user={user} onClose={() => setReportModalOpen(false)} />}
         {isCompletionModalOpen && <CompletionReportModal project={project} user={user} onClose={() => setIsCompletionModalOpen(false)} onReportSubmitted={fetchProject} />}
         {isInstructionModalOpen && <InstructionSheetModal project={project} onClose={() => setIsInstructionModalOpen(false)} />}
+        {isQuotationModalOpen && <QuotationApprovalModal project={project} user={user} onClose={() => setIsQuotationModalOpen(false)} onUpdate={fetchProject} />}
         {isCancelModalOpen && <ProjectCancelModal isOpen={isCancelModalOpen} onClose={() => setIsCancelModalOpen(false)} project={project} onCancelComplete={() => { fetchProject(); router.push('/mypage'); }} />}
+        
+        {/* AR Modal */}
+        {isArModalOpen && (
+          <div className="fixed inset-0 bg-slate-900/80 flex justify-center items-center z-50 p-4 backdrop-blur-md">
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="bg-white rounded-[3rem] w-full max-w-lg overflow-hidden relative shadow-2xl flex flex-col max-h-[90vh] border border-white">
+              <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                  <h3 className="font-black text-lg text-slate-800 flex items-center"><Box className="mr-2 text-indigo-500"/> ARシミュレーター</h3>
+                  <button onClick={() => setIsArModalOpen(false)} className="bg-white hover:bg-slate-100 rounded-full p-2 transition-colors shadow-sm"><X size={20}/></button>
+              </div>
+              <div className="p-8 overflow-y-auto">
+                {!arSrc ? (
+                    <div className="space-y-8">
+                        <div className="text-center">
+                            <p className="text-sm font-bold text-slate-500 mb-6 leading-relaxed">お持ちの画像や完了写真をアップロードして、<br/>実際のサイズ感で部屋に配置してみましょう🌸</p>
+                        </div>
+                        <div className="space-y-4">
+                            <div className="p-8 border-2 border-dashed border-pink-200 bg-pink-50/50 rounded-[2rem] hover:bg-pink-50 transition-colors text-center cursor-pointer relative" onClick={() => document.getElementById('ar-upload').click()}>
+                                {arImageFile ? (
+                                    <div><p className="text-sm font-black text-emerald-500 mb-1 flex items-center justify-center"><Check className="mr-1"/> 選択済み</p><p className="text-xs font-bold text-slate-400">{arImageFile.name}</p></div>
+                                ) : (
+                                    <div><UploadCloud className="w-10 h-10 text-pink-300 mx-auto mb-3" /><p className="text-sm font-black text-slate-600">画像をアップロード</p></div>
+                                )}
+                                <input id="ar-upload" type="file" className="hidden" accept="image/*" onChange={(e) => setArImageFile(e.target.files[0])} />
+                            </div>
+                            <div className="bg-slate-50 p-5 rounded-[1.5rem] flex items-center gap-4 border border-slate-100">
+                                <span className="text-xs font-black text-slate-500 whitespace-nowrap uppercase tracking-widest">高さ (cm)</span>
+                                <input type="number" value={arHeight} onChange={(e) => setArHeight(e.target.value)} className="w-full p-3 bg-white border-2 border-slate-100 rounded-xl text-center font-black text-slate-800 outline-none focus:border-indigo-300"/>
+                            </div>
+                        </div>
+                        <button onClick={handleGenerateAr} disabled={arGenLoading || !arImageFile} className="w-full py-4 bg-slate-900 text-white font-black rounded-2xl hover:bg-slate-800 disabled:opacity-50 transition-all flex justify-center items-center shadow-lg">{arGenLoading ? <><Loader2 className="animate-spin mr-2"/> 生成中...</> : 'ARモデルを生成する'}</button>
+                    </div>
+                ) : (
+                    <div className="flex flex-col items-center">
+                        <p className="text-sm text-center text-slate-600 mb-6 font-bold leading-relaxed">カメラを起動して、平らな床に向けてください。<br/>高さ <strong className="text-pink-500">{arHeight}cm</strong> のパネルが表示されます。</p>
+                        <div className="w-full aspect-[3/4] bg-black rounded-[2rem] overflow-hidden shadow-2xl border-4 border-slate-800"><ArViewer src={arSrc} alt="AR" /></div>
+                        <button onClick={() => { setArSrc(null); setArImageFile(null); }} className="mt-8 px-6 py-3 bg-slate-100 rounded-full text-sm font-black text-slate-500 flex items-center hover:bg-slate-200 transition-colors"><RefreshCw className="mr-2" size={16}/> 別の画像で試す</button>
+                    </div>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
       </AnimatePresence>
 
     </div>
