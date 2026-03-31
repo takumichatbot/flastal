@@ -652,7 +652,7 @@ export default function ProjectDetailClient() {
   const handleUpload = async (e, type) => {
       const file = e.target?.files?.[0];
       if (!file) return;
-      const toastId = toast.loading('画像をアップロード中...');
+      const toastId = toast.loading('データを送信中...');
       try {
           const formData = new FormData();
           formData.append('image', file);
@@ -671,15 +671,17 @@ export default function ProjectDetailClient() {
               payload.illustrationPanelUrls = [...(project.illustrationPanelUrls || []), uploadedUrl];
           }
 
-          const updateRes = await authenticatedFetch(`${API_URL}/api/projects/${id}/production`, {
+          // 修正: 正しい保存先URLに変更
+          const updateRes = await authenticatedFetch(`${API_URL}/api/projects/${id}`, {
               method: 'PATCH',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(payload)
           });
           if (!updateRes.ok) throw new Error('データの保存に失敗しました');
 
-          toast.success('アップロード完了！', { id: toastId });
-          fetchProject();
+          // 修正: 画面を即座に更新して表示させる
+          setProject(prev => ({ ...prev, ...payload }));
+          toast.success('提出が完了しました！', { id: toastId });
       } catch (error) {
           toast.error(error.message, { id: toastId });
       }
@@ -688,21 +690,23 @@ export default function ProjectDetailClient() {
   const handleGenerateAr = async () => {
       if (!arImageFile) return toast.error('画像を選択してください');
       setArGenLoading(true);
-      const toastId = toast.loading('ARモデルを生成中...');
+      const toastId = toast.loading('ARを起動中...');
       try {
           const formData = new FormData();
           formData.append('image', arImageFile);
-          const res = await authenticatedFetch(`${API_URL}/api/tools/create-ar-panel`, {
+          
+          // 修正: オブジェクトではなく画像のURLを正しく受け取ってARに渡す
+          const res = await authenticatedFetch(`${API_URL}/api/tools/upload-image`, {
               method: 'POST',
               body: formData
           });
-          if (!res.ok) throw new Error('AR生成失敗');
-          const blob = await res.blob();
-          const url = URL.createObjectURL(blob);
-          setArSrc(url);
-          toast.success('生成完了！', { id: toastId });
+          if (!res.ok) throw new Error('エラーが発生しました');
+          const data = await res.json();
+          
+          setArSrc(data.url); 
+          toast.success('起動しました！', { id: toastId });
       } catch (err) {
-          toast.error('AR生成に失敗しました', { id: toastId });
+          toast.error('ARの起動に失敗しました', { id: toastId });
       } finally {
           setArGenLoading(false);
       }
@@ -899,19 +903,19 @@ export default function ProjectDetailClient() {
                     {(isPlanner || isPledger || isFlorist) && (
                         <>
                             <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2">
-                                <button onClick={() => setCollabTab('chat')} className={cn("px-5 py-2.5 rounded-full text-xs font-black flex items-center gap-2 whitespace-nowrap transition-colors", collabTab === 'chat' ? 'bg-sky-500 text-white' : 'bg-white text-slate-500 hover:bg-sky-50 hover:text-sky-600 shadow-sm border border-slate-100')}>
-                                    <MessageSquare size={14}/> チャット
+                                <button onClick={() => setCollabTab('chat')} className={cn("px-4 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 whitespace-nowrap transition-all", collabTab === 'chat' ? 'bg-slate-900 text-white shadow-md' : 'bg-white text-slate-500 hover:bg-slate-100 shadow-sm border border-slate-200')}>
+                                    <MessageSquare size={16}/> ミーティング
                                 </button>
-                                <button onClick={() => setCollabTab('board')} className={cn("px-5 py-2.5 rounded-full text-xs font-black flex items-center gap-2 whitespace-nowrap transition-colors", collabTab === 'board' ? 'bg-pink-500 text-white' : 'bg-white text-slate-500 hover:bg-pink-50 hover:text-pink-600 shadow-sm border border-slate-100')}>
-                                    <ImageIcon size={14}/> ムードボード
+                                <button onClick={() => setCollabTab('board')} className={cn("px-4 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 whitespace-nowrap transition-all", collabTab === 'board' ? 'bg-slate-900 text-white shadow-md' : 'bg-white text-slate-500 hover:bg-slate-100 shadow-sm border border-slate-200')}>
+                                    <ImageIcon size={16}/> アイデアボード
                                 </button>
                                 {isPlanner && (
-                                    <button onClick={() => setCollabTab('tasks')} className={cn("px-5 py-2.5 rounded-full text-xs font-black flex items-center gap-2 whitespace-nowrap transition-colors", collabTab === 'tasks' ? 'bg-emerald-500 text-white' : 'bg-white text-slate-500 hover:bg-emerald-50 hover:text-emerald-600 shadow-sm border border-slate-100')}>
-                                        <CheckCircle2 size={14}/> タスク管理
+                                    <button onClick={() => setCollabTab('tasks')} className={cn("px-4 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 whitespace-nowrap transition-all", collabTab === 'tasks' ? 'bg-slate-900 text-white shadow-md' : 'bg-white text-slate-500 hover:bg-slate-100 shadow-sm border border-slate-200')}>
+                                        <CheckCircle2 size={16}/> やることリスト
                                     </button>
                                 )}
-                                <button onClick={() => setCollabTab('tools')} className={cn("px-5 py-2.5 rounded-full text-xs font-black flex items-center gap-2 whitespace-nowrap transition-colors", collabTab === 'tools' ? 'bg-indigo-500 text-white' : 'bg-white text-slate-500 hover:bg-indigo-50 hover:text-indigo-600 shadow-sm border border-slate-100')}>
-                                    <Box size={14}/> ツール・データ
+                                <button onClick={() => setCollabTab('tools')} className={cn("px-4 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 whitespace-nowrap transition-all", collabTab === 'tools' ? 'bg-slate-900 text-white shadow-md' : 'bg-white text-slate-500 hover:bg-slate-100 shadow-sm border border-slate-200')}>
+                                    <UploadCloud size={16}/> 提出・データ
                                 </button>
                             </div>
 
@@ -1087,26 +1091,42 @@ export default function ProjectDetailClient() {
               <PledgeForm project={project} user={user} onPledgeSubmit={onPledgeSubmit} isPledger={isPledger} />
               
               {isPlanner && (
-                  <AppCard id="planner-menu" className="!p-5 md:!p-6 bg-slate-900 text-white">
-                      <h3 className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Planner Menu</h3>
-                      <div className="space-y-1.5 md:space-y-2">
-                          <button onClick={()=>setIsTargetAmountModalOpen(true)} className="w-full text-left p-3 bg-white/10 hover:bg-white/20 rounded-lg text-xs md:text-sm font-bold text-white transition-colors flex items-center"><DollarSign className="mr-2.5 text-emerald-400" size={14}/> 目標金額の変更</button>
-                          <Link href={`/projects/edit/${id}`} className="w-full text-left p-3 bg-white/10 hover:bg-white/20 rounded-lg text-xs md:text-sm font-bold text-white transition-colors flex items-center"><Edit3 className="mr-2.5 text-sky-400" size={14}/> 企画内容の編集</Link>
+                  <AppCard id="planner-menu" className="!p-5 md:!p-6 bg-slate-900 text-white shadow-xl">
+                      <div className="flex items-center gap-2 mb-4">
+                          <div className="w-6 h-6 rounded-full bg-pink-500 flex items-center justify-center">
+                              <Award size={12} className="text-white"/>
+                          </div>
+                          <h3 className="text-xs md:text-sm font-black text-white tracking-widest">企画者メニュー</h3>
+                      </div>
+                      
+                      <div className="space-y-2">
+                          <button onClick={()=>setIsTargetAmountModalOpen(true)} className="w-full text-left p-3.5 bg-slate-800 hover:bg-slate-700 rounded-xl text-xs md:text-sm font-bold text-white transition-colors flex items-center shadow-sm">
+                              <DollarSign className="mr-3 text-emerald-400" size={16}/> 目標金額の変更
+                          </button>
+                          <Link href={`/projects/edit/${id}`} className="w-full text-left p-3.5 bg-slate-800 hover:bg-slate-700 rounded-xl text-xs md:text-sm font-bold text-white transition-colors flex items-center shadow-sm">
+                              <Edit3 className="mr-3 text-sky-400" size={16}/> 企画内容の編集
+                          </Link>
                           
                           {project?.quotation && project.quotation.isApproved === false ? (
-                              <button onClick={()=>setIsQuotationModalOpen(true)} className="w-full mt-3 bg-gradient-to-r from-pink-500 to-rose-500 text-white p-3 rounded-lg text-sm font-black transition-transform hover:scale-[1.02] shadow-md flex items-center justify-center gap-2">
-                                  <FileText size={16}/> 見積もりを承認して発注
+                              <button onClick={()=>setIsQuotationModalOpen(true)} className="w-full mt-4 bg-gradient-to-r from-pink-500 to-rose-500 text-white p-4 rounded-xl text-sm font-black transition-transform hover:scale-[1.02] shadow-lg flex items-center justify-center gap-2">
+                                  <FileText size={18}/> 見積もりを承認して発注
                               </button>
                           ) : (
-                              <Link href={`/florists?projectId=${id}`} className="w-full text-left p-3 bg-white/10 hover:bg-white/20 rounded-lg text-xs md:text-sm font-bold text-white transition-colors flex items-center"><Search className="mr-2.5 text-pink-400" size={14}/> お花屋さんを探す</Link>
+                              <Link href={`/florists?projectId=${id}`} className="w-full text-left p-3.5 bg-slate-800 hover:bg-slate-700 rounded-xl text-xs md:text-sm font-bold text-white transition-colors flex items-center shadow-sm">
+                                  <Search className="mr-3 text-pink-400" size={16}/> お花屋さんを探す
+                              </Link>
                           )}
                           
-                          {project.status==='SUCCESSFUL' && (
-                              <button onClick={()=>setIsCompletionModalOpen(true)} className="w-full mt-3 bg-white text-slate-900 p-3 rounded-lg text-sm font-black transition-transform hover:scale-[1.02]">完了報告する</button>
+                          {project?.status === 'SUCCESSFUL' && (
+                              <button onClick={()=>setIsCompletionModalOpen(true)} className="w-full mt-4 bg-emerald-500 hover:bg-emerald-600 text-white p-4 rounded-xl text-sm font-black transition-colors shadow-lg flex justify-center items-center gap-2">
+                                  <CheckCircle2 size={18}/> 完了報告をする
+                              </button>
                           )}
                           
-                          {project.status !== 'CANCELED' && project.status !== 'COMPLETED' && (
-                              <button onClick={() => setIsCancelModalOpen(true)} className="w-full mt-3 text-slate-500 text-[10px] md:text-xs font-bold text-center hover:text-rose-400 py-1.5 transition-colors">企画を中止する...</button>
+                          {project?.status !== 'CANCELED' && project?.status !== 'COMPLETED' && (
+                              <button onClick={() => setIsCancelModalOpen(true)} className="w-full mt-4 text-slate-400 text-[10px] md:text-xs font-bold text-center hover:text-rose-400 py-2 transition-colors">
+                                  企画を中止する...
+                              </button>
                           )}
                       </div>
                   </AppCard>
