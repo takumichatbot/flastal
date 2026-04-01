@@ -41,7 +41,7 @@ export default function PushNotificationManager() {
 
   const checkSubscription = async () => {
     try {
-      const registration = await navigator.serviceWorker.getRegistration();
+      const registration = await navigator.serviceWorker.ready;
       if (registration && registration.pushManager) {
         const subscription = await registration.pushManager.getSubscription();
         if (subscription) setIsSubscribed(true);
@@ -56,15 +56,13 @@ export default function PushNotificationManager() {
     if (!PUBLIC_KEY) return toast.error('システムエラー：公開鍵が設定されていません');
 
     setLoading(true);
-    let toastId = toast.loading('通知を設定中...');
+    let toastId = toast.loading('通信設定を準備中...');
 
     try {
-      // 1. サポートチェック
       if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-        throw new Error('ご使用のブラウザはプッシュ通知に対応していません。iPhoneの場合は、Safariの共有メニューから「ホーム画面に追加」してアプリアイコンから開いてください。');
+        throw new Error('ご使用のブラウザはプッシュ通知に対応していません。');
       }
 
-      // 2. 許可リクエスト
       let permission = Notification.permission;
       if (permission === 'default') {
         permission = await Notification.requestPermission();
@@ -74,56 +72,25 @@ export default function PushNotificationManager() {
         throw new Error('通知がブロックされています。端末の設定から許可してください。');
       }
 
-      toast.loading('通信設定を準備中...', { id: toastId });
-
-      // --- ★究極のハック：壊れたSWを破棄して、Blobで強制的に空のSWを作り出す ---
-      // 既存の壊れたSWをすべて解除する
-      const existingRegistrations = await navigator.serviceWorker.getRegistrations();
-      for (let reg of existingRegistrations) {
-        await reg.unregister();
-      }
-
-      // 仮想のService Workerファイルをメモリ上に作成
-      const swCode = `
-        self.addEventListener('push', function(event) {
-          if (event.data) {
-            const data = event.data.json();
-            const options = {
-              body: data.body,
-              icon: data.icon || '/icon-192x192.png',
-              badge: '/badge.png',
-              data: { url: data.url }
-            };
-            event.waitUntil(self.registration.showNotification(data.title, options));
-          }
-        });
-        self.addEventListener('notificationclick', function(event) {
-          event.notification.close();
-          event.waitUntil(clients.openWindow(event.notification.data.url));
-        });
-      `;
-      const blob = new Blob([swCode], { type: 'application/javascript' });
-      const blobUrl = URL.createObjectURL(blob);
-
-      // 作成した仮想ファイルを登録する
-      const registration = await navigator.serviceWorker.register(blobUrl);
+      // 1. 正規のService Workerファイル(/sw.js)を登録
+      await navigator.serviceWorker.register('/sw.js');
       
-      // ここで確実に待つ
-      await navigator.serviceWorker.ready;
+      // 2. ★超重要：SWが「完全に起動(Active)」するまで待機し、確実にActiveな登録情報を取得する
+      const registration = await navigator.serviceWorker.ready;
 
-      if (!registration.pushManager) {
-          throw new Error('プッシュ通知の管理モジュールが見つかりませんでした。iPhoneの場合は「ホーム画面に追加」から開いているか確認してください。');
+      if (!registration || !registration.pushManager) {
+          throw new Error('プッシュ通知の準備に失敗しました。ページを再読み込みしてください。');
       }
 
       toast.loading('サーバーへ登録中...', { id: toastId });
 
-      // 4. サブスクライブ
+      // 3. サブスクライブ（Activeなプログラムでのみ実行可能）
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(PUBLIC_KEY)
       });
 
-      // 5. バックエンドへ送信
+      // 4. バックエンドへ送信
       const res = await authenticatedFetch(`${API_URL}/api/tools/subscribe-push`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
