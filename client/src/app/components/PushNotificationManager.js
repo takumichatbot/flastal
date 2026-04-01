@@ -60,12 +60,12 @@ export default function PushNotificationManager() {
     let toastId = toast.loading('通知を設定中...');
 
     try {
-      // 1. サポートチェック
-      if (!('Notification' in window)) {
-        throw new Error('お使いのブラウザはプッシュ通知をサポートしていません。');
+      // 1. サポートチェック（iOS Safariなどへの配慮）
+      if (!('Notification' in window) || !('serviceWorker' in navigator)) {
+        throw new Error('お使いのブラウザはプッシュ通知をサポートしていません。iPhoneの場合はSafariの共有ボタンから「ホーム画面に追加」してアプリ化してください。');
       }
 
-      // 2. 許可リクエスト (コールバック互換性対応)
+      // 2. 許可リクエスト
       let permission = Notification.permission;
       if (permission === 'default') {
         permission = await new Promise((resolve) => {
@@ -80,20 +80,16 @@ export default function PushNotificationManager() {
 
       toast.loading('通信設定を準備中...', { id: toastId });
 
-      // 3. Service Worker の取得・登録
-      let registration = await navigator.serviceWorker.getRegistration();
-      if (!registration) {
-        registration = await navigator.serviceWorker.register('/sw.js');
+      // 3. Service Worker の登録（タイムアウトを廃止し、安全に待機）
+      let registration = await navigator.serviceWorker.register('/sw.js');
+      
+      // pushManagerがまだ準備できていない場合は、Activeになるのを待つ
+      if (!registration.pushManager) {
+        registration = await navigator.serviceWorker.ready;
       }
 
-      // ★ 修正ポイント: 永遠にフリーズするのを防ぐため、5秒でタイムアウトさせる
-      registration = await Promise.race([
-        navigator.serviceWorker.ready,
-        new Promise((_, reject) => setTimeout(() => reject(new Error('バックグラウンド処理の準備がタイムアウトしました。ページを更新して再試行してください。')), 5000))
-      ]);
-
       if (!registration || !registration.pushManager) {
-        throw new Error('プッシュ通知がサポートされていない環境です。\niPhoneの場合は「ホーム画面に追加」から開いてください。');
+        throw new Error('通知システムの初期化に失敗しました。ページを再読み込みするか、「ホーム画面に追加」をお試しください。');
       }
 
       toast.loading('サーバーへ登録中...', { id: toastId });
@@ -116,7 +112,7 @@ export default function PushNotificationManager() {
          throw new Error(errData.message || 'サーバーへの登録に失敗しました');
       }
 
-      toast.success('通知をオンにしました！', { id: toastId });
+      toast.success('通知をオンにしました！✨', { id: toastId });
       setSuccess(true);
       setTimeout(() => { setIsVisible(false); setIsSubscribed(true); }, 2500);
 
