@@ -76,13 +76,40 @@ export default function PushNotificationManager() {
 
       toast.loading('通信設定を準備中...', { id: toastId });
 
-      // 3. Service Worker の登録
-      // ★大修正：フリーズの原因となる待機処理（readyやループ処理）を完全に削除！
-      // register() を呼んで返ってきた時点で、そのまま進むのが一番安全です。
-      const registration = await navigator.serviceWorker.register('/sw.js');
+      // --- ★究極のハック：壊れたSWを破棄して、Blobで強制的に空のSWを作り出す ---
+      // 既存の壊れたSWをすべて解除する
+      const existingRegistrations = await navigator.serviceWorker.getRegistrations();
+      for (let reg of existingRegistrations) {
+        await reg.unregister();
+      }
+
+      // 仮想のService Workerファイルをメモリ上に作成
+      const swCode = `
+        self.addEventListener('push', function(event) {
+          if (event.data) {
+            const data = event.data.json();
+            const options = {
+              body: data.body,
+              icon: data.icon || '/icon-192x192.png',
+              badge: '/badge.png',
+              data: { url: data.url }
+            };
+            event.waitUntil(self.registration.showNotification(data.title, options));
+          }
+        });
+        self.addEventListener('notificationclick', function(event) {
+          event.notification.close();
+          event.waitUntil(clients.openWindow(event.notification.data.url));
+        });
+      `;
+      const blob = new Blob([swCode], { type: 'application/javascript' });
+      const blobUrl = URL.createObjectURL(blob);
+
+      // 作成した仮想ファイルを登録する
+      const registration = await navigator.serviceWorker.register(blobUrl);
       
-      // バックグラウンドで最新状態にアップデートしておく（待機しない）
-      registration.update().catch(console.error);
+      // ここで確実に待つ
+      await navigator.serviceWorker.ready;
 
       if (!registration.pushManager) {
           throw new Error('プッシュ通知の管理モジュールが見つかりませんでした。iPhoneの場合は「ホーム画面に追加」から開いているか確認してください。');
