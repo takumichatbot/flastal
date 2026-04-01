@@ -282,22 +282,58 @@ export const createQuotation = async (req, res) => {
         const offer = await prisma.offer.findFirst({ where: { projectId, floristId, status: 'ACCEPTED' } });
         if (!offer) return res.status(403).json({ message: '承諾済みのオファーが存在しません。' });
 
-        const totalAmount = items.reduce((sum, item) => sum + parseInt(item.amount, 10), 0);
+        const project = await prisma.project.findUnique({ where: { id: projectId } });
+        
+        // --- ★ 特急料金の自動計算ロジック ---
+        const now = new Date();
+        const deliveryDate = new Date(project.deliveryDateTime);
+        // 現在日時から納品日までの差分（ミリ秒）を日数に変換（切り上げ）
+        const diffTime = deliveryDate.getTime() - now.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+        
+        // ベースとなる商品代金の合計
+        let baseAmount = items.reduce((sum, item) => sum + parseInt(item.amount, 10), 0);
+        let rushFeeRate = 0;
+        let rushFeeName = "";
 
+        // 日数に応じたルール適用
+        if (diffDays <= 1) {
+            rushFeeRate = 0.30; // 30% (前日・当日)
+            rushFeeName = "超特急対応料金 (前日・当日: 30%加算)";
+        } else if (diffDays <= 3) {
+            rushFeeRate = 0.20; // 20% (3日前〜2日前)
+            rushFeeName = "特急対応料金 (2〜3日前: 20%加算)";
+        } else if (diffDays <= 7) {
+            rushFeeRate = 0.10; // 10% (7日前〜4日前)
+            rushFeeName = "お急ぎ対応料金 (4〜7日前: 10%加算)";
+        }
+
+        // 保存用のアイテムリストを作成
+        const finalItems = [...items.map(item => ({ itemName: item.itemName, amount: parseInt(item.amount, 10) }))];
+        let totalAmount = baseAmount;
+
+        // 特急料金が発生する場合はアイテムとして追加
+        if (rushFeeRate > 0) {
+            const rushFee = Math.floor(baseAmount * rushFeeRate);
+            finalItems.push({ itemName: rushFeeName, amount: rushFee });
+            totalAmount += rushFee; // 総額に上乗せ
+        }
+
+        // データベースに保存
         const newQuotation = await prisma.quotation.create({
             data: {
                 projectId,
                 totalAmount,
-                items: { create: items.map(item => ({ itemName: item.itemName, amount: parseInt(item.amount, 10) })) },
+                items: { create: finalItems },
             },
             include: { items: true },
         });
 
-        const project = await prisma.project.findUnique({ where: { id: projectId } });
-        await createNotification(project.plannerId, 'QUOTATION_RECEIVED', '見積もりが届きました。', projectId, `/projects/${projectId}/quotation`);
+        await createNotification(project.plannerId, 'QUOTATION_RECEIVED', 'お花屋さんから見積もりが届きました。', projectId, `/projects/${projectId}`);
 
         res.status(201).json(newQuotation);
     } catch (error) {
+        console.error('Quotation Error:', error);
         res.status(500).json({ message: '見積書の作成に失敗しました。' });
     }
 };

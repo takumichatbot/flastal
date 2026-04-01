@@ -324,7 +324,7 @@ const HeroSection = () => (
       <div className="flex-1 w-full max-w-lg mx-auto relative lg:h-[600px] aspect-square lg:aspect-auto">
         <Reveal delay={0.2} className="w-full h-full">
           <div className="relative w-full h-full rounded-[3rem] overflow-hidden shadow-2xl rotate-2 border-8 border-white bg-slate-100 group">
-            <Image src="https://images.unsplash.com/photo-1501004318641-b39e6451bec6?q=80&w=1000" alt="Flasta" fill className="object-cover transition-transform duration-1000 group-hover:scale-105" priority />
+            <Image src="/flasta-main.jpg" alt="フラスタのメイン画像" fill className="object-cover transition-transform duration-1000 group-hover:scale-105" priority />
             <div className="absolute inset-0 bg-gradient-to-t from-pink-900/80 via-transparent to-transparent" />
             
             {/* 浮かぶ装飾バッジ */}

@@ -88,6 +88,8 @@ export const approveItem = async (req, res) => {
         const fm = prisma.florist || prisma['florist'];
         if (type === 'projects') updated = await prisma.project.update({ where: { id }, data: { status: status === 'APPROVED' ? 'FUNDRAISING' : 'REJECTED' } });
         else if (type === 'florists') updated = await fm.update({ where: { id }, data: { status: finalStatus } });
+        // ★ 追加: 絵師のステータス更新
+        else if (type === 'illustrators') updated = await prisma.illustrator.update({ where: { id }, data: { status: finalStatus } });
         else if (type === 'venues') updated = await prisma.venue.update({ where: { id }, data: { status: finalStatus } });
         else if (type === 'organizers') updated = await prisma.organizer.update({ where: { id }, data: { status: finalStatus } });
         return res.json(updated);
@@ -101,6 +103,8 @@ export const getPendingItems = async (req, res) => {
         const fm = prisma.florist || prisma['florist'];
         if (type === 'projects') data = await prisma.project.findMany({ where: { status: 'PENDING_APPROVAL' }, include: { planner: true } });
         else if (type === 'florists') data = await fm.findMany({ where: { status: 'PENDING' } });
+        // ★ 追加: 絵師の審査待ちリスト取得
+        else if (type === 'illustrators') data = await prisma.illustrator.findMany({ where: { status: 'PENDING' } });
         else if (type === 'venues') data = await prisma.venue.findMany({ where: { status: 'PENDING' } });
         else if (type === 'organizers') data = await prisma.organizer.findMany({ where: { status: 'PENDING' } });
         return res.json(data || []);

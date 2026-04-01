@@ -417,6 +417,24 @@ function CreateProjectForm() {
     password: '',
   });
 
+  // ▼▼▼ ここから追加 ▼▼▼
+  const calculateRushFee = () => {
+    if (!formData.deliveryDateTime) return null;
+    
+    const now = new Date();
+    const target = new Date(formData.deliveryDateTime);
+    const diffTime = target.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays <= 1) return { rate: '30%', days: '前日・当日', msg: '在庫対応か無理な時間調整を伴う「超特急」対応となります。' };
+    if (diffDays <= 3) return { rate: '20%', days: '2〜3日前', msg: '市場外での花材の急ぎ確保が必要になる時期です。' };
+    if (diffDays <= 7) return { rate: '10%', days: '4〜7日前', msg: '花材の予約がギリギリ間に合う時期です。スケジュール調整代がかかります。' };
+    
+    return null; 
+  };
+
+  const rushFeeAlert = calculateRushFee();
+
   const uploadImageToS3 = async (file) => {
     try {
         const res = await authenticatedFetch('/api/tools/s3-upload-url', {
@@ -751,9 +769,35 @@ function CreateProjectForm() {
              ) : (
                  <GlassInput type="text" name="deliveryAddress" required value={formData.deliveryAddress} onChange={handleChange} className="mb-8" placeholder="例：東京都渋谷区○○..." />
              )}
+             
              <div>
                 <InputLabel icon={Clock} title="納品希望日時" required />
                 <GlassInput type="datetime-local" name="deliveryDateTime" required value={formData.deliveryDateTime} onChange={handleChange} />
+                
+                {/* ▼▼▼ ここから追加 ▼▼▼ */}
+                <AnimatePresence>
+                  {rushFeeAlert && (
+                    <motion.div 
+                      initial={{ opacity: 0, y: -10, height: 0 }} 
+                      animate={{ opacity: 1, y: 0, height: 'auto' }}
+                      exit={{ opacity: 0, y: -10, height: 0 }}
+                      className="mt-4 p-4 md:p-5 bg-rose-50 border border-rose-200 rounded-2xl flex items-start gap-3 overflow-hidden shadow-sm"
+                    >
+                      <AlertTriangle className="text-rose-500 shrink-0 mt-0.5" size={20} />
+                      <div>
+                        <p className="text-sm font-black text-rose-700">
+                          ⚠️ お急ぎ対応料金（目安: {rushFeeAlert.rate}）が加算されます
+                        </p>
+                        <p className="text-xs text-rose-600/80 font-bold mt-1.5 leading-relaxed">
+                          納品まで残り日数が短いため（{rushFeeAlert.days}）、お花屋さんからの見積もりに特急料金が自動加算されます。<br/>
+                          <span className="opacity-80 block mt-1">理由: {rushFeeAlert.msg}</span>
+                        </p>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+                {/* ▲▲▲ ここまで追加 ▲▲▲ */}
+
              </div>
           </GlassCard>
 

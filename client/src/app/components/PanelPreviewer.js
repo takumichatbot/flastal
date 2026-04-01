@@ -1,6 +1,6 @@
 "use client";
-import { useState, useRef, useEffect } from 'react';
-import { FiUpload, FiAlertTriangle, FiCheckCircle, FiImage, FiTrash2, FiMaximize, FiRefreshCcw } from 'react-icons/fi';
+import { useState, useRef } from 'react';
+import { FiUpload, FiAlertTriangle, FiImage, FiTrash2 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
 // 形状定義
@@ -12,6 +12,9 @@ const SHAPES = [
   { id: 'wood', label: '木札 (立札)', icon: '🟫' },
 ];
 
+// ハート型の安全なSVGマスク（ブラウザのバグを防ぐエンコード済み）
+const heartMask = "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M50 88.9L16.7 55.6C7.2 46.1 7.2 30.9 16.7 21.4 26.2 11.9 41.4 11.9 50.9 21.4L50 22.3 49.1 21.4C58.6 11.9 73.8 11.9 83.3 21.4 92.8 30.9 92.8 46.1 83.3 55.6L50 88.9z'/%3E%3C/svg%3E\")";
+
 export default function PanelPreviewer({ onImageSelected }) {
   const [previewUrl, setPreviewUrl] = useState(null);
   const [imageMeta, setImageMeta] = useState({ width: 0, height: 0, size: 0 });
@@ -21,8 +24,6 @@ export default function PanelPreviewer({ onImageSelected }) {
   const fileInputRef = useRef(null);
 
   // 画質判定ロジック (300dpi基準)
-  // A3サイズ(297×420mm) 300dpi ≒ 3508×4961px
-  // A4サイズ(210×297mm) 300dpi ≒ 2480×3508px
   const checkQuality = (width, height) => {
     const longSide = Math.max(width, height);
     const shortSide = Math.min(width, height);
@@ -56,7 +57,6 @@ export default function PanelPreviewer({ onImageSelected }) {
     if (file) processFile(file);
   };
 
-  // ドラッグ＆ドロップ処理
   const handleDragOver = (e) => { e.preventDefault(); setIsDragging(true); };
   const handleDragLeave = () => setIsDragging(false);
   const handleDrop = (e) => {
@@ -73,16 +73,19 @@ export default function PanelPreviewer({ onImageSelected }) {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+  // 形状によってプロポーション（縦横比）と最大幅を変える
+  const isSquareLike = shape === 'square' || shape === 'circle' || shape === 'heart';
+
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden w-full">
       
       {/* ヘッダー */}
-      <div className="bg-gray-50 px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-        <h3 className="font-bold text-gray-800 flex items-center">
+      <div className="bg-gray-50 px-4 md:px-6 py-4 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+        <h3 className="font-bold text-gray-800 flex items-center text-sm md:text-base">
           <FiImage className="mr-2 text-indigo-500"/> パネル・シミュレーター
         </h3>
         {previewUrl && (
-            <span className={`text-xs font-bold px-2 py-1 rounded-full border ${
+            <span className={`text-[10px] md:text-xs font-bold px-3 py-1 rounded-full border ${
                 qualityStatus.status === 'good' ? 'bg-green-50 text-green-700 border-green-200' :
                 qualityStatus.status === 'warning' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' :
                 'bg-red-50 text-red-700 border-red-200'
@@ -92,7 +95,7 @@ export default function PanelPreviewer({ onImageSelected }) {
         )}
       </div>
 
-      <div className="p-6">
+      <div className="p-4 md:p-6 w-full">
         {!previewUrl ? (
           /* アップロードエリア */
           <div 
@@ -100,92 +103,89 @@ export default function PanelPreviewer({ onImageSelected }) {
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
             onClick={() => fileInputRef.current.click()}
-            className={`border-2 border-dashed rounded-xl h-64 flex flex-col items-center justify-center cursor-pointer transition-all duration-300 group ${
+            className={`border-2 border-dashed rounded-2xl h-48 md:h-64 flex flex-col items-center justify-center cursor-pointer transition-all duration-300 group ${
                 isDragging ? 'border-indigo-500 bg-indigo-50 scale-[1.02]' : 'border-gray-300 hover:border-indigo-400 hover:bg-gray-50'
             }`}
           >
-            <div className={`p-4 rounded-full mb-3 transition-colors ${isDragging ? 'bg-indigo-200 text-indigo-600' : 'bg-gray-100 text-gray-400 group-hover:bg-indigo-100 group-hover:text-indigo-500'}`}>
-                <FiUpload className="text-3xl"/>
+            <div className={`p-3 md:p-4 rounded-full mb-3 transition-colors ${isDragging ? 'bg-indigo-200 text-indigo-600' : 'bg-gray-100 text-gray-400 group-hover:bg-indigo-100 group-hover:text-indigo-500'}`}>
+                <FiUpload className="text-2xl md:text-3xl"/>
             </div>
-            <p className="text-gray-600 font-bold text-lg">画像をドロップ または 選択</p>
-            <p className="text-xs text-gray-400 mt-2">対応形式: JPG, PNG (推奨: 長辺2500px以上)</p>
+            <p className="text-gray-600 font-bold text-sm md:text-lg">画像をドロップ または 選択</p>
+            <p className="text-[10px] md:text-xs text-gray-400 mt-2 text-center px-4">対応形式: JPG, PNG (推奨: 長辺2500px以上)</p>
             <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
           </div>
         ) : (
-          <div className="flex flex-col lg:flex-row gap-8">
+          <div className="flex flex-col lg:flex-row gap-6 lg:gap-8 w-full">
             
             {/* プレビュー表示エリア */}
-            <div className="flex-1 bg-slate-100 rounded-xl p-8 flex items-center justify-center relative min-h-[400px] shadow-inner overflow-hidden">
-                {/* 背景: スタンドの雰囲気を出すためのぼかし背景 */}
+            <div className="flex-1 bg-slate-100 rounded-2xl p-4 md:p-8 flex items-center justify-center relative min-h-[300px] md:min-h-[400px] shadow-inner overflow-hidden">
+                {/* ぼかし背景 */}
                 <div 
-                    className="absolute inset-0 bg-cover bg-center opacity-30 blur-xl scale-110"
+                    className="absolute inset-0 bg-cover bg-center opacity-30 blur-2xl scale-110"
                     style={{ backgroundImage: `url(${previewUrl})` }}
                 ></div>
                 <div className="absolute inset-0 bg-white/40 backdrop-blur-sm"></div>
 
                 {/* --- パネル本体 --- */}
+                {/* ★修正: スマホサイズで枠からはみ出さないよう aspectRatio と maxWidth を使用し、overflow-hidden で画像を切り抜く */}
                 <div 
-                    className={`relative shadow-2xl transition-all duration-500 z-10 ${
+                    className={`relative shadow-2xl transition-all duration-500 z-10 overflow-hidden ${
                         shape === 'wood' ? 'bg-[#eecfa1]' : 'bg-white'
                     }`}
                     style={{
-                        width: shape === 'square' || shape === 'circle' || shape === 'heart' ? '300px' : '280px',
-                        height: shape === 'square' || shape === 'circle' || shape === 'heart' ? '300px' : '400px',
-                        // 形状の切り抜き
-                        borderRadius: shape === 'circle' ? '50%' : shape === 'rect' ? '4px' : '0',
-                        maskImage: shape === 'heart' 
-                            ? "url(\"data:image/svg+xml;utf8,<svg viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'><path d='M50 88.9L16.7 55.6C7.2 46.1 7.2 30.9 16.7 21.4 26.2 11.9 41.4 11.9 50.9 21.4L50 22.3 49.1 21.4C58.6 11.9 73.8 11.9 83.3 21.4 92.8 30.9 92.8 46.1 83.3 55.6L50 88.9z'/></svg>\")"
-                            : 'none',
-                        WebkitMaskImage: shape === 'heart' 
-                            ? "url(\"data:image/svg+xml;utf8,<svg viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'><path d='M50 88.9L16.7 55.6C7.2 46.1 7.2 30.9 16.7 21.4 26.2 11.9 41.4 11.9 50.9 21.4L50 22.3 49.1 21.4C58.6 11.9 73.8 11.9 83.3 21.4 92.8 30.9 92.8 46.1 83.3 55.6L50 88.9z'/></svg>\")"
-                            : 'none',
+                        width: '100%',
+                        maxWidth: isSquareLike ? '300px' : '280px',
+                        aspectRatio: isSquareLike ? '1 / 1' : '1 / 1.4',
+                        borderRadius: shape === 'circle' ? '50%' : shape === 'rect' ? '8px' : '0',
+                        maskImage: shape === 'heart' ? heartMask : 'none',
+                        WebkitMaskImage: shape === 'heart' ? heartMask : 'none',
                         maskSize: 'contain',
                         maskRepeat: 'no-repeat',
                         maskPosition: 'center',
                     }}
                 >
-                    {/* 木札モードの場合のテクスチャオーバーレイ */}
-                    {shape === 'wood' && (
-                         <div className="absolute inset-0 opacity-40 mix-blend-multiply pointer-events-none"
-                              style={{ backgroundImage: `repeating-linear-gradient(90deg, #d2b48c 0px, #deb887 2px, #d2b48c 4px)` }}
-                         >
-                            <div className="absolute inset-0 border-[6px] border-[#8b4513] opacity-80"></div>
-                            {/* 木札の文字入力エリア（簡易） */}
-                            <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-white/80 px-2 py-0.5 text-[10px] font-serif border border-black">
-                                御祝
-                            </div>
-                         </div>
-                    )}
-
                     {/* 画像本体 */}
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img 
                         src={previewUrl} 
-                        className={`w-full h-full object-cover ${shape === 'wood' ? 'mix-blend-multiply opacity-90 p-6' : ''}`} 
+                        className={`w-full h-full object-cover transition-all duration-500 ${shape === 'wood' ? 'mix-blend-multiply opacity-90 p-4 md:p-6' : ''}`} 
                         alt="Preview"
                     />
+
+                    {/* 木札モードの場合のテクスチャオーバーレイ (画像の上に配置) */}
+                    {shape === 'wood' && (
+                         <div className="absolute inset-0 opacity-40 mix-blend-multiply pointer-events-none z-20"
+                              style={{ backgroundImage: `repeating-linear-gradient(90deg, #d2b48c 0px, #deb887 2px, #d2b48c 4px)` }}
+                         >
+                            <div className="absolute inset-0 border-[4px] md:border-[6px] border-[#8b4513] opacity-80"></div>
+                            {/* 木札の文字入力エリア（簡易） */}
+                            <div className="absolute top-3 md:top-4 left-1/2 -translate-x-1/2 bg-white/90 px-2 py-0.5 text-[10px] font-serif border border-black shadow-sm">
+                                御祝
+                            </div>
+                         </div>
+                    )}
                 </div>
             </div>
 
             {/* コントロールパネル */}
-            <div className="w-full lg:w-64 space-y-6">
+            <div className="w-full lg:w-72 flex flex-col space-y-5 md:space-y-6 shrink-0">
                 
                 {/* 形状選択 */}
                 <div>
-                    <label className="text-xs font-bold text-gray-500 mb-3 block uppercase tracking-wider">Shape Selection</label>
+                    <label className="text-[10px] md:text-xs font-black text-gray-400 mb-2.5 block uppercase tracking-widest">Shape Selection</label>
                     <div className="grid grid-cols-2 gap-2">
                         {SHAPES.map((s) => (
                             <button 
                                 key={s.id}
                                 onClick={() => setShape(s.id)}
-                                className={`flex items-center gap-2 p-2 rounded-lg text-sm font-bold border transition-all ${
+                                className={`flex items-center gap-1.5 md:gap-2 p-2 rounded-xl text-xs font-bold border transition-all ${
                                     shape === s.id 
-                                    ? 'bg-indigo-50 border-indigo-500 text-indigo-700 shadow-sm' 
-                                    : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                                    ? 'bg-indigo-50 border-indigo-400 text-indigo-700 shadow-sm ring-2 ring-indigo-50' 
+                                    : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300'
                                 }`}
                             >
-                                <span className="text-lg">{s.icon}</span>
-                                {s.label}
+                                <span className="text-base md:text-lg shrink-0">{s.icon}</span>
+                                <span className="truncate">{s.label}</span>
                             </button>
                         ))}
                     </div>
@@ -193,22 +193,22 @@ export default function PanelPreviewer({ onImageSelected }) {
 
                 {/* 画像情報 */}
                 <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
-                    <p className="text-xs font-bold text-gray-500 mb-2 uppercase">File Info</p>
-                    <div className="space-y-1 text-sm text-gray-700 font-mono">
-                        <div className="flex justify-between">
+                    <p className="text-[10px] font-black text-gray-400 mb-2 uppercase tracking-widest">File Info</p>
+                    <div className="space-y-1.5 text-xs text-gray-600 font-mono font-medium">
+                        <div className="flex justify-between items-center">
                             <span>Resolution:</span>
-                            <span className="font-bold">{imageMeta.width} x {imageMeta.height} px</span>
+                            <span className="font-bold text-gray-800">{imageMeta.width} x {imageMeta.height} px</span>
                         </div>
-                        <div className="flex justify-between">
+                        <div className="flex justify-between items-center">
                             <span>File Size:</span>
-                            <span>{imageMeta.size} MB</span>
+                            <span className="font-bold text-gray-800">{imageMeta.size} MB</span>
                         </div>
                     </div>
                     
                     {/* アラート */}
                     {qualityStatus.status !== 'good' && (
-                        <div className="mt-3 text-xs bg-yellow-100 text-yellow-800 p-2 rounded border border-yellow-200 flex items-start gap-1">
-                            <FiAlertTriangle className="shrink-0 mt-0.5"/>
+                        <div className="mt-4 text-[10px] md:text-xs leading-relaxed bg-yellow-50 text-yellow-800 p-3 rounded-lg border border-yellow-200 flex items-start gap-2 shadow-sm">
+                            <FiAlertTriangle className="shrink-0 mt-0.5 text-yellow-600" size={14}/>
                             <span>解像度が低いため、印刷時にぼやける可能性があります。より大きな画像の使用を推奨します。</span>
                         </div>
                     )}
@@ -216,9 +216,9 @@ export default function PanelPreviewer({ onImageSelected }) {
 
                 <button 
                     onClick={clearImage} 
-                    className="w-full py-3 border border-red-200 text-red-500 bg-white rounded-xl text-sm font-bold hover:bg-red-50 hover:border-red-300 transition-colors flex items-center justify-center gap-2"
+                    className="w-full py-3.5 border border-red-200 text-red-500 bg-white rounded-xl text-xs md:text-sm font-black hover:bg-red-50 hover:border-red-300 transition-colors flex items-center justify-center gap-2 shadow-sm"
                 >
-                    <FiTrash2 /> 画像を削除してリセット
+                    <FiTrash2 size={16}/> 別の画像を選び直す
                 </button>
             </div>
           </div>

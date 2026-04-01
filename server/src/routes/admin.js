@@ -10,6 +10,8 @@ router.use(requireAdmin);
 // --- 1. 静的・固定パス (優先順位：最高) ---
 router.get('/projects/pending', (req, res) => { req.params.type = 'projects'; adminController.getPendingItems(req, res); });
 router.get('/florists/pending', (req, res) => { req.params.type = 'florists'; adminController.getPendingItems(req, res); });
+// ★ 追加: 絵師の審査待ち一覧取得
+router.get('/illustrators/pending', (req, res) => { req.params.type = 'illustrators'; adminController.getPendingItems(req, res); });
 router.get('/venues/pending', (req, res) => { req.params.type = 'venues'; adminController.getPendingItems(req, res); });
 router.get('/organizers/pending', (req, res) => { req.params.type = 'organizers'; adminController.getPendingItems(req, res); });
 
@@ -25,12 +27,12 @@ router.get('/payouts', adminController.getAdminPayouts);
 router.get('/email-templates', adminController.getEmailTemplates);
 
 // --- 2. 動的IDパス (優先順位：中) ---
-
-// ★チャット監視画面用: フロントエンドのリクエスト /projects/:projectId/chats に対応
 router.get('/projects/:projectId/chats', adminController.getProjectChatLogs);
 
 router.patch('/projects/:id/status', (req, res) => { req.params.type = 'projects'; adminController.approveItem(req, res); });
 router.patch('/florists/:id/status', (req, res) => { req.params.type = 'florists'; adminController.approveItem(req, res); });
+// ★ 追加: 絵師の審査承認・却下
+router.patch('/illustrators/:id/status', (req, res) => { req.params.type = 'illustrators'; adminController.approveItem(req, res); });
 router.patch('/venues/:id/status', (req, res) => { req.params.type = 'venues'; adminController.approveItem(req, res); });
 router.patch('/organizers/:id/status', (req, res) => { req.params.type = 'organizers'; adminController.approveItem(req, res); });
 

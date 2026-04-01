@@ -7,11 +7,10 @@ import Link from 'next/link';
 import { useAuth } from '../contexts/AuthContext';
 import { motion } from 'framer-motion';
 
-// lucide-reactに統一
 import { 
     MessageSquare, AlertTriangle, RefreshCw, DollarSign, 
     Award, MapPin, Calendar, Clock, Settings, Edit3, 
-    Mail, Activity, TrendingUp, UserCheck, CheckCircle2, LogOut, ArrowRight
+    Mail, Activity, TrendingUp, UserCheck, CheckCircle2, LogOut, ArrowRight, Palette
 } from 'lucide-react'; 
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
@@ -49,7 +48,7 @@ export default function AdminPage() {
   
   const [chatReportCount, setChatReportCount] = useState(0); 
   const [pendingCounts, setPendingCounts] = useState({
-      florists: 0, venues: 0, organizers: 0, projects: 0,
+      florists: 0, illustrators: 0, venues: 0, organizers: 0, projects: 0,
   });
 
   const fetchAdminData = useCallback(async () => { 
@@ -58,10 +57,12 @@ export default function AdminPage() {
       const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
       const headers = { 'Authorization': `Bearer ${token}` };
       
-      const [commissionsRes, reportsRes, floristRes, venueRes, organizerRes, projectRes] = await Promise.all([
+      // ★ 修正: illustrators/pending のAPIリクエストを追加
+      const [commissionsRes, reportsRes, floristRes, illustratorRes, venueRes, organizerRes, projectRes] = await Promise.all([
           fetch(`${API_URL}/api/admin/commissions`, { headers }),
           fetch(`${API_URL}/api/admin/chat-reports`, { headers }),
           fetch(`${API_URL}/api/admin/florists/pending`, { headers }), 
+          fetch(`${API_URL}/api/admin/illustrators/pending`, { headers }), 
           fetch(`${API_URL}/api/admin/venues/pending`, { headers }), 
           fetch(`${API_URL}/api/admin/organizers/pending`, { headers }), 
           fetch(`${API_URL}/api/admin/projects/pending`, { headers }),
@@ -70,6 +71,7 @@ export default function AdminPage() {
       const commissionData = commissionsRes.ok ? await commissionsRes.json() : [];
       const reportData = reportsRes.ok ? await reportsRes.json() : []; 
       const florists = floristRes.ok ? await floristRes.json() : [];
+      const illustrators = illustratorRes.ok ? await illustratorRes.json() : [];
       const venues = venueRes.ok ? await venueRes.json() : [];
       const organizers = organizerRes.ok ? await organizerRes.json() : [];
       const projects = projectRes.ok ? await projectRes.json() : [];
@@ -77,8 +79,10 @@ export default function AdminPage() {
       setCommissions(Array.isArray(commissionData) ? commissionData : []);
       setChatReportCount(Array.isArray(reportData) ? reportData.length : 0); 
       
+      // ★ 修正: illustrators の件数をセット
       setPendingCounts({
           florists: Array.isArray(florists) ? florists.length : 0,
+          illustrators: Array.isArray(illustrators) ? illustrators.length : 0,
           venues: Array.isArray(venues) ? venues.length : 0,
           organizers: Array.isArray(organizers) ? organizers.length : 0,
           projects: Array.isArray(projects) ? projects.length : 0,
@@ -102,7 +106,7 @@ export default function AdminPage() {
   }, [isAuthenticated, user, router, loading, fetchAdminData]);
 
   const totalCommission = commissions.reduce((sum, c) => sum + (c.amount || 0), 0);
-  const totalPendingAccounts = pendingCounts.florists + pendingCounts.venues + pendingCounts.organizers;
+  const totalPendingAccounts = pendingCounts.florists + pendingCounts.illustrators + pendingCounts.venues + pendingCounts.organizers;
   
   const recentCommissions = useMemo(() => {
       return [...commissions].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 5);
@@ -209,7 +213,9 @@ export default function AdminPage() {
                 <GlassCard className="!p-8 !border-amber-200">
                     <h3 className="font-black text-slate-800 mb-6 flex items-center gap-2"><Activity className="text-amber-500"/> 要対応アクション</h3>
                     <div className="space-y-3">
-                        <TodoItem label="アカウント審査待ち" count={totalPendingAccounts} href="/admin/approval" color="amber" />
+                        <TodoItem label="花屋 審査待ち" count={pendingCounts.florists} href="/admin/florist-approval" color="amber" />
+                        {/* ★ 修正: 絵師審査待ちを追加 */}
+                        <TodoItem label="絵師 審査待ち" count={pendingCounts.illustrators} href="/admin/illustrator-approval" color="purple" />
                         <TodoItem label="プロジェクト審査待ち" count={pendingCounts.projects} href="/admin/project-approval" color="sky" />
                         <TodoItem label="未処理の通報" count={chatReportCount} href="/admin/reports" color="rose" />
                     </div>
@@ -224,7 +230,8 @@ export default function AdminPage() {
                 <GlassCard className="!p-8">
                     <h3 className="font-black text-slate-800 mb-6 text-xs uppercase tracking-widest text-slate-400">Control Menu</h3>
                     <div className="grid grid-cols-1 gap-2">
-                        <QuickLink href="/admin/approval" icon={<UserCheck/>} label="アカウント審査管理" />
+                        <QuickLink href="/admin/florist-approval" icon={<UserCheck/>} label="花屋審査管理" />
+                        <QuickLink href="/admin/illustrator-approval" icon={<Palette/>} label="絵師審査管理" />
                         <QuickLink href="/admin/project-approval" icon={<Award/>} label="プロジェクト審査" />
                         <QuickLink href="/admin/contact" icon={<Mail/>} label="個別チャット連絡" />
                         <QuickLink href="/admin/payouts" icon={<DollarSign/>} label="出金申請の管理" />
@@ -266,7 +273,7 @@ function KpiCard({ label, value, subValue, icon, color, isAlert }) {
 
 function TodoItem({ label, count, href, color }) {
     if (count === 0) return null;
-    const colors = { amber: 'bg-amber-100 text-amber-700', rose: 'bg-rose-100 text-rose-700', sky: 'bg-sky-100 text-sky-700' };
+    const colors = { amber: 'bg-amber-100 text-amber-700', rose: 'bg-rose-100 text-rose-700', sky: 'bg-sky-100 text-sky-700', purple: 'bg-purple-100 text-purple-700' };
     return (
         <Link href={href} className="flex items-center justify-between p-4 rounded-2xl bg-slate-50/80 border border-slate-100 hover:bg-white hover:border-slate-300 transition-all group shadow-sm">
             <span className="text-xs font-black text-slate-600 group-hover:text-slate-900">{label}</span>
