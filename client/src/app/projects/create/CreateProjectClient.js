@@ -15,7 +15,7 @@ import AiPlanGenerator from '@/app/components/AiPlanGenerator';
 // Lucide Icons (react-iconsから移行し統一)
 import { 
   Calendar, MapPin, X, Image as ImageIcon, Loader2, Plus, 
-  User, Award, Search, CheckCircle2, ZoomIn, Sparkles, 
+  User, Award, Search, CheckCircle2, AlertTriangle, ZoomIn, Sparkles, 
   Heart, Wand2, Lock, Globe, UploadCloud, ArrowRight, Paintbrush, FileText, Clock // ← Clock を追加
 } from 'lucide-react';
 
