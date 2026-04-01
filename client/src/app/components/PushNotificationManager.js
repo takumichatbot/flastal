@@ -60,17 +60,14 @@ export default function PushNotificationManager() {
 
     try {
       // 1. サポートチェック
-      if (!('Notification' in window) || !('serviceWorker' in navigator)) {
-        throw new Error('お使いのブラウザはプッシュ通知をサポートしていません。iPhoneの場合はSafariの共有ボタンから「ホーム画面に追加」してアプリ化してください。');
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+        throw new Error('ご使用のブラウザはプッシュ通知に対応していません。iPhoneの場合は、Safariの共有メニューから「ホーム画面に追加」してアプリアイコンから開いてください。');
       }
 
       // 2. 許可リクエスト
       let permission = Notification.permission;
       if (permission === 'default') {
-        permission = await new Promise((resolve) => {
-          const result = Notification.requestPermission(resolve);
-          if (result && result.then) result.then(resolve);
-        });
+        permission = await Notification.requestPermission();
       }
       
       if (permission !== 'granted') {
@@ -79,28 +76,15 @@ export default function PushNotificationManager() {
 
       toast.loading('通信設定を準備中...', { id: toastId });
 
-      // 3. Service Worker の登録と安全なActive待機
-      let registration = await navigator.serviceWorker.getRegistration();
+      // 3. Service Worker の登録
+      // ★修正：余計なループ処理を完全に排除し、標準の最も安定した方法で登録
+      const registration = await navigator.serviceWorker.register('/sw.js');
       
-      if (registration) {
-        await registration.update().catch(console.error);
-      } else {
-        registration = await navigator.serviceWorker.register('/sw.js');
-      }
+      // 確実に登録が完了するのを待つ
+      await navigator.serviceWorker.ready;
 
-      let isActive = false;
-      for (let i = 0; i < 10; i++) {
-        // ★修正：registrationが空（undefined）で返ってきてもエラーで落ちないように「&&」で安全に繋ぐ
-        if (registration && registration.active) {
-          isActive = true;
-          break;
-        }
-        await new Promise(resolve => setTimeout(resolve, 500)); 
-        registration = await navigator.serviceWorker.getRegistration();
-      }
-
-      if (!isActive || !registration || !registration.pushManager) {
-        throw new Error('ブラウザの通信機能がフリーズしています。一度ページを再読み込みするか、ブラウザのキャッシュを消去してください。');
+      if (!registration.pushManager) {
+          throw new Error('通知システムの初期化に失敗しました。iPhoneの場合は「ホーム画面に追加」から開いているか確認してください。');
       }
 
       toast.loading('サーバーへ登録中...', { id: toastId });
