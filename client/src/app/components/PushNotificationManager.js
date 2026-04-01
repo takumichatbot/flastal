@@ -77,14 +77,15 @@ export default function PushNotificationManager() {
       toast.loading('通信設定を準備中...', { id: toastId });
 
       // 3. Service Worker の登録
-      // ★修正：余計なループ処理を完全に排除し、標準の最も安定した方法で登録
+      // ★大修正：フリーズの原因となる待機処理（readyやループ処理）を完全に削除！
+      // register() を呼んで返ってきた時点で、そのまま進むのが一番安全です。
       const registration = await navigator.serviceWorker.register('/sw.js');
       
-      // 確実に登録が完了するのを待つ
-      await navigator.serviceWorker.ready;
+      // バックグラウンドで最新状態にアップデートしておく（待機しない）
+      registration.update().catch(console.error);
 
       if (!registration.pushManager) {
-          throw new Error('通知システムの初期化に失敗しました。iPhoneの場合は「ホーム画面に追加」から開いているか確認してください。');
+          throw new Error('プッシュ通知の管理モジュールが見つかりませんでした。iPhoneの場合は「ホーム画面に追加」から開いているか確認してください。');
       }
 
       toast.loading('サーバーへ登録中...', { id: toastId });
