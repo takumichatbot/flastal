@@ -41,7 +41,7 @@ export default function PushNotificationManager() {
 
   const checkSubscription = async () => {
     try {
-      const registration = await navigator.serviceWorker.ready;
+      const registration = await navigator.serviceWorker.getRegistration();
       if (registration && registration.pushManager) {
         const subscription = await registration.pushManager.getSubscription();
         if (subscription) setIsSubscribed(true);
@@ -56,7 +56,7 @@ export default function PushNotificationManager() {
     if (!PUBLIC_KEY) return toast.error('システムエラー：公開鍵が設定されていません');
 
     setLoading(true);
-    let toastId = toast.loading('通信設定を準備中...');
+    let toastId = toast.loading('通知を設定中...');
 
     try {
       if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
@@ -72,11 +72,19 @@ export default function PushNotificationManager() {
         throw new Error('通知がブロックされています。端末の設定から許可してください。');
       }
 
-      // 1. 正規のService Workerファイル(/sw.js)を登録
-      await navigator.serviceWorker.register('/sw.js');
+      toast.loading('通信設定を準備中...', { id: toastId });
+
+      // 1. ファイル名を正しく /push-sw.js に指定して登録
+      let registration = await navigator.serviceWorker.register('/push-sw.js', { scope: '/' });
       
-      // 2. ★超重要：SWが「完全に起動(Active)」するまで待機し、確実にActiveな登録情報を取得する
-      const registration = await navigator.serviceWorker.ready;
+      // バックグラウンドで最新状態に更新
+      await registration.update().catch(console.error);
+
+      // 2. 起動(Active)を待機（※無限フリーズを防ぐため、最大10秒で強制タイムアウトさせる安全装置）
+      registration = await Promise.race([
+        navigator.serviceWorker.ready,
+        new Promise((_, reject) => setTimeout(() => reject(new Error('通信プログラムの起動に時間がかかっています。ページを一度更新してください。')), 10000))
+      ]);
 
       if (!registration || !registration.pushManager) {
           throw new Error('プッシュ通知の準備に失敗しました。ページを再読み込みしてください。');
@@ -84,7 +92,7 @@ export default function PushNotificationManager() {
 
       toast.loading('サーバーへ登録中...', { id: toastId });
 
-      // 3. サブスクライブ（Activeなプログラムでのみ実行可能）
+      // 3. サブスクライブ
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(PUBLIC_KEY)
@@ -108,6 +116,7 @@ export default function PushNotificationManager() {
 
     } catch (error) {
       console.error('Push Error:', error);
+      // フリーズさせず、必ずエラーメッセージを表示してロード状態を解除する
       toast.error(error.message || '登録に失敗しました', { id: toastId, duration: 6000 });
     } finally {
       setLoading(false);
