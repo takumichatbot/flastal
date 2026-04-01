@@ -60,7 +60,7 @@ export default function PushNotificationManager() {
     let toastId = toast.loading('通知を設定中...');
 
     try {
-      // 1. サポートチェック（iOS Safariなどへの配慮）
+      // 1. サポートチェック
       if (!('Notification' in window) || !('serviceWorker' in navigator)) {
         throw new Error('お使いのブラウザはプッシュ通知をサポートしていません。iPhoneの場合はSafariの共有ボタンから「ホーム画面に追加」してアプリ化してください。');
       }
@@ -80,16 +80,17 @@ export default function PushNotificationManager() {
 
       toast.loading('通信設定を準備中...', { id: toastId });
 
-      // 3. Service Worker の登録（タイムアウトを廃止し、安全に待機）
-      let registration = await navigator.serviceWorker.register('/sw.js');
-      
-      // pushManagerがまだ準備できていない場合は、Activeになるのを待つ
-      if (!registration.pushManager) {
-        registration = await navigator.serviceWorker.ready;
+      // 3. Service Worker の登録とActive化の待機 (★ここを修正)
+      let registration = await navigator.serviceWorker.getRegistration();
+      if (!registration) {
+        await navigator.serviceWorker.register('/sw.js');
       }
 
+      // インストールが終わって「完全に起動（Active）」するまで待つ
+      registration = await navigator.serviceWorker.ready;
+
       if (!registration || !registration.pushManager) {
-        throw new Error('通知システムの初期化に失敗しました。ページを再読み込みするか、「ホーム画面に追加」をお試しください。');
+        throw new Error('通知システムの初期化に失敗しました。ページを再読み込みしてください。');
       }
 
       toast.loading('サーバーへ登録中...', { id: toastId });
