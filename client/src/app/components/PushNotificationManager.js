@@ -79,31 +79,29 @@ export default function PushNotificationManager() {
 
       toast.loading('通信設定を準備中...', { id: toastId });
 
-      // --- ★ 修正箇所：無限フリーズを防ぎ、強制的に起動させるロジック ---
+      // 3. Service Worker の登録と安全なActive待機
       let registration = await navigator.serviceWorker.getRegistration();
       
       if (registration) {
-        // 既に存在する場合は強制アップデート（古いプログラムがスタックするのを防ぐ）
         await registration.update().catch(console.error);
       } else {
         registration = await navigator.serviceWorker.register('/sw.js');
       }
 
-      // プログラムが「完全に起動（active）」するまで最大5秒間だけ待機する
       let isActive = false;
       for (let i = 0; i < 10; i++) {
-        if (registration.active) {
+        // ★修正：registrationが空（undefined）で返ってきてもエラーで落ちないように「&&」で安全に繋ぐ
+        if (registration && registration.active) {
           isActive = true;
           break;
         }
-        await new Promise(resolve => setTimeout(resolve, 500)); // 0.5秒待つ
+        await new Promise(resolve => setTimeout(resolve, 500)); 
         registration = await navigator.serviceWorker.getRegistration();
       }
 
-      if (!isActive || !registration.pushManager) {
+      if (!isActive || !registration || !registration.pushManager) {
         throw new Error('ブラウザの通信機能がフリーズしています。一度ページを再読み込みするか、ブラウザのキャッシュを消去してください。');
       }
-      // --- ★ 修正箇所ここまで ---
 
       toast.loading('サーバーへ登録中...', { id: toastId });
 
