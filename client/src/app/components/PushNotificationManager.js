@@ -33,7 +33,6 @@ export default function PushNotificationManager() {
   const [isVisible, setIsVisible] = useState(true);
 
   useEffect(() => {
-    // 基本的なサポートチェック
     if (typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window) {
       setIsSupported(true);
       checkSubscription();
@@ -80,18 +79,31 @@ export default function PushNotificationManager() {
 
       toast.loading('通信設定を準備中...', { id: toastId });
 
-      // 3. Service Worker の登録とActive化の待機 (★ここを修正)
+      // --- ★ 修正箇所：無限フリーズを防ぎ、強制的に起動させるロジック ---
       let registration = await navigator.serviceWorker.getRegistration();
-      if (!registration) {
-        await navigator.serviceWorker.register('/sw.js');
+      
+      if (registration) {
+        // 既に存在する場合は強制アップデート（古いプログラムがスタックするのを防ぐ）
+        await registration.update().catch(console.error);
+      } else {
+        registration = await navigator.serviceWorker.register('/sw.js');
       }
 
-      // インストールが終わって「完全に起動（Active）」するまで待つ
-      registration = await navigator.serviceWorker.ready;
-
-      if (!registration || !registration.pushManager) {
-        throw new Error('通知システムの初期化に失敗しました。ページを再読み込みしてください。');
+      // プログラムが「完全に起動（active）」するまで最大5秒間だけ待機する
+      let isActive = false;
+      for (let i = 0; i < 10; i++) {
+        if (registration.active) {
+          isActive = true;
+          break;
+        }
+        await new Promise(resolve => setTimeout(resolve, 500)); // 0.5秒待つ
+        registration = await navigator.serviceWorker.getRegistration();
       }
+
+      if (!isActive || !registration.pushManager) {
+        throw new Error('ブラウザの通信機能がフリーズしています。一度ページを再読み込みするか、ブラウザのキャッシュを消去してください。');
+      }
+      // --- ★ 修正箇所ここまで ---
 
       toast.loading('サーバーへ登録中...', { id: toastId });
 
@@ -101,7 +113,7 @@ export default function PushNotificationManager() {
         applicationServerKey: urlBase64ToUint8Array(PUBLIC_KEY)
       });
 
-      // 5. サーバー送信
+      // 5. バックエンドへ送信
       const res = await authenticatedFetch(`${API_URL}/api/tools/subscribe-push`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
