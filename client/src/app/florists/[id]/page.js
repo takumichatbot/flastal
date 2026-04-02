@@ -136,20 +136,30 @@ export default function FloristDetailPage() {
   const handleLikeToggle = async (post) => {
     if (!token || !user) {
         toast.error("ログインが必要です。");
+        router.push('/login'); // ログインしていない場合はログイン画面へ
         return;
     }
+    
+    // ★修正: エラーハンドリングの強化
     try {
         const res = await fetch(`${API_URL}/api/florists/posts/${post.id}/like`, {
-            method: 'POST', headers: { 'Authorization': `Bearer ${token}` },
+            method: 'POST', 
+            headers: { 'Authorization': `Bearer ${token}` },
         });
 
         if (res.status === 401) {
-            toast.error("セッションが切れました。");
+            toast.error("セッションが切れました。再度ログインしてください。");
             logout();
             return;
         }
+        
+        if (res.status === 403) {
+            toast.error("お花屋さんや運営者は「いいね」できません。");
+            return;
+        }
 
-        if (!res.ok) throw new Error('失敗');
+        if (!res.ok) throw new Error('いいねの処理に失敗しました');
+        
         const data = await res.json();
         setAppealPosts(prev => prev.map(p => {
             if (p.id === post.id) {
@@ -160,7 +170,9 @@ export default function FloristDetailPage() {
             }
             return p;
         }));
-    } catch (error) { toast.error('エラーが発生しました'); }
+    } catch (error) { 
+        toast.error(error.message); 
+    }
   };
 
   const availableTags = useMemo(() => {
