@@ -232,8 +232,8 @@ export const createOffer = async (req, res) => {
             return res.status(404).json({ message: '企画が見つかりません。' });
         }
         
-        // ★修正: プランナー本人か、管理者(ADMIN)であればオファー可能にする
-        if (project.plannerId !== userId && userRole !== 'ADMIN') {
+        // ★修正: 管理者(ADMIN)は無条件でパス。それ以外はプランナー本人のみ。
+        if (userRole !== 'ADMIN' && project.plannerId !== userId) {
             return res.status(403).json({ message: 'この企画にオファーを送る権限がありません。' });
         }
 
@@ -295,7 +295,6 @@ export const createQuotation = async (req, res) => {
 
         const project = await prisma.project.findUnique({ where: { id: projectId } });
         
-        // --- ★ 特急料金の自動計算ロジック ---
         const now = new Date();
         const deliveryDate = new Date(project.deliveryDateTime);
         const diffTime = deliveryDate.getTime() - now.getTime();
@@ -351,7 +350,12 @@ export const approveQuotation = async (req, res) => {
     try {
         const result = await prisma.$transaction(async (tx) => {
             const quotation = await tx.quotation.findUnique({ where: { id }, include: { project: true } });
-            if (!quotation || quotation.project.plannerId !== userId) throw new Error('権限がありません。');
+            
+            // ★修正: 管理者(ADMIN)であれば承認可能にする
+            if (quotation.project.plannerId !== userId && req.user.role !== 'ADMIN') {
+                throw new Error('権限がありません。');
+            }
+
             if (quotation.isApproved) throw new Error('既に承認済みです。');
 
             const project = quotation.project;
