@@ -21,7 +21,7 @@ const TABS = [
   { id: 'organizers', label: '主催者', icon: ShieldCheck, color: 'text-rose-500', bg: 'bg-rose-100', activeBg: 'bg-rose-500' }
 ];
 
-// --- 項目ごとの動的テキスト生成ヘルパー（安全処理） ---
+// --- 安全なテキスト抽出ヘルパー ---
 const getItemTitle = (item, type) => {
   if (!item) return '不明';
   if (type === 'projects') return item.title || '名称未設定';
@@ -42,7 +42,17 @@ const getItemSub = (item, type) => {
   return item.email || '';
 }
 
-// --- 動的詳細モーダル（タブによって表示内容が自動で変わる） ---
+// 安全な日付フォーマット関数（空なら「日付不明」を返す）
+const safeFormatDate = (dateString) => {
+  if (!dateString) return '日付不明';
+  try {
+    return new Date(dateString).toLocaleDateString();
+  } catch (e) {
+    return '日付エラー';
+  }
+};
+
+// --- 動的詳細モーダル ---
 function DetailModal({ item, type, onClose, onAction, isProcessing }) {
   if (!item) return null;
   const tabInfo = TABS.find(t => t.id === type) || TABS[0];
@@ -57,7 +67,7 @@ function DetailModal({ item, type, onClose, onAction, isProcessing }) {
               <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">企画名</label><p className="font-bold text-slate-800">{item.title || '未設定'}</p></div>
               <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">主催者</label><p className="font-bold text-slate-800">{item.planner?.handleName || item.planner?.name || '不明'}</p></div>
               <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">目標金額</label><p className="font-bold text-slate-800">{(item.targetAmount || 0).toLocaleString()} pt</p></div>
-              <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">納品予定日</label><p className="font-bold text-slate-800">{item.eventDate ? new Date(item.eventDate).toLocaleDateString() : (item.deliveryDateTime ? new Date(item.deliveryDateTime).toLocaleDateString() : '未定')}</p></div>
+              <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">納品予定日</label><p className="font-bold text-slate-800">{safeFormatDate(item.eventDate || item.deliveryDateTime)}</p></div>
             </div>
             <div className="mt-5">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">企画詳細</label>
@@ -181,7 +191,7 @@ function ApprovalHubContent() {
 
   const fetchCounts = useCallback(async () => {
     try {
-      const token = localStorage.getItem('authToken');
+      const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
       const headers = { 'Authorization': `Bearer ${token}` };
       const [projRes, floRes, illRes, venRes, orgRes] = await Promise.all([
         fetch(`${API_URL}/api/admin/projects/pending`, { headers }),
@@ -210,7 +220,7 @@ function ApprovalHubContent() {
     setLoadingData(true);
     setSelectedItem(null); 
     try {
-      const token = localStorage.getItem('authToken');
+      const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
       const res = await fetch(`${API_URL}/api/admin/${activeTab}/pending`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -236,7 +246,7 @@ function ApprovalHubContent() {
     setIsProcessing(true);
     const toastId = toast.loading('処理中...');
     try {
-      const token = localStorage.getItem('authToken');
+      const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
       const res = await fetch(`${API_URL}/api/admin/${activeTab}/${id}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
@@ -355,7 +365,8 @@ function ApprovalHubContent() {
                         <span className="bg-amber-100 text-amber-600 text-[9px] font-black px-2.5 py-1 rounded-md flex items-center gap-1 uppercase tracking-widest shadow-sm">
                           <Clock size={10} /> 審査待ち
                         </span>
-                        <span className="text-[10px] font-bold text-slate-400">{new Date(item.createdAt).toLocaleDateString()}</span>
+                        {/* 修正: 安全な日付表示関数を使用 */}
+                        <span className="text-[10px] font-bold text-slate-400">{safeFormatDate(item.createdAt)}</span>
                       </div>
                       
                       <h3 className="font-black text-slate-800 text-base md:text-lg mb-1.5 line-clamp-1 group-hover:text-sky-500 transition-colors" title={getItemTitle(item, activeTab)}>
