@@ -21,8 +21,9 @@ const TABS = [
   { id: 'organizers', label: '主催者', icon: ShieldCheck, color: 'text-rose-500', bg: 'bg-rose-100', activeBg: 'bg-rose-500' }
 ];
 
-// --- 項目ごとの動的テキスト生成ヘルパー ---
+// --- 項目ごとの動的テキスト生成ヘルパー（安全処理） ---
 const getItemTitle = (item, type) => {
+  if (!item) return '不明';
   if (type === 'projects') return item.title || '名称未設定';
   if (type === 'florists') return item.platformName || item.shopName || '名称未設定';
   if (type === 'illustrators') return item.handleName || item.name || '名称未設定';
@@ -32,6 +33,7 @@ const getItemTitle = (item, type) => {
 }
 
 const getItemSub = (item, type) => {
+  if (!item) return '';
   if (type === 'projects') return item.planner?.handleName || item.planner?.name || '主催者不明';
   if (type === 'florists') return item.contactName || '担当者不明';
   if (type === 'illustrators') return item.name || '本名未設定';
@@ -52,14 +54,14 @@ function DetailModal({ item, type, onClose, onAction, isProcessing }) {
         return (
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">企画名</label><p className="font-bold text-slate-800">{item.title}</p></div>
+              <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">企画名</label><p className="font-bold text-slate-800">{item.title || '未設定'}</p></div>
               <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">主催者</label><p className="font-bold text-slate-800">{item.planner?.handleName || item.planner?.name || '不明'}</p></div>
-              <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">目標金額</label><p className="font-bold text-slate-800">{item.targetAmount?.toLocaleString()} pt</p></div>
+              <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">目標金額</label><p className="font-bold text-slate-800">{(item.targetAmount || 0).toLocaleString()} pt</p></div>
               <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">納品予定日</label><p className="font-bold text-slate-800">{item.eventDate ? new Date(item.eventDate).toLocaleDateString() : (item.deliveryDateTime ? new Date(item.deliveryDateTime).toLocaleDateString() : '未定')}</p></div>
             </div>
             <div className="mt-5">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">企画詳細</label>
-              <p className="bg-slate-50 p-4 rounded-xl text-sm text-slate-700 mt-1.5 whitespace-pre-wrap font-medium">{item.description}</p>
+              <p className="bg-slate-50 p-4 rounded-xl text-sm text-slate-700 mt-1.5 whitespace-pre-wrap font-medium">{item.description || '未入力'}</p>
             </div>
           </>
         );
@@ -70,7 +72,7 @@ function DetailModal({ item, type, onClose, onAction, isProcessing }) {
               <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">活動名 (公開用)</label><p className="font-bold text-slate-800">{item.platformName || '未設定'}</p></div>
               <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">店舗名/屋号</label><p className="font-bold text-slate-800">{item.shopName || '未設定'}</p></div>
               <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">担当者名</label><p className="font-bold text-slate-800">{item.contactName || '未設定'}</p></div>
-              <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">連絡先メール</label><p className="font-bold text-slate-800">{item.email}</p></div>
+              <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">連絡先メール</label><p className="font-bold text-slate-800">{item.email || '未設定'}</p></div>
             </div>
             <div className="mt-5 space-y-4">
               <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1"><MapPin size={12}/> 住所</label><p className="bg-slate-50 p-3 rounded-lg text-sm font-bold text-slate-700 mt-1">{item.address || '未入力'}</p></div>
@@ -86,9 +88,9 @@ function DetailModal({ item, type, onClose, onAction, isProcessing }) {
         return (
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">ペンネーム (活動名)</label><p className="font-bold text-slate-800">{item.handleName}</p></div>
-              <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">本名</label><p className="font-bold text-slate-800">{item.name}</p></div>
-              <div className="md:col-span-2"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">連絡先メール</label><p className="font-bold text-slate-800">{item.email}</p></div>
+              <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">ペンネーム (活動名)</label><p className="font-bold text-slate-800">{item.handleName || '未設定'}</p></div>
+              <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">本名</label><p className="font-bold text-slate-800">{item.name || '未設定'}</p></div>
+              <div className="md:col-span-2"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">連絡先メール</label><p className="font-bold text-slate-800">{item.email || '未設定'}</p></div>
             </div>
             <div className="mt-5 space-y-4">
               <div>
@@ -106,16 +108,16 @@ function DetailModal({ item, type, onClose, onAction, isProcessing }) {
       case 'venues':
         return (
           <div className="grid grid-cols-1 gap-4">
-            <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">会場・ホール名</label><p className="font-bold text-slate-800">{item.venueName}</p></div>
-            <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">所在地</label><p className="font-bold text-slate-800">{item.address}</p></div>
-            <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">連絡先メール</label><p className="font-bold text-slate-800">{item.email}</p></div>
+            <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">会場・ホール名</label><p className="font-bold text-slate-800">{item.venueName || '未設定'}</p></div>
+            <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">所在地</label><p className="font-bold text-slate-800">{item.address || '未設定'}</p></div>
+            <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">連絡先メール</label><p className="font-bold text-slate-800">{item.email || '未設定'}</p></div>
           </div>
         );
       case 'organizers':
         return (
           <div className="grid grid-cols-1 gap-4">
-            <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">団体 / 法人名</label><p className="font-bold text-slate-800">{item.name}</p></div>
-            <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">連絡先メール</label><p className="font-bold text-slate-800">{item.email}</p></div>
+            <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">団体 / 法人名</label><p className="font-bold text-slate-800">{item.name || '未設定'}</p></div>
+            <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">連絡先メール</label><p className="font-bold text-slate-800">{item.email || '未設定'}</p></div>
             <div>
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1"><Globe size={12}/> 公式Webサイト</label>
               {item.website ? <a href={item.website} target="_blank" rel="noreferrer" className="text-sky-500 font-bold hover:underline mt-1 block text-sm">{item.website}</a> : <p className="text-sm text-slate-400 mt-1">なし</p>}
@@ -193,8 +195,11 @@ function ApprovalHubContent() {
         illRes.ok ? illRes.json() : [], venRes.ok ? venRes.json() : [], orgRes.ok ? orgRes.json() : []
       ]);
       setCounts({
-        projects: proj.length || 0, florists: flo.length || 0, illustrators: ill.length || 0,
-        venues: ven.length || 0, organizers: org.length || 0
+        projects: Array.isArray(proj) ? proj.length : 0, 
+        florists: Array.isArray(flo) ? flo.length : 0, 
+        illustrators: Array.isArray(ill) ? ill.length : 0,
+        venues: Array.isArray(ven) ? ven.length : 0, 
+        organizers: Array.isArray(org) ? org.length : 0
       });
     } catch (error) {
       console.error('Count fetch error:', error);
@@ -254,6 +259,7 @@ function ApprovalHubContent() {
     if (!searchTerm) return items;
     const lower = searchTerm.toLowerCase();
     return items.filter(item => {
+      if (!item) return false;
       const text = `${item.title||''} ${item.platformName||''} ${item.shopName||''} ${item.name||''} ${item.handleName||''} ${item.email||''} ${item.venueName||''}`.toLowerCase();
       return text.includes(lower);
     });
@@ -263,7 +269,7 @@ function ApprovalHubContent() {
     return <div className="min-h-screen flex items-center justify-center bg-slate-50"><Loader2 className="animate-spin text-slate-300 w-10 h-10" /></div>;
   }
 
-  const activeTabInfo = TABS.find(t => t.id === activeTab);
+  const activeTabInfo = TABS.find(t => t.id === activeTab) || TABS[0];
 
   return (
     <div className="min-h-screen bg-slate-50/50 pb-24 font-sans text-slate-800">
