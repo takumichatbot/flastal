@@ -222,20 +222,31 @@ export const matchFloristsByAi = async (req, res) => {
 
 export const createOffer = async (req, res) => {
     const { projectId, floristId } = req.body;
-    const plannerId = req.user.id;
+    const userId = req.user.id;
+    const userRole = req.user.role;
 
     try {
         const project = await prisma.project.findUnique({ where: { id: projectId } });
-        if (!project || project.plannerId !== plannerId) return res.status(403).json({ message: '権限がありません。' });
+        
+        if (!project) {
+            return res.status(404).json({ message: '企画が見つかりません。' });
+        }
+        
+        // ★修正: プランナー本人か、管理者(ADMIN)であればオファー可能にする
+        if (project.plannerId !== userId && userRole !== 'ADMIN') {
+            return res.status(403).json({ message: 'この企画にオファーを送る権限がありません。' });
+        }
 
         const newOffer = await prisma.offer.create({
             data: { projectId, floristId }
         });
+        
         await createNotification(floristId, 'NEW_OFFER', `新しいオファーが届きました！`, projectId, `/florists/offers/${newOffer.id}`);
         
         res.status(201).json(newOffer);
     } catch (error) {
-        if (error.code === 'P2002') return res.status(409).json({ message: '既にオファー済みです。' });
+        if (error.code === 'P2002') return res.status(409).json({ message: '既にこのお花屋さんにオファーを送信済みです。' });
+        console.error('Create Offer Error:', error);
         res.status(500).json({ message: 'オファー作成中にエラーが発生しました。' });
     }
 };
@@ -287,39 +298,33 @@ export const createQuotation = async (req, res) => {
         // --- ★ 特急料金の自動計算ロジック ---
         const now = new Date();
         const deliveryDate = new Date(project.deliveryDateTime);
-        // 現在日時から納品日までの差分（ミリ秒）を日数に変換（切り上げ）
         const diffTime = deliveryDate.getTime() - now.getTime();
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
         
-        // ベースとなる商品代金の合計
         let baseAmount = items.reduce((sum, item) => sum + parseInt(item.amount, 10), 0);
         let rushFeeRate = 0;
         let rushFeeName = "";
 
-        // 日数に応じたルール適用
         if (diffDays <= 1) {
-            rushFeeRate = 0.30; // 30% (前日・当日)
+            rushFeeRate = 0.30; 
             rushFeeName = "超特急対応料金 (前日・当日: 30%加算)";
         } else if (diffDays <= 3) {
-            rushFeeRate = 0.20; // 20% (3日前〜2日前)
+            rushFeeRate = 0.20; 
             rushFeeName = "特急対応料金 (2〜3日前: 20%加算)";
         } else if (diffDays <= 7) {
-            rushFeeRate = 0.10; // 10% (7日前〜4日前)
+            rushFeeRate = 0.10; 
             rushFeeName = "お急ぎ対応料金 (4〜7日前: 10%加算)";
         }
 
-        // 保存用のアイテムリストを作成
         const finalItems = [...items.map(item => ({ itemName: item.itemName, amount: parseInt(item.amount, 10) }))];
         let totalAmount = baseAmount;
 
-        // 特急料金が発生する場合はアイテムとして追加
         if (rushFeeRate > 0) {
             const rushFee = Math.floor(baseAmount * rushFeeRate);
             finalItems.push({ itemName: rushFeeName, amount: rushFee });
-            totalAmount += rushFee; // 総額に上乗せ
+            totalAmount += rushFee; 
         }
 
-        // データベースに保存
         const newQuotation = await prisma.quotation.create({
             data: {
                 projectId,
@@ -338,11 +343,9 @@ export const createQuotation = async (req, res) => {
     }
 };
 
-// ★★★ 劇的進化: 承認方法を自由に選べる見積もり承認機能 ★★★
 export const approveQuotation = async (req, res) => {
     const { id } = req.params;
     const userId = req.user.id;
-    // フロントから送られる承認方法 ( 'FULL' | 'GUARANTEE' | 'FLEXIBLE' )
     const { approvalMethod = 'FULL' } = req.body; 
 
     try {
@@ -355,22 +358,18 @@ export const approveQuotation = async (req, res) => {
             let finalQuotationAmount = quotation.totalAmount;
             const shortfall = quotation.totalAmount - project.collectedAmount;
 
-            // 1. 支払い・承認方法に応じた分岐処理
             if (approvalMethod === 'GUARANTEE') {
-                // 【企画者立替】不足分を企画者の所持ポイントから自動補填
                 if (shortfall > 0) {
                     const user = await tx.user.findUnique({ where: { id: userId } });
                     if (user.points < shortfall) {
                         throw new Error(`立替のためのポイントが足りません（不足額: ${shortfall.toLocaleString()}pt）。先にポイントをチャージしてください。`);
                     }
                     
-                    // 企画者のポイントを減らす
                     await tx.user.update({
                         where: { id: userId },
                         data: { points: { decrement: shortfall }, totalPledgedAmount: { increment: shortfall } }
                     });
                     
-                    // プロジェクトの集計額に不足分をチャージし、立替分のPledge履歴も残す
                     await tx.project.update({
                         where: { id: project.id },
                         data: { collectedAmount: { increment: shortfall } }
@@ -381,26 +380,22 @@ export const approveQuotation = async (req, res) => {
                     });
                 }
             } else if (approvalMethod === 'FLEXIBLE') {
-                // 【おまかせ】集まった金額に合わせて見積額を下方修正
                 if (project.collectedAmount < 1000) {
                     throw new Error('集まった金額が少なすぎるため、おまかせプランは適用できません（最低1000pt必要）。');
                 }
                 
                 finalQuotationAmount = project.collectedAmount; 
                 
-                // DB上の見積額も上書き
                 await tx.quotation.update({
                     where: { id },
                     data: { totalAmount: finalQuotationAmount }
                 });
             } else {
-                // 'FULL' または デフォルト (全額集まっている場合のみ)
                 if (shortfall > 0) {
                     throw new Error('企画の集計金額が見積額に達していません。ポイント立替か、おまかせプランを選択してください。');
                 }
             }
 
-            // 2. お花屋さんの売上と手数料の計算
             const offer = await tx.offer.findUnique({ where: { projectId: project.id }, include: { florist: true } });
             
             const systemSettings = await tx.systemSettings.findFirst() || { platformFeeRate: 0.10 };
@@ -408,22 +403,18 @@ export const approveQuotation = async (req, res) => {
             const commission = Math.floor(finalQuotationAmount * feeRate);
             const netPayout = finalQuotationAmount - commission;
 
-            // 3. お花屋さんの売上残高を追加
             await tx.florist.update({
                 where: { id: offer.floristId },
                 data: { balance: { increment: netPayout } },
             });
 
-            // 手数料の記録
             await tx.commission.create({ data: { amount: commission, projectId: project.id } });
             
-            // 4. 見積もりの承認フラグを立てる
             const approved = await tx.quotation.update({
                 where: { id },
                 data: { isApproved: true }
             });
 
-            // 5. お花屋さんに通知を送信
             await createNotification(
                 offer.floristId, 
                 'QUOTATION_APPROVED', 
