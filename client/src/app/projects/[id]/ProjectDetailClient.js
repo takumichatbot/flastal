@@ -979,16 +979,13 @@ export default function ProjectDetailClient() {
                                                     <button onClick={() => setIsArModalOpen(true)} className="w-full py-3 bg-indigo-500 text-white text-sm font-black rounded-xl hover:bg-indigo-600 transition-all shadow-md">起動する</button>
                                                 </AppCard>
                                                 
+                                                {/* 提出・データカードは余白(padding)を完全に無くしてPanelPreviewerに横幅を明け渡す */}
                                                 {(isPlanner || isFlorist) && (
-                                                    <AppCard className="!p-6 flex flex-col justify-between bg-slate-50 border-slate-100">
-                                                        <div>
-                                                            <h3 className="font-black text-slate-800 mb-1 flex items-center text-base"><UploadCloud className="mr-2 text-slate-400" size={18}/> データ提出</h3>
-                                                            <p className="text-xs font-bold text-slate-500 mb-6">入稿データなどをアップロードします。</p>
-                                                        </div>
+                                                    <div className="bg-white rounded-[2rem] border border-slate-100 shadow-[0_4px_20px_rgb(0,0,0,0.03)] flex flex-col justify-between overflow-hidden">
                                                         <PanelPreviewer onImageSelected={(file) => handleUpload({ target: { files: [file] } }, 'illustration')} />
                                                         
                                                         {project.illustrationPanelUrls?.length > 0 && (
-                                                            <div className="mt-4 pt-4 border-t border-slate-200">
+                                                            <div className="p-6 border-t border-slate-100 bg-slate-50">
                                                                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">提出済みデータ</p>
                                                                 <div className="flex flex-wrap gap-2">
                                                                     {project.illustrationPanelUrls.map((url, i) => (
@@ -999,7 +996,7 @@ export default function ProjectDetailClient() {
                                                                 </div>
                                                             </div>
                                                         )}
-                                                    </AppCard>
+                                                    </div>
                                                 )}
                                             </div>
                                             

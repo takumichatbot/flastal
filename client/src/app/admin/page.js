@@ -10,7 +10,8 @@ import { motion } from 'framer-motion';
 import { 
     MessageSquare, AlertTriangle, RefreshCw, DollarSign, 
     Award, MapPin, Calendar, Clock, Settings, Edit3, 
-    Mail, Activity, TrendingUp, UserCheck, CheckCircle2, LogOut, ArrowRight, Palette
+    Mail, Activity, TrendingUp, UserCheck, CheckCircle2, LogOut, ArrowRight, Palette,
+    Flower2, Building2, ShieldCheck, FileText
 } from 'lucide-react'; 
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
@@ -57,7 +58,6 @@ export default function AdminPage() {
       const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
       const headers = { 'Authorization': `Bearer ${token}` };
       
-      // ★ 修正: illustrators/pending のAPIリクエストを追加
       const [commissionsRes, reportsRes, floristRes, illustratorRes, venueRes, organizerRes, projectRes] = await Promise.all([
           fetch(`${API_URL}/api/admin/commissions`, { headers }),
           fetch(`${API_URL}/api/admin/chat-reports`, { headers }),
@@ -79,7 +79,6 @@ export default function AdminPage() {
       setCommissions(Array.isArray(commissionData) ? commissionData : []);
       setChatReportCount(Array.isArray(reportData) ? reportData.length : 0); 
       
-      // ★ 修正: illustrators の件数をセット
       setPendingCounts({
           florists: Array.isArray(florists) ? florists.length : 0,
           illustrators: Array.isArray(illustrators) ? illustrators.length : 0,
@@ -209,14 +208,13 @@ export default function AdminPage() {
             {/* --- 右カラム (サイドバー) --- */}
             <div className="space-y-8">
                 
-                {/* To-Do リスト */}
+                {/* 統合審査センターへのリンクに変更 */}
                 <GlassCard className="!p-8 !border-amber-200">
                     <h3 className="font-black text-slate-800 mb-6 flex items-center gap-2"><Activity className="text-amber-500"/> 要対応アクション</h3>
                     <div className="space-y-3">
-                        <TodoItem label="花屋 審査待ち" count={pendingCounts.florists} href="/admin/florist-approval" color="amber" />
-                        {/* ★ 修正: 絵師審査待ちを追加 */}
-                        <TodoItem label="絵師 審査待ち" count={pendingCounts.illustrators} href="/admin/illustrator-approval" color="purple" />
-                        <TodoItem label="プロジェクト審査待ち" count={pendingCounts.projects} href="/admin/project-approval" color="sky" />
+                        <TodoItem label="花屋 審査待ち" count={pendingCounts.florists} href="/admin/approval?tab=florists" color="amber" />
+                        <TodoItem label="絵師 審査待ち" count={pendingCounts.illustrators} href="/admin/approval?tab=illustrators" color="purple" />
+                        <TodoItem label="プロジェクト審査待ち" count={pendingCounts.projects} href="/admin/approval?tab=projects" color="sky" />
                         <TodoItem label="未処理の通報" count={chatReportCount} href="/admin/reports" color="rose" />
                     </div>
                     {totalPendingAccounts === 0 && pendingCounts.projects === 0 && chatReportCount === 0 && (
@@ -226,18 +224,19 @@ export default function AdminPage() {
                     )}
                 </GlassCard>
 
-                {/* クイックリンク集 */}
+                {/* クイックリンク集も統合審査センターへのリンクに更新 */}
                 <GlassCard className="!p-8">
                     <h3 className="font-black text-slate-800 mb-6 text-xs uppercase tracking-widest text-slate-400">Control Menu</h3>
                     <div className="grid grid-cols-1 gap-2">
-                        <QuickLink href="/admin/florist-approval" icon={<UserCheck/>} label="花屋審査管理" />
-                        <QuickLink href="/admin/illustrator-approval" icon={<Palette/>} label="絵師審査管理" />
-                        <QuickLink href="/admin/project-approval" icon={<Award/>} label="プロジェクト審査" />
+                        <QuickLink href="/admin/approval?tab=projects" icon={<Award/>} label="プロジェクト審査" />
+                        <QuickLink href="/admin/approval?tab=florists" icon={<Flower2/>} label="花屋審査管理" />
+                        <QuickLink href="/admin/approval?tab=illustrators" icon={<Palette/>} label="絵師審査管理" />
+                        <QuickLink href="/admin/approval?tab=venues" icon={<Building2/>} label="会場審査管理" />
+                        <QuickLink href="/admin/approval?tab=organizers" icon={<ShieldCheck/>} label="主催者審査管理" />
+                        <div className="my-3 border-t border-slate-100/50"></div>
                         <QuickLink href="/admin/contact" icon={<Mail/>} label="個別チャット連絡" />
                         <QuickLink href="/admin/payouts" icon={<DollarSign/>} label="出金申請の管理" />
-                        <div className="my-3 border-t border-slate-100/50"></div>
                         <QuickLink href="/admin/florists" icon={<Edit3/>} label="花屋手数料設定" />
-                        <QuickLink href="/admin/venues" icon={<MapPin/>} label="会場DB管理" />
                         <QuickLink href="/admin/settings" icon={<Settings/>} label="システム全体設定" />
                     </div>
                 </GlassCard>
