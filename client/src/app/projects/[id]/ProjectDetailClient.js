@@ -969,56 +969,56 @@ export default function ProjectDetailClient() {
 
                                     {/* 4. ツール */}
                                     {collabTab === 'tools' && (
-                                        <div className="space-y-4">
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                <AppCard className="!p-6 flex flex-col justify-between bg-gradient-to-br from-indigo-50/50 to-white border-indigo-100">
-                                                    <div>
-                                                        <h3 className="font-black text-indigo-900 mb-1 flex items-center text-base"><Box className="mr-2 text-indigo-500" size={18}/> ARプレビュー</h3>
-                                                        <p className="text-xs font-bold text-indigo-700/70 mb-6">スマホをかざして実際のサイズ感を確認できます。</p>
-                                                    </div>
-                                                    <button onClick={() => setIsArModalOpen(true)} className="w-full py-3 bg-indigo-500 text-white text-sm font-black rounded-xl hover:bg-indigo-600 transition-all shadow-md">起動する</button>
-                                                </AppCard>
-                                                
-                                                {/* 提出・データカードは余白(padding)を完全に無くしてPanelPreviewerに横幅を明け渡す */}
-                                                {(isPlanner || isFlorist) && (
-                                                    <div className="bg-white rounded-[2rem] border border-slate-100 shadow-[0_4px_20px_rgb(0,0,0,0.03)] flex flex-col justify-between overflow-hidden">
-                                                        <PanelPreviewer onImageSelected={(file) => handleUpload({ target: { files: [file] } }, 'illustration')} />
-                                                        
-                                                        {project.illustrationPanelUrls?.length > 0 && (
-                                                            <div className="p-6 border-t border-slate-100 bg-slate-50">
-                                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">提出済みデータ</p>
-                                                                <div className="flex flex-wrap gap-2">
-                                                                    {project.illustrationPanelUrls.map((url, i) => (
-                                                                        <div key={i} className="relative w-16 h-16 rounded-lg overflow-hidden border border-slate-200 shadow-sm cursor-zoom-in hover:scale-105 transition-transform" onClick={()=>{setModalImageSrc(url); setIsImageModalOpen(true)}}>
-                                                                            <Image src={url} alt={`提出データ ${i}`} fill className="object-cover" />
-                                                                        </div>
-                                                                    ))}
-                                                                </div>
+                                        <div className="space-y-5 md:space-y-6">
+                                            
+                                            {/* ARプレビューをフル幅のバナー風に変更 */}
+                                            <AppCard className="!p-5 md:!p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between bg-gradient-to-br from-indigo-50/50 to-white border-indigo-100 gap-4">
+                                                <div>
+                                                    <h3 className="font-black text-indigo-900 mb-1 flex items-center text-sm md:text-base"><Box className="mr-2 text-indigo-500" size={18}/> ARプレビュー</h3>
+                                                    <p className="text-[10px] md:text-xs font-bold text-indigo-700/70 mb-0">スマホをかざして実際のサイズ感を確認できます。</p>
+                                                </div>
+                                                <button onClick={() => setIsArModalOpen(true)} className="w-full sm:w-auto px-8 py-3 bg-indigo-500 text-white text-xs md:text-sm font-black rounded-xl hover:bg-indigo-600 transition-all shadow-md shrink-0 active:scale-95">起動する</button>
+                                            </AppCard>
+                                            
+                                            {/* パネルシミュレーターもフル幅でゆったり表示 */}
+                                            {(isPlanner || isFlorist) && (
+                                                <div className="bg-white rounded-[2rem] border border-slate-100 shadow-[0_4px_20px_rgb(0,0,0,0.03)] flex flex-col justify-between overflow-hidden w-full">
+                                                    <PanelPreviewer onImageSelected={(file) => handleUpload({ target: { files: [file] } }, 'illustration')} />
+                                                    
+                                                    {project.illustrationPanelUrls?.length > 0 && (
+                                                        <div className="p-5 md:p-6 border-t border-slate-100 bg-slate-50">
+                                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 md:mb-3">提出済みデータ</p>
+                                                            <div className="flex flex-wrap gap-2 md:gap-3">
+                                                                {project.illustrationPanelUrls.map((url, i) => (
+                                                                    <div key={i} className="relative w-14 h-14 md:w-16 md:h-16 rounded-lg overflow-hidden border border-slate-200 shadow-sm cursor-zoom-in hover:scale-105 transition-transform" onClick={()=>{setModalImageSrc(url); setIsImageModalOpen(true)}}>
+                                                                        <Image src={url} alt={`提出データ ${i}`} fill className="object-cover" />
+                                                                    </div>
+                                                                ))}
                                                             </div>
-                                                        )}
-                                                    </div>
-                                                )}
-                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
                                             
                                             {/* Pre-event photos */}
                                             {((isPlanner || isFlorist) || project.productionStatus === 'PRE_COMPLETION') && (
                                                 <AppCard className="border-indigo-100">
-                                                    <h3 className="font-black text-slate-800 mb-4 flex items-center text-sm"><CheckCircle2 className="mr-2 text-emerald-500" size={16}/> 仕上がり確認 (前日写真)</h3>
+                                                    <h3 className="font-black text-slate-800 mb-3 md:mb-4 flex items-center text-sm md:text-base"><CheckCircle2 className="mr-2 text-emerald-500" size={16}/> 仕上がり確認 (前日写真)</h3>
                                                     {project.preEventPhotoUrls?.length > 0 ? (
-                                                        <div className="flex flex-wrap gap-3">
+                                                        <div className="flex flex-wrap gap-2 md:gap-3">
                                                             {project.preEventPhotoUrls.map((url, i) => (
-                                                                <div key={i} className="relative w-24 h-24 rounded-xl overflow-hidden border border-slate-200 shadow-sm cursor-zoom-in hover:scale-105 transition-transform" onClick={()=>{setModalImageSrc(url); setIsImageModalOpen(true)}}>
+                                                                <div key={i} className="relative w-20 h-20 md:w-24 md:h-24 rounded-xl overflow-hidden border border-slate-200 shadow-sm cursor-zoom-in hover:scale-105 transition-transform" onClick={()=>{setModalImageSrc(url); setIsImageModalOpen(true)}}>
                                                                     <Image src={url} alt={`前日写真 ${i}`} fill className="object-cover" />
                                                                 </div>
                                                             ))}
                                                         </div>
                                                     ) : (
-                                                        <p className="text-xs font-bold text-slate-400 py-4 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200">まだ写真はアップロードされていません。</p>
+                                                        <p className="text-[10px] md:text-xs font-bold text-slate-400 py-6 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200">まだ写真はアップロードされていません。</p>
                                                     )}
                                                     {isFlorist && (
-                                                        <div className="mt-4">
-                                                            <label className="inline-flex items-center px-5 py-2.5 bg-white border border-slate-200 text-slate-700 text-xs font-black rounded-xl cursor-pointer hover:bg-slate-50 shadow-sm transition-all w-full justify-center">
-                                                                <UploadCloud className="mr-2" size={14}/> 写真を追加
+                                                        <div className="mt-4 md:mt-5">
+                                                            <label className="inline-flex items-center px-6 py-3 bg-white border border-slate-200 text-slate-700 text-xs font-black rounded-xl cursor-pointer hover:bg-slate-50 shadow-sm transition-all w-full justify-center active:scale-95">
+                                                                <UploadCloud className="mr-2" size={16}/> 写真を追加
                                                                 <input type="file" className="hidden" onChange={(e) => handleUpload(e, 'pre_photo')} />
                                                             </label>
                                                         </div>
