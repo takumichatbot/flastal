@@ -8,6 +8,7 @@ import toast from 'react-hot-toast';
 import { useAuth } from '@/app/contexts/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 
+// lucide-reactに統一
 import { 
     MapPin, Camera, Award, Clock, CheckCircle2, 
     User, Heart, Star, X, Shield, Zap, AlertCircle, ArrowLeft, Briefcase
@@ -20,6 +21,7 @@ function cn(...classes) {
 }
 const JpText = ({ children, className }) => <span className={cn("inline-block", className)}>{children}</span>;
 
+// --- 🎨 Glassmorphism Components ---
 const GlassCard = ({ children, className }) => (
   <div className={cn("bg-white/80 backdrop-blur-xl border border-white shadow-[0_8px_30px_rgba(0,0,0,0.04)] rounded-[2.5rem] p-6 md:p-10", className)}>
     {children}
@@ -42,6 +44,7 @@ const FloatingParticles = () => {
   );
 };
 
+// プロフィール項目表示用
 const ProfileItem = ({ icon, label, value, colorClass = "text-pink-500 bg-pink-50 border-pink-100" }) => (
     <div className="flex items-start gap-4 p-4 rounded-[1.5rem] bg-white/60 border border-white shadow-sm hover:shadow-md transition-all">
         <div className={cn("p-3 rounded-[1rem] border shadow-inner shrink-0", colorClass)}>
@@ -54,7 +57,7 @@ const ProfileItem = ({ icon, label, value, colorClass = "text-pink-500 bg-pink-5
     </div>
 );
 
-// ★ 修正箇所：リンク先を `projects/create` へ繋ぐ際に正常に動作するよう修正
+// ★ 修正箇所：リンク先のエラー（Route not found）を防ぐための安全なリンク指定
 function OfferModal({ floristId, floristName, onClose }) {
     const router = useRouter();
     return (
@@ -75,10 +78,10 @@ function OfferModal({ floristId, floristName, onClose }) {
                     </p>
                     <div className="flex flex-col gap-3">
                         <button 
-                            onClick={() => router.push(`/projects/create?floristId=${floristId}`)}
+                            onClick={() => router.push(`/mypage`)} 
                             className="w-full py-4 bg-gradient-to-r from-pink-500 to-rose-500 text-white font-black rounded-full hover:shadow-lg hover:shadow-pink-200 active:scale-95 transition-all text-base"
                         >
-                            このお花屋さんで企画を立てる
+                            マイページから企画を選択する
                         </button>
                         <button onClick={onClose} className="w-full py-4 bg-white border border-slate-200 text-slate-500 font-black rounded-full hover:bg-slate-50 transition-all text-sm">戻る</button>
                     </div>
@@ -87,6 +90,8 @@ function OfferModal({ floristId, floristName, onClose }) {
         </div>
     );
 }
+
+// --- メインページコンポーネント ---
 
 export default function FloristDetailPage() { 
   const { id } = useParams();
@@ -142,6 +147,11 @@ export default function FloristDetailPage() {
         if (res.status === 401) {
             toast.error("セッションが切れました。");
             logout();
+            return;
+        }
+        
+        if (res.status === 403) {
+            toast.error("お花屋さんや運営者は「いいね」できません。");
             return;
         }
 
