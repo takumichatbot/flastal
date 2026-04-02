@@ -10,6 +10,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 
+// lucide-reactに統一
 import { 
   Search, MapPin, Camera, Loader2, X, Zap, Award, Filter, Star, CheckCircle2, Sparkles, ChevronRight, User, Send
 } from 'lucide-react';
@@ -22,6 +23,7 @@ function cn(...classes) {
   return classes.filter(Boolean).join(' ');
 }
 
+// --- 共通コンポーネント ---
 const FloatingParticles = () => {
   const [windowSize, setWindowSize] = useState({ width: 1000, height: 1000 });
   useEffect(() => { setWindowSize({ width: window.innerWidth, height: window.innerHeight }); }, []);
@@ -102,6 +104,7 @@ function FloristCard({ florist, projectId, onOffer, isOffering }) {
             )}
         </div>
 
+        {/* 浮かぶアイコン */}
         <div className="absolute -bottom-6 left-5 w-14 h-14 rounded-[1rem] border-2 border-white shadow-lg overflow-hidden bg-white z-20">
             {florist.iconUrl ? (
                 <Image src={florist.iconUrl} alt="" fill style={{objectFit: 'cover'}} />
@@ -261,7 +264,7 @@ function FloristsListContent() {
     }
   };
 
-  // ★ 修正箇所: リンク先を /mypage に変更
+  // ★ 修正箇所: ここを `/mypage` への遷移に変更しました。
   const handleOffer = async (floristId) => {
     if (!projectId) return;
     if (!user) return toast.error('ログインが必要です');
@@ -285,7 +288,7 @@ function FloristsListContent() {
       }
       
       toast.success('オファーを送信しました！🎉\nお花屋さんからの返答をお待ちください。', { id: toastId, duration: 6000 });
-      router.push(`/mypage`); // ★ここを安全なルートに変更
+      router.push(`/mypage`); // ★エラー回避のため安全なマイページへ移動
       
     } catch (error) {
       console.error('Offer Error:', error);
