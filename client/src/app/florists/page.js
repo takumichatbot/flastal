@@ -3,17 +3,19 @@
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
 
-import { useState, useEffect, useCallback, Suspense, useRef } from 'react';
+import { useState, useEffect, useCallback, Suspense, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useRouter, useSearchParams, usePathname } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // lucide-reactに統一
 import { 
-  Search, MapPin, Camera, Loader2, X, Zap, Award, Filter, Star, CheckCircle2, Sparkles, ChevronRight, User
+  Search, MapPin, Camera, Loader2, X, Zap, Award, Filter, Star, CheckCircle2, Sparkles, ChevronRight, User, Send
 } from 'lucide-react';
+
+import { useAuth } from '../contexts/AuthContext';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -86,7 +88,7 @@ function FloristCard({ florist, projectId, onOffer, isOffering }) {
       <div className="relative h-48 md:h-52 rounded-[2rem] bg-slate-100 overflow-hidden shrink-0">
         {thumbnailSrc ? (
           <Image 
-            src={thumbnailSrc} alt={florist.platformName} fill sizes="(max-width: 768px) 100vw, 33vw"
+            src={thumbnailSrc} alt={florist.platformName || ''} fill sizes="(max-width: 768px) 100vw, 33vw"
             className="object-cover group-hover:scale-110 transition-transform duration-700" 
           />
         ) : (
@@ -114,7 +116,7 @@ function FloristCard({ florist, projectId, onOffer, isOffering }) {
 
       <div className="pt-8 px-2 flex flex-col flex-grow relative">
         <div className="mb-3">
-          <h3 className="text-lg font-black text-slate-800 group-hover:text-pink-500 transition-colors line-clamp-1">{florist.platformName}</h3>
+          <h3 className="text-lg font-black text-slate-800 group-hover:text-pink-500 transition-colors line-clamp-1">{florist.platformName || florist.shopName}</h3>
           <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-0.5 flex items-center gap-1"><Award size={10}/> Florist Partner</p>
         </div>
 
@@ -144,9 +146,9 @@ function FloristCard({ florist, projectId, onOffer, isOffering }) {
 
           {projectId ? (
             <button onClick={(e) => { e.preventDefault(); onOffer(florist.id); }} disabled={isOffering}
-              className="w-full py-3.5 bg-gradient-to-r from-sky-400 to-indigo-500 text-white text-xs font-black rounded-xl hover:shadow-lg transition-all disabled:opacity-50 disabled:shadow-none mt-2"
+              className="w-full py-3.5 bg-gradient-to-r from-sky-400 to-indigo-500 text-white text-xs font-black rounded-xl hover:shadow-lg transition-all disabled:opacity-50 disabled:shadow-none mt-2 flex justify-center items-center gap-2"
             >
-              {isOffering ? <Loader2 className="animate-spin mx-auto" size={16}/> : 'この花屋さんにオファー'}
+              {isOffering ? <Loader2 className="animate-spin mx-auto" size={16}/> : <><Send size={14}/> この花屋さんにオファー</>}
             </button>
           ) : (
             <div className="w-full py-3 mt-2 text-center text-xs font-black text-pink-500 bg-pink-50 rounded-xl group-hover:bg-pink-500 group-hover:text-white transition-all flex items-center justify-center gap-1">
@@ -163,6 +165,7 @@ function FloristCard({ florist, projectId, onOffer, isOffering }) {
 }
 
 function FloristsListContent() {
+  const { user, authenticatedFetch } = useAuth();
   const [florists, setFlorists] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isOffering, setIsOffering] = useState(false);
@@ -261,23 +264,36 @@ function FloristsListContent() {
     }
   };
 
+  // ★ 修正箇所：エラーの具体的な理由を表示するようにハンドリングを強化！
   const handleOffer = async (floristId) => {
     if (!projectId) return;
+    if (!user) return toast.error('ログインが必要です');
+    
     if (!window.confirm('このお花屋さんにオファーを送信しますか？')) return;
+    
     setIsOffering(true);
     const toastId = toast.loading('オファー送信中...');
+    
     try {
-      const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
-      const res = await fetch(`${API_URL}/api/offers`, {
+      const res = await authenticatedFetch(`${API_URL}/api/offers`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ projectId, floristId }),
       });
-      if (!res.ok) throw new Error('送信失敗');
-      toast.success('オファーを送信しました！', { id: toastId });
+      
+      const data = await res.json();
+      
+      if (!res.ok) {
+          throw new Error(data.message || 'オファーの送信に失敗しました');
+      }
+      
+      toast.success('オファーを送信しました！🎉\nお花屋さんからの返答をお待ちください。', { id: toastId, duration: 6000 });
       router.push(`/projects/${projectId}`);
+      
     } catch (error) {
-      toast.error('オファーの送信に失敗しました', { id: toastId });
+      console.error('Offer Error:', error);
+      toast.error(error.message, { id: toastId, duration: 5000 });
+    } finally {
       setIsOffering(false);
     }
   };
