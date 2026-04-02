@@ -21,7 +21,9 @@ const TABS = [
   { id: 'organizers', label: '主催者', icon: ShieldCheck, color: 'text-rose-500', bg: 'bg-rose-100', activeBg: 'bg-rose-500' }
 ];
 
-// --- 安全なテキスト抽出ヘルパー ---
+function cn(...classes) { return classes.filter(Boolean).join(' '); }
+
+// --- 項目ごとの動的テキスト生成ヘルパー（安全処理） ---
 const getItemTitle = (item, type) => {
   if (!item) return '不明';
   if (type === 'projects') return item.title || '名称未設定';
@@ -42,17 +44,7 @@ const getItemSub = (item, type) => {
   return item.email || '';
 }
 
-// 安全な日付フォーマット関数（空なら「日付不明」を返す）
-const safeFormatDate = (dateString) => {
-  if (!dateString) return '日付不明';
-  try {
-    return new Date(dateString).toLocaleDateString();
-  } catch (e) {
-    return '日付エラー';
-  }
-};
-
-// --- 動的詳細モーダル ---
+// --- 動的詳細モーダル（タブによって表示内容が自動で変わる） ---
 function DetailModal({ item, type, onClose, onAction, isProcessing }) {
   if (!item) return null;
   const tabInfo = TABS.find(t => t.id === type) || TABS[0];
@@ -67,7 +59,7 @@ function DetailModal({ item, type, onClose, onAction, isProcessing }) {
               <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">企画名</label><p className="font-bold text-slate-800">{item.title || '未設定'}</p></div>
               <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">主催者</label><p className="font-bold text-slate-800">{item.planner?.handleName || item.planner?.name || '不明'}</p></div>
               <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">目標金額</label><p className="font-bold text-slate-800">{(item.targetAmount || 0).toLocaleString()} pt</p></div>
-              <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">納品予定日</label><p className="font-bold text-slate-800">{safeFormatDate(item.eventDate || item.deliveryDateTime)}</p></div>
+              <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">納品予定日</label><p className="font-bold text-slate-800">{item.eventDate ? new Date(item.eventDate).toLocaleDateString() : (item.deliveryDateTime ? new Date(item.deliveryDateTime).toLocaleDateString() : '未定')}</p></div>
             </div>
             <div className="mt-5">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">企画詳細</label>
@@ -167,6 +159,7 @@ function DetailModal({ item, type, onClose, onAction, isProcessing }) {
   );
 }
 
+// ⚠️ここからが超重要：Suspense内で動かすためのコンポーネント
 function ApprovalHubContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -189,9 +182,17 @@ function ApprovalHubContent() {
     }
   }, [loading, isAuthenticated, user, router]);
 
+  // URLのタブが変わったら即座に状態を反映する
+  useEffect(() => {
+    const tabFromUrl = searchParams.get('tab');
+    if (tabFromUrl && TABS.some(t => t.id === tabFromUrl)) {
+        setActiveTab(tabFromUrl);
+    }
+  }, [searchParams]);
+
   const fetchCounts = useCallback(async () => {
     try {
-      const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+      const token = localStorage.getItem('authToken');
       const headers = { 'Authorization': `Bearer ${token}` };
       const [projRes, floRes, illRes, venRes, orgRes] = await Promise.all([
         fetch(`${API_URL}/api/admin/projects/pending`, { headers }),
@@ -220,7 +221,7 @@ function ApprovalHubContent() {
     setLoadingData(true);
     setSelectedItem(null); 
     try {
-      const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+      const token = localStorage.getItem('authToken');
       const res = await fetch(`${API_URL}/api/admin/${activeTab}/pending`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -240,13 +241,13 @@ function ApprovalHubContent() {
       fetchCounts();
       fetchItems();
     }
-  }, [isAuthenticated, user, fetchCounts, fetchItems]);
+  }, [isAuthenticated, user, fetchCounts, fetchItems, activeTab]); // activeTabが変わった時も再取得する
 
   const handleUpdateStatus = async (id, status) => {
     setIsProcessing(true);
     const toastId = toast.loading('処理中...');
     try {
-      const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+      const token = localStorage.getItem('authToken');
       const res = await fetch(`${API_URL}/api/admin/${activeTab}/${id}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
@@ -265,6 +266,13 @@ function ApprovalHubContent() {
     }
   };
 
+  const handleTabChange = (tabId) => {
+    setActiveTab(tabId);
+    setSearchTerm('');
+    // URLも合わせて変更してブラウザの履歴を残す
+    router.push(`/admin/approval?tab=${tabId}`);
+  };
+
   const filteredItems = useMemo(() => {
     if (!searchTerm) return items;
     const lower = searchTerm.toLowerCase();
@@ -276,15 +284,13 @@ function ApprovalHubContent() {
   }, [items, searchTerm]);
 
   if (loading || !isAuthenticated) {
-    return <div className="min-h-screen flex items-center justify-center bg-slate-50"><Loader2 className="animate-spin text-slate-300 w-10 h-10" /></div>;
+    return <div className="min-h-[60vh] flex items-center justify-center"><Loader2 className="animate-spin text-slate-300 w-10 h-10" /></div>;
   }
 
   const activeTabInfo = TABS.find(t => t.id === activeTab) || TABS[0];
 
   return (
-    <div className="min-h-screen bg-slate-50/50 pb-24 font-sans text-slate-800">
-      <div className="max-w-6xl mx-auto px-4 md:px-6 pt-6 md:pt-10">
-        
+    <>
         {/* ヘッダー */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
           <div>
@@ -304,7 +310,7 @@ function ApprovalHubContent() {
           {TABS.map(tab => (
             <button
               key={tab.id}
-              onClick={() => { setActiveTab(tab.id); setSearchTerm(''); }}
+              onClick={() => handleTabChange(tab.id)}
               className={cn(
                 "flex-1 min-w-[120px] flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs md:text-sm font-black transition-all",
                 activeTab === tab.id ? `${tab.activeBg} text-white shadow-md` : "text-slate-500 hover:bg-slate-50"
@@ -365,8 +371,7 @@ function ApprovalHubContent() {
                         <span className="bg-amber-100 text-amber-600 text-[9px] font-black px-2.5 py-1 rounded-md flex items-center gap-1 uppercase tracking-widest shadow-sm">
                           <Clock size={10} /> 審査待ち
                         </span>
-                        {/* 修正: 安全な日付表示関数を使用 */}
-                        <span className="text-[10px] font-bold text-slate-400">{safeFormatDate(item.createdAt)}</span>
+                        <span className="text-[10px] font-bold text-slate-400">{new Date(item.createdAt).toLocaleDateString()}</span>
                       </div>
                       
                       <h3 className="font-black text-slate-800 text-base md:text-lg mb-1.5 line-clamp-1 group-hover:text-sky-500 transition-colors" title={getItemTitle(item, activeTab)}>
@@ -392,8 +397,6 @@ function ApprovalHubContent() {
           </div>
         </div>
 
-      </div>
-
       <AnimatePresence>
         {selectedItem && (
           <DetailModal 
@@ -402,15 +405,19 @@ function ApprovalHubContent() {
           />
         )}
       </AnimatePresence>
-
-    </div>
+    </>
   );
 }
 
+// ⚠️ 親コンポーネントで必ず <Suspense> で囲む（エラーを防ぐため）
 export default function UnifiedApprovalPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50"><Loader2 className="animate-spin text-slate-300 w-10 h-10" /></div>}>
-      <ApprovalHubContent />
-    </Suspense>
+    <div className="min-h-screen bg-slate-50/50 pb-24 font-sans text-slate-800">
+        <div className="max-w-6xl mx-auto px-4 md:px-6 pt-6 md:pt-10">
+            <Suspense fallback={<div className="min-h-[60vh] flex items-center justify-center"><Loader2 className="animate-spin text-slate-300 w-10 h-10" /></div>}>
+                <ApprovalHubContent />
+            </Suspense>
+        </div>
+    </div>
   );
 }
