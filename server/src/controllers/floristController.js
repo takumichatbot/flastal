@@ -232,8 +232,10 @@ export const createOffer = async (req, res) => {
             return res.status(404).json({ message: '企画が見つかりません。' });
         }
         
-        // ★修正: 管理者(ADMIN)は無条件でパス。それ以外はプランナー本人のみ。
-        if (userRole !== 'ADMIN' && project.plannerId !== userId) {
+        // ★大修正: 企画者本人、もしくは管理者（ADMIN）ならオファーを送れるように変更
+        // userRole が ADMIN の場合は無条件で許可するよう論理を整理しました。
+        if (project.plannerId !== userId && userRole !== 'ADMIN') {
+            console.error(`Offer rejected: plannerId(${project.plannerId}) !== userId(${userId}), role(${userRole})`);
             return res.status(403).json({ message: 'この企画にオファーを送る権限がありません。' });
         }
 
@@ -351,7 +353,6 @@ export const approveQuotation = async (req, res) => {
         const result = await prisma.$transaction(async (tx) => {
             const quotation = await tx.quotation.findUnique({ where: { id }, include: { project: true } });
             
-            // ★修正: 管理者(ADMIN)であれば承認可能にする
             if (quotation.project.plannerId !== userId && req.user.role !== 'ADMIN') {
                 throw new Error('権限がありません。');
             }
