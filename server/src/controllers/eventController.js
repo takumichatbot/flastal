@@ -1,8 +1,12 @@
 import prisma from '../config/prisma.js';
-import OpenAI from 'openai';
+import { GoogleGenAI } from '@google/genai';
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+// Geminiの初期化（環境変数 GEMINI_API_KEY を使用します。なければOPENAI_API_KEYを代用）
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || process.env.OPENAI_API_KEY });
 
+// ==========================================
+// ★ 1. イベント概要からの簡易解析 (Gemini 2.0 Flash)
+// ==========================================
 export const analyzeEvent = async (req, res) => {
   try {
     const { text } = req.body;
@@ -11,59 +15,74 @@ export const analyzeEvent = async (req, res) => {
       return res.status(400).json({ message: '解析するテキストが短すぎます' });
     }
 
-    // 1. 登録済みの会場リストを取得
+    // 登録済みの会場リストを取得
     const venues = await prisma.venue.findMany({
       select: { id: true, venueName: true }
     });
 
     const venueListString = venues.map(v => `ID: "${v.id}", Name: "${v.venueName}"`).join('\n');
 
-    // 2. OpenAIに解析を依頼
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o", // または "gpt-3.5-turbo"
-      messages: [
-        {
-          role: "system",
-          content: `
-            あなたはイベント情報の解析アシスタントです。
-            ユーザーから提供されたイベント概要テキストから、以下の情報を抽出してJSON形式で返してください。
-            
-            【抽出ルール】
-            - title: イベント名
-            - eventDate: 開催日 (YYYY-MM-DD形式)
-            - venueId: 以下の会場リストの中から、最も名前が一致する会場のIDを選んでください。リストにない場合は null または空文字にしてください。
-            - description: イベントの詳細説明
-            - genre: ジャンル (IDOL, VTUBER, MUSIC, ANIME, STAGE, OTHER のいずれか)
-            - officialWebsite: 公式サイトのURLがあれば
-            - twitterUrl: Twitter(X)のURLがあれば
+    const prompt = `
+以下のイベント概要テキストから、情報を抽出してJSON形式で返してください。
 
-            【会場リスト】
-            ${venueListString}
-          `
-        },
-        { role: "user", content: text }
-      ],
-      response_format: { type: "json_object" },
-      temperature: 0.1,
+【抽出ルール】
+- title: イベント名
+- eventDate: 開催日 (YYYY-MM-DD形式)
+- venueId: 以下の会場リストの中から、最も名前が一致する会場のIDを選んでください。リストにない場合は空文字にしてください。
+- description: イベントの詳細説明
+- genre: ジャンル (IDOL, VTUBER, MUSIC, ANIME, STAGE, OTHER のいずれか)
+- officialWebsite: 公式サイトのURLがあれば
+- twitterUrl: Twitter(X)のURLがあれば
+
+【会場リスト】
+${venueListString}
+
+【テキスト】
+${text}
+    `;
+
+    // Gemini 2.0 Flash に解析を依頼（確実なJSONスキーマを指定）
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.0-flash',
+      contents: prompt,
+      config: {
+        systemInstruction: "あなたはイベント情報の解析アシスタントです。",
+        responseMimeType: 'application/json',
+        temperature: 0.1,
+        responseSchema: {
+          type: 'object',
+          properties: {
+            title: { type: 'string' },
+            eventDate: { type: 'string' },
+            venueId: { type: 'string' },
+            description: { type: 'string' },
+            genre: { type: 'string', enum: ['IDOL', 'VTUBER', 'MUSIC', 'ANIME', 'STAGE', 'OTHER'] },
+            officialWebsite: { type: 'string' },
+            twitterUrl: { type: 'string' }
+          },
+          required: ['title', 'eventDate', 'venueId', 'description', 'genre', 'officialWebsite', 'twitterUrl']
+        }
+      }
     });
 
-    const result = JSON.parse(completion.choices[0].message.content);
+    const result = JSON.parse(response.text);
     res.json(result);
 
   } catch (error) {
-    console.error('AI Analysis Error:', error);
+    console.error('Gemini API Analysis Error:', error);
     res.status(500).json({ message: '解析に失敗しました' });
   }
 };
 
-// --- イベント一覧取得 ---
+// ==========================================
+// ★ 2. イベント一覧取得
+// ==========================================
 export const getEvents = async (req, res) => {
     try {
         const { genre, keyword, sort, illustratorOnly } = req.query;
         
         let where = {};
 
-        // ★追加: イラスト公募中のイベントのみに絞り込む
         if (illustratorOnly === 'true') {
             where.isIllustratorRecruiting = true;
         }
@@ -104,7 +123,9 @@ export const getEvents = async (req, res) => {
     }
 };
 
-// --- イベント詳細取得 ---
+// ==========================================
+// ★ 3. イベント詳細取得
+// ==========================================
 export const getEventById = async (req, res) => {
     try {
         const event = await prisma.event.findUnique({ 
@@ -124,7 +145,9 @@ export const getEventById = async (req, res) => {
     }
 };
 
-// --- 一般ユーザー・主催者・管理者によるイベント登録 ---
+// ==========================================
+// ★ 4. イベント登録・更新・削除
+// ==========================================
 export const createEvent = async (req, res) => {
     try {
         const { 
@@ -188,7 +211,6 @@ export const createEvent = async (req, res) => {
     }
 };
 
-// --- イベント更新 ---
 export const updateEvent = async (req, res) => { 
     try {
         const { id } = req.params;
@@ -238,7 +260,6 @@ export const updateEvent = async (req, res) => {
     }
 };
 
-// --- イベント削除 ---
 export const deleteEvent = async (req, res) => { 
     try {
         const { id } = req.params;
@@ -258,9 +279,9 @@ export const deleteEvent = async (req, res) => {
     }
 };
 
-/**
- * AIによるイベント情報解析
- */
+// ==========================================
+// ★ 5. イベント情報の高度なAI解析 (Gemini 2.0 Flash)
+// ==========================================
 export const aiParseEvent = async (req, res) => {
     const { text, sourceUrl, imageUrls } = req.body;
     const userId = req.user.id;
@@ -269,33 +290,51 @@ export const aiParseEvent = async (req, res) => {
 
     try {
         const prompt = `
-            以下のイベント告知テキストから正確な情報を抽出し、JSON形式で出力してください。
-            
-            【抽出ルール】
-            - title: イベントの正式名称
-            - eventDate: ISO8601形式の完全な日時 (例: 2026-05-20T18:00:00)。時間が不明な場合は T00:00:00 とすること。
-            - venueName: 会場名。
-            - venueAddress: 会場の住所や場所（テキストから推測できる場合）。
-            - description: イベント内容の簡潔な要約（300文字以内）。
-            - genre: IDOL, VTUBER, MUSIC, ANIME, STAGE, OTHER から最適なものを1つ選択。
-            - officialWebsite: 公式サイトURL。
-            - twitterUrl: 公式X(Twitter)のURL。
-            - instagramUrl: 公式InstagramのURL。
+以下のイベント告知テキストから正確な情報を抽出し、JSON形式で出力してください。
 
-            テキスト:
-            "${text}"
+【抽出ルール】
+- title: イベントの正式名称
+- eventDate: ISO8601形式の完全な日時 (例: 2026-05-20T18:00:00)。時間が不明な場合は T00:00:00 とすること。
+- venueName: 会場名。
+- venueAddress: 会場の住所や場所（テキストから推測できる場合）。
+- description: イベント内容の簡潔な要約（300文字以内）。
+- genre: IDOL, VTUBER, MUSIC, ANIME, STAGE, OTHER から最適なものを1つ選択。
+- officialWebsite: 公式サイトURL。
+- twitterUrl: 公式X(Twitter)のURL。
+- instagramUrl: 公式InstagramのURL。
+
+【テキスト】
+"${text}"
         `;
 
-        const completion = await openai.chat.completions.create({
-            model: "gpt-4-turbo-preview",
-            messages: [
-                { role: "system", content: "あなたはイベント情報のデータ化のプロフェッショナルです。" },
-                { role: "user", content: prompt }
-            ],
-            response_format: { type: "json_object" }
+        // Gemini 2.0 Flash による超高速・高精度の構造化抽出
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.0-flash',
+            contents: prompt,
+            config: {
+                systemInstruction: "あなたはイベント情報のデータ化のプロフェッショナルです。",
+                responseMimeType: 'application/json',
+                temperature: 0.1,
+                responseSchema: {
+                    type: 'object',
+                    properties: {
+                        title: { type: 'string' },
+                        eventDate: { type: 'string' },
+                        venueName: { type: 'string' },
+                        venueAddress: { type: 'string' },
+                        description: { type: 'string' },
+                        genre: { type: 'string', enum: ['IDOL', 'VTUBER', 'MUSIC', 'ANIME', 'STAGE', 'OTHER'] },
+                        officialWebsite: { type: 'string' },
+                        twitterUrl: { type: 'string' },
+                        instagramUrl: { type: 'string' }
+                    },
+                    required: ['title', 'eventDate', 'venueName', 'venueAddress', 'description', 'genre', 'officialWebsite', 'twitterUrl', 'instagramUrl']
+                }
+            }
         });
 
-        const result = JSON.parse(completion.choices[0].message.content);
+        // 確実なJSONオブジェクトとして取得
+        const result = JSON.parse(response.text);
 
         let finalDate = new Date(result.eventDate);
         if (isNaN(finalDate.getTime())) finalDate = new Date();
@@ -350,7 +389,7 @@ export const aiParseEvent = async (req, res) => {
         res.status(201).json(newEvent);
 
     } catch (error) {
-        console.error('AI Parse Error:', error);
+        console.error('Gemini AI Parse Error:', error);
         res.status(500).json({ message: 'AI解析中にエラーが発生しました。' });
     }
 };
