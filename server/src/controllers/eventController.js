@@ -1,11 +1,11 @@
 import prisma from '../config/prisma.js';
-import { GoogleGenAI } from '@google/genai';
+import OpenAI from 'openai';
 
-// Geminiの初期化（環境変数 GEMINI_API_KEY を使用します。なければOPENAI_API_KEYを代用）
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || process.env.OPENAI_API_KEY });
+// OpenAIの初期化
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 // ==========================================
-// ★ 1. イベント概要からの簡易解析 (Gemini 2.0 Flash)
+// ★ 1. イベント概要からの簡易解析 (OpenAI)
 // ==========================================
 export const analyzeEvent = async (req, res) => {
   try {
@@ -41,35 +41,22 @@ ${venueListString}
 ${text}
     `;
 
-    // Gemini 2.0 Flash に解析を依頼（確実なJSONスキーマを指定）
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.0-flash',
-      contents: prompt,
-      config: {
-        systemInstruction: "あなたはイベント情報の解析アシスタントです。",
-        responseMimeType: 'application/json',
-        temperature: 0.1,
-        responseSchema: {
-          type: 'object',
-          properties: {
-            title: { type: 'string' },
-            eventDate: { type: 'string' },
-            venueId: { type: 'string' },
-            description: { type: 'string' },
-            genre: { type: 'string', enum: ['IDOL', 'VTUBER', 'MUSIC', 'ANIME', 'STAGE', 'OTHER'] },
-            officialWebsite: { type: 'string' },
-            twitterUrl: { type: 'string' }
-          },
-          required: ['title', 'eventDate', 'venueId', 'description', 'genre', 'officialWebsite', 'twitterUrl']
-        }
-      }
+    // OpenAI gpt-4o に解析を依頼
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+          { role: "system", content: "あなたはイベント情報の解析アシスタントです。必ず指定されたJSONフォーマットで出力してください。" },
+          { role: "user", content: prompt }
+      ],
+      response_format: { type: "json_object" },
+      temperature: 0.1,
     });
 
-    const result = JSON.parse(response.text);
+    const result = JSON.parse(completion.choices[0].message.content);
     res.json(result);
 
   } catch (error) {
-    console.error('Gemini API Analysis Error:', error);
+    console.error('OpenAI API Analysis Error:', error);
     res.status(500).json({ message: '解析に失敗しました' });
   }
 };
@@ -280,7 +267,7 @@ export const deleteEvent = async (req, res) => {
 };
 
 // ==========================================
-// ★ 5. イベント情報の高度なAI解析 (Gemini 2.0 Flash)
+// ★ 5. イベント情報の高度なAI解析 (OpenAI)
 // ==========================================
 export const aiParseEvent = async (req, res) => {
     const { text, sourceUrl, imageUrls } = req.body;
@@ -307,34 +294,18 @@ export const aiParseEvent = async (req, res) => {
 "${text}"
         `;
 
-        // Gemini 2.0 Flash による超高速・高精度の構造化抽出
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.0-flash',
-            contents: prompt,
-            config: {
-                systemInstruction: "あなたはイベント情報のデータ化のプロフェッショナルです。",
-                responseMimeType: 'application/json',
-                temperature: 0.1,
-                responseSchema: {
-                    type: 'object',
-                    properties: {
-                        title: { type: 'string' },
-                        eventDate: { type: 'string' },
-                        venueName: { type: 'string' },
-                        venueAddress: { type: 'string' },
-                        description: { type: 'string' },
-                        genre: { type: 'string', enum: ['IDOL', 'VTUBER', 'MUSIC', 'ANIME', 'STAGE', 'OTHER'] },
-                        officialWebsite: { type: 'string' },
-                        twitterUrl: { type: 'string' },
-                        instagramUrl: { type: 'string' }
-                    },
-                    required: ['title', 'eventDate', 'venueName', 'venueAddress', 'description', 'genre', 'officialWebsite', 'twitterUrl', 'instagramUrl']
-                }
-            }
+        // OpenAI gpt-4o に解析を依頼
+        const completion = await openai.chat.completions.create({
+            model: "gpt-4o",
+            messages: [
+                { role: "system", content: "あなたはイベント情報のデータ化のプロフェッショナルです。指定されたJSONフォーマットで必ず返答してください。" },
+                { role: "user", content: prompt }
+            ],
+            response_format: { type: "json_object" },
+            temperature: 0.1,
         });
 
-        // 確実なJSONオブジェクトとして取得
-        const result = JSON.parse(response.text);
+        const result = JSON.parse(completion.choices[0].message.content);
 
         let finalDate = new Date(result.eventDate);
         if (isNaN(finalDate.getTime())) finalDate = new Date();
@@ -389,7 +360,7 @@ export const aiParseEvent = async (req, res) => {
         res.status(201).json(newEvent);
 
     } catch (error) {
-        console.error('Gemini AI Parse Error:', error);
+        console.error('OpenAI Parse Error:', error);
         res.status(500).json({ message: 'AI解析中にエラーが発生しました。' });
     }
 };
