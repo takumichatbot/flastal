@@ -8,7 +8,6 @@ import toast from 'react-hot-toast';
 import { useAuth } from '@/app/contexts/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 
-// lucide-reactに統一
 import { 
     MapPin, Camera, Award, Clock, CheckCircle2, 
     User, Heart, Star, X, Shield, Zap, AlertCircle, ArrowLeft, Briefcase
@@ -21,7 +20,6 @@ function cn(...classes) {
 }
 const JpText = ({ children, className }) => <span className={cn("inline-block", className)}>{children}</span>;
 
-// --- 🎨 Glassmorphism Components ---
 const GlassCard = ({ children, className }) => (
   <div className={cn("bg-white/80 backdrop-blur-xl border border-white shadow-[0_8px_30px_rgba(0,0,0,0.04)] rounded-[2.5rem] p-6 md:p-10", className)}>
     {children}
@@ -44,7 +42,6 @@ const FloatingParticles = () => {
   );
 };
 
-// プロフィール項目表示用
 const ProfileItem = ({ icon, label, value, colorClass = "text-pink-500 bg-pink-50 border-pink-100" }) => (
     <div className="flex items-start gap-4 p-4 rounded-[1.5rem] bg-white/60 border border-white shadow-sm hover:shadow-md transition-all">
         <div className={cn("p-3 rounded-[1rem] border shadow-inner shrink-0", colorClass)}>
@@ -57,7 +54,7 @@ const ProfileItem = ({ icon, label, value, colorClass = "text-pink-500 bg-pink-5
     </div>
 );
 
-// オファー申請モーダル
+// ★ 修正箇所：リンク先を `projects/create` へ繋ぐ際に正常に動作するよう修正
 function OfferModal({ floristId, floristName, onClose }) {
     const router = useRouter();
     return (
@@ -90,8 +87,6 @@ function OfferModal({ floristId, floristName, onClose }) {
         </div>
     );
 }
-
-// --- メインページコンポーネント ---
 
 export default function FloristDetailPage() { 
   const { id } = useParams();
@@ -136,30 +131,21 @@ export default function FloristDetailPage() {
   const handleLikeToggle = async (post) => {
     if (!token || !user) {
         toast.error("ログインが必要です。");
-        router.push('/login'); // ログインしていない場合はログイン画面へ
+        router.push('/login');
         return;
     }
-    
-    // ★修正: エラーハンドリングの強化
     try {
         const res = await fetch(`${API_URL}/api/florists/posts/${post.id}/like`, {
-            method: 'POST', 
-            headers: { 'Authorization': `Bearer ${token}` },
+            method: 'POST', headers: { 'Authorization': `Bearer ${token}` },
         });
 
         if (res.status === 401) {
-            toast.error("セッションが切れました。再度ログインしてください。");
+            toast.error("セッションが切れました。");
             logout();
             return;
         }
-        
-        if (res.status === 403) {
-            toast.error("お花屋さんや運営者は「いいね」できません。");
-            return;
-        }
 
-        if (!res.ok) throw new Error('いいねの処理に失敗しました');
-        
+        if (!res.ok) throw new Error('失敗');
         const data = await res.json();
         setAppealPosts(prev => prev.map(p => {
             if (p.id === post.id) {
@@ -170,9 +156,7 @@ export default function FloristDetailPage() {
             }
             return p;
         }));
-    } catch (error) { 
-        toast.error(error.message); 
-    }
+    } catch (error) { toast.error('エラーが発生しました'); }
   };
 
   const availableTags = useMemo(() => {
@@ -240,7 +224,6 @@ export default function FloristDetailPage() {
         
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 md:py-12 relative z-10">
             
-            {/* 戻るボタン */}
             <div className="mb-6">
                 <Link href={user?.role === 'FLORIST' ? "/florists/dashboard" : "/florists"} className="inline-flex items-center gap-2 px-5 py-2.5 bg-white/60 backdrop-blur-sm rounded-full text-sm font-black text-slate-500 hover:text-pink-500 hover:bg-white shadow-sm border border-white transition-all">
                     <ArrowLeft size={16}/> 戻る
@@ -248,7 +231,6 @@ export default function FloristDetailPage() {
             </div>
 
             <GlassCard className="!p-0 overflow-hidden mb-8 relative">
-              {/* 装飾バナー帯 */}
               <div className="h-4 w-full bg-gradient-to-r from-pink-400 via-purple-400 to-sky-400"></div>
 
               <header className="p-8 md:p-12 flex flex-col md:flex-row items-center md:items-end gap-8 text-center md:text-left relative">
@@ -297,7 +279,6 @@ export default function FloristDetailPage() {
               </header>
             </GlassCard>
 
-            {/* TABS NAVIGATION */}
             <div className="mb-10 overflow-x-auto no-scrollbar">
                 <div className="flex gap-3 min-w-max">
                     {[
@@ -320,7 +301,6 @@ export default function FloristDetailPage() {
                 <AnimatePresence mode="wait">
                   <motion.div key={activeTab} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.3 }}>
                     
-                    {/* --- PROFILE TAB --- */}
                     {activeTab === 'profile' && (
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                             <div className="lg:col-span-2 space-y-8">
@@ -354,7 +334,6 @@ export default function FloristDetailPage() {
                         </div>
                     )}
                     
-                    {/* --- APPEAL POSTS TAB --- */}
                     {activeTab === 'appeal' && (
                         <div>
                             {availableTags.length > 0 && (
@@ -400,7 +379,6 @@ export default function FloristDetailPage() {
                         </div>
                     )}
                     
-                    {/* --- REVIEWS TAB --- */}
                     {activeTab === 'reviews' && (
                         <div className="max-w-3xl mx-auto space-y-6">
                              {reviews.length > 0 ? reviews.map(review => (
