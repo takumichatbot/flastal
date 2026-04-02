@@ -264,7 +264,7 @@ function FloristsListContent() {
     }
   };
 
-  // ★ 修正箇所: ここを `/mypage` への遷移に変更しました。
+  // ★ 修正箇所: URLを正しい /api/florists/offers に変更しました！
   const handleOffer = async (floristId) => {
     if (!projectId) return;
     if (!user) return toast.error('ログインが必要です');
@@ -275,7 +275,7 @@ function FloristsListContent() {
     const toastId = toast.loading('オファー送信中...');
     
     try {
-      const res = await authenticatedFetch(`${API_URL}/api/offers`, {
+      const res = await authenticatedFetch(`${API_URL}/api/florists/offers`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ projectId, floristId }),
@@ -288,7 +288,7 @@ function FloristsListContent() {
       }
       
       toast.success('オファーを送信しました！🎉\nお花屋さんからの返答をお待ちください。', { id: toastId, duration: 6000 });
-      router.push(`/mypage`); // ★エラー回避のため安全なマイページへ移動
+      router.push(`/mypage`);
       
     } catch (error) {
       console.error('Offer Error:', error);
