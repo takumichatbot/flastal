@@ -266,7 +266,6 @@ const VOICES = [
 
 // --- 🚀 1. HERO SECTION (FV) ---
 const HeroSection = () => (
-  // ▼ 末尾に -mt-[2px] と z-10 を追加してヘッダーとの隙間の白線を消します
   <section className="relative w-full min-h-[85vh] flex items-center justify-center overflow-hidden bg-gradient-to-b from-pink-50/80 to-white px-4 md:px-6 pt-20 pb-12 -mt-[2px] z-10">
     <div className="absolute inset-0 bg-[radial-gradient(#fbcfe8_1px,transparent_1px)] [background-size:24px_24px] opacity-50 z-0" />
     <FloatingParticles />
@@ -327,7 +326,6 @@ const HeroSection = () => (
             <Image src="/flasta-main.jpg" alt="フラスタのメイン画像" fill className="object-cover transition-transform duration-1000 group-hover:scale-105" priority />
             <div className="absolute inset-0 bg-gradient-to-t from-pink-900/80 via-transparent to-transparent" />
             
-            {/* 浮かぶ装飾バッジ */}
             <motion.div animate={{ y: [0, -10, 0] }} transition={{ duration: 4, repeat: Infinity }} className="absolute top-6 left-6 bg-white/90 backdrop-blur-md px-4 py-2 rounded-2xl shadow-lg flex items-center gap-2">
               <div className="bg-green-100 text-green-500 p-1.5 rounded-full"><Users size={14}/></div>
               <span className="text-xs font-bold text-slate-700">85人が参加中!</span>
@@ -363,7 +361,6 @@ const TickerSection = () => {
   );
 };
 
-// ★修正点1: Aboutセクションのカードをスマホで横スワイプできるように変更
 const AboutSection = () => (
   <section className="py-20 md:py-32 bg-[#FAFAFC] relative overflow-hidden">
     <div className="absolute top-0 right-0 w-[50vw] h-[50vw] bg-sky-100/40 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/3 pointer-events-none" />
@@ -378,7 +375,6 @@ const AboutSection = () => (
       />
 
       <div className="relative mt-16 bg-transparent md:bg-white md:rounded-[3rem] p-0 md:p-12 md:border border-slate-100 md:shadow-inner">
-        {/* スマホでは横スワイプ (snap-x)、PCではグリッド表示 */}
         <div className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar px-6 md:px-0 md:grid md:grid-cols-3 gap-6 md:gap-8 relative z-10 pb-8 md:pb-0">
           {[
             { step: 1, title: "企画を立ち上げる", icon: SvgPanel, text: "贈りたい相手やイベント、予算を決めて専用ページを作成。イラストパネルの募集も可能です。" },
@@ -551,7 +547,6 @@ const FeaturesSection = () => (
   </section>
 );
 
-// ★修正点2: スマホでの表記崩れ（高さのバラつき）を解消
 const VoiceSection = () => (
   <section className="py-20 md:py-32 bg-[#FAFAFC] relative overflow-hidden">
     <div className="container mx-auto max-w-6xl px-0 md:px-6">
@@ -675,49 +670,17 @@ const ContactAndCtaSection = () => (
   </section>
 );
 
-// ★修正点3: ログイン後のホーム画面をスマホでも見やすく修正
-const AuthenticatedHome = ({ user, logout }) => (
-  // min-h-[100dvh] に変更し、スマホでの高さを最適化。マージンを調整。
-  <div className="min-h-[100dvh] bg-gradient-to-br from-pink-50 to-sky-50 flex items-center justify-center p-4 m-0 relative overflow-hidden">
-    <FloatingParticles />
-    <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.5 }}
-      // pb-10 などを追加して下部の余白を確保
-      className="max-w-md w-full bg-white/90 backdrop-blur-xl rounded-[2rem] md:rounded-[3rem] shadow-2xl p-8 pb-10 md:p-12 text-center border border-white relative z-10 my-auto"
-    >
-      <div className="w-16 h-16 md:w-20 md:h-20 bg-pink-100 text-pink-500 rounded-[1rem] md:rounded-[1.5rem] rotate-3 flex items-center justify-center mx-auto mb-4 md:mb-6 shadow-inner"><ShieldCheck size={32} /></div>
-      <h1 className="text-xl md:text-2xl font-black text-slate-800 mb-2 tracking-tight">おかえりなさい！</h1>
-      <p className="text-slate-400 mb-8 font-bold text-[10px] md:text-xs uppercase tracking-widest">
-        {user?.handleName || user?.shopName || user?.name || 'MEMBER'} Signed In
-      </p>
-      <div className="space-y-4">
-        <Link href={user?.role === 'ADMIN' ? '/admin' : user?.role === 'FLORIST' ? '/florists/dashboard' : user?.role === 'VENUE' ? `/venues/dashboard/${user.id}` : user?.role === 'ORGANIZER' ? '/organizers/dashboard' : '/mypage'} 
-          className="flex items-center justify-center gap-2 w-full py-4 bg-slate-900 text-white font-black rounded-xl md:rounded-2xl hover:bg-slate-800 transition-all shadow-xl shadow-slate-200/50 text-sm active:scale-95"
-        >
-          マイページへ進む <ArrowRight size={16} />
-        </Link>
-        <button onClick={logout} className="flex items-center justify-center gap-1.5 w-full py-4 text-[10px] md:text-xs font-bold text-slate-400 hover:text-pink-500 bg-slate-50 rounded-xl md:rounded-2xl transition-colors active:scale-95">
-          <LogOut size={14}/> ログアウト
-        </button>
-      </div>
-    </motion.div>
-  </div>
-);
-
 // ==========================================
 // 👑 MAIN EXPORT
 // ==========================================
 export default function HomePage() {
-  const { user, loading, isAuthenticated, logout } = useAuth();
+  const { loading } = useAuth();
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => { setIsMounted(true); }, []);
 
   if (!isMounted || loading) {
     return <div className="min-h-screen bg-white flex items-center justify-center"><Loader2 className="w-8 h-8 md:w-10 md:h-10 text-pink-500 animate-spin" /></div>;
-  }
-
-  if (isAuthenticated) {
-    return <AuthenticatedHome user={user} logout={logout} />;
   }
 
   return (
