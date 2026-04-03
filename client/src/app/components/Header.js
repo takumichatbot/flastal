@@ -310,7 +310,7 @@ export default function Header() {
           )}
         >
             <div className="flex items-center gap-4 md:gap-6">
-              <Link href="/" className="flex items-center gap-2 group shrink-0">
+              <Link href="/" className="flex items-center gap-2 group shrink-0" onClick={() => setIsMobileMenuOpen(false)}>
                 <div className="relative w-8 h-8 overflow-hidden rounded-[10px] shadow-sm group-hover:scale-105 transition-transform duration-300">
                   <Image src="/icon-512x512.png" alt="FLASTAL" fill className="object-cover" priority />
                 </div>
@@ -443,7 +443,9 @@ export default function Header() {
                   className="lg:hidden fixed inset-0 top-0 left-0 w-full h-[100dvh] bg-white/95 backdrop-blur-2xl z-[200] overflow-y-auto pointer-events-auto"
               >
                   <div className="p-4 flex justify-between items-center border-b border-slate-100 bg-white sticky top-0 z-10">
-                      <span className="text-xl font-black text-slate-900 tracking-tighter">FLASTAL</span>
+                      <Link href="/" onClick={() => setIsMobileMenuOpen(false)} className="text-xl font-black text-slate-900 tracking-tighter hover:text-pink-500 transition-colors">
+                          FLASTAL
+                      </Link>
                       <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 bg-slate-50 rounded-full hover:bg-slate-100 transition-colors">
                           <X size={24} />
                       </button>
