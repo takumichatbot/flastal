@@ -16,7 +16,7 @@ import AiPlanGenerator from '@/app/components/AiPlanGenerator';
 import { 
   Calendar, MapPin, X, Image as ImageIcon, Loader2, Plus, 
   User, Award, Search, CheckCircle2, AlertTriangle, ZoomIn, Sparkles, 
-  Heart, Wand2, Lock, Globe, UploadCloud, ArrowRight, Paintbrush, FileText, Clock, ChevronDown
+  Heart, Wand2, Lock, Globe, UploadCloud, ArrowRight, Paintbrush, FileText, Clock
 } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
@@ -52,16 +52,6 @@ const formatDisplayDate = (dateString) => {
       year: 'numeric', month: 'long', day: 'numeric', weekday: 'short', hour: '2-digit', minute: '2-digit'
   });
 };
-
-// ★ 時間帯の選択肢リスト
-const TIME_SLOTS = [
-  { value: '09:00', label: '午前中 (09:00〜12:00)' },
-  { value: '12:00', label: 'お昼頃 (12:00〜14:00)' },
-  { value: '14:00', label: '午後 (14:00〜16:00)' },
-  { value: '16:00', label: '夕方 (16:00〜18:00)' },
-  { value: '18:00', label: '夜間 (18:00〜20:00)' },
-  { value: '00:00', label: '時間指定なし (いつでも可)' }
-];
 
 // ===========================================
 // 🎨 UI COMPONENTS & ANIMATIONS
@@ -403,7 +393,7 @@ function CreateProjectForm() {
 
   // ★ 追加：日時分割のためのステート
   const [deliveryDateObj, setDeliveryDateObj] = useState('');
-  const [deliveryTimeSlot, setDeliveryTimeSlot] = useState(TIME_SLOTS[0].value);
+  const [deliveryTimeText, setDeliveryTimeText] = useState('午前中');
 
   const [formData, setFormData] = useState({
     title: '',
@@ -421,12 +411,13 @@ function CreateProjectForm() {
     password: '',
   });
 
-  // 日付と時間帯から Rush Fee を計算
+  // 日付をもとに Rush Fee を計算（時間は考慮しない）
   const calculateRushFee = () => {
     if (!deliveryDateObj) return null;
     
     const now = new Date();
-    const target = new Date(`${deliveryDateObj}T${deliveryTimeSlot}`);
+    // タイムゾーンによるズレを防ぐため、12:00（正午）を基準に計算
+    const target = new Date(`${deliveryDateObj}T12:00:00+09:00`);
     const diffTime = target.getTime() - now.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
@@ -598,9 +589,8 @@ function CreateProjectForm() {
     try {
         if (!deliveryDateObj) throw new Error("納品希望日を選択してください");
         
-        // 日付と時間帯を結合してISO形式に
-        const combinedString = `${deliveryDateObj}T${deliveryTimeSlot}:00`;
-        const dateObj = new Date(combinedString);
+        // データベースに保存するための仮の日時（正午）を作成
+        const dateObj = new Date(`${deliveryDateObj}T12:00:00+09:00`); 
         if (isNaN(dateObj.getTime())) throw new Error("日時の形式が正しくありません");
         
         deliveryDateTimeISO = dateObj.toISOString();
@@ -621,7 +611,8 @@ function CreateProjectForm() {
         title: formData.title || "",
         description: formData.description || "",
         targetAmount: amount,
-        deliveryAddress: formData.deliveryAddress || (selectedVenue?.address || ""),
+        // ★ お届け先に希望時間帯を合体させて保存（お花屋さんが見やすいように）
+        deliveryAddress: `${formData.deliveryAddress || (selectedVenue?.address || "")} 【希望時間帯: ${deliveryTimeText || '指定なし'}】`,
         deliveryDateTime: deliveryDateTimeISO,
         imageUrl: formData.imageUrl || "",
         designImageUrls: formData.designImageUrls || [],
@@ -803,24 +794,27 @@ function CreateProjectForm() {
                         />
                     </div>
                     
-                    {/* 時間帯選択 */}
+                    {/* ★時間帯選択（自由入力 ＆ サジェストリスト） */}
                     <div className="relative">
-                        <select 
+                        <GlassInput 
+                            type="text" 
                             required
-                            value={deliveryTimeSlot} 
-                            onChange={(e) => setDeliveryTimeSlot(e.target.value)}
-                            className="w-full px-5 py-4 bg-white/60 backdrop-blur-sm border-2 border-slate-100 rounded-2xl focus:outline-none focus:border-pink-300 focus:ring-4 focus:ring-pink-100/50 transition-all font-bold text-slate-800 appearance-none cursor-pointer"
-                        >
-                            <option value="" disabled>時間帯を選択</option>
-                            {TIME_SLOTS.map(slot => (
-                                <option key={slot.value} value={slot.value}>{slot.label}</option>
-                            ))}
-                        </select>
-                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={20} />
+                            list="time-slots"
+                            value={deliveryTimeText} 
+                            onChange={(e) => setDeliveryTimeText(e.target.value)}
+                            placeholder="例: 午前中、13:00〜15:00"
+                        />
+                        <datalist id="time-slots">
+                            <option value="午前中" />
+                            <option value="12:00〜14:00" />
+                            <option value="14:00〜16:00" />
+                            <option value="16:00〜18:00" />
+                            <option value="時間指定なし" />
+                        </datalist>
                     </div>
                 </div>
                 
-                <p className="text-[10px] text-slate-400 font-bold mt-2 ml-2">※お花屋さんが動きやすいよう、時間帯での指定をお願いしています。</p>
+                <p className="text-[10px] text-slate-400 font-bold mt-2 ml-2">※お花屋さんが動きやすいよう、アバウトな時間帯指定をお願いしています。</p>
                 
                 {/* お急ぎアラート */}
                 <AnimatePresence>
