@@ -9,14 +9,13 @@ import Image from 'next/image';
 import { 
   FiUser, FiHeart, FiBell, FiSettings, 
   FiPlus, FiSearch, FiCamera, FiClock, FiUsers, 
-  FiStar, FiCheckCircle, FiChevronRight, FiLogOut, FiAward, FiActivity // ★修正: FiActivity を追加しました
+  FiStar, FiCheckCircle, FiChevronRight, FiLogOut, FiAward, FiActivity
 } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Zap, ArrowRight } from 'lucide-react'; // ★ Zap, ArrowRight を追加
 
 import UploadForm from '@/app/components/UploadForm'; 
 import SupportLevelBadge from '@/app/components/SupportLevelBadge'; 
-import { PointsCard } from '@/app/components/DashboardLayout';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -68,7 +67,6 @@ const ProgressSteps = ({ currentStep }) => {
 function ProjectCard({ project, roleType }) {
   const config = PROJECT_STATUS_CONFIG[project.status] || { label: project.status, color: 'text-slate-600', bg: 'bg-slate-500', bgLight: 'bg-slate-50', step: 0 };
   
-  // ★追加: 数値が未定義の際のエラー(NaN)を防ぐ安全処理
   const targetAmount = project.targetAmount || 0;
   const collectedAmount = project.collectedAmount || 0;
   const percent = targetAmount > 0 ? Math.min((collectedAmount / targetAmount) * 100, 100) : 0;
@@ -210,7 +208,7 @@ function DashboardContent() {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 pt-8 md:pt-12">
         
         {/* --- HEADER (Profile & Points) --- */}
-        <div className="flex flex-col md:flex-row gap-6 md:items-end justify-between mb-10">
+        <div className="flex flex-col lg:flex-row gap-6 lg:items-end justify-between mb-10">
           <div className="flex items-center gap-5">
             <div className="relative w-20 h-20 md:w-24 md:h-24 rounded-[2rem] overflow-hidden shadow-xl border-4 border-white bg-white shrink-0 group cursor-pointer" onClick={() => setActiveTab('settings')}>
               {user.iconUrl ? (
@@ -226,8 +224,21 @@ function DashboardContent() {
             </div>
           </div>
 
-          <div className="flex gap-4">
-            <PointsCard points={user.points || 0} onAddPoints={() => router.push('/points')} />
+          {/* ★大修正: ポイント残高をデカデカと美しく表示し、チャージ画面へ誘導する */}
+          <div className="bg-gradient-to-br from-slate-900 to-slate-800 p-1 rounded-[2rem] shadow-xl w-full lg:w-[400px] group transition-transform hover:-translate-y-1">
+             <div className="bg-white/10 backdrop-blur-md rounded-[1.8rem] p-5 border border-white/10 flex items-center justify-between">
+                <div>
+                   <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1 flex items-center gap-1.5">
+                     <Zap size={14} className="text-amber-400 fill-amber-400"/> ポイント残高
+                   </p>
+                   <p className="text-white text-3xl font-black font-mono tracking-tighter flex items-baseline gap-1">
+                     {(user.points || 0).toLocaleString()} <span className="text-sm text-slate-400">pt</span>
+                   </p>
+                </div>
+                <Link href="/points" className="bg-gradient-to-r from-amber-400 to-orange-400 hover:from-amber-300 hover:to-orange-300 text-white font-black text-sm px-6 py-4 rounded-[1.2rem] shadow-lg flex items-center gap-2 transition-all group-hover:scale-105 active:scale-95">
+                   チャージ <ArrowRight size={16}/>
+                </Link>
+             </div>
           </div>
         </div>
 

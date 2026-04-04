@@ -3,7 +3,6 @@ import stripe from '../config/stripe.js';
 import { sendEmail } from '../utils/email.js';
 import { getIO } from '../config/socket.js';
 
-// ... (LEVEL_CONFIG, checkUserLevelAndBadges, broadcastTicker は変更なし) ...
 const LEVEL_CONFIG = { 'Bronze': 10000, 'Silver': 50000, 'Gold': 100000 };
 
 async function checkUserLevelAndBadges(tx, userId) {
@@ -38,11 +37,16 @@ const broadcastTicker = (type, text, href) => {
     }
 };
 
+// ★ 修正: ポイントチャージのセッション作成をより強固に
 export const createPointSession = async (req, res) => {
-    // ... (変更なし) ...
     const { amount, points } = req.body;
     const userId = req.user.id;
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    // ヘッダーからOriginを取得して動的に遷移先を作る（Render対応）
+    const frontendUrl = req.headers.origin || process.env.FRONTEND_URL || 'https://www.flastal.com';
+
+    if (!amount || !points) {
+        return res.status(400).json({ message: '金額とポイント数が正しくありません。' });
+    }
 
     try {
         const session = await stripe.checkout.sessions.create({
@@ -50,25 +54,62 @@ export const createPointSession = async (req, res) => {
             line_items: [{ 
                 price_data: { 
                     currency: 'jpy', 
-                    product_data: { name: `${points} ポイント購入` }, 
-                    unit_amount: parseInt(amount), 
+                    product_data: { 
+                        name: `FLASTAL ${points.toLocaleString()} ポイント`,
+                        description: '企画の支援に使用できる専用ポイントです。'
+                    }, 
+                    unit_amount: parseInt(amount, 10), 
                 }, 
                 quantity: 1, 
             }],
             mode: 'payment',
-            success_url: `${frontendUrl}/payment/success`,
-            cancel_url: `${frontendUrl}/points`,
+            success_url: `${frontendUrl}/points?status=success`,
+            cancel_url: `${frontendUrl}/points?status=cancel`,
             client_reference_id: userId,
-            metadata: { points },
+            metadata: { 
+                points: points.toString(),
+                type: 'point_charge' // webhook側で判定するため
+            },
         });
         res.json({ url: session.url });
     } catch (error) {
-        console.error("Stripe Session Error:", error); // エラーログ追加
-        res.status(500).json({ message: 'セッション作成に失敗しました' });
+        console.error("Stripe Session Error (Points):", error);
+        res.status(500).json({ message: 'セッション作成に失敗しました: ' + error.message });
     }
 };
 
-// ★修正箇所: エラーログを追加
+// ==========================================
+// ★ 履歴取得API（フロントエンドの履歴タブ用に追加）
+// ==========================================
+export const getPaymentHistory = async (req, res) => {
+    const userId = req.user.id;
+    try {
+        // 1. ポイントを使った履歴 (Pledge)
+        const pledges = await prisma.pledge.findMany({
+            where: { userId: userId },
+            include: { project: { select: { title: true } } },
+            orderBy: { createdAt: 'desc' }
+        });
+
+        // 2. 履歴データの整形
+        // ※ 本来は Stripe Webhook等でCHARGE履歴もDB保存するのが理想ですが、
+        // ここではPledge(使用)履歴をメインに返します。
+        const history = pledges.map(p => ({
+            id: `use_${p.id}`,
+            type: 'USE',
+            amount: p.amount,
+            description: `『${p.project?.title || '企画'}』への支援`,
+            createdAt: p.createdAt
+        }));
+
+        res.json(history);
+    } catch (error) {
+        console.error("History Error:", error);
+        res.status(500).json({ message: '履歴の取得に失敗しました' });
+    }
+};
+
+
 export const createGuestSession = async (req, res) => {
     const { projectId, amount, comment, tierId, guestName, guestEmail, successUrl, cancelUrl } = req.body;
     if (!amount || amount <= 0) return res.status(400).json({ message: '金額が無効です' });
@@ -99,12 +140,11 @@ export const createGuestSession = async (req, res) => {
         });
         res.json({ sessionUrl: session.url });
     } catch (error) {
-        console.error("Guest Session Error:", error); // ★ここが重要: サーバーログにエラーを出す
+        console.error("Guest Session Error:", error);
         res.status(500).json({ message: 'チェックアウトセッションの作成に失敗しました: ' + error.message });
     }
 };
 
-// ... (createPledge, createGuestPledgeDirect も変更なし) ...
 export const createPledge = async (req, res) => {
     const userId = req.user.id;
     const { projectId, amount, comment, tierId } = req.body;

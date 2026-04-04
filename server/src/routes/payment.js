@@ -11,9 +11,10 @@ router.post('/pledges', authenticateToken, paymentController.createPledge);
 router.post('/checkout/create-session', authenticateToken, paymentController.createPointSession);
 router.post('/checkout/create-guest-session', paymentController.createGuestSession); // 認証不要
 
-
 // ★ 追加: ゲスト直接支援 (認証不要)
 router.post('/guest/pledges', paymentController.createGuestPledgeDirect);
 
+// ★ 追加: ポイント・支援の履歴取得
+router.get('/history', authenticateToken, paymentController.getPaymentHistory);
 
 export default router;
