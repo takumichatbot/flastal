@@ -9,13 +9,16 @@ import Image from 'next/image';
 import { 
   FiUser, FiHeart, FiBell, FiSettings, 
   FiPlus, FiSearch, FiCamera, FiClock, FiUsers, 
-  FiStar, FiCheckCircle, FiChevronRight, FiLogOut, FiAward, FiActivity
+  FiStar, FiCheckCircle, FiChevronRight, FiLogOut, FiAward, FiActivity 
 } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2, Zap, ArrowRight } from 'lucide-react'; // ★ Zap, ArrowRight を追加
+
+// ★新しく大きなアイコンを追加
+import { Loader2, Zap, CreditCard, History, ArrowRight } from 'lucide-react';
 
 import UploadForm from '@/app/components/UploadForm'; 
 import SupportLevelBadge from '@/app/components/SupportLevelBadge'; 
+// ※古い PointsCard のインポートは完全に削除しました！
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -180,7 +183,6 @@ function DashboardContent() {
     if (user) fetchMyData();
   }, [user, authLoading, fetchMyData, router]);
 
-  // URLが変わったらタブも変更
   useEffect(() => {
     const tab = searchParams.get('tab');
     if (tab) setActiveTab(tab);
@@ -208,7 +210,7 @@ function DashboardContent() {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 pt-8 md:pt-12">
         
         {/* --- HEADER (Profile & Points) --- */}
-        <div className="flex flex-col lg:flex-row gap-6 lg:items-end justify-between mb-10">
+        <div className="flex flex-col lg:flex-row gap-8 lg:items-end justify-between mb-10">
           <div className="flex items-center gap-5">
             <div className="relative w-20 h-20 md:w-24 md:h-24 rounded-[2rem] overflow-hidden shadow-xl border-4 border-white bg-white shrink-0 group cursor-pointer" onClick={() => setActiveTab('settings')}>
               {user.iconUrl ? (
@@ -224,20 +226,30 @@ function DashboardContent() {
             </div>
           </div>
 
-          {/* ★大修正: ポイント残高をデカデカと美しく表示し、チャージ画面へ誘導する */}
-          <div className="bg-gradient-to-br from-slate-900 to-slate-800 p-1 rounded-[2rem] shadow-xl w-full lg:w-[400px] group transition-transform hover:-translate-y-1">
-             <div className="bg-white/10 backdrop-blur-md rounded-[1.8rem] p-5 border border-white/10 flex items-center justify-between">
-                <div>
-                   <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1 flex items-center gap-1.5">
-                     <Zap size={14} className="text-amber-400 fill-amber-400"/> ポイント残高
-                   </p>
-                   <p className="text-white text-3xl font-black font-mono tracking-tighter flex items-baseline gap-1">
-                     {(user.points || 0).toLocaleString()} <span className="text-sm text-slate-400">pt</span>
+          {/* ★大改修: ポイント管理カード (直接大きく実装・古いPointsCardは削除) */}
+          <div className="bg-gradient-to-br from-slate-900 to-slate-800 p-1.5 rounded-[2.5rem] shadow-2xl w-full lg:w-[420px] shrink-0 transform transition-transform hover:-translate-y-1">
+             <div className="bg-white/10 backdrop-blur-md rounded-[2.2rem] p-6 border border-white/10 flex flex-col gap-4">
+                <div className="flex items-center justify-between">
+                   <p className="text-slate-400 text-xs font-black uppercase tracking-widest flex items-center gap-2">
+                     <Zap size={18} className="text-amber-400 fill-amber-400"/> ポイント残高
                    </p>
                 </div>
-                <Link href="/points" className="bg-gradient-to-r from-amber-400 to-orange-400 hover:from-amber-300 hover:to-orange-300 text-white font-black text-sm px-6 py-4 rounded-[1.2rem] shadow-lg flex items-center gap-2 transition-all group-hover:scale-105 active:scale-95">
-                   チャージ <ArrowRight size={16}/>
-                </Link>
+                
+                <div className="flex items-baseline gap-2">
+                   <span className="text-white text-5xl md:text-6xl font-black font-mono tracking-tighter drop-shadow-md">
+                     {(user.points || 0).toLocaleString()}
+                   </span>
+                   <span className="text-xl text-slate-400 font-bold">pt</span>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-3 mt-2">
+                   <Link href="/points" className="bg-gradient-to-r from-amber-400 to-orange-400 hover:from-amber-300 hover:to-orange-300 text-white font-black text-sm py-3.5 rounded-xl shadow-lg flex items-center justify-center gap-2 transition-all active:scale-95">
+                     <CreditCard size={18}/> チャージ
+                   </Link>
+                   <Link href="/points?tab=history" className="bg-white/20 hover:bg-white/30 text-white font-black text-sm py-3.5 rounded-xl flex items-center justify-center gap-2 transition-all active:scale-95 border border-white/10">
+                     <History size={18}/> 利用履歴
+                   </Link>
+                </div>
              </div>
           </div>
         </div>
