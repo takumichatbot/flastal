@@ -12,13 +12,12 @@ import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import AiPlanGenerator from '@/app/components/AiPlanGenerator';
 
-// Lucide Icons (react-iconsから移行し統一)
+// Lucide Icons
 import { 
   Calendar, MapPin, X, Image as ImageIcon, Loader2, Plus, 
   User, Award, Search, CheckCircle2, AlertTriangle, ZoomIn, Sparkles, 
-  Heart, Wand2, Lock, Globe, UploadCloud, ArrowRight, Paintbrush, FileText, Clock // ← Clock を追加
+  Heart, Wand2, Lock, Globe, UploadCloud, ArrowRight, Paintbrush, FileText, Clock, ChevronDown
 } from 'lucide-react';
-
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -30,7 +29,7 @@ const JpText = ({ children, className }) => (
   <span className={cn("inline-block", className)}>{children}</span>
 );
 
-// 日付フォーマット関数
+// 日付関連フォーマット関数
 const formatToLocalISO = (dateString) => {
   if (!dateString) return '';
   try {
@@ -54,6 +53,16 @@ const formatDisplayDate = (dateString) => {
   });
 };
 
+// ★ 時間帯の選択肢リスト
+const TIME_SLOTS = [
+  { value: '09:00', label: '午前中 (09:00〜12:00)' },
+  { value: '12:00', label: 'お昼頃 (12:00〜14:00)' },
+  { value: '14:00', label: '午後 (14:00〜16:00)' },
+  { value: '16:00', label: '夕方 (16:00〜18:00)' },
+  { value: '18:00', label: '夜間 (18:00〜20:00)' },
+  { value: '00:00', label: '時間指定なし (いつでも可)' }
+];
+
 // ===========================================
 // 🎨 UI COMPONENTS & ANIMATIONS
 // ===========================================
@@ -70,16 +79,8 @@ const FloatingParticles = () => {
         <motion.div
           key={i}
           className="absolute w-3 h-3 bg-pink-300 rounded-full mix-blend-multiply filter blur-[1px] opacity-40"
-          initial={{
-            x: Math.random() * windowSize.width,
-            y: Math.random() * windowSize.height,
-          }}
-          animate={{
-            y: [null, Math.random() * -200],
-            x: [null, (Math.random() - 0.5) * 100],
-            opacity: [0.2, 0.6, 0.2],
-            scale: [1, 1.5, 1],
-          }}
+          initial={{ x: Math.random() * windowSize.width, y: Math.random() * windowSize.height }}
+          animate={{ y: [null, Math.random() * -200], x: [null, (Math.random() - 0.5) * 100], opacity: [0.2, 0.6, 0.2], scale: [1, 1.5, 1] }}
           transition={{ duration: Math.random() * 10 + 15, repeat: Infinity, ease: "linear" }}
         />
       ))}
@@ -400,6 +401,10 @@ function CreateProjectForm() {
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [eventLoading, setEventLoading] = useState(true);
 
+  // ★ 追加：日時分割のためのステート
+  const [deliveryDateObj, setDeliveryDateObj] = useState('');
+  const [deliveryTimeSlot, setDeliveryTimeSlot] = useState(TIME_SLOTS[0].value);
+
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -407,7 +412,6 @@ function CreateProjectForm() {
     deliveryAddress: '', 
     venueId: '',
     eventId: '',
-    deliveryDateTime: '',
     imageUrl: '',
     designImageUrls: [], 
     designDetails: '',
@@ -417,12 +421,12 @@ function CreateProjectForm() {
     password: '',
   });
 
-  // ▼▼▼ ここから追加 ▼▼▼
+  // 日付と時間帯から Rush Fee を計算
   const calculateRushFee = () => {
-    if (!formData.deliveryDateTime) return null;
+    if (!deliveryDateObj) return null;
     
     const now = new Date();
-    const target = new Date(formData.deliveryDateTime);
+    const target = new Date(`${deliveryDateObj}T${deliveryTimeSlot}`);
     const diffTime = target.getTime() - now.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
@@ -511,12 +515,17 @@ function CreateProjectForm() {
         if (res.ok) {
             const data = await res.json();
             setSelectedEvent(data);
-            const isoDate = data.eventDate ? formatToLocalISO(data.eventDate) : '';
+            
+            if (data.eventDate) {
+              const d = new Date(data.eventDate);
+              const datePart = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+              setDeliveryDateObj(datePart);
+            }
+
             setFormData(prev => ({
                 ...prev,
                 title: data.title ? `【企画】${data.title} フラスタ企画` : prev.title, 
                 eventId: data.id,
-                deliveryDateTime: isoDate || prev.deliveryDateTime,
                 ...(data.venue ? { venueId: data.venue.id, deliveryAddress: data.venue.address || data.venue.venueName } : {})
             }));
             if (data.venue) setSelectedVenue(data.venue);
@@ -549,11 +558,17 @@ function CreateProjectForm() {
   const handleEventSelect = (event) => {
     if (!event) return;
     setSelectedEvent(event);
+    
+    if (event.eventDate) {
+      const d = new Date(event.eventDate);
+      const datePart = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+      setDeliveryDateObj(datePart);
+    }
+
     setFormData(prev => ({
         ...prev,
         title: `【企画】${event.title} フラスタ企画`, 
         eventId: event.id,
-        deliveryDateTime: formatToLocalISO(event.eventDate),
         ...(event.venue ? { venueId: event.venue.id, deliveryAddress: event.venue.address || event.venue.venueName } : {})
     }));
     if (event.venue) setSelectedVenue(event.venue);
@@ -581,9 +596,13 @@ function CreateProjectForm() {
 
     let deliveryDateTimeISO;
     try {
-        if (!formData.deliveryDateTime) throw new Error("納品希望日時を選択してください");
-        const dateObj = new Date(formData.deliveryDateTime);
+        if (!deliveryDateObj) throw new Error("納品希望日を選択してください");
+        
+        // 日付と時間帯を結合してISO形式に
+        const combinedString = `${deliveryDateObj}T${deliveryTimeSlot}:00`;
+        const dateObj = new Date(combinedString);
         if (isNaN(dateObj.getTime())) throw new Error("日時の形式が正しくありません");
+        
         deliveryDateTimeISO = dateObj.toISOString();
     } catch (err) {
         return toast.error(err.message);
@@ -681,7 +700,7 @@ function CreateProjectForm() {
                       <span className="bg-white px-3 py-1.5 rounded-lg border border-slate-100 shadow-sm flex items-center gap-1"><MapPin size={12} className="text-indigo-400"/>{selectedEvent.venue?.venueName || '会場未定'}</span>
                   </div>
                 </div>
-                <button type="button" onClick={() => { setSelectedEvent(null); setSelectedVenue(null); setFormData(p => ({ ...p, eventId: '', title: '', deliveryDateTime: '', venueId: '', deliveryAddress: '' })); }} className="px-4 py-2 bg-white text-xs font-bold text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full border border-slate-200 transition-all shadow-sm">
+                <button type="button" onClick={() => { setSelectedEvent(null); setSelectedVenue(null); setFormData(p => ({ ...p, eventId: '', title: '', venueId: '', deliveryAddress: '' })); setDeliveryDateObj(''); }} className="px-4 py-2 bg-white text-xs font-bold text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full border border-slate-200 transition-all shadow-sm">
                   イベント選択を解除
                 </button>
               </div>
@@ -750,7 +769,7 @@ function CreateProjectForm() {
             </div>
           </GlassCard>
 
-          {/* --- BLOCK 4: お届け先と日時 --- */}
+          {/* --- BLOCK 4: お届け先と日時 (★時間帯選択に改修) --- */}
           <GlassCard>
              <div className="flex justify-between items-center mb-6">
                 <InputLabel icon={MapPin} title="お届け先" required />
@@ -771,10 +790,39 @@ function CreateProjectForm() {
              )}
              
              <div>
-                <InputLabel icon={Clock} title="納品希望日時" required />
-                <GlassInput type="datetime-local" name="deliveryDateTime" required value={formData.deliveryDateTime} onChange={handleChange} />
+                <InputLabel icon={Clock} title="納品希望日・時間帯" required />
                 
-                {/* ▼▼▼ ここから追加 ▼▼▼ */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* 日付入力 */}
+                    <div className="relative">
+                        <GlassInput 
+                            type="date" 
+                            required 
+                            value={deliveryDateObj} 
+                            onChange={(e) => setDeliveryDateObj(e.target.value)} 
+                        />
+                    </div>
+                    
+                    {/* 時間帯選択 */}
+                    <div className="relative">
+                        <select 
+                            required
+                            value={deliveryTimeSlot} 
+                            onChange={(e) => setDeliveryTimeSlot(e.target.value)}
+                            className="w-full px-5 py-4 bg-white/60 backdrop-blur-sm border-2 border-slate-100 rounded-2xl focus:outline-none focus:border-pink-300 focus:ring-4 focus:ring-pink-100/50 transition-all font-bold text-slate-800 appearance-none cursor-pointer"
+                        >
+                            <option value="" disabled>時間帯を選択</option>
+                            {TIME_SLOTS.map(slot => (
+                                <option key={slot.value} value={slot.value}>{slot.label}</option>
+                            ))}
+                        </select>
+                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={20} />
+                    </div>
+                </div>
+                
+                <p className="text-[10px] text-slate-400 font-bold mt-2 ml-2">※お花屋さんが動きやすいよう、時間帯での指定をお願いしています。</p>
+                
+                {/* お急ぎアラート */}
                 <AnimatePresence>
                   {rushFeeAlert && (
                     <motion.div 
@@ -786,7 +834,7 @@ function CreateProjectForm() {
                       <AlertTriangle className="text-rose-500 shrink-0 mt-0.5" size={20} />
                       <div>
                         <p className="text-sm font-black text-rose-700">
-                          ⚠️ お急ぎ対応料金（目安: {rushFeeAlert.rate}）が加算されます
+                          ⚠️ お急ぎ対応料金（目安: {rushFeeAlert.rate}加算）
                         </p>
                         <p className="text-xs text-rose-600/80 font-bold mt-1.5 leading-relaxed">
                           納品まで残り日数が短いため（{rushFeeAlert.days}）、お花屋さんからの見積もりに特急料金が自動加算されます。<br/>
@@ -796,7 +844,6 @@ function CreateProjectForm() {
                     </motion.div>
                   )}
                 </AnimatePresence>
-                {/* ▲▲▲ ここまで追加 ▲▲▲ */}
 
              </div>
           </GlassCard>
