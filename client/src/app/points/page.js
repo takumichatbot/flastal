@@ -1,8 +1,5 @@
 'use client';
 
-export const dynamic = 'force-dynamic';
-export const fetchCache = 'force-no-store';
-
 import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/app/contexts/AuthContext';
@@ -258,5 +255,20 @@ function PointsPageContent() {
 
       </div>
     </div>
+  );
+}
+
+/**
+ * メインエクスポート (Suspense でラップして useSearchParams のエラーを防ぐ)
+ */
+export default function PointsPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <Loader2 className="animate-spin text-sky-400" size={40} />
+      </div>
+    }>
+      <PointsPageContent />
+    </Suspense>
   );
 }
