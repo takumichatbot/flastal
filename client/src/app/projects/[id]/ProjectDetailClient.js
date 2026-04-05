@@ -276,6 +276,8 @@ function QuotationApprovalModal({ project, user, onClose, onUpdate }) {
   );
 }
 
+
+
 function PledgeForm({ project, user, onPledgeSubmit, isPledger }) {
   const { register, handleSubmit, formState: { isSubmitting }, reset, watch } = useForm({
     defaultValues: { pledgeType: 'tier', selectedTierId: project.pledgeTiers?.[0]?.id || '', pledgeAmount: '', comment: '', guestName: '', guestEmail: '' }
@@ -287,6 +289,12 @@ function PledgeForm({ project, user, onPledgeSubmit, isPledger }) {
 
   const onSubmit = async (data) => {
     if (finalAmount <= 0) return toast.error('支援金額は1円以上である必要があります。');
+    
+    // ★追加: ポイント不足の事前チェック
+    if (user && user.points < finalAmount) {
+        return toast.error(`ポイントが不足しています。（不足分: ${(finalAmount - user.points).toLocaleString()}pt）`);
+    }
+
     if (user) {
         onPledgeSubmit({
             projectId: project.id, userId: user.id, comment: data.comment,
@@ -337,6 +345,15 @@ function PledgeForm({ project, user, onPledgeSubmit, isPledger }) {
   return (
     <AppCard className="border-none shadow-[0_10px_30px_rgba(244,114,182,0.06)] ring-1 ring-slate-100">
       <h3 className="text-lg md:text-xl font-black text-slate-800 mb-4 md:mb-6 flex items-center gap-2"><Heart className="text-pink-500 fill-pink-500" size={20}/> 支援して参加する</h3>
+      
+      {/* ★追加: 現在の所持ポイント表示 */}
+      {user && (
+        <div className="mb-4 p-3 bg-pink-50/50 border border-pink-100 rounded-xl flex items-center justify-between">
+            <span className="text-xs font-black text-pink-500 tracking-widest uppercase">所持ポイント</span>
+            <span className="text-sm font-black text-slate-800">{(user.points || 0).toLocaleString()} pt</span>
+        </div>
+      )}
+
       {!user && (
         <div className="mb-4 md:mb-6 p-3 bg-slate-50 rounded-xl flex items-start gap-2">
             <Info className="mt-0.5 shrink-0 text-slate-400" size={14}/>
@@ -394,18 +411,29 @@ function PledgeForm({ project, user, onPledgeSubmit, isPledger }) {
             </div>
         )}
 
-        <motion.button 
-            whileTap={{ scale: 0.98 }}
-            type="submit" disabled={isSubmitting || finalAmount <= 0} 
-            className="w-full py-3.5 md:py-4 font-black text-white bg-slate-900 hover:bg-slate-800 rounded-xl md:rounded-2xl disabled:opacity-50 flex justify-center items-center gap-2 text-sm md:text-base transition-colors"
-        >
-            {isSubmitting ? <Loader2 className="animate-spin" size={16}/> : <Sparkles size={16} className="text-pink-400"/>}
-            {isSubmitting ? '処理中...' : (user ? 'ポイントで支援する' : '決済へ進む')}
-        </motion.button>
+        <div className="space-y-3">
+            <motion.button 
+                whileTap={{ scale: 0.98 }}
+                type="submit" disabled={isSubmitting || finalAmount <= 0} 
+                className="w-full py-3.5 md:py-4 font-black text-white bg-slate-900 hover:bg-slate-800 rounded-xl md:rounded-2xl disabled:opacity-50 flex justify-center items-center gap-2 text-sm md:text-base transition-colors shadow-lg"
+            >
+                {isSubmitting ? <Loader2 className="animate-spin" size={16}/> : <Sparkles size={16} className="text-pink-400"/>}
+                {isSubmitting ? '処理中...' : (user ? 'ポイントで支援する' : '決済へ進む')}
+            </motion.button>
+            
+            {/* ★追加: ポイントチャージ画面への導線 */}
+            {user && (
+                <Link href="/points" className="w-full py-3 bg-white border border-slate-200 text-slate-600 rounded-xl font-bold flex justify-center items-center gap-2 text-xs hover:bg-slate-50 hover:text-amber-500 transition-colors shadow-sm">
+                    <DollarSign size={14} className="text-amber-400" />
+                    ポイントをチャージする
+                </Link>
+            )}
+        </div>
       </form>
     </AppCard>
   );
 }
+
 
 function TargetAmountModal({ project, user, onClose, onUpdate }) {
   const [newAmount, setNewAmount] = useState(project.targetAmount);
