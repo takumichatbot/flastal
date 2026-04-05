@@ -20,7 +20,7 @@ import {
   ChevronLeft, Send, Image as ImageIcon, 
   Award, Plus, Search, Loader2, X,
   FileText, Printer, Info, Lock, PenTool, Check, Wand2, 
-  MessageSquare, Trash2, Box, UploadCloud, RefreshCw, Pen, Book, Users, Sparkles, Edit3
+  MessageSquare, Trash2, Box, UploadCloud, RefreshCw, Pen, Book, Users, Sparkles, Edit3, UserPlus, Zap
 } from 'lucide-react';
 
 // --- Components ---
@@ -93,6 +93,7 @@ function ImageLightbox({ url, onClose }) {
   );
 }
 
+// ... InstructionSheetModal, QuotationApprovalModal 等は変更なしのため省略せずにそのまま ...
 function InstructionSheetModal({ project, onClose }) {
   const images = [
     project.designImageUrls?.[0] || project.imageUrl, 
@@ -276,8 +277,6 @@ function QuotationApprovalModal({ project, user, onClose, onUpdate }) {
   );
 }
 
-
-
 function PledgeForm({ project, user, onPledgeSubmit, isPledger }) {
   const { register, handleSubmit, formState: { isSubmitting }, reset, watch } = useForm({
     defaultValues: { pledgeType: 'tier', selectedTierId: project.pledgeTiers?.[0]?.id || '', pledgeAmount: '', comment: '', guestName: '', guestEmail: '' }
@@ -290,7 +289,7 @@ function PledgeForm({ project, user, onPledgeSubmit, isPledger }) {
   const onSubmit = async (data) => {
     if (finalAmount <= 0) return toast.error('支援金額は1円以上である必要があります。');
     
-    // ★追加: ポイント不足の事前チェック
+    // ポイント不足の事前チェック
     if (user && user.points < finalAmount) {
         return toast.error(`ポイントが不足しています。（不足分: ${(finalAmount - user.points).toLocaleString()}pt）`);
     }
@@ -346,7 +345,7 @@ function PledgeForm({ project, user, onPledgeSubmit, isPledger }) {
     <AppCard className="border-none shadow-[0_10px_30px_rgba(244,114,182,0.06)] ring-1 ring-slate-100">
       <h3 className="text-lg md:text-xl font-black text-slate-800 mb-4 md:mb-6 flex items-center gap-2"><Heart className="text-pink-500 fill-pink-500" size={20}/> 支援して参加する</h3>
       
-      {/* ★追加: 現在の所持ポイント表示 */}
+      {/* 現在の所持ポイント表示 */}
       {user && (
         <div className="mb-4 p-3 bg-pink-50/50 border border-pink-100 rounded-xl flex items-center justify-between">
             <span className="text-xs font-black text-pink-500 tracking-widest uppercase">所持ポイント</span>
@@ -421,10 +420,9 @@ function PledgeForm({ project, user, onPledgeSubmit, isPledger }) {
                 {isSubmitting ? '処理中...' : (user ? 'ポイントで支援する' : '決済へ進む')}
             </motion.button>
             
-            {/* ★追加: ポイントチャージ画面への導線 */}
             {user && (
                 <Link href="/points" className="w-full py-3 bg-white border border-slate-200 text-slate-600 rounded-xl font-bold flex justify-center items-center gap-2 text-xs hover:bg-slate-50 hover:text-amber-500 transition-colors shadow-sm">
-                    <DollarSign size={14} className="text-amber-400" />
+                    <Zap size={14} className="text-amber-400" />
                     ポイントをチャージする
                 </Link>
             )}
@@ -433,7 +431,6 @@ function PledgeForm({ project, user, onPledgeSubmit, isPledger }) {
     </AppCard>
   );
 }
-
 
 function TargetAmountModal({ project, user, onClose, onUpdate }) {
   const [newAmount, setNewAmount] = useState(project.targetAmount);
@@ -507,12 +504,6 @@ export default function ProjectDetailClient() {
   const [expenseName, setExpenseName] = useState('');
   const [expenseAmount, setExpenseAmount] = useState('');
   const [newTaskTitle, setNewTaskTitle] = useState('');
-
-  // AR state
-  const [arImageFile, setArImageFile] = useState(null);
-  const [arHeight, setArHeight] = useState(180);
-  const [arSrc, setArSrc] = useState(null); 
-  const [arGenLoading, setArGenLoading] = useState(false);
 
   const handlePrint = useReactToPrint({
     content: () => componentRef.current,
@@ -699,7 +690,6 @@ export default function ProjectDetailClient() {
               payload.illustrationPanelUrls = [...(project.illustrationPanelUrls || []), uploadedUrl];
           }
 
-          // 修正: 正しい保存先URLに変更
           const updateRes = await authenticatedFetch(`${API_URL}/api/projects/${id}`, {
               method: 'PATCH',
               headers: { 'Content-Type': 'application/json' },
@@ -707,7 +697,6 @@ export default function ProjectDetailClient() {
           });
           if (!updateRes.ok) throw new Error('データの保存に失敗しました');
 
-          // 修正: 画面を即座に更新して表示させる
           setProject(prev => ({ ...prev, ...payload }));
           toast.success('提出が完了しました！', { id: toastId });
       } catch (error) {
@@ -723,7 +712,6 @@ export default function ProjectDetailClient() {
           const formData = new FormData();
           formData.append('image', arImageFile);
           
-          // 修正: オブジェクトではなく画像のURLを正しく受け取ってARに渡す
           const res = await authenticatedFetch(`${API_URL}/api/tools/upload-image`, {
               method: 'POST',
               body: formData
@@ -737,6 +725,30 @@ export default function ProjectDetailClient() {
           toast.error('ARの起動に失敗しました', { id: toastId });
       } finally {
           setArGenLoading(false);
+      }
+  };
+
+  // ★ 追加: 絵師の採用処理
+  const handleAcceptApplication = async (applicationId, amount) => {
+      if (user.points < amount) {
+          toast.error(`ポイントが不足しています。(不足分: ${amount - user.points}pt) チャージしてください。`);
+          return;
+      }
+      
+      const isConfirmed = window.confirm(`本当にこのクリエイターを採用し、${amount.toLocaleString()}pt を支払いますか？\n※ポイントはシステムに一時的に預けられ、納品完了後にクリエイターへ支払われます。`);
+      if (!isConfirmed) return;
+
+      const toastId = toast.loading('採用処理中...');
+      try {
+          const res = await authenticatedFetch(`${API_URL}/api/projects/${id}/applications/${applicationId}/accept`, {
+              method: 'PATCH'
+          });
+          if (!res.ok) throw new Error('採用処理に失敗しました');
+          
+          toast.success('クリエイターを採用しました！🎉 チャットから挨拶しましょう！', { id: toastId });
+          fetchProject(); 
+      } catch (e) {
+          toast.error(e.message, { id: toastId });
       }
   };
 
@@ -762,7 +774,7 @@ export default function ProjectDetailClient() {
   return (
     <div className="min-h-screen bg-slate-50/50 pb-32 md:pb-24 font-sans text-slate-800 relative">
       
-      {/* --- HERO IMAGE (App-style full bleed on mobile, rounded on desktop) --- */}
+      {/* --- HERO IMAGE --- */}
       <div className="w-full max-w-6xl mx-auto md:px-4 lg:px-8 md:mt-6 mb-4 md:mb-8">
         {project.status !== 'COMPLETED' && project.imageUrl ? (
             <div className="relative w-full aspect-[4/3] md:aspect-[21/9] md:rounded-[2rem] overflow-hidden shadow-sm group cursor-zoom-in" onClick={() => { setModalImageSrc(project.imageUrl); setIsImageModalOpen(true); }}>
@@ -945,6 +957,13 @@ export default function ProjectDetailClient() {
                                 <button onClick={() => setCollabTab('tools')} className={cn("px-4 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 whitespace-nowrap transition-all", collabTab === 'tools' ? 'bg-slate-900 text-white shadow-md' : 'bg-white text-slate-500 hover:bg-slate-100 shadow-sm border border-slate-200')}>
                                     <UploadCloud size={16}/> 提出・データ
                                 </button>
+                                
+                                {/* ★追加: クリエイター応募（企画者のみ表示） */}
+                                {isPlanner && (
+                                    <button onClick={() => setCollabTab('applicants')} className={cn("px-4 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 whitespace-nowrap transition-all", collabTab === 'applicants' ? 'bg-gradient-to-r from-amber-400 to-orange-500 text-white shadow-md' : 'bg-amber-50 text-amber-600 hover:bg-amber-100 shadow-sm border border-amber-200')}>
+                                        <UserPlus size={16}/> クリエイター応募
+                                    </button>
+                                )}
                             </div>
 
                             <AnimatePresence mode="wait">
@@ -999,7 +1018,7 @@ export default function ProjectDetailClient() {
                                     {collabTab === 'tools' && (
                                         <div className="space-y-5 md:space-y-6">
                                             
-                                            {/* ARプレビューをフル幅のバナー風に変更 */}
+                                            {/* ARプレビュー */}
                                             <AppCard className="!p-5 md:!p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between bg-gradient-to-br from-indigo-50/50 to-white border-indigo-100 gap-4">
                                                 <div>
                                                     <h3 className="font-black text-indigo-900 mb-1 flex items-center text-sm md:text-base"><Box className="mr-2 text-indigo-500" size={18}/> ARプレビュー</h3>
@@ -1008,7 +1027,7 @@ export default function ProjectDetailClient() {
                                                 <button onClick={() => setIsArModalOpen(true)} className="w-full sm:w-auto px-8 py-3 bg-indigo-500 text-white text-xs md:text-sm font-black rounded-xl hover:bg-indigo-600 transition-all shadow-md shrink-0 active:scale-95">起動する</button>
                                             </AppCard>
                                             
-                                            {/* パネルシミュレーターもフル幅でゆったり表示 */}
+                                            {/* パネルシミュレーター */}
                                             {(isPlanner || isFlorist) && (
                                                 <div className="bg-white rounded-[2rem] border border-slate-100 shadow-[0_4px_20px_rgb(0,0,0,0.03)] flex flex-col justify-between overflow-hidden w-full">
                                                     <PanelPreviewer onImageSelected={(file) => handleUpload({ target: { files: [file] } }, 'illustration')} />
@@ -1055,6 +1074,59 @@ export default function ProjectDetailClient() {
                                             )}
                                         </div>
                                     )}
+
+                                    {/* 5. クリエイター応募 (★新機能) */}
+                                    {isPlanner && collabTab === 'applicants' && (
+                                        <AppCard className="border-amber-100 ring-4 ring-amber-50/50 bg-slate-50/50">
+                                            <div className="flex items-center justify-between mb-6">
+                                                <h3 className="font-black text-slate-800 flex items-center gap-2"><UserPlus className="text-amber-500" size={20}/> 届いている立候補</h3>
+                                                <span className="bg-amber-100 text-amber-600 text-xs font-bold px-3 py-1 rounded-full">{project.illustratorApplications?.length || 0} 件</span>
+                                            </div>
+
+                                            {project.illustratorApplications?.length > 0 ? (
+                                                <div className="space-y-4">
+                                                    {project.illustratorApplications.map(app => (
+                                                        <div key={app.id} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                                                            <div className="flex items-start justify-between mb-4">
+                                                                <div className="flex items-center gap-3">
+                                                                    <div className="w-10 h-10 rounded-full overflow-hidden bg-slate-100 shrink-0">
+                                                                        {app.illustrator?.iconUrl ? <Image src={app.illustrator.iconUrl} alt="" width={40} height={40} className="object-cover"/> : <User size={20} className="m-2 text-slate-300"/>}
+                                                                    </div>
+                                                                    <div>
+                                                                        <p className="font-black text-slate-800 text-sm">{app.illustrator?.name || '絵師さん'}</p>
+                                                                        <Link href={`/illustrators/${app.illustrator?.userId}`} className="text-[10px] text-amber-500 font-bold hover:underline">プロフィールを見る</Link>
+                                                                    </div>
+                                                                </div>
+                                                                <div className="text-right">
+                                                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">希望金額</p>
+                                                                    <p className="font-black text-amber-500 text-lg leading-none">{app.proposedAmount?.toLocaleString()} <span className="text-[10px]">pt</span></p>
+                                                                </div>
+                                                            </div>
+                                                            
+                                                            <div className="bg-amber-50/50 p-4 rounded-xl border border-amber-100 mb-4">
+                                                                <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest mb-1.5 flex items-center gap-1"><MessageSquare size={12}/> 提案メッセージ</p>
+                                                                <p className="text-xs text-slate-700 font-medium whitespace-pre-wrap leading-relaxed">{app.message}</p>
+                                                            </div>
+
+                                                            <button 
+                                                                onClick={() => handleAcceptApplication(app.id, app.proposedAmount)}
+                                                                className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white text-sm font-black rounded-xl transition-colors shadow-md flex items-center justify-center gap-2"
+                                                            >
+                                                                <CheckCircle2 size={16}/> 採用して {app.proposedAmount?.toLocaleString()}pt 仮払いする
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <div className="text-center py-16 bg-white rounded-2xl border border-dashed border-slate-200">
+                                                    <UserPlus className="mx-auto text-slate-300 mb-3" size={32}/>
+                                                    <p className="text-sm font-bold text-slate-500 mb-1">まだ立候補はありません</p>
+                                                    <p className="text-xs text-slate-400 font-medium">掲示板に掲載して、クリエイターからの応募を待ちましょう！</p>
+                                                </div>
+                                            )}
+                                        </AppCard>
+                                    )}
+
                                 </motion.div>
                             </AnimatePresence>
                         </>
