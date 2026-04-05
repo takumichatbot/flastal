@@ -14,7 +14,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   PenTool, CheckCircle2, Clock, Settings, LogOut, Loader2, Home, 
   RefreshCw, HelpCircle, FileText, Check, Inbox, ArrowRight, MessageSquare,
-  XCircle, Coins, HeartHandshake, Send
+  XCircle, Coins, HeartHandshake, Send, User
 } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';

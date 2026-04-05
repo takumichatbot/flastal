@@ -14,8 +14,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 // lucide-react
 import { 
     Clock, CheckCircle2, User, X, Shield, Zap, AlertCircle, ArrowLeft, Briefcase, 
-    Coins, RefreshCw, PenTool, Sparkles, Image as ImageIcon, Send, Loader2
-} from 'lucide-react'; 
+    Coins, RefreshCw, PenTool, Sparkles, Image as ImageIcon, Send, Loader2, ZoomIn
+} from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
