@@ -20,7 +20,7 @@ import {
   ChevronLeft, Send, Image as ImageIcon, 
   Award, Plus, Search, Loader2, X,
   FileText, Printer, Info, Lock, PenTool, Check, Wand2, 
-  MessageSquare, Trash2, Box, UploadCloud, RefreshCw, Pen, Book, Users, Sparkles, Edit3, UserPlus, Zap
+  MessageSquare, Trash2, Box, UploadCloud, RefreshCw, Pen, Book, Users, Sparkles, Edit3, UserPlus, Zap, Brush
 } from 'lucide-react';
 
 // --- Components ---
@@ -93,7 +93,7 @@ function ImageLightbox({ url, onClose }) {
   );
 }
 
-// ... InstructionSheetModal, QuotationApprovalModal 等は変更なしのため省略せずにそのまま ...
+// InstructionSheetModal, QuotationApprovalModal 省略 (前コードと同様)
 function InstructionSheetModal({ project, onClose }) {
   const images = [
     project.designImageUrls?.[0] || project.imageUrl, 
@@ -345,7 +345,6 @@ function PledgeForm({ project, user, onPledgeSubmit, isPledger }) {
     <AppCard className="border-none shadow-[0_10px_30px_rgba(244,114,182,0.06)] ring-1 ring-slate-100">
       <h3 className="text-lg md:text-xl font-black text-slate-800 mb-4 md:mb-6 flex items-center gap-2"><Heart className="text-pink-500 fill-pink-500" size={20}/> 支援して参加する</h3>
       
-      {/* 現在の所持ポイント表示 */}
       {user && (
         <div className="mb-4 p-3 bg-pink-50/50 border border-pink-100 rounded-xl flex items-center justify-between">
             <span className="text-xs font-black text-pink-500 tracking-widest uppercase">所持ポイント</span>
@@ -492,7 +491,6 @@ export default function ProjectDetailClient() {
   const [isTargetAmountModalOpen, setIsTargetAmountModalOpen] = useState(false);
   const [isInstructionModalOpen, setIsInstructionModalOpen] = useState(false);
   const [isArModalOpen, setIsArModalOpen] = useState(false);
-  const [isMaterialModalOpen, setIsMaterialModalOpen] = useState(false);
   const [isQuotationModalOpen, setIsQuotationModalOpen] = useState(false); 
 
   // Forms state
@@ -504,6 +502,9 @@ export default function ProjectDetailClient() {
   const [expenseName, setExpenseName] = useState('');
   const [expenseAmount, setExpenseAmount] = useState('');
   const [newTaskTitle, setNewTaskTitle] = useState('');
+
+  // ★ 新規: イラスト納品時のアップロード状態
+  const [isIllustrationUploading, setIsIllustrationUploading] = useState(false);
 
   const handlePrint = useReactToPrint({
     content: () => componentRef.current,
@@ -671,7 +672,10 @@ export default function ProjectDetailClient() {
   const handleUpload = async (e, type) => {
       const file = e.target?.files?.[0];
       if (!file) return;
+      
       const toastId = toast.loading('データを送信中...');
+      if (type === 'illustration_delivery') setIsIllustrationUploading(true);
+
       try {
           const formData = new FormData();
           formData.append('image', file);
@@ -688,6 +692,10 @@ export default function ProjectDetailClient() {
               payload.preEventPhotoUrls = [...(project.preEventPhotoUrls || []), uploadedUrl];
           } else if (type === 'illustration') {
               payload.illustrationPanelUrls = [...(project.illustrationPanelUrls || []), uploadedUrl];
+          } else if (type === 'illustration_delivery') {
+              // ★ 絵師からの納品用
+              payload.illustrationDataUrl = uploadedUrl;
+              payload.isIllustrationAccepted = false; // 納品されたので検収待ちに戻す
           }
 
           const updateRes = await authenticatedFetch(`${API_URL}/api/projects/${id}`, {
@@ -698,9 +706,11 @@ export default function ProjectDetailClient() {
           if (!updateRes.ok) throw new Error('データの保存に失敗しました');
 
           setProject(prev => ({ ...prev, ...payload }));
-          toast.success('提出が完了しました！', { id: toastId });
+          toast.success(type === 'illustration_delivery' ? 'イラストを納品しました！' : '提出が完了しました！', { id: toastId });
       } catch (error) {
           toast.error(error.message, { id: toastId });
+      } finally {
+          if (type === 'illustration_delivery') setIsIllustrationUploading(false);
       }
   };
 
@@ -728,34 +738,67 @@ export default function ProjectDetailClient() {
       }
   };
 
-  // ★ 追加: 絵師の採用処理
   const handleAcceptApplication = async (applicationId, amount) => {
       if (user.points < amount) {
           toast.error(`ポイントが不足しています。(不足分: ${amount - user.points}pt) チャージしてください。`);
           return;
       }
-      
       const isConfirmed = window.confirm(`本当にこのクリエイターを採用し、${amount.toLocaleString()}pt を支払いますか？\n※ポイントはシステムに一時的に預けられ、納品完了後にクリエイターへ支払われます。`);
       if (!isConfirmed) return;
 
       const toastId = toast.loading('採用処理中...');
       try {
-          const res = await authenticatedFetch(`${API_URL}/api/projects/${id}/applications/${applicationId}/accept`, {
-              method: 'PATCH'
-          });
+          const res = await authenticatedFetch(`${API_URL}/api/projects/${id}/applications/${applicationId}/accept`, { method: 'PATCH' });
           if (!res.ok) throw new Error('採用処理に失敗しました');
-          
           toast.success('クリエイターを採用しました！🎉 チャットから挨拶しましょう！', { id: toastId });
           fetchProject(); 
+      } catch (e) { toast.error(e.message, { id: toastId }); }
+  };
+
+  // ★ 追加: 納品されたイラストの「検収（承認）」処理
+  const handleAcceptIllustration = async () => {
+      if (!window.confirm('イラストを検収し、報酬のポイントをクリエイターに支払いますか？\n※この操作は取り消せません。')) return;
+      
+      const toastId = toast.loading('検収・支払い処理中...');
+      try {
+          const res = await authenticatedFetch(`${API_URL}/api/projects/${id}/illustration/accept`, { method: 'POST' });
+          if (!res.ok) throw new Error('検収処理に失敗しました');
+          
+          // フロントの表示を更新
+          setProject(prev => ({ ...prev, isIllustrationAccepted: true }));
+          toast.success('検収が完了し、クリエイターにポイントが支払われました！🎉', { id: toastId });
       } catch (e) {
           toast.error(e.message, { id: toastId });
       }
   };
 
-  const isAssignedFlorist = user && user.role === 'FLORIST' && project?.offer?.floristId === user.id;
+  // ★ 追加: 納品されたイラストの「リテイク（差し戻し）」処理
+  const handleRejectIllustration = async () => {
+      if (!window.confirm('イラストを差し戻しますか？（※修正要望はチャットでお伝えください）')) return;
+      
+      const toastId = toast.loading('差し戻し中...');
+      try {
+          const res = await authenticatedFetch(`${API_URL}/api/projects/${id}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ illustrationDataUrl: null, isIllustrationAccepted: false })
+          });
+          if (!res.ok) throw new Error('処理に失敗しました');
+          
+          setProject(prev => ({ ...prev, illustrationDataUrl: null, isIllustrationAccepted: false }));
+          toast.success('イラストを差し戻しました。チャットで修正内容をお伝えください。', { id: toastId });
+      } catch (e) {
+          toast.error(e.message, { id: toastId });
+      }
+  };
+
   const isPledger = user && (project?.pledges || []).some(p => p.userId === user.id);
   const isPlanner = user && user.id === project?.planner?.id;
   const isFlorist = user && user.role === 'FLORIST';
+  
+  // ★ 追加: この企画にアサインされている絵師かどうか
+  const isAssignedIllustrator = user && user.role === 'ILLUSTRATOR' && project?.illustratorId === user.id;
+
   const isMounted = useIsMounted();
   
   if (!isMounted) return null;
@@ -932,7 +975,7 @@ export default function ProjectDetailClient() {
                         </AppCard>
                     )}
 
-                    {!(isPlanner || isPledger || isFlorist) && (
+                    {!(isPlanner || isPledger || isFlorist || isAssignedIllustrator) && (
                         <AppCard className="text-center py-16 bg-slate-50">
                             <Lock size={32} className="mx-auto text-slate-300 mb-4" />
                             <h3 className="text-lg font-black text-slate-700 mb-2">参加者限定スペース</h3>
@@ -940,7 +983,7 @@ export default function ProjectDetailClient() {
                         </AppCard>
                     )}
 
-                    {(isPlanner || isPledger || isFlorist) && (
+                    {(isPlanner || isPledger || isFlorist || isAssignedIllustrator) && (
                         <>
                             <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2">
                                 <button onClick={() => setCollabTab('chat')} className={cn("px-4 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 whitespace-nowrap transition-all", collabTab === 'chat' ? 'bg-slate-900 text-white shadow-md' : 'bg-white text-slate-500 hover:bg-slate-100 shadow-sm border border-slate-200')}>
@@ -958,8 +1001,8 @@ export default function ProjectDetailClient() {
                                     <UploadCloud size={16}/> 提出・データ
                                 </button>
                                 
-                                {/* ★追加: クリエイター応募（企画者のみ表示） */}
-                                {isPlanner && (
+                                {/* 企画者のみ: 絵師がまだ決まっていない場合のみ「応募」タブを表示 */}
+                                {isPlanner && !project.illustratorId && (
                                     <button onClick={() => setCollabTab('applicants')} className={cn("px-4 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 whitespace-nowrap transition-all", collabTab === 'applicants' ? 'bg-gradient-to-r from-amber-400 to-orange-500 text-white shadow-md' : 'bg-amber-50 text-amber-600 hover:bg-amber-100 shadow-sm border border-amber-200')}>
                                         <UserPlus size={16}/> クリエイター応募
                                     </button>
@@ -1014,10 +1057,75 @@ export default function ProjectDetailClient() {
                                         </AppCard>
                                     )}
 
-                                    {/* 4. ツール */}
+                                    {/* 4. ツール (提出・データ) */}
                                     {collabTab === 'tools' && (
                                         <div className="space-y-5 md:space-y-6">
                                             
+                                            {/* ★ 新規: イラストの納品と検収 */}
+                                            {(isPlanner || isAssignedIllustrator) && (
+                                                <AppCard className="border-amber-100 ring-4 ring-amber-50">
+                                                    <h3 className="font-black text-slate-800 mb-3 md:mb-4 flex items-center text-sm md:text-base">
+                                                        <Brush className="mr-2 text-amber-500" size={18}/> イラスト納品・検収
+                                                    </h3>
+                                                    
+                                                    <div className="bg-white p-5 md:p-6 rounded-[1.5rem] border border-slate-100">
+                                                        {project.isIllustrationAccepted ? (
+                                                            <div className="text-center py-8">
+                                                                <div className="w-16 h-16 bg-emerald-100 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                                                                    <CheckCircle2 size={32}/>
+                                                                </div>
+                                                                <h4 className="text-lg font-black text-slate-800 mb-2">イラストの検収が完了しました！🎉</h4>
+                                                                <p className="text-sm font-bold text-slate-500 mb-6">報酬のポイントがクリエイターに支払われました。</p>
+                                                                {project.illustrationDataUrl && (
+                                                                    <div className="relative w-full max-w-sm mx-auto aspect-square rounded-2xl overflow-hidden border-2 border-slate-100 cursor-zoom-in" onClick={() => { setModalImageSrc(project.illustrationDataUrl); setIsImageModalOpen(true); }}>
+                                                                        <Image src={project.illustrationDataUrl} alt="納品イラスト" fill className="object-contain" />
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        ) : project.illustrationDataUrl ? (
+                                                            <div className="text-center py-4">
+                                                                <span className="bg-amber-100 text-amber-600 text-[10px] font-black px-3 py-1 rounded-full mb-4 inline-block">納品確認待ち</span>
+                                                                <div className="relative w-full max-w-sm mx-auto aspect-square rounded-2xl overflow-hidden border-2 border-slate-100 mb-6 cursor-zoom-in" onClick={() => { setModalImageSrc(project.illustrationDataUrl); setIsImageModalOpen(true); }}>
+                                                                    <Image src={project.illustrationDataUrl} alt="納品イラスト" fill className="object-contain" />
+                                                                </div>
+                                                                
+                                                                {isPlanner ? (
+                                                                    <div className="space-y-3 max-w-sm mx-auto">
+                                                                        <p className="text-xs font-bold text-slate-500 mb-4">クリエイターからイラストが納品されました。<br/>確認して、問題なければ検収（ポイント支払い）を完了してください。</p>
+                                                                        <button onClick={handleAcceptIllustration} className="w-full py-3.5 bg-emerald-500 text-white font-black rounded-xl shadow-lg hover:bg-emerald-600 transition-all flex items-center justify-center gap-2">
+                                                                            <CheckCircle2 size={18}/> 問題ないので検収して支払う
+                                                                        </button>
+                                                                        <button onClick={handleRejectIllustration} className="w-full py-3 bg-white text-slate-500 font-black rounded-xl border border-slate-200 hover:bg-slate-50 transition-all">
+                                                                            修正を依頼する (リテイク)
+                                                                        </button>
+                                                                    </div>
+                                                                ) : (
+                                                                    <p className="text-sm font-bold text-slate-500">企画者の確認と検収をお待ちください...</p>
+                                                                )}
+                                                            </div>
+                                                        ) : (
+                                                            <div className="text-center py-8">
+                                                                {isAssignedIllustrator ? (
+                                                                    <>
+                                                                        <p className="text-sm font-bold text-slate-500 mb-6">完成したイラストデータをアップロードして納品してください。</p>
+                                                                        <label className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-gradient-to-r from-amber-400 to-orange-500 text-white font-black rounded-xl shadow-lg hover:shadow-orange-500/30 cursor-pointer transition-all active:scale-95">
+                                                                            {isIllustrationUploading ? <Loader2 className="animate-spin" size={18}/> : <UploadCloud size={18}/>}
+                                                                            完成データを納品する
+                                                                            <input type="file" className="hidden" accept="image/*" onChange={(e) => handleUpload(e, 'illustration_delivery')} disabled={isIllustrationUploading} />
+                                                                        </label>
+                                                                    </>
+                                                                ) : (
+                                                                    <>
+                                                                        <div className="w-16 h-16 bg-slate-50 text-slate-300 rounded-full flex items-center justify-center mx-auto mb-4"><Brush size={32}/></div>
+                                                                        <p className="text-sm font-bold text-slate-500">クリエイターからのイラスト納品をお待ちください。</p>
+                                                                    </>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </AppCard>
+                                            )}
+
                                             {/* ARプレビュー */}
                                             <AppCard className="!p-5 md:!p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between bg-gradient-to-br from-indigo-50/50 to-white border-indigo-100 gap-4">
                                                 <div>
@@ -1034,7 +1142,7 @@ export default function ProjectDetailClient() {
                                                     
                                                     {project.illustrationPanelUrls?.length > 0 && (
                                                         <div className="p-5 md:p-6 border-t border-slate-100 bg-slate-50">
-                                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 md:mb-3">提出済みデータ</p>
+                                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 md:mb-3">提出済みデータ (お花屋さん用)</p>
                                                             <div className="flex flex-wrap gap-2 md:gap-3">
                                                                 {project.illustrationPanelUrls.map((url, i) => (
                                                                     <div key={i} className="relative w-14 h-14 md:w-16 md:h-16 rounded-lg overflow-hidden border border-slate-200 shadow-sm cursor-zoom-in hover:scale-105 transition-transform" onClick={()=>{setModalImageSrc(url); setIsImageModalOpen(true)}}>
@@ -1075,8 +1183,8 @@ export default function ProjectDetailClient() {
                                         </div>
                                     )}
 
-                                    {/* 5. クリエイター応募 (★新機能) */}
-                                    {isPlanner && collabTab === 'applicants' && (
+                                    {/* 5. クリエイター応募 */}
+                                    {isPlanner && !project.illustratorId && collabTab === 'applicants' && (
                                         <AppCard className="border-amber-100 ring-4 ring-amber-50/50 bg-slate-50/50">
                                             <div className="flex items-center justify-between mb-6">
                                                 <h3 className="font-black text-slate-800 flex items-center gap-2"><UserPlus className="text-amber-500" size={20}/> 届いている立候補</h3>

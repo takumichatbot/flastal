@@ -16,7 +16,7 @@ import AiPlanGenerator from '@/app/components/AiPlanGenerator';
 import { 
   Calendar, MapPin, X, Image as ImageIcon, Loader2, Plus, 
   User, Award, Search, CheckCircle2, AlertTriangle, ZoomIn, Sparkles, 
-  Heart, Wand2, Lock, Globe, UploadCloud, ArrowRight, Paintbrush, FileText, Clock
+  Heart, Wand2, Lock, Globe, UploadCloud, ArrowRight, Paintbrush, FileText, Clock, UserPlus
 } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
@@ -391,9 +391,11 @@ function CreateProjectForm() {
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [eventLoading, setEventLoading] = useState(true);
 
-  // ★ 追加：日時分割のためのステート
   const [deliveryDateObj, setDeliveryDateObj] = useState('');
   const [deliveryTimeText, setDeliveryTimeText] = useState('午前中');
+
+  // ★ 追加：クリエイター募集設定用のステート
+  const [needsIllustrator, setNeedsIllustrator] = useState(false);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -409,6 +411,9 @@ function CreateProjectForm() {
     flowerTypes: '',
     projectType: 'PUBLIC',
     password: '',
+    // ★ 追加
+    illustratorBudget: '',
+    illustratorRequirements: ''
   });
 
   // 日付をもとに Rush Fee を計算（時間は考慮しない）
@@ -611,7 +616,6 @@ function CreateProjectForm() {
         title: formData.title || "",
         description: formData.description || "",
         targetAmount: amount,
-        // ★ お届け先に希望時間帯を合体させて保存（お花屋さんが見やすいように）
         deliveryAddress: `${formData.deliveryAddress || (selectedVenue?.address || "")} 【希望時間帯: ${deliveryTimeText || '指定なし'}】`,
         deliveryDateTime: deliveryDateTimeISO,
         imageUrl: formData.imageUrl || "",
@@ -623,7 +627,12 @@ function CreateProjectForm() {
         password: formData.password || null,
         venueId: selectedVenue?.id || null,
         eventId: selectedEvent?.id || null,
-        visibility: "PUBLIC"
+        visibility: "PUBLIC",
+        
+        // ★ 追加: 絵師募集フラグと条件
+        needsIllustrator: needsIllustrator,
+        illustratorBudget: needsIllustrator ? parseInt(formData.illustratorBudget, 10) : null,
+        illustratorRequirements: needsIllustrator ? formData.illustratorRequirements : null
       };
 
       const res = await authenticatedFetch(`${API_URL}/api/projects`, {
@@ -760,7 +769,7 @@ function CreateProjectForm() {
             </div>
           </GlassCard>
 
-          {/* --- BLOCK 4: お届け先と日時 (★時間帯選択に改修) --- */}
+          {/* --- BLOCK 4: お届け先と日時 --- */}
           <GlassCard>
              <div className="flex justify-between items-center mb-6">
                 <InputLabel icon={MapPin} title="お届け先" required />
@@ -784,26 +793,11 @@ function CreateProjectForm() {
                 <InputLabel icon={Clock} title="納品希望日・時間帯" required />
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* 日付入力 */}
                     <div className="relative">
-                        <GlassInput 
-                            type="date" 
-                            required 
-                            value={deliveryDateObj} 
-                            onChange={(e) => setDeliveryDateObj(e.target.value)} 
-                        />
+                        <GlassInput type="date" required value={deliveryDateObj} onChange={(e) => setDeliveryDateObj(e.target.value)} />
                     </div>
-                    
-                    {/* ★時間帯選択（自由入力 ＆ サジェストリスト） */}
                     <div className="relative">
-                        <GlassInput 
-                            type="text" 
-                            required
-                            list="time-slots"
-                            value={deliveryTimeText} 
-                            onChange={(e) => setDeliveryTimeText(e.target.value)}
-                            placeholder="例: 午前中、13:00〜15:00"
-                        />
+                        <GlassInput type="text" required list="time-slots" value={deliveryTimeText} onChange={(e) => setDeliveryTimeText(e.target.value)} placeholder="例: 午前中、13:00〜15:00" />
                         <datalist id="time-slots">
                             <option value="午前中" />
                             <option value="12:00〜14:00" />
@@ -816,24 +810,13 @@ function CreateProjectForm() {
                 
                 <p className="text-[10px] text-slate-400 font-bold mt-2 ml-2">※お花屋さんが動きやすいよう、アバウトな時間帯指定をお願いしています。</p>
                 
-                {/* お急ぎアラート */}
                 <AnimatePresence>
                   {rushFeeAlert && (
-                    <motion.div 
-                      initial={{ opacity: 0, y: -10, height: 0 }} 
-                      animate={{ opacity: 1, y: 0, height: 'auto' }}
-                      exit={{ opacity: 0, y: -10, height: 0 }}
-                      className="mt-4 p-4 md:p-5 bg-rose-50 border border-rose-200 rounded-2xl flex items-start gap-3 overflow-hidden shadow-sm"
-                    >
+                    <motion.div initial={{ opacity: 0, y: -10, height: 0 }} animate={{ opacity: 1, y: 0, height: 'auto' }} exit={{ opacity: 0, y: -10, height: 0 }} className="mt-4 p-4 md:p-5 bg-rose-50 border border-rose-200 rounded-2xl flex items-start gap-3 overflow-hidden shadow-sm">
                       <AlertTriangle className="text-rose-500 shrink-0 mt-0.5" size={20} />
                       <div>
-                        <p className="text-sm font-black text-rose-700">
-                          ⚠️ お急ぎ対応料金（目安: {rushFeeAlert.rate}加算）
-                        </p>
-                        <p className="text-xs text-rose-600/80 font-bold mt-1.5 leading-relaxed">
-                          納品まで残り日数が短いため（{rushFeeAlert.days}）、お花屋さんからの見積もりに特急料金が自動加算されます。<br/>
-                          <span className="opacity-80 block mt-1">理由: {rushFeeAlert.msg}</span>
-                        </p>
+                        <p className="text-sm font-black text-rose-700">⚠️ お急ぎ対応料金（目安: {rushFeeAlert.rate}加算）</p>
+                        <p className="text-xs text-rose-600/80 font-bold mt-1.5 leading-relaxed">納品まで残り日数が短いため（{rushFeeAlert.days}）、お花屋さんからの見積もりに特急料金が自動加算されます。<br/><span className="opacity-80 block mt-1">理由: {rushFeeAlert.msg}</span></p>
                       </div>
                     </motion.div>
                   )}
@@ -847,7 +830,6 @@ function CreateProjectForm() {
             <InputLabel icon={Paintbrush} title="デザインと装飾" subtitle="どんなお花にするか、イメージを伝えましょう！" />
             
             <div className="mt-8 space-y-10">
-              {/* メイン画像 */}
               <div>
                 <label className="block text-sm font-black text-slate-700 mb-3">メイン画像 <span className="text-[10px] text-slate-400 font-bold ml-2">(企画一覧のサムネイルになります)</span></label>
                 <div className="border-2 border-dashed border-pink-200 bg-pink-50/50 rounded-[2.5rem] p-8 text-center hover:bg-pink-50 cursor-pointer relative overflow-hidden group transition-all">
@@ -867,7 +849,6 @@ function CreateProjectForm() {
                 </div>
               </div>
 
-              {/* サブ画像・ラフ画 */}
               <div className="bg-slate-50/50 p-6 rounded-[2.5rem] border border-slate-100">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
                       <label className="block text-sm font-black text-slate-700">参考画像・ラフ画 <span className="text-[10px] text-slate-400 font-bold ml-2">(複数枚OK)</span></label>
@@ -891,7 +872,6 @@ function CreateProjectForm() {
                   </div>
               </div>
 
-              {/* テキスト詳細 */}
               <div className="space-y-6">
                 <div>
                     <label className="block text-sm font-black text-slate-700 mb-2">デザインの雰囲気</label>
@@ -909,6 +889,45 @@ function CreateProjectForm() {
                 </div>
               </div>
             </div>
+          </GlassCard>
+
+          {/* --- BLOCK 6: クリエイター募集設定 (★新規追加) --- */}
+          <GlassCard className="border-4 border-amber-100 bg-gradient-to-br from-white/90 to-amber-50/50">
+            <div className="flex items-start justify-between gap-4">
+                <div>
+                    <InputLabel icon={UserPlus} title="イラストレーター（絵師）を公募する" subtitle="フラスタに飾るイラストパネルの制作をクリエイターに依頼できます。" />
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer shrink-0 mt-1">
+                    <input type="checkbox" checked={needsIllustrator} onChange={(e) => setNeedsIllustrator(e.target.checked)} className="sr-only peer" />
+                    <div className="w-14 h-7 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-amber-400 shadow-inner"></div>
+                </label>
+            </div>
+
+            <AnimatePresence>
+                {needsIllustrator && (
+                    <motion.div 
+                        initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
+                        className="mt-6 pt-6 border-t border-amber-200/50 space-y-6"
+                    >
+                        <div>
+                            <label className="block text-sm font-black text-slate-700 mb-2">クリエイターへの依頼予算 (目安)</label>
+                            <div className="relative max-w-xs">
+                                <GlassInput type="number" name="illustratorBudget" min="1000" required={needsIllustrator} value={formData.illustratorBudget} onChange={handleChange} placeholder="例: 10000" />
+                                <span className="absolute right-4 top-1/2 -translate-y-1/2 font-black text-slate-400">pt</span>
+                            </div>
+                            <p className="text-[10px] font-bold text-slate-500 mt-1.5 ml-1">※この予算は目標金額に含まれます。後で変更可能です。</p>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-black text-slate-700 mb-2">求めるイラストの条件・テイスト</label>
+                            <GlassTextarea 
+                                name="illustratorRequirements" required={needsIllustrator} value={formData.illustratorRequirements} onChange={handleChange} rows="4" 
+                                placeholder="例: A3サイズの等身大パネル用のイラストを描いてくれる方を探しています！ポップで可愛いアイドル風の絵柄が得意な方、ぜひお願いします！"
+                            />
+                            <p className="text-[10px] font-bold text-slate-500 mt-1.5 ml-1">※この内容はクリエイター向けの公募掲示板に掲載されます。</p>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
           </GlassCard>
           
           {/* --- SUBMIT --- */}

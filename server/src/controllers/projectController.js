@@ -809,3 +809,126 @@ export const sendDigitalFlower = (req, res) => {
 export const getDigitalFlowers = (req, res) => {
     res.json(DIGITAL_FLOWERS.filter(f => f.projectId === req.params.id));
 };
+
+
+// ==========================================
+// ★★★ 5. クリエイター（絵師）連携系 ★★★
+// ==========================================
+
+// 絵師の立候補を採用し、仮払いする
+export const acceptIllustratorApplication = async (req, res) => {
+    const { projectId, applicationId } = req.params;
+    const plannerId = req.user.id;
+
+    try {
+        // 1. プロジェクトと応募データの取得・検証
+        const project = await prisma.project.findUnique({ where: { id: projectId } });
+        if (!project || project.plannerId !== plannerId) {
+            return res.status(403).json({ message: '権限がありません。' });
+        }
+        if (project.illustratorId) {
+            return res.status(400).json({ message: 'すでにクリエイターが決定しています。' });
+        }
+
+        const application = await prisma.illustratorApplication.findUnique({ 
+            where: { id: applicationId } 
+        });
+        if (!application || application.projectId !== projectId) {
+            return res.status(404).json({ message: '応募データが見つかりません。' });
+        }
+
+        // 2. トランザクション処理 (ポイント減算・アサイン・ステータス更新)
+        await prisma.$transaction(async (tx) => {
+            // 企画者のポイント残高チェック
+            const planner = await tx.user.findUnique({ where: { id: plannerId } });
+            if (planner.points < application.proposedAmount) {
+                throw new Error('ポイントが不足しています。');
+            }
+
+            // ポイントを引く (仮払いとしてシステムに預ける)
+            await tx.user.update({
+                where: { id: plannerId },
+                data: { points: { decrement: application.proposedAmount } }
+            });
+
+            // 応募を承認ステータスに
+            await tx.illustratorApplication.update({
+                where: { id: applicationId },
+                data: { status: 'ACCEPTED' }
+            });
+
+            // プロジェクトに絵師をアサインし、報酬額を記録
+            await tx.project.update({
+                where: { id: projectId },
+                data: { 
+                    illustratorId: application.illustratorId,
+                    illustratorReward: application.proposedAmount
+                }
+            });
+
+            // (オプション) 他の応募を自動的に「お見送り(REJECTED)」にする
+            await tx.illustratorApplication.updateMany({
+                where: { projectId: projectId, id: { not: applicationId } },
+                data: { status: 'REJECTED' }
+            });
+        });
+
+        res.status(200).json({ message: '採用と仮払いが完了しました。' });
+    } catch (error) {
+        console.error(error);
+        res.status(400).json({ message: error.message || '採用処理に失敗しました。' });
+    }
+};
+
+// 納品されたイラストを検収（承認）し、絵師にポイントを支払う
+export const acceptIllustrationDelivery = async (req, res) => {
+    const { projectId } = req.params;
+    const plannerId = req.user.id;
+
+    try {
+        const project = await prisma.project.findUnique({ 
+            where: { id: projectId },
+            include: { illustrator: true }
+        });
+
+        if (!project || project.plannerId !== plannerId) {
+            return res.status(403).json({ message: '権限がありません。' });
+        }
+        if (!project.illustratorId || !project.illustrationDataUrl) {
+            return res.status(400).json({ message: '納品データが存在しません。' });
+        }
+        if (project.isIllustrationAccepted) {
+            return res.status(400).json({ message: 'すでに検収済みです。' });
+        }
+
+        // トランザクション処理 (ステータス更新・絵師へのポイント付与)
+        await prisma.$transaction(async (tx) => {
+            // 1. プロジェクトのイラストを「検収済み」にする
+            await tx.project.update({
+                where: { id: projectId },
+                data: { isIllustrationAccepted: true }
+            });
+
+            // 2. 絵師にポイントを付与する（※ここでシステム手数料10%などを引く場合は計算を入れる）
+            // 今回はそのまま全額（100%）付与するロジック
+            await tx.user.update({
+                where: { id: project.illustratorId },
+                data: { points: { increment: project.illustratorReward } }
+            });
+        });
+
+        // 任意: お花屋さんへ「イラストが確定しました」の通知を送る
+        if (project.offer?.floristId) {
+             await createNotification(
+                project.offer.floristId, 'PROJECT_STATUS_UPDATE', 
+                `企画「${project.title}」のイラストデータが確定・納品されました。`, 
+                projectId, `/projects/${projectId}`
+             );
+        }
+
+        res.status(200).json({ message: '検収が完了し、クリエイターにポイントが支払われました。' });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: '検収処理に失敗しました。' });
+    }
+};
