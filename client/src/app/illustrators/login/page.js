@@ -1,13 +1,37 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/app/contexts/AuthContext';
-import { FiMail, FiLock, FiEye, FiEyeOff, FiArrowLeft, FiPenTool, FiLoader } from 'react-icons/fi';
+import { motion } from 'framer-motion';
+
+// lucide-reactに統一
+import { Mail, Lock, Eye, EyeOff, ArrowLeft, Loader2, PenTool, Sparkles } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
+
+function cn(...classes) {
+  return classes.filter(Boolean).join(' ');
+}
+
+// ふわふわ浮かぶパーティクル（クリエイター向けのアンバー系）
+const FloatingParticles = () => {
+  const [windowSize, setWindowSize] = useState({ width: 1000, height: 1000 });
+  useEffect(() => { setWindowSize({ width: window.innerWidth, height: window.innerHeight }); }, []);
+  return (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+      {[...Array(12)].map((_, i) => (
+        <motion.div key={i} className="absolute w-3 h-3 bg-amber-300 rounded-full mix-blend-multiply filter blur-[1px] opacity-40"
+          initial={{ x: Math.random() * windowSize.width, y: Math.random() * windowSize.height }}
+          animate={{ y: [null, Math.random() * -200], x: [null, (Math.random() - 0.5) * 100], opacity: [0.2, 0.6, 0.2], scale: [1, 1.5, 1] }}
+          transition={{ duration: Math.random() * 10 + 15, repeat: Infinity, ease: "linear" }}
+        />
+      ))}
+    </div>
+  );
+};
 
 export default function IllustratorLoginPage() {
   const [email, setEmail] = useState('');
@@ -29,7 +53,7 @@ export default function IllustratorLoginPage() {
       const res = await fetch(`${API_URL}/api/illustrators/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: email.toLowerCase(), password }),
       });
 
       const data = await res.json();
@@ -41,17 +65,23 @@ export default function IllustratorLoginPage() {
         throw new Error(data.message || 'ログインに失敗しました');
       }
 
-      await login(data.token, { 
+      // ログイン情報をAuthContextに保存
+      const success = await login(data.token, { 
         ...data.illustrator, 
         role: 'ILLUSTRATOR' 
       });
       
-      toast.success('イラストレーターとしてログインしました');
-      router.push('/illustrators/dashboard');
+      if (success) {
+        toast.success('おかえりなさい！');
+        setTimeout(() => {
+          window.location.href = '/illustrators/dashboard';
+        }, 300);
+      } else {
+        throw new Error('認証情報の処理に失敗しました');
+      }
 
     } catch (error) {
       toast.error(error.message);
-    } finally {
       setIsLoading(false);
     }
   };
@@ -78,92 +108,100 @@ export default function IllustratorLoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-amber-50 to-white px-4">
-      <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 border border-amber-100">
-        
-        <div className="text-center mb-8">
-          <Link href="/" className="inline-block text-amber-600 hover:text-amber-700 transition mb-2">
-            <span className="flex items-center text-sm font-medium"><FiArrowLeft className="mr-1"/> トップへ戻る</span>
+    <div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-50/50 flex items-center justify-center p-4 relative overflow-hidden font-sans">
+      <FloatingParticles />
+      
+      {/* 背景のぼんやりした光 */}
+      <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-amber-200/40 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/3 pointer-events-none z-0" />
+      <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-orange-200/30 rounded-full blur-[100px] translate-y-1/3 -translate-x-1/3 pointer-events-none z-0" />
+
+      <motion.div 
+        initial={{ opacity: 0, y: 20, scale: 0.95 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.5, ease: "easeOut" }}
+        className="bg-white/80 backdrop-blur-xl max-w-md w-full p-8 md:p-10 border border-white rounded-[2.5rem] shadow-[0_8px_30px_rgba(245,158,11,0.15)] relative z-10"
+      >
+        <div className="text-center mb-8 relative">
+          <Link href="/" className="absolute left-0 top-0 text-slate-400 hover:text-amber-500 transition-colors p-2 -ml-2 -mt-2 rounded-full hover:bg-amber-50">
+            <ArrowLeft size={20} />
           </Link>
-          <h1 className="text-2xl font-bold text-gray-800 flex items-center justify-center gap-2">
-            <FiPenTool className="text-amber-500" /> イラストレーター ログイン
-          </h1>
+          
+          <div className="w-16 h-16 bg-gradient-to-br from-amber-100 to-orange-100 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-inner -rotate-3">
+            <PenTool className="text-amber-500" size={28} />
+          </div>
+          
+          <h1 className="text-2xl font-black text-slate-800 tracking-tight">クリエイター ログイン</h1>
+          <p className="text-xs font-bold text-slate-400 mt-2 tracking-widest uppercase flex items-center justify-center gap-1">
+            <Sparkles size={12} className="text-amber-400"/> Illustrator Studio
+          </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-5">
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">メールアドレス</label>
+            <label className="block text-xs font-black text-slate-500 mb-2 tracking-widest uppercase">Email</label>
             <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <FiMail className="text-gray-400" />
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                <Mail className="text-slate-400" size={18} />
               </div>
               <input 
-                type="email" 
-                required 
-                value={email} 
-                onChange={(e) => setEmail(e.target.value)} 
-                className="w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none transition-all" 
+                type="email" required value={email} onChange={(e) => setEmail(e.target.value)} 
+                className="w-full pl-12 pr-4 py-3.5 bg-white/50 border border-slate-200 rounded-2xl focus:outline-none focus:border-amber-400 focus:ring-4 focus:ring-amber-100 transition-all font-medium text-slate-700 placeholder:text-slate-300" 
                 placeholder="illustrator@example.com" 
               />
             </div>
           </div>
 
           <div>
-            <div className="flex justify-between items-center mb-1">
-              <label className="block text-sm font-semibold text-gray-700">パスワード</label>
-              <Link href="/forgot-password?userType=ILLUSTRATOR" className="text-xs text-amber-600 hover:underline">
-                忘れた方はこちら
+            <div className="flex justify-between items-center mb-2">
+              <label className="block text-xs font-black text-slate-500 tracking-widest uppercase">Password</label>
+              <Link href="/forgot-password?userType=ILLUSTRATOR" className="text-[10px] font-bold text-amber-500 hover:text-amber-600 transition-colors">
+                パスワードを忘れた場合
               </Link>
             </div>
             <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <FiLock className="text-gray-400" />
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                <Lock className="text-slate-400" size={18} />
               </div>
               <input 
-                type={showPassword ? 'text' : 'password'} 
-                required 
-                value={password} 
-                onChange={(e) => setPassword(e.target.value)} 
-                className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none transition-all" 
+                type={showPassword ? 'text' : 'password'} required value={password} onChange={(e) => setPassword(e.target.value)} 
+                className="w-full pl-12 pr-12 py-3.5 bg-white/50 border border-slate-200 rounded-2xl focus:outline-none focus:border-amber-400 focus:ring-4 focus:ring-amber-100 transition-all font-medium text-slate-700 placeholder:text-slate-300" 
                 placeholder="••••••••" 
               />
-              <button 
-                type="button" 
-                onClick={() => setShowPassword(!showPassword)} 
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-amber-600 transition"
-              >
-                {showPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
+              <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 hover:text-amber-500 transition-colors">
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
           </div>
 
-          <button 
-            type="submit" 
-            disabled={isLoading} 
-            className={`w-full py-3.5 bg-amber-500 text-white rounded-lg font-bold text-lg shadow-md hover:bg-amber-600 transition-all active:scale-95 flex items-center justify-center gap-2 ${isLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
+          <motion.button 
+            whileHover={{ scale: 1.02, boxShadow: "0 10px 25px rgba(245,158,11,0.4)" }}
+            whileTap={{ scale: 0.98 }}
+            type="submit" disabled={isLoading} 
+            className={cn("w-full py-4 mt-2 bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-2xl font-black text-base shadow-xl flex items-center justify-center gap-2 transition-all", isLoading ? 'opacity-70 cursor-not-allowed' : '')}
           >
-            {isLoading ? <FiLoader className="animate-spin" /> : 'ログインする'}
-          </button>
+            {isLoading && <Loader2 className="animate-spin" size={18} />}
+            {isLoading ? 'ログイン中...' : 'ログインする'}
+          </motion.button>
         </form>
 
         {showResend && (
-            <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-xl text-center">
-                <p className="text-sm text-yellow-800 mb-3 font-medium">認証が完了していないようです</p>
-                <button onClick={handleResendEmail} className="inline-flex items-center px-4 py-2 bg-white border border-yellow-300 text-yellow-700 font-bold rounded-lg hover:bg-yellow-100 transition shadow-sm text-sm">
-                    <FiMail className="mr-2" /> 認証メールを再送する
-                </button>
-            </div>
+          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="mt-6 p-4 bg-orange-50 border border-orange-100 rounded-2xl text-center shadow-sm">
+            <p className="text-xs text-orange-600 font-bold mb-2">メールアドレスの認証が完了していません</p>
+            <button onClick={handleResendEmail} className="text-white bg-orange-500 hover:bg-orange-600 px-4 py-2 rounded-full font-bold text-xs shadow-md transition-all flex items-center justify-center gap-2 mx-auto">
+              <Mail size={14}/> 認証メールを再送する
+            </button>
+          </motion.div>
         )}
 
-        <div className="mt-8 pt-6 border-t border-gray-100 text-center">
-          <p className="text-sm text-gray-600">
-            アカウントをお持ちでないですか？<br/>
-            <Link href="/illustrators/register" className="font-bold text-amber-600 hover:underline mt-1 inline-block">
-                新規クリエイター登録（無料）
-            </Link>
-          </p>
+        <div className="text-center mt-8 pt-6 border-t border-slate-100/50">
+          <p className="text-xs text-slate-400 font-bold mb-3">クリエイター登録はお済みですか？</p>
+          <Link href="/illustrators/register">
+            <span className="inline-block px-8 py-3 bg-white text-amber-600 border-2 border-amber-100 font-black rounded-full hover:bg-amber-50 hover:border-amber-300 transition-all text-sm shadow-sm">
+              新規登録申請（無料）
+            </span>
+          </Link>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }
