@@ -13,7 +13,8 @@ import { motion, useScroll, useSpring, AnimatePresence } from 'framer-motion';
 import { 
   Heart, Sparkles, Star, ArrowRight, Search, Users,
   Gift, MessageCircle, Clock, CheckCircle2, Ticket, 
-  Crown, Cake, Gem, Camera, BookmarkHeart, Mail
+  Crown, Cake, PenTool, Video, Music, MapPin, Store,
+  Flower, ShieldCheck, HelpCircle, Loader2, PlusCircle, Bookmark
 } from 'lucide-react';
 
 function cn(...classes) {
@@ -62,7 +63,6 @@ const SectionTitle = ({ en, ja, theme }) => (
   <div className="text-center mb-12 md:mb-16 relative z-10">
     <Reveal>
       <div className="relative inline-block">
-        {/* リボン背景のSVG装飾 */}
         <svg className={cn("absolute -top-4 -left-6 w-[120%] h-[140%] -z-10 opacity-20", theme.text)} viewBox="0 0 200 60" preserveAspectRatio="none">
           <path d="M10,30 Q50,0 100,30 T190,30 L180,50 Q100,20 20,50 Z" fill="currentColor" />
         </svg>
@@ -113,6 +113,99 @@ const SilverTape = ({ show, colorClass }) => {
     </div>
   );
 };
+
+// ==========================================
+// 📊 DUMMY DATA
+// ==========================================
+
+const CATEGORIES = [
+  { id: 'idol', name: 'アイドル', icon: <Music size={16}/>, color: 'from-pink-400 to-rose-400', shadow: 'shadow-pink-200' },
+  { id: 'vtuber', name: 'VTuber', icon: <Video size={16}/>, color: 'from-sky-400 to-blue-400', shadow: 'shadow-sky-200' },
+  { id: 'voice', name: '声優・役者', icon: <MessageCircle size={16}/>, color: 'from-amber-400 to-orange-400', shadow: 'shadow-amber-200' },
+  { id: 'stage', name: '舞台・演劇', icon: <Users size={16}/>, color: 'from-purple-400 to-indigo-400', shadow: 'shadow-purple-200' },
+  { id: 'anime', name: 'アニメ・漫画', icon: <PenTool size={16}/>, color: 'from-emerald-400 to-teal-400', shadow: 'shadow-emerald-200' },
+  { id: 'birthday', name: '生誕祭・周年', icon: <Gift size={16}/>, color: 'from-rose-400 to-red-400', shadow: 'shadow-rose-200' },
+];
+
+const DUMMY_PROJECTS = [
+  {
+    id: "proj_1",
+    title: "【祝・5周年】大好きなあのグループへ、アリーナ公演お祝いフラスタを贈ろう！",
+    category: "アイドル",
+    organizer: "ファン有志一同",
+    targetAmount: 200000,
+    currentAmount: 245000,
+    supporters: 128,
+    daysLeft: 3,
+    status: "SUCCESS",
+    imgUrl: "https://images.unsplash.com/photo-1526047932273-341f2a7631f9?q=80&w=800&auto=format&fit=crop",
+    tags: ["フラスタ", "連結", "バルーン"]
+  },
+  {
+    id: "proj_2",
+    title: "〇〇ちゃん お誕生日おめでとう！3Dライブ配信に向けたお祝い花＆メッセージ企画",
+    category: "VTuber",
+    organizer: "〇〇組",
+    targetAmount: 150000,
+    currentAmount: 85000,
+    supporters: 42,
+    daysLeft: 12,
+    status: "FUNDING",
+    imgUrl: "https://images.unsplash.com/photo-1519378018457-4c29a3a2ecdf?q=80&w=800&auto=format&fit=crop",
+    tags: ["イラストパネル", "楽屋花"]
+  },
+  {
+    id: "proj_3",
+    title: "主演舞台『魔法の王国』ご出演祝い！千秋楽を彩るフラワースタンド計画",
+    category: "舞台・演劇",
+    organizer: "舞台応援委員会",
+    targetAmount: 80000,
+    currentAmount: 32000,
+    supporters: 15,
+    daysLeft: 20,
+    status: "FUNDING",
+    imgUrl: "https://images.unsplash.com/photo-1523690132227-ec1789725f44?q=80&w=800&auto=format&fit=crop",
+    tags: ["フラスタ", "劇場装飾"]
+  },
+  {
+    id: "proj_4",
+    title: "念願のファンミーティング開催記念！会場ロビーをお花でいっぱいにしようプロジェクト",
+    category: "声優・役者",
+    organizer: "A.S",
+    targetAmount: 100000,
+    currentAmount: 110000,
+    supporters: 55,
+    daysLeft: 0,
+    status: "COMPLETED",
+    imgUrl: "https://images.unsplash.com/photo-1563241527-3004b7be0ffd?q=80&w=800&auto=format&fit=crop",
+    tags: ["フラスタ", "達成御礼"]
+  }
+];
+
+const VOICES = [
+  {
+    role: "主催者",
+    name: "初めてのフラスタ主催・Mさん",
+    avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&auto=format&fit=crop",
+    text: "ずっと推しにお花を出してみたかったのですが、お金の管理が不安で踏み出せませんでした。FLASTALなら集金もクレジットカードで自動ですし、参加者名簿も一目でわかるので本当に助かりました！無事にお花を届けることができて大号泣です😭",
+    color: "pink"
+  },
+  {
+    role: "参加者",
+    name: "地方在住ファン・Kさん",
+    avatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=200&auto=format&fit=crop",
+    text: "ライブの現場には遠くて行けないけれど、お花という形で推しにおめでとうを伝えられて嬉しかったです！1口1,000円から支援できるし、匿名で参加できるのも安心ポイントでした。サイト上で完成したお花の写真が見れた時は感動しました✨",
+    color: "sky"
+  },
+  {
+    role: "お花屋さん",
+    name: "提携フローリスト",
+    avatar: "https://images.unsplash.com/photo-1506863530036-1efed7c9a369?q=80&w=200&auto=format&fit=crop",
+    text: "ファンの皆様の熱い想いが詰まったデザイン案を見るのが毎回楽しみです。システムを通じて予算が確保されている状態で正式に発注が来るため、未払いリスクがなく、私達も安心してお花づくりに専念できています。",
+    color: "emerald"
+  }
+];
+
 
 // ==========================================
 // 🧩 SECTIONS
@@ -198,6 +291,26 @@ const HeroSection = ({ theme }) => (
     </div>
   </section>
 );
+
+// --- ティッカーセクション (消えていたのを復元！) ---
+const TickerSection = ({ theme }) => {
+  const genres = ["#地下アイドル", "#VTuber", "#歌い手", "#コンカフェ", "#生誕祭", "#周年ライブ", "#e-Sports", "#K-POP", "#2.5次元"];
+  return (
+    <div className={cn("py-4 overflow-hidden relative z-20 shadow-md", theme.bg)}>
+      <motion.div className="flex gap-8 md:gap-12 whitespace-nowrap" animate={{ x: [0, -1000] }} transition={{ repeat: Infinity, duration: 35, ease: "linear" }}>
+        {[...Array(4)].map((_, i) => (
+          <div key={i} className="flex gap-8 md:gap-12">
+            {genres.map((g, j) => (
+              <span key={j} className="text-xs md:text-sm font-bold text-white flex items-center gap-2 tracking-widest">
+                <Star size={14} className="fill-white/80" /> {g}
+              </span>
+            ))}
+          </div>
+        ))}
+      </motion.div>
+    </div>
+  );
+};
 
 // --- シャンパンタワー風の「企画ステップ」 (案19) ---
 const AboutSection = ({ theme }) => (
@@ -295,7 +408,7 @@ const ProjectCardWrapper = ({ project, index, theme }) => {
           </div>
           
           <div className="p-5 flex flex-col flex-grow bg-white">
-            <div className="text-[9px] font-bold text-slate-400 mb-2 flex items-center gap-1"><BookmarkHeart size={12} className={theme.text}/> {project.category}</div>
+            <div className="text-[9px] font-bold text-slate-400 mb-2 flex items-center gap-1"><Bookmark size={12} className={theme.text}/> {project.category}</div>
             <h3 className="font-bold text-sm text-slate-800 leading-snug mb-4 group-hover:text-slate-600 transition-colors line-clamp-2">{project.title}</h3>
             
             <div className="mt-auto">
@@ -347,7 +460,7 @@ const FeaturesSection = ({ theme }) => (
           {/* 招待状風デザイン */}
           <div className="bg-white p-8 md:p-10 rounded-sm shadow-md border border-slate-200 relative">
             {/* シーリングスタンプ */}
-            <div className="absolute -top-6 left-1/2 -translate-x-1/2 w-12 h-12 bg-rose-700 rounded-full shadow-[0_4px_10px_rgba(159,18,57,0.4)] border-2 border-rose-800 flex items-center justify-center">
+            <div className={cn("absolute -top-6 left-1/2 -translate-x-1/2 w-12 h-12 rounded-full shadow-[0_4px_10px_rgba(0,0,0,0.2)] border-2 flex items-center justify-center", theme.bg, theme.border)}>
                <span className="text-white font-calligraphy text-lg italic">F</span>
             </div>
             
@@ -358,7 +471,7 @@ const FeaturesSection = ({ theme }) => (
                 { title: "透明な収支報告", desc: "集まった金額と使用内訳をシステムが自動で可視化します。" }
               ].map((item, i) => (
                 <li key={i} className="flex gap-3">
-                  <CheckCircle2 className="text-rose-400 shrink-0 mt-0.5" size={18} />
+                  <CheckCircle2 className={cn("shrink-0 mt-0.5", theme.text)} size={18} />
                   <div>
                     <p className="font-bold text-slate-800 text-sm mb-1">{item.title}</p>
                     <p className="text-slate-500 text-xs leading-relaxed">{item.desc}</p>
@@ -371,7 +484,7 @@ const FeaturesSection = ({ theme }) => (
         
         <Reveal delay={0.2}>
           <div className="bg-white p-8 md:p-10 rounded-sm shadow-md border border-slate-200 relative">
-            <div className="absolute -top-6 left-1/2 -translate-x-1/2 w-12 h-12 bg-sky-700 rounded-full shadow-[0_4px_10px_rgba(3,105,161,0.4)] border-2 border-sky-800 flex items-center justify-center">
+            <div className="absolute -top-6 left-1/2 -translate-x-1/2 w-12 h-12 bg-slate-700 rounded-full shadow-[0_4px_10px_rgba(0,0,0,0.2)] border-2 border-slate-800 flex items-center justify-center">
                <span className="text-white font-calligraphy text-lg italic">F</span>
             </div>
             <h3 className="text-lg md:text-xl font-serif-jp font-bold text-slate-800 mb-6 text-center mt-4 border-b border-dashed border-slate-200 pb-4">参加する方へ</h3>
@@ -381,7 +494,7 @@ const FeaturesSection = ({ theme }) => (
                 { title: "1,000円から支援可能", desc: "少額からでも参加OK。推しへのメッセージも一緒に送れます。" }
               ].map((item, i) => (
                 <li key={i} className="flex gap-3">
-                  <CheckCircle2 className="text-sky-400 shrink-0 mt-0.5" size={18} />
+                  <CheckCircle2 className="text-slate-400 shrink-0 mt-0.5" size={18} />
                   <div>
                     <p className="font-bold text-slate-800 text-sm mb-1">{item.title}</p>
                     <p className="text-slate-500 text-xs leading-relaxed">{item.desc}</p>
@@ -403,7 +516,6 @@ const VoiceSection = ({ theme }) => (
       <SectionTitle en="Testimonials" ja="ご利用いただいた皆様の声" theme={theme} />
       <div className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar pb-12 px-6 md:px-0 md:grid md:grid-cols-3 gap-6 md:gap-10 mt-12 items-start">
         {VOICES.map((v, i) => {
-          // 少しずつ傾きを変える
           const rotations = ["-rotate-3", "rotate-2", "-rotate-1"];
           return (
             <div key={i} className="min-w-[80vw] sm:min-w-[300px] md:min-w-0 snap-center flex-shrink-0 pt-6">
@@ -512,7 +624,6 @@ const ContactAndCtaSection = ({ theme }) => (
 const CurtainReveal = () => {
   const [isVisible, setIsVisible] = useState(true);
   useEffect(() => {
-    // 1.5秒後にカーテンを消す
     const timer = setTimeout(() => setIsVisible(false), 1500);
     return () => clearTimeout(timer);
   }, []);
@@ -524,14 +635,12 @@ const CurtainReveal = () => {
           className="fixed inset-0 z-[999] flex pointer-events-none"
           exit={{ opacity: 0, transition: { duration: 0.8 } }}
         >
-          {/* 左カーテン */}
           <motion.div 
             initial={{ x: 0 }} animate={{ x: "-100%" }} transition={{ duration: 1.2, ease: "easeInOut", delay: 0.3 }}
             className="w-1/2 h-full bg-rose-50 border-r-8 border-rose-200/50 shadow-[10px_0_30px_rgba(0,0,0,0.1)] flex items-center justify-end pr-4"
           >
             <div className="w-1 h-full bg-rose-200 opacity-50"></div>
           </motion.div>
-          {/* 右カーテン */}
           <motion.div 
             initial={{ x: 0 }} animate={{ x: "100%" }} transition={{ duration: 1.2, ease: "easeInOut", delay: 0.3 }}
             className="w-1/2 h-full bg-rose-50 border-l-8 border-rose-200/50 shadow-[-10px_0_30px_rgba(0,0,0,0.1)] flex items-center justify-start pl-4"
@@ -539,7 +648,6 @@ const CurtainReveal = () => {
             <div className="w-1 h-full bg-rose-200 opacity-50"></div>
           </motion.div>
           
-          {/* 中央のロゴ/文字 */}
           <motion.div 
             initial={{ opacity: 1, scale: 1 }} animate={{ opacity: 0, scale: 1.2 }} transition={{ duration: 0.8, delay: 0.2 }}
             className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center"
@@ -610,7 +718,7 @@ export default function HomePage() {
       </div>
 
       <HeroSection theme={currentTheme} />
-      <TickerSection />
+      <TickerSection theme={currentTheme} />
       <AboutSection theme={currentTheme} />
       <CategoriesSection theme={currentTheme} />
       <HotProjectsSection theme={currentTheme} />
