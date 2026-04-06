@@ -4,7 +4,7 @@
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useAuth } from './contexts/AuthContext';
 import Image from 'next/image';
@@ -17,7 +17,7 @@ import {
   Star, HelpCircle, ArrowRight, Search, Users,
   Flower, CreditCard, Lock, Loader2, PlusCircle, Gift, 
   MessageCircle, Clock, Award, PenTool, Video, Music, MapPin, Store,
-  User, CheckCircle2, Ticket, LogOut
+  User, CheckCircle2, Ticket, LogOut, BookOpen
 } from 'lucide-react';
 
 function cn(...classes) {
@@ -582,6 +582,56 @@ const VoiceSection = () => (
   </section>
 );
 
+// ★★★ ここからLARUseoの埋め込みコンポーネントを追加 ★★★
+const LaruSeoEmbed = () => {
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    // ReactのHot Reload等でスクリプトが複数回追加されるのを防ぐ
+    if (container.querySelector('script')) return;
+
+    const script = document.createElement('script');
+    script.src = "https://larubot.tokyo/embed/blog.js";
+    script.setAttribute("data-id", "e19ed703-6238-49a5-ac83-c92c522a44cd");
+    script.async = true;
+    
+    container.appendChild(script);
+
+    // クリーンアップ処理
+    return () => {
+      if (container && container.contains(script)) {
+        container.removeChild(script);
+      }
+    };
+  }, []);
+
+  return <div ref={containerRef} className="w-full min-h-[400px]"></div>;
+};
+
+// ★★★ 記事セクション ★★★
+const ArticlesSection = () => (
+  <section className="py-20 md:py-32 bg-slate-50 relative overflow-hidden">
+    <div className="container mx-auto px-4 md:px-6 max-w-6xl relative z-10">
+      <SectionTitle
+        en="Articles"
+        ja="お役立ちコラム・最新情報"
+        desc="フラスタの贈り方や、過去の素敵な事例など、推し活に役立つ情報をお届けします。"
+        color="purple"
+        align="center"
+        Icon={BookOpen}
+      />
+      <Reveal delay={0.1}>
+        <GlassCard className="p-4 md:p-8 bg-white/80">
+          <LaruSeoEmbed />
+        </GlassCard>
+      </Reveal>
+    </div>
+  </section>
+);
+
 const PartnerBanner = () => (
   <section className="py-12 md:py-20 mx-4 md:mx-auto max-w-6xl mb-12">
     <Reveal>
@@ -692,6 +742,10 @@ export default function HomePage() {
       <HotProjectsSection />
       <FeaturesSection />
       <VoiceSection />
+      
+      {/* ★ ここに記事セクションを追加 */}
+      <ArticlesSection />
+      
       <PartnerBanner />
       <FaqMini />
       <ContactAndCtaSection />
