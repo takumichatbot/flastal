@@ -19,12 +19,14 @@ import {
   useMotionTemplate
 } from 'framer-motion';
 
+// 修正後
 import { 
   Heart, Sparkles, Star, ArrowRight, Search, Users,
   Gift, MessageCircle, Clock, CheckCircle2, Ticket, 
   Crown, PenTool, Video, Music, MapPin, Store,
   ChevronRight, ArrowUpRight, Zap, Play, Image as ImageIcon,
-  Shield, CreditCard, Flame, Sparkle, Command, Plus
+  Shield, CreditCard, Flame, Sparkle, Command, Plus,
+  ChevronDown, Loader2 // <-- この2つを追加
 } from 'lucide-react';
 
 // ==========================================
@@ -205,6 +207,35 @@ const MeshGradient = () => (
     <motion.div animate={{ scale: [1.2, 1, 1.2], rotate: [90, 0, 90] }} transition={{ duration: 30, repeat: Infinity, ease: "linear" }} className="absolute -bottom-[20%] left-[20%] w-[80vw] h-[80vw] rounded-full bg-purple-400/20 blur-[150px] mix-blend-multiply" />
   </div>
 );
+
+// 7. Reveal Animation (スクロールに合わせてふわっと出す)
+const Reveal = ({ children, delay = 0, className }) => {
+  const ref = useRef(null);
+  const isInView = useInView(ref, { once: true, margin: "-10%" });
+  const mainControls = useAnimation();
+
+  useEffect(() => {
+    if (isInView) {
+      mainControls.start("visible");
+    }
+  }, [isInView, mainControls]);
+
+  return (
+    <div ref={ref} className={cn("relative overflow-hidden w-full", className)}>
+      <motion.div
+        variants={{
+          hidden: { opacity: 0, y: 30 },
+          visible: { opacity: 1, y: 0 },
+        }}
+        initial="hidden"
+        animate={mainControls}
+        transition={{ duration: 0.6, delay, ease: [0.22, 1, 0.36, 1] }}
+      >
+        {children}
+      </motion.div>
+    </div>
+  );
+};
 
 // ==========================================
 // 📊 COMPLEX DUMMY DATA
@@ -598,7 +629,7 @@ const Testimonials = () => {
           {REVIEWS.map((review, i) => (
             <Reveal key={i} delay={i * 0.1} className="min-w-[85vw] sm:min-w-[350px] snap-center">
               <SpotlightCard className="p-8 h-full flex flex-col justify-between border-slate-100">
-                <p className="text-slate-600 font-medium leading-relaxed mb-8 text-sm md:text-base">"{review.text}"</p>
+                <p className="text-slate-600 font-medium leading-relaxed mb-8 text-sm md:text-base">&quot;{review.text}&quot;</p>
                 <div className="flex items-center gap-4 mt-auto">
                   <Image src={review.img} alt={review.name} width={48} height={48} className="rounded-full object-cover border-2 border-white shadow-sm" />
                   <div>
