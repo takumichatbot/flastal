@@ -20,7 +20,7 @@ import {
   ChevronLeft, Send, Image as ImageIcon, 
   Award, Plus, Search, Loader2, X,
   FileText, Printer, Info, Lock, PenTool, Check, Wand2, 
-  MessageSquare, Trash2, Box, UploadCloud, RefreshCw, Pen, Book, Users, Sparkles, Edit3, UserPlus, Zap, Brush
+  MessageSquare, Trash2, Box, UploadCloud, RefreshCw, Pen, Book, Users, Sparkles, Edit3, UserPlus, Zap, Brush, Download
 } from 'lucide-react';
 
 // --- Components ---
@@ -691,11 +691,12 @@ export default function ProjectDetailClient() {
           if (type === 'pre_photo') {
               payload.preEventPhotoUrls = [...(project.preEventPhotoUrls || []), uploadedUrl];
           } else if (type === 'illustration') {
+              // 従来のお花屋さん用アップロード機能（互換性のため残す）
               payload.illustrationPanelUrls = [...(project.illustrationPanelUrls || []), uploadedUrl];
           } else if (type === 'illustration_delivery') {
-              // ★ 絵師からの納品用
+              // 絵師からの納品用
               payload.illustrationDataUrl = uploadedUrl;
-              payload.isIllustrationAccepted = false; // 納品されたので検収待ちに戻す
+              payload.isIllustrationAccepted = false;
           }
 
           const updateRes = await authenticatedFetch(`${API_URL}/api/projects/${id}`, {
@@ -755,7 +756,6 @@ export default function ProjectDetailClient() {
       } catch (e) { toast.error(e.message, { id: toastId }); }
   };
 
-  // ★ 追加: 納品されたイラストの「検収（承認）」処理
   const handleAcceptIllustration = async () => {
       if (!window.confirm('イラストを検収し、報酬のポイントをクリエイターに支払いますか？\n※この操作は取り消せません。')) return;
       
@@ -764,7 +764,6 @@ export default function ProjectDetailClient() {
           const res = await authenticatedFetch(`${API_URL}/api/projects/${id}/illustration/accept`, { method: 'POST' });
           if (!res.ok) throw new Error('検収処理に失敗しました');
           
-          // フロントの表示を更新
           setProject(prev => ({ ...prev, isIllustrationAccepted: true }));
           toast.success('検収が完了し、クリエイターにポイントが支払われました！🎉', { id: toastId });
       } catch (e) {
@@ -772,7 +771,6 @@ export default function ProjectDetailClient() {
       }
   };
 
-  // ★ 追加: 納品されたイラストの「リテイク（差し戻し）」処理
   const handleRejectIllustration = async () => {
       if (!window.confirm('イラストを差し戻しますか？（※修正要望はチャットでお伝えください）')) return;
       
@@ -792,11 +790,28 @@ export default function ProjectDetailClient() {
       }
   };
 
+  // ★ 追加: イラストダウンロード処理
+  const handleDownloadIllustration = async (url) => {
+      try {
+          const response = await fetch(url);
+          const blob = await response.blob();
+          const downloadUrl = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = downloadUrl;
+          a.download = `illustration_${project.id}.png`; // 拡張子は画像に合わせて変更されるべきだが、簡易的にpngとする
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          window.URL.revokeObjectURL(downloadUrl);
+      } catch (error) {
+          toast.error("ダウンロードに失敗しました。直接画像を開いて保存してください。");
+          window.open(url, '_blank');
+      }
+  };
+
   const isPledger = user && (project?.pledges || []).some(p => p.userId === user.id);
   const isPlanner = user && user.id === project?.planner?.id;
   const isFlorist = user && user.role === 'FLORIST';
-  
-  // ★ 追加: この企画にアサインされている絵師かどうか
   const isAssignedIllustrator = user && user.role === 'ILLUSTRATOR' && project?.illustratorId === user.id;
 
   const isMounted = useIsMounted();
@@ -965,7 +980,7 @@ export default function ProjectDetailClient() {
                   </div>
               )}
 
-              {/* --- TAB: COLLABORATION (App-like sub navigation) --- */}
+              {/* --- TAB: COLLABORATION --- */}
               {activeTab === 'collaboration' && (
                 <div className="space-y-4">
                     {aiSummary && (
@@ -1001,7 +1016,6 @@ export default function ProjectDetailClient() {
                                     <UploadCloud size={16}/> 提出・データ
                                 </button>
                                 
-                                {/* 企画者のみ: 絵師がまだ決まっていない場合のみ「応募」タブを表示 */}
                                 {isPlanner && !project.illustratorId && (
                                     <button onClick={() => setCollabTab('applicants')} className={cn("px-4 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 whitespace-nowrap transition-all", collabTab === 'applicants' ? 'bg-gradient-to-r from-amber-400 to-orange-500 text-white shadow-md' : 'bg-amber-50 text-amber-600 hover:bg-amber-100 shadow-sm border border-amber-200')}>
                                         <UserPlus size={16}/> クリエイター応募
@@ -1061,7 +1075,7 @@ export default function ProjectDetailClient() {
                                     {collabTab === 'tools' && (
                                         <div className="space-y-5 md:space-y-6">
                                             
-                                            {/* ★ 新規: イラストの納品と検収 */}
+                                            {/* ★ イラスト納品・検収 (絵師 または 企画者向け) */}
                                             {(isPlanner || isAssignedIllustrator) && (
                                                 <AppCard className="border-amber-100 ring-4 ring-amber-50">
                                                     <h3 className="font-black text-slate-800 mb-3 md:mb-4 flex items-center text-sm md:text-base">
@@ -1126,6 +1140,26 @@ export default function ProjectDetailClient() {
                                                 </AppCard>
                                             )}
 
+                                            {/* ★ 新規追加: お花屋さん向け 完成イラストDLセクション */}
+                                            {isFlorist && project.isIllustrationAccepted && project.illustrationDataUrl && (
+                                                <AppCard className="border-sky-100 ring-4 ring-sky-50 bg-gradient-to-br from-white to-sky-50/30">
+                                                    <div className="flex flex-col sm:flex-row items-center gap-6 justify-between">
+                                                        <div className="flex items-center gap-4">
+                                                            <div className="w-16 h-16 rounded-2xl bg-white border border-slate-100 shadow-sm flex items-center justify-center shrink-0 cursor-zoom-in hover:scale-105 transition-transform" onClick={() => { setModalImageSrc(project.illustrationDataUrl); setIsImageModalOpen(true); }}>
+                                                                <Image src={project.illustrationDataUrl} alt="納品イラスト" width={64} height={64} className="object-cover rounded-xl" />
+                                                            </div>
+                                                            <div>
+                                                                <h3 className="font-black text-slate-800 text-lg mb-1 flex items-center gap-2"><Brush className="text-sky-500" size={18}/> 印刷用データ</h3>
+                                                                <p className="text-xs font-bold text-slate-500">絵師から納品された最終データです。</p>
+                                                            </div>
+                                                        </div>
+                                                        <button onClick={() => handleDownloadIllustration(project.illustrationDataUrl)} className="w-full sm:w-auto px-6 py-3.5 bg-slate-900 text-white font-black rounded-xl hover:bg-slate-800 transition-all flex items-center justify-center gap-2 shadow-lg active:scale-95 shrink-0">
+                                                            <Download size={18}/> ダウンロード
+                                                        </button>
+                                                    </div>
+                                                </AppCard>
+                                            )}
+
                                             {/* ARプレビュー */}
                                             <AppCard className="!p-5 md:!p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between bg-gradient-to-br from-indigo-50/50 to-white border-indigo-100 gap-4">
                                                 <div>
@@ -1135,14 +1169,14 @@ export default function ProjectDetailClient() {
                                                 <button onClick={() => setIsArModalOpen(true)} className="w-full sm:w-auto px-8 py-3 bg-indigo-500 text-white text-xs md:text-sm font-black rounded-xl hover:bg-indigo-600 transition-all shadow-md shrink-0 active:scale-95">起動する</button>
                                             </AppCard>
                                             
-                                            {/* パネルシミュレーター */}
+                                            {/* (従来の)パネルシミュレーター */}
                                             {(isPlanner || isFlorist) && (
                                                 <div className="bg-white rounded-[2rem] border border-slate-100 shadow-[0_4px_20px_rgb(0,0,0,0.03)] flex flex-col justify-between overflow-hidden w-full">
                                                     <PanelPreviewer onImageSelected={(file) => handleUpload({ target: { files: [file] } }, 'illustration')} />
                                                     
                                                     {project.illustrationPanelUrls?.length > 0 && (
                                                         <div className="p-5 md:p-6 border-t border-slate-100 bg-slate-50">
-                                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 md:mb-3">提出済みデータ (お花屋さん用)</p>
+                                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 md:mb-3">提出済みデータ (過去分)</p>
                                                             <div className="flex flex-wrap gap-2 md:gap-3">
                                                                 {project.illustrationPanelUrls.map((url, i) => (
                                                                     <div key={i} className="relative w-14 h-14 md:w-16 md:h-16 rounded-lg overflow-hidden border border-slate-200 shadow-sm cursor-zoom-in hover:scale-105 transition-transform" onClick={()=>{setModalImageSrc(url); setIsImageModalOpen(true)}}>
