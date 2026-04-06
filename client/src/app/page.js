@@ -310,7 +310,7 @@ const IntroLoader = ({ onComplete }) => {
           className="text-4xl md:text-6xl font-black text-white tracking-[0.2em] uppercase font-sans"
         >
           FLASTAL
-        </motion.div>
+        </motion.h1>
       </div>
       <div className="w-48 h-px bg-slate-800 mt-6 relative overflow-hidden">
         <motion.div 
@@ -777,6 +777,7 @@ const Footer = () => (
 export default function HomePage() {
   const { loading } = useAuth();
   const [isMounted, setIsMounted] = useState(false);
+  const [introFinished, setIntroFinished] = useState(false);
 
   useEffect(() => { setIsMounted(true); }, []);
 
@@ -795,6 +796,10 @@ export default function HomePage() {
 
   return (
     <main className="bg-[#FAFAFC] min-h-screen text-slate-800 font-sans selection:bg-slate-900 selection:text-white">
+      <AnimatePresence>
+        {!introFinished && <IntroLoader onComplete={() => setIntroFinished(true)} />}
+      </AnimatePresence>
+
       <NoiseOverlay />
       <CustomCursor />
       
