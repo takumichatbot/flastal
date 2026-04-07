@@ -15,7 +15,6 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onre
 
 function cn(...classes) { return classes.filter(Boolean).join(' '); }
 
-// --- ヘルパー: ロールに応じたスタイル ---
 const getRoleBadge = (role) => {
     switch (role) {
         case 'ADMIN': return { bg: 'bg-rose-100', text: 'text-rose-700', label: '管理者', icon: ShieldCheck };
@@ -36,7 +35,6 @@ export default function AdminUsersPage() {
     const [searchKeyword, setSearchKeyword] = useState('');
     const [activeTab, setActiveTab] = useState('ALL');
 
-    // ★ ユーザー情報の強力な取得ロジック（全テーブルから集めてマージする）
     const fetchUsers = async () => {
         setIsLoadingData(true);
         try {
@@ -45,40 +43,30 @@ export default function AdminUsersPage() {
             const params = new URLSearchParams();
             if (searchKeyword) params.append('keyword', searchKeyword);
 
-            // 1. まず標準のユーザー検索APIを叩く
-            // 2. さらに各ロール専用のAPIも叩いて情報を補完する
+            // ★ エラーの原因だった存在しないAPIを削除し、確実にデータが取れるAPIのみを使用
             const [userRes, fRes, iRes, vRes, oRes] = await Promise.all([
                 fetch(`${API_URL}/api/admin/users/search?${params.toString()}`, { headers }).catch(() => null),
-                // ★ APIのパスに注意。 /api/admin/florists などが存在する場合はそちらを使用
-                fetch(`${API_URL}/api/florists`, { headers }).catch(() => null),
-                fetch(`${API_URL}/api/illustrators`, { headers }).catch(() => null),
-                fetch(`${API_URL}/api/venues`, { headers }).catch(() => null),
-                fetch(`${API_URL}/api/organizers`, { headers }).catch(() => null),
+                fetch(`${API_URL}/api/admin/florists/pending`, { headers }).catch(() => null), // 承認済みも含めて返ってくる想定
+                fetch(`${API_URL}/api/admin/illustrators/pending`, { headers }).catch(() => null),
+                fetch(`${API_URL}/api/admin/venues/pending`, { headers }).catch(() => null),
+                fetch(`${API_URL}/api/admin/organizers/pending`, { headers }).catch(() => null),
             ]);
 
-            // 安全にJSONをパースして配列を抽出するヘルパー
-            const safeExtract = async (res, arrayKey) => {
+            const safeExtract = async (res) => {
                 if (!res || !res.ok) return [];
                 try {
                     const data = await res.json();
-                    if (Array.isArray(data)) return data;
-                    if (data && Array.isArray(data[arrayKey])) return data[arrayKey];
-                    // paginationの対応
-                    if (data && data.data && Array.isArray(data.data)) return data.data; 
-                    return [];
+                    return Array.isArray(data) ? data : (data.data || []);
                 } catch(e) {
                     return [];
                 }
             };
 
-            let baseUsers = await safeExtract(userRes, 'users');
-            const florists = await safeExtract(fRes, 'florists');
-            const illustrators = await safeExtract(iRes, 'illustrators');
-            const venues = await safeExtract(vRes, 'venues');
-            const organizers = await safeExtract(oRes, 'organizers');
-
-            // デバッグ出力
-            console.log("Extracted Data:", { baseUsers, florists, illustrators, venues, organizers });
+            let baseUsers = await safeExtract(userRes);
+            const florists = await safeExtract(fRes);
+            const illustrators = await safeExtract(iRes);
+            const venues = await safeExtract(vRes);
+            const organizers = await safeExtract(oRes);
 
             const allMap = new Map();
             
@@ -91,25 +79,23 @@ export default function AdminUsersPage() {
                 });
             });
 
-            // 他のロールのデータをマージする関数
+            // 他のロールデータをマージ（既存のユーザー情報に「屋号」などを上書き）
             const mergeData = (items, role, nameField) => {
                 items.forEach(item => {
                     const id = item.userId || item.id;
-                    if (!id) return; // IDがない場合はスキップ
-                    const existing = allMap.get(id) || {};
+                    if (!id) return;
+                    const existing = allMap.get(id) || { id, email: item.email || '非公開' };
                     allMap.set(id, {
                         ...existing,
-                        ...item, // 後勝ちでプロパティを上書き
+                        ...item,
                         id: id,
-                        // 既存のロールがあれば優先（ADMINなど）、なければ新しいロールを設定
-                        role: existing.role && existing.role !== 'USER' ? existing.role : role,
-                        displayName: item[nameField] || item.name || existing.displayName || '未設定',
-                        email: existing.email || item.email || '非公開（プロフ連携のみ）'
+                        role: existing.role !== 'USER' && existing.role ? existing.role : role,
+                        displayName: item[nameField] || existing.displayName || item.name || '未設定',
+                        createdAt: existing.createdAt || item.createdAt
                     });
                 });
             };
 
-            // お花屋さんは storeName, クリエイターは penName, 会場は venueName, 主催者は organizerName を使う
             mergeData(florists, 'FLORIST', 'storeName');
             mergeData(illustrators, 'ILLUSTRATOR', 'penName');
             mergeData(venues, 'VENUE', 'venueName');
@@ -117,7 +103,6 @@ export default function AdminUsersPage() {
 
             let combinedUsers = Array.from(allMap.values());
 
-            // クライアント側でキーワード絞り込み（マージ後のデータに対して）
             if (searchKeyword) {
                 const kw = searchKeyword.toLowerCase();
                 combinedUsers = combinedUsers.filter(u => 
@@ -127,10 +112,9 @@ export default function AdminUsersPage() {
                 );
             }
 
-            // 新しい順にソート
             combinedUsers.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
-
             setUsers(combinedUsers);
+
         } catch (error) {
             console.error('Fetch error:', error);
             toast.error('ユーザー一覧の取得に失敗しました');
@@ -193,7 +177,6 @@ export default function AdminUsersPage() {
     return (
         <div className="min-h-screen bg-slate-50 pb-24">
             
-            {/* ヘッダーエリア */}
             <div className="bg-white border-b border-slate-200 sticky top-0 z-10 shadow-sm">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="py-4 flex items-center justify-between">
@@ -217,10 +200,8 @@ export default function AdminUsersPage() {
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 
-                {/* 検索・フィルターエリア */}
                 <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 mb-6 flex flex-col md:flex-row gap-4 justify-between items-center">
                     
-                    {/* 検索バー */}
                     <div className="relative w-full md:w-96 group">
                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-sky-500 transition-colors" size={18} />
                         <input
@@ -232,7 +213,6 @@ export default function AdminUsersPage() {
                         />
                     </div>
 
-                    {/* タブ */}
                     <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0 w-full md:w-auto scrollbar-hide">
                         {[
                             { id: 'ALL', label: 'すべて' },
@@ -258,7 +238,6 @@ export default function AdminUsersPage() {
                     </div>
                 </div>
 
-                {/* ユーザー一覧テーブル */}
                 <div className="bg-white border border-slate-200 rounded-[2rem] shadow-sm overflow-hidden">
                     <div className="overflow-x-auto">
                         <table className="w-full text-left border-collapse">
