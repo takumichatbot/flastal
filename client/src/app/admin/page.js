@@ -7,11 +7,12 @@ import Link from 'next/link';
 import { useAuth } from '../contexts/AuthContext';
 import { motion } from 'framer-motion';
 
+// ★ 修正箇所： 'Users' を import に追加しました
 import { 
     MessageSquare, AlertTriangle, RefreshCw, DollarSign, 
     Award, MapPin, Calendar, Clock, Settings, Edit3, 
     Mail, Activity, TrendingUp, UserCheck, CheckCircle2, LogOut, ArrowRight, Palette,
-    Flower2, Building2, ShieldCheck, FileText
+    Flower2, Building2, ShieldCheck, FileText, Users
 } from 'lucide-react'; 
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
@@ -235,7 +236,7 @@ export default function AdminPage() {
                         <QuickLink href="/admin/approval?tab=organizers" icon={<ShieldCheck/>} label="主催者審査管理" />
                         <div className="my-3 border-t border-slate-100/50"></div>
                         
-                        {/* ★ 以下の1行を追加します */}
+                        {/* ★ Users をインポートし、ここにリンクを追加しました！ */}
                         <QuickLink href="/admin/users" icon={<Users/>} label="全ユーザー一覧・情報管理" />
                         
                         <QuickLink href="/admin/contact" icon={<Mail/>} label="個別チャット連絡" />
