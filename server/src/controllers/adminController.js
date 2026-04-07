@@ -203,113 +203,61 @@ export const getAdminChatMessages = async (req, res) => {
 
 
 // ==========================================
-// ★ 修正: DB設計に完全対応した独立テーブル検索マージロジック
+// ★ 修正: Userテーブルを基点にして全データを安全に取得・マージするロジック
 // ==========================================
 export const searchAllUsers = async (req, res) => {
     try {
         const keyword = req.query.keyword || '';
+        const keywordLower = keyword.toLowerCase();
 
-        // 1. ファン＆クリエイター（Userテーブル）
-        const usersWhere = keyword ? {
-            OR: [
-                { handleName: { contains: keyword } },
-                { email: { contains: keyword } }
-            ]
-        } : {};
-        const baseUsers = await prisma.user.findMany({
-            where: usersWhere,
-            include: { illustratorProfile: true }, // クリエイター情報のみ紐づくので取得
+        // 1. Userテーブルから、関連するプロフィール（illustratorProfile, florist, organizer）を含めて全件取得
+        const users = await prisma.user.findMany({
+            include: {
+                illustratorProfile: true, // クリエイター情報
+                florist: true,           // 花屋情報
+                organizer: true          // 主催者情報
+            },
             orderBy: { createdAt: 'desc' }
         });
 
-        // 2. お花屋さん（Floristテーブル）
-        const floristsWhere = keyword ? {
-            OR: [
-                { platformName: { contains: keyword } },
-                { shopName: { contains: keyword } },
-                { contactName: { contains: keyword } },
-                { email: { contains: keyword } }
-            ]
-        } : {};
-        const florists = await prisma.florist.findMany({ 
-            where: floristsWhere, 
-            orderBy: { createdAt: 'desc' } 
-        });
+        // 2. 独立している Venue（会場）テーブルも全件取得
+        const venues = await prisma.venue.findMany({
+            orderBy: { createdAt: 'desc' }
+        }).catch(() => []);
 
-        // 3. 主催者（Organizerテーブル）
-        const organizersWhere = keyword ? {
-            OR: [
-                { name: { contains: keyword } },
-                { email: { contains: keyword } }
-            ]
-        } : {};
-        const organizers = await prisma.organizer.findMany({ 
-            where: organizersWhere, 
-            orderBy: { createdAt: 'desc' } 
-        });
+        // 3. 全データをフロントエンド用のフォーマットに合体させる
+        let finalUsers = [];
 
-        // 4. 会場（Venueテーブル）
-        const venuesWhere = keyword ? {
-            OR: [
-                { venueName: { contains: keyword } },
-                { email: { contains: keyword } }
-            ]
-        } : {};
-        const venues = await prisma.venue.findMany({ 
-            where: venuesWhere, 
-            orderBy: { createdAt: 'desc' } 
-        });
-
-
-        // 5. 取得した各テーブルのデータを、フロントエンドで使いやすい共通フォーマットに合体させる
-        const finalUsers = [];
-
-        // ファンのデータを変換
-        baseUsers.forEach(u => {
+        users.forEach(u => {
             let role = u.role ? u.role.toUpperCase() : 'USER';
-            // illustratorProfile が存在するか、ロールがILLUSTRATORならクリエイター扱いにする
-            if (u.illustratorProfile || role === 'ILLUSTRATOR') {
+            let displayName = u.handleName || u.name || '未設定';
+
+            // リレーション情報が存在する場合、ロールと表示名を上書きする
+            if (u.florist) {
+                role = 'FLORIST';
+                displayName = u.florist.storeName || u.florist.platformName || u.florist.shopName || u.handleName || '未設定';
+            } else if (u.illustratorProfile || role === 'ILLUSTRATOR') {
                 role = 'ILLUSTRATOR';
+                displayName = u.illustratorProfile?.penName || u.handleName || '未設定';
+            } else if (u.organizer || role === 'ORGANIZER') {
+                role = 'ORGANIZER';
+                displayName = u.organizer?.organizerName || u.organizer?.name || u.handleName || '未設定';
             }
+
             finalUsers.push({
                 id: u.id,
                 email: u.email || '非公開',
-                displayName: u.handleName || u.name || '未設定',
+                displayName: displayName,
                 role: role,
                 createdAt: u.createdAt,
                 iconUrl: u.iconUrl || null
             });
         });
 
-        // お花屋さんのデータを変換
-        florists.forEach(f => {
-            finalUsers.push({
-                id: f.id,
-                email: f.email,
-                displayName: f.platformName || f.shopName || f.contactName || '未設定',
-                role: 'FLORIST',
-                createdAt: f.createdAt,
-                iconUrl: f.iconUrl || null
-            });
-        });
-
-        // 主催者のデータを変換
-        organizers.forEach(o => {
-            finalUsers.push({
-                id: o.id,
-                email: o.email,
-                displayName: o.name || '未設定',
-                role: 'ORGANIZER',
-                createdAt: o.createdAt,
-                iconUrl: null
-            });
-        });
-
-        // 会場のデータを変換
         venues.forEach(v => {
             finalUsers.push({
                 id: v.id,
-                email: v.email,
+                email: v.email || '非公開',
                 displayName: v.venueName || '未設定',
                 role: 'VENUE',
                 createdAt: v.createdAt,
@@ -317,10 +265,18 @@ export const searchAllUsers = async (req, res) => {
             });
         });
 
-        // 最後に全体の登録日が新しい順に並び替え
+        // 4. キーワード検索（合体したデータに対して実行することで、全ロールの名前で検索可能になる）
+        if (keyword) {
+            finalUsers = finalUsers.filter(u => 
+                u.displayName?.toLowerCase().includes(keywordLower) || 
+                u.email?.toLowerCase().includes(keywordLower) ||
+                u.id?.toLowerCase().includes(keywordLower)
+            );
+        }
+
+        // 新しい順にソート
         finalUsers.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
 
-        // 結合した名簿をフロントエンドへ返す
         return res.json(finalUsers);
 
     } catch (e) {
