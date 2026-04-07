@@ -38,6 +38,13 @@ function useMousePosition() {
   return mousePosition;
 }
 
+// SSR/Hydrationエラーを防ぐためのフック
+function useIsMounted() {
+  const [isMounted, setIsMounted] = useState(false);
+  useEffect(() => { setIsMounted(true); }, []);
+  return isMounted;
+}
+
 // ==========================================
 // 🎨 ULTRA-MODERN UI COMPONENTS
 // ==========================================
@@ -45,8 +52,10 @@ function useMousePosition() {
 const CustomCursor = () => {
   const { x, y } = useMousePosition();
   const [isHovering, setIsHovering] = useState(false);
+  const isMounted = useIsMounted();
 
   useEffect(() => {
+    if (!isMounted) return;
     const handleMouseOver = (e) => {
       const target = e.target;
       if (target.tagName.toLowerCase() === 'a' || target.tagName.toLowerCase() === 'button' || target.closest('a') || target.closest('button')) {
@@ -57,9 +66,9 @@ const CustomCursor = () => {
     };
     window.addEventListener('mouseover', handleMouseOver);
     return () => window.removeEventListener('mouseover', handleMouseOver);
-  }, []);
+  }, [isMounted]);
 
-  if (typeof window === 'undefined' || x === 0) return null;
+  if (!isMounted || x === 0) return null;
 
   return (
     <>
@@ -80,9 +89,10 @@ const CustomCursor = () => {
 const MagneticWrapper = ({ children, className }) => {
   const ref = useRef(null);
   const [position, setPosition] = useState({ x: 0, y: 0 });
+  const isMounted = useIsMounted();
 
   const handleMouse = (e) => {
-    if (window.innerWidth < 1024) return; 
+    if (!isMounted || !ref.current || window.innerWidth < 1024) return;
     const { clientX, clientY } = e;
     const { height, width, left, top } = ref.current.getBoundingClientRect();
     const middleX = clientX - (left + width / 2);
@@ -110,10 +120,11 @@ const SpotlightCard = ({ children, className, spotColor = "rgba(236, 72, 153, 0.
   const divRef = useRef(null);
   const [isFocused, setIsFocused] = useState(false);
   const [position, setPosition] = useState({ x: 0, y: 0 });
+  const isMounted = useIsMounted();
   const opacity = isFocused ? 1 : 0;
 
   const handleMouseMove = (e) => {
-    if (!divRef.current || isFocused || window.innerWidth < 1024) return;
+    if (!isMounted || !divRef.current || isFocused || window.innerWidth < 1024) return;
     const div = divRef.current;
     const rect = div.getBoundingClientRect();
     setPosition({ x: e.clientX - rect.left, y: e.clientY - rect.top });
@@ -175,13 +186,6 @@ const DUMMY_PROJECTS = [
   { id: "p4", title: "念願のファンミーティング開催記念！ロビーをお花でいっぱいにしよう", category: "Voice Actor", target: 100000, current: 100000, percent: 100, days: 0, image: "https://images.unsplash.com/photo-1563241527-3004b7be0ffd?q=80&w=800&auto=format&fit=crop" },
 ];
 
-const REVIEWS = [
-  { name: "Mika.T", role: "Planner", text: "お金の管理が不安でずっと踏み出せませんでしたが、FLASTALのおかげで夢だったフラスタを出すことができました。最高のエクスペリエンスです。", img: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=150" },
-  { name: "Kouta", role: "Supporter", text: "現場に行けなくても、推しにおめでとうを伝えられるのが嬉しい。UIが綺麗で、支援状況がリアルタイムで分かるのも安心感があります。", img: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?q=80&w=150" },
-  { name: "Lily Floral", role: "Florist", text: "予算が確保された状態でシステムから発注が来るため、未払いリスクがなく、私達も安心してお花づくりに専念できています。素晴らしいプラットフォームです。", img: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=150" },
-  { name: "Nana_Illust", role: "Creator", text: "パネルイラストの依頼をサイト内で直接受けられるのが最高です。報酬もポイントとして確実に支払われるので、安心して制作に打ち込めます。", img: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?q=80&w=150" },
-];
-
 // ==========================================
 // 🚀 PAGE SECTIONS
 // ==========================================
@@ -202,7 +206,7 @@ const IntroLoader = ({ onComplete }) => {
   );
 };
 
-// --- 1. HERO SECTION (エモーション優先・お金の話を排除) ---
+// --- 1. HERO SECTION ---
 const Hero = () => {
   const { scrollY } = useScroll();
   const y1 = useTransform(scrollY, [0, 1000], [0, 150]);
@@ -210,14 +214,12 @@ const Hero = () => {
 
   return (
     <section className="relative w-full min-h-[100svh] flex items-center justify-center overflow-hidden bg-[#FAFAFC] pt-20 pb-12 z-10">
-      {/* Fluid Gradient Background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
         <motion.div animate={{ scale: [1, 1.1, 1], rotate: [0, 45, 0] }} transition={{ duration: 20, repeat: Infinity, ease: "linear" }} className="absolute -top-[20%] -left-[10%] w-[150vw] md:w-[70vw] h-[150vw] md:h-[70vw] rounded-full bg-pink-300/20 blur-[80px] md:blur-[120px] mix-blend-multiply" />
         <motion.div animate={{ scale: [1, 1.2, 1], rotate: [0, -45, 0] }} transition={{ duration: 25, repeat: Infinity, ease: "linear" }} className="absolute top-[20%] -right-[10%] w-[120vw] md:w-[60vw] h-[120vw] md:h-[60vw] rounded-full bg-violet-300/20 blur-[80px] md:blur-[120px] mix-blend-multiply" />
       </div>
       
       <motion.div style={{ y: y1, opacity }} className="container relative z-10 max-w-5xl mx-auto px-4 md:px-6 flex flex-col items-center text-center">
-        
         <Reveal delay={0.1}>
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/60 backdrop-blur-md border border-white shadow-sm mb-6 md:mb-8">
             <Sparkles size={14} className="text-pink-500" />
@@ -283,7 +285,7 @@ const InfiniteMarquee = () => {
   );
 };
 
-// --- 3. HOW IT WORKS (プロセスを先に説明) ---
+// --- 3. HOW IT WORKS ---
 const HowItWorks = () => {
   const steps = [
     { num: "01", title: "企画ページをつくる", desc: "イベントの日程や会場、贈りたいお花のイメージを入力してページを公開します。", icon: PenTool, color: "text-pink-500", bg: "bg-pink-100" },
@@ -378,7 +380,7 @@ const TrendingProjects = () => {
   );
 };
 
-// --- 5. BENTO FEATURES (お金・安全性の説明を後半に) ---
+// --- 5. BENTO FEATURES ---
 const BentoFeatures = () => {
   const features = [
     {
@@ -424,7 +426,6 @@ const BentoFeatures = () => {
           {features.map((feat, i) => (
             <Reveal key={i} delay={i * 0.1} className={cn("rounded-[2rem] overflow-hidden relative group shadow-sm border border-slate-200/50 hover:shadow-md transition-all duration-500", feat.span, feat.color)}>
               <div className="absolute inset-0 p-6 md:p-10 flex flex-col z-20">
-                {/* ★ 修正ポイント: JSX要素を正しくレンダリングするよう修正 */}
                 <feat.icon size={28} className={cn("mb-4 md:mb-6", feat.text)} />
                 <h3 className={cn("text-xl md:text-2xl font-black mb-2 tracking-tight", feat.text)}>{feat.title}</h3>
                 <p className={cn("text-xs md:text-sm font-medium leading-relaxed max-w-sm", feat.text === 'text-white' ? 'text-white/80' : 'text-slate-500')}>{feat.desc}</p>
@@ -471,16 +472,23 @@ const CategoryGrid = () => {
 // --- 7. ARTICLES (LARU SEO Embed) ---
 const LaruSeoEmbed = () => {
   const containerRef = useRef(null);
+  const isMounted = useIsMounted();
+  
   useEffect(() => {
+    if (!isMounted) return;
     const container = containerRef.current;
     if (!container || container.querySelector('script')) return;
+    
+    // SSRエラーを防ぐため、クライアントサイドでのみ実行
     const script = document.createElement('script');
     script.src = "https://larubot.tokyo/embed/blog.js";
     script.setAttribute("data-id", "e19ed703-6238-49a5-ac83-c92c522a44cd");
     script.async = true;
     container.appendChild(script);
+    
     return () => { if (container && container.contains(script)) container.removeChild(script); };
-  }, []);
+  }, [isMounted]);
+
   return <div ref={containerRef} className="w-full min-h-[300px] md:min-h-[400px]"></div>;
 };
 
@@ -500,7 +508,7 @@ const ArticlesSection = () => (
   </section>
 );
 
-// --- 8. PARTNER CTA (会場・法人向け動線を強化) ---
+// --- 8. PARTNER CTA ---
 const PartnerCTA = () => (
   <section className="py-20 md:py-24 bg-slate-900 relative z-10 overflow-hidden">
     <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-10" />
@@ -514,7 +522,6 @@ const PartnerCTA = () => (
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-          {/* 最重要: 会場・ホール向けを独立させて目立たせる */}
           <Link href="/venues/login" className="col-span-1 md:col-span-2 group">
             <div className="bg-gradient-to-r from-blue-900/40 to-indigo-900/40 border border-blue-500/30 rounded-2xl p-6 md:p-8 flex flex-col md:flex-row items-center justify-between hover:bg-blue-900/50 transition-colors">
               <div className="flex items-center gap-4 mb-4 md:mb-0">
@@ -552,7 +559,7 @@ const PartnerCTA = () => (
   </section>
 );
 
-// --- 9. MASSIVE FOOTER (リンク整理) ---
+// --- 9. MASSIVE FOOTER ---
 const Footer = () => (
   <footer className="bg-slate-950 pt-20 pb-12 relative z-10 overflow-hidden border-t border-white/10">
     <div className="container mx-auto px-6 md:px-8 max-w-7xl relative z-10">
@@ -601,13 +608,18 @@ const Footer = () => (
 // ==========================================
 export default function HomePage() {
   const [isMounted, setIsMounted] = useState(false);
+  const [introFinished, setIntroFinished] = useState(false);
 
   useEffect(() => { setIsMounted(true); }, []);
 
-  if (!isMounted) return null; // Hydrationエラー防止
+  if (!isMounted) return null; 
 
   return (
     <main className="bg-[#FAFAFC] min-h-screen text-slate-800 font-sans selection:bg-pink-100 selection:text-pink-500">
+      <AnimatePresence>
+        {!introFinished && <IntroLoader onComplete={() => setIntroFinished(true)} />}
+      </AnimatePresence>
+
       <CustomCursor />
       
       <Hero />
@@ -620,7 +632,6 @@ export default function HomePage() {
       <PartnerCTA />
       <Footer />
 
-      {/* グローバルスタイル（Modern Typography & Utilities） */}
       <style jsx global>{`
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap');
         
@@ -634,7 +645,6 @@ export default function HomePage() {
           -moz-osx-font-smoothing: grayscale;
         }
         
-        /* Desktop Custom Cursor */
         @media (min-width: 1024px) {
           body { cursor: none; }
           a, button, input, select, textarea { cursor: none !important; }
