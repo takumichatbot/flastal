@@ -13,11 +13,11 @@ import {
   AnimatePresence
 } from 'framer-motion';
 
+// ★ エラーの原因だった特殊なアイコンを避け、確実にある標準アイコンのみを使用
 import { 
   Heart, Sparkles, ArrowRight, Search, Users,
   Gift, MessageCircle, Clock, Crown, PenTool, Video, Music, MapPin, Store,
-  ChevronRight, ChevronDown, ArrowUpRight, Shield, Command, KeyRound, Building,
-  Ticket, Star
+  ChevronRight, ChevronDown, ArrowUpRight, Shield, Command, KeyRound, Building, Star
 } from 'lucide-react';
 
 // ==========================================
@@ -65,9 +65,7 @@ const MagneticWrapper = ({ children, className }) => {
 
   const reset = () => { setPosition({ x: 0, y: 0 }); };
 
-  if (!isMounted) {
-    return <div className={className}>{children}</div>;
-  }
+  if (!isMounted) return <div className={className}>{children}</div>;
 
   return (
     <motion.div
@@ -109,10 +107,7 @@ const SpotlightCard = ({ children, className, spotColor = "rgba(236, 72, 153, 0.
     >
       <div
         className="pointer-events-none absolute -inset-px rounded-[2.5rem] transition duration-300 hidden lg:block"
-        style={{ 
-          opacity, 
-          background: `radial-gradient(600px circle at ${position.x}px ${position.y}px, ${spotColor}, transparent 40%)` 
-        }}
+        style={{ opacity, background: `radial-gradient(600px circle at ${position.x}px ${position.y}px, ${spotColor}, transparent 40%)` }}
       />
       {children}
     </div>
@@ -121,17 +116,9 @@ const SpotlightCard = ({ children, className, spotColor = "rgba(236, 72, 153, 0.
 
 const Reveal = ({ children, delay = 0, className = "" }) => {
   const isMounted = useIsMounted();
-  if (!isMounted) {
-    return <div className={className}>{children}</div>;
-  }
+  if (!isMounted) return <div className={className}>{children}</div>;
   return (
-    <motion.div 
-      initial={{ opacity: 0, y: 20 }} 
-      whileInView={{ opacity: 1, y: 0 }} 
-      viewport={{ once: true, margin: "-10%" }} 
-      transition={{ duration: 0.6, delay, ease: "easeOut" }} 
-      className={className}
-    >
+    <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-10%" }} transition={{ duration: 0.6, delay, ease: "easeOut" }} className={className}>
       {children}
     </motion.div>
   );
@@ -144,9 +131,7 @@ const SplitTextReveal = ({ text, className, delay = 0 }) => {
   const container = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.08, delayChildren: delay } } };
   const child = { visible: { opacity: 1, y: 0, filter: "blur(0px)", transition: { type: "spring", damping: 12, stiffness: 100 } }, hidden: { opacity: 0, y: 20, filter: "blur(5px)" } };
 
-  if (!isMounted) {
-    return <div className={className}>{text}</div>;
-  }
+  if (!isMounted) return <div className={className}>{text}</div>;
 
   return (
     <motion.div style={{ overflow: "hidden", display: "flex", flexWrap: "wrap", justifyContent: "center" }} variants={container} initial="hidden" whileInView="visible" viewport={{ once: true }} className={className}>
@@ -158,20 +143,20 @@ const SplitTextReveal = ({ text, className, delay = 0 }) => {
 };
 
 // ==========================================
-// 🎀 DECORATIVE PARTICLE
+// 🎀 EMOJI PARTICLE (アイコンエラー回避＆可愛さMAX！)
 // ==========================================
-const DecorativeParticle = ({ icon: Icon, delay = 0, x = "0%", y = "0%", scale = 1, color = "text-pink-200" }) => {
+const EmojiParticle = ({ emoji, delay = 0, x = "0%", y = "0%", scale = 1 }) => {
   const isMounted = useIsMounted();
   if (!isMounted) return null;
 
   return (
     <motion.div
-      className={cn("absolute opacity-0 pointer-events-none", color)}
-      style={{ top: y, left: x, scale }}
+      className="absolute opacity-0 pointer-events-none drop-shadow-md select-none"
+      style={{ top: y, left: x, scale, fontSize: '2.5rem' }}
       animate={{ 
-        opacity: [0, 0.6, 0.4, 0.6, 0],
-        y: ["0px", "-20px", "-10px", "-20px", "-30px"],
-        rotate: [0, 10, -10, 10, 0]
+        opacity: [0, 0.8, 0.5, 0.8, 0],
+        y: ["0px", "-40px", "-20px", "-40px", "-60px"],
+        rotate: [0, 15, -15, 15, 0]
       }}
       transition={{ 
         duration: 8, 
@@ -180,7 +165,7 @@ const DecorativeParticle = ({ icon: Icon, delay = 0, x = "0%", y = "0%", scale =
         ease: "easeInOut" 
       }}
     >
-      <Icon size={24} strokeWidth={1.5} />
+      {emoji}
     </motion.div>
   );
 };
@@ -208,68 +193,98 @@ const DUMMY_PROJECTS = [
 // 🚀 PAGE SECTIONS
 // ==========================================
 
-// --- 0. INTRO LOADER (Lace Curtain) ---
+// --- 0. INTRO LOADER (★ 奥に入り込むレースカーテン) ---
 const IntroLoader = ({ onComplete }) => {
-  useEffect(() => { const timer = setTimeout(onComplete, 2200); return () => clearTimeout(timer); }, [onComplete]);
-
-  const LacePattern = () => (
-    <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <pattern id="lace" width="40" height="40" patternUnits="userSpaceOnUse">
-          <circle cx="20" cy="20" r="1.5" fill="rgba(255,255,255,0.3)" />
-          <path d="M0 20 L40 20 M20 0 L20 40" stroke="rgba(255,255,255,0.15)" strokeWidth="0.5" />
-          <path d="M0 0 L40 40 M40 0 L0 40" stroke="rgba(255,255,255,0.1)" strokeWidth="0.5" />
-        </pattern>
-      </defs>
-      <rect width="100%" height="100%" fill="url(#lace)" />
-    </svg>
-  );
+  useEffect(() => { 
+    // アニメーション全体が終わるタイミングでコンポーネントをアンマウント
+    const timer = setTimeout(onComplete, 2600); 
+    return () => clearTimeout(timer); 
+  }, [onComplete]);
 
   return (
-    // ★ 変更点：背景を透過にして、scaleによるズームイン効果を追加
+    // ★ 画面全体をズームイン（scale: 2）させながらフェードアウトすることで「奥に入り込む」表現
     <motion.div 
-      className="fixed inset-0 z-[99999] flex items-center justify-center overflow-hidden pointer-events-none" 
-      initial={{ scale: 1, opacity: 1 }} 
-      exit={{ scale: 1.5, opacity: 0, transition: { delay: 1, duration: 1.2, ease: "easeIn" } }} // ズームインしながらフェードアウト
+      className="fixed inset-0 z-[99999] flex items-center justify-center pointer-events-none"
+      initial={{ scale: 1, opacity: 1 }}
+      animate={{ scale: 2.2, opacity: 0 }}
+      transition={{ duration: 1.2, delay: 1.4, ease: [0.4, 0, 0.2, 1] }} // カーテンが開いた後にズームイン
     >
-      {/* 左右の薄ピンクカーテン */}
-      <motion.div className="absolute inset-y-0 left-0 w-1/2 bg-pink-50/95 border-r-2 border-pink-100 z-10 shadow-[10px_0_30px_rgba(244,114,182,0.1)]"
-        initial={{ x: 0 }}
-        animate={{ x: "-100%", transition: { delay: 1.2, duration: 1.4, ease: [0.76, 0, 0.24, 1] } }}
-      >
-        <div className="absolute inset-0 opacity-40"><LacePattern /></div>
-        <div className="absolute inset-y-0 right-0 w-12 bg-gradient-to-r from-transparent to-pink-100/60" />
-      </motion.div>
       
-      <motion.div className="absolute inset-y-0 right-0 w-1/2 bg-pink-50/95 border-l-2 border-pink-100 z-10 shadow-[-10px_0_30px_rgba(244,114,182,0.1)]"
-        initial={{ x: 0 }}
-        animate={{ x: "100%", transition: { delay: 1.2, duration: 1.4, ease: [0.76, 0, 0.24, 1] } }}
+      {/* --- 左側のレースカーテン --- */}
+      <motion.div 
+        className="absolute inset-y-0 left-0 w-1/2 bg-[#FDF2F8] shadow-[20px_0_50px_rgba(244,114,182,0.4)] z-10 origin-left"
+        initial={{ x: 0, skewX: 0 }}
+        animate={{ x: "-100%", skewX: -5 }} // 開きながら少し斜めに歪ませる（立体感）
+        transition={{ duration: 1.4, delay: 0.5, ease: [0.76, 0, 0.24, 1] }}
+        style={{
+          // カーテンの布のシワとテクスチャ
+          backgroundImage: `
+            linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(244,114,182,0.05) 50%, rgba(0,0,0,0) 100%),
+            url('https://www.transparenttextures.com/patterns/french-stucco.png')
+          `
+        }}
       >
-        <div className="absolute inset-0 opacity-40"><LacePattern /></div>
-        <div className="absolute inset-y-0 left-0 w-12 bg-gradient-to-l from-transparent to-pink-100/60" />
+        {/* レースのフリル（右端） SVGパターン */}
+        <div className="absolute top-0 bottom-0 -right-10 w-12 h-full drop-shadow-xl overflow-hidden">
+          <svg width="100%" height="100%" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <pattern id="lace-left" x="0" y="0" width="48" height="60" patternUnits="userSpaceOnUse">
+                {/* スカラップ（半円） */}
+                <path d="M0,0 C24,0 48,15 48,30 C48,45 24,60 0,60 Z" fill="#FDF2F8" />
+                {/* レースの穴 */}
+                <circle cx="15" cy="30" r="5" fill="transparent" stroke="#FBCFE8" strokeWidth="2" />
+                <circle cx="30" cy="30" r="3" fill="#FBCFE8" />
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#lace-left)" />
+          </svg>
+        </div>
       </motion.div>
 
-      {/* ロゴ表示 */}
-      <div className="overflow-hidden z-20">
-        <motion.h1 
-          initial={{ y: 100, opacity: 0 }} 
-          animate={{ y: 0, opacity: 1, transition: { duration: 0.8, ease: "easeOut", delay: 0.2 } }} 
-          exit={{ opacity: 0, transition: { duration: 0.5 } }} // カーテンと一緒に消える
-          className="text-4xl md:text-6xl font-black text-pink-400 tracking-[0.3em] uppercase drop-shadow-sm"
-        >
+      {/* --- 右側のレースカーテン --- */}
+      <motion.div 
+        className="absolute inset-y-0 right-0 w-1/2 bg-[#FDF2F8] shadow-[-20px_0_50px_rgba(244,114,182,0.4)] z-10 origin-right"
+        initial={{ x: 0, skewX: 0 }}
+        animate={{ x: "100%", skewX: 5 }} // 開きながら少し斜めに歪ませる
+        transition={{ duration: 1.4, delay: 0.5, ease: [0.76, 0, 0.24, 1] }}
+        style={{
+          backgroundImage: `
+            linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(244,114,182,0.05) 50%, rgba(0,0,0,0) 100%),
+            url('https://www.transparenttextures.com/patterns/french-stucco.png')
+          `
+        }}
+      >
+        {/* レースのフリル（左端） SVGパターン */}
+        <div className="absolute top-0 bottom-0 -left-10 w-12 h-full drop-shadow-xl overflow-hidden">
+          <svg width="100%" height="100%" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <pattern id="lace-right" x="0" y="0" width="48" height="60" patternUnits="userSpaceOnUse">
+                {/* 逆向きのスカラップ */}
+                <path d="M48,0 C24,0 0,15 0,30 C0,45 24,60 48,60 Z" fill="#FDF2F8" />
+                <circle cx="33" cy="30" r="5" fill="transparent" stroke="#FBCFE8" strokeWidth="2" />
+                <circle cx="18" cy="30" r="3" fill="#FBCFE8" />
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#lace-right)" />
+          </svg>
+        </div>
+      </motion.div>
+
+      {/* --- 中央のロゴとウェルカムテキスト --- */}
+      <motion.div 
+        className="absolute z-20 flex flex-col items-center"
+        initial={{ opacity: 0, scale: 0.5, y: 20 }} 
+        // ロゴが手前に迫ってくる（scale: 2）
+        animate={{ opacity: [0, 1, 0], scale: [0.5, 1, 2], y: [20, 0, -20] }} 
+        transition={{ duration: 2, times: [0, 0.3, 1], ease: "easeIn" }}
+      >
+        <span className="font-calligraphy text-4xl text-pink-400 mb-2 drop-shadow-sm">Welcome to</span>
+        <h1 className="text-5xl md:text-7xl font-black text-pink-500 tracking-[0.3em] font-serif-jp drop-shadow-lg">
           FLASTAL
-        </motion.h1>
-      </div>
+        </h1>
+        <div className="w-full h-px bg-gradient-to-r from-transparent via-pink-400 to-transparent mt-4" />
+      </motion.div>
       
-      {/* アンダーライン */}
-      <div className="w-32 md:w-48 h-px absolute bottom-[calc(50%-40px)] relative overflow-hidden z-20 mt-4">
-        <motion.div 
-          initial={{ x: "-100%" }} 
-          animate={{ x: "100%", transition: { duration: 1.2, ease: "easeInOut", delay: 0.2 } }} 
-          exit={{ opacity: 0 }}
-          className="absolute inset-0 bg-gradient-to-r from-transparent via-pink-300 to-transparent" 
-        />
-      </div>
     </motion.div>
   );
 };
@@ -286,11 +301,12 @@ const Hero = () => {
   return (
     <section className="relative w-full min-h-[100svh] flex items-center justify-center overflow-hidden bg-[#FFF8FA] pt-20 pb-12 z-10">
       
-      <DecorativeParticle icon={Heart} x="10%" y="20%" scale={1.2} delay={0.5} color="text-pink-200" />
-      <DecorativeParticle icon={Sparkles} x="85%" y="15%" scale={1} delay={2} color="text-amber-200" />
-      <DecorativeParticle icon={Crown} x="20%" y="70%" scale={1.1} delay={3.5} color="text-pink-200" />
-      <DecorativeParticle icon={Gift} x="80%" y="65%" scale={1} delay={1.5} color="text-violet-200" />
-      <DecorativeParticle icon={Star} x="50%" y="80%" scale={0.9} delay={4} color="text-pink-200" />
+      {/* ★ ここで絵文字パーティクルを散りばめる！ */}
+      <EmojiParticle emoji="🎀" x="15%" y="25%" scale={1.2} delay={0} />
+      <EmojiParticle emoji="🎂" x="80%" y="60%" scale={1.1} delay={1.5} />
+      <EmojiParticle emoji="💖" x="25%" y="75%" scale={0.9} delay={3} />
+      <EmojiParticle emoji="✨" x="85%" y="20%" scale={1.3} delay={0.5} />
+      <EmojiParticle emoji="👑" x="50%" y="85%" scale={1.2} delay={2.2} />
 
       <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
         <div className="absolute -top-[20%] -left-[10%] w-[150vw] md:w-[70vw] h-[150vw] md:h-[70vw] rounded-full bg-pink-300/15 blur-[80px] md:blur-[120px] mix-blend-multiply animate-pulse" />
@@ -484,8 +500,6 @@ const BentoFeatures = () => {
       iconColor: "text-emerald-400",
       visual: (
         <>
-          <DecorativeParticle icon={Heart} x="80%" y="20%" scale={1} delay={1} color="text-pink-500" />
-          <DecorativeParticle icon={Star} x="70%" y="60%" scale={0.8} delay={2.5} color="text-violet-500" />
           <div className="absolute right-0 bottom-0 w-64 h-64 bg-gradient-to-tl from-emerald-400/20 to-transparent rounded-tl-full blur-2xl"></div>
         </>
       )
@@ -550,8 +564,9 @@ const CategoryGrid = () => {
   return (
     <section className="py-24 md:py-32 bg-[#FAF9FF] relative z-10 border-t border-slate-100">
       
-      <DecorativeParticle icon={Gift} x="5%" y="10%" scale={1} delay={0.5} color="text-violet-200" />
-      <DecorativeParticle icon={Sparkles} x="90%" y="80%" scale={1.1} delay={2} color="text-amber-200" />
+      {/* ケーキとキラキラの代わりに安全な絵文字パーティクルを使用 */}
+      <EmojiParticle emoji="🎂" x="5%" y="10%" scale={1.2} delay={0.5} />
+      <EmojiParticle emoji="✨" x="90%" y="80%" scale={1.5} delay={2} />
 
       <div className="container mx-auto px-4 md:px-6 max-w-6xl relative z-10">
         <div className="text-center mb-14">
@@ -624,8 +639,10 @@ const PartnerCTA = () => (
     <div className="container mx-auto px-4 md:px-6 max-w-5xl relative z-10">
       <Reveal>
         <div className="text-center mb-14 md:mb-18">
-          <DecorativeParticle icon={Crown} x="45%" y="-20px" scale={1.2} delay={0.5} color="text-pink-400" />
-          <h2 className="text-3xl md:text-5xl font-black text-white mb-5 tracking-tighter">法人・クリエイターの皆様へ</h2>
+          {/* リボンアイコンの代わりに絵文字を使用 */}
+          <EmojiParticle emoji="🎀" x="45%" y="-40px" scale={1.5} delay={0.5} />
+          
+          <h2 className="text-3xl md:text-5xl font-black text-white mb-5 tracking-tighter mt-8">法人・クリエイターの皆様へ</h2>
           <p className="text-slate-400 text-sm md:text-base max-w-2xl mx-auto leading-relaxed font-medium">
             FLASTALは、お花屋さん、ライブ会場、イベント主催者、イラストレーターとファンを繋ぐエコシステムです。初期費用・月額費用は一切かかりません。推しの活動をみんなで支えましょう。
           </p>
@@ -652,7 +669,6 @@ const PartnerCTA = () => (
           {[
             { href: "/florists/register", label: "お花屋さんとして登録", icon: Store, color: "text-emerald-400", bg: "bg-emerald-500/10" },
             { href: "/illustrators/register", label: "クリエイターとして登録", icon: PenTool, color: "text-pink-400", bg: "bg-pink-500/10" },
-            { href: "/organizers/register", label: "イベント主催者として登録", icon: Ticket, color: "text-amber-400", bg: "bg-amber-500/10" },
           ].map((btn, i) => (
             <Link key={i} href={btn.href} className="group">
               <div className="bg-white/5 border border-white/10 rounded-3xl p-7 flex items-center gap-5 hover:bg-white/10 transition-colors h-full">
