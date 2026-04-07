@@ -6,21 +6,17 @@ export const fetchCache = 'force-no-store';
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useAuth } from './contexts/AuthContext';
 import { 
   motion, 
   useScroll, 
   useTransform, 
-  useSpring, 
   AnimatePresence
 } from 'framer-motion';
 
-// ★ エラーの原因だったアイコン（Ticket, Cake, BookmarkHeart）を追加インポート！
 import { 
   Heart, Sparkles, ArrowRight, Search, Users,
-  Gift, MessageCircle, Clock, Crown, PenTool, Video, Music, MapPin, Store,
-  ChevronRight, ChevronDown, ArrowUpRight, Shield, Command, KeyRound, Building,
-  Ticket, Cake, BookmarkHeart
+  Gift, MessageCircle, Clock, Crown, PenTool, Video, Music, Store,
+  ChevronRight, ChevronDown, ArrowUpRight, Shield, Command, KeyRound, Building
 } from 'lucide-react';
 
 // ==========================================
@@ -30,16 +26,7 @@ function cn(...classes) {
   return classes.filter(Boolean).join(' ');
 }
 
-function useMousePosition() {
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
-  useEffect(() => {
-    const updateMousePosition = (e) => { setMousePosition({ x: e.clientX, y: e.clientY }); };
-    window.addEventListener("mousemove", updateMousePosition);
-    return () => window.removeEventListener("mousemove", updateMousePosition);
-  }, []);
-  return mousePosition;
-}
-
+// SSR/Hydrationエラーを防ぐためのフック
 function useIsMounted() {
   const [isMounted, setIsMounted] = useState(false);
   useEffect(() => { setIsMounted(true); }, []);
@@ -50,64 +37,18 @@ function useIsMounted() {
 // 🎨 ULTRA-MODERN UI COMPONENTS
 // ==========================================
 
-const CustomCursor = () => {
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
-  const [isHovering, setIsHovering] = useState(false);
-  const isMounted = useIsMounted();
-
-  useEffect(() => {
-    if (!isMounted) return;
-    const updateMousePosition = (e) => { setMousePosition({ x: e.clientX, y: e.clientY }); };
-    const handleMouseOver = (e) => {
-      const target = e.target;
-      if (target.tagName.toLowerCase() === 'a' || target.tagName.toLowerCase() === 'button' || target.closest('a') || target.closest('button')) {
-        setIsHovering(true);
-      } else {
-        setIsHovering(false);
-      }
-    };
-    window.addEventListener("mousemove", updateMousePosition);
-    window.addEventListener('mouseover', handleMouseOver);
-    return () => {
-      window.removeEventListener("mousemove", updateMousePosition);
-      window.removeEventListener('mouseover', handleMouseOver);
-    };
-  }, [isMounted]);
-
-  if (!isMounted || mousePosition.x === 0) return null;
-
-  return (
-    <>
-      <motion.div 
-        className="fixed top-0 left-0 w-8 h-8 rounded-full border border-slate-400/50 pointer-events-none z-[9999] mix-blend-difference hidden lg:flex items-center justify-center"
-        animate={{ 
-          x: mousePosition.x - 16, 
-          y: mousePosition.y - 16, 
-          scale: isHovering ? 1.5 : 1, 
-          backgroundColor: isHovering ? 'rgba(255,255,255,1)' : 'rgba(255,255,255,0)' 
-        }}
-        transition={{ type: "spring", stiffness: 150, damping: 15, mass: 0.5 }}
-      />
-      <motion.div 
-        className="fixed top-0 left-0 w-2 h-2 bg-pink-500 rounded-full pointer-events-none z-[10000] hidden lg:block"
-        animate={{ 
-          x: mousePosition.x - 4, 
-          y: mousePosition.y - 4, 
-          scale: isHovering ? 0 : 1 
-        }}
-        transition={{ type: "spring", stiffness: 500, damping: 28, mass: 0.1 }}
-      />
-    </>
-  );
-};
-
 const MagneticWrapper = ({ children, className }) => {
   const ref = useRef(null);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const isMounted = useIsMounted();
 
   const handleMouse = (e) => {
-    if (!isMounted || !ref.current || window.innerWidth < 1024) return;
+    // SSR時や要素がない場合は処理しない
+    if (!isMounted || !ref.current) return;
+    
+    // Windowオブジェクトへの安全なアクセス
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) return;
+    
     const { clientX, clientY } = e;
     const { height, width, left, top } = ref.current.getBoundingClientRect();
     const middleX = clientX - (left + width / 2);
@@ -116,6 +57,11 @@ const MagneticWrapper = ({ children, className }) => {
   };
 
   const reset = () => { setPosition({ x: 0, y: 0 }); };
+
+  // SSR時はアニメーションなしでレンダリング
+  if (!isMounted) {
+    return <div className={className}>{children}</div>;
+  }
 
   return (
     <motion.div
@@ -136,10 +82,14 @@ const SpotlightCard = ({ children, className, spotColor = "rgba(236, 72, 153, 0.
   const [isFocused, setIsFocused] = useState(false);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const isMounted = useIsMounted();
+  
+  // Hydration対策: マウントされるまでは透明度0
   const opacity = isMounted && isFocused ? 1 : 0;
 
   const handleMouseMove = (e) => {
-    if (!isMounted || !divRef.current || isFocused || window.innerWidth < 1024) return;
+    if (!isMounted || !divRef.current || isFocused) return;
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) return;
+    
     const div = divRef.current;
     const rect = div.getBoundingClientRect();
     setPosition({ x: e.clientX - rect.left, y: e.clientY - rect.top });
@@ -153,9 +103,12 @@ const SpotlightCard = ({ children, className, spotColor = "rgba(236, 72, 153, 0.
       onMouseLeave={() => setIsFocused(false)}
       className={cn("relative overflow-hidden rounded-[2rem] border border-slate-200/50 bg-white/50 backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)]", className)}
     >
-      <motion.div
-        className="pointer-events-none absolute -inset-px rounded-[2rem] opacity-0 transition duration-300 hidden lg:block"
-        style={{ opacity, background: `radial-gradient(600px circle at ${position.x}px ${position.y}px, ${spotColor}, transparent 40%)` }}
+      <div
+        className="pointer-events-none absolute -inset-px rounded-[2rem] transition duration-300 hidden lg:block"
+        style={{ 
+          opacity, 
+          background: `radial-gradient(600px circle at ${position.x}px ${position.y}px, ${spotColor}, transparent 40%)` 
+        }}
       />
       {children}
     </div>
@@ -164,9 +117,15 @@ const SpotlightCard = ({ children, className, spotColor = "rgba(236, 72, 153, 0.
 
 const Reveal = ({ children, delay = 0, className = "" }) => {
   const isMounted = useIsMounted();
+  
+  // SSR時は初期状態（opacity: 1, y: 0）でレンダリング
+  if (!isMounted) {
+    return <div className={className}>{children}</div>;
+  }
+  
   return (
     <motion.div 
-      initial={isMounted ? { opacity: 0, y: 20 } : { opacity: 1, y: 0 }} 
+      initial={{ opacity: 0, y: 20 }} 
       whileInView={{ opacity: 1, y: 0 }} 
       viewport={{ once: true, margin: "-10%" }} 
       transition={{ duration: 0.6, delay, ease: "easeOut" }} 
@@ -180,10 +139,14 @@ const Reveal = ({ children, delay = 0, className = "" }) => {
 const SplitTextReveal = ({ text, className, delay = 0 }) => {
   const words = text.split(" ");
   const isMounted = useIsMounted();
+
   const container = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.08, delayChildren: delay } } };
   const child = { visible: { opacity: 1, y: 0, filter: "blur(0px)", transition: { type: "spring", damping: 12, stiffness: 100 } }, hidden: { opacity: 0, y: 20, filter: "blur(5px)" } };
 
-  if (!isMounted) return <div className={className}>{text}</div>;
+  // SSR時は通常テキストとしてレンダリング
+  if (!isMounted) {
+    return <div className={className}>{text}</div>;
+  }
 
   return (
     <motion.div style={{ overflow: "hidden", display: "flex", flexWrap: "wrap", justifyContent: "center" }} variants={container} initial="hidden" whileInView="visible" viewport={{ once: true }} className={className}>
@@ -243,10 +206,11 @@ const Hero = () => {
   return (
     <section className="relative w-full min-h-[100svh] flex items-center justify-center overflow-hidden bg-[#FAFAFC] pt-20 pb-12 z-10">
       <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
-        <motion.div animate={{ scale: [1, 1.1, 1], rotate: [0, 45, 0] }} transition={{ duration: 20, repeat: Infinity, ease: "linear" }} className="absolute -top-[20%] -left-[10%] w-[150vw] md:w-[70vw] h-[150vw] md:h-[70vw] rounded-full bg-pink-300/20 blur-[80px] md:blur-[120px] mix-blend-multiply" />
-        <motion.div animate={{ scale: [1, 1.2, 1], rotate: [0, -45, 0] }} transition={{ duration: 25, repeat: Infinity, ease: "linear" }} className="absolute top-[20%] -right-[10%] w-[120vw] md:w-[60vw] h-[120vw] md:h-[60vw] rounded-full bg-violet-300/20 blur-[80px] md:blur-[120px] mix-blend-multiply" />
+        <div className="absolute -top-[20%] -left-[10%] w-[150vw] md:w-[70vw] h-[150vw] md:h-[70vw] rounded-full bg-pink-300/20 blur-[80px] md:blur-[120px] mix-blend-multiply animate-pulse" />
+        <div className="absolute top-[20%] -right-[10%] w-[120vw] md:w-[60vw] h-[120vw] md:h-[60vw] rounded-full bg-violet-300/20 blur-[80px] md:blur-[120px] mix-blend-multiply animate-pulse" style={{ animationDelay: "2s" }} />
       </div>
       
+      {/* SSR時のスタイル適用を避けるため、divでラップ */}
       <motion.div style={isMounted ? { y: y1, opacity } : {}} className="container relative z-10 max-w-5xl mx-auto px-4 md:px-6 flex flex-col items-center text-center">
         <Reveal delay={0.1}>
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/60 backdrop-blur-md border border-white shadow-sm mb-6 md:mb-8">
@@ -296,9 +260,10 @@ const Hero = () => {
 // --- 2. INFINITE MARQUEE ---
 const InfiniteMarquee = () => {
   const words = ["IDOL", "VTUBER", "STAGE", "VOICE ACTOR", "ANIME", "ANNIVERSARY"];
+  // CSSアニメーションを使用（Framer MotionのHydrationエラー回避）
   return (
     <div className="py-4 md:py-8 bg-slate-900 overflow-hidden flex whitespace-nowrap border-y border-white/10 relative z-20">
-      <motion.div className="flex items-center gap-6 md:gap-16" animate={{ x: [0, -1000] }} transition={{ repeat: Infinity, duration: 25, ease: "linear" }}>
+      <div className="flex items-center gap-6 md:gap-16 animate-marquee">
         {[...Array(4)].map((_, i) => (
           <div key={i} className="flex items-center gap-6 md:gap-16">
             {words.map((word, j) => (
@@ -308,7 +273,16 @@ const InfiniteMarquee = () => {
             ))}
           </div>
         ))}
-      </motion.div>
+      </div>
+      <style jsx>{`
+        .animate-marquee {
+          animation: marquee 25s linear infinite;
+        }
+        @keyframes marquee {
+          0% { transform: translateX(0%); }
+          100% { transform: translateX(-50%); }
+        }
+      `}</style>
     </div>
   );
 };
@@ -349,6 +323,7 @@ const HowItWorks = () => {
 
 // --- 4. TRENDING PROJECTS ---
 const TrendingProjects = () => {
+  const isMounted = useIsMounted();
   return (
     <section className="py-20 md:py-32 bg-slate-50 relative z-10 border-t border-slate-100">
       <div className="container mx-auto px-4 md:px-6 max-w-7xl">
@@ -388,7 +363,11 @@ const TrendingProjects = () => {
                         <div className="text-xs font-black font-mono text-slate-400">{project.percent}%</div>
                       </div>
                       <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-                        <motion.div initial={{ width: 0 }} whileInView={{ width: `${Math.min(project.percent, 100)}%` }} transition={{ duration: 1.5, delay: 0.2 }} className="h-full bg-slate-800 rounded-full" />
+                        {isMounted ? (
+                          <motion.div initial={{ width: 0 }} whileInView={{ width: `${Math.min(project.percent, 100)}%` }} transition={{ duration: 1.5, delay: 0.2 }} className="h-full bg-slate-800 rounded-full" />
+                        ) : (
+                          <div className="h-full bg-slate-800 rounded-full" style={{ width: `${Math.min(project.percent, 100)}%` }} />
+                        )}
                       </div>
                     </div>
                   </div>
@@ -586,60 +565,11 @@ const PartnerCTA = () => (
   </section>
 );
 
-// --- 9. MASSIVE FOOTER ---
-const Footer = () => (
-  <footer className="bg-slate-950 pt-20 pb-12 relative z-10 overflow-hidden border-t border-white/10">
-    <div className="container mx-auto px-6 md:px-8 max-w-7xl relative z-10">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-12 lg:gap-8 mb-20">
-        <div className="lg:col-span-2">
-          <h2 className="text-2xl md:text-3xl font-black text-white tracking-[0.2em] mb-4">FLASTAL</h2>
-          <p className="text-slate-400 text-xs md:text-sm font-medium leading-relaxed max-w-sm">
-            推しへの愛を、もっと自由に、もっと美しく。<br/>次世代の推し活クラウドファンディング。
-          </p>
-        </div>
-        <div>
-          <h4 className="text-white font-bold mb-5 tracking-widest uppercase text-xs">For Fans</h4>
-          <ul className="space-y-3">
-            <li><Link href="/projects" className="text-slate-400 hover:text-white text-xs md:text-sm transition-colors">企画を探す</Link></li>
-            <li><Link href="/projects/create" className="text-slate-400 hover:text-white text-xs md:text-sm transition-colors">企画を立ち上げる</Link></li>
-            <li><Link href="/login" className="text-slate-400 hover:text-white text-xs md:text-sm transition-colors">ファン ログイン</Link></li>
-          </ul>
-        </div>
-        <div>
-          <h4 className="text-white font-bold mb-5 tracking-widest uppercase text-xs">For Business</h4>
-          <ul className="space-y-3">
-            <li><Link href="/venues/login" className="text-blue-400 hover:text-blue-300 font-bold text-xs md:text-sm transition-colors flex items-center gap-1"><Building size={14}/> 会場・ホールログイン</Link></li>
-            <li><Link href="/florists/login" className="text-slate-400 hover:text-white text-xs md:text-sm transition-colors">お花屋さんログイン</Link></li>
-            <li><Link href="/illustrators/login" className="text-slate-400 hover:text-white text-xs md:text-sm transition-colors">クリエイターログイン</Link></li>
-            <li><Link href="/organizers/login" className="text-slate-400 hover:text-white text-xs md:text-sm transition-colors">主催者ログイン</Link></li>
-          </ul>
-        </div>
-        <div>
-          <h4 className="text-white font-bold mb-5 tracking-widest uppercase text-xs">Legal</h4>
-          <ul className="space-y-3">
-            <li><Link href="/terms" className="text-slate-400 hover:text-white text-xs md:text-sm transition-colors">利用規約</Link></li>
-            <li><Link href="/privacy" className="text-slate-400 hover:text-white text-xs md:text-sm transition-colors">プライバシーポリシー</Link></li>
-            <li><Link href="/tokushoho" className="text-slate-400 hover:text-white text-xs md:text-sm transition-colors">特定商取引法に基づく表記</Link></li>
-          </ul>
-        </div>
-      </div>
-      <div className="border-t border-white/10 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
-        <p className="text-slate-500 text-[10px] md:text-xs">© 2026 FLASTAL. All rights reserved.</p>
-      </div>
-    </div>
-  </footer>
-);
-
 // ==========================================
 // 👑 MAIN EXPORT (Page Assembler)
 // ==========================================
 export default function HomePage() {
-  const [isMounted, setIsMounted] = useState(false);
   const [introFinished, setIntroFinished] = useState(false);
-
-  useEffect(() => { setIsMounted(true); }, []);
-
-  if (!isMounted) return null; 
 
   return (
     <main className="bg-[#FAFAFC] min-h-screen text-slate-800 font-sans selection:bg-pink-100 selection:text-pink-500">
@@ -647,8 +577,6 @@ export default function HomePage() {
         {!introFinished && <IntroLoader onComplete={() => setIntroFinished(true)} />}
       </AnimatePresence>
 
-      <CustomCursor />
-      
       <Hero />
       <InfiniteMarquee />
       <HowItWorks />
@@ -657,7 +585,7 @@ export default function HomePage() {
       <CategoryGrid />
       <ArticlesSection />
       <PartnerCTA />
-      <Footer />
+      {/* Footer コンポーネントは重複のため削除しました */}
 
       <style jsx global>{`
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap');
@@ -672,12 +600,6 @@ export default function HomePage() {
           -moz-osx-font-smoothing: grayscale;
         }
         
-        /* Desktop Custom Cursor */
-        @media (min-width: 1024px) {
-          body { cursor: none; }
-          a, button, input, select, textarea { cursor: none !important; }
-        }
-
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
