@@ -36,24 +36,89 @@ export default function AdminUsersPage() {
     const [searchKeyword, setSearchKeyword] = useState('');
     const [activeTab, setActiveTab] = useState('ALL');
 
-    // ユーザー情報の取得
+    // ★ ユーザー情報の強力な取得ロジック（全テーブルから集めてマージする）
     const fetchUsers = async () => {
         setIsLoadingData(true);
         try {
             const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+            const headers = { 'Authorization': `Bearer ${token}` };
             const params = new URLSearchParams();
             if (searchKeyword) params.append('keyword', searchKeyword);
 
-            const res = await fetch(`${API_URL}/api/admin/users/search?${params.toString()}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
+            // 1. まず標準のユーザー検索APIを叩く
+            // 2. さらに各ロール専用のAPIも叩いて情報を補完する（表示漏れをゼロにするための並列処理）
+            const [userRes, fRes, iRes, vRes, oRes] = await Promise.all([
+                fetch(`${API_URL}/api/admin/users/search?${params.toString()}`, { headers }).catch(() => null),
+                fetch(`${API_URL}/api/florists`, { headers }).catch(() => null),
+                fetch(`${API_URL}/api/illustrators`, { headers }).catch(() => null),
+                fetch(`${API_URL}/api/venues`, { headers }).catch(() => null),
+                fetch(`${API_URL}/api/organizers`, { headers }).catch(() => null),
+            ]);
+
+            let baseUsers = userRes?.ok ? await userRes.json() : [];
+            if (!Array.isArray(baseUsers)) baseUsers = baseUsers.users || [];
+
+            const fData = fRes?.ok ? await fRes.json() : [];
+            const iData = iRes?.ok ? await iRes.json() : [];
+            const vData = vRes?.ok ? await vRes.json() : [];
+            const oData = oRes?.ok ? await oRes.json() : [];
+
+            // 配列の取り出し
+            const florists = Array.isArray(fData) ? fData : (fData.florists || []);
+            const illustrators = Array.isArray(iData) ? iData : (iData.illustrators || []);
+            const venues = Array.isArray(vData) ? vData : (vData.venues || []);
+            const organizers = Array.isArray(oData) ? oData : (oData.organizers || []);
+
+            const allMap = new Map();
+            
+            // ベースユーザーをセット
+            baseUsers.forEach(u => {
+                allMap.set(u.id, {
+                    ...u,
+                    role: u.role ? u.role.toUpperCase() : 'USER',
+                    displayName: u.handleName || u.name || '未設定'
+                });
             });
 
-            if (res.ok) {
-                const data = await res.json();
-                setUsers(data);
-            } else {
-                throw new Error('データの取得に失敗しました');
+            // 他のロールのデータをマージする関数（IDかuserIdで紐付け、正しい名前フィールドを取得）
+            const mergeData = (items, role, nameField) => {
+                items.forEach(item => {
+                    const id = item.userId || item.id;
+                    const existing = allMap.get(id) || {};
+                    allMap.set(id, {
+                        ...existing,
+                        ...item,
+                        id: id,
+                        // 既存のロールがあれば優先（ADMINなど）、なければ新しいロールを設定
+                        role: existing.role && existing.role !== 'USER' ? existing.role : role,
+                        displayName: item[nameField] || item.name || existing.displayName || '未設定',
+                        email: existing.email || item.email || '非公開（プロフ連携のみ）'
+                    });
+                });
+            };
+
+            // お花屋さんは storeName, クリエイターは penName, 会場は venueName, 主催者は organizerName を使う
+            mergeData(florists, 'FLORIST', 'storeName');
+            mergeData(illustrators, 'ILLUSTRATOR', 'penName');
+            mergeData(venues, 'VENUE', 'venueName');
+            mergeData(organizers, 'ORGANIZER', 'organizerName');
+
+            let combinedUsers = Array.from(allMap.values());
+
+            // クライアント側でキーワード絞り込み（マージ後のデータに対して）
+            if (searchKeyword) {
+                const kw = searchKeyword.toLowerCase();
+                combinedUsers = combinedUsers.filter(u => 
+                    u.displayName?.toLowerCase().includes(kw) || 
+                    u.email?.toLowerCase().includes(kw) ||
+                    u.id?.toLowerCase().includes(kw)
+                );
             }
+
+            // 新しい順にソート
+            combinedUsers.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+
+            setUsers(combinedUsers);
         } catch (error) {
             console.error('Fetch error:', error);
             toast.error('ユーザー一覧の取得に失敗しました');
@@ -62,7 +127,6 @@ export default function AdminUsersPage() {
         }
     };
 
-    // 認証チェックと初回ロード
     useEffect(() => {
         if (loading) return;
         if (!isAuthenticated || user?.role !== 'ADMIN') {
@@ -83,7 +147,6 @@ export default function AdminUsersPage() {
         return users.filter(u => u.role === activeTab);
     }, [users, activeTab]);
 
-    // ★ チャットルーム作成＆移動処理
     const handleStartChat = async (targetUser) => {
         const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
         if (!token) return;
@@ -104,9 +167,6 @@ export default function AdminUsersPage() {
 
             if (res.ok) {
                 toast.success('チャットルームを開きます', { id: toastId });
-                // 作成（取得）したルーム情報を元に、個別チャット管理画面へ遷移
-                // ※ ここは既存の admin/contact 画面へリダイレクトし、そこで該当ユーザーを選択した状態にする想定です。
-                // URLパラメータ等で selectedUserId を渡す設計に合わせます。
                 router.push(`/admin/contact?userId=${targetUser.id}&role=${targetUser.role}`);
             } else {
                 throw new Error('ルーム接続失敗');
@@ -219,7 +279,6 @@ export default function AdminUsersPage() {
                                         const badge = getRoleBadge(u.role);
                                         return (
                                             <tr key={u.id} className="hover:bg-sky-50/30 transition-colors group">
-                                                {/* ユーザー情報 (アイコン + 名前) */}
                                                 <td className="px-6 py-4">
                                                     <div className="flex items-center gap-4">
                                                         <div className="w-10 h-10 rounded-full bg-white border border-slate-200 overflow-hidden flex items-center justify-center shrink-0 shadow-sm">
@@ -230,42 +289,42 @@ export default function AdminUsersPage() {
                                                             )}
                                                         </div>
                                                         <div>
+                                                            {/* ★ 変更: u.displayName を表示するようにしました */}
                                                             <p className="text-sm font-bold text-slate-800 group-hover:text-sky-600 transition-colors">
-                                                                {u.handleName || u.name || '未設定'}
+                                                                {u.displayName}
                                                             </p>
                                                             <p className="text-[10px] text-slate-400 font-mono mt-0.5">ID: {u.id.substring(0, 8)}...</p>
                                                         </div>
                                                     </div>
                                                 </td>
 
-                                                {/* 連絡先 */}
                                                 <td className="px-6 py-4">
                                                     <div className="flex items-center gap-2 text-sm text-slate-600">
                                                         <Mail size={14} className="text-slate-400" />
-                                                        <a href={`mailto:${u.email}`} className="hover:text-sky-500 hover:underline transition-colors">
-                                                            {u.email}
-                                                        </a>
+                                                        {u.email !== '非公開（プロフ連携のみ）' ? (
+                                                          <a href={`mailto:${u.email}`} className="hover:text-sky-500 hover:underline transition-colors">
+                                                              {u.email}
+                                                          </a>
+                                                        ) : (
+                                                          <span className="text-slate-400">{u.email}</span>
+                                                        )}
                                                     </div>
                                                 </td>
 
-                                                {/* 権限・ロール */}
                                                 <td className="px-6 py-4">
                                                     <span className={cn("inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border shadow-sm", badge.bg, badge.text, badge.bg.replace('bg-', 'border-'))}>
                                                         <badge.icon size={12} /> {badge.label}
                                                     </span>
                                                 </td>
 
-                                                {/* 登録日 */}
                                                 <td className="px-6 py-4">
                                                     <p className="text-sm text-slate-600 font-medium">
-                                                        {new Date(u.createdAt).toLocaleDateString('ja-JP')}
+                                                        {u.createdAt ? new Date(u.createdAt).toLocaleDateString('ja-JP') : '-'}
                                                     </p>
                                                 </td>
 
-                                                {/* ★ アクション (個別連絡・通知への導線) */}
                                                 <td className="px-6 py-4">
                                                     <div className="flex items-center justify-end gap-2">
-                                                        {/* チャットボタン */}
                                                         <button 
                                                             onClick={() => handleStartChat(u)}
                                                             className="flex items-center gap-1 px-3 py-1.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white border border-indigo-100 hover:border-indigo-600 rounded-lg transition-all text-xs font-bold shadow-sm"
@@ -274,19 +333,15 @@ export default function AdminUsersPage() {
                                                             <MessageSquare size={14} /> 連絡
                                                         </button>
                                                         
-                                                        {/* メーラー起動ボタン */}
-                                                        <a 
-                                                            href={`mailto:${u.email}`}
-                                                            className="flex items-center gap-1 px-3 py-1.5 bg-white text-slate-600 hover:bg-slate-100 hover:text-slate-900 border border-slate-200 rounded-lg transition-all text-xs font-bold shadow-sm"
-                                                            title="メールを送信"
-                                                        >
-                                                            <Mail size={14} /> メール
-                                                        </a>
-
-                                                        {/* その他メニュー */}
-                                                        <button className="p-1.5 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors">
-                                                            <MoreVertical size={16} />
-                                                        </button>
+                                                        {u.email !== '非公開（プロフ連携のみ）' && (
+                                                          <a 
+                                                              href={`mailto:${u.email}`}
+                                                              className="flex items-center gap-1 px-3 py-1.5 bg-white text-slate-600 hover:bg-slate-100 hover:text-slate-900 border border-slate-200 rounded-lg transition-all text-xs font-bold shadow-sm"
+                                                              title="メールを送信"
+                                                          >
+                                                              <Mail size={14} /> メール
+                                                          </a>
+                                                        )}
                                                     </div>
                                                 </td>
                                             </tr>
