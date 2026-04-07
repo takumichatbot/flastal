@@ -15,6 +15,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onre
 
 function cn(...classes) { return classes.filter(Boolean).join(' '); }
 
+// --- ヘルパー: ロールに応じたスタイル ---
 const getRoleBadge = (role) => {
     switch (role) {
         case 'ADMIN': return { bg: 'bg-rose-100', text: 'text-rose-700', label: '管理者', icon: ShieldCheck };
@@ -35,86 +36,50 @@ export default function AdminUsersPage() {
     const [searchKeyword, setSearchKeyword] = useState('');
     const [activeTab, setActiveTab] = useState('ALL');
 
+    // ★ ユーザー情報の安定した取得ロジック（search API 1本に絞る）
     const fetchUsers = async () => {
         setIsLoadingData(true);
         try {
             const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
             const headers = { 'Authorization': `Bearer ${token}` };
+            
+            // 検索キーワードがあればパラメータに付与
             const params = new URLSearchParams();
             if (searchKeyword) params.append('keyword', searchKeyword);
 
-            // ★ エラーの原因だった存在しないAPIを削除し、確実にデータが取れるAPIのみを使用
-            const [userRes, fRes, iRes, vRes, oRes] = await Promise.all([
-                fetch(`${API_URL}/api/admin/users/search?${params.toString()}`, { headers }).catch(() => null),
-                fetch(`${API_URL}/api/admin/florists/pending`, { headers }).catch(() => null), // 承認済みも含めて返ってくる想定
-                fetch(`${API_URL}/api/admin/illustrators/pending`, { headers }).catch(() => null),
-                fetch(`${API_URL}/api/admin/venues/pending`, { headers }).catch(() => null),
-                fetch(`${API_URL}/api/admin/organizers/pending`, { headers }).catch(() => null),
-            ]);
-
-            const safeExtract = async (res) => {
-                if (!res || !res.ok) return [];
-                try {
-                    const data = await res.json();
-                    return Array.isArray(data) ? data : (data.data || []);
-                } catch(e) {
-                    return [];
-                }
-            };
-
-            let baseUsers = await safeExtract(userRes);
-            const florists = await safeExtract(fRes);
-            const illustrators = await safeExtract(iRes);
-            const venues = await safeExtract(vRes);
-            const organizers = await safeExtract(oRes);
-
-            const allMap = new Map();
+            const res = await fetch(`${API_URL}/api/admin/users/search?${params.toString()}`, { headers });
             
-            // ベースユーザーをセット
-            baseUsers.forEach(u => {
-                allMap.set(u.id, {
-                    ...u,
-                    role: u.role ? u.role.toUpperCase() : 'USER',
-                    displayName: u.handleName || u.name || '未設定'
-                });
-            });
-
-            // 他のロールデータをマージ（既存のユーザー情報に「屋号」などを上書き）
-            const mergeData = (items, role, nameField) => {
-                items.forEach(item => {
-                    const id = item.userId || item.id;
-                    if (!id) return;
-                    const existing = allMap.get(id) || { id, email: item.email || '非公開' };
-                    allMap.set(id, {
-                        ...existing,
-                        ...item,
-                        id: id,
-                        role: existing.role !== 'USER' && existing.role ? existing.role : role,
-                        displayName: item[nameField] || existing.displayName || item.name || '未設定',
-                        createdAt: existing.createdAt || item.createdAt
-                    });
-                });
-            };
-
-            mergeData(florists, 'FLORIST', 'storeName');
-            mergeData(illustrators, 'ILLUSTRATOR', 'penName');
-            mergeData(venues, 'VENUE', 'venueName');
-            mergeData(organizers, 'ORGANIZER', 'organizerName');
-
-            let combinedUsers = Array.from(allMap.values());
-
-            if (searchKeyword) {
-                const kw = searchKeyword.toLowerCase();
-                combinedUsers = combinedUsers.filter(u => 
-                    u.displayName?.toLowerCase().includes(kw) || 
-                    u.email?.toLowerCase().includes(kw) ||
-                    u.id?.toLowerCase().includes(kw)
-                );
+            if (!res.ok) {
+                throw new Error('ユーザー情報の取得に失敗しました');
             }
 
-            combinedUsers.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
-            setUsers(combinedUsers);
+            const data = await res.json();
+            // 配列を安全に抽出（バックエンドのレスポンス形式に柔軟に対応）
+            const usersArray = Array.isArray(data) ? data : (data.users || data.data || []);
 
+            // データの成形（ロールごとの名前の抽出など）
+            const mappedUsers = usersArray.map(u => {
+                const role = u.role ? u.role.toUpperCase() : 'USER';
+                let displayName = u.handleName || u.name || '未設定';
+                
+                // もしバックエンドがネストされたデータ(u.florist等)を返してくれた場合は、そちらを優先
+                if (role === 'FLORIST' && u.florist?.storeName) displayName = u.florist.storeName;
+                if (role === 'ORGANIZER' && u.organizer?.organizerName) displayName = u.organizer.organizerName;
+                if (role === 'ILLUSTRATOR' && u.illustrator?.penName) displayName = u.illustrator.penName;
+                if (role === 'VENUE' && u.venue?.venueName) displayName = u.venue.venueName;
+
+                return {
+                    ...u,
+                    role,
+                    displayName,
+                    email: u.email || '非公開（プロフ連携のみ）'
+                };
+            });
+
+            // 新しい順にソート
+            mappedUsers.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+
+            setUsers(mappedUsers);
         } catch (error) {
             console.error('Fetch error:', error);
             toast.error('ユーザー一覧の取得に失敗しました');
@@ -131,18 +96,21 @@ export default function AdminUsersPage() {
             return;
         }
         
+        // 検索入力時のデバウンス（入力が止まってから0.5秒後にAPIを叩く）
         const timer = setTimeout(() => {
             fetchUsers();
         }, 500);
         return () => clearTimeout(timer);
     }, [isAuthenticated, user, loading, router, searchKeyword]);
 
+    // タブ（ロール）でのクライアントサイド絞り込み
     const filteredUsers = useMemo(() => {
         if (activeTab === 'ALL') return users;
         if (activeTab === 'USER') return users.filter(u => u.role === 'USER' || !u.role);
         return users.filter(u => u.role === activeTab);
     }, [users, activeTab]);
 
+    // チャット開始アクション
     const handleStartChat = async (targetUser) => {
         const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
         if (!token) return;
@@ -177,6 +145,7 @@ export default function AdminUsersPage() {
     return (
         <div className="min-h-screen bg-slate-50 pb-24">
             
+            {/* ヘッダーエリア */}
             <div className="bg-white border-b border-slate-200 sticky top-0 z-10 shadow-sm">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="py-4 flex items-center justify-between">
@@ -200,8 +169,10 @@ export default function AdminUsersPage() {
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 
+                {/* 検索・フィルターエリア */}
                 <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 mb-6 flex flex-col md:flex-row gap-4 justify-between items-center">
                     
+                    {/* 検索バー */}
                     <div className="relative w-full md:w-96 group">
                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-sky-500 transition-colors" size={18} />
                         <input
@@ -213,6 +184,7 @@ export default function AdminUsersPage() {
                         />
                     </div>
 
+                    {/* タブ */}
                     <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0 w-full md:w-auto scrollbar-hide">
                         {[
                             { id: 'ALL', label: 'すべて' },
@@ -238,6 +210,7 @@ export default function AdminUsersPage() {
                     </div>
                 </div>
 
+                {/* ユーザー一覧テーブル */}
                 <div className="bg-white border border-slate-200 rounded-[2rem] shadow-sm overflow-hidden">
                     <div className="overflow-x-auto">
                         <table className="w-full text-left border-collapse">
