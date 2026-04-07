@@ -88,7 +88,6 @@ export const approveItem = async (req, res) => {
         const fm = prisma.florist || prisma['florist'];
         if (type === 'projects') updated = await prisma.project.update({ where: { id }, data: { status: status === 'APPROVED' ? 'FUNDRAISING' : 'REJECTED' } });
         else if (type === 'florists') updated = await fm.update({ where: { id }, data: { status: finalStatus } });
-        // ★ 追加: 絵師のステータス更新
         else if (type === 'illustrators') updated = await prisma.illustrator.update({ where: { id }, data: { status: finalStatus } });
         else if (type === 'venues') updated = await prisma.venue.update({ where: { id }, data: { status: finalStatus } });
         else if (type === 'organizers') updated = await prisma.organizer.update({ where: { id }, data: { status: finalStatus } });
@@ -103,7 +102,6 @@ export const getPendingItems = async (req, res) => {
         const fm = prisma.florist || prisma['florist'];
         if (type === 'projects') data = await prisma.project.findMany({ where: { status: 'PENDING_APPROVAL' }, include: { planner: true } });
         else if (type === 'florists') data = await fm.findMany({ where: { status: 'PENDING' } });
-        // ★ 追加: 絵師の審査待ちリスト取得
         else if (type === 'illustrators') data = await prisma.illustrator.findMany({ where: { status: 'PENDING' } });
         else if (type === 'venues') data = await prisma.venue.findMany({ where: { status: 'PENDING' } });
         else if (type === 'organizers') data = await prisma.organizer.findMany({ where: { status: 'PENDING' } });
@@ -204,15 +202,13 @@ export const getAdminChatMessages = async (req, res) => {
 };
 
 // ==========================================
-// ★ 修正: 強力かつ安全なユーザー取得ロジック
-// Prismaの仕様上、リレーション先を直接OR検索できないため、
-// 別々に取得してから合体させる手法に変更しました。
+// ★ 修正: 完全に独立したテーブルを全て検索し、マージするロジック
 // ==========================================
 export const searchAllUsers = async (req, res) => {
     try {
         const keyword = req.query.keyword || '';
 
-        // 1. Userテーブルから直接検索（ハンドルネーム、メアド）
+        // 1. Userテーブルから検索 (ファン、管理者、クリエイターなど)
         const usersWhere = keyword ? {
             OR: [
                 { handleName: { contains: keyword } },
@@ -220,54 +216,114 @@ export const searchAllUsers = async (req, res) => {
             ]
         } : {};
 
-        // リレーション情報をすべて含めて取得
-        const users = await prisma.user.findMany({
+        const baseUsers = await prisma.user.findMany({
             where: usersWhere,
-            include: {
-                florist: true,
-                organizer: true,
-                illustrator: true,
-                venue: true
-            },
+            include: { illustratorProfile: true },
             orderBy: { createdAt: 'desc' }
         });
 
-        // 2. もしキーワードがある場合は、各ロール側のテーブル名でも引っ掛ける
-        if (keyword) {
-            const [florists, organizers, illustrators, venues] = await Promise.all([
-                prisma.florist?.findMany({ where: { storeName: { contains: keyword } }, include: { user: true } }).catch(() => []),
-                prisma.organizer?.findMany({ where: { organizerName: { contains: keyword } }, include: { user: true } }).catch(() => []),
-                prisma.illustrator?.findMany({ where: { penName: { contains: keyword } }, include: { user: true } }).catch(() => []),
-                prisma.venue?.findMany({ where: { venueName: { contains: keyword } }, include: { user: true } }).catch(() => [])
-            ]);
+        // 2. 独立した各ロールテーブルから検索
+        // Florist (お花屋さん)
+        const floristsWhere = keyword ? {
+            OR: [
+                { shopName: { contains: keyword } }, 
+                { platformName: { contains: keyword } },
+                { email: { contains: keyword } },
+                { contactName: { contains: keyword } }
+            ]
+        } : {};
+        const florists = await prisma.florist.findMany({ 
+            where: floristsWhere, 
+            orderBy: { createdAt: 'desc' } 
+        }).catch(() => []);
 
-            // すでにUserテーブル側で取れているIDのセット
-            const existingIds = new Set(users.map(u => u.id));
+        // Organizer (主催者)
+        const organizersWhere = keyword ? {
+            OR: [
+                { name: { contains: keyword } },
+                { email: { contains: keyword } }
+            ]
+        } : {};
+        const organizers = await prisma.organizer.findMany({ 
+            where: organizersWhere, 
+            orderBy: { createdAt: 'desc' } 
+        }).catch(() => []);
 
-            // 追加していく関数
-            const addUniqueUsers = (items, relationKey) => {
-                items.forEach(item => {
-                    if (item.user && !existingIds.has(item.user.id)) {
-                        existingIds.add(item.user.id);
-                        // リレーションデータをユーザーオブジェクトにマージして配列に追加
-                        users.push({
-                            ...item.user,
-                            [relationKey]: item
-                        });
-                    }
-                });
-            };
+        // Venue (会場)
+        const venuesWhere = keyword ? {
+            OR: [
+                { venueName: { contains: keyword } },
+                { email: { contains: keyword } }
+            ]
+        } : {};
+        const venues = await prisma.venue.findMany({ 
+            where: venuesWhere, 
+            orderBy: { createdAt: 'desc' } 
+        }).catch(() => []);
 
-            addUniqueUsers(florists || [], 'florist');
-            addUniqueUsers(organizers || [], 'organizer');
-            addUniqueUsers(illustrators || [], 'illustrator');
-            addUniqueUsers(venues || [], 'venue');
-        }
 
-        // 新しい順に並び替えて返す
-        users.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        // 3. 全データをマージ（すべて共通のオブジェクト構造にする）
+        const finalUsers = [];
 
-        return res.json(users || []);
+        // Users の処理
+        baseUsers.forEach(u => {
+            let role = u.role ? u.role.toUpperCase() : 'USER';
+            // クリエイター（絵師）の場合はロールを上書き
+            if (u.illustratorProfile || role === 'ILLUSTRATOR') {
+                role = 'ILLUSTRATOR';
+            }
+
+            finalUsers.push({
+                id: u.id,
+                email: u.email || '非公開',
+                displayName: u.handleName || u.name || '未設定',
+                role: role,
+                createdAt: u.createdAt,
+                iconUrl: u.iconUrl || null
+            });
+        });
+
+        // Florists の処理
+        florists.forEach(f => {
+            finalUsers.push({
+                id: f.id,
+                email: f.email,
+                displayName: f.platformName || f.shopName || f.contactName || '未設定',
+                role: 'FLORIST',
+                createdAt: f.createdAt,
+                iconUrl: f.iconUrl || null
+            });
+        });
+
+        // Organizers の処理
+        organizers.forEach(o => {
+            finalUsers.push({
+                id: o.id,
+                email: o.email,
+                displayName: o.name || '未設定',
+                role: 'ORGANIZER',
+                createdAt: o.createdAt,
+                iconUrl: null
+            });
+        });
+
+        // Venues の処理
+        venues.forEach(v => {
+            finalUsers.push({
+                id: v.id,
+                email: v.email,
+                displayName: v.venueName || '未設定',
+                role: 'VENUE',
+                createdAt: v.createdAt,
+                iconUrl: v.imageUrls && v.imageUrls.length > 0 ? v.imageUrls[0] : null
+            });
+        });
+
+        // 4. 全体を日付で新しい順にソートしてフロントエンドへ返す
+        finalUsers.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+
+        return res.json(finalUsers);
+
     } catch (e) {
         console.error("searchAllUsers API Error:", e);
         return res.status(500).json([]);
