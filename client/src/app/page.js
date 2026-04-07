@@ -142,7 +142,7 @@ const SplitTextReveal = ({ text, className, delay = 0 }) => {
 };
 
 // ==========================================
-// 🎀 EMOJI PARTICLE
+// 🎀 EMOJI PARTICLE 
 // ==========================================
 const EmojiParticle = ({ emoji, delay = 0, x = "0%", y = "0%", scale = 1 }) => {
   const isMounted = useIsMounted();
@@ -192,20 +192,20 @@ const DUMMY_PROJECTS = [
 // 🚀 PAGE SECTIONS
 // ==========================================
 
-// --- 0. INTRO LOADER (★ 黒画面を撤廃し、サクサク開く) ---
+// --- 0. INTRO LOADER (レースカーテンのみ) ---
 const IntroLoader = ({ onComplete }) => {
   useEffect(() => { 
-    // アニメーション全体を短縮し、1.6秒でサクッとアンマウントさせる
-    const timer = setTimeout(onComplete, 1600); 
+    // アニメーションが終わるタイミングで通知し、アンマウントさせる
+    const timer = setTimeout(onComplete, 2400); 
     return () => clearTimeout(timer); 
   }, [onComplete]);
 
   return (
-    // ★ 背景を透明にし、後ろのメインコンテンツが見えるようにする
+    // 親要素が消えるとき（exit）に、ズームアウト＋フェードアウトで奥へ消える演出
     <motion.div 
       className="fixed inset-0 z-[99999] flex items-center justify-center pointer-events-none"
       initial={{ opacity: 1 }}
-      exit={{ opacity: 0, transition: { duration: 0.4 } }}
+      exit={{ scale: 3, opacity: 0, filter: "blur(10px)", transition: { duration: 1.2, ease: "easeInOut" } }}
     >
       
       {/* --- 左側のレースカーテン --- */}
@@ -213,7 +213,7 @@ const IntroLoader = ({ onComplete }) => {
         className="absolute inset-y-0 left-0 w-1/2 bg-[#FDF2F8] shadow-[20px_0_50px_rgba(244,114,182,0.4)] z-10 origin-left"
         initial={{ x: 0, skewX: 0 }}
         animate={{ x: "-100%", skewX: -5 }} 
-        transition={{ duration: 1.0, delay: 0.4, ease: [0.76, 0, 0.24, 1] }} // ★ タイミングを高速化
+        transition={{ duration: 1.4, delay: 0.5, ease: [0.76, 0, 0.24, 1] }}
         style={{
           backgroundImage: `
             linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(244,114,182,0.05) 50%, rgba(0,0,0,0) 100%),
@@ -240,7 +240,7 @@ const IntroLoader = ({ onComplete }) => {
         className="absolute inset-y-0 right-0 w-1/2 bg-[#FDF2F8] shadow-[-20px_0_50px_rgba(244,114,182,0.4)] z-10 origin-right"
         initial={{ x: 0, skewX: 0 }}
         animate={{ x: "100%", skewX: 5 }} 
-        transition={{ duration: 1.0, delay: 0.4, ease: [0.76, 0, 0.24, 1] }} // ★ タイミングを高速化
+        transition={{ duration: 1.4, delay: 0.5, ease: [0.76, 0, 0.24, 1] }}
         style={{
           backgroundImage: `
             linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(244,114,182,0.05) 50%, rgba(0,0,0,0) 100%),
@@ -262,32 +262,32 @@ const IntroLoader = ({ onComplete }) => {
         </div>
       </motion.div>
 
-      {/* --- 中央のロゴ (奥へ吸い込まれて消える) --- */}
+      {/* --- 中央のロゴ --- */}
       <motion.div 
         className="absolute z-20 flex flex-col items-center"
-        initial={{ opacity: 0, scale: 0.8 }} 
-        // ★ ズームインスピードを上げ、サクッと消える
-        animate={{ opacity: [0, 1, 0], scale: [0.8, 1, 2.5] }} 
-        transition={{ duration: 1.3, times: [0, 0.3, 1], ease: "easeIn" }}
+        initial={{ opacity: 0, scale: 0.5, y: 20 }} 
+        animate={{ opacity: 1, scale: 1, y: 0 }} 
+        transition={{ duration: 0.8, ease: "easeOut", delay: 0.2 }}
       >
-        <span className="font-calligraphy text-3xl md:text-4xl text-pink-400 mb-2 drop-shadow-sm">Welcome to</span>
-        <h1 className="text-4xl md:text-7xl font-black text-pink-500 tracking-[0.3em] font-serif-jp drop-shadow-lg">
+        <span className="font-calligraphy text-4xl text-pink-400 mb-2 drop-shadow-sm">Welcome to</span>
+        <h1 className="text-5xl md:text-7xl font-black text-pink-500 tracking-[0.3em] font-serif-jp drop-shadow-lg">
           FLASTAL
         </h1>
+        <div className="w-full h-px bg-gradient-to-r from-transparent via-pink-400 to-transparent mt-4" />
       </motion.div>
       
     </motion.div>
   );
 };
 
-// --- Main Content Wrapper ( IntroLoader 後ろに配置し、一緒に奥から浮かび上がる ) ---
+// --- メインコンテンツをラップするコンポーネント ---
 const MainContent = () => {
   return (
+    // ★ 変更点: 初期状態をぼかし(blur)、徐々にピントが合う(focus)アニメーションに変更
     <motion.div
-      // ★ カーテンが開くタイミング(delay: 0.4)に合わせて、全体が奥からフワッと浮かび上がる
-      initial={{ opacity: 0, scale: 1.05, filter: "blur(8px)" }}
+      initial={{ opacity: 0, scale: 1.1, filter: "blur(20px)" }}
       animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
-      transition={{ duration: 1.2, delay: 0.4, ease: "easeOut" }}
+      transition={{ duration: 2.0, delay: 0.4, ease: "easeOut" }} // カーテンが開くと同時にじわっと現れる
     >
       <Hero />
       <InfiniteMarquee />
@@ -381,7 +381,8 @@ const InfiniteMarquee = () => {
           <div key={i} className="flex items-center gap-6 md:gap-16">
             {words.map((word, j) => (
               <React.Fragment key={j}>
-                <span className="text-2xl md:text-5xl font-black text-transparent tracking-widest" style={{ WebkitTextStroke: "1px rgba(255,255,255,0.1)" }}>
+                {/* ★ 変更点: text-slate-100 */}
+                <span className="text-2xl md:text-5xl font-black text-slate-100 tracking-widest">
                   {word}
                 </span>
                 <Heart size={20} className="text-pink-600/30 mx-2" fill="currentColor" />
@@ -506,10 +507,11 @@ const BentoFeatures = () => {
       desc: "クレジットカードやPayPay等での自動集金。主催者が個人の銀行口座を公開する必要はありません。",
       span: "col-span-1 md:col-span-2 row-span-1 md:row-span-2",
       icon: Shield,
-      color: "bg-slate-950",
-      text: "text-white",
-      descColor: "text-white/80",
-      iconColor: "text-emerald-400",
+      // ★ 変更点: bg-white と text-slate-700 に変更
+      color: "bg-white",
+      text: "text-slate-700",
+      descColor: "text-slate-500",
+      iconColor: "text-slate-600",
       visual: (
         <>
           <div className="absolute right-0 bottom-0 w-64 h-64 bg-gradient-to-tl from-emerald-400/20 to-transparent rounded-tl-full blur-2xl"></div>
@@ -709,13 +711,13 @@ export default function HomePage() {
   return (
     <main className="bg-[#FFFDFE] min-h-screen text-slate-800 font-sans selection:bg-pink-100 selection:text-pink-500">
       
-      {/* ★ 変更点: mode="wait" は削除せず、IntroLoader と MainContent が独立して動くようにする */}
-      <AnimatePresence>
-        {!introFinished && <IntroLoader key="loader" onComplete={() => setIntroFinished(true)} />}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {introFinished && <MainContent key="content" />}
+      {/* ★ IntroLoader が完全に消えるまで MainContent を描画しない */}
+      <AnimatePresence mode="wait">
+        {!introFinished ? (
+          <IntroLoader key="loader" onComplete={() => setIntroFinished(true)} />
+        ) : (
+          <MainContent key="content" />
+        )}
       </AnimatePresence>
 
       <style jsx global>{`
