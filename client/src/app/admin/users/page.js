@@ -36,33 +36,28 @@ export default function AdminUsersPage() {
     const [searchKeyword, setSearchKeyword] = useState('');
     const [activeTab, setActiveTab] = useState('ALL');
 
-    // ★ ユーザー情報の安定した取得ロジック（search API 1本に絞る）
+    // ★ パワーアップしたバックエンドAPI 1本だけを叩くシンプルで確実なロジック
     const fetchUsers = async () => {
         setIsLoadingData(true);
         try {
             const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
-            const headers = { 'Authorization': `Bearer ${token}` };
-            
-            // 検索キーワードがあればパラメータに付与
             const params = new URLSearchParams();
             if (searchKeyword) params.append('keyword', searchKeyword);
 
-            const res = await fetch(`${API_URL}/api/admin/users/search?${params.toString()}`, { headers });
+            const res = await fetch(`${API_URL}/api/admin/users/search?${params.toString()}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
             
-            if (!res.ok) {
-                throw new Error('ユーザー情報の取得に失敗しました');
-            }
-
+            if (!res.ok) throw new Error('ユーザー情報の取得に失敗しました');
+            
             const data = await res.json();
-            // 配列を安全に抽出（バックエンドのレスポンス形式に柔軟に対応）
             const usersArray = Array.isArray(data) ? data : (data.users || data.data || []);
 
-            // データの成形（ロールごとの名前の抽出など）
+            // バックエンドが返してくれたリレーション情報（florist, organizer等）を使って名前を抽出
             const mappedUsers = usersArray.map(u => {
                 const role = u.role ? u.role.toUpperCase() : 'USER';
                 let displayName = u.handleName || u.name || '未設定';
                 
-                // もしバックエンドがネストされたデータ(u.florist等)を返してくれた場合は、そちらを優先
                 if (role === 'FLORIST' && u.florist?.storeName) displayName = u.florist.storeName;
                 if (role === 'ORGANIZER' && u.organizer?.organizerName) displayName = u.organizer.organizerName;
                 if (role === 'ILLUSTRATOR' && u.illustrator?.penName) displayName = u.illustrator.penName;
@@ -75,9 +70,6 @@ export default function AdminUsersPage() {
                     email: u.email || '非公開（プロフ連携のみ）'
                 };
             });
-
-            // 新しい順にソート
-            mappedUsers.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
 
             setUsers(mappedUsers);
         } catch (error) {
@@ -96,21 +88,18 @@ export default function AdminUsersPage() {
             return;
         }
         
-        // 検索入力時のデバウンス（入力が止まってから0.5秒後にAPIを叩く）
         const timer = setTimeout(() => {
             fetchUsers();
         }, 500);
         return () => clearTimeout(timer);
     }, [isAuthenticated, user, loading, router, searchKeyword]);
 
-    // タブ（ロール）でのクライアントサイド絞り込み
     const filteredUsers = useMemo(() => {
         if (activeTab === 'ALL') return users;
         if (activeTab === 'USER') return users.filter(u => u.role === 'USER' || !u.role);
         return users.filter(u => u.role === activeTab);
     }, [users, activeTab]);
 
-    // チャット開始アクション
     const handleStartChat = async (targetUser) => {
         const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
         if (!token) return;

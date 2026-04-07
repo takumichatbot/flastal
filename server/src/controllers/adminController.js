@@ -204,7 +204,51 @@ export const getAdminChatMessages = async (req, res) => {
 };
 
 export const searchAllUsers = async (req, res) => {
-    try { return res.json(await prisma.user.findMany({ where: { handleName: { contains: req.query.keyword } } }) || []); } catch (e) { return res.status(200).json([]); }
+    try {
+        const keyword = req.query.keyword || '';
+        
+        // 全ロールの名前フィールドを対象にした強力な検索条件
+        const whereClause = keyword ? {
+            OR: [
+                { handleName: { contains: keyword } },
+                { email: { contains: keyword } },
+                { florist: { storeName: { contains: keyword } } },
+                { organizer: { organizerName: { contains: keyword } } },
+                { illustrator: { penName: { contains: keyword } } },
+                { venue: { venueName: { contains: keyword } } }
+            ]
+        } : {};
+
+        try {
+            // リレーション（屋号やペンネーム）も含めて一括取得
+            const users = await prisma.user.findMany({
+                where: whereClause,
+                include: {
+                    florist: true,
+                    organizer: true,
+                    illustrator: true,
+                    venue: true
+                },
+                orderBy: { createdAt: 'desc' }
+            });
+            return res.json(users || []);
+        } catch (err) {
+            // スキーマの差異等でエラーになった場合の安全なフォールバック
+            const fallbackUsers = await prisma.user.findMany({
+                where: keyword ? {
+                    OR: [
+                        { handleName: { contains: keyword } },
+                        { email: { contains: keyword } }
+                    ]
+                } : {},
+                orderBy: { createdAt: 'desc' }
+            });
+            return res.json(fallbackUsers || []);
+        }
+    } catch (e) {
+        console.error("searchAllUsers API Error:", e);
+        return res.status(500).json([]);
+    }
 };
 
 export const updateProjectVisibility = async (req, res) => {
