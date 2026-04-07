@@ -15,10 +15,12 @@ import {
   AnimatePresence
 } from 'framer-motion';
 
+// ★ エラーの原因だったアイコン（Ticket, Cake, BookmarkHeart）を追加インポート！
 import { 
   Heart, Sparkles, ArrowRight, Search, Users,
   Gift, MessageCircle, Clock, Crown, PenTool, Video, Music, MapPin, Store,
-  ChevronRight, ChevronDown, ArrowUpRight, Shield, Command, KeyRound, Building
+  ChevronRight, ChevronDown, ArrowUpRight, Shield, Command, KeyRound, Building,
+  Ticket, Cake, BookmarkHeart
 } from 'lucide-react';
 
 // ==========================================
@@ -28,7 +30,16 @@ function cn(...classes) {
   return classes.filter(Boolean).join(' ');
 }
 
-// SSR/Hydrationエラーを防ぐためのフック
+function useMousePosition() {
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  useEffect(() => {
+    const updateMousePosition = (e) => { setMousePosition({ x: e.clientX, y: e.clientY }); };
+    window.addEventListener("mousemove", updateMousePosition);
+    return () => window.removeEventListener("mousemove", updateMousePosition);
+  }, []);
+  return mousePosition;
+}
+
 function useIsMounted() {
   const [isMounted, setIsMounted] = useState(false);
   useEffect(() => { setIsMounted(true); }, []);
@@ -46,11 +57,7 @@ const CustomCursor = () => {
 
   useEffect(() => {
     if (!isMounted) return;
-
-    const updateMousePosition = (e) => {
-      setMousePosition({ x: e.clientX, y: e.clientY });
-    };
-
+    const updateMousePosition = (e) => { setMousePosition({ x: e.clientX, y: e.clientY }); };
     const handleMouseOver = (e) => {
       const target = e.target;
       if (target.tagName.toLowerCase() === 'a' || target.tagName.toLowerCase() === 'button' || target.closest('a') || target.closest('button')) {
@@ -59,17 +66,14 @@ const CustomCursor = () => {
         setIsHovering(false);
       }
     };
-
     window.addEventListener("mousemove", updateMousePosition);
     window.addEventListener('mouseover', handleMouseOver);
-    
     return () => {
       window.removeEventListener("mousemove", updateMousePosition);
       window.removeEventListener('mouseover', handleMouseOver);
     };
   }, [isMounted]);
 
-  // マウント前、またはカーソル位置が初期値の場合はレンダリングしない
   if (!isMounted || mousePosition.x === 0) return null;
 
   return (
@@ -132,8 +136,6 @@ const SpotlightCard = ({ children, className, spotColor = "rgba(236, 72, 153, 0.
   const [isFocused, setIsFocused] = useState(false);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const isMounted = useIsMounted();
-  
-  // Hydration対策: マウントされるまでは透明度0
   const opacity = isMounted && isFocused ? 1 : 0;
 
   const handleMouseMove = (e) => {
@@ -162,9 +164,6 @@ const SpotlightCard = ({ children, className, spotColor = "rgba(236, 72, 153, 0.
 
 const Reveal = ({ children, delay = 0, className = "" }) => {
   const isMounted = useIsMounted();
-  
-  // SSR時は初期状態（opacity: 1, y: 0）でレンダリングし、
-  // クライアントでマウント後にFramer Motionに制御を渡す
   return (
     <motion.div 
       initial={isMounted ? { opacity: 0, y: 20 } : { opacity: 1, y: 0 }} 
@@ -181,14 +180,10 @@ const Reveal = ({ children, delay = 0, className = "" }) => {
 const SplitTextReveal = ({ text, className, delay = 0 }) => {
   const words = text.split(" ");
   const isMounted = useIsMounted();
-
   const container = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.08, delayChildren: delay } } };
   const child = { visible: { opacity: 1, y: 0, filter: "blur(0px)", transition: { type: "spring", damping: 12, stiffness: 100 } }, hidden: { opacity: 0, y: 20, filter: "blur(5px)" } };
 
-  // SSR時は通常テキストとしてレンダリング
-  if (!isMounted) {
-    return <div className={className}>{text}</div>;
-  }
+  if (!isMounted) return <div className={className}>{text}</div>;
 
   return (
     <motion.div style={{ overflow: "hidden", display: "flex", flexWrap: "wrap", justifyContent: "center" }} variants={container} initial="hidden" whileInView="visible" viewport={{ once: true }} className={className}>
@@ -252,7 +247,6 @@ const Hero = () => {
         <motion.div animate={{ scale: [1, 1.2, 1], rotate: [0, -45, 0] }} transition={{ duration: 25, repeat: Infinity, ease: "linear" }} className="absolute top-[20%] -right-[10%] w-[120vw] md:w-[60vw] h-[120vw] md:h-[60vw] rounded-full bg-violet-300/20 blur-[80px] md:blur-[120px] mix-blend-multiply" />
       </div>
       
-      {/* SSR時のスタイル適用を避けるため、divでラップ */}
       <motion.div style={isMounted ? { y: y1, opacity } : {}} className="container relative z-10 max-w-5xl mx-auto px-4 md:px-6 flex flex-col items-center text-center">
         <Reveal delay={0.1}>
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/60 backdrop-blur-md border border-white shadow-sm mb-6 md:mb-8">
@@ -645,10 +639,7 @@ export default function HomePage() {
 
   useEffect(() => { setIsMounted(true); }, []);
 
-  // SSR時は空のdivを返すことでHydrationエラーを完全に防ぐ
-  if (!isMounted) {
-    return <div className="min-h-screen bg-[#FAFAFC]" />; 
-  }
+  if (!isMounted) return null; 
 
   return (
     <main className="bg-[#FAFAFC] min-h-screen text-slate-800 font-sans selection:bg-pink-100 selection:text-pink-500">
