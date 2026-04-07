@@ -28,16 +28,6 @@ function cn(...classes) {
   return classes.filter(Boolean).join(' ');
 }
 
-function useMousePosition() {
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
-  useEffect(() => {
-    const updateMousePosition = (e) => { setMousePosition({ x: e.clientX, y: e.clientY }); };
-    window.addEventListener("mousemove", updateMousePosition);
-    return () => window.removeEventListener("mousemove", updateMousePosition);
-  }, []);
-  return mousePosition;
-}
-
 // SSR/Hydrationエラーを防ぐためのフック
 function useIsMounted() {
   const [isMounted, setIsMounted] = useState(false);
@@ -50,12 +40,17 @@ function useIsMounted() {
 // ==========================================
 
 const CustomCursor = () => {
-  const { x, y } = useMousePosition();
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [isHovering, setIsHovering] = useState(false);
   const isMounted = useIsMounted();
 
   useEffect(() => {
     if (!isMounted) return;
+
+    const updateMousePosition = (e) => {
+      setMousePosition({ x: e.clientX, y: e.clientY });
+    };
+
     const handleMouseOver = (e) => {
       const target = e.target;
       if (target.tagName.toLowerCase() === 'a' || target.tagName.toLowerCase() === 'button' || target.closest('a') || target.closest('button')) {
@@ -64,22 +59,38 @@ const CustomCursor = () => {
         setIsHovering(false);
       }
     };
+
+    window.addEventListener("mousemove", updateMousePosition);
     window.addEventListener('mouseover', handleMouseOver);
-    return () => window.removeEventListener('mouseover', handleMouseOver);
+    
+    return () => {
+      window.removeEventListener("mousemove", updateMousePosition);
+      window.removeEventListener('mouseover', handleMouseOver);
+    };
   }, [isMounted]);
 
-  if (!isMounted || x === 0) return null;
+  // マウント前、またはカーソル位置が初期値の場合はレンダリングしない
+  if (!isMounted || mousePosition.x === 0) return null;
 
   return (
     <>
       <motion.div 
         className="fixed top-0 left-0 w-8 h-8 rounded-full border border-slate-400/50 pointer-events-none z-[9999] mix-blend-difference hidden lg:flex items-center justify-center"
-        animate={{ x: x - 16, y: y - 16, scale: isHovering ? 1.5 : 1, backgroundColor: isHovering ? 'rgba(255,255,255,1)' : 'rgba(255,255,255,0)' }}
+        animate={{ 
+          x: mousePosition.x - 16, 
+          y: mousePosition.y - 16, 
+          scale: isHovering ? 1.5 : 1, 
+          backgroundColor: isHovering ? 'rgba(255,255,255,1)' : 'rgba(255,255,255,0)' 
+        }}
         transition={{ type: "spring", stiffness: 150, damping: 15, mass: 0.5 }}
       />
       <motion.div 
         className="fixed top-0 left-0 w-2 h-2 bg-pink-500 rounded-full pointer-events-none z-[10000] hidden lg:block"
-        animate={{ x: x - 4, y: y - 4, scale: isHovering ? 0 : 1 }}
+        animate={{ 
+          x: mousePosition.x - 4, 
+          y: mousePosition.y - 4, 
+          scale: isHovering ? 0 : 1 
+        }}
         transition={{ type: "spring", stiffness: 500, damping: 28, mass: 0.1 }}
       />
     </>
@@ -121,7 +132,9 @@ const SpotlightCard = ({ children, className, spotColor = "rgba(236, 72, 153, 0.
   const [isFocused, setIsFocused] = useState(false);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const isMounted = useIsMounted();
-  const opacity = isFocused ? 1 : 0;
+  
+  // Hydration対策: マウントされるまでは透明度0
+  const opacity = isMounted && isFocused ? 1 : 0;
 
   const handleMouseMove = (e) => {
     if (!isMounted || !divRef.current || isFocused || window.innerWidth < 1024) return;
@@ -147,16 +160,35 @@ const SpotlightCard = ({ children, className, spotColor = "rgba(236, 72, 153, 0.
   );
 };
 
-const Reveal = ({ children, delay = 0, className = "" }) => (
-  <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-10%" }} transition={{ duration: 0.6, delay, ease: "easeOut" }} className={className}>
-    {children}
-  </motion.div>
-);
+const Reveal = ({ children, delay = 0, className = "" }) => {
+  const isMounted = useIsMounted();
+  
+  // SSR時は初期状態（opacity: 1, y: 0）でレンダリングし、
+  // クライアントでマウント後にFramer Motionに制御を渡す
+  return (
+    <motion.div 
+      initial={isMounted ? { opacity: 0, y: 20 } : { opacity: 1, y: 0 }} 
+      whileInView={{ opacity: 1, y: 0 }} 
+      viewport={{ once: true, margin: "-10%" }} 
+      transition={{ duration: 0.6, delay, ease: "easeOut" }} 
+      className={className}
+    >
+      {children}
+    </motion.div>
+  );
+};
 
 const SplitTextReveal = ({ text, className, delay = 0 }) => {
   const words = text.split(" ");
+  const isMounted = useIsMounted();
+
   const container = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.08, delayChildren: delay } } };
   const child = { visible: { opacity: 1, y: 0, filter: "blur(0px)", transition: { type: "spring", damping: 12, stiffness: 100 } }, hidden: { opacity: 0, y: 20, filter: "blur(5px)" } };
+
+  // SSR時は通常テキストとしてレンダリング
+  if (!isMounted) {
+    return <div className={className}>{text}</div>;
+  }
 
   return (
     <motion.div style={{ overflow: "hidden", display: "flex", flexWrap: "wrap", justifyContent: "center" }} variants={container} initial="hidden" whileInView="visible" viewport={{ once: true }} className={className}>
@@ -211,6 +243,7 @@ const Hero = () => {
   const { scrollY } = useScroll();
   const y1 = useTransform(scrollY, [0, 1000], [0, 150]);
   const opacity = useTransform(scrollY, [0, 500], [1, 0]);
+  const isMounted = useIsMounted();
 
   return (
     <section className="relative w-full min-h-[100svh] flex items-center justify-center overflow-hidden bg-[#FAFAFC] pt-20 pb-12 z-10">
@@ -219,7 +252,8 @@ const Hero = () => {
         <motion.div animate={{ scale: [1, 1.2, 1], rotate: [0, -45, 0] }} transition={{ duration: 25, repeat: Infinity, ease: "linear" }} className="absolute top-[20%] -right-[10%] w-[120vw] md:w-[60vw] h-[120vw] md:h-[60vw] rounded-full bg-violet-300/20 blur-[80px] md:blur-[120px] mix-blend-multiply" />
       </div>
       
-      <motion.div style={{ y: y1, opacity }} className="container relative z-10 max-w-5xl mx-auto px-4 md:px-6 flex flex-col items-center text-center">
+      {/* SSR時のスタイル適用を避けるため、divでラップ */}
+      <motion.div style={isMounted ? { y: y1, opacity } : {}} className="container relative z-10 max-w-5xl mx-auto px-4 md:px-6 flex flex-col items-center text-center">
         <Reveal delay={0.1}>
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/60 backdrop-blur-md border border-white shadow-sm mb-6 md:mb-8">
             <Sparkles size={14} className="text-pink-500" />
@@ -479,7 +513,6 @@ const LaruSeoEmbed = () => {
     const container = containerRef.current;
     if (!container || container.querySelector('script')) return;
     
-    // SSRエラーを防ぐため、クライアントサイドでのみ実行
     const script = document.createElement('script');
     script.src = "https://larubot.tokyo/embed/blog.js";
     script.setAttribute("data-id", "e19ed703-6238-49a5-ac83-c92c522a44cd");
@@ -612,7 +645,10 @@ export default function HomePage() {
 
   useEffect(() => { setIsMounted(true); }, []);
 
-  if (!isMounted) return null; 
+  // SSR時は空のdivを返すことでHydrationエラーを完全に防ぐ
+  if (!isMounted) {
+    return <div className="min-h-screen bg-[#FAFAFC]" />; 
+  }
 
   return (
     <main className="bg-[#FAFAFC] min-h-screen text-slate-800 font-sans selection:bg-pink-100 selection:text-pink-500">
@@ -645,6 +681,7 @@ export default function HomePage() {
           -moz-osx-font-smoothing: grayscale;
         }
         
+        /* Desktop Custom Cursor */
         @media (min-width: 1024px) {
           body { cursor: none; }
           a, button, input, select, textarea { cursor: none !important; }
