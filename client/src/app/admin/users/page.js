@@ -36,7 +36,7 @@ export default function AdminUsersPage() {
     const [searchKeyword, setSearchKeyword] = useState('');
     const [activeTab, setActiveTab] = useState('ALL');
 
-    // ★ パワーアップしたバックエンドAPI 1本だけを叩くシンプルで確実なロジック
+    // ★ データ取得とフロントエンド側での整形ロジックを強化
     const fetchUsers = async () => {
         setIsLoadingData(true);
         try {
@@ -53,15 +53,28 @@ export default function AdminUsersPage() {
             const data = await res.json();
             const usersArray = Array.isArray(data) ? data : (data.users || data.data || []);
 
-            // バックエンドが返してくれたリレーション情報（florist, organizer等）を使って名前を抽出
+            // デバッグ: 取得したデータの内容を確認
+            console.log("Raw API Data:", usersArray);
+
+            // ★ 強力な整形ロジック
             const mappedUsers = usersArray.map(u => {
-                const role = u.role ? u.role.toUpperCase() : 'USER';
-                let displayName = u.handleName || u.name || '未設定';
-                
+                // バックエンドから来たロールを正規化
+                let role = u.role ? u.role.toUpperCase() : 'USER';
+                let displayName = u.displayName || u.handleName || u.name || '未設定';
+
+                // もし displayName がなく、バックエンド側の結合データの中に名前があればそれを優先
                 if (role === 'FLORIST' && u.florist?.storeName) displayName = u.florist.storeName;
                 if (role === 'ORGANIZER' && u.organizer?.organizerName) displayName = u.organizer.organizerName;
-                if (role === 'ILLUSTRATOR' && u.illustrator?.penName) displayName = u.illustrator.penName;
                 if (role === 'VENUE' && u.venue?.venueName) displayName = u.venue.venueName;
+                
+                // ★ クリエイター判定の強化
+                // バックエンドで illustratorProfile が存在していれば、強制的に ILLUSTRATOR とする
+                if (u.illustratorProfile || role === 'ILLUSTRATOR') {
+                    role = 'ILLUSTRATOR';
+                    if (u.illustratorProfile?.penName) {
+                        displayName = u.illustratorProfile.penName;
+                    }
+                }
 
                 return {
                     ...u,
@@ -96,7 +109,9 @@ export default function AdminUsersPage() {
 
     const filteredUsers = useMemo(() => {
         if (activeTab === 'ALL') return users;
+        // ファンタブの場合は 'USER' または ロール未設定のユーザー
         if (activeTab === 'USER') return users.filter(u => u.role === 'USER' || !u.role);
+        // それ以外は該当のロールをフィルタリング
         return users.filter(u => u.role === activeTab);
     }, [users, activeTab]);
 
