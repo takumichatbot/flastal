@@ -46,28 +46,39 @@ export default function AdminUsersPage() {
             if (searchKeyword) params.append('keyword', searchKeyword);
 
             // 1. まず標準のユーザー検索APIを叩く
-            // 2. さらに各ロール専用のAPIも叩いて情報を補完する（表示漏れをゼロにするための並列処理）
+            // 2. さらに各ロール専用のAPIも叩いて情報を補完する
             const [userRes, fRes, iRes, vRes, oRes] = await Promise.all([
                 fetch(`${API_URL}/api/admin/users/search?${params.toString()}`, { headers }).catch(() => null),
+                // ★ APIのパスに注意。 /api/admin/florists などが存在する場合はそちらを使用
                 fetch(`${API_URL}/api/florists`, { headers }).catch(() => null),
                 fetch(`${API_URL}/api/illustrators`, { headers }).catch(() => null),
                 fetch(`${API_URL}/api/venues`, { headers }).catch(() => null),
                 fetch(`${API_URL}/api/organizers`, { headers }).catch(() => null),
             ]);
 
-            let baseUsers = userRes?.ok ? await userRes.json() : [];
-            if (!Array.isArray(baseUsers)) baseUsers = baseUsers.users || [];
+            // 安全にJSONをパースして配列を抽出するヘルパー
+            const safeExtract = async (res, arrayKey) => {
+                if (!res || !res.ok) return [];
+                try {
+                    const data = await res.json();
+                    if (Array.isArray(data)) return data;
+                    if (data && Array.isArray(data[arrayKey])) return data[arrayKey];
+                    // paginationの対応
+                    if (data && data.data && Array.isArray(data.data)) return data.data; 
+                    return [];
+                } catch(e) {
+                    return [];
+                }
+            };
 
-            const fData = fRes?.ok ? await fRes.json() : [];
-            const iData = iRes?.ok ? await iRes.json() : [];
-            const vData = vRes?.ok ? await vRes.json() : [];
-            const oData = oRes?.ok ? await oRes.json() : [];
+            let baseUsers = await safeExtract(userRes, 'users');
+            const florists = await safeExtract(fRes, 'florists');
+            const illustrators = await safeExtract(iRes, 'illustrators');
+            const venues = await safeExtract(vRes, 'venues');
+            const organizers = await safeExtract(oRes, 'organizers');
 
-            // 配列の取り出し
-            const florists = Array.isArray(fData) ? fData : (fData.florists || []);
-            const illustrators = Array.isArray(iData) ? iData : (iData.illustrators || []);
-            const venues = Array.isArray(vData) ? vData : (vData.venues || []);
-            const organizers = Array.isArray(oData) ? oData : (oData.organizers || []);
+            // デバッグ出力
+            console.log("Extracted Data:", { baseUsers, florists, illustrators, venues, organizers });
 
             const allMap = new Map();
             
@@ -80,14 +91,15 @@ export default function AdminUsersPage() {
                 });
             });
 
-            // 他のロールのデータをマージする関数（IDかuserIdで紐付け、正しい名前フィールドを取得）
+            // 他のロールのデータをマージする関数
             const mergeData = (items, role, nameField) => {
                 items.forEach(item => {
                     const id = item.userId || item.id;
+                    if (!id) return; // IDがない場合はスキップ
                     const existing = allMap.get(id) || {};
                     allMap.set(id, {
                         ...existing,
-                        ...item,
+                        ...item, // 後勝ちでプロパティを上書き
                         id: id,
                         // 既存のロールがあれば優先（ADMINなど）、なければ新しいロールを設定
                         role: existing.role && existing.role !== 'USER' ? existing.role : role,
@@ -289,7 +301,6 @@ export default function AdminUsersPage() {
                                                             )}
                                                         </div>
                                                         <div>
-                                                            {/* ★ 変更: u.displayName を表示するようにしました */}
                                                             <p className="text-sm font-bold text-slate-800 group-hover:text-sky-600 transition-colors">
                                                                 {u.displayName}
                                                             </p>
