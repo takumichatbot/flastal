@@ -13,12 +13,11 @@ import {
   AnimatePresence
 } from 'framer-motion';
 
-// ★ 特殊アイコンエラー回避のため、確実にある lucide-react の標準アイコンのみを使用
+// ★ エラーの原因だった特殊なアイコンを避け、確実にある標準アイコンのみを使用
 import { 
   Heart, Sparkles, ArrowRight, Search, Users,
   Gift, MessageCircle, Clock, Crown, PenTool, Video, Music, MapPin, Store,
-  ChevronRight, ChevronDown, ArrowUpRight, Shield, Command, KeyRound, Building,
-  Ticket, Star
+  ChevronRight, ChevronDown, ArrowUpRight, Shield, Command, KeyRound, Building, Star
 } from 'lucide-react';
 
 // ==========================================
@@ -194,84 +193,111 @@ const DUMMY_PROJECTS = [
 // 🚀 PAGE SECTIONS
 // ==========================================
 
-// --- 0. INTRO LOADER (★ 最新表現：Blur + Scale で奥に入り込む) ---
+// --- 0. INTRO LOADER (★ 重なりをなくし、奥に入り込むアニメーション) ---
 const IntroLoader = ({ onComplete }) => {
   useEffect(() => { 
-    // アニメーション全体が終わるタイミングで HomePage に通知
-    const timer = setTimeout(onComplete, 2600); 
+    // アニメーションが終わるタイミングで通知し、アンマウントさせる
+    const timer = setTimeout(onComplete, 2800); 
     return () => clearTimeout(timer); 
   }, [onComplete]);
 
   return (
+    // 親要素が消えるとき（exit）に、ズームアウト＋フェードアウト＋ぼかし で奥へ消える演出
     <motion.div 
-      className="fixed inset-0 z-[99999] bg-[#101015] flex items-center justify-center overflow-hidden pointer-events-none" 
+      className="fixed inset-0 z-[99999] flex items-center justify-center pointer-events-none bg-[#101015]"
       initial={{ opacity: 1 }}
-      exit={{ opacity: 0 }} // HomePage のAnimatePresence waitで制御
+      exit={{ scale: 3, opacity: 0, filter: "blur(10px)", transition: { duration: 1.2, ease: "easeInOut" } }}
     >
       
-      {/* 左右のレースカーテン */}
-      <motion.div className="absolute inset-y-0 left-0 w-1/2 bg-[#FAFAFC] border-r border-slate-100 z-10"
+      {/* --- 左側のレースカーテン --- */}
+      <motion.div 
+        className="absolute inset-y-0 left-0 w-1/2 bg-[#FDF2F8] shadow-[20px_0_50px_rgba(244,114,182,0.4)] z-10 origin-left"
         initial={{ x: 0, skewX: 0 }}
-        animate={{ x: "-100%", skewX: -5 }} // 開きながら少し斜めに歪ませる
-        transition={{ duration: 1.4, delay: 0.8, ease: [0.76, 0, 0.24, 1] }}
+        animate={{ x: "-100%", skewX: -5 }} 
+        transition={{ duration: 1.4, delay: 0.5, ease: [0.76, 0, 0.24, 1] }}
+        style={{
+          backgroundImage: `
+            linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(244,114,182,0.05) 50%, rgba(0,0,0,0) 100%),
+            url('https://www.transparenttextures.com/patterns/french-stucco.png')
+          `
+        }}
       >
-        <div className="absolute inset-y-0 right-0 w-12 bg-gradient-to-r from-transparent to-pink-50/60" />
-      </motion.div>
-      <motion.div className="absolute inset-y-0 right-0 w-1/2 bg-[#FAFAFC] border-l border-slate-100 z-10"
-        initial={{ x: 0, skewX: 0 }}
-        animate={{ x: "100%", skewX: 5 }} // 開きながら少し斜めに歪ませる
-        transition={{ duration: 1.4, delay: 0.8, ease: [0.76, 0, 0.24, 1] }}
-      >
-        <div className="absolute inset-y-0 left-0 w-12 bg-gradient-to-l from-transparent to-pink-50/60" />
+        <div className="absolute top-0 bottom-0 -right-10 w-12 h-full drop-shadow-xl overflow-hidden">
+          <svg width="100%" height="100%" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <pattern id="lace-left" x="0" y="0" width="48" height="60" patternUnits="userSpaceOnUse">
+                <path d="M0,0 C24,0 48,15 48,30 C48,45 24,60 0,60 Z" fill="#FDF2F8" />
+                <circle cx="15" cy="30" r="5" fill="transparent" stroke="#FBCFE8" strokeWidth="2" />
+                <circle cx="30" cy="30" r="3" fill="#FBCFE8" />
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#lace-left)" />
+          </svg>
+        </div>
       </motion.div>
 
-      {/* ロゴ表示と最新表現アニメーション */}
+      {/* --- 右側のレースカーテン --- */}
       <motion.div 
-        className="flex flex-col items-center z-20"
-        initial={{ opacity: 0, scale: 0.5, filter: "blur(0px)" }} 
-        // ★ 最新表現: ズームイン（scale: 3）させながら、ぼかす（blur: 20px）ことで「奥に入り込む」表現
-        animate={{ opacity: [0, 1, 0], scale: [0.5, 1, 3], filter: ["blur(0px)", "blur(0px)", "blur(20px)"] }} 
-        transition={{ duration: 2.2, times: [0, 0.4, 1], ease: "easeIn" }}
+        className="absolute inset-y-0 right-0 w-1/2 bg-[#FDF2F8] shadow-[-20px_0_50px_rgba(244,114,182,0.4)] z-10 origin-right"
+        initial={{ x: 0, skewX: 0 }}
+        animate={{ x: "100%", skewX: 5 }} 
+        transition={{ duration: 1.4, delay: 0.5, ease: [0.76, 0, 0.24, 1] }}
+        style={{
+          backgroundImage: `
+            linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(244,114,182,0.05) 50%, rgba(0,0,0,0) 100%),
+            url('https://www.transparenttextures.com/patterns/french-stucco.png')
+          `
+        }}
       >
-        <div className="flex items-center gap-3 mb-4">
-          <Sparkles className="text-pink-300 animate-pulse" />
-          <span className="text-4xl text-pink-300 font-calligraphy">Welcome to</span>
-          <Sparkles className="text-pink-300 animate-pulse" />
+        <div className="absolute top-0 bottom-0 -left-10 w-12 h-full drop-shadow-xl overflow-hidden">
+          <svg width="100%" height="100%" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <pattern id="lace-right" x="0" y="0" width="48" height="60" patternUnits="userSpaceOnUse">
+                <path d="M48,0 C24,0 0,15 0,30 C0,45 24,60 48,60 Z" fill="#FDF2F8" />
+                <circle cx="33" cy="30" r="5" fill="transparent" stroke="#FBCFE8" strokeWidth="2" />
+                <circle cx="18" cy="30" r="3" fill="#FBCFE8" />
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#lace-right)" />
+          </svg>
         </div>
-        
-        {/* ★ ロゴを真っ白から少しピンクに */}
-        <h1 className="text-5xl md:text-8xl font-black text-pink-400 tracking-[0.3em] font-serif-jp drop-shadow-lg">
+      </motion.div>
+
+      {/* --- 中央のロゴ --- */}
+      <motion.div 
+        className="absolute z-20 flex flex-col items-center"
+        initial={{ opacity: 0, scale: 0.5, y: 20 }} 
+        animate={{ opacity: 1, scale: 1, y: 0 }} 
+        transition={{ duration: 0.8, ease: "easeOut", delay: 0.2 }}
+      >
+        <span className="font-calligraphy text-4xl text-pink-400 mb-2 drop-shadow-sm">Welcome to</span>
+        <h1 className="text-5xl md:text-7xl font-black text-pink-500 tracking-[0.3em] font-serif-jp drop-shadow-lg">
           FLASTAL
         </h1>
-        
-        <div className="w-48 md:w-64 h-px bg-gradient-to-r from-transparent via-pink-400 to-transparent mt-6 relative overflow-hidden">
-          <motion.div initial={{ x: "-100%" }} animate={{ x: "100%", transition: { duration: 1.2, ease: "easeInOut", delay: 0.2 } }} exit={{ opacity: 0 }} className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent" />
-        </div>
+        <div className="w-full h-px bg-gradient-to-r from-transparent via-pink-400 to-transparent mt-4" />
       </motion.div>
       
     </motion.div>
   );
 };
 
-// --- Main Content Wrapper ( IntroLoader 終了後に描画 ) ---
-const MainContent = () => {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 30 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.8, ease: "easeOut" }}
-    >
-      <Hero />
-      <InfiniteMarquee />
-      <HowItWorks />
-      <TrendingProjects />
-      <BentoFeatures />
-      <CategoryGrid />
-      <ArticlesSection />
-      <PartnerCTA />
-    </motion.div>
-  );
-}
+// --- メインコンテンツをラップするコンポーネント (IntroLoader後に表示) ---
+const MainContent = () => (
+  <motion.div
+    initial={{ opacity: 0, scale: 1.1 }}
+    animate={{ opacity: 1, scale: 1 }}
+    transition={{ duration: 1.2, ease: "easeOut" }}
+  >
+    <Hero />
+    <InfiniteMarquee />
+    <HowItWorks />
+    <TrendingProjects />
+    <BentoFeatures />
+    <CategoryGrid />
+    <ArticlesSection />
+    <PartnerCTA />
+  </motion.div>
+);
 
 // --- 1. HERO SECTION ---
 const Hero = () => {
@@ -285,7 +311,6 @@ const Hero = () => {
   return (
     <section className="relative w-full min-h-[100svh] flex items-center justify-center overflow-hidden bg-[#FFF8FA] pt-20 pb-12 z-10">
       
-      {/* ★ ここで絵文字パーティクルを散りばめる！ */}
       <EmojiParticle emoji="🎀" x="15%" y="25%" scale={1.2} delay={0} />
       <EmojiParticle emoji="🎂" x="80%" y="60%" scale={1.1} delay={1.5} />
       <EmojiParticle emoji="💖" x="25%" y="75%" scale={0.9} delay={3} />
@@ -305,7 +330,7 @@ const Hero = () => {
           </div>
         </Reveal>
 
-        {/* ★ 変更点: 真っ黒 (text-slate-900) から、霞んだチャコール (text-slate-700) へ */}
+        {/* ★ 変更点: 霞んだチャコール (text-slate-700) */}
         <SplitTextReveal text="Celebrate with Flowers." className="text-4xl sm:text-5xl md:text-8xl font-black text-slate-700 tracking-tighter leading-[1.05] mb-4 md:mb-6" delay={0.2} />
         
         <Reveal delay={0.4}>
@@ -549,7 +574,6 @@ const CategoryGrid = () => {
   return (
     <section className="py-24 md:py-32 bg-[#FAF9FF] relative z-10 border-t border-slate-100">
       
-      {/* ケーキとキラキラの代わりに安全な絵文字パーティクルを使用 */}
       <EmojiParticle emoji="🎂" x="5%" y="10%" scale={1.2} delay={0.5} />
       <EmojiParticle emoji="✨" x="90%" y="80%" scale={1.5} delay={2} />
 
