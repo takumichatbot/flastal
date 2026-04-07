@@ -13,11 +13,13 @@ import {
   AnimatePresence
 } from 'framer-motion';
 
+// ★ エラーの原因だった存在しないアイコン(BookmarkHeart, Cake, Ribbon等)を削除し、
+// 確実に存在する安全なアイコン(Star, Gift, Crown等)に置き換えました！
 import { 
   Heart, Sparkles, ArrowRight, Search, Users,
-  Gift, MessageCircle, Crown, PenTool, Video, Music, Store,
+  Gift, MessageCircle, Clock, Crown, PenTool, Video, Music, MapPin, Store,
   ChevronRight, ChevronDown, ArrowUpRight, Shield, Command, KeyRound, Building,
-  Ticket, Cake, BookmarkHeart, Ribbon
+  Ticket, Star
 } from 'lucide-react';
 
 // ==========================================
@@ -228,7 +230,6 @@ const IntroLoader = ({ onComplete }) => {
   return (
     <motion.div className="fixed inset-0 z-[99999] bg-[#101015] flex items-center justify-center overflow-hidden" initial={{ opacity: 1 }} exit={{ opacity: 0, transition: { delay: 1, duration: 0.8 } }}>
       
-      {/* 左右のカーテン */}
       <motion.div className="absolute inset-y-0 left-0 w-1/2 bg-[#FAFAFC] border-r border-slate-100 z-10"
         initial={{ x: 0 }}
         animate={{ x: "-100%", transition: { delay: 1.2, duration: 1.2, ease: [0.76, 0, 0.24, 1] } }}
@@ -244,7 +245,6 @@ const IntroLoader = ({ onComplete }) => {
         <div className="absolute inset-y-0 left-0 w-8 bg-gradient-to-l from-transparent to-white/60" />
       </motion.div>
 
-      {/* ロゴ表示 */}
       <div className="overflow-hidden z-0">
         <motion.h1 initial={{ y: 100, opacity: 0 }} animate={{ y: 0, opacity: 1, transition: { duration: 0.8, ease: "easeOut", delay: 0.2 } }} className="text-4xl md:text-6xl font-black text-white tracking-[0.3em] uppercase">
           FLASTAL
@@ -269,11 +269,12 @@ const Hero = () => {
   return (
     <section className="relative w-full min-h-[100svh] flex items-center justify-center overflow-hidden bg-[#FFF8FA] pt-20 pb-12 z-10">
       
+      {/* アイコンを標準のもの(Heart, Sparkles, Crown, Gift, Star)に置き換え */}
       <DecorativeParticle icon={Heart} x="10%" y="20%" scale={1.2} delay={0.5} color="text-pink-200" />
       <DecorativeParticle icon={Sparkles} x="85%" y="15%" scale={1} delay={2} color="text-amber-200" />
-      <DecorativeParticle icon={Ribbon} x="20%" y="70%" scale={1.1} delay={3.5} color="text-pink-200" />
-      <DecorativeParticle icon={Cake} x="80%" y="65%" scale={1} delay={1.5} color="text-violet-200" />
-      <DecorativeParticle icon={BookmarkHeart} x="50%" y="80%" scale={0.9} delay={4} color="text-pink-200" />
+      <DecorativeParticle icon={Crown} x="20%" y="70%" scale={1.1} delay={3.5} color="text-pink-200" />
+      <DecorativeParticle icon={Gift} x="80%" y="65%" scale={1} delay={1.5} color="text-violet-200" />
+      <DecorativeParticle icon={Star} x="50%" y="80%" scale={0.9} delay={4} color="text-pink-200" />
 
       <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
         <div className="absolute -top-[20%] -left-[10%] w-[150vw] md:w-[70vw] h-[150vw] md:h-[70vw] rounded-full bg-pink-300/15 blur-[80px] md:blur-[120px] mix-blend-multiply animate-pulse" />
@@ -307,7 +308,7 @@ const Hero = () => {
               <button className="group relative w-full sm:w-auto px-9 md:px-11 py-4 md:py-5 bg-slate-950 text-white rounded-full font-extrabold text-sm md:text-base shadow-[0_10px_30px_rgba(0,0,0,0.15)] overflow-hidden transition-transform">
                 <div className="absolute inset-0 bg-gradient-to-r from-pink-500 to-violet-500 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out" />
                 <span className="relative z-10 flex items-center justify-center gap-2">
-                  <Ribbon size={18} className="text-pink-300" /> 企画を立ち上げる <ArrowUpRight size={18} className="group-hover:rotate-45 transition-transform" />
+                  <Crown size={18} className="text-pink-300" /> 企画を立ち上げる <ArrowUpRight size={18} className="group-hover:rotate-45 transition-transform" />
                 </span>
               </button>
             </Link>
@@ -363,6 +364,8 @@ const HowItWorks = () => {
 
   return (
     <section className="py-24 md:py-36 bg-white relative z-10">
+      
+      {/* 花びら装飾 */}
       <div className="absolute top-1/4 left-0 w-24 h-24 bg-pink-100 rounded-full blur-3xl opacity-60" />
       <div className="absolute bottom-1/4 right-0 w-32 h-32 bg-sky-100 rounded-full blur-3xl opacity-60" />
 
@@ -466,7 +469,7 @@ const BentoFeatures = () => {
       visual: (
         <>
           <DecorativeParticle icon={Heart} x="80%" y="20%" scale={1} delay={1} color="text-pink-500" />
-          <DecorativeParticle icon={BookmarkHeart} x="70%" y="60%" scale={0.8} delay={2.5} color="text-violet-500" />
+          <DecorativeParticle icon={Star} x="70%" y="60%" scale={0.8} delay={2.5} color="text-violet-500" />
           <div className="absolute right-0 bottom-0 w-64 h-64 bg-gradient-to-tl from-emerald-400/20 to-transparent rounded-tl-full blur-2xl"></div>
         </>
       )
@@ -510,7 +513,6 @@ const BentoFeatures = () => {
             <Reveal key={i} delay={i * 0.1} className={cn("rounded-[2.5rem] overflow-hidden relative group shadow-[0_8px_30px_rgb(0,0,0,0.03)] border border-slate-200/50 hover:shadow-lg transition-all duration-500", feat.span, feat.color)}>
               <div className="absolute inset-0 p-8 md:p-10 flex flex-col z-20">
                 <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center mb-6 border", feat.text === 'text-white' ? 'bg-white/5 border-white/10' : 'bg-slate-50 border-slate-100', feat.iconColor)}>
-                  {/* ★ 修正ポイント: JSX要素を正しくレンダリングするよう修正 */}
                   <feat.icon size={24} strokeWidth={1.5} />
                 </div>
                 <h3 className={cn("text-xl md:text-2xl font-black mb-2 tracking-tight", feat.text)}>{feat.title}</h3>
@@ -531,7 +533,8 @@ const BentoFeatures = () => {
 const CategoryGrid = () => {
   return (
     <section className="py-24 md:py-32 bg-[#FAF9FF] relative z-10 border-t border-slate-100">
-      <DecorativeParticle icon={Cake} x="5%" y="10%" scale={1} delay={0.5} color="text-violet-200" />
+      
+      <DecorativeParticle icon={Gift} x="5%" y="10%" scale={1} delay={0.5} color="text-violet-200" />
       <DecorativeParticle icon={Sparkles} x="90%" y="80%" scale={1.1} delay={2} color="text-amber-200" />
 
       <div className="container mx-auto px-4 md:px-6 max-w-6xl relative z-10">
@@ -545,7 +548,6 @@ const CategoryGrid = () => {
             <Reveal key={cat.id} delay={i * 0.05}>
               <div className="group bg-white border border-slate-100 hover:border-violet-200 rounded-3xl p-5 md:p-7 text-center cursor-pointer transition-all duration-300 shadow-sm hover:shadow-md">
                 <div className={cn("w-12 h-12 md:w-14 md:h-14 mx-auto rounded-2xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110", cat.bg, cat.color)}>
-                  {/* ★ 修正ポイント: JSX要素を正しくレンダリングするよう修正 */}
                   <cat.icon className="w-6 h-6 md:w-7 md:h-7" strokeWidth={1.5} />
                 </div>
                 <h3 className="text-slate-800 font-extrabold text-xs md:text-sm mb-1.5">{cat.name}</h3>
@@ -600,12 +602,13 @@ const ArticlesSection = () => (
 // --- 8. PARTNER CTA ---
 const PartnerCTA = () => (
   <section className="py-24 md:py-28 bg-slate-950 relative z-10 overflow-hidden border-t border-white/5">
+    
     <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: "url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgdmlld0JveD0iMCAwIDQwIDQwIj48ZyBmaWxsPSIjRkZGRkZGIiBmaWxsLW9wYWNpdHk9IjAuNCI+PHBhdGggZD0iTTAgMGg0MHY0MEgwVjB6bTIwIDIwaDIwdjIwSDIWMjB6TTAgMjBoMjB2MjBIMFYyMHoyMCAwaDIwdjIwSDIwVjB6Ii8+PC9nPjwvc3ZnPg==')" }} />
 
     <div className="container mx-auto px-4 md:px-6 max-w-5xl relative z-10">
       <Reveal>
         <div className="text-center mb-14 md:mb-18">
-          <DecorativeParticle icon={Ribbon} x="45%" y="-20px" scale={1.2} delay={0.5} color="text-pink-400" />
+          <DecorativeParticle icon={Crown} x="45%" y="-20px" scale={1.2} delay={0.5} color="text-pink-400" />
           <h2 className="text-3xl md:text-5xl font-black text-white mb-5 tracking-tighter">法人・クリエイターの皆様へ</h2>
           <p className="text-slate-400 text-sm md:text-base max-w-2xl mx-auto leading-relaxed font-medium">
             FLASTALは、お花屋さん、ライブ会場、イベント主催者、イラストレーターとファンを繋ぐエコシステムです。初期費用・月額費用は一切かかりません。推しの活動をみんなで支えましょう。
@@ -638,7 +641,6 @@ const PartnerCTA = () => (
             <Link key={i} href={btn.href} className="group">
               <div className="bg-white/5 border border-white/10 rounded-3xl p-7 flex items-center gap-5 hover:bg-white/10 transition-colors h-full">
                 <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center shrink-0 border", btn.bg, btn.color, 'border-white/10')}>
-                  {/* ★ 修正ポイント: JSX要素を正しくレンダリングするよう修正 */}
                   <btn.icon size={22} strokeWidth={1.5} />
                 </div>
                 <span className="text-slate-200 font-extrabold text-sm md:text-base group-hover:text-white transition-colors">{btn.label}</span>
