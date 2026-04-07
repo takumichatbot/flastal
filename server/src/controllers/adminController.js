@@ -203,48 +203,71 @@ export const getAdminChatMessages = async (req, res) => {
     try { return res.json(await prisma.adminChatMessage.findMany({ where: { chatRoomId: req.params.roomId } }) || []); } catch (e) { return res.status(200).json([]); }
 };
 
+// ==========================================
+// ★ 修正: 強力かつ安全なユーザー取得ロジック
+// Prismaの仕様上、リレーション先を直接OR検索できないため、
+// 別々に取得してから合体させる手法に変更しました。
+// ==========================================
 export const searchAllUsers = async (req, res) => {
     try {
         const keyword = req.query.keyword || '';
-        
-        // 全ロールの名前フィールドを対象にした強力な検索条件
-        const whereClause = keyword ? {
+
+        // 1. Userテーブルから直接検索（ハンドルネーム、メアド）
+        const usersWhere = keyword ? {
             OR: [
                 { handleName: { contains: keyword } },
-                { email: { contains: keyword } },
-                { florist: { storeName: { contains: keyword } } },
-                { organizer: { organizerName: { contains: keyword } } },
-                { illustrator: { penName: { contains: keyword } } },
-                { venue: { venueName: { contains: keyword } } }
+                { email: { contains: keyword } }
             ]
         } : {};
 
-        try {
-            // リレーション（屋号やペンネーム）も含めて一括取得
-            const users = await prisma.user.findMany({
-                where: whereClause,
-                include: {
-                    florist: true,
-                    organizer: true,
-                    illustrator: true,
-                    venue: true
-                },
-                orderBy: { createdAt: 'desc' }
-            });
-            return res.json(users || []);
-        } catch (err) {
-            // スキーマの差異等でエラーになった場合の安全なフォールバック
-            const fallbackUsers = await prisma.user.findMany({
-                where: keyword ? {
-                    OR: [
-                        { handleName: { contains: keyword } },
-                        { email: { contains: keyword } }
-                    ]
-                } : {},
-                orderBy: { createdAt: 'desc' }
-            });
-            return res.json(fallbackUsers || []);
+        // リレーション情報をすべて含めて取得
+        const users = await prisma.user.findMany({
+            where: usersWhere,
+            include: {
+                florist: true,
+                organizer: true,
+                illustrator: true,
+                venue: true
+            },
+            orderBy: { createdAt: 'desc' }
+        });
+
+        // 2. もしキーワードがある場合は、各ロール側のテーブル名でも引っ掛ける
+        if (keyword) {
+            const [florists, organizers, illustrators, venues] = await Promise.all([
+                prisma.florist?.findMany({ where: { storeName: { contains: keyword } }, include: { user: true } }).catch(() => []),
+                prisma.organizer?.findMany({ where: { organizerName: { contains: keyword } }, include: { user: true } }).catch(() => []),
+                prisma.illustrator?.findMany({ where: { penName: { contains: keyword } }, include: { user: true } }).catch(() => []),
+                prisma.venue?.findMany({ where: { venueName: { contains: keyword } }, include: { user: true } }).catch(() => [])
+            ]);
+
+            // すでにUserテーブル側で取れているIDのセット
+            const existingIds = new Set(users.map(u => u.id));
+
+            // 追加していく関数
+            const addUniqueUsers = (items, relationKey) => {
+                items.forEach(item => {
+                    if (item.user && !existingIds.has(item.user.id)) {
+                        existingIds.add(item.user.id);
+                        // リレーションデータをユーザーオブジェクトにマージして配列に追加
+                        users.push({
+                            ...item.user,
+                            [relationKey]: item
+                        });
+                    }
+                });
+            };
+
+            addUniqueUsers(florists || [], 'florist');
+            addUniqueUsers(organizers || [], 'organizer');
+            addUniqueUsers(illustrators || [], 'illustrator');
+            addUniqueUsers(venues || [], 'venue');
         }
+
+        // 新しい順に並び替えて返す
+        users.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+        return res.json(users || []);
     } catch (e) {
         console.error("searchAllUsers API Error:", e);
         return res.status(500).json([]);
