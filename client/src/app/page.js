@@ -15,9 +15,9 @@ import {
 
 import { 
   Heart, Sparkles, ArrowRight, Search, Users,
-  Gift, MessageCircle, Clock, Crown, PenTool, Video, Music, MapPin, Store,
+  Gift, MessageCircle, Crown, PenTool, Video, Music, Store,
   ChevronRight, ChevronDown, ArrowUpRight, Shield, Command, KeyRound, Building,
-  Ticket, Cake, BookmarkHeart, Ribbon // ★ リボンアイコンを追加
+  Ticket, Cake, BookmarkHeart, Ribbon
 } from 'lucide-react';
 
 // ==========================================
@@ -27,7 +27,6 @@ function cn(...classes) {
   return classes.filter(Boolean).join(' ');
 }
 
-// Windowオブジェクトへのアクセスを安全にするフック
 function useWindowSize() {
   const [windowSize, setWindowSize] = useState({ width: 0, height: 0 });
   useEffect(() => {
@@ -39,7 +38,6 @@ function useWindowSize() {
   return windowSize;
 }
 
-// マウント状態を管理するフック
 function useIsMounted() {
   const [isMounted, setIsMounted] = useState(false);
   useEffect(() => { setIsMounted(true); }, []);
@@ -214,7 +212,6 @@ const DUMMY_PROJECTS = [
 const IntroLoader = ({ onComplete }) => {
   useEffect(() => { const timer = setTimeout(onComplete, 2200); return () => clearTimeout(timer); }, [onComplete]);
 
-  // レースのSVGパターン
   const LacePattern = () => (
     <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
       <defs>
@@ -272,7 +269,6 @@ const Hero = () => {
   return (
     <section className="relative w-full min-h-[100svh] flex items-center justify-center overflow-hidden bg-[#FFF8FA] pt-20 pb-12 z-10">
       
-      {/* 背景装飾パーティクル */}
       <DecorativeParticle icon={Heart} x="10%" y="20%" scale={1.2} delay={0.5} color="text-pink-200" />
       <DecorativeParticle icon={Sparkles} x="85%" y="15%" scale={1} delay={2} color="text-amber-200" />
       <DecorativeParticle icon={Ribbon} x="20%" y="70%" scale={1.1} delay={3.5} color="text-pink-200" />
@@ -367,8 +363,6 @@ const HowItWorks = () => {
 
   return (
     <section className="py-24 md:py-36 bg-white relative z-10">
-      
-      {/* 花びら装飾 */}
       <div className="absolute top-1/4 left-0 w-24 h-24 bg-pink-100 rounded-full blur-3xl opacity-60" />
       <div className="absolute bottom-1/4 right-0 w-32 h-32 bg-sky-100 rounded-full blur-3xl opacity-60" />
 
@@ -493,7 +487,7 @@ const BentoFeatures = () => {
       desc: "イラストパネルの作成を、サイト内で絵師に直接依頼できます。",
       span: "col-span-1 md:col-span-1 row-span-1",
       icon: PenTool,
-      color: "bg-white", // ★ 白背景に変更
+      color: "bg-white",
       text: "text-slate-800",
       descColor: "text-slate-500",
       iconColor: "text-violet-500",
@@ -516,6 +510,7 @@ const BentoFeatures = () => {
             <Reveal key={i} delay={i * 0.1} className={cn("rounded-[2.5rem] overflow-hidden relative group shadow-[0_8px_30px_rgb(0,0,0,0.03)] border border-slate-200/50 hover:shadow-lg transition-all duration-500", feat.span, feat.color)}>
               <div className="absolute inset-0 p-8 md:p-10 flex flex-col z-20">
                 <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center mb-6 border", feat.text === 'text-white' ? 'bg-white/5 border-white/10' : 'bg-slate-50 border-slate-100', feat.iconColor)}>
+                  {/* ★ 修正ポイント: JSX要素を正しくレンダリングするよう修正 */}
                   <feat.icon size={24} strokeWidth={1.5} />
                 </div>
                 <h3 className={cn("text-xl md:text-2xl font-black mb-2 tracking-tight", feat.text)}>{feat.title}</h3>
@@ -536,8 +531,6 @@ const BentoFeatures = () => {
 const CategoryGrid = () => {
   return (
     <section className="py-24 md:py-32 bg-[#FAF9FF] relative z-10 border-t border-slate-100">
-      
-      {/* ケーキのパーティクル */}
       <DecorativeParticle icon={Cake} x="5%" y="10%" scale={1} delay={0.5} color="text-violet-200" />
       <DecorativeParticle icon={Sparkles} x="90%" y="80%" scale={1.1} delay={2} color="text-amber-200" />
 
@@ -552,7 +545,8 @@ const CategoryGrid = () => {
             <Reveal key={cat.id} delay={i * 0.05}>
               <div className="group bg-white border border-slate-100 hover:border-violet-200 rounded-3xl p-5 md:p-7 text-center cursor-pointer transition-all duration-300 shadow-sm hover:shadow-md">
                 <div className={cn("w-12 h-12 md:w-14 md:h-14 mx-auto rounded-2xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110", cat.bg, cat.color)}>
-                  <cat.icon size={24} md:size={28} strokeWidth={1.5} />
+                  {/* ★ 修正ポイント: JSX要素を正しくレンダリングするよう修正 */}
+                  <cat.icon className="w-6 h-6 md:w-7 md:h-7" strokeWidth={1.5} />
                 </div>
                 <h3 className="text-slate-800 font-extrabold text-xs md:text-sm mb-1.5">{cat.name}</h3>
                 <p className="text-slate-400 text-[10px] md:text-xs">{cat.jp}</p>
@@ -606,8 +600,6 @@ const ArticlesSection = () => (
 // --- 8. PARTNER CTA ---
 const PartnerCTA = () => (
   <section className="py-24 md:py-28 bg-slate-950 relative z-10 overflow-hidden border-t border-white/5">
-    
-    {/* リボンとハートの背景パターン */}
     <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: "url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgdmlld0JveD0iMCAwIDQwIDQwIj48ZyBmaWxsPSIjRkZGRkZGIiBmaWxsLW9wYWNpdHk9IjAuNCI+PHBhdGggZD0iTTAgMGg0MHY0MEgwVjB6bTIwIDIwaDIwdjIwSDIWMjB6TTAgMjBoMjB2MjBIMFYyMHoyMCAwaDIwdjIwSDIwVjB6Ii8+PC9nPjwvc3ZnPg==')" }} />
 
     <div className="container mx-auto px-4 md:px-6 max-w-5xl relative z-10">
@@ -645,7 +637,8 @@ const PartnerCTA = () => (
           ].map((btn, i) => (
             <Link key={i} href={btn.href} className="group">
               <div className="bg-white/5 border border-white/10 rounded-3xl p-7 flex items-center gap-5 hover:bg-white/10 transition-colors h-full">
-                <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center shrink-0 border", btn.bg, btn.color, btn.text === 'text-white' ? 'border-white/10' : 'border-current/10')}>
+                <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center shrink-0 border", btn.bg, btn.color, 'border-white/10')}>
+                  {/* ★ 修正ポイント: JSX要素を正しくレンダリングするよう修正 */}
                   <btn.icon size={22} strokeWidth={1.5} />
                 </div>
                 <span className="text-slate-200 font-extrabold text-sm md:text-base group-hover:text-white transition-colors">{btn.label}</span>
