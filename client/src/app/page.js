@@ -13,11 +13,12 @@ import {
   AnimatePresence
 } from 'framer-motion';
 
-// ★ エラーの原因だった特殊なアイコンを避け、確実にある標準アイコンのみを使用
+// ★ 特殊アイコンエラー回避のため、確実にある lucide-react の標準アイコンのみを使用
 import { 
   Heart, Sparkles, ArrowRight, Search, Users,
   Gift, MessageCircle, Clock, Crown, PenTool, Video, Music, MapPin, Store,
-  ChevronRight, ChevronDown, ArrowUpRight, Shield, Command, KeyRound, Building, Star
+  ChevronRight, ChevronDown, ArrowUpRight, Shield, Command, KeyRound, Building,
+  Ticket, Star
 } from 'lucide-react';
 
 // ==========================================
@@ -193,101 +194,84 @@ const DUMMY_PROJECTS = [
 // 🚀 PAGE SECTIONS
 // ==========================================
 
-// --- 0. INTRO LOADER (★ 奥に入り込むレースカーテン) ---
+// --- 0. INTRO LOADER (★ 最新表現：Blur + Scale で奥に入り込む) ---
 const IntroLoader = ({ onComplete }) => {
   useEffect(() => { 
-    // アニメーション全体が終わるタイミングでコンポーネントをアンマウント
+    // アニメーション全体が終わるタイミングで HomePage に通知
     const timer = setTimeout(onComplete, 2600); 
     return () => clearTimeout(timer); 
   }, [onComplete]);
 
   return (
-    // ★ 画面全体をズームイン（scale: 2）させながらフェードアウトすることで「奥に入り込む」表現
     <motion.div 
-      className="fixed inset-0 z-[99999] flex items-center justify-center pointer-events-none"
-      initial={{ scale: 1, opacity: 1 }}
-      animate={{ scale: 2.2, opacity: 0 }}
-      transition={{ duration: 1.2, delay: 1.4, ease: [0.4, 0, 0.2, 1] }} // カーテンが開いた後にズームイン
+      className="fixed inset-0 z-[99999] bg-[#101015] flex items-center justify-center overflow-hidden pointer-events-none" 
+      initial={{ opacity: 1 }}
+      exit={{ opacity: 0 }} // HomePage のAnimatePresence waitで制御
     >
       
-      {/* --- 左側のレースカーテン --- */}
-      <motion.div 
-        className="absolute inset-y-0 left-0 w-1/2 bg-[#FDF2F8] shadow-[20px_0_50px_rgba(244,114,182,0.4)] z-10 origin-left"
+      {/* 左右のレースカーテン */}
+      <motion.div className="absolute inset-y-0 left-0 w-1/2 bg-[#FAFAFC] border-r border-slate-100 z-10"
         initial={{ x: 0, skewX: 0 }}
-        animate={{ x: "-100%", skewX: -5 }} // 開きながら少し斜めに歪ませる（立体感）
-        transition={{ duration: 1.4, delay: 0.5, ease: [0.76, 0, 0.24, 1] }}
-        style={{
-          // カーテンの布のシワとテクスチャ
-          backgroundImage: `
-            linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(244,114,182,0.05) 50%, rgba(0,0,0,0) 100%),
-            url('https://www.transparenttextures.com/patterns/french-stucco.png')
-          `
-        }}
+        animate={{ x: "-100%", skewX: -5 }} // 開きながら少し斜めに歪ませる
+        transition={{ duration: 1.4, delay: 0.8, ease: [0.76, 0, 0.24, 1] }}
       >
-        {/* レースのフリル（右端） SVGパターン */}
-        <div className="absolute top-0 bottom-0 -right-10 w-12 h-full drop-shadow-xl overflow-hidden">
-          <svg width="100%" height="100%" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-              <pattern id="lace-left" x="0" y="0" width="48" height="60" patternUnits="userSpaceOnUse">
-                {/* スカラップ（半円） */}
-                <path d="M0,0 C24,0 48,15 48,30 C48,45 24,60 0,60 Z" fill="#FDF2F8" />
-                {/* レースの穴 */}
-                <circle cx="15" cy="30" r="5" fill="transparent" stroke="#FBCFE8" strokeWidth="2" />
-                <circle cx="30" cy="30" r="3" fill="#FBCFE8" />
-              </pattern>
-            </defs>
-            <rect width="100%" height="100%" fill="url(#lace-left)" />
-          </svg>
-        </div>
+        <div className="absolute inset-y-0 right-0 w-12 bg-gradient-to-r from-transparent to-pink-50/60" />
       </motion.div>
-
-      {/* --- 右側のレースカーテン --- */}
-      <motion.div 
-        className="absolute inset-y-0 right-0 w-1/2 bg-[#FDF2F8] shadow-[-20px_0_50px_rgba(244,114,182,0.4)] z-10 origin-right"
+      <motion.div className="absolute inset-y-0 right-0 w-1/2 bg-[#FAFAFC] border-l border-slate-100 z-10"
         initial={{ x: 0, skewX: 0 }}
         animate={{ x: "100%", skewX: 5 }} // 開きながら少し斜めに歪ませる
-        transition={{ duration: 1.4, delay: 0.5, ease: [0.76, 0, 0.24, 1] }}
-        style={{
-          backgroundImage: `
-            linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(244,114,182,0.05) 50%, rgba(0,0,0,0) 100%),
-            url('https://www.transparenttextures.com/patterns/french-stucco.png')
-          `
-        }}
+        transition={{ duration: 1.4, delay: 0.8, ease: [0.76, 0, 0.24, 1] }}
       >
-        {/* レースのフリル（左端） SVGパターン */}
-        <div className="absolute top-0 bottom-0 -left-10 w-12 h-full drop-shadow-xl overflow-hidden">
-          <svg width="100%" height="100%" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-              <pattern id="lace-right" x="0" y="0" width="48" height="60" patternUnits="userSpaceOnUse">
-                {/* 逆向きのスカラップ */}
-                <path d="M48,0 C24,0 0,15 0,30 C0,45 24,60 48,60 Z" fill="#FDF2F8" />
-                <circle cx="33" cy="30" r="5" fill="transparent" stroke="#FBCFE8" strokeWidth="2" />
-                <circle cx="18" cy="30" r="3" fill="#FBCFE8" />
-              </pattern>
-            </defs>
-            <rect width="100%" height="100%" fill="url(#lace-right)" />
-          </svg>
-        </div>
+        <div className="absolute inset-y-0 left-0 w-12 bg-gradient-to-l from-transparent to-pink-50/60" />
       </motion.div>
 
-      {/* --- 中央のロゴとウェルカムテキスト --- */}
+      {/* ロゴ表示と最新表現アニメーション */}
       <motion.div 
-        className="absolute z-20 flex flex-col items-center"
-        initial={{ opacity: 0, scale: 0.5, y: 20 }} 
-        // ロゴが手前に迫ってくる（scale: 2）
-        animate={{ opacity: [0, 1, 0], scale: [0.5, 1, 2], y: [20, 0, -20] }} 
-        transition={{ duration: 2, times: [0, 0.3, 1], ease: "easeIn" }}
+        className="flex flex-col items-center z-20"
+        initial={{ opacity: 0, scale: 0.5, filter: "blur(0px)" }} 
+        // ★ 最新表現: ズームイン（scale: 3）させながら、ぼかす（blur: 20px）ことで「奥に入り込む」表現
+        animate={{ opacity: [0, 1, 0], scale: [0.5, 1, 3], filter: ["blur(0px)", "blur(0px)", "blur(20px)"] }} 
+        transition={{ duration: 2.2, times: [0, 0.4, 1], ease: "easeIn" }}
       >
-        <span className="font-calligraphy text-4xl text-pink-400 mb-2 drop-shadow-sm">Welcome to</span>
-        <h1 className="text-5xl md:text-7xl font-black text-pink-500 tracking-[0.3em] font-serif-jp drop-shadow-lg">
+        <div className="flex items-center gap-3 mb-4">
+          <Sparkles className="text-pink-300 animate-pulse" />
+          <span className="text-4xl text-pink-300 font-calligraphy">Welcome to</span>
+          <Sparkles className="text-pink-300 animate-pulse" />
+        </div>
+        
+        {/* ★ ロゴを真っ白から少しピンクに */}
+        <h1 className="text-5xl md:text-8xl font-black text-pink-400 tracking-[0.3em] font-serif-jp drop-shadow-lg">
           FLASTAL
         </h1>
-        <div className="w-full h-px bg-gradient-to-r from-transparent via-pink-400 to-transparent mt-4" />
+        
+        <div className="w-48 md:w-64 h-px bg-gradient-to-r from-transparent via-pink-400 to-transparent mt-6 relative overflow-hidden">
+          <motion.div initial={{ x: "-100%" }} animate={{ x: "100%", transition: { duration: 1.2, ease: "easeInOut", delay: 0.2 } }} exit={{ opacity: 0 }} className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent" />
+        </div>
       </motion.div>
       
     </motion.div>
   );
 };
+
+// --- Main Content Wrapper ( IntroLoader 終了後に描画 ) ---
+const MainContent = () => {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 30 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.8, ease: "easeOut" }}
+    >
+      <Hero />
+      <InfiniteMarquee />
+      <HowItWorks />
+      <TrendingProjects />
+      <BentoFeatures />
+      <CategoryGrid />
+      <ArticlesSection />
+      <PartnerCTA />
+    </motion.div>
+  );
+}
 
 // --- 1. HERO SECTION ---
 const Hero = () => {
@@ -321,7 +305,8 @@ const Hero = () => {
           </div>
         </Reveal>
 
-        <SplitTextReveal text="Celebrate with Flowers." className="text-4xl sm:text-5xl md:text-8xl font-black text-slate-900 tracking-tighter leading-[1.05] mb-4 md:mb-6" delay={0.2} />
+        {/* ★ 変更点: 真っ黒 (text-slate-900) から、霞んだチャコール (text-slate-700) へ */}
+        <SplitTextReveal text="Celebrate with Flowers." className="text-4xl sm:text-5xl md:text-8xl font-black text-slate-700 tracking-tighter leading-[1.05] mb-4 md:mb-6" delay={0.2} />
         
         <Reveal delay={0.4}>
           <h2 className="text-lg sm:text-xl md:text-3xl font-extrabold text-slate-600 mb-6 md:mb-10 tracking-tight leading-snug">
@@ -501,7 +486,7 @@ const BentoFeatures = () => {
       visual: (
         <>
           <div className="absolute right-0 bottom-0 w-64 h-64 bg-gradient-to-tl from-emerald-400/20 to-transparent rounded-tl-full blur-2xl"></div>
-        </>
+        </end>
       )
     },
     {
@@ -698,30 +683,32 @@ export default function HomePage() {
 
   return (
     <main className="bg-[#FFFDFE] min-h-screen text-slate-800 font-sans selection:bg-pink-100 selection:text-pink-500">
-      <AnimatePresence>
-        {!introFinished && <IntroLoader onComplete={() => setIntroFinished(true)} />}
+      
+      {/* ★ 変更点: mode="wait" を追加して、 IntroLoader が完全に消えるまで MainContent を描画しない */}
+      <AnimatePresence mode="wait">
+        {!introFinished ? (
+          <IntroLoader key="loader" onComplete={() => setIntroFinished(true)} />
+        ) : (
+          <MainContent key="content" />
+        )}
       </AnimatePresence>
       
-      <Hero />
-      <InfiniteMarquee />
-      <HowItWorks />
-      <TrendingProjects />
-      <BentoFeatures />
-      <CategoryGrid />
-      <ArticlesSection />
-      <PartnerCTA />
-
       <style jsx global>{`
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&family=Parisienne&display=swap');
         
         :root {
           --font-sans: 'Zen Kaku Gothic New', 'Plus Jakarta Sans', sans-serif;
+          --font-calligraphy: 'Parisienne', cursive; /* お洒落な筆記体 */
         }
 
         body {
           font-family: var(--font-sans);
           -webkit-font-smoothing: antialiased;
           -moz-osx-font-smoothing: grayscale;
+        }
+
+        .font-calligraphy {
+          font-family: var(--font-calligraphy);
         }
 
         ::-webkit-scrollbar { width: 6px; }
