@@ -88,7 +88,7 @@ export const approveItem = async (req, res) => {
         const fm = prisma.florist || prisma['florist'];
         if (type === 'projects') updated = await prisma.project.update({ where: { id }, data: { status: status === 'APPROVED' ? 'FUNDRAISING' : 'REJECTED' } });
         else if (type === 'florists') updated = await fm.update({ where: { id }, data: { status: finalStatus } });
-        else if (type === 'illustrators') updated = await prisma.illustrator.update({ where: { id }, data: { status: finalStatus } });
+        else if (type === 'illustrators') updated = await prisma.user.update({ where: { id }, data: { status: finalStatus } });
         else if (type === 'venues') updated = await prisma.venue.update({ where: { id }, data: { status: finalStatus } });
         else if (type === 'organizers') updated = await prisma.organizer.update({ where: { id }, data: { status: finalStatus } });
         return res.json(updated);
@@ -102,7 +102,7 @@ export const getPendingItems = async (req, res) => {
         const fm = prisma.florist || prisma['florist'];
         if (type === 'projects') data = await prisma.project.findMany({ where: { status: 'PENDING_APPROVAL' }, include: { planner: true } });
         else if (type === 'florists') data = await fm.findMany({ where: { status: 'PENDING' } });
-        else if (type === 'illustrators') data = await prisma.illustrator.findMany({ where: { status: 'PENDING' } });
+        else if (type === 'illustrators') data = await prisma.user.findMany({ where: { role: 'ILLUSTRATOR', status: 'PENDING' }, include: { illustratorProfile: true } });
         else if (type === 'venues') data = await prisma.venue.findMany({ where: { status: 'PENDING' } });
         else if (type === 'organizers') data = await prisma.organizer.findMany({ where: { status: 'PENDING' } });
         return res.json(data || []);
@@ -201,43 +201,42 @@ export const getAdminChatMessages = async (req, res) => {
     try { return res.json(await prisma.adminChatMessage.findMany({ where: { chatRoomId: req.params.roomId } }) || []); } catch (e) { return res.status(200).json([]); }
 };
 
+
 // ==========================================
-// ★ 修正: 完全に独立したテーブルを全て検索し、マージするロジック
+// ★ 修正: DB設計に完全対応した独立テーブル検索マージロジック
 // ==========================================
 export const searchAllUsers = async (req, res) => {
     try {
         const keyword = req.query.keyword || '';
 
-        // 1. Userテーブルから検索 (ファン、管理者、クリエイターなど)
+        // 1. ファン＆クリエイター（Userテーブル）
         const usersWhere = keyword ? {
             OR: [
                 { handleName: { contains: keyword } },
                 { email: { contains: keyword } }
             ]
         } : {};
-
         const baseUsers = await prisma.user.findMany({
             where: usersWhere,
-            include: { illustratorProfile: true },
+            include: { illustratorProfile: true }, // クリエイター情報のみ紐づくので取得
             orderBy: { createdAt: 'desc' }
         });
 
-        // 2. 独立した各ロールテーブルから検索
-        // Florist (お花屋さん)
+        // 2. お花屋さん（Floristテーブル）
         const floristsWhere = keyword ? {
             OR: [
-                { shopName: { contains: keyword } }, 
                 { platformName: { contains: keyword } },
-                { email: { contains: keyword } },
-                { contactName: { contains: keyword } }
+                { shopName: { contains: keyword } },
+                { contactName: { contains: keyword } },
+                { email: { contains: keyword } }
             ]
         } : {};
         const florists = await prisma.florist.findMany({ 
             where: floristsWhere, 
             orderBy: { createdAt: 'desc' } 
-        }).catch(() => []);
+        });
 
-        // Organizer (主催者)
+        // 3. 主催者（Organizerテーブル）
         const organizersWhere = keyword ? {
             OR: [
                 { name: { contains: keyword } },
@@ -247,9 +246,9 @@ export const searchAllUsers = async (req, res) => {
         const organizers = await prisma.organizer.findMany({ 
             where: organizersWhere, 
             orderBy: { createdAt: 'desc' } 
-        }).catch(() => []);
+        });
 
-        // Venue (会場)
+        // 4. 会場（Venueテーブル）
         const venuesWhere = keyword ? {
             OR: [
                 { venueName: { contains: keyword } },
@@ -259,20 +258,19 @@ export const searchAllUsers = async (req, res) => {
         const venues = await prisma.venue.findMany({ 
             where: venuesWhere, 
             orderBy: { createdAt: 'desc' } 
-        }).catch(() => []);
+        });
 
 
-        // 3. 全データをマージ（すべて共通のオブジェクト構造にする）
+        // 5. 取得した各テーブルのデータを、フロントエンドで使いやすい共通フォーマットに合体させる
         const finalUsers = [];
 
-        // Users の処理
+        // ファンのデータを変換
         baseUsers.forEach(u => {
             let role = u.role ? u.role.toUpperCase() : 'USER';
-            // クリエイター（絵師）の場合はロールを上書き
+            // illustratorProfile が存在するか、ロールがILLUSTRATORならクリエイター扱いにする
             if (u.illustratorProfile || role === 'ILLUSTRATOR') {
                 role = 'ILLUSTRATOR';
             }
-
             finalUsers.push({
                 id: u.id,
                 email: u.email || '非公開',
@@ -283,7 +281,7 @@ export const searchAllUsers = async (req, res) => {
             });
         });
 
-        // Florists の処理
+        // お花屋さんのデータを変換
         florists.forEach(f => {
             finalUsers.push({
                 id: f.id,
@@ -295,7 +293,7 @@ export const searchAllUsers = async (req, res) => {
             });
         });
 
-        // Organizers の処理
+        // 主催者のデータを変換
         organizers.forEach(o => {
             finalUsers.push({
                 id: o.id,
@@ -307,7 +305,7 @@ export const searchAllUsers = async (req, res) => {
             });
         });
 
-        // Venues の処理
+        // 会場のデータを変換
         venues.forEach(v => {
             finalUsers.push({
                 id: v.id,
@@ -319,9 +317,10 @@ export const searchAllUsers = async (req, res) => {
             });
         });
 
-        // 4. 全体を日付で新しい順にソートしてフロントエンドへ返す
+        // 最後に全体の登録日が新しい順に並び替え
         finalUsers.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
 
+        // 結合した名簿をフロントエンドへ返す
         return res.json(finalUsers);
 
     } catch (e) {
