@@ -660,34 +660,28 @@ const PartnerCTA = () => (
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-7">
-          <Link href="/venues/login" className="col-span-1 md:col-span-2 group">
-            <div className="bg-gradient-to-r from-blue-900/30 to-indigo-900/30 border border-blue-500/20 rounded-3xl p-7 md:p-9 flex flex-col md:flex-row items-center justify-between hover:bg-blue-900/40 transition-colors duration-300">
-              <div className="flex items-center gap-5 mb-5 md:mb-0">
-                <div className="w-14 h-14 bg-blue-500/10 text-blue-400 rounded-2xl flex items-center justify-center shrink-0 border border-blue-500/20">
-                  <Building size={28} strokeWidth={1.5}/>
-                </div>
-                <div className="text-left">
-                  <h3 className="text-xl md:text-2xl font-black text-white mb-1.5">会場・ホールのご担当者様</h3>
-                  <p className="text-blue-200/80 text-xs md:text-sm font-medium">搬入ルールの設定、お花屋さんとの連携はこちら</p>
-                </div>
-              </div>
-              <button className="w-full md:w-auto px-7 py-4 bg-blue-600 text-white text-sm font-extrabold rounded-full flex items-center justify-center gap-2 group-hover:scale-105 transition-transform shadow-lg shadow-blue-900/30">
-                ログイン / 新規登録 <ArrowRight size={18} />
-              </button>
-            </div>
-          </Link>
-
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
           {[
-            { href: "/florists/register", label: "お花屋さんとして登録", icon: Store, color: "text-emerald-400", bg: "bg-emerald-500/10" },
-            { href: "/illustrators/register", label: "クリエイターとして登録", icon: PenTool, color: "text-pink-400", bg: "bg-pink-500/10" },
-          ].map((btn, i) => (
-            <Link key={i} href={btn.href} className="group">
-              <div className="bg-white/5 border border-white/10 rounded-3xl p-7 flex items-center gap-5 hover:bg-white/10 transition-colors h-full">
-                <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center shrink-0 border", btn.bg, btn.color, 'border-white/10')}>
-                  <btn.icon size={22} strokeWidth={1.5} />
+            { href: "/venues/login", title: "会場・ホールのご担当者様", desc: "搬入ルールの設定、お花屋さんとの連携", icon: Building, color: "text-blue-400", bg: "bg-blue-500/10", border: "border-blue-500/20" },
+            { href: "/organizers/login", title: "イベント主催者様", desc: "お祝い花のレギュレーション周知・管理", icon: Ticket, color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/20" },
+            { href: "/florists/login", title: "お花屋さん", desc: "フラスタの受注管理・納品報告", icon: Store, color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20" },
+            { href: "/illustrators/login", title: "クリエイター様", desc: "イラストパネルの受注・納品", icon: PenTool, color: "text-pink-400", bg: "bg-pink-500/10", border: "border-pink-500/20" },
+          ].map((role, i) => (
+            <Link key={i} href={role.href} className="group">
+              <div className={cn("bg-white/5 border rounded-3xl p-6 md:p-8 flex flex-col h-full hover:bg-white/10 transition-colors duration-300", role.border)}>
+                <div className="flex items-start gap-4 mb-6">
+                  <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center shrink-0 border border-white/10", role.bg, role.color)}>
+                    <role.icon size={24} strokeWidth={1.5}/>
+                  </div>
+                  <div className="text-left mt-1">
+                    <h3 className="text-lg md:text-xl font-black text-white mb-1.5">{role.title}</h3>
+                    <p className="text-slate-400 text-xs md:text-sm font-medium">{role.desc}</p>
+                  </div>
                 </div>
-                <span className="text-slate-200 font-extrabold text-sm md:text-base group-hover:text-white transition-colors">{btn.label}</span>
+                <div className="mt-auto pt-5 border-t border-white/5 flex justify-between items-center">
+                  <span className="text-slate-300 font-bold text-sm group-hover:text-white transition-colors">ログイン / 新規登録</span>
+                  <ArrowRight size={18} className="text-slate-500 group-hover:text-white transition-colors group-hover:translate-x-1" />
+                </div>
               </div>
             </Link>
           ))}
