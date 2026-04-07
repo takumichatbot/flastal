@@ -13,10 +13,11 @@ import {
   AnimatePresence
 } from 'framer-motion';
 
+
 import { 
   Heart, Sparkles, ArrowRight, Search, Users,
   Gift, MessageCircle, Clock, Crown, PenTool, Video, Music, MapPin, Store,
-  ChevronRight, ChevronDown, ArrowUpRight, Shield, Command, KeyRound, Building, Star
+  ChevronRight, ChevronDown, ArrowUpRight, Shield, Command, KeyRound, Building, Star, Ticket
 } from 'lucide-react';
 
 // ==========================================
