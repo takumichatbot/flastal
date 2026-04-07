@@ -486,7 +486,7 @@ const BentoFeatures = () => {
       visual: (
         <>
           <div className="absolute right-0 bottom-0 w-64 h-64 bg-gradient-to-tl from-emerald-400/20 to-transparent rounded-tl-full blur-2xl"></div>
-        </end>
+        </>
       )
     },
     {
@@ -624,7 +624,6 @@ const PartnerCTA = () => (
     <div className="container mx-auto px-4 md:px-6 max-w-5xl relative z-10">
       <Reveal>
         <div className="text-center mb-14 md:mb-18">
-          {/* リボンアイコンの代わりに絵文字を使用 */}
           <EmojiParticle emoji="🎀" x="45%" y="-40px" scale={1.5} delay={0.5} />
           
           <h2 className="text-3xl md:text-5xl font-black text-white mb-5 tracking-tighter mt-8">法人・クリエイターの皆様へ</h2>
@@ -684,7 +683,7 @@ export default function HomePage() {
   return (
     <main className="bg-[#FFFDFE] min-h-screen text-slate-800 font-sans selection:bg-pink-100 selection:text-pink-500">
       
-      {/* ★ 変更点: mode="wait" を追加して、 IntroLoader が完全に消えるまで MainContent を描画しない */}
+      {/* ★ AnimatePresence の mode="wait" を使用して、前の要素が完全に消えてから次を描画する */}
       <AnimatePresence mode="wait">
         {!introFinished ? (
           <IntroLoader key="loader" onComplete={() => setIntroFinished(true)} />
@@ -692,7 +691,7 @@ export default function HomePage() {
           <MainContent key="content" />
         )}
       </AnimatePresence>
-      
+
       <style jsx global>{`
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&family=Parisienne&display=swap');
         
