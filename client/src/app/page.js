@@ -13,7 +13,6 @@ import {
   AnimatePresence
 } from 'framer-motion';
 
-// ★ エラーの原因だった特殊なアイコンを避け、確実にある標準アイコンのみを使用
 import { 
   Heart, Sparkles, ArrowRight, Search, Users,
   Gift, MessageCircle, Clock, Crown, PenTool, Video, Music, MapPin, Store,
@@ -143,7 +142,7 @@ const SplitTextReveal = ({ text, className, delay = 0 }) => {
 };
 
 // ==========================================
-// 🎀 EMOJI PARTICLE (アイコンエラー回避＆可愛さMAX！)
+// 🎀 EMOJI PARTICLE
 // ==========================================
 const EmojiParticle = ({ emoji, delay = 0, x = "0%", y = "0%", scale = 1 }) => {
   const isMounted = useIsMounted();
@@ -193,20 +192,20 @@ const DUMMY_PROJECTS = [
 // 🚀 PAGE SECTIONS
 // ==========================================
 
-// --- 0. INTRO LOADER (★ 重なりをなくし、奥に入り込むアニメーション) ---
+// --- 0. INTRO LOADER (★ 黒画面を撤廃し、サクサク開く) ---
 const IntroLoader = ({ onComplete }) => {
   useEffect(() => { 
-    // アニメーションが終わるタイミングで通知し、アンマウントさせる
-    const timer = setTimeout(onComplete, 2800); 
+    // アニメーション全体を短縮し、1.6秒でサクッとアンマウントさせる
+    const timer = setTimeout(onComplete, 1600); 
     return () => clearTimeout(timer); 
   }, [onComplete]);
 
   return (
-    // 親要素が消えるとき（exit）に、ズームアウト＋フェードアウト＋ぼかし で奥へ消える演出
+    // ★ 背景を透明にし、後ろのメインコンテンツが見えるようにする
     <motion.div 
-      className="fixed inset-0 z-[99999] flex items-center justify-center pointer-events-none bg-[#101015]"
+      className="fixed inset-0 z-[99999] flex items-center justify-center pointer-events-none"
       initial={{ opacity: 1 }}
-      exit={{ scale: 3, opacity: 0, filter: "blur(10px)", transition: { duration: 1.2, ease: "easeInOut" } }}
+      exit={{ opacity: 0, transition: { duration: 0.4 } }}
     >
       
       {/* --- 左側のレースカーテン --- */}
@@ -214,7 +213,7 @@ const IntroLoader = ({ onComplete }) => {
         className="absolute inset-y-0 left-0 w-1/2 bg-[#FDF2F8] shadow-[20px_0_50px_rgba(244,114,182,0.4)] z-10 origin-left"
         initial={{ x: 0, skewX: 0 }}
         animate={{ x: "-100%", skewX: -5 }} 
-        transition={{ duration: 1.4, delay: 0.5, ease: [0.76, 0, 0.24, 1] }}
+        transition={{ duration: 1.0, delay: 0.4, ease: [0.76, 0, 0.24, 1] }} // ★ タイミングを高速化
         style={{
           backgroundImage: `
             linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(244,114,182,0.05) 50%, rgba(0,0,0,0) 100%),
@@ -241,7 +240,7 @@ const IntroLoader = ({ onComplete }) => {
         className="absolute inset-y-0 right-0 w-1/2 bg-[#FDF2F8] shadow-[-20px_0_50px_rgba(244,114,182,0.4)] z-10 origin-right"
         initial={{ x: 0, skewX: 0 }}
         animate={{ x: "100%", skewX: 5 }} 
-        transition={{ duration: 1.4, delay: 0.5, ease: [0.76, 0, 0.24, 1] }}
+        transition={{ duration: 1.0, delay: 0.4, ease: [0.76, 0, 0.24, 1] }} // ★ タイミングを高速化
         style={{
           backgroundImage: `
             linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(244,114,182,0.05) 50%, rgba(0,0,0,0) 100%),
@@ -263,41 +262,44 @@ const IntroLoader = ({ onComplete }) => {
         </div>
       </motion.div>
 
-      {/* --- 中央のロゴ --- */}
+      {/* --- 中央のロゴ (奥へ吸い込まれて消える) --- */}
       <motion.div 
         className="absolute z-20 flex flex-col items-center"
-        initial={{ opacity: 0, scale: 0.5, y: 20 }} 
-        animate={{ opacity: 1, scale: 1, y: 0 }} 
-        transition={{ duration: 0.8, ease: "easeOut", delay: 0.2 }}
+        initial={{ opacity: 0, scale: 0.8 }} 
+        // ★ ズームインスピードを上げ、サクッと消える
+        animate={{ opacity: [0, 1, 0], scale: [0.8, 1, 2.5] }} 
+        transition={{ duration: 1.3, times: [0, 0.3, 1], ease: "easeIn" }}
       >
-        <span className="font-calligraphy text-4xl text-pink-400 mb-2 drop-shadow-sm">Welcome to</span>
-        <h1 className="text-5xl md:text-7xl font-black text-pink-500 tracking-[0.3em] font-serif-jp drop-shadow-lg">
+        <span className="font-calligraphy text-3xl md:text-4xl text-pink-400 mb-2 drop-shadow-sm">Welcome to</span>
+        <h1 className="text-4xl md:text-7xl font-black text-pink-500 tracking-[0.3em] font-serif-jp drop-shadow-lg">
           FLASTAL
         </h1>
-        <div className="w-full h-px bg-gradient-to-r from-transparent via-pink-400 to-transparent mt-4" />
       </motion.div>
       
     </motion.div>
   );
 };
 
-// --- メインコンテンツをラップするコンポーネント (IntroLoader後に表示) ---
-const MainContent = () => (
-  <motion.div
-    initial={{ opacity: 0, scale: 1.1 }}
-    animate={{ opacity: 1, scale: 1 }}
-    transition={{ duration: 1.2, ease: "easeOut" }}
-  >
-    <Hero />
-    <InfiniteMarquee />
-    <HowItWorks />
-    <TrendingProjects />
-    <BentoFeatures />
-    <CategoryGrid />
-    <ArticlesSection />
-    <PartnerCTA />
-  </motion.div>
-);
+// --- Main Content Wrapper ( IntroLoader 後ろに配置し、一緒に奥から浮かび上がる ) ---
+const MainContent = () => {
+  return (
+    <motion.div
+      // ★ カーテンが開くタイミング(delay: 0.4)に合わせて、全体が奥からフワッと浮かび上がる
+      initial={{ opacity: 0, scale: 1.05, filter: "blur(8px)" }}
+      animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
+      transition={{ duration: 1.2, delay: 0.4, ease: "easeOut" }}
+    >
+      <Hero />
+      <InfiniteMarquee />
+      <HowItWorks />
+      <TrendingProjects />
+      <BentoFeatures />
+      <CategoryGrid />
+      <ArticlesSection />
+      <PartnerCTA />
+    </motion.div>
+  );
+}
 
 // --- 1. HERO SECTION ---
 const Hero = () => {
@@ -330,7 +332,7 @@ const Hero = () => {
           </div>
         </Reveal>
 
-        {/* ★ 変更点: 霞んだチャコール (text-slate-700) */}
+        {/* ★ 変更点: 霞んだチャコール (text-slate-700) をキープ */}
         <SplitTextReveal text="Celebrate with Flowers." className="text-4xl sm:text-5xl md:text-8xl font-black text-slate-700 tracking-tighter leading-[1.05] mb-4 md:mb-6" delay={0.2} />
         
         <Reveal delay={0.4}>
@@ -707,13 +709,13 @@ export default function HomePage() {
   return (
     <main className="bg-[#FFFDFE] min-h-screen text-slate-800 font-sans selection:bg-pink-100 selection:text-pink-500">
       
-      {/* ★ AnimatePresence の mode="wait" を使用して、前の要素が完全に消えてから次を描画する */}
-      <AnimatePresence mode="wait">
-        {!introFinished ? (
-          <IntroLoader key="loader" onComplete={() => setIntroFinished(true)} />
-        ) : (
-          <MainContent key="content" />
-        )}
+      {/* ★ 変更点: mode="wait" は削除せず、IntroLoader と MainContent が独立して動くようにする */}
+      <AnimatePresence>
+        {!introFinished && <IntroLoader key="loader" onComplete={() => setIntroFinished(true)} />}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {introFinished && <MainContent key="content" />}
       </AnimatePresence>
 
       <style jsx global>{`
