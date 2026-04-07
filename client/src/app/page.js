@@ -13,8 +13,6 @@ import {
   AnimatePresence
 } from 'framer-motion';
 
-// ★ エラーの原因だった存在しないアイコン(BookmarkHeart, Cake, Ribbon等)を削除し、
-// 確実に存在する安全なアイコン(Star, Gift, Crown等)に置き換えました！
 import { 
   Heart, Sparkles, ArrowRight, Search, Users,
   Gift, MessageCircle, Clock, Crown, PenTool, Video, Music, MapPin, Store,
@@ -228,30 +226,49 @@ const IntroLoader = ({ onComplete }) => {
   );
 
   return (
-    <motion.div className="fixed inset-0 z-[99999] bg-[#101015] flex items-center justify-center overflow-hidden" initial={{ opacity: 1 }} exit={{ opacity: 0, transition: { delay: 1, duration: 0.8 } }}>
-      
-      <motion.div className="absolute inset-y-0 left-0 w-1/2 bg-[#FAFAFC] border-r border-slate-100 z-10"
+    // ★ 変更点：背景を透過にして、scaleによるズームイン効果を追加
+    <motion.div 
+      className="fixed inset-0 z-[99999] flex items-center justify-center overflow-hidden pointer-events-none" 
+      initial={{ scale: 1, opacity: 1 }} 
+      exit={{ scale: 1.5, opacity: 0, transition: { delay: 1, duration: 1.2, ease: "easeIn" } }} // ズームインしながらフェードアウト
+    >
+      {/* 左右の薄ピンクカーテン */}
+      <motion.div className="absolute inset-y-0 left-0 w-1/2 bg-pink-50/95 border-r-2 border-pink-100 z-10 shadow-[10px_0_30px_rgba(244,114,182,0.1)]"
         initial={{ x: 0 }}
-        animate={{ x: "-100%", transition: { delay: 1.2, duration: 1.2, ease: [0.76, 0, 0.24, 1] } }}
+        animate={{ x: "-100%", transition: { delay: 1.2, duration: 1.4, ease: [0.76, 0, 0.24, 1] } }}
       >
         <div className="absolute inset-0 opacity-40"><LacePattern /></div>
-        <div className="absolute inset-y-0 right-0 w-8 bg-gradient-to-r from-transparent to-white/60" />
+        <div className="absolute inset-y-0 right-0 w-12 bg-gradient-to-r from-transparent to-pink-100/60" />
       </motion.div>
-      <motion.div className="absolute inset-y-0 right-0 w-1/2 bg-[#FAFAFC] border-l border-slate-100 z-10"
+      
+      <motion.div className="absolute inset-y-0 right-0 w-1/2 bg-pink-50/95 border-l-2 border-pink-100 z-10 shadow-[-10px_0_30px_rgba(244,114,182,0.1)]"
         initial={{ x: 0 }}
-        animate={{ x: "100%", transition: { delay: 1.2, duration: 1.2, ease: [0.76, 0, 0.24, 1] } }}
+        animate={{ x: "100%", transition: { delay: 1.2, duration: 1.4, ease: [0.76, 0, 0.24, 1] } }}
       >
         <div className="absolute inset-0 opacity-40"><LacePattern /></div>
-        <div className="absolute inset-y-0 left-0 w-8 bg-gradient-to-l from-transparent to-white/60" />
+        <div className="absolute inset-y-0 left-0 w-12 bg-gradient-to-l from-transparent to-pink-100/60" />
       </motion.div>
 
-      <div className="overflow-hidden z-0">
-        <motion.h1 initial={{ y: 100, opacity: 0 }} animate={{ y: 0, opacity: 1, transition: { duration: 0.8, ease: "easeOut", delay: 0.2 } }} className="text-4xl md:text-6xl font-black text-white tracking-[0.3em] uppercase">
+      {/* ロゴ表示 */}
+      <div className="overflow-hidden z-20">
+        <motion.h1 
+          initial={{ y: 100, opacity: 0 }} 
+          animate={{ y: 0, opacity: 1, transition: { duration: 0.8, ease: "easeOut", delay: 0.2 } }} 
+          exit={{ opacity: 0, transition: { duration: 0.5 } }} // カーテンと一緒に消える
+          className="text-4xl md:text-6xl font-black text-pink-400 tracking-[0.3em] uppercase drop-shadow-sm"
+        >
           FLASTAL
         </motion.h1>
       </div>
-      <div className="w-32 md:w-48 h-px bg-slate-800 absolute bottom-1/4 relative overflow-hidden z-0 mt-8">
-        <motion.div initial={{ x: "-100%" }} animate={{ x: "100%", transition: { duration: 1.2, ease: "easeInOut", delay: 0.2 } }} className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent" />
+      
+      {/* アンダーライン */}
+      <div className="w-32 md:w-48 h-px absolute bottom-[calc(50%-40px)] relative overflow-hidden z-20 mt-4">
+        <motion.div 
+          initial={{ x: "-100%" }} 
+          animate={{ x: "100%", transition: { duration: 1.2, ease: "easeInOut", delay: 0.2 } }} 
+          exit={{ opacity: 0 }}
+          className="absolute inset-0 bg-gradient-to-r from-transparent via-pink-300 to-transparent" 
+        />
       </div>
     </motion.div>
   );
@@ -269,7 +286,6 @@ const Hero = () => {
   return (
     <section className="relative w-full min-h-[100svh] flex items-center justify-center overflow-hidden bg-[#FFF8FA] pt-20 pb-12 z-10">
       
-      {/* アイコンを標準のもの(Heart, Sparkles, Crown, Gift, Star)に置き換え */}
       <DecorativeParticle icon={Heart} x="10%" y="20%" scale={1.2} delay={0.5} color="text-pink-200" />
       <DecorativeParticle icon={Sparkles} x="85%" y="15%" scale={1} delay={2} color="text-amber-200" />
       <DecorativeParticle icon={Crown} x="20%" y="70%" scale={1.1} delay={3.5} color="text-pink-200" />
