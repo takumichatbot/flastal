@@ -82,7 +82,7 @@ const MagneticWrapper = ({ children, className }) => {
   const [position, setPosition] = useState({ x: 0, y: 0 });
 
   const handleMouse = (e) => {
-    if (window.innerWidth < 1024) return; // スマホでは無効化
+    if (window.innerWidth < 1024) return; 
     const { clientX, clientY } = e;
     const { height, width, left, top } = ref.current.getBoundingClientRect();
     const middleX = clientX - (left + width / 2);
@@ -424,6 +424,7 @@ const BentoFeatures = () => {
           {features.map((feat, i) => (
             <Reveal key={i} delay={i * 0.1} className={cn("rounded-[2rem] overflow-hidden relative group shadow-sm border border-slate-200/50 hover:shadow-md transition-all duration-500", feat.span, feat.color)}>
               <div className="absolute inset-0 p-6 md:p-10 flex flex-col z-20">
+                {/* ★ 修正ポイント: JSX要素を正しくレンダリングするよう修正 */}
                 <feat.icon size={28} className={cn("mb-4 md:mb-6", feat.text)} />
                 <h3 className={cn("text-xl md:text-2xl font-black mb-2 tracking-tight", feat.text)}>{feat.title}</h3>
                 <p className={cn("text-xs md:text-sm font-medium leading-relaxed max-w-sm", feat.text === 'text-white' ? 'text-white/80' : 'text-slate-500')}>{feat.desc}</p>
