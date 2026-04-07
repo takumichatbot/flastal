@@ -24,6 +24,10 @@ const GENRES = [
   { id: 'OTHER', label: 'その他', color: 'from-gray-400 to-slate-500' },
 ];
 
+function cn(...classes) {
+  return classes.filter(Boolean).join(' ');
+}
+
 function EventListContent() {
   const { user, isAuthenticated, authenticatedFetch } = useAuth();
   const [events, setEvents] = useState([]);
@@ -250,9 +254,13 @@ function EventListContent() {
                 
                 const isOfficial = event.sourceType === 'OFFICIAL' || 
                                  (event.creator && (['ADMIN', 'VENUE', 'ORGANIZER'].includes(event.creator.role)));
+                
+                // ★ 追加: 現在時刻と比較して過去のイベントか判定
+                const isPastEvent = new Date(event.eventDate) < new Date();
 
                 return (
-                  <div key={event.id} className="group bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 flex flex-col h-full relative">
+                  // ★ 修正: 過去のイベントの場合は opacity-80 で少し薄くする
+                  <div key={event.id} className={cn("group bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden transition-all duration-500 flex flex-col h-full relative", isPastEvent ? "opacity-75" : "hover:shadow-2xl hover:-translate-y-2")}>
                     
                     <div className="absolute top-3 right-3 z-20 flex -space-x-2">
                          {event.creator && (
@@ -268,7 +276,8 @@ function EventListContent() {
                     </div>
 
                     <Link href={`/events/${event.id}`} className="flex-grow flex flex-col">
-                        <div className={`h-44 flex items-center justify-center relative bg-slate-100 transition-all duration-700`}>
+                        {/* ★ 修正: 過去イベントの画像は少し彩度を下げる (grayscale) */}
+                        <div className={cn("h-44 flex items-center justify-center relative bg-slate-100 transition-all duration-700 overflow-hidden", isPastEvent && "grayscale-[0.6]")}>
                             {event.imageUrls && event.imageUrls.length > 0 ? (
                               <img 
                                 src={event.imageUrls[0]} 
@@ -282,11 +291,20 @@ function EventListContent() {
                                 </span>
                               </div>
                             )}
-                            <div className="absolute top-4 left-4 bg-white/20 backdrop-blur-md text-white text-[10px] font-black px-3 py-1 rounded-full border border-white/30 uppercase tracking-widest shadow-sm">
-                                {genreData.label}
+                            
+                            {/* ★ 修正: 終了バッジの追加 */}
+                            <div className="absolute top-4 left-4 flex flex-col items-start gap-1">
+                                <span className="bg-white/20 backdrop-blur-md text-white text-[10px] font-black px-3 py-1 rounded-full border border-white/30 uppercase tracking-widest shadow-sm">
+                                    {genreData.label}
+                                </span>
+                                {isPastEvent && (
+                                  <span className="bg-slate-900/80 backdrop-blur-md text-white text-[10px] font-black px-3 py-1 rounded-full border border-slate-700 uppercase tracking-widest shadow-sm">
+                                      終了
+                                  </span>
+                                )}
                             </div>
                             
-                            {event.isIllustratorRecruiting && (
+                            {event.isIllustratorRecruiting && !isPastEvent && (
                                 <div className="absolute bottom-4 right-4 bg-rose-600 text-white text-[8px] font-black px-2 py-1 rounded-lg shadow-lg flex items-center gap-1 animate-pulse">
                                     <FiStar size={8} className="fill-white"/> 絵師募集中
                                 </div>
@@ -306,13 +324,13 @@ function EventListContent() {
                                 )}
                             </div>
 
-                            <h3 className="font-bold text-xl text-gray-900 group-hover:text-indigo-600 transition-colors line-clamp-2 mb-5 leading-snug">
+                            <h3 className={cn("font-bold text-xl transition-colors line-clamp-2 mb-5 leading-snug", isPastEvent ? "text-slate-500" : "text-gray-900 group-hover:text-indigo-600")}>
                                 {event.title}
                             </h3>
                             
                             <div className="mt-auto pt-6 border-t border-slate-50 space-y-3">
-                                <div className="flex items-center text-sm text-slate-600 font-bold">
-                                    <FiCalendar className="mr-3 text-indigo-500 shrink-0" size={18}/>
+                                <div className={cn("flex items-center text-sm font-bold", isPastEvent ? "text-slate-400" : "text-slate-600")}>
+                                    <FiCalendar className={cn("mr-3 shrink-0", isPastEvent ? "text-slate-400" : "text-indigo-500")} size={18}/>
                                     {new Date(event.eventDate).toLocaleString('ja-JP', { 
                                       month: 'long', 
                                       day: 'numeric', 
@@ -321,8 +339,8 @@ function EventListContent() {
                                       minute: '2-digit'
                                     })}
                                 </div>
-                                <div className="flex items-center text-sm text-slate-500 font-medium">
-                                    <FiMapPin className="mr-3 text-indigo-500 shrink-0" size={18}/>
+                                <div className={cn("flex items-center text-sm font-medium", isPastEvent ? "text-slate-400" : "text-slate-500")}>
+                                    <FiMapPin className={cn("mr-3 shrink-0", isPastEvent ? "text-slate-400" : "text-indigo-500")} size={18}/>
                                     <span className="truncate">{event.venue?.venueName || '会場未定'}</span>
                                 </div>
                             </div>
@@ -332,13 +350,16 @@ function EventListContent() {
                     <div className="px-7 pb-7 pt-2 flex justify-between items-center bg-white">
                         <button 
                             onClick={(e) => handleInterest(e, event.id)} 
-                            className={`flex items-center text-xs font-black px-6 py-3 rounded-full border transition-all duration-300 active:scale-90 ${
-                                isInterested 
-                                ? 'bg-pink-50 border-pink-200 text-pink-600 shadow-md shadow-pink-100' 
-                                : 'bg-white border-slate-200 text-slate-400 hover:text-pink-500 hover:border-pink-200 hover:shadow-lg'
+                            disabled={isPastEvent}
+                            className={`flex items-center text-xs font-black px-6 py-3 rounded-full border transition-all duration-300 ${
+                                isInterested && !isPastEvent
+                                ? 'bg-pink-50 border-pink-200 text-pink-600 shadow-md shadow-pink-100 active:scale-90' 
+                                : isPastEvent
+                                ? 'bg-slate-50 border-slate-200 text-slate-400 cursor-not-allowed'
+                                : 'bg-white border-slate-200 text-slate-400 hover:text-pink-500 hover:border-pink-200 hover:shadow-lg active:scale-90'
                             }`}
                         >
-                            <FiHeart className={`mr-2 size-4 ${isInterested ? 'fill-pink-600' : ''}`}/> {event._count?.interests || 0}
+                            <FiHeart className={`mr-2 size-4 ${isInterested && !isPastEvent ? 'fill-pink-600' : ''}`}/> {event._count?.interests || 0}
                         </button>
 
                         <div className="flex gap-2">
@@ -643,7 +664,6 @@ function ManualAddModal({ onClose, onAdded, editData = null }) {
 
           <button type="submit" disabled={isSubmitting || isUploading} className="w-full mt-6 py-4 bg-indigo-600 text-white font-black rounded-2xl shadow-xl shadow-indigo-100 active:scale-95 transition-all">
             {isSubmitting ? <FiLoader className="animate-spin inline mr-2"/> : null}
-            {/* 修正箇所: editTargetEvent ではなく editData を使用 */}
             {editData ? '更新を保存する' : 'イベントを登録する'}
           </button>
         </form>

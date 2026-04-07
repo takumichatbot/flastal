@@ -150,6 +150,9 @@ export default function FloristLoginPage() {
           <div>
             <div className="flex justify-between items-center mb-2">
               <label className="block text-xs font-black text-slate-500 tracking-widest uppercase">Password</label>
+              <Link href="/forgot-password?userType=FLORIST" className="text-[10px] font-bold text-pink-500 hover:text-pink-600 hover:underline underline-offset-2">
+                忘れた方はこちら
+              </Link>
             </div>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">

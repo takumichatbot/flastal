@@ -39,7 +39,6 @@ const JpText = ({ children, className }) => (
 // 🎨 ANIMATION & MAGIC UI COMPONENTS
 // ==========================================
 
-// ふわふわ浮かぶパーティクル（透明感・可愛さ）
 const FloatingParticles = () => {
   const [windowSize, setWindowSize] = useState({ width: 1000, height: 1000 });
 
@@ -92,7 +91,6 @@ const GlassCard = ({ children, className }) => (
   </div>
 );
 
-// --- 進捗ステータスの日本語設定 ---
 const PROJECT_STATUS_CONFIG = {
   'PENDING_APPROVAL': { label: '審査中', color: 'text-orange-500', bg: 'bg-orange-500', border: 'border-orange-400' },
   'FUNDRAISING': { label: '募集中', color: 'text-pink-500', bg: 'bg-pink-500', border: 'border-pink-400' },
@@ -171,13 +169,11 @@ function ProjectsContent() {
     <div className="bg-gradient-to-br from-pink-50/80 to-sky-50/80 min-h-screen font-sans text-slate-800 relative overflow-hidden pb-24">
       <FloatingParticles />
       
-      {/* 背景のぼかし装飾 */}
       <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-pink-200/40 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/3 pointer-events-none" />
       <div className="absolute top-40 left-0 w-[400px] h-[400px] bg-sky-200/30 rounded-full blur-[100px] -translate-x-1/2 pointer-events-none" />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-16 relative z-10">
         
-        {/* --- 1. HEADER --- */}
         <Reveal>
           <div className="flex flex-col md:flex-row justify-between items-center md:items-end mb-10 md:mb-12 gap-6 text-center md:text-left">
             <div>
@@ -199,7 +195,6 @@ function ProjectsContent() {
           </div>
         </Reveal>
 
-        {/* --- 2. SEARCH FORM (Glassmorphism) --- */}
         <Reveal delay={0.1}>
           <GlassCard className="p-6 md:p-8 mb-12">
             <form onSubmit={handleSearch} className="grid grid-cols-1 md:grid-cols-12 gap-5 items-end">
@@ -252,7 +247,6 @@ function ProjectsContent() {
           </GlassCard>
         </Reveal>
 
-        {/* --- 3. PROJECT GRID --- */}
         {loading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
              {[...Array(6)].map((_, i) => (
@@ -272,16 +266,37 @@ function ProjectsContent() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
             <AnimatePresence>
               {projects.map((project, i) => {
-                const config = PROJECT_STATUS_CONFIG[project.status] || { label: project.status, bg: 'bg-slate-500', border: 'border-slate-400' };
                 const percent = Math.min(Math.round(((project.collectedAmount || 0) / (project.targetAmount || 1)) * 100), 100);
                 const isSuccess = percent >= 100;
+                
+                // ★ 修正: 終了判定 (ステータスが完了・中止、またはお届け日が過去の場合)
+                const isPast = project.deliveryDateTime ? new Date(project.deliveryDateTime) < new Date() : false;
+                const isEnded = project.status === 'COMPLETED' || project.status === 'CANCELED' || isPast;
+
+                let badgeLabel = '募集中';
+                let badgeClass = 'bg-pink-500/90 border-pink-400';
+
+                if (project.status === 'CANCELED') {
+                    badgeLabel = '中止';
+                    badgeClass = 'bg-slate-600/90 border-slate-500';
+                } else if (isEnded) {
+                    badgeLabel = '終了';
+                    badgeClass = 'bg-slate-900/80 border-slate-700';
+                } else if (isSuccess) {
+                    badgeLabel = 'SUCCESS!';
+                    badgeClass = 'bg-emerald-500/90 border-emerald-400';
+                }
 
                 return (
                   <Reveal key={project.id} delay={i * 0.05} className="h-full">
                     <Link href={`/projects/${project.id}`} className="group h-full block">
-                      <GlassCard className="!p-4 sm:!p-5 h-full flex flex-col hover:-translate-y-2 hover:shadow-[0_16px_40px_rgba(244,114,182,0.15)] group-hover:border-pink-200 transition-all duration-500 overflow-hidden bg-white">
+                      {/* ★ 修正: 終了した企画は hoverエフェクトを弱め、少し透けさせる */}
+                      <GlassCard className={cn("!p-4 sm:!p-5 h-full flex flex-col transition-all duration-500 overflow-hidden bg-white", 
+                        isEnded ? "opacity-80" : "hover:-translate-y-2 hover:shadow-[0_16px_40px_rgba(244,114,182,0.15)] group-hover:border-pink-200"
+                      )}>
                         
-                        <div className="relative w-full aspect-[4/3] rounded-[2rem] overflow-hidden bg-slate-100 shrink-0">
+                        {/* ★ 修正: 終了した企画の画像は少し彩度を下げる */}
+                        <div className={cn("relative w-full aspect-[4/3] rounded-[2rem] overflow-hidden bg-slate-100 shrink-0", isEnded && "grayscale-[0.3]")}>
                           {project.imageUrl ? (
                             <Image 
                               src={project.imageUrl} alt={project.title} fill 
@@ -294,29 +309,26 @@ function ProjectsContent() {
                           <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 via-transparent to-transparent" />
                           
                           <div className="absolute top-4 left-4">
-                              <span className={cn("px-3 py-1.5 rounded-full text-[10px] font-black shadow-md border backdrop-blur-md text-white uppercase tracking-widest", 
-                                project.status === 'COMPLETED' ? "bg-slate-900/80 border-slate-700" :
-                                isSuccess ? "bg-emerald-500/90 border-emerald-400" : "bg-pink-500/90 border-pink-400"
-                              )}>
-                                  {project.status === 'COMPLETED' ? '終了' : isSuccess ? 'SUCCESS!' : '募集中'}
+                              <span className={cn("px-3 py-1.5 rounded-full text-[10px] font-black shadow-md border backdrop-blur-md text-white uppercase tracking-widest", badgeClass)}>
+                                  {badgeLabel}
                               </span>
                           </div>
                         </div>
 
                         <div className="pt-5 flex flex-col flex-grow px-2">
-                          <h2 className="text-base font-bold text-slate-800 group-hover:text-pink-500 transition-colors line-clamp-2 mb-4 leading-snug">
+                          <h2 className={cn("text-base font-bold transition-colors line-clamp-2 mb-4 leading-snug", isEnded ? "text-slate-600" : "text-slate-800 group-hover:text-pink-500")}>
                               <JpText>{project.title}</JpText>
                           </h2>
                           
                           <div className="space-y-2 mb-4">
                               {project.deliveryDateTime && (
                                   <p className="text-[11px] font-bold text-slate-500 flex items-center">
-                                      <Calendar className="mr-1.5 text-pink-400 shrink-0" size={14}/> 
+                                      <Calendar className={cn("mr-1.5 shrink-0", isEnded ? "text-slate-400" : "text-pink-400")} size={14}/> 
                                       {new Date(project.deliveryDateTime).toLocaleDateString()}
                                   </p>
                               )}
                               <p className="text-[11px] font-bold text-slate-500 flex items-center truncate">
-                                  <MapPin className="mr-1.5 text-sky-400 shrink-0" size={14}/> 
+                                  <MapPin className={cn("mr-1.5 shrink-0", isEnded ? "text-slate-400" : "text-sky-400")} size={14}/> 
                                   <span className="truncate">{project.deliveryAddress || '場所未定'}</span>
                               </p>
                           </div>
@@ -325,26 +337,26 @@ function ProjectsContent() {
                               <div className="flex justify-between items-end mb-2">
                                   <div>
                                     <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Current</p>
-                                    <p className="text-base font-black text-slate-800 leading-none">
+                                    <p className={cn("text-base font-black leading-none", isEnded ? "text-slate-600" : "text-slate-800")}>
                                       ¥{(project.collectedAmount || 0).toLocaleString()}
                                       <span className="text-[9px] text-slate-400 font-medium ml-1">/ ¥{(project.targetAmount || 0).toLocaleString()}</span>
                                     </p>
                                   </div>
-                                  <span className={cn("text-xl font-black font-mono leading-none", isSuccess ? "text-emerald-500" : "text-pink-500")}>
+                                  <span className={cn("text-xl font-black font-mono leading-none", isEnded ? "text-slate-500" : isSuccess ? "text-emerald-500" : "text-pink-500")}>
                                     {percent}%
                                   </span>
                               </div>
                               <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden shadow-inner">
                                   <motion.div 
                                       initial={{ width: 0 }} whileInView={{ width: `${percent}%` }} transition={{ duration: 1 }}
-                                      className={cn("h-full rounded-full", isSuccess ? "bg-emerald-400" : "bg-gradient-to-r from-pink-400 to-rose-400")} 
+                                      className={cn("h-full rounded-full", isEnded ? "bg-slate-400" : isSuccess ? "bg-emerald-400" : "bg-gradient-to-r from-pink-400 to-rose-400")} 
                                   />
                               </div>
                           </div>
 
                           <div className="mt-4 flex items-center gap-2">
                               {project.planner?.iconUrl ? (
-                                  <Image src={project.planner.iconUrl} alt="" width={24} height={24} className="rounded-full object-cover border border-slate-200" />
+                                  <Image src={project.planner.iconUrl} alt="" width={24} height={24} className={cn("rounded-full object-cover border border-slate-200", isEnded && "grayscale")} />
                               ) : (
                                   <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-slate-400"><User size={12}/></div>
                               )}

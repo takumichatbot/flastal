@@ -234,6 +234,10 @@ export default function AdminPage() {
                         <QuickLink href="/admin/approval?tab=venues" icon={<Building2/>} label="会場審査管理" />
                         <QuickLink href="/admin/approval?tab=organizers" icon={<ShieldCheck/>} label="主催者審査管理" />
                         <div className="my-3 border-t border-slate-100/50"></div>
+                        
+                        {/* ★ 以下の1行を追加します */}
+                        <QuickLink href="/admin/users" icon={<Users/>} label="全ユーザー一覧・情報管理" />
+                        
                         <QuickLink href="/admin/contact" icon={<Mail/>} label="個別チャット連絡" />
                         <QuickLink href="/admin/payouts" icon={<DollarSign/>} label="出金申請の管理" />
                         <QuickLink href="/admin/florists" icon={<Edit3/>} label="花屋手数料設定" />

@@ -9,7 +9,6 @@ import { FiMail, FiLock, FiArrowLeft, FiCheckCircle, FiAlertCircle, FiLoader } f
 import toast from 'react-hot-toast';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
-
 const TYPE_CONFIG = {
   USER: {
     label: 'ファン', themeColor: 'sky', iconBg: 'bg-sky-100', iconColor: 'text-sky-600',
@@ -20,8 +19,17 @@ const TYPE_CONFIG = {
     btnBg: 'bg-pink-500 hover:bg-pink-600', linkText: 'text-pink-600', loginLink: '/florists/login',
   },
   VENUE: {
-    label: '会場', themeColor: 'green', iconBg: 'bg-green-100', iconColor: 'text-green-600',
-    btnBg: 'bg-green-600 hover:bg-green-700', linkText: 'text-green-600', loginLink: '/venues/login',
+    label: '会場', themeColor: 'emerald', iconBg: 'bg-emerald-100', iconColor: 'text-emerald-600',
+    btnBg: 'bg-emerald-500 hover:bg-emerald-600', linkText: 'text-emerald-600', loginLink: '/venues/login',
+  },
+  // ★ 以下の2つ（ORGANIZERとILLUSTRATOR）を追加！
+  ORGANIZER: {
+    label: '主催者', themeColor: 'indigo', iconBg: 'bg-indigo-100', iconColor: 'text-indigo-600',
+    btnBg: 'bg-indigo-500 hover:bg-indigo-600', linkText: 'text-indigo-600', loginLink: '/organizers/login',
+  },
+  ILLUSTRATOR: {
+    label: 'クリエイター', themeColor: 'purple', iconBg: 'bg-purple-100', iconColor: 'text-purple-600',
+    btnBg: 'bg-purple-500 hover:bg-purple-600', linkText: 'text-purple-600', loginLink: '/illustrators/login',
   }
 };
 
