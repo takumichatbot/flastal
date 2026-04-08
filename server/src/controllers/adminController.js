@@ -203,16 +203,15 @@ export const getAdminChatMessages = async (req, res) => {
 
 
 // ==========================================
-// ★ 修正: Prismaエラーを回避する完全なマージロジック
+// ★ 修正: Userテーブルを中心にクリエイター情報を確実にマッピングする
 // ==========================================
 export const searchAllUsers = async (req, res) => {
     try {
         const keyword = req.query.keyword || '';
         const keywordLower = keyword.toLowerCase();
 
-        // 1. Userテーブルから取得
-        // ★ エラーの原因だった florist: true, organizer: true 等の include を削除し、
-        // Prismaスキーマに確実に存在する illustratorProfile だけを含める
+        // 1. Userテーブルから、関連するプロフィール（illustratorProfile）を含めて全件取得
+        // ※スキーマ上、Userは illustratorProfile しか持っていないため、これだけincludeする
         const baseUsers = await prisma.user.findMany({
             include: { illustratorProfile: true },
             orderBy: { createdAt: 'desc' }
@@ -231,13 +230,19 @@ export const searchAllUsers = async (req, res) => {
         // ① まず User (ファン、管理者、クリエイター) をセット
         baseUsers.forEach(u => {
             let role = u.role ? u.role.toUpperCase() : 'USER';
+            let displayName = u.handleName || u.name || '未設定';
+
+            // ★ ここが重要！ クリエイター情報を確実にセットする
             if (u.illustratorProfile || role === 'ILLUSTRATOR') {
                 role = 'ILLUSTRATOR';
+                // ペンネームがあればそれを使い、なければハンドルネームを使う（PrismaスキーマにpenNameフィールドが存在する場合を想定。存在しない場合はhandleNameを使うようにフォールバック）
+                displayName = u.illustratorProfile?.penName || u.handleName || u.name || '未設定'; 
             }
+
             userMap.set(u.id, {
                 id: u.id,
                 email: u.email || '非公開',
-                displayName: u.illustratorProfile?.penName || u.handleName || u.name || '未設定',
+                displayName: displayName,
                 role: role,
                 createdAt: u.createdAt,
                 iconUrl: u.iconUrl || null
@@ -267,7 +272,7 @@ export const searchAllUsers = async (req, res) => {
                 ...existing,
                 id: uid,
                 email: existing.email || o.email || '非公開',
-                displayName: o.organizerName || o.name || existing.displayName || '未設定',
+                displayName: o.name || o.organizerName || existing.displayName || '未設定',
                 role: 'ORGANIZER',
                 createdAt: existing.createdAt || o.createdAt,
                 iconUrl: existing.iconUrl || null
