@@ -1,348 +1,293 @@
-import prisma from '../config/prisma.js';
-import { sendEmail, sendDynamicEmail } from '../utils/email.js';
-import { createNotification } from '../utils/notification.js';
+'use client';
 
-// ==========================================
-// ★★★ プロジェクトごとの全チャット履歴取得 ★★★
-// ==========================================
-export const getProjectChatLogs = async (req, res) => {
-    const { projectId } = req.params;
-    try {
-        const groupMessages = await prisma.groupChatMessage.findMany({
-            where: { projectId },
-            include: { user: { select: { handleName: true } } },
-            orderBy: { createdAt: 'asc' }
-        });
+import React, { useState, useEffect, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { useAuth } from '../../contexts/AuthContext';
+import { motion } from 'framer-motion';
+import toast from 'react-hot-toast';
+import { 
+    Search, Users, Mail, Shield, Filter, ArrowLeft, 
+    MoreVertical, ShieldCheck, Palette, Store, Building2, User, RefreshCw, MessageSquare
+} from 'lucide-react';
 
-        const floristMessages = await prisma.chatMessage.findMany({
-            where: { chatRoom: { offer: { projectId } } },
-            include: {
-                user: { select: { handleName: true } },
-                florist: { select: { platformName: true } }
-            },
-            orderBy: { createdAt: 'asc' }
-        });
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
-        const allMessages = [
-            ...groupMessages.map(m => ({
-                id: m.id,
-                type: 'GROUP',
-                content: m.content,
-                senderName: m.user?.handleName || '不明',
-                createdAt: m.createdAt,
-                messageType: m.messageType,
-                fileUrl: m.fileUrl
-            })),
-            ...floristMessages.map(m => ({
-                id: m.id,
-                type: 'DIRECT',
-                content: m.content,
-                senderName: m.senderType === 'USER' ? (m.user?.handleName || '不明') : (m.florist?.platformName || '花屋'),
-                createdAt: m.createdAt,
-                messageType: m.messageType,
-                fileUrl: m.fileUrl
-            }))
-        ].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+function cn(...classes) { return classes.filter(Boolean).join(' '); }
 
-        return res.json(allMessages);
-    } catch (e) {
-        console.error('getProjectChatLogs Error:', e);
-        return res.status(200).json([]);
+const getRoleBadge = (role) => {
+    switch (role) {
+        case 'ADMIN': return { bg: 'bg-rose-100', text: 'text-rose-700', label: '管理者', icon: ShieldCheck };
+        case 'FLORIST': return { bg: 'bg-emerald-100', text: 'text-emerald-700', label: 'お花屋さん', icon: Store };
+        case 'VENUE': return { bg: 'bg-blue-100', text: 'text-blue-700', label: '会場', icon: Building2 };
+        case 'ORGANIZER': return { bg: 'bg-amber-100', text: 'text-amber-700', label: '主催者', icon: Shield };
+        case 'ILLUSTRATOR': return { bg: 'bg-purple-100', text: 'text-purple-700', label: 'クリエイター', icon: Palette };
+        default: return { bg: 'bg-slate-100', text: 'text-slate-700', label: 'ファン', icon: User };
     }
 };
 
-// --- 以下、既存の安定化された関数群 ---
+export default function AdminUsersPage() {
+    const { user, isAuthenticated, loading } = useAuth();
+    const router = useRouter();
 
-export const getAllProjectsAdmin = async (req, res) => {
-    try {
-        const projects = await prisma.project.findMany({
-            orderBy: { createdAt: 'desc' },
-            include: { planner: { select: { handleName: true, email: true } } }
-        });
-        return res.json(projects || []);
-    } catch (e) { return res.status(200).json([]); }
-};
+    const [users, setUsers] = useState([]);
+    const [isLoadingData, setIsLoadingData] = useState(true);
+    const [searchKeyword, setSearchKeyword] = useState('');
+    const [activeTab, setActiveTab] = useState('ALL');
 
-export const getReports = async (req, res) => {
-    const { type } = req.params;
-    try {
-        if (type === 'chat') {
-            const groupReports = await prisma.groupChatMessageReport.findMany({ where: { status: 'PENDING' }, include: { message: true, reporter: true } });
-            const directReports = await prisma.chatMessageReport.findMany({ where: { status: 'PENDING' }, include: { message: true, reporter: true } });
-            const formatted = [
-                ...groupReports.map(r => ({ id: r.id, type: 'GROUP', content: r.message?.content, reporterName: r.reporter.handleName, createdAt: r.createdAt })),
-                ...directReports.map(r => ({ id: r.id, type: 'DIRECT', content: r.message?.content, reporterName: r.reporter.handleName, createdAt: r.createdAt }))
-            ].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-            return res.json(formatted);
+    // ★ フロントエンドは「データを受け取って表示するだけ」に徹する
+    const fetchUsers = async () => {
+        setIsLoadingData(true);
+        try {
+            const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+            const params = new URLSearchParams();
+            if (searchKeyword) params.append('keyword', searchKeyword);
+
+            const res = await fetch(`${API_URL}/api/admin/users/search?${params.toString()}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            
+            if (!res.ok) throw new Error('ユーザー情報の取得に失敗しました');
+            
+            const data = await res.json();
+            
+            // バックエンドが完璧に全ロールを合体して送ってくるので、そのままセット
+            setUsers(Array.isArray(data) ? data : []);
+            
+        } catch (error) {
+            console.error('Fetch error:', error);
+            toast.error('ユーザー一覧の取得に失敗しました');
+        } finally {
+            setIsLoadingData(false);
         }
-        return res.json([]);
-    } catch (e) { return res.status(200).json([]); }
-};
+    };
 
-export const approveItem = async (req, res) => {
-    const { type, id } = req.params;
-    const { status } = req.body; 
-    try {
-        const finalStatus = status === 'APPROVED' ? 'APPROVED' : (status === 'REJECTED' ? 'REJECTED' : 'PENDING');
-        let updated;
-        const fm = prisma.florist || prisma['florist'];
-        if (type === 'projects') updated = await prisma.project.update({ where: { id }, data: { status: status === 'APPROVED' ? 'FUNDRAISING' : 'REJECTED' } });
-        else if (type === 'florists') updated = await fm.update({ where: { id }, data: { status: finalStatus } });
-        else if (type === 'illustrators') updated = await prisma.user.update({ where: { id }, data: { status: finalStatus } });
-        else if (type === 'venues') updated = await prisma.venue.update({ where: { id }, data: { status: finalStatus } });
-        else if (type === 'organizers') updated = await prisma.organizer.update({ where: { id }, data: { status: finalStatus } });
-        return res.json(updated);
-    } catch (e) { return res.status(500).json({ message: '更新に失敗しました' }); }
-};
+    useEffect(() => {
+        if (loading) return;
+        if (!isAuthenticated || user?.role !== 'ADMIN') {
+            toast.error('管理者権限がありません');
+            router.push('/login');
+            return;
+        }
+        
+        const timer = setTimeout(() => {
+            fetchUsers();
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [isAuthenticated, user, loading, router, searchKeyword]);
 
-export const getPendingItems = async (req, res) => {
-    const { type } = req.params;
-    try {
-        let data = [];
-        const fm = prisma.florist || prisma['florist'];
-        if (type === 'projects') data = await prisma.project.findMany({ where: { status: 'PENDING_APPROVAL' }, include: { planner: true } });
-        else if (type === 'florists') data = await fm.findMany({ where: { status: 'PENDING' } });
-        else if (type === 'illustrators') data = await prisma.user.findMany({ where: { role: 'ILLUSTRATOR', status: 'PENDING' }, include: { illustratorProfile: true } });
-        else if (type === 'venues') data = await prisma.venue.findMany({ where: { status: 'PENDING' } });
-        else if (type === 'organizers') data = await prisma.organizer.findMany({ where: { status: 'PENDING' } });
-        return res.json(data || []);
-    } catch (e) { return res.status(200).json([]); }
-};
+    const filteredUsers = useMemo(() => {
+        if (activeTab === 'ALL') return users;
+        if (activeTab === 'USER') return users.filter(u => u.role === 'USER' || !u.role);
+        return users.filter(u => u.role === activeTab);
+    }, [users, activeTab]);
 
-export const getAllFloristsAdmin = async (req, res) => {
-    try {
-        const fm = prisma.florist || prisma['florist'];
-        return res.json(await fm.findMany({ orderBy: { createdAt: 'desc' } }) || []);
-    } catch (e) { return res.status(200).json([]); }
-};
+    const handleStartChat = async (targetUser) => {
+        const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+        if (!token) return;
 
-export const getFloristByIdAdmin = async (req, res) => {
-    try {
-        const fm = prisma.florist || prisma['florist'];
-        return res.json(await fm.findUnique({ where: { id: req.params.id } }));
-    } catch (e) { return res.status(500).json({ message: 'Error' }); }
-};
+        const toastId = toast.loading('チャットルームを準備中...');
+        try {
+            const res = await fetch(`${API_URL}/api/admin/chat-rooms`, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}` 
+                },
+                body: JSON.stringify({ 
+                    targetUserId: targetUser.id,
+                    targetUserRole: targetUser.role,
+                })
+            });
 
-export const getSystemSettings = async (req, res) => {
-    try {
-        let s = await prisma.systemSettings.findFirst();
-        if (!s) s = await prisma.systemSettings.create({ data: { platformFeeRate: 0.10 } });
-        return res.json(s);
-    } catch (e) { return res.status(500).json({ message: 'Error' }); }
-};
-
-export const updateSystemSettings = async (req, res) => {
-    try {
-        let s = await prisma.systemSettings.findFirst();
-        const u = await prisma.systemSettings.update({ where: { id: s.id }, data: { platformFeeRate: parseFloat(req.body.platformFeeRate) } });
-        return res.json(u);
-    } catch (e) { return res.status(500).json({ message: 'Error' }); }
-};
-
-export const getFloristFee = async (req, res) => {
-    try {
-        const fm = prisma.florist || prisma['florist'];
-        return res.json(await fm.findUnique({ where: { id: req.params.id }, select: { id: true, platformName: true, customFeeRate: true } }));
-    } catch (e) { return res.status(500).json({ message: 'Error' }); }
-};
-
-export const updateFloristFee = async (req, res) => {
-    try {
-        const fm = prisma.florist || prisma['florist'];
-        const rate = req.body.customFeeRate === '' ? null : parseFloat(req.body.customFeeRate);
-        return res.json(await fm.update({ where: { id: req.params.id }, data: { customFeeRate: rate } }));
-    } catch (e) { return res.status(500).json({ message: 'Error' }); }
-};
-
-export const getCommissions = async (req, res) => {
-    try { return res.json(await prisma.commission.findMany({ include: { project: true } }) || []); } catch (e) { return res.status(200).json([]); }
-};
-
-export const getAdminPayouts = async (req, res) => {
-    try {
-        let d = req.query.type === 'user' ? await prisma.payout.findMany({ where: { status: 'PENDING' } }) : await prisma.payoutRequest.findMany({ where: { status: 'PENDING' } });
-        return res.json(d || []);
-    } catch (e) { return res.status(200).json([]); }
-};
-
-export const updateAdminPayoutStatus = async (req, res) => {
-    try {
-        const r = req.body.type === 'user' ? await prisma.payout.update({ where: { id: req.params.id }, data: { status: req.body.status } }) : await prisma.payoutRequest.update({ where: { id: req.params.id }, data: { status: req.body.status } });
-        return res.json(r);
-    } catch (e) { return res.status(500).json({ message: 'Error' }); }
-};
-
-export const getEmailTemplates = async (req, res) => {
-    try { return res.json(await prisma.emailTemplate.findMany() || []); } catch (e) { return res.status(200).json([]); }
-};
-
-export const saveEmailTemplate = async (req, res) => {
-    try {
-        const r = req.body.id ? await prisma.emailTemplate.update({ where: { id: req.body.id }, data: req.body }) : await prisma.emailTemplate.create({ data: req.body });
-        return res.json(r);
-    } catch (e) { return res.status(500).json({ message: 'Error' }); }
-};
-
-export const sendIndividualEmail = async (req, res) => {
-    try {
-        await sendEmail(req.body.email, req.body.subject, req.body.body);
-        return res.json({ message: 'Sent' });
-    } catch (e) { return res.status(500).json({ message: 'Error' }); }
-};
-
-export const createAdminChatRoom = async (req, res) => {
-    try {
-        const r = await prisma.adminChatRoom.create({ data: { adminId: req.user.id, userId: req.body.targetUserId, userRole: req.body.targetUserRole } });
-        return res.status(201).json(r);
-    } catch (e) { return res.status(500).json({ message: 'Error' }); }
-};
-
-export const getAdminChatMessages = async (req, res) => {
-    try { return res.json(await prisma.adminChatMessage.findMany({ where: { chatRoomId: req.params.roomId } }) || []); } catch (e) { return res.status(200).json([]); }
-};
-
-
-// ==========================================
-// ★ 修正: Userテーブルを中心にクリエイター情報を確実にマッピングする
-// ==========================================
-export const searchAllUsers = async (req, res) => {
-    try {
-        const keyword = req.query.keyword || '';
-        const keywordLower = keyword.toLowerCase();
-
-        // 1. Userテーブルから、関連するプロフィール（illustratorProfile）を含めて全件取得
-        // ※スキーマ上、Userは illustratorProfile しか持っていないため、これだけincludeする
-        const baseUsers = await prisma.user.findMany({
-            include: { illustratorProfile: true },
-            orderBy: { createdAt: 'desc' }
-        });
-
-        // 2. 独立している各テーブルを全件取得（エラー時は空配列でフォールバック）
-        const [florists, organizers, venues] = await Promise.all([
-            prisma.florist?.findMany({ orderBy: { createdAt: 'desc' } }).catch(() => []),
-            prisma.organizer?.findMany({ orderBy: { createdAt: 'desc' } }).catch(() => []),
-            prisma.venue?.findMany({ orderBy: { createdAt: 'desc' } }).catch(() => [])
-        ]);
-
-        // 3. マップを使って結合 (userId か id をベースに合体させる)
-        const userMap = new Map();
-
-        // ① まず User (ファン、管理者、クリエイター) をセット
-        baseUsers.forEach(u => {
-            let role = u.role ? u.role.toUpperCase() : 'USER';
-            let displayName = u.handleName || u.name || '未設定';
-
-            // ★ ここが重要！ クリエイター情報を確実にセットする
-            if (u.illustratorProfile || role === 'ILLUSTRATOR') {
-                role = 'ILLUSTRATOR';
-                // ペンネームがあればそれを使い、なければハンドルネームを使う（PrismaスキーマにpenNameフィールドが存在する場合を想定。存在しない場合はhandleNameを使うようにフォールバック）
-                displayName = u.illustratorProfile?.penName || u.handleName || u.name || '未設定'; 
+            if (res.ok) {
+                toast.success('チャットルームを開きます', { id: toastId });
+                router.push(`/admin/contact?userId=${targetUser.id}&role=${targetUser.role}`);
+            } else {
+                throw new Error('ルーム接続失敗');
             }
-
-            userMap.set(u.id, {
-                id: u.id,
-                email: u.email || '非公開',
-                displayName: displayName,
-                role: role,
-                createdAt: u.createdAt,
-                iconUrl: u.iconUrl || null
-            });
-        });
-
-        // ② お花屋さんの情報を上書き/追加
-        florists.forEach(f => {
-            const uid = f.userId || f.id;
-            const existing = userMap.get(uid) || {};
-            userMap.set(uid, {
-                ...existing,
-                id: uid,
-                email: existing.email || f.email || '非公開',
-                displayName: f.platformName || f.storeName || f.shopName || f.contactName || existing.displayName || '未設定',
-                role: 'FLORIST',
-                createdAt: existing.createdAt || f.createdAt,
-                iconUrl: existing.iconUrl || f.iconUrl || null
-            });
-        });
-
-        // ③ 主催者の情報を上書き/追加
-        organizers.forEach(o => {
-            const uid = o.userId || o.id;
-            const existing = userMap.get(uid) || {};
-            userMap.set(uid, {
-                ...existing,
-                id: uid,
-                email: existing.email || o.email || '非公開',
-                displayName: o.name || o.organizerName || existing.displayName || '未設定',
-                role: 'ORGANIZER',
-                createdAt: existing.createdAt || o.createdAt,
-                iconUrl: existing.iconUrl || null
-            });
-        });
-
-        // ④ 会場の情報を上書き/追加
-        venues.forEach(v => {
-            const uid = v.userId || v.id;
-            const existing = userMap.get(uid) || {};
-            userMap.set(uid, {
-                ...existing,
-                id: uid,
-                email: existing.email || v.email || '非公開',
-                displayName: v.venueName || existing.displayName || '未設定',
-                role: 'VENUE',
-                createdAt: existing.createdAt || v.createdAt,
-                iconUrl: existing.iconUrl || (v.imageUrls && v.imageUrls.length > 0 ? v.imageUrls[0] : null)
-            });
-        });
-
-        let finalUsers = Array.from(userMap.values());
-
-        // 4. キーワード検索（合体したデータに対して実行することで、全ロールの名前で検索可能になる）
-        if (keyword) {
-            finalUsers = finalUsers.filter(u => 
-                u.displayName?.toLowerCase().includes(keywordLower) || 
-                u.email?.toLowerCase().includes(keywordLower) ||
-                u.id?.toLowerCase().includes(keywordLower)
-            );
+        } catch (error) {
+            toast.error('チャットルームへの接続に失敗しました', { id: toastId });
         }
+    };
 
-        // 新しい順にソート
-        finalUsers.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+    if (loading) return <div className="min-h-screen flex items-center justify-center"><RefreshCw className="animate-spin text-sky-500" /></div>;
 
-        return res.json(finalUsers);
+    return (
+        <div className="min-h-screen bg-slate-50 pb-24">
+            
+            {/* ヘッダーエリア */}
+            <div className="bg-white border-b border-slate-200 sticky top-0 z-10 shadow-sm">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div className="py-4 flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                            <Link href="/admin" className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-500">
+                                <ArrowLeft size={20} />
+                            </Link>
+                            <div>
+                                <h1 className="text-xl font-black text-slate-800 flex items-center gap-2">
+                                    <Users className="text-sky-500" size={24} /> 全ユーザー管理
+                                </h1>
+                                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">User Management Console</p>
+                            </div>
+                        </div>
+                        <div className="text-sm font-bold text-slate-500 bg-slate-100 px-4 py-2 rounded-full border border-slate-200 shadow-inner">
+                            合計: <span className="text-sky-600 font-black">{filteredUsers.length}</span> アカウント
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-    } catch (e) {
-        console.error("searchAllUsers API Error:", e);
-        return res.status(500).json([]);
-    }
-};
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                
+                {/* 検索・フィルターエリア */}
+                <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 mb-6 flex flex-col md:flex-row gap-4 justify-between items-center">
+                    
+                    {/* 検索バー */}
+                    <div className="relative w-full md:w-96 group">
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-sky-500 transition-colors" size={18} />
+                        <input
+                            type="text"
+                            placeholder="名前、メールアドレスで検索..."
+                            value={searchKeyword}
+                            onChange={(e) => setSearchKeyword(e.target.value)}
+                            className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 transition-all font-medium shadow-inner"
+                        />
+                    </div>
 
-export const updateProjectVisibility = async (req, res) => {
-    try {
-        return res.json(await prisma.project.update({ where: { id: req.params.projectId }, data: { visibility: req.body.isVisible ? 'PUBLIC' : 'UNLISTED' } }));
-    } catch (e) { return res.status(500).json({ message: 'Error' }); }
-};
+                    {/* タブ */}
+                    <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0 w-full md:w-auto scrollbar-hide">
+                        {[
+                            { id: 'ALL', label: 'すべて' },
+                            { id: 'USER', label: 'ファン' },
+                            { id: 'ORGANIZER', label: '主催者' },
+                            { id: 'FLORIST', label: 'お花屋さん' },
+                            { id: 'ILLUSTRATOR', label: 'クリエイター' },
+                            { id: 'VENUE', label: '会場' },
+                        ].map((tab) => (
+                            <button
+                                key={tab.id}
+                                onClick={() => setActiveTab(tab.id)}
+                                className={cn(
+                                    "px-4 py-2 text-xs font-bold rounded-xl whitespace-nowrap transition-all duration-200 shadow-sm",
+                                    activeTab === tab.id 
+                                        ? "bg-slate-900 text-white shadow-md border border-slate-800" 
+                                        : "bg-white text-slate-500 border border-slate-200 hover:bg-slate-50 hover:text-slate-700 hover:border-slate-300"
+                                )}
+                            >
+                                {tab.label}
+                            </button>
+                        ))}
+                    </div>
+                </div>
 
-export const reviewReport = async (req, res) => {
-    try {
-        return res.json(await prisma.projectReport.update({ where: { id: req.params.reportId }, data: { status: 'REVIEWED' } }));
-    } catch (e) { return res.status(500).json({ message: 'Error' }); }
-};
+                {/* ユーザー一覧テーブル */}
+                <div className="bg-white border border-slate-200 rounded-[2rem] shadow-sm overflow-hidden">
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left border-collapse">
+                            <thead>
+                                <tr className="bg-slate-50 border-b border-slate-200">
+                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">ユーザー情報</th>
+                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">連絡先</th>
+                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">権限・ロール</th>
+                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">登録日</th>
+                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap text-right">アクション</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {isLoadingData ? (
+                                    <tr>
+                                        <td colSpan="5" className="px-6 py-20 text-center">
+                                            <RefreshCw className="animate-spin text-sky-400 mx-auto mb-4" size={32} />
+                                            <p className="text-sm font-bold text-slate-500">データを読み込み中...</p>
+                                        </td>
+                                    </tr>
+                                ) : filteredUsers.length === 0 ? (
+                                    <tr>
+                                        <td colSpan="5" className="px-6 py-20 text-center">
+                                            <Filter className="text-slate-300 mx-auto mb-4" size={32} />
+                                            <p className="text-sm font-bold text-slate-500">条件に一致するユーザーがいません</p>
+                                        </td>
+                                    </tr>
+                                ) : (
+                                    filteredUsers.map((u) => {
+                                        const badge = getRoleBadge(u.role);
+                                        return (
+                                            <tr key={u.id} className="hover:bg-sky-50/30 transition-colors group">
+                                                <td className="px-6 py-4">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="w-10 h-10 rounded-full bg-white border border-slate-200 overflow-hidden flex items-center justify-center shrink-0 shadow-sm">
+                                                            {u.iconUrl ? (
+                                                                <img src={u.iconUrl} alt="icon" className="w-full h-full object-cover" />
+                                                            ) : (
+                                                                <User className="text-slate-400" size={20} />
+                                                            )}
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-sm font-bold text-slate-800 group-hover:text-sky-600 transition-colors">
+                                                                {u.displayName}
+                                                            </p>
+                                                            <p className="text-[10px] text-slate-400 font-mono mt-0.5">ID: {u.id.substring(0, 8)}...</p>
+                                                        </div>
+                                                    </div>
+                                                </td>
 
-export const createVenueAdmin = async (req, res) => {
-    try { return res.status(201).json(await prisma.venue.create({ data: req.body })); } catch(e) { return res.status(500).json({message:'Error'}); }
-};
-export const updateVenueAdmin = async (req, res) => {
-    try { return res.json(await prisma.venue.update({ where: {id:req.params.id}, data: req.body })); } catch(e) { return res.status(500).json({message:'Error'}); }
-};
-export const deleteVenueAdmin = async (req, res) => {
-    try { await prisma.venue.delete({ where: {id:req.params.id} }); return res.status(204).send(); } catch(e) { return res.status(500).json({message:'Error'}); }
-};
+                                                <td className="px-6 py-4">
+                                                    <div className="flex items-center gap-2 text-sm text-slate-600">
+                                                        <Mail size={14} className="text-slate-400" />
+                                                        {u.email !== '非公開（プロフ連携のみ）' ? (
+                                                          <a href={`mailto:${u.email}`} className="hover:text-sky-500 hover:underline transition-colors">
+                                                              {u.email}
+                                                          </a>
+                                                        ) : (
+                                                          <span className="text-slate-400">{u.email}</span>
+                                                        )}
+                                                    </div>
+                                                </td>
 
-export const banEvent = async (req, res) => {
-    try {
-        return res.json(await prisma.event.update({ where: { id: req.params.eventId }, data: { isBanned: req.body.isBanned } }));
-    } catch(e) { return res.status(500).json({ message: 'Error' }); }
-};
-export const dismissEventReport = async (req, res) => {
-    try { await prisma.eventReport.update({ where: { id: req.params.reportId }, data: { status: 'RESOLVED' } }); return res.json({message:'OK'}); } catch(e) { return res.status(500).json({message:'Error'}); }
-};
+                                                <td className="px-6 py-4">
+                                                    <span className={cn("inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border shadow-sm", badge.bg, badge.text, badge.bg.replace('bg-', 'border-'))}>
+                                                        <badge.icon size={12} /> {badge.label}
+                                                    </span>
+                                                </td>
+
+                                                <td className="px-6 py-4">
+                                                    <p className="text-sm text-slate-600 font-medium">
+                                                        {u.createdAt ? new Date(u.createdAt).toLocaleDateString('ja-JP') : '-'}
+                                                    </p>
+                                                </td>
+
+                                                <td className="px-6 py-4">
+                                                    <div className="flex items-center justify-end gap-2">
+                                                        <button 
+                                                            onClick={() => handleStartChat(u)}
+                                                            className="flex items-center gap-1 px-3 py-1.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white border border-indigo-100 hover:border-indigo-600 rounded-lg transition-all text-xs font-bold shadow-sm"
+                                                            title="チャットを開始"
+                                                        >
+                                                            <MessageSquare size={14} /> 連絡
+                                                        </button>
+                                                        
+                                                        {u.email !== '非公開（プロフ連携のみ）' && (
+                                                          <a 
+                                                              href={`mailto:${u.email}`}
+                                                              className="flex items-center gap-1 px-3 py-1.5 bg-white text-slate-600 hover:bg-slate-100 hover:text-slate-900 border border-slate-200 rounded-lg transition-all text-xs font-bold shadow-sm"
+                                                              title="メールを送信"
+                                                          >
+                                                              <Mail size={14} /> メール
+                                                          </a>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    );
+}
