@@ -201,33 +201,39 @@ export const getAdminChatMessages = async (req, res) => {
     try { return res.json(await prisma.adminChatMessage.findMany({ where: { chatRoomId: req.params.roomId } }) || []); } catch (e) { return res.status(200).json([]); }
 };
 
+
 // ==========================================
-// ★ 修正: Prismaエラーを避ける直球のデータ抽出・合体処理
+// ★ 修正: 全テーブルを愚直に取得し、完全にマージするロジック
 // ==========================================
 export const searchAllUsers = async (req, res) => {
     try {
-        // 1. 各テーブルから生データを取得（エラーが出てもクラッシュしないようにする）
-        const users = await prisma.user.findMany({ orderBy: { createdAt: 'desc' } }).catch(() => []);
-        const florists = await prisma.florist.findMany({ orderBy: { createdAt: 'desc' } }).catch(() => []);
-        const organizers = await prisma.organizer.findMany({ orderBy: { createdAt: 'desc' } }).catch(() => []);
-        const venues = await prisma.venue.findMany({ orderBy: { createdAt: 'desc' } }).catch(() => []);
-        
-        // クリエイター（絵師）のプロフィールも独立して取得する
-        const illustratorProfiles = await prisma.illustratorProfile?.findMany().catch(() => []) || [];
+        const keyword = req.query.keyword || '';
+        const keywordLower = keyword.toLowerCase();
 
+        // 1. 各テーブルから一切の検索条件を入れずに全件取得する
+        // ※ ここで illustratorProfile のデータが確実に取れるように include します
+        const [users, florists, organizers, venues] = await Promise.all([
+            prisma.user.findMany({ 
+                include: { illustratorProfile: true }, // クリエイター（絵師）のプロフィールを含める
+                orderBy: { createdAt: 'desc' } 
+            }).catch(() => []),
+            prisma.florist.findMany({ orderBy: { createdAt: 'desc' } }).catch(() => []),
+            prisma.organizer.findMany({ orderBy: { createdAt: 'desc' } }).catch(() => []),
+            prisma.venue.findMany({ orderBy: { createdAt: 'desc' } }).catch(() => [])
+        ]);
+
+        // 2. 取得した全データを「フロントエンドがそのまま表示できる形」に統一して配列に突っ込む
         let finalUsers = [];
 
-        // 2. Userテーブル（ファン、管理者、ILLUSTRATOR）の処理
+        // ① ファン・管理者・クリエイター（Userテーブル）
         users.forEach(u => {
             let role = u.role ? u.role.toUpperCase().trim() : 'USER';
             let displayName = u.handleName || u.name || '未設定';
 
-            // もし illustratorProfile を持っているならクリエイターとして扱う
-            const profile = illustratorProfiles.find(p => p.userId === u.id);
-            if (profile || role === 'ILLUSTRATOR') {
+            // ★ ここが重要！ クリエイター情報を確実にセットする
+            if (u.illustratorProfile || role === 'ILLUSTRATOR') {
                 role = 'ILLUSTRATOR';
-                // スキーマに penName が無いので handleName を使う
-                displayName = u.handleName || '未設定';
+                displayName = u.illustratorProfile?.penName || u.handleName || '未設定'; 
             }
 
             finalUsers.push({
@@ -240,7 +246,7 @@ export const searchAllUsers = async (req, res) => {
             });
         });
 
-        // 3. お花屋さん（Florist）の処理
+        // ② お花屋さん（Floristテーブル）
         florists.forEach(f => {
             finalUsers.push({
                 id: f.id,
@@ -252,7 +258,7 @@ export const searchAllUsers = async (req, res) => {
             });
         });
 
-        // 4. 主催者（Organizer）の処理
+        // ③ 主催者（Organizerテーブル）
         organizers.forEach(o => {
             finalUsers.push({
                 id: o.id,
@@ -264,7 +270,7 @@ export const searchAllUsers = async (req, res) => {
             });
         });
 
-        // 5. 会場（Venue）の処理
+        // ④ 会場（Venueテーブル）
         venues.forEach(v => {
             finalUsers.push({
                 id: v.id,
@@ -276,10 +282,8 @@ export const searchAllUsers = async (req, res) => {
             });
         });
 
-        // 6. キーワード検索（合体したデータに対して実行）
-        const keyword = req.query.keyword || '';
-        if (keyword) {
-            const keywordLower = keyword.toLowerCase();
+        // 3. キーワード検索がある場合は、合体させた後に絞り込む
+        if (keywordLower) {
             finalUsers = finalUsers.filter(u => 
                 u.displayName?.toLowerCase().includes(keywordLower) || 
                 u.email?.toLowerCase().includes(keywordLower) ||
@@ -290,7 +294,7 @@ export const searchAllUsers = async (req, res) => {
         // 新しい順に並び替え
         finalUsers.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
 
-        // 正常に返す
+        // 完了！
         return res.json(finalUsers);
 
     } catch (e) {
