@@ -871,26 +871,37 @@ export default function ProjectDetailClient() {
         ) : null}
       </div>
 
-      <div className="max-w-6xl mx-auto px-3 sm:px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-12 gap-5 md:gap-8 relative z-10">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 relative z-10">
         
         {/* --- MAIN COLUMN --- */}
         <div className="lg:col-span-8 space-y-5 md:space-y-6">
           
-          {/* Organizer Info & Progress */}
-          <AppCard className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 md:gap-6">
-            <div className="flex items-center gap-3 md:gap-4 w-full md:w-auto">
-                <div className="w-12 h-12 md:w-14 md:h-14 bg-slate-100 rounded-full flex items-center justify-center overflow-hidden border border-slate-200 shrink-0">
-                    {project.planner?.iconUrl ? <Image src={project.planner.iconUrl} alt="" width={56} height={56} className="object-cover" /> : <User size={20} className="text-slate-400"/>}
-                </div>
-                <div>
-                    <p className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest">Organizer</p>
-                    <p className="font-black text-slate-800 text-sm md:text-base">{project.planner?.handleName || project.planner?.name || '不明'}</p>
-                </div>
-            </div>
-            <div className="w-full md:w-2/3">
-               <UpsellAlert target={project.targetAmount} collected={project.collectedAmount} />
-            </div>
-          </AppCard>
+          {/* Organizer Info, Progress & Share */}
+          <AppCard className="flex flex-col gap-6 md:gap-8">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+                <div className="flex items-center gap-4 w-full md:w-auto">
+                    <div className="w-14 h-14 md:w-16 md:h-16 bg-slate-100 rounded-full flex items-center justify-center overflow-hidden border border-slate-200 shrink-0">
+                        {project.planner?.iconUrl ? <Image src={project.planner.iconUrl} alt="" width={64} height={64} className="object-cover" /> : <User size={24} className="text-slate-400"/>}
+                    </div>
+                    <div>
+                        <p className="text-[10px] md:text-xs font-black text-slate-400 uppercase tracking-widest mb-0.5">Organizer</p>
+                        <p className="font-black text-slate-800 text-base md:text-lg">{project.planner?.handleName || project.planner?.name || '不明'}</p>
+                    </div>
+                </div>
+                <div className="w-full md:w-1/2 lg:w-3/5">
+                   <UpsellAlert target={project.targetAmount} collected={project.collectedAmount} />
+                </div>
+            </div>
+            
+            <div className="flex justify-end border-t border-slate-100 pt-4 md:pt-6 mt-2">
+                <div className="flex items-center gap-4 bg-slate-50/80 px-5 py-3 rounded-2xl border border-slate-100">
+                  <span className="text-xs font-black text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
+                    <Share2 size={16} /> Share
+                  </span>
+                  <ShareButtons text={`${project.title} のフラスタ企画が進行中！一緒に参加しませんか？🌸`} />
+                </div>
+            </div>
+          </AppCard>
 
           <div className="flex justify-end">
             <div className="flex items-center gap-4 bg-white px-5 py-3 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
@@ -920,27 +931,46 @@ export default function ProjectDetailClient() {
             <motion.div key={activeTab} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }}>
               
               {/* --- TAB: OVERVIEW --- */}
-              {activeTab === 'overview' && (
-                  <div className="space-y-5 md:space-y-6">
-                      <AppCard>
-                          <h2 className="text-base md:text-lg font-black text-slate-800 mb-4 flex items-center gap-2"><Book className="text-slate-400" size={18}/> 企画の詳細</h2>
-                          <div className="text-slate-700 whitespace-pre-wrap leading-relaxed font-medium text-xs md:text-sm">
-                            <JpText>{project.description}</JpText>
-                          </div>
-                      </AppCard>
+              {activeTab === 'overview' && (
+                  <div className="space-y-6 md:space-y-8">
+                      <AppCard>
+                          <h2 className="text-lg md:text-xl font-black text-slate-800 mb-6 flex items-center gap-2">
+                              <Book className="text-slate-400" size={20}/> 企画の詳細
+                          </h2>
+                          <div className="text-slate-700 whitespace-pre-wrap leading-loose font-medium text-sm md:text-base">
+                            <JpText>{project.description}</JpText>
+                          </div>
+                      </AppCard>
 
-                      {(project.designDetails || project.size || project.flowerTypes) && (
-                          <AppCard className="bg-pink-50/30 border border-pink-100">
-                              <h2 className="text-base md:text-lg font-black text-slate-800 mb-4 flex items-center gap-2"><ImageIcon className="text-pink-400" size={18}/> デザインの希望</h2>
-                              <div className="space-y-3">
-                                  {project.designDetails && <div className="bg-white p-3 md:p-4 rounded-xl border border-pink-50 shadow-sm"><span className="text-[9px] font-black text-pink-400 uppercase tracking-widest block mb-1">雰囲気・詳細</span><p className="text-slate-700 font-bold text-xs md:text-sm">{project.designDetails}</p></div>}
-                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                    {project.size && <div className="bg-white p-3 md:p-4 rounded-xl border border-pink-50 shadow-sm"><span className="text-[9px] font-black text-pink-400 uppercase tracking-widest block mb-1">希望サイズ</span><p className="text-slate-700 font-bold text-xs md:text-sm">{project.size}</p></div>}
-                                    {project.flowerTypes && <div className="bg-white p-3 md:p-4 rounded-xl border border-pink-50 shadow-sm"><span className="text-[9px] font-black text-pink-400 uppercase tracking-widest block mb-1">使いたい花</span><p className="text-slate-700 font-bold text-xs md:text-sm">{project.flowerTypes}</p></div>}
-                                  </div>
-                              </div>
-                          </AppCard>
-                      )}
+                      {(project.designDetails || project.size || project.flowerTypes) && (
+                          <AppCard className="bg-pink-50/30 border border-pink-100">
+                              <h2 className="text-lg md:text-xl font-black text-slate-800 mb-6 flex items-center gap-2">
+                                  <ImageIcon className="text-pink-400" size={20}/> デザインの希望
+                              </h2>
+                              <div className="space-y-4">
+                                  {project.designDetails && (
+                                      <div className="bg-white p-4 md:p-6 rounded-2xl border border-pink-50 shadow-sm">
+                                          <span className="text-[10px] md:text-xs font-black text-pink-400 uppercase tracking-widest block mb-2">雰囲気・詳細</span>
+                                          <p className="text-slate-700 font-bold text-sm md:text-base leading-relaxed">{project.designDetails}</p>
+                                      </div>
+                                  )}
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    {project.size && (
+                                        <div className="bg-white p-4 md:p-6 rounded-2xl border border-pink-50 shadow-sm">
+                                            <span className="text-[10px] md:text-xs font-black text-pink-400 uppercase tracking-widest block mb-2">希望サイズ</span>
+                                            <p className="text-slate-700 font-bold text-sm md:text-base">{project.size}</p>
+                                        </div>
+                                    )}
+                                    {project.flowerTypes && (
+                                        <div className="bg-white p-4 md:p-6 rounded-2xl border border-pink-50 shadow-sm">
+                                            <span className="text-[10px] md:text-xs font-black text-pink-400 uppercase tracking-widest block mb-2">使いたい花</span>
+                                            <p className="text-slate-700 font-bold text-sm md:text-base">{project.flowerTypes}</p>
+                                        </div>
+                                    )}
+                                  </div>
+                              </div>
+                          </AppCard>
+                      )}
 
                       {/* 活動報告 */}
                       <div className="pt-2">
