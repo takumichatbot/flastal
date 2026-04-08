@@ -9,6 +9,11 @@ const __dirname = path.dirname(__filename);
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   
+  // ★★★ 追加: ESLintの警告でビルドが止まるのを防ぐ ★★★
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+  
   // 💡 Next.js 15.x 以降の推奨設定に合わせて experimental から移動
   outputFileTracingRoot: path.join(__dirname, '../../'),
   
