@@ -4,7 +4,6 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '../../contexts/AuthContext';
-import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { 
     Search, Users, Mail, Shield, Filter, ArrowLeft, 
@@ -30,12 +29,11 @@ export default function AdminUsersPage() {
     const { user, isAuthenticated, loading } = useAuth();
     const router = useRouter();
 
-    const [users, setUsers] = useState([]);
+    const [usersList, setUsersList] = useState([]);
     const [isLoadingData, setIsLoadingData] = useState(true);
     const [searchKeyword, setSearchKeyword] = useState('');
     const [activeTab, setActiveTab] = useState('ALL');
 
-    // ★ フロントエンドは「データを受け取って表示するだけ」に徹する
     const fetchUsers = async () => {
         setIsLoadingData(true);
         try {
@@ -43,6 +41,7 @@ export default function AdminUsersPage() {
             const params = new URLSearchParams();
             if (searchKeyword) params.append('keyword', searchKeyword);
 
+            // API 1本だけを叩く
             const res = await fetch(`${API_URL}/api/admin/users/search?${params.toString()}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
@@ -50,9 +49,7 @@ export default function AdminUsersPage() {
             if (!res.ok) throw new Error('ユーザー情報の取得に失敗しました');
             
             const data = await res.json();
-            
-            // バックエンドが完璧に全ロールを合体して送ってくるので、そのままセット
-            setUsers(Array.isArray(data) ? data : []);
+            setUsersList(Array.isArray(data) ? data : []);
             
         } catch (error) {
             console.error('Fetch error:', error);
@@ -77,10 +74,10 @@ export default function AdminUsersPage() {
     }, [isAuthenticated, user, loading, router, searchKeyword]);
 
     const filteredUsers = useMemo(() => {
-        if (activeTab === 'ALL') return users;
-        if (activeTab === 'USER') return users.filter(u => u.role === 'USER' || !u.role);
-        return users.filter(u => u.role === activeTab);
-    }, [users, activeTab]);
+        if (activeTab === 'ALL') return usersList;
+        if (activeTab === 'USER') return usersList.filter(u => u.role === 'USER' || !u.role);
+        return usersList.filter(u => u.role === activeTab);
+    }, [usersList, activeTab]);
 
     const handleStartChat = async (targetUser) => {
         const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
@@ -115,8 +112,6 @@ export default function AdminUsersPage() {
 
     return (
         <div className="min-h-screen bg-slate-50 pb-24">
-            
-            {/* ヘッダーエリア */}
             <div className="bg-white border-b border-slate-200 sticky top-0 z-10 shadow-sm">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="py-4 flex items-center justify-between">
@@ -139,11 +134,7 @@ export default function AdminUsersPage() {
             </div>
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                
-                {/* 検索・フィルターエリア */}
                 <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 mb-6 flex flex-col md:flex-row gap-4 justify-between items-center">
-                    
-                    {/* 検索バー */}
                     <div className="relative w-full md:w-96 group">
                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-sky-500 transition-colors" size={18} />
                         <input
@@ -155,7 +146,6 @@ export default function AdminUsersPage() {
                         />
                     </div>
 
-                    {/* タブ */}
                     <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0 w-full md:w-auto scrollbar-hide">
                         {[
                             { id: 'ALL', label: 'すべて' },
@@ -181,7 +171,6 @@ export default function AdminUsersPage() {
                     </div>
                 </div>
 
-                {/* ユーザー一覧テーブル */}
                 <div className="bg-white border border-slate-200 rounded-[2rem] shadow-sm overflow-hidden">
                     <div className="overflow-x-auto">
                         <table className="w-full text-left border-collapse">

@@ -201,34 +201,33 @@ export const getAdminChatMessages = async (req, res) => {
     try { return res.json(await prisma.adminChatMessage.findMany({ where: { chatRoomId: req.params.roomId } }) || []); } catch (e) { return res.status(200).json([]); }
 };
 
-
 // ==========================================
-// ★ 修正: Prismaエラーを絶対に起こさない全件個別取得＆マージ
+// ★ 修正: Prismaエラーを避ける直球のデータ抽出・合体処理
 // ==========================================
 export const searchAllUsers = async (req, res) => {
     try {
-        // 全テーブルからとりあえず全件取得する（エラー時は空配列を返す）
-        const [users, florists, organizers, venues, illustratorProfiles] = await Promise.all([
-            prisma.user.findMany({ orderBy: { createdAt: 'desc' } }).catch(() => []),
-            prisma.florist?.findMany({ orderBy: { createdAt: 'desc' } }).catch(() => []),
-            prisma.organizer?.findMany({ orderBy: { createdAt: 'desc' } }).catch(() => []),
-            prisma.venue?.findMany({ orderBy: { createdAt: 'desc' } }).catch(() => []),
-            // クリエイター（絵師）のプロフィールテーブルも単独で全件取得する
-            prisma.illustratorProfile?.findMany().catch(() => [])
-        ]);
+        // 1. 各テーブルから生データを取得（エラーが出てもクラッシュしないようにする）
+        const users = await prisma.user.findMany({ orderBy: { createdAt: 'desc' } }).catch(() => []);
+        const florists = await prisma.florist.findMany({ orderBy: { createdAt: 'desc' } }).catch(() => []);
+        const organizers = await prisma.organizer.findMany({ orderBy: { createdAt: 'desc' } }).catch(() => []);
+        const venues = await prisma.venue.findMany({ orderBy: { createdAt: 'desc' } }).catch(() => []);
+        
+        // クリエイター（絵師）のプロフィールも独立して取得する
+        const illustratorProfiles = await prisma.illustratorProfile?.findMany().catch(() => []) || [];
 
         let finalUsers = [];
 
-        // 1. Userテーブルの処理（ファン、管理者、そしてILLUSTRATOR権限を持つユーザー）
+        // 2. Userテーブル（ファン、管理者、ILLUSTRATOR）の処理
         users.forEach(u => {
-            let role = u.role ? u.role.toUpperCase() : 'USER';
+            let role = u.role ? u.role.toUpperCase().trim() : 'USER';
             let displayName = u.handleName || u.name || '未設定';
 
-            // もしこのユーザーIDに紐づく IllustratorProfile が見つかれば、クリエイターとして扱う
-            const matchingProfile = illustratorProfiles.find(p => p.userId === u.id);
-            if (matchingProfile || role === 'ILLUSTRATOR') {
+            // もし illustratorProfile を持っているならクリエイターとして扱う
+            const profile = illustratorProfiles.find(p => p.userId === u.id);
+            if (profile || role === 'ILLUSTRATOR') {
                 role = 'ILLUSTRATOR';
-                displayName = matchingProfile?.penName || u.handleName || '未設定';
+                // スキーマに penName が無いので handleName を使う
+                displayName = u.handleName || '未設定';
             }
 
             finalUsers.push({
@@ -241,7 +240,7 @@ export const searchAllUsers = async (req, res) => {
             });
         });
 
-        // 2. お花屋さん（Floristテーブル）
+        // 3. お花屋さん（Florist）の処理
         florists.forEach(f => {
             finalUsers.push({
                 id: f.id,
@@ -253,7 +252,7 @@ export const searchAllUsers = async (req, res) => {
             });
         });
 
-        // 3. 主催者（Organizerテーブル）
+        // 4. 主催者（Organizer）の処理
         organizers.forEach(o => {
             finalUsers.push({
                 id: o.id,
@@ -265,7 +264,7 @@ export const searchAllUsers = async (req, res) => {
             });
         });
 
-        // 4. 会場（Venueテーブル）
+        // 5. 会場（Venue）の処理
         venues.forEach(v => {
             finalUsers.push({
                 id: v.id,
@@ -277,7 +276,7 @@ export const searchAllUsers = async (req, res) => {
             });
         });
 
-        // 5. キーワード検索（合体したデータに対して実行）
+        // 6. キーワード検索（合体したデータに対して実行）
         const keyword = req.query.keyword || '';
         if (keyword) {
             const keywordLower = keyword.toLowerCase();
@@ -288,7 +287,7 @@ export const searchAllUsers = async (req, res) => {
             );
         }
 
-        // 新しい順にソート
+        // 新しい順に並び替え
         finalUsers.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
 
         // 正常に返す
