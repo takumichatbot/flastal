@@ -12,7 +12,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
     Clock, MapPin, User, Calendar, FileText, Send, 
     ArrowLeft, DollarSign, CheckCircle2, AlertTriangle, 
-    XCircle, MessageSquare, Briefcase, Loader2, Image as ImageIcon
+    XCircle, MessageSquare, Briefcase, Loader2, Image as ImageIcon,
+    Printer, X // ★ 追加
 } from 'lucide-react';
 
 // --- Components ---
@@ -28,7 +29,149 @@ const AppCard = ({ children, className }) => (
 );
 const JpText = ({ children }) => <span className="inline-block leading-relaxed">{children}</span>;
 
+// ==========================================
+// 📄 FLASTAL名義の納品書モーダル (印刷・PDF用)
+// ==========================================
+function DeliveryNoteModal({ project, onClose }) {
+    const handlePrint = () => {
+        const printWindow = window.open('', '_blank');
+        printWindow.document.write(`
+            <html>
+            <head>
+                <title>納品書_${project.title}</title>
+                <style>
+                    body { font-family: "Noto Sans JP", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif; margin: 0; padding: 20px; color: #333; }
+                    .print-container { max-width: 800px; margin: 0 auto; padding: 40px; background: #fff; }
+                    .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 40px; border-bottom: 2px solid #0284c7; padding-bottom: 20px; }
+                    .title { font-size: 28px; margin: 0; color: #0f172a; letter-spacing: 2px; }
+                    .subtitle { margin: 5px 0 0; color: #64748b; font-size: 14px; }
+                    .meta { text-align: right; color: #64748b; font-size: 14px; line-height: 1.6; }
+                    .info-blocks { display: flex; justify-content: space-between; margin-bottom: 50px; }
+                    .venue-info h2, .details-info h2 { font-size: 18px; margin: 0 0 10px; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px; color: #0f172a; }
+                    .venue-info p { margin: 5px 0; font-size: 15px; }
+                    .issuer-info { font-size: 14px; text-align: right; color: #475569; line-height: 1.6; }
+                    .issuer-name { margin: 0; font-weight: bold; color: #0284c7; font-size: 16px; }
+                    table { width: 100%; border-collapse: collapse; font-size: 15px; margin-bottom: 40px; }
+                    th { padding: 12px; text-align: left; background-color: #f8fafc; border-top: 1px solid #cbd5e1; border-bottom: 1px solid #cbd5e1; color: #475569; font-weight: bold; }
+                    td { padding: 15px 12px; border-bottom: 1px dashed #e2e8f0; }
+                    .total-row td { border-bottom: 1px solid #cbd5e1; background-color: #f0f9ff; font-weight: bold; color: #0369a1; font-size: 16px; }
+                    .notes { margin-top: 60px; padding: 20px; background-color: #f8fafc; border-radius: 8px; font-size: 13px; color: #64748b; line-height: 1.6; }
+                    .notes p { margin: 0 0 5px; }
+                </style>
+            </head>
+            <body>
+                <div class="print-container">
+                    <div class="header">
+                        <div>
+                            <h1 class="title">納品書</h1>
+                            <p class="subtitle">DELIVERY NOTE</p>
+                        </div>
+                        <div class="meta">
+                            <p style="margin: 0;">発行日: ${new Date().toLocaleDateString('ja-JP')}</p>
+                            <p style="margin: 0;">企画ID: ${project.id.slice(0, 8).toUpperCase()}</p>
+                        </div>
+                    </div>
 
+                    <div class="info-blocks">
+                        <div class="venue-info">
+                            <h2>お届け先（会場）</h2>
+                            <p><strong>会場名:</strong> ${project.venue?.venueName || '未定'}</p>
+                            <p><strong>住所:</strong> ${project.venue?.address || project.deliveryAddress || '未定'}</p>
+                            <p><strong>イベント名:</strong> ${project.event?.title || '未定'}</p>
+                        </div>
+                        <div class="issuer-info">
+                            <p class="issuer-name">FLASTAL運営事務局 (KIREI-CHANNEL)</p>
+                            <p>〒174-0043<br>東京都板橋区坂下3-6-1-113</p>
+                            <p>Email: support@flastal.com</p>
+                        </div>
+                    </div>
+
+                    <div class="details-info">
+                        <h2>ご依頼内容</h2>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th style="width: 30%;">項目</th>
+                                    <th>詳細</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td style="font-weight: bold; color: #475569;">企画名</td>
+                                    <td>${project.title}</td>
+                                </tr>
+                                <tr>
+                                    <td style="font-weight: bold; color: #475569;">ご依頼主（企画者）</td>
+                                    <td>${project.planner?.handleName || project.planner?.name || '不明'} 様</td>
+                                </tr>
+                                <tr>
+                                    <td style="font-weight: bold; color: #475569;">納品日時</td>
+                                    <td>${new Date(project.deliveryDateTime).toLocaleString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</td>
+                                </tr>
+                                <tr>
+                                    <td style="font-weight: bold; color: #475569;">品名</td>
+                                    <td>祝花・フラワースタンド一式</td>
+                                </tr>
+                                ${project.quotation ? `
+                                <tr class="total-row">
+                                    <td>合計金額（参考）</td>
+                                    <td>${project.quotation.totalAmount.toLocaleString()} 円 (税込)</td>
+                                </tr>
+                                ` : ''}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="notes">
+                        <p style="font-weight: bold; margin-bottom: 10px; color: #334155;">【備考】</p>
+                        <p>※ 本納品書はFLASTALのシステムより自動発行されたものです。</p>
+                        <p>※ 代金はクラウドファンディングを通じた事前決済により、FLASTAL運営事務局より支払われます。</p>
+                        <p>※ この書類に関するお問い合わせは、FLASTAL運営事務局までお願いいたします。</p>
+                    </div>
+                </div>
+                <script>
+                    window.onload = function() { window.print(); }
+                </script>
+            </body>
+            </html>
+        `);
+        printWindow.document.close();
+    };
+
+    return (
+        <div className="fixed inset-0 bg-slate-900/60 flex justify-center items-center z-50 p-4 backdrop-blur-sm">
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-lg flex flex-col overflow-hidden border border-white">
+                <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                    <div>
+                        <h3 className="text-xl font-black flex items-center text-slate-800 tracking-tight">
+                            <Printer className="mr-2 text-sky-500" size={24}/> 納品書の発行
+                        </h3>
+                    </div>
+                    <button onClick={onClose} className="text-slate-400 hover:text-slate-600 bg-white p-2 rounded-full shadow-sm transition-colors"><X size={20}/></button>
+                </div>
+                
+                <div className="p-8 bg-white text-center">
+                    <div className="w-20 h-20 bg-sky-50 text-sky-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
+                        <FileText size={36} />
+                    </div>
+                    <h4 className="text-lg font-black text-slate-800 mb-2">FLASTAL名義の納品書</h4>
+                    <p className="text-sm font-bold text-slate-500 leading-relaxed mb-6">
+                        会場への搬入時に必要な納品書を印刷、またはPDFとして保存できます。<br/>
+                        金額などの情報は自動的に反映されます。
+                    </p>
+                    
+                    <button onClick={handlePrint} className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black hover:bg-slate-800 shadow-lg transition-all flex items-center justify-center gap-2 active:scale-95">
+                        <Printer size={18}/> 印刷・PDF保存プレビューを開く
+                    </button>
+                </div>
+            </motion.div>
+        </div>
+    );
+}
+
+// ==========================================
+// 👑 メイン画面
+// ==========================================
 export default function FloristProjectDetailPage() {
     const params = useParams();
     const router = useRouter();
@@ -36,21 +179,22 @@ export default function FloristProjectDetailPage() {
     const { user, authenticatedFetch, loading: authLoading } = useAuth();
 
     const [project, setProject] = useState(null);
-    const [offer, setOffer] = useState(null); // このお花屋さんへのオファー情報
+    const [offer, setOffer] = useState(null);
     const [loading, setLoading] = useState(true);
+    
+    // モーダルの状態管理
     const [isQuotationModalOpen, setIsQuotationModalOpen] = useState(false);
+    const [isDeliveryNoteModalOpen, setIsDeliveryNoteModalOpen] = useState(false); // ★ 追加
 
     const fetchProjectDetails = useCallback(async () => {
         if (!id || !user) return;
         try {
             setLoading(true);
-            // プロジェクト情報の取得
             const res = await authenticatedFetch(`${API_URL}/api/projects/${id}`);
             if (!res.ok) throw new Error('企画情報の取得に失敗しました');
             const data = await res.json();
             setProject(data);
 
-            // このプロジェクトにおける、自分へのオファーを探す
             if (data.offer && data.offer.floristId === user.id) {
                 setOffer(data.offer);
             }
@@ -71,8 +215,6 @@ export default function FloristProjectDetailPage() {
         }
     }, [authLoading, user, fetchProjectDetails, router]);
 
-
-    // --- オファーの回答処理（受諾 or 辞退） ---
     const handleRespondToOffer = async (status) => {
         if (!offer) return;
         const confirmMsg = status === 'ACCEPTED' ? 'このオファーを受諾して、チャットを開始しますか？' : '本当にこのオファーを辞退しますか？（取り消せません）';
@@ -88,7 +230,7 @@ export default function FloristProjectDetailPage() {
 
             if (!res.ok) throw new Error('エラーが発生しました');
             toast.success(status === 'ACCEPTED' ? 'オファーを受諾しました！' : 'オファーを辞退しました', { id: toastId });
-            fetchProjectDetails(); // 状態を更新
+            fetchProjectDetails(); 
         } catch (error) {
             toast.error(error.message, { id: toastId });
         }
@@ -111,7 +253,6 @@ export default function FloristProjectDetailPage() {
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-sky-50/50 to-indigo-50/50 pb-24 font-sans text-slate-800 relative">
-            {/* --- 背景装飾 --- */}
             <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-sky-200/30 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/3 pointer-events-none z-0" />
             
             <div className="max-w-4xl mx-auto px-4 sm:px-6 pt-8 relative z-10">
@@ -119,17 +260,19 @@ export default function FloristProjectDetailPage() {
                     <ArrowLeft size={16}/> ダッシュボードへ戻る
                 </Link>
 
-                <div className="flex items-center gap-3 mb-6">
-                    <div className="w-12 h-12 bg-sky-100 text-sky-500 rounded-2xl flex items-center justify-center shadow-inner">
-                        <Briefcase size={24} />
-                    </div>
-                    <div>
-                        <h1 className="text-2xl md:text-3xl font-black text-slate-800 tracking-tight leading-tight">
-                            <JpText>{project.title}</JpText>
-                        </h1>
-                        <p className="text-xs font-bold text-slate-500 mt-1 uppercase tracking-widest">
-                            Order Details
-                        </p>
+                <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 bg-sky-100 text-sky-500 rounded-2xl flex items-center justify-center shadow-inner">
+                            <Briefcase size={24} />
+                        </div>
+                        <div>
+                            <h1 className="text-2xl md:text-3xl font-black text-slate-800 tracking-tight leading-tight">
+                                <JpText>{project.title}</JpText>
+                            </h1>
+                            <p className="text-xs font-bold text-slate-500 mt-1 uppercase tracking-widest">
+                                Order Details
+                            </p>
+                        </div>
                     </div>
                 </div>
 
@@ -181,9 +324,19 @@ export default function FloristProjectDetailPage() {
                                 )}
 
                                 {project.quotation?.isApproved && (
-                                    <Link href={`/projects/${project.id}`} className="px-8 py-3.5 bg-white text-slate-900 font-black rounded-xl shadow-lg hover:bg-slate-100 transition-colors flex items-center justify-center gap-2 text-sm">
-                                        <MessageSquare size={18}/> チャット・管理画面へ
-                                    </Link>
+                                    <div className="flex flex-col sm:flex-row gap-3">
+                                        {/* ★ 追加: 納品書発行ボタン */}
+                                        <button 
+                                            onClick={() => setIsDeliveryNoteModalOpen(true)} 
+                                            className="px-6 py-3.5 bg-white text-slate-800 font-black rounded-xl hover:bg-sky-50 transition-colors flex items-center justify-center gap-2 text-sm"
+                                        >
+                                            <Printer size={18}/> 納品書発行
+                                        </button>
+                                        
+                                        <Link href={`/projects/${project.id}`} className="px-6 py-3.5 bg-sky-500 text-white font-black rounded-xl shadow-lg hover:bg-sky-400 transition-colors flex items-center justify-center gap-2 text-sm">
+                                            <MessageSquare size={18}/> チャット・共同作業へ
+                                        </Link>
+                                    </div>
                                 )}
                             </div>
                         </div>
@@ -291,6 +444,13 @@ export default function FloristProjectDetailPage() {
                         projectId={project.id} 
                         onClose={() => setIsQuotationModalOpen(false)} 
                         onSuccess={fetchProjectDetails} 
+                    />
+                )}
+                {/* ★ 追加: 納品書モーダル */}
+                {isDeliveryNoteModalOpen && (
+                    <DeliveryNoteModal 
+                        project={project} 
+                        onClose={() => setIsDeliveryNoteModalOpen(false)} 
                     />
                 )}
             </AnimatePresence>
