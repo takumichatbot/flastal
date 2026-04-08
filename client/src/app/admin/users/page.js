@@ -15,7 +15,6 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onre
 
 function cn(...classes) { return classes.filter(Boolean).join(' '); }
 
-// --- ヘルパー: ロールに応じたスタイル ---
 const getRoleBadge = (role) => {
     switch (role) {
         case 'ADMIN': return { bg: 'bg-rose-100', text: 'text-rose-700', label: '管理者', icon: ShieldCheck };
@@ -36,7 +35,7 @@ export default function AdminUsersPage() {
     const [searchKeyword, setSearchKeyword] = useState('');
     const [activeTab, setActiveTab] = useState('ALL');
 
-    // ★ データ取得とフロントエンド側での整形ロジックを強化
+    // ★ フロントエンドは「データを受け取って表示するだけ」に徹する
     const fetchUsers = async () => {
         setIsLoadingData(true);
         try {
@@ -51,40 +50,10 @@ export default function AdminUsersPage() {
             if (!res.ok) throw new Error('ユーザー情報の取得に失敗しました');
             
             const data = await res.json();
-            const usersArray = Array.isArray(data) ? data : (data.users || data.data || []);
-
-            // デバッグ: 取得したデータの内容を確認
-            console.log("Raw API Data:", usersArray);
-
-            // ★ 強力な整形ロジック
-            const mappedUsers = usersArray.map(u => {
-                // バックエンドから来たロールを正規化
-                let role = u.role ? u.role.toUpperCase() : 'USER';
-                let displayName = u.displayName || u.handleName || u.name || '未設定';
-
-                // もし displayName がなく、バックエンド側の結合データの中に名前があればそれを優先
-                if (role === 'FLORIST' && u.florist?.storeName) displayName = u.florist.storeName;
-                if (role === 'ORGANIZER' && u.organizer?.organizerName) displayName = u.organizer.organizerName;
-                if (role === 'VENUE' && u.venue?.venueName) displayName = u.venue.venueName;
-                
-                // ★ クリエイター判定の強化
-                // バックエンドで illustratorProfile が存在していれば、強制的に ILLUSTRATOR とする
-                if (u.illustratorProfile || role === 'ILLUSTRATOR') {
-                    role = 'ILLUSTRATOR';
-                    if (u.illustratorProfile?.penName) {
-                        displayName = u.illustratorProfile.penName;
-                    }
-                }
-
-                return {
-                    ...u,
-                    role,
-                    displayName,
-                    email: u.email || '非公開（プロフ連携のみ）'
-                };
-            });
-
-            setUsers(mappedUsers);
+            
+            // バックエンドが完璧に全ロールを合体して送ってくるので、そのままセット
+            setUsers(Array.isArray(data) ? data : []);
+            
         } catch (error) {
             console.error('Fetch error:', error);
             toast.error('ユーザー一覧の取得に失敗しました');
@@ -109,9 +78,7 @@ export default function AdminUsersPage() {
 
     const filteredUsers = useMemo(() => {
         if (activeTab === 'ALL') return users;
-        // ファンタブの場合は 'USER' または ロール未設定のユーザー
         if (activeTab === 'USER') return users.filter(u => u.role === 'USER' || !u.role);
-        // それ以外は該当のロールをフィルタリング
         return users.filter(u => u.role === activeTab);
     }, [users, activeTab]);
 
