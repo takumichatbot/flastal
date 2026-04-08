@@ -264,9 +264,9 @@ const IntroLoader = ({ onComplete }) => {
 const MainContent = () => {
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 1.1, filter: "blur(20px)" }}
+      initial={{ opacity: 0, scale: 1.02, filter: "blur(8px)" }}
       animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
-      transition={{ duration: 2.0, delay: 0.4, ease: "easeOut" }}
+      transition={{ duration: 0.6, delay: 0.1, ease: "easeOut" }}
     >
       <Hero />
       <InfiniteMarquee />
