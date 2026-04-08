@@ -11,6 +11,10 @@ const router = express.Router();
 // 自身のプロフィール取得
 router.get('/profile', authenticateToken, floristController.getFloristProfile);
 
+// ★ 追加: 配送料金・回収費の設定
+router.get('/me/delivery-settings', authenticateToken, floristController.getDeliverySettings);
+router.put('/me/delivery-settings', authenticateToken, floristController.updateDeliverySettings);
+
 // オファー・スケジュール取得
 router.get('/offers', authenticateToken, floristController.getSchedule);
 router.get('/schedule', authenticateToken, floristController.getSchedule);

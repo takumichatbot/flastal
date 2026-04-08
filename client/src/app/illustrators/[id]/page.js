@@ -10,6 +10,7 @@ import Link from 'next/link';
 import toast from 'react-hot-toast'; 
 import { useAuth } from '@/app/contexts/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
+import ShareButtons from '@/app/components/ShareButtons';
 
 // lucide-react
 import { 
@@ -342,6 +343,12 @@ function IllustratorDetailContent() {
                           {Array.isArray(illustrator.tags) && illustrator.tags.map(tag => (
                               <span key={tag} className="text-[10px] font-bold bg-slate-100 text-slate-600 px-3 py-1.5 rounded-lg border border-slate-200">#{tag}</span>
                           ))}
+                      </div>
+                      <div className="flex items-center justify-center md:justify-start mt-5">
+                          <div className="flex items-center gap-3 bg-white/60 px-4 py-2 rounded-[1rem] border border-white shadow-sm backdrop-blur-sm">
+                              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Share</span>
+                              <ShareButtons text={`フラスタのイラスト制作なら ${illustrator.name || illustrator.user?.handleName} さんがおすすめ！素敵なポートフォリオをチェック🎨`} />
+                          </div>
                       </div>
                   </div>
 

@@ -7,12 +7,16 @@ import Link from 'next/link';
 import toast from 'react-hot-toast'; 
 import { useAuth } from '@/app/contexts/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
+import ShareButtons from '@/app/components/ShareButtons';
 
 // lucide-reactに統一
 import { 
     MapPin, Camera, Award, Clock, CheckCircle2, 
     User, Heart, Star, X, Shield, Zap, AlertCircle, ArrowLeft, Briefcase
 } from 'lucide-react'; 
+
+// ★ 追加: 配送設定コンポーネントのインポート
+import FloristDeliveryInfo from '@/app/components/FloristDeliveryInfo';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -57,7 +61,7 @@ const ProfileItem = ({ icon, label, value, colorClass = "text-pink-500 bg-pink-5
     </div>
 );
 
-// ★ 修正箇所：リンク先のエラー（Route not found）を防ぐための安全なリンク指定
+// 制作オファーモーダル
 function OfferModal({ floristId, floristName, onClose }) {
     const router = useRouter();
     return (
@@ -273,6 +277,10 @@ export default function FloristDetailPage() {
                                 <Briefcase size={16}/> ダッシュボード
                              </Link>
                           )}
+                          <div className="flex items-center gap-3 bg-white/60 px-4 py-2 rounded-[1rem] border border-white shadow-sm backdrop-blur-sm">
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Share</span>
+                            <ShareButtons text={`フラスタ制作なら ${florist.platformName || florist.shopName} さんがおすすめ！過去の素敵な実績をチェック💐`} />
+                          </div>
                       </div>
                   </div>
 
@@ -323,6 +331,11 @@ export default function FloristDetailPage() {
                                   </p>
                                   <Award className="absolute -bottom-10 -right-10 text-slate-900 opacity-[0.03] pointer-events-none" size={200}/>
                                </GlassCard>
+
+                               {/* ★ 追加: 配送設定コンポーネントをここに表示 */}
+                               {florist.deliverySettings && (
+                                   <FloristDeliveryInfo deliverySettings={florist.deliverySettings} />
+                               )}
                             </div>
 
                             <GlassCard className="h-fit space-y-8">

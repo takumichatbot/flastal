@@ -1,3 +1,4 @@
+// src/app/tokushoho/page.js
 'use client';
 
 import React from 'react';
@@ -53,19 +54,24 @@ export default function TokushohoPage() {
             <TableRow 
               icon={<FiBriefcase/>} 
               label="販売事業者名" 
-              value="FLASTAL運営事務局（または法人名）" 
+              value="FLASTAL運営事務局（KIREI-CHANNEL）" 
             />
             
             <TableRow 
               icon={<FiBriefcase/>} 
               label="運営統括責任者" 
-              value="山田 太郎（代表者名）" 
+              value="齋藤香織" 
             />
             
             <TableRow 
               icon={<FiMapPin/>} 
               label="所在地" 
-              value="〒100-0000 東京都千代田区..." 
+              value={
+                <>
+                  〒174-0043<br/>
+                  東京都板橋区坂下3-6-1-113
+                </>
+              } 
             />
             
             <TableRow 
@@ -73,10 +79,10 @@ export default function TokushohoPage() {
               label="お問い合わせ先" 
               value={
                 <div className="space-y-1">
-                  <p>電話番号：03-0000-0000</p>
+                  <p>電話番号：03-6764-4472</p>
                   <p>メールアドレス：support@flastal.com</p>
-                  <p className="text-xs text-slate-500 mt-1">
-                    ※お電話でのお問い合わせは受け付けておりません。お問い合わせフォームまたはメールにてご連絡ください。<br/>
+                  <p className="text-xs text-slate-500 mt-2 bg-slate-50 p-3 rounded-lg border border-slate-100 leading-relaxed">
+                    ※お電話でのお問い合わせは受け付けておりません。お問い合わせフォームまたはメール、チャットにてご連絡ください。<br/>
                     ※連絡先電話番号についても、上記メールアドレスへご請求いただければ、遅滞なく開示いたします。
                   </p>
                 </div>
@@ -108,11 +114,7 @@ export default function TokushohoPage() {
                 <div className="space-y-2">
                   <div>
                     <span className="font-bold text-slate-800">クレジットカード決済</span>
-                    <p className="text-sm">ご利用のクレジットカード会社の締日や契約内容に基づき引き落としが行われます。決済は支援申し込み時に確定します。</p>
-                  </div>
-                  <div>
-                    <span className="font-bold text-slate-800">その他（PayPay等）</span>
-                    <p className="text-sm">申し込み時にお支払いが確定します。</p>
+                    <p className="text-sm text-slate-600 mt-1">ご利用のクレジットカード会社の締日や契約内容に基づき引き落としが行われます。決済は支援申し込み時に確定します。</p>
                   </div>
                 </div>
               } 
@@ -128,20 +130,16 @@ export default function TokushohoPage() {
               icon={<FiRefreshCcw/>} 
               label="返品・キャンセルについて" 
               value={
-                <div className="space-y-2">
+                <div className="space-y-3">
                   <p>
                     本サービスの性質上（受注生産品および寄付的性質）、原則として支援確定後のお客様都合による返品・キャンセルはお受けできません。
                   </p>
                   <p>
-                    ただし、イベントの中止や延期、またはやむを得ない事情による企画中止の場合は、
-                    <Link href="/legal/cancel" className="text-sky-600 hover:underline mx-1">
-                      キャンセル・返金ポリシー
-                    </Link>
-                    に基づき対応いたします。
+                    ただし、イベントの中止や延期、またはやむを得ない事情による企画中止の場合は、キャンセル・返金ポリシーに基づき対応いたします。
                   </p>
-                  <p className="text-xs text-slate-500 bg-slate-50 p-2 rounded border border-slate-100">
-                    ※ 詳しくは「キャンセル・返金ポリシー」をご確認ください。
-                  </p>
+                  <Link href="/legal/cancel" className="inline-block text-sm font-bold text-sky-600 hover:text-sky-700 bg-sky-50 px-3 py-1.5 rounded-md hover:bg-sky-100 transition-colors">
+                    キャンセル・返金ポリシーを確認する
+                  </Link>
                 </div>
               } 
             />
@@ -155,7 +153,7 @@ export default function TokushohoPage() {
         </div>
 
         <div className="mt-8 text-center">
-          <Link href="/" className="text-sm text-slate-500 hover:text-sky-600 transition-colors">
+          <Link href="/" className="text-sm font-bold text-slate-500 hover:text-sky-600 transition-colors">
             トップページへ戻る
           </Link>
         </div>
@@ -169,7 +167,7 @@ export default function TokushohoPage() {
 function TableRow({ icon, label, value }) {
   return (
     <div className="flex flex-col md:flex-row bg-white">
-      <dt className="md:w-1/3 lg:w-1/4 px-6 py-4 bg-slate-50 text-sm font-bold text-slate-700 flex items-center border-b md:border-b-0 md:border-r border-slate-100">
+      <dt className="md:w-1/3 lg:w-1/4 px-6 py-4 bg-slate-50 text-sm font-black text-slate-700 flex items-center border-b md:border-b-0 md:border-r border-slate-100">
         {icon && <span className="mr-2 text-slate-400 text-lg">{icon}</span>}
         {label}
       </dt>

@@ -1,3 +1,4 @@
+// src/app/page.js
 'use client';
 
 export const dynamic = 'force-dynamic';
@@ -6,6 +7,7 @@ export const fetchCache = 'force-no-store';
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import Script from 'next/script';
 import { 
   motion, 
   useScroll, 
@@ -13,12 +15,13 @@ import {
   AnimatePresence
 } from 'framer-motion';
 
-
 import { 
   Heart, Sparkles, ArrowRight, Search, Users,
   Gift, MessageCircle, Clock, Crown, PenTool, Video, Music, MapPin, Store,
-  ChevronRight, ChevronDown, ArrowUpRight, Shield, Command, KeyRound, Building, Star, Ticket
+  ChevronRight, ChevronDown, ArrowUpRight, Shield, Command, KeyRound, Building, Star, Ticket, Loader2
 } from 'lucide-react';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
 // ==========================================
 // 🛠️ UTILITIES & HELPER FUNCTIONS
@@ -171,7 +174,7 @@ const EmojiParticle = ({ emoji, delay = 0, x = "0%", y = "0%", scale = 1 }) => {
 };
 
 // ==========================================
-// 📊 DUMMY DATA
+// 📊 CATEGORIES
 // ==========================================
 const CATEGORIES = [
   { id: 'idol', name: 'Idol / Artist', jp: 'アイドル・アーティスト', icon: Music, color: 'text-pink-500', bg: 'bg-pink-50' },
@@ -182,45 +185,29 @@ const CATEGORIES = [
   { id: 'anniversary', name: 'Anniversary', jp: '生誕祭・周年記念', icon: Crown, color: 'text-rose-500', bg: 'bg-rose-50' },
 ];
 
-const DUMMY_PROJECTS = [
-  { id: "p1", title: "【祝・5周年】大好きなあのグループへ、アリーナ公演お祝いフラスタを贈ろう！", category: "Idol", target: 200000, current: 245000, percent: 122, days: 3, image: "https://images.unsplash.com/photo-1526047932273-341f2a7631f9?q=80&w=800&auto=format&fit=crop" },
-  { id: "p2", title: "〇〇ちゃん お誕生日おめでとう！3Dライブ配信に向けたお祝い花企画", category: "VTuber", target: 150000, current: 85000, percent: 56, days: 12, image: "https://images.unsplash.com/photo-1519378018457-4c29a3a2ecdf?q=80&w=800&auto=format&fit=crop" },
-  { id: "p3", title: "主演舞台『魔法の王国』ご出演祝い！千秋楽を彩るフラワースタンド計画", category: "Stage", target: 80000, current: 32000, percent: 40, days: 20, image: "https://images.unsplash.com/photo-1523690132227-ec1789725f44?q=80&w=800&auto=format&fit=crop" },
-  { id: "p4", title: "念願のファンミーティング開催記念！ロビーをお花でいっぱいにしよう", category: "Voice Actor", target: 100000, current: 100000, percent: 100, days: 0, image: "https://images.unsplash.com/photo-1563241527-3004b7be0ffd?q=80&w=800&auto=format&fit=crop" },
-];
-
 // ==========================================
 // 🚀 PAGE SECTIONS
 // ==========================================
 
-// --- 0. INTRO LOADER (レースカーテンのみ) ---
+// --- 0. INTRO LOADER ---
 const IntroLoader = ({ onComplete }) => {
   useEffect(() => { 
-    // アニメーションが終わるタイミングで通知し、アンマウントさせる
     const timer = setTimeout(onComplete, 2400); 
     return () => clearTimeout(timer); 
   }, [onComplete]);
 
   return (
-    // 親要素が消えるとき（exit）に、ズームアウト＋フェードアウトで奥へ消える演出
     <motion.div 
       className="fixed inset-0 z-[99999] flex items-center justify-center pointer-events-none"
       initial={{ opacity: 1 }}
       exit={{ scale: 3, opacity: 0, filter: "blur(10px)", transition: { duration: 1.2, ease: "easeInOut" } }}
     >
-      
-      {/* --- 左側のレースカーテン --- */}
       <motion.div 
         className="absolute inset-y-0 left-0 w-1/2 bg-[#FDF2F8] shadow-[20px_0_50px_rgba(244,114,182,0.4)] z-10 origin-left"
         initial={{ x: 0, skewX: 0 }}
         animate={{ x: "-100%", skewX: -5 }} 
         transition={{ duration: 1.4, delay: 0.5, ease: [0.76, 0, 0.24, 1] }}
-        style={{
-          backgroundImage: `
-            linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(244,114,182,0.05) 50%, rgba(0,0,0,0) 100%),
-            url('https://www.transparenttextures.com/patterns/french-stucco.png')
-          `
-        }}
+        style={{ backgroundImage: `linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(244,114,182,0.05) 50%, rgba(0,0,0,0) 100%), url('https://www.transparenttextures.com/patterns/french-stucco.png')` }}
       >
         <div className="absolute top-0 bottom-0 -right-10 w-12 h-full drop-shadow-xl overflow-hidden">
           <svg width="100%" height="100%" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
@@ -236,18 +223,12 @@ const IntroLoader = ({ onComplete }) => {
         </div>
       </motion.div>
 
-      {/* --- 右側のレースカーテン --- */}
       <motion.div 
         className="absolute inset-y-0 right-0 w-1/2 bg-[#FDF2F8] shadow-[-20px_0_50px_rgba(244,114,182,0.4)] z-10 origin-right"
         initial={{ x: 0, skewX: 0 }}
         animate={{ x: "100%", skewX: 5 }} 
         transition={{ duration: 1.4, delay: 0.5, ease: [0.76, 0, 0.24, 1] }}
-        style={{
-          backgroundImage: `
-            linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(244,114,182,0.05) 50%, rgba(0,0,0,0) 100%),
-            url('https://www.transparenttextures.com/patterns/french-stucco.png')
-          `
-        }}
+        style={{ backgroundImage: `linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(244,114,182,0.05) 50%, rgba(0,0,0,0) 100%), url('https://www.transparenttextures.com/patterns/french-stucco.png')` }}
       >
         <div className="absolute top-0 bottom-0 -left-10 w-12 h-full drop-shadow-xl overflow-hidden">
           <svg width="100%" height="100%" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
@@ -263,7 +244,6 @@ const IntroLoader = ({ onComplete }) => {
         </div>
       </motion.div>
 
-      {/* --- 中央のロゴ --- */}
       <motion.div 
         className="absolute z-20 flex flex-col items-center"
         initial={{ opacity: 0, scale: 0.5, y: 20 }} 
@@ -276,19 +256,17 @@ const IntroLoader = ({ onComplete }) => {
         </h1>
         <div className="w-full h-px bg-gradient-to-r from-transparent via-pink-400 to-transparent mt-4" />
       </motion.div>
-      
     </motion.div>
   );
 };
 
-// --- メインコンテンツをラップするコンポーネント ---
+// --- メインコンテンツ ---
 const MainContent = () => {
   return (
-    // ★ 変更点: 初期状態をぼかし(blur)、徐々にピントが合う(focus)アニメーションに変更
     <motion.div
       initial={{ opacity: 0, scale: 1.1, filter: "blur(20px)" }}
       animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
-      transition={{ duration: 2.0, delay: 0.4, ease: "easeOut" }} // カーテンが開くと同時にじわっと現れる
+      transition={{ duration: 2.0, delay: 0.4, ease: "easeOut" }}
     >
       <Hero />
       <InfiniteMarquee />
@@ -333,7 +311,6 @@ const Hero = () => {
           </div>
         </Reveal>
 
-        {/* ★ 変更点: 霞んだチャコール (text-slate-700) をキープ */}
         <SplitTextReveal text="Celebrate with Flowers." className="text-4xl sm:text-5xl md:text-8xl font-black text-slate-700 tracking-tighter leading-[1.05] mb-4 md:mb-6" delay={0.2} />
         
         <Reveal delay={0.4}>
@@ -382,7 +359,6 @@ const InfiniteMarquee = () => {
           <div key={i} className="flex items-center gap-6 md:gap-16">
             {words.map((word, j) => (
               <React.Fragment key={j}>
-                {/* ★ 変更点: text-slate-100 */}
                 <span className="text-2xl md:text-5xl font-black text-slate-100 tracking-widest">
                   {word}
                 </span>
@@ -410,8 +386,6 @@ const HowItWorks = () => {
 
   return (
     <section className="py-24 md:py-36 bg-white relative z-10">
-      
-      {/* 花びら装飾 */}
       <div className="absolute top-1/4 left-0 w-24 h-24 bg-pink-100 rounded-full blur-3xl opacity-60" />
       <div className="absolute bottom-1/4 right-0 w-32 h-32 bg-sky-100 rounded-full blur-3xl opacity-60" />
 
@@ -439,8 +413,30 @@ const HowItWorks = () => {
   );
 };
 
-// --- 4. TRENDING PROJECTS ---
+// --- 4. TRENDING PROJECTS (本番データフェッチ) ---
 const TrendingProjects = () => {
+  const [projects, setProjects] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchProjects = async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/projects?limit=8`);
+        if (res.ok) {
+          const data = await res.json();
+          // 進行中または成功したプロジェクトを優先して最大4件表示
+          const activeProjects = data.filter(p => p.status === 'FUNDRAISING' || p.status === 'SUCCESSFUL');
+          setProjects(activeProjects.slice(0, 4));
+        }
+      } catch (error) {
+        console.error("Failed to fetch trending projects", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProjects();
+  }, []);
+
   return (
     <section className="py-24 md:py-36 bg-slate-50 relative z-10 border-t border-slate-100">
       <div className="container mx-auto px-4 md:px-6 max-w-7xl">
@@ -458,37 +454,53 @@ const TrendingProjects = () => {
           </Link>
         </div>
 
-        <div className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar pb-8 -mx-4 px-4 md:mx-0 md:px-0 md:grid md:grid-cols-4 gap-5 md:gap-6">
-          {DUMMY_PROJECTS.map((project, i) => (
-            <Reveal key={project.id} delay={i * 0.1} className="min-w-[85vw] sm:min-w-[320px] md:min-w-0 snap-center">
-              <Link href={`/projects`}>
-                <SpotlightCard className="h-full flex flex-col group cursor-pointer border-slate-200/60 p-2.5 bg-white">
-                  <div className="relative aspect-[4/3] rounded-[2rem] overflow-hidden bg-slate-100">
-                    <Image src={project.image} alt={project.title} fill className="object-cover transition-transform duration-700 group-hover:scale-105" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 via-transparent to-transparent opacity-60 group-hover:opacity-80 transition-opacity" />
-                    <div className="absolute top-4 left-4">
-                      <span className="px-4 py-1.5 bg-white/90 backdrop-blur-md rounded-full text-[10px] md:text-xs font-black tracking-widest uppercase text-slate-800 shadow-sm">
-                        {project.category}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="p-5 flex flex-col flex-grow mt-2">
-                    <h3 className="text-sm md:text-base font-extrabold text-slate-800 leading-snug mb-5 group-hover:text-pink-500 transition-colors line-clamp-2">{project.title}</h3>
-                    <div className="mt-auto">
-                      <div className="flex justify-between items-end mb-2.5">
-                        <div className="text-base font-black text-slate-800">¥{project.current.toLocaleString()}</div>
-                        <div className="text-xs font-black font-mono text-slate-400">{project.percent}%</div>
+        {loading ? (
+          <div className="flex justify-center items-center py-20">
+            <Loader2 className="w-10 h-10 text-pink-500 animate-spin" />
+          </div>
+        ) : projects.length > 0 ? (
+          <div className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar pb-8 -mx-4 px-4 md:mx-0 md:px-0 md:grid md:grid-cols-4 gap-5 md:gap-6">
+            {projects.map((project, i) => {
+              const percent = project.targetAmount > 0 ? Math.floor((project.collectedAmount / project.targetAmount) * 100) : 0;
+              const imageSrc = project.imageUrl || "https://images.unsplash.com/photo-1526047932273-341f2a7631f9?q=80&w=800&auto=format&fit=crop";
+              const category = project.event?.genre || project.genre || "OTHER";
+
+              return (
+                <Reveal key={project.id} delay={i * 0.1} className="min-w-[85vw] sm:min-w-[320px] md:min-w-0 snap-center">
+                  <Link href={`/projects/${project.id}`}>
+                    <SpotlightCard className="h-full flex flex-col group cursor-pointer border-slate-200/60 p-2.5 bg-white">
+                      <div className="relative aspect-[4/3] rounded-[2rem] overflow-hidden bg-slate-100">
+                        <Image src={imageSrc} alt={project.title} fill className="object-cover transition-transform duration-700 group-hover:scale-105" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 via-transparent to-transparent opacity-60 group-hover:opacity-80 transition-opacity" />
+                        <div className="absolute top-4 left-4">
+                          <span className="px-4 py-1.5 bg-white/90 backdrop-blur-md rounded-full text-[10px] md:text-xs font-black tracking-widest uppercase text-slate-800 shadow-sm">
+                            {category}
+                          </span>
+                        </div>
                       </div>
-                      <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
-                        <motion.div initial={{ width: 0 }} whileInView={{ width: `${Math.min(project.percent, 100)}%` }} transition={{ duration: 1.5, delay: 0.2 }} className="h-full bg-slate-900 rounded-full" />
+                      <div className="p-5 flex flex-col flex-grow mt-2">
+                        <h3 className="text-sm md:text-base font-extrabold text-slate-800 leading-snug mb-5 group-hover:text-pink-500 transition-colors line-clamp-2">{project.title}</h3>
+                        <div className="mt-auto">
+                          <div className="flex justify-between items-end mb-2.5">
+                            <div className="text-base font-black text-slate-800">¥{(project.collectedAmount || 0).toLocaleString()}</div>
+                            <div className="text-xs font-black font-mono text-slate-400">{percent}%</div>
+                          </div>
+                          <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                            <motion.div initial={{ width: 0 }} whileInView={{ width: `${Math.min(percent, 100)}%` }} transition={{ duration: 1.5, delay: 0.2 }} className="h-full bg-slate-900 rounded-full" />
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                </SpotlightCard>
-              </Link>
-            </Reveal>
-          ))}
-        </div>
+                    </SpotlightCard>
+                  </Link>
+                </Reveal>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="text-center py-20 text-slate-400 font-bold">
+            現在表示できる注目の企画がありません。
+          </div>
+        )}
         
         <Link href="/projects" className="md:hidden flex justify-center mt-5">
           <button className="px-7 py-4 w-full rounded-full border border-slate-200 text-sm font-extrabold text-slate-600 bg-white flex items-center justify-center gap-2 shadow-sm">
@@ -508,16 +520,11 @@ const BentoFeatures = () => {
       desc: "クレジットカードやPayPay等での自動集金。主催者が個人の銀行口座を公開する必要はありません。",
       span: "col-span-1 md:col-span-2 row-span-1 md:row-span-2",
       icon: Shield,
-      // ★ 変更点: bg-white と text-slate-700 に変更
       color: "bg-white",
       text: "text-slate-700",
       descColor: "text-slate-500",
       iconColor: "text-slate-600",
-      visual: (
-        <>
-          <div className="absolute right-0 bottom-0 w-64 h-64 bg-gradient-to-tl from-emerald-400/20 to-transparent rounded-tl-full blur-2xl"></div>
-        </>
-      )
+      visual: <div className="absolute right-0 bottom-0 w-64 h-64 bg-gradient-to-tl from-emerald-400/20 to-transparent rounded-tl-full blur-2xl"></div>
     },
     {
       title: "完全匿名で参加",
@@ -704,9 +711,8 @@ export default function HomePage() {
   if (!isMounted) return null; 
 
   return (
-    <main className="bg-[#FFFDFE] min-h-screen text-slate-800 font-sans selection:bg-pink-100 selection:text-pink-500">
+    <main className="bg-[#FFFDFE] min-h-screen text-slate-800 font-sans selection:bg-pink-100 selection:text-pink-500 relative">
       
-      {/* ★ IntroLoader が完全に消えるまで MainContent を描画しない */}
       <AnimatePresence mode="wait">
         {!introFinished ? (
           <IntroLoader key="loader" onComplete={() => setIntroFinished(true)} />
@@ -714,6 +720,13 @@ export default function HomePage() {
           <MainContent key="content" />
         )}
       </AnimatePresence>
+
+      {/* ★ 追加: LARUbot の埋め込みスクリプト (画面の右下に表示されます) ★ */}
+      <Script 
+        src="https://larubot.tokyo/static/embed.js" 
+        data-public-id="e19ed703-6238-49a5-ac83-c92c522a44cd" 
+        strategy="afterInteractive" 
+      />
 
       <style jsx global>{`
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&family=Parisienne&display=swap');

@@ -12,7 +12,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 // lucide-reactに統一
 import { 
-  Search, MapPin, Camera, Loader2, X, Zap, Award, Filter, Star, CheckCircle2, Sparkles, ChevronRight, User, Send
+  Search, MapPin, Camera, Loader2, X, Zap, Award, Filter, Star, CheckCircle2, Sparkles, ChevronRight, User, Send, Truck
 } from 'lucide-react';
 
 import { useAuth } from '../contexts/AuthContext';
@@ -115,9 +115,17 @@ function FloristCard({ florist, projectId, onOffer, isOffering }) {
       </div>
 
       <div className="pt-8 px-2 flex flex-col flex-grow relative">
-        <div className="mb-3">
-          <h3 className="text-lg font-black text-slate-800 group-hover:text-pink-500 transition-colors line-clamp-1">{florist.platformName || florist.shopName}</h3>
-          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-0.5 flex items-center gap-1"><Award size={10}/> Florist Partner</p>
+        <div className="mb-3 flex justify-between items-start gap-2">
+          <div>
+            <h3 className="text-lg font-black text-slate-800 group-hover:text-pink-500 transition-colors line-clamp-1">{florist.platformName || florist.shopName}</h3>
+            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-0.5 flex items-center gap-1"><Award size={10}/> Florist Partner</p>
+          </div>
+          {florist.reviewCount > 0 && (
+            <div className="flex items-center gap-1 bg-yellow-50 px-2 py-1 rounded-lg shrink-0 border border-yellow-100">
+              <Star size={12} className="fill-yellow-400 text-yellow-400"/>
+              <span className="text-xs font-black text-yellow-600">{florist.averageRating?.toFixed(1)}</span>
+            </div>
+          )}
         </div>
 
         <div className="flex flex-wrap gap-1.5 mb-4">
@@ -132,16 +140,22 @@ function FloristCard({ florist, projectId, onOffer, isOffering }) {
         </div>
 
         <div className="mt-auto space-y-3">
-          <div className="flex items-center justify-between text-xs font-bold pt-4 border-t border-slate-100">
-            <span className="flex items-center text-slate-500 truncate mr-2">
-                <MapPin className="mr-1.5 text-sky-400 shrink-0" size={14}/> 
-                <span className="truncate">{florist.address || '全国対応'}</span>
-            </span>
-            {florist.reviewCount > 0 && (
-               <span className="flex items-center gap-1 text-yellow-500 font-black shrink-0">
-                 <Star size={14} className="fill-yellow-500"/> {florist.averageRating?.toFixed(1)}
-               </span>
-            )}
+          <div className="pt-3 border-t border-slate-100 space-y-2">
+            {/* ★ 修正ポイント: 所在地と配送エリアを表示 */}
+            <div className="flex items-center text-xs font-bold text-slate-500">
+                <MapPin className="mr-1.5 text-slate-300 shrink-0" size={14}/> 
+                <span className="truncate">店舗: {florist.address || '非公開'}</span>
+            </div>
+            
+            <div className="flex items-center justify-between text-xs font-bold text-sky-600 bg-sky-50 px-2 py-1.5 rounded-lg border border-sky-100">
+                <span className="flex items-center truncate max-w-[65%]">
+                    <Truck className="mr-1.5 shrink-0" size={14}/> 
+                    <span className="truncate">{florist.baseDeliveryArea || '全国対応'}</span>
+                </span>
+                <span className="shrink-0 font-black">
+                    {florist.baseDeliveryFee === 0 || !florist.baseDeliveryFee ? '送料: 無料' : `送料: ${florist.baseDeliveryFee.toLocaleString()}円〜`}
+                </span>
+            </div>
           </div>
 
           {projectId ? (
@@ -264,7 +278,6 @@ function FloristsListContent() {
     }
   };
 
-  // ★ 修正箇所: URLを正しい /api/florists/offers に変更しました！
   const handleOffer = async (floristId) => {
     if (!projectId) return;
     if (!user) return toast.error('ログインが必要です');
@@ -357,6 +370,7 @@ function FloristsListContent() {
                       <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 pl-2">Location</label>
                       <div className="relative">
                         <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18}/>
+                        {/* ★ 配送エリアでの検索だと分かるようにプレースホルダーを変更 */}
                         <select name="prefecture" value={filters.prefecture} onChange={handleFilterChange} className="w-full pl-12 pr-10 py-4 bg-white/60 backdrop-blur-sm border-2 border-slate-100 rounded-2xl outline-none appearance-none cursor-pointer font-bold text-slate-700 focus:bg-white focus:ring-4 focus:ring-pink-100 focus:border-pink-300 transition-all">
                             <option value="">すべてのエリア</option>
                             {prefectures.map(pref => <option key={pref} value={pref}>{pref}</option>)}

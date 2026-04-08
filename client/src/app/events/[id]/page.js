@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import ShareButtons from '@/app/components/ShareButtons';
 // アイコンのインポートを修正
 import { 
   FiCalendar, FiMapPin, FiInfo, FiAlertTriangle, FiPlus, 
@@ -269,6 +270,11 @@ export default function EventDetailPage() {
                     <FiInstagram size={18} /> Instagram
                   </a>
                 )}
+                {/* ★ ここに追加: イベントシェアボタン ★ */}
+                <div className="flex items-center gap-3 bg-slate-50 px-4 py-2 rounded-xl border border-slate-100 ml-auto sm:ml-0">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest hidden sm:inline">Share</span>
+                  <ShareButtons text={`${event.title} にフラスタを贈りませんか？イベント詳細はこちら🌸`} />
+                </div>
               </div>
 
               {/* イラスト公募セクション */}

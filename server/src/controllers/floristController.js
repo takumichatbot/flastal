@@ -119,41 +119,83 @@ export const getRecentFloristPosts = async (req, res) => {
     }
 };
 
+
+
 export const getFlorists = async (req, res) => {
     try {
         const { keyword, prefecture, rush, tag } = req.query;
         const whereClause = { status: 'APPROVED' };
 
+        // 1. キーワード検索（店名やポートフォリオ）
         if (keyword && keyword.trim() !== '') {
             whereClause.OR = [
                 { platformName: { contains: keyword, mode: 'insensitive' } },
                 { portfolio: { contains: keyword, mode: 'insensitive' } },
             ];
         }
+
+        // 2. エリア（都道府県）検索の強化 ★ここが修正ポイント★
+        // 住所だけでなく、配送設定のエリアも含めて検索する
         if (prefecture && prefecture.trim() !== '') {
-            whereClause.address = { contains: prefecture };
+            const areaKeyword = prefecture.trim();
+            
+            // もし既にキーワード検索の OR が存在する場合は、AND で繋ぐ必要があるため構造を調整します
+            const areaCondition = {
+                OR: [
+                    { address: { contains: areaKeyword } }, // 実際の店舗住所
+                    { baseDeliveryArea: { contains: areaKeyword } }, // 基本配送エリア
+                    // areaFees は JSON 型のため、PostgreSQLのJSON関数を使った文字列検索（テキストとしてキャストして検索）
+                    { areaFees: { path: ['$'], string_contains: areaKeyword } } 
+                ]
+            };
+
+            if (whereClause.OR) {
+                // 既にキーワード検索がある場合は AND で結合
+                whereClause.AND = [
+                    { OR: whereClause.OR },
+                    areaCondition
+                ];
+                delete whereClause.OR;
+            } else {
+                whereClause.OR = areaCondition.OR;
+            }
         }
+
+        // 3. タグ（得意な装飾）検索
         if (tag && tag.trim() !== '') {
             whereClause.specialties = { has: tag.trim() };
         }
+
+        // 4. お急ぎ便対応の検索
         if (rush === 'true') {
             whereClause.acceptsRushOrders = true;
         }
 
+        // データベースから取得
         const florists = await prisma.florist.findMany({
             where: whereClause,
             select: {
-                id: true, platformName: true, portfolio: true, address: true,
-                iconUrl: true, portfolioImages: true, specialties: true, acceptsRushOrders: true,
+                id: true, 
+                platformName: true, 
+                portfolio: true, 
+                address: true,
+                iconUrl: true, 
+                portfolioImages: true, 
+                specialties: true, 
+                acceptsRushOrders: true,
+                // ★ 配送料金情報を検索結果のカードで表示するために追加
+                baseDeliveryArea: true,
+                baseDeliveryFee: true,
                 _count: { select: { reviews: true } }
             },
             orderBy: { createdAt: 'desc' },
         });
 
+        // レビュー数の整形
         const floristsWithRating = florists.map(florist => ({
             ...florist,
             reviewCount: florist._count.reviews,
-            averageRating: 0,
+            averageRating: 0, // ※ここは別テーブルから集計するか、現状の仕様通り0またはダミー
             _count: undefined
         }));
 
@@ -163,6 +205,7 @@ export const getFlorists = async (req, res) => {
         res.status(500).json({ message: 'お花屋さんの取得中にエラーが発生しました。' });
     }
 };
+
 
 export const getFloristById = async (req, res) => {
     const { id } = req.params;
@@ -176,8 +219,21 @@ export const getFloristById = async (req, res) => {
             orderBy: { createdAt: 'desc' }
         });
 
+        // パスワードとAPIキーは除外し、配送設定などの公開情報をセット
         const { password, laruBotApiKey, ...publicData } = florist;
+        
         publicData.appealPosts = appealPosts;
+        
+        // ★ 追加: 配送・回収設定のデフォルト値を保証してフロントに渡す
+        publicData.deliverySettings = {
+            baseArea: florist.baseDeliveryArea || '設定なし',
+            baseFee: florist.baseDeliveryFee ?? 0,
+            collectionType: florist.collectionType || 'INCLUDED',
+            collectionFee: florist.collectionFee ?? 0,
+            areaFees: florist.areaFees || [],
+            conditionFees: florist.conditionFees || []
+        };
+
         res.status(200).json(publicData);
     } catch (error) {
         console.error('getFloristById Error:', error);
@@ -684,5 +740,54 @@ export const searchDeals = async (req, res) => {
         res.json(formatted);
     } catch (error) {
         res.status(500).json({ message: '検索に失敗しました' });
+    }
+};
+
+
+
+// --- 配送料金・回収費設定の取得 ---
+export const getDeliverySettings = async (req, res) => {
+    try {
+        const florist = await prisma.florist.findUnique({
+            where: { id: req.user.id } // JWTトークンから取得したお花屋さんID
+        });
+
+        if (!florist) return res.status(404).json({ message: 'Florist not found' });
+
+        res.json({
+            baseArea: florist.baseDeliveryArea || '',
+            baseFee: florist.baseDeliveryFee || 0,
+            collectionType: florist.collectionType || 'INCLUDED',
+            collectionFee: florist.collectionFee || 0,
+            areaFees: florist.areaFees || [],
+            conditionFees: florist.conditionFees || []
+        });
+    } catch (error) {
+        console.error("getDeliverySettings Error:", error);
+        res.status(500).json({ message: '設定の取得に失敗しました' });
+    }
+};
+
+// --- 配送料金・回収費設定の保存 ---
+export const updateDeliverySettings = async (req, res) => {
+    try {
+        const { baseArea, baseFee, collectionType, collectionFee, areaFees, conditionFees } = req.body;
+
+        await prisma.florist.update({
+            where: { id: req.user.id },
+            data: {
+                baseDeliveryArea: baseArea,
+                baseDeliveryFee: Number(baseFee),
+                collectionType: collectionType,
+                collectionFee: Number(collectionFee),
+                areaFees: areaFees || [],
+                conditionFees: conditionFees || []
+            }
+        });
+
+        res.json({ message: '設定を保存しました' });
+    } catch (error) {
+        console.error("updateDeliverySettings Error:", error);
+        res.status(500).json({ message: '設定の保存に失敗しました' });
     }
 };

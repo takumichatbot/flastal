@@ -1,3 +1,4 @@
+// src/controllers/illustratorController.js
 import prisma from '../config/prisma.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
@@ -13,14 +14,12 @@ export const registerIllustrator = async (req, res) => {
     const { email, password, activityName } = req.body;
     const lowerEmail = email.toLowerCase();
 
-    // Userテーブルで重複チェック
     const existing = await prisma.user.findUnique({ where: { email: lowerEmail } });
     if (existing) return res.status(409).json({ message: 'このメールアドレスは既に使用されています。' });
 
     const hashedPassword = await bcrypt.hash(password, 10);
     const verificationToken = crypto.randomBytes(32).toString('hex');
 
-    // ★ Userとして登録し、roleをILLUSTRATOR、statusをPENDINGにする
     const newUser = await prisma.user.create({
       data: {
         email: lowerEmail,
@@ -28,11 +27,10 @@ export const registerIllustrator = async (req, res) => {
         handleName: activityName,
         role: 'ILLUSTRATOR',
         verificationToken,
-        status: 'PENDING', // 審査待ち
+        status: 'PENDING', 
       }
     });
 
-    // 確認メール送信
     const verificationUrl = `${process.env.FRONTEND_URL}/verify?token=${verificationToken}`;
     await sendDynamicEmail(lowerEmail, 'VERIFICATION_EMAIL', { userName: activityName, verificationUrl });
 
@@ -48,7 +46,6 @@ export const loginIllustrator = async (req, res) => {
     const { email, password } = req.body;
     const lowerEmail = email.toLowerCase();
 
-    // Userテーブルから検索
     const user = await prisma.user.findUnique({ where: { email: lowerEmail } });
     if (!user || user.role !== 'ILLUSTRATOR') {
         return res.status(401).json({ message: 'メールアドレスまたはパスワードが間違っています。' });
@@ -59,7 +56,6 @@ export const loginIllustrator = async (req, res) => {
 
     if (!user.isVerified) return res.status(403).json({ message: 'メール認証が完了していません。' });
     
-    // 審査待ちの場合はログインはさせるが、フロント側で「審査中画面」を出すためにトークンにstatusを含める
     const token = jwt.sign(
       { id: user.id, email: user.email, role: user.role, status: user.status },
       process.env.JWT_SECRET,
@@ -78,10 +74,8 @@ export const loginIllustrator = async (req, res) => {
 // 🎨 プロフィール関連
 // ==========================================
 
-// 絵師一覧の取得 (企画者が探す用)
 export const getIllustratorsList = async (req, res) => {
     try {
-        // 承認済みで、受付中の絵師のプロフィール一覧を取得
         const profiles = await prisma.illustratorProfile.findMany({
             where: {
                 isAcceptingRequests: true,
@@ -93,7 +87,6 @@ export const getIllustratorsList = async (req, res) => {
             orderBy: { updatedAt: 'desc' }
         });
 
-        // フロント側が扱いやすい形に整形して返す
         const formatted = profiles.map(p => ({
             id: p.id,
             userId: p.userId,
@@ -114,10 +107,9 @@ export const getIllustratorsList = async (req, res) => {
     }
 };
 
-// 個別の絵師詳細取得
 export const getIllustratorDetail = async (req, res) => {
     try {
-        const { id } = req.params; // userId を想定
+        const { id } = req.params; 
         const profile = await prisma.illustratorProfile.findUnique({
             where: { userId: id },
             include: { user: { select: { handleName: true, iconUrl: true } } }
@@ -136,7 +128,6 @@ export const getIllustratorDetail = async (req, res) => {
     }
 };
 
-// 自分のプロフィールの取得/更新 (マイページ用)
 export const getMyProfile = async (req, res) => {
     try {
         const profile = await prisma.illustratorProfile.findUnique({
@@ -178,7 +169,6 @@ export const updateMyProfile = async (req, res) => {
 
 export const getDashboardStats = async (req, res) => {
     try {
-        // 進行中の案件 (自分がアサインされていて、完了していないもの)
         const activeOrders = await prisma.project.count({
             where: { 
                 illustratorId: req.user.id,
@@ -186,7 +176,6 @@ export const getDashboardStats = async (req, res) => {
             }
         });
 
-        // 完了した案件
         const completedOrders = await prisma.project.count({
             where: { 
                 illustratorId: req.user.id,
@@ -194,7 +183,6 @@ export const getDashboardStats = async (req, res) => {
             }
         });
 
-        // 売上残高はUserテーブルの points をフロント側で参照させる
         res.json({ activeOrders, completedOrders });
     } catch (error) {
         res.status(500).json({ message: '統計の取得に失敗しました。' });
@@ -221,7 +209,6 @@ export const getMyActiveProjects = async (req, res) => {
 // 🎨 オファー(指名依頼)関連
 // ==========================================
 
-// 絵師に届いたオファー一覧を取得
 export const getMyOffers = async (req, res) => {
     try {
         const offers = await prisma.illustratorOffer.findMany({
@@ -237,20 +224,16 @@ export const getMyOffers = async (req, res) => {
     }
 };
 
-// 企画者が絵師にオファーを送信する
 export const sendOffer = async (req, res) => {
     try {
         const { projectId, illustratorId, amount, message } = req.body;
         
-        // 企画者のポイントが足りているかチェック
         const planner = await prisma.user.findUnique({ where: { id: req.user.id } });
         if (planner.points < amount) return res.status(400).json({ message: 'ポイントが不足しています。' });
 
-        // 企画の存在確認と権限チェック
         const project = await prisma.project.findUnique({ where: { id: projectId } });
         if (project.plannerId !== req.user.id) return res.status(403).json({ message: '権限がありません。' });
 
-        // オファーを作成 (まだポイントは引かない。承認されたら引く)
         const offer = await prisma.illustratorOffer.create({
             data: { projectId, illustratorId, amount, message }
         });
@@ -262,7 +245,6 @@ export const sendOffer = async (req, res) => {
     }
 };
 
-// 絵師がオファーを承認する (ここで企画者からポイントを引く)
 export const acceptOffer = async (req, res) => {
     try {
         const { id } = req.params;
@@ -271,8 +253,8 @@ export const acceptOffer = async (req, res) => {
         });
 
         if (!offer || offer.illustratorId !== req.user.id) return res.status(403).json({ message: '権限がありません。' });
+        if (offer.status !== 'PENDING') return res.status(400).json({ message: 'このオファーは既に処理されています。' });
 
-        // トランザクション処理 (企画者のポイントを減らし、プロジェクトに絵師をアサイン)
         await prisma.$transaction(async (tx) => {
             const planner = await tx.user.findUnique({ where: { id: offer.project.plannerId } });
             if (planner.points < offer.amount) throw new Error('企画者のポイントが不足しているため、受注できませんでした。');
@@ -300,7 +282,6 @@ export const acceptOffer = async (req, res) => {
     }
 };
 
-// 絵師がオファーを辞退する
 export const rejectOffer = async (req, res) => {
     try {
         const { id } = req.params;
@@ -322,7 +303,6 @@ export const rejectOffer = async (req, res) => {
 // 🎨 立候補(公募への応募)関連
 // ==========================================
 
-// 絵師が立候補履歴を取得
 export const getMyApplications = async (req, res) => {
     try {
         const apps = await prisma.illustratorApplication.findMany({
@@ -336,18 +316,16 @@ export const getMyApplications = async (req, res) => {
     }
 };
 
-// 絵師がイベント(企画)に立候補する
 export const applyForRecruitment = async (req, res) => {
     try {
+        // フロントから送られてくる eventId は、実際には projectId である想定
         const { eventId, proposedAmount, message } = req.body;
-        // 本来は eventId ではなく projectId に紐づける想定 (イベントに対して立候補する場合は別途処理が必要)
-        // 今回のフロントエンドの仕様では、projectIdに紐づけて保存します
         
         const application = await prisma.illustratorApplication.create({
             data: {
-                projectId: eventId, // ※フロントからeventIdとして送られてくるが、実態はprojectIdの場合
+                projectId: eventId, 
                 illustratorId: req.user.id,
-                proposedAmount,
+                proposedAmount: Number(proposedAmount),
                 message
             }
         });

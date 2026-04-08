@@ -1,3 +1,4 @@
+// src/routes/illustrators.js
 import express from 'express';
 import * as controller from '../controllers/illustratorController.js';
 import { authenticateToken } from '../middleware/auth.js';
@@ -20,7 +21,7 @@ router.get('/:id', controller.getIllustratorDetail); // 絵師の詳細取得
 router.get('/profile/me', authenticateToken, controller.getMyProfile);
 router.put('/profile', authenticateToken, controller.updateMyProfile);
 
-// ダッシュボード統計 (絵師用)
+// ダッシュボード統計とプロジェクト (絵師用)
 router.get('/dashboard/stats', authenticateToken, controller.getDashboardStats);
 router.get('/projects', authenticateToken, controller.getMyActiveProjects);
 

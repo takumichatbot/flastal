@@ -353,6 +353,12 @@ model Florist {
   sentChatMessages  ChatMessage[]        @relation("FloristChatMessages")
   postedLogistics   VenueLogisticsInfo[]
   deals             FloristDeal[]
+  baseDeliveryArea  String?  @default("東京都23区内")
+  baseDeliveryFee   Int?     @default(3000)
+  collectionType    String?  @default("INCLUDED") // FREE, INCLUDED, PAID
+  collectionFee     Int?     @default(0)
+  areaFees          Json?    @default("[]") // [{ id, areaName, extraFee }]
+  conditionFees     Json?    @default("[]") // [{ id, conditionName, extraFee }]
 }
 
 model FloristDeal {

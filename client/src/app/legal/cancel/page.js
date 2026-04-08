@@ -1,29 +1,17 @@
+// src/app/legal/cancel/page.js
 'use client';
 
-// Next.js 15 ビルドエラー回避用
 export const dynamic = 'force-dynamic';
 
 import React, { Suspense, useEffect } from 'react';
 import Link from 'next/link';
 
-// lucide-reactに統一
 import { 
   AlertTriangle, Info, ArrowLeft, Printer, 
   Calendar, Package, CheckSquare, HelpCircle, Loader2 
 } from 'lucide-react';
 
-// ★ ここにcn関数を定義（ビルドエラー回避と汎用性のため）
-function cn(...classes) {
-  return classes.filter(Boolean).join(' ');
-}
-
 function LegalCancelContent() {
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-       // 必要があればここで window.location.search を解析
-    }
-  }, []);
-  
   const handlePrint = () => {
     if (typeof window !== 'undefined') {
       window.print();
@@ -31,47 +19,59 @@ function LegalCancelContent() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 py-24 px-4 sm:px-6 lg:px-8 font-sans text-slate-700">
+    <div className="min-h-screen bg-slate-50 py-12 px-4 sm:px-6 lg:px-8 font-sans text-slate-700">
       <div className="max-w-4xl mx-auto mb-8 flex justify-between items-center print:hidden">
         <Link href="/" className="flex items-center text-sm font-black text-slate-400 hover:text-pink-600 transition-colors uppercase tracking-widest bg-white px-5 py-2.5 rounded-full shadow-sm border border-slate-100">
           <ArrowLeft size={16} className="mr-1.5" /> トップページへ
         </Link>
         <button onClick={handlePrint} className="flex items-center gap-2 px-5 py-2.5 bg-white border border-slate-200 rounded-full text-sm font-black text-slate-500 hover:text-sky-600 hover:bg-sky-50 transition-all shadow-sm">
-          <Printer size={16} /> ページを保存/印刷
+          <Printer size={16} /> ポリシーを保存/印刷
         </button>
       </div>
 
       <div className="max-w-4xl mx-auto bg-white/80 backdrop-blur-xl p-8 md:p-12 rounded-[3rem] shadow-sm border border-white">
         <div className="border-b border-slate-100 pb-8 mb-10 text-center">
-          <h1 className="text-2xl md:text-4xl font-black text-slate-800 tracking-tighter mb-3">キャンセル・返金ポリシー</h1>
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">最終改定日：2025年12月17日</p>
+          <div className="inline-flex items-center justify-center w-20 h-20 bg-rose-50 text-rose-500 rounded-3xl mb-4 shadow-inner border border-white">
+            <AlertTriangle size={40} />
+          </div>
+          <h1 className="text-3xl md:text-4xl font-black text-slate-800 tracking-tighter mb-3">
+            キャンセル・返金ポリシー
+          </h1>
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Cancellation Policy</p>
         </div>
 
         <div className="space-y-12">
+          
+          <section className="bg-sky-50 p-8 rounded-[2rem] border border-sky-100 shadow-sm">
+            <h2 className="text-lg font-black text-sky-800 flex items-center mb-3">
+                <Info className="mr-2" size={24} /> 基本方針
+            </h2>
+            <p className="text-sm text-sky-700 leading-relaxed font-bold">
+                本サービスにおいて提供されるフラワースタンド（祝花）やイラストパネルは、イベントに合わせた「受注生産品」および「寄付的性質」を持つため、<strong className="text-rose-600 px-1">原則として支援完了後のお客さま都合によるキャンセル・返金はお受けできません。</strong>
+            </p>
+          </section>
+
           <section>
             <h2 className="text-xl font-black text-slate-800 flex items-center mb-6 border-l-4 border-pink-500 pl-4">
-              <Calendar className="mr-2 text-pink-500" size={24} /> 1. キャンセル料の発生基準
+              <Calendar className="mr-2 text-pink-500" size={24} /> 1. イベント中止等に伴うキャンセル料
             </h2>
+            <p className="mb-4 text-sm font-bold text-slate-500">主催者都合によるイベント中止・延期等の場合、進行状況に応じて以下の基準が適用されます。</p>
             <div className="overflow-hidden rounded-[2rem] border border-slate-100 shadow-sm bg-white">
               <table className="min-w-full divide-y divide-slate-100">
                 <thead>
                   <tr className="bg-slate-50/80">
-                    <th className="px-6 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">キャンセル申請のタイミング</th>
-                    <th className="px-6 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">キャンセル料率</th>
+                    <th className="px-6 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">企画中止のタイミング</th>
+                    <th className="px-6 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">返金について</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-slate-50 text-sm">
                   <tr className="hover:bg-slate-50/50 transition-colors">
-                    <td className="px-6 py-5 font-black text-slate-700">お届け 7日前 まで</td>
-                    <td className="px-6 py-5"><span className="px-3 py-1.5 rounded-md text-[10px] font-black uppercase tracking-widest bg-emerald-50 text-emerald-600 border border-emerald-100 shadow-sm">無料 (0%)</span></td>
+                    <td className="px-6 py-5 font-black text-slate-700">お花等の制作開始 <span className="text-emerald-500">前</span></td>
+                    <td className="px-6 py-5 font-bold text-slate-600">システム手数料を除き、全額返金</td>
                   </tr>
                   <tr className="hover:bg-slate-50/50 transition-colors">
-                    <td className="px-6 py-5 font-black text-slate-700">お届け 6日前 〜 4日前</td>
-                    <td className="px-6 py-5"><span className="px-3 py-1.5 rounded-md text-[10px] font-black uppercase tracking-widest bg-amber-50 text-amber-600 border border-amber-100 shadow-sm">ご支援総額の 50%</span></td>
-                  </tr>
-                  <tr className="hover:bg-slate-50/50 transition-colors">
-                    <td className="px-6 py-5 font-black text-rose-500">お届け 3日前 〜 当日</td>
-                    <td className="px-6 py-5"><span className="px-3 py-1.5 rounded-md text-[10px] font-black uppercase tracking-widest bg-rose-50 text-rose-600 border border-rose-100 shadow-sm">ご支援総額の 100%</span></td>
+                    <td className="px-6 py-5 font-black text-rose-500">お花・イラストの制作開始 <span className="text-rose-500">後</span></td>
+                    <td className="px-6 py-5 font-bold text-rose-600">実費が発生しているため、原則返金不可</td>
                   </tr>
                 </tbody>
               </table>
@@ -79,21 +79,22 @@ function LegalCancelContent() {
           </section>
 
           <section className="bg-amber-50 p-8 rounded-[2rem] border border-amber-100 shadow-sm">
-            <h2 className="text-lg font-black text-amber-800 flex items-center mb-4"><Package className="mr-2" size={20} /> 2. 特注資材費の実費請求について</h2>
-            <p className="text-sm text-amber-900/80 leading-relaxed font-bold">キャンセル時期に関わらず、製作が開始されているパネルや特注花材の実費は全額請求となります。</p>
+            <h2 className="text-lg font-black text-amber-800 flex items-center mb-3">
+                <Package className="mr-2" size={20} /> 2. 会場都合による搬入不可について
+            </h2>
+            <p className="text-sm text-amber-900/80 leading-relaxed font-bold">
+                イベント直前になって、会場や主催者から「フラスタの受け取り辞退」等の通達があった場合であっても、すでに制作準備に入っている場合は実費が全額請求となり、返金はいたしかねます。
+            </p>
           </section>
 
           <section>
-            <h2 className="text-xl font-black text-slate-800 flex items-center mb-6 border-l-4 border-pink-500 pl-4"><Info className="mr-2 text-pink-500" size={24} /> 3. 参加者（支援者）様への返金について</h2>
-            <div className="grid md:grid-cols-2 gap-6">
-              <div className="p-6 bg-slate-50 rounded-[2rem] border border-slate-100">
-                <h3 className="font-black text-slate-800 mb-3 flex items-center gap-2"><CheckSquare size={18} className="text-emerald-500"/> 全額返金の場合</h3>
-                <p className="text-sm text-slate-600 font-bold leading-relaxed">7日前までの中止であれば、システム利用料を除きポイント等で即時返還いたします。</p>
-              </div>
-              <div className="p-6 bg-slate-50 rounded-[2rem] border border-slate-100">
-                <h3 className="font-black text-slate-800 mb-3 flex items-center gap-2"><AlertTriangle size={18} className="text-amber-500"/> 一部返金の場合</h3>
-                <p className="text-sm text-slate-600 font-bold leading-relaxed">発生したキャンセル料を差し引いた残額を、支援額に応じて按分返還いたします。</p>
-              </div>
+            <h2 className="text-xl font-black text-slate-800 flex items-center mb-6 border-l-4 border-pink-500 pl-4">
+                <CheckSquare className="mr-2 text-pink-500" size={24} /> 3. プロジェクト不成立の場合
+            </h2>
+            <div className="p-6 bg-slate-50 rounded-[2rem] border border-slate-100">
+                <p className="text-sm text-slate-600 font-bold leading-relaxed">
+                    「All-or-Nothing（目標達成型）」のプロジェクトにおいて、募集期間内に目標金額に達しなかった場合は、企画は自動的に中止となり、<span className="text-emerald-600">支援金は全額自動で返金（または決済のお取り消し）が行われます。</span>
+                </p>
             </div>
           </section>
 
@@ -101,6 +102,7 @@ function LegalCancelContent() {
             <Link href="/contact" className="inline-flex items-center px-8 py-4 bg-slate-900 text-white font-black rounded-full hover:bg-pink-600 transition-all shadow-xl shadow-slate-200 text-sm gap-2">
               <HelpCircle size={18} /> お問い合わせフォームへ
             </Link>
+            <p className="mt-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">制定：2025年12月17日</p>
           </div>
         </div>
       </div>

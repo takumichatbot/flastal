@@ -17,7 +17,7 @@ import {
   CheckCircle2, FileText, Calendar, MapPin, 
   Clock, ChevronLeft, ChevronRight, Camera, User, 
   Eye, EyeOff, Trash2, DollarSign, LogOut, ArrowRight,
-  Briefcase, AlertCircle, Loader2, Star, Image as ImageIcon, Send
+  Briefcase, AlertCircle, Loader2, Star, Image as ImageIcon, Send, Truck
 } from 'lucide-react'; 
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
@@ -327,6 +327,7 @@ function DashboardContent() {
                   { id: 'pending', label: '新着オファー', count: pendingOffers.length, icon: Star },
                   { id: 'accepted', label: '対応中の企画', count: acceptedOffers.length, icon: CheckCircle2 },
                   { id: 'schedule', label: 'スケジュール', icon: Calendar },
+                  { id: 'delivery', label: '配送・回収設定', icon: Truck }, // ★ 追加
                   { id: 'payout', label: '売上・出金', icon: DollarSign },
                   { id: 'appeal', label: '制作アピール', count: appealPosts.length, icon: Camera }
                 ].map(tab => (
@@ -397,6 +398,23 @@ function DashboardContent() {
 
                   {/* --- SCHEDULE --- */}
                   {activeTab === 'schedule' && <CalendarView events={scheduleEvents} />}
+
+                  {/* --- ★ 追加: DELIVERY SETTINGS --- */}
+                  {activeTab === 'delivery' && (
+                    <div className="flex flex-col items-center justify-center py-20 bg-gradient-to-br from-sky-50 to-indigo-50/30 rounded-[3rem] border border-white shadow-[0_8px_30px_rgba(0,0,0,0.02)] text-center relative overflow-hidden">
+                      <div className="w-24 h-24 bg-white rounded-[2rem] shadow-xl mb-6 text-sky-500 flex items-center justify-center -rotate-3 border-4 border-sky-50 relative z-10">
+                        <Truck size={48} strokeWidth={2.5}/>
+                      </div>
+                      <h3 className="text-2xl md:text-3xl font-black text-slate-800 mb-4 tracking-tighter relative z-10">配送料金・回収費の設定</h3>
+                      <p className="text-sm font-bold text-slate-500 mb-8 relative z-10 leading-relaxed max-w-md mx-auto">
+                        配達エリアによる追加料金や、スタンド花の回収費を設定します。<br />
+                        ここで設定した内容は、ユーザーからのオファー時の見積もりに反映されます。
+                      </p>
+                      <Link href="/florists/dashboard/delivery" className="px-10 py-4 bg-slate-900 text-white font-black rounded-full shadow-lg flex items-center gap-2 hover:bg-slate-800 hover:-translate-y-1 transition-all relative z-10 text-lg">
+                        設定画面へ進む <ArrowRight size={20}/>
+                      </Link>
+                    </div>
+                  )}
 
                   {/* --- PAYOUT --- */}
                   {activeTab === 'payout' && (
