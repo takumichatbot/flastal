@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '../../contexts/AuthContext';
+import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { 
     Search, Users, Mail, Shield, Filter, ArrowLeft, 
@@ -29,7 +30,7 @@ export default function AdminUsersPage() {
     const { user, isAuthenticated, loading } = useAuth();
     const router = useRouter();
 
-    const [usersList, setUsersList] = useState([]);
+    const [users, setUsers] = useState([]);
     const [isLoadingData, setIsLoadingData] = useState(true);
     const [searchKeyword, setSearchKeyword] = useState('');
     const [activeTab, setActiveTab] = useState('ALL');
@@ -41,7 +42,6 @@ export default function AdminUsersPage() {
             const params = new URLSearchParams();
             if (searchKeyword) params.append('keyword', searchKeyword);
 
-            // API 1本だけを叩く
             const res = await fetch(`${API_URL}/api/admin/users/search?${params.toString()}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
@@ -49,7 +49,35 @@ export default function AdminUsersPage() {
             if (!res.ok) throw new Error('ユーザー情報の取得に失敗しました');
             
             const data = await res.json();
-            setUsersList(Array.isArray(data) ? data : []);
+            const rawUsers = Array.isArray(data) ? data : [];
+
+            // ★ 強制整形ロジック: 全ロールをここで強制的に表示可能な形にマッピングする
+            const mappedUsers = rawUsers.map(u => {
+                let role = u.role ? String(u.role).toUpperCase() : 'USER';
+                let displayName = u.displayName || u.handleName || u.name || '未設定';
+
+                // バックエンドで `illustratorProfile` を含めているため、それがあれば強制的に ILLUSTRATOR にする
+                if (u.illustratorProfile) {
+                    role = 'ILLUSTRATOR';
+                    displayName = u.illustratorProfile.penName || displayName;
+                }
+
+                // 念のため他のロールの displayName も再確認
+                if (role === 'FLORIST' && u.platformName) displayName = u.platformName;
+                if (role === 'ORGANIZER' && u.name) displayName = u.name;
+                if (role === 'VENUE' && u.venueName) displayName = u.venueName;
+
+                return {
+                    ...u,
+                    role: role,
+                    displayName: displayName,
+                    email: u.email || '非公開（プロフ連携のみ）'
+                };
+            });
+
+            console.log("Mapped Users:", mappedUsers); // デバッグ用
+
+            setUsers(mappedUsers);
             
         } catch (error) {
             console.error('Fetch error:', error);
@@ -74,10 +102,10 @@ export default function AdminUsersPage() {
     }, [isAuthenticated, user, loading, router, searchKeyword]);
 
     const filteredUsers = useMemo(() => {
-        if (activeTab === 'ALL') return usersList;
-        if (activeTab === 'USER') return usersList.filter(u => u.role === 'USER' || !u.role);
-        return usersList.filter(u => u.role === activeTab);
-    }, [usersList, activeTab]);
+        if (activeTab === 'ALL') return users;
+        if (activeTab === 'USER') return users.filter(u => u.role === 'USER' || !u.role);
+        return users.filter(u => u.role === activeTab);
+    }, [users, activeTab]);
 
     const handleStartChat = async (targetUser) => {
         const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
@@ -112,6 +140,7 @@ export default function AdminUsersPage() {
 
     return (
         <div className="min-h-screen bg-slate-50 pb-24">
+            
             <div className="bg-white border-b border-slate-200 sticky top-0 z-10 shadow-sm">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="py-4 flex items-center justify-between">
@@ -134,7 +163,9 @@ export default function AdminUsersPage() {
             </div>
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                
                 <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 mb-6 flex flex-col md:flex-row gap-4 justify-between items-center">
+                    
                     <div className="relative w-full md:w-96 group">
                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-sky-500 transition-colors" size={18} />
                         <input
