@@ -192,7 +192,8 @@ const CATEGORIES = [
 // --- 0. INTRO LOADER ---
 const IntroLoader = ({ onComplete }) => {
   useEffect(() => { 
-    const timer = setTimeout(onComplete, 2400); 
+    // ★ 待機時間を 2400ms から 800ms (0.8秒) に超短縮！
+    const timer = setTimeout(onComplete, 800); 
     return () => clearTimeout(timer); 
   }, [onComplete]);
 
@@ -200,13 +201,15 @@ const IntroLoader = ({ onComplete }) => {
     <motion.div 
       className="fixed inset-0 z-[99999] flex items-center justify-center pointer-events-none"
       initial={{ opacity: 1 }}
-      exit={{ scale: 3, opacity: 0, filter: "blur(10px)", transition: { duration: 1.2, ease: "easeInOut" } }}
+      // ★ 消える時のアニメーションも短縮
+      exit={{ scale: 1.5, opacity: 0, filter: "blur(5px)", transition: { duration: 0.4, ease: "easeInOut" } }}
     >
       <motion.div 
         className="absolute inset-y-0 left-0 w-1/2 bg-[#FDF2F8] shadow-[20px_0_50px_rgba(244,114,182,0.4)] z-10 origin-left"
         initial={{ x: 0, skewX: 0 }}
-        animate={{ x: "-100%", skewX: -5 }} 
-        transition={{ duration: 1.4, delay: 0.5, ease: [0.76, 0, 0.24, 1] }}
+        animate={{ x: "-100%", skewX: -2 }} 
+        // ★ カーテンが開くスピードを 1.4秒→0.6秒 に高速化
+        transition={{ duration: 0.6, delay: 0.1, ease: [0.76, 0, 0.24, 1] }}
         style={{ backgroundImage: `linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(244,114,182,0.05) 50%, rgba(0,0,0,0) 100%), url('https://www.transparenttextures.com/patterns/french-stucco.png')` }}
       >
         <div className="absolute top-0 bottom-0 -right-10 w-12 h-full drop-shadow-xl overflow-hidden">
@@ -226,8 +229,9 @@ const IntroLoader = ({ onComplete }) => {
       <motion.div 
         className="absolute inset-y-0 right-0 w-1/2 bg-[#FDF2F8] shadow-[-20px_0_50px_rgba(244,114,182,0.4)] z-10 origin-right"
         initial={{ x: 0, skewX: 0 }}
-        animate={{ x: "100%", skewX: 5 }} 
-        transition={{ duration: 1.4, delay: 0.5, ease: [0.76, 0, 0.24, 1] }}
+        animate={{ x: "100%", skewX: 2 }} 
+        // ★ 右のカーテンが開くスピードも 1.4秒→0.6秒 に高速化
+        transition={{ duration: 0.6, delay: 0.1, ease: [0.76, 0, 0.24, 1] }}
         style={{ backgroundImage: `linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(244,114,182,0.05) 50%, rgba(0,0,0,0) 100%), url('https://www.transparenttextures.com/patterns/french-stucco.png')` }}
       >
         <div className="absolute top-0 bottom-0 -left-10 w-12 h-full drop-shadow-xl overflow-hidden">
@@ -246,9 +250,10 @@ const IntroLoader = ({ onComplete }) => {
 
       <motion.div 
         className="absolute z-20 flex flex-col items-center"
-        initial={{ opacity: 0, scale: 0.5, y: 20 }} 
+        initial={{ opacity: 0, scale: 0.8, y: 10 }} 
         animate={{ opacity: 1, scale: 1, y: 0 }} 
-        transition={{ duration: 0.8, ease: "easeOut", delay: 0.2 }}
+        // ★ ロゴのフェードインも一瞬（0.4秒）で完了させる
+        transition={{ duration: 0.4, ease: "easeOut", delay: 0 }}
       >
         <span className="font-calligraphy text-4xl text-pink-400 mb-2 drop-shadow-sm">Welcome to</span>
         <h1 className="text-5xl md:text-7xl font-black text-pink-500 tracking-[0.3em] font-serif-jp drop-shadow-lg">
@@ -264,9 +269,10 @@ const IntroLoader = ({ onComplete }) => {
 const MainContent = () => {
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 1.02, filter: "blur(8px)" }}
+      // ★ ぼかし（Blur）をさらに弱く、表示スピードを最速（0.4秒）に
+      initial={{ opacity: 0, scale: 1.01, filter: "blur(4px)" }}
       animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
-      transition={{ duration: 0.6, delay: 0.1, ease: "easeOut" }}
+      transition={{ duration: 0.4, delay: 0, ease: "easeOut" }}
     >
       <Hero />
       <InfiniteMarquee />
@@ -622,7 +628,7 @@ const LaruSeoEmbed = () => {
     if (!container) return;
 
     // ReactのStrict Mode対策（二重読み込み防止）
-    if (container.querySelector('script') || container.querySelector('.laru-seo-blog-container')) {
+    if (container.querySelector('script') || container.querySelector('#laru-blog-container')) {
       return;
     }
 
@@ -630,34 +636,79 @@ const LaruSeoEmbed = () => {
     const script = document.createElement('script');
     script.src = "https://larubot.tokyo/embed/blog.js";
     script.setAttribute("data-id", "e19ed703-6238-49a5-ac83-c92c522a44cd");
+    script.setAttribute("data-limit", "6"); // 横スワイプ用に少し多めに取得
     script.async = true;
     
     container.appendChild(script);
 
-    // クリーンアップ処理（ページ遷移時などに要素を綺麗に消す）
-    return () => {
-      if (container) {
-        container.innerHTML = ''; 
+    // カスタムスタイルを当てて横スワイプ（カルーセル）化する
+    // blog.js が #laru-blog-container にHTMLを展開した後に適用される
+    const style = document.createElement('style');
+    style.innerHTML = `
+      #laru-blog-container > div {
+        display: flex !important;
+        flex-wrap: nowrap !important;
+        overflow-x: auto !important;
+        scroll-snap-type: x mandatory !important;
+        -webkit-overflow-scrolling: touch !important;
+        padding-bottom: 24px !important;
+        margin: 0 -16px !important;
+        padding-left: 16px !important;
+        padding-right: 16px !important;
+        gap: 20px !important;
       }
+      #laru-blog-container > div::-webkit-scrollbar {
+        display: none;
+      }
+      #laru-blog-container > div > div {
+        min-width: 85vw !important;
+        flex: 0 0 auto !important;
+        scroll-snap-align: center !important;
+      }
+      @media (min-width: 768px) {
+        #laru-blog-container > div > div {
+          min-width: 380px !important;
+        }
+      }
+    `;
+    container.appendChild(style);
+
+    return () => {
+      if (container) container.innerHTML = ''; 
     };
   }, []);
 
-  // ここにScriptが展開されます
-  return <div ref={containerRef} className="w-full min-h-[300px] md:min-h-[400px] relative z-20"></div>;
+  return (
+    <div ref={containerRef} className="w-full min-h-[400px] relative z-20"></div>
+  );
 };
 
 const ArticlesSection = () => (
-  <section className="py-24 md:py-36 bg-white relative z-10 border-t border-slate-100">
-    <div className="container mx-auto px-4 md:px-6 max-w-6xl">
-      <div className="text-center mb-14">
-        <span className="text-blue-500 font-mono text-xs font-bold tracking-widest uppercase block mb-3">Knowledge Base</span>
-        <h2 className="text-3xl md:text-5xl font-black text-slate-800 tracking-tighter">お役立ち情報・コラム</h2>
-      </div>
-      <Reveal>
-        <div className="bg-[#FAFBFD] rounded-3xl md:rounded-[3rem] p-5 md:p-10 border border-slate-100 shadow-sm">
-          <LaruSeoEmbed />
+  <section className="py-24 md:py-36 bg-slate-50 relative z-10 border-t border-slate-100 overflow-hidden">
+    <div className="container mx-auto px-4 md:px-6 max-w-7xl">
+      <div className="flex flex-col md:flex-row justify-between items-center mb-10 md:mb-14">
+        <div className="text-center md:text-left mb-6 md:mb-0">
+          <span className="text-blue-500 font-mono text-xs font-bold tracking-widest uppercase block mb-3">Knowledge Base</span>
+          <h2 className="text-3xl md:text-5xl font-black text-slate-800 tracking-tighter">お役立ち情報・コラム</h2>
         </div>
+        
+        <Link href="/blog" className="hidden md:block">
+          <button className="px-6 py-3 rounded-full border border-slate-200 text-sm font-bold text-slate-600 hover:bg-white hover:shadow-sm transition-all flex items-center gap-2 bg-white">
+            すべての記事を見る <ArrowRight size={16}/>
+          </button>
+        </Link>
+      </div>
+
+      <Reveal>
+        <LaruSeoEmbed />
       </Reveal>
+
+      {/* モバイル用の「すべて見る」ボタン */}
+      <Link href="/blog" className="md:hidden flex justify-center mt-4">
+        <button className="px-6 py-3.5 w-full rounded-xl border border-slate-200 text-sm font-bold text-slate-600 bg-white flex items-center justify-center gap-2 shadow-sm hover:bg-slate-50 active:scale-[0.98] transition-all">
+          すべての記事を見る <ArrowRight size={16}/>
+        </button>
+      </Link>
     </div>
   </section>
 );
