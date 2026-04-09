@@ -613,26 +613,37 @@ const CategoryGrid = () => {
   );
 };
 
-// --- 7. ARTICLES (LARU SEO Embed) ---
+// --- 7. ARTICLES (LARU SEO Embed Script版) ---
 const LaruSeoEmbed = () => {
   const containerRef = useRef(null);
-  const isMounted = useIsMounted();
   
   useEffect(() => {
-    if (!isMounted) return;
     const container = containerRef.current;
-    if (!container || container.querySelector('script')) return;
-    
+    if (!container) return;
+
+    // ReactのStrict Mode対策（二重読み込み防止）
+    if (container.querySelector('script') || container.querySelector('.laru-seo-blog-container')) {
+      return;
+    }
+
+    // Scriptタグを動的に生成して挿入
     const script = document.createElement('script');
     script.src = "https://larubot.tokyo/embed/blog.js";
     script.setAttribute("data-id", "e19ed703-6238-49a5-ac83-c92c522a44cd");
     script.async = true;
-    container.appendChild(script);
     
-    return () => { if (container && container.contains(script)) container.removeChild(script); };
-  }, [isMounted]);
+    container.appendChild(script);
 
-  return <div ref={containerRef} className="w-full min-h-[300px] md:min-h-[400px]"></div>;
+    // クリーンアップ処理（ページ遷移時などに要素を綺麗に消す）
+    return () => {
+      if (container) {
+        container.innerHTML = ''; 
+      }
+    };
+  }, []);
+
+  // ここにScriptが展開されます
+  return <div ref={containerRef} className="w-full min-h-[300px] md:min-h-[400px] relative z-20"></div>;
 };
 
 const ArticlesSection = () => (
@@ -643,13 +654,14 @@ const ArticlesSection = () => (
         <h2 className="text-3xl md:text-5xl font-black text-slate-800 tracking-tighter">お役立ち情報・コラム</h2>
       </div>
       <Reveal>
-        <div className="bg-[#FAFBFD] rounded-3xl md:rounded-[3rem] p-5 md:p-10 border border-slate-100">
+        <div className="bg-[#FAFBFD] rounded-3xl md:rounded-[3rem] p-5 md:p-10 border border-slate-100 shadow-sm">
           <LaruSeoEmbed />
         </div>
       </Reveal>
     </div>
   </section>
 );
+
 
 // --- 8. PARTNER CTA ---
 const PartnerCTA = () => (
