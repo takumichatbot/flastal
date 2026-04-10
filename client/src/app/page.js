@@ -624,62 +624,64 @@ const LaruSeoEmbed = () => {
   const containerRef = useRef(null);
   
   useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
+    // 確実にマウントされるまで少し待つ (Next.jsのハイドレーション対策)
+    const timer = setTimeout(() => {
+      const container = containerRef.current;
+      if (!container) return;
 
-    // ReactのStrict Mode対策（二重読み込み防止）
-    if (container.querySelector('script') || container.querySelector('#laru-blog-container')) {
-      return;
-    }
+      // すでにScriptが注入されている場合はスキップ (Strict Mode対策)
+      if (container.querySelector('script')) return;
 
-    // Scriptタグを動的に生成して挿入
-    const script = document.createElement('script');
-    script.src = "https://larubot.tokyo/embed/blog.js";
-    script.setAttribute("data-id", "e19ed703-6238-49a5-ac83-c92c522a44cd");
-    script.setAttribute("data-limit", "6"); // 横スワイプ用に少し多めに取得
-    script.async = true;
-    
-    container.appendChild(script);
+      // Scriptタグを動的に生成して挿入
+      const script = document.createElement('script');
+      script.src = "https://larubot.tokyo/embed/blog.js";
+      script.setAttribute("data-id", "e19ed703-6238-49a5-ac83-c92c522a44cd");
+      script.setAttribute("data-limit", "6"); 
+      script.async = true;
+      
+      // container (refを当てたdiv) の中に直接スクリプトを入れる
+      container.appendChild(script);
 
-    // カスタムスタイルを当てて横スワイプ（カルーセル）化する
-    // blog.js が #laru-blog-container にHTMLを展開した後に適用される
-    const style = document.createElement('style');
-    style.innerHTML = `
-      #laru-blog-container > div {
-        display: flex !important;
-        flex-wrap: nowrap !important;
-        overflow-x: auto !important;
-        scroll-snap-type: x mandatory !important;
-        -webkit-overflow-scrolling: touch !important;
-        padding-bottom: 24px !important;
-        margin: 0 -16px !important;
-        padding-left: 16px !important;
-        padding-right: 16px !important;
-        gap: 20px !important;
-      }
-      #laru-blog-container > div::-webkit-scrollbar {
-        display: none;
-      }
-      #laru-blog-container > div > div {
-        min-width: 85vw !important;
-        flex: 0 0 auto !important;
-        scroll-snap-align: center !important;
-      }
-      @media (min-width: 768px) {
-        #laru-blog-container > div > div {
-          min-width: 380px !important;
+      // 横スワイプ（カルーセル）用のスタイルを注入
+      const style = document.createElement('style');
+      style.innerHTML = `
+        #laru-blog-container > div {
+          display: flex !important;
+          flex-wrap: nowrap !important;
+          overflow-x: auto !important;
+          scroll-snap-type: x mandatory !important;
+          -webkit-overflow-scrolling: touch !important;
+          padding-bottom: 24px !important;
+          margin: 0 -16px !important;
+          padding-left: 16px !important;
+          padding-right: 16px !important;
+          gap: 20px !important;
         }
-      }
-    `;
-    container.appendChild(style);
+        #laru-blog-container > div::-webkit-scrollbar {
+          display: none;
+        }
+        #laru-blog-container > div > div {
+          min-width: 85vw !important;
+          flex: 0 0 auto !important;
+          scroll-snap-align: center !important;
+        }
+        @media (min-width: 768px) {
+          #laru-blog-container > div > div {
+            min-width: 380px !important;
+          }
+        }
+      `;
+      container.appendChild(style);
+    }, 100); // 100ミリ秒だけ待つ
 
-    return () => {
-      if (container) container.innerHTML = ''; 
-    };
+    return () => clearTimeout(timer);
   }, []);
 
   return (
-    <div ref={containerRef} className="w-full min-h-[400px] relative z-20"></div>
+    // 🌟 ここが最重要：id="laru-blog-container" をあらかじめ空箱として置いておく！
+    <div ref={containerRef} className="w-full min-h-[400px] relative z-20">
+       <div id="laru-blog-container"></div>
+    </div>
   );
 };
 
