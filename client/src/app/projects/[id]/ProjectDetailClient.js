@@ -874,15 +874,25 @@ export default function ProjectDetailClient() {
          {/* Organizer Info, Progress & Share (Mobile Optimized) */}
          <AppCard className="flex flex-col gap-4 md:gap-8 !p-4 sm:!p-8">
            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 md:gap-6">
-               <div className="flex items-center gap-3 md:gap-4 w-full lg:w-auto">
-                   <div className="w-12 h-12 md:w-16 md:h-16 bg-slate-100 rounded-full flex items-center justify-center overflow-hidden border border-slate-200 shrink-0">
-                       {project.planner?.iconUrl ? <Image src={project.planner.iconUrl} alt="" width={64} height={64} className="object-cover" /> : <User size={24} className="text-slate-400"/>}
-                   </div>
-                   <div>
-                       <p className="text-[9px] md:text-xs font-black text-slate-400 uppercase tracking-widest mb-0.5">Organizer</p>
-                       <p className="font-black text-slate-800 text-sm md:text-lg leading-tight">{project.planner?.handleName || project.planner?.name || '不明'}</p>
-                   </div>
-               </div>
+               {/* 企画者情報：スマホでは少し小さめに、PCではゆったり */}
+                <div className="flex items-center gap-3 md:gap-4 w-full lg:w-auto">
+                    <div className="w-12 h-12 md:w-16 md:h-16 bg-slate-100 rounded-full flex items-center justify-center overflow-hidden border border-slate-200 shrink-0">
+                        {project.planner?.iconUrl ? <Image src={project.planner.iconUrl} alt="" width={64} height={64} className="object-cover" /> : <User size={24} className="text-slate-400"/>}
+                    </div>
+                    <div>
+                        <p className="text-[9px] md:text-xs font-black text-slate-400 uppercase tracking-widest mb-0.5">Organizer</p>
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
+                            <p className="font-black text-slate-800 text-sm md:text-lg leading-tight">
+                                {project.planner?.handleName || project.planner?.name || '不明'}
+                            </p>
+                            {/* ★ 目標金額バッジを追加 */}
+                            <div className="inline-flex items-center px-2 py-0.5 bg-slate-100 border border-slate-200 rounded-md">
+                                <span className="text-[8px] md:text-[10px] font-black text-slate-500 mr-1.5 uppercase">Target</span>
+                                <span className="text-[10px] md:text-xs font-black text-slate-700">¥{(project.targetAmount || 0).toLocaleString()}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                
                <div className="w-full lg:w-3/5">
                   <UpsellAlert target={project.targetAmount} collected={project.collectedAmount} />
@@ -1347,27 +1357,52 @@ export default function ProjectDetailClient() {
          <div className="sticky top-24 space-y-5 md:space-y-6">
              <PledgeForm project={project} user={user} onPledgeSubmit={onPledgeSubmit} isPledger={isPledger} />
              {isPlanner && (
-                 <AppCard id="planner-menu" className="!p-5 md:!p-6 bg-slate-900 text-white shadow-xl">
-                     <div className="flex items-center gap-2 mb-4">
-                         <div className="w-6 h-6 rounded-full bg-pink-500 flex items-center justify-center">
-                             <Award size={12} className="text-white"/>
+                 <AppCard id="planner-menu" className="!p-5 md:!p-6 bg-slate-900 text-white shadow-xl ring-1 ring-white/10">
+                     <div className="flex items-center gap-2 mb-6">
+                         <div className="w-8 h-8 rounded-xl bg-pink-500/20 flex items-center justify-center border border-pink-500/30">
+                             <Award size={16} className="text-pink-400"/>
                          </div>
-                         <h3 className="text-xs md:text-sm font-black text-white tracking-widest">企画者メニュー</h3>
+                         {/* ★ 文字色をピンクに変更して見やすく */}
+                         <h3 className="text-xs md:text-sm font-black text-pink-400 tracking-[0.2em] uppercase">企画者メニュー</h3>
                      </div>
-                     <div className="space-y-2">
-                         <button onClick={()=>setIsTargetAmountModalOpen(true)} className="w-full text-left p-3.5 bg-slate-800 hover:bg-slate-700 rounded-xl text-xs md:text-sm font-bold text-white transition-colors flex items-center shadow-sm">
-                             <DollarSign className="mr-3 text-emerald-400" size={16}/> 目標金額の変更
+                     <div className="space-y-3">
+                         {/* ★ 目標金額の変更ボタンを目立たせる */}
+                         <button 
+                            onClick={()=>setIsTargetAmountModalOpen(true)} 
+                            className="w-full text-left p-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-xs md:text-sm font-bold text-slate-100 transition-all flex items-center group shadow-inner"
+                         >
+                             <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center mr-3 group-hover:scale-110 transition-transform">
+                                <DollarSign className="text-emerald-400" size={16}/>
+                             </div>
+                             <div>
+                                <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Amount Settings</p>
+                                <p>目標金額を変更する</p>
+                             </div>
                          </button>
-                         <Link href={`/projects/edit/${id}`} className="w-full text-left p-3.5 bg-slate-800 hover:bg-slate-700 rounded-xl text-xs md:text-sm font-bold text-white transition-colors flex items-center shadow-sm">
-                             <Edit3 className="mr-3 text-sky-400" size={16}/> 企画内容の編集
+
+                         <Link href={`/projects/edit/${id}`} className="w-full text-left p-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-xs md:text-sm font-bold text-slate-100 transition-all flex items-center group shadow-inner">
+                             <div className="w-8 h-8 rounded-lg bg-sky-500/20 flex items-center justify-center mr-3 group-hover:scale-110 transition-transform">
+                                <Edit3 className="text-sky-400" size={16}/>
+                             </div>
+                             <div>
+                                <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Edit Details</p>
+                                <p>企画内容を編集する</p>
+                             </div>
                          </Link>
+                         
                          {project?.quotation && project.quotation.isApproved === false ? (
-                             <button onClick={()=>setIsQuotationModalOpen(true)} className="w-full mt-4 bg-gradient-to-r from-pink-500 to-rose-500 text-white p-4 rounded-xl text-sm font-black transition-transform hover:scale-[1.02] shadow-lg flex items-center justify-center gap-2">
+                             <button onClick={()=>setIsQuotationModalOpen(true)} className="w-full mt-4 bg-gradient-to-r from-pink-500 to-rose-500 text-white p-4 rounded-2xl text-sm font-black transition-all hover:brightness-110 active:scale-[0.98] shadow-lg flex items-center justify-center gap-2">
                                  <FileText size={18}/> 見積もりを承認して発注
                              </button>
                          ) : (
-                             <Link href={`/florists?projectId=${id}`} className="w-full text-left p-3.5 bg-slate-800 hover:bg-slate-700 rounded-xl text-xs md:text-sm font-bold text-white transition-colors flex items-center shadow-sm">
-                                 <Search className="mr-3 text-pink-400" size={16}/> お花屋さんを探す
+                             <Link href={`/florists?projectId=${id}`} className="w-full text-left p-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-xs md:text-sm font-bold text-slate-100 transition-all flex items-center group shadow-inner">
+                                 <div className="w-8 h-8 rounded-lg bg-pink-500/20 flex items-center justify-center mr-3 group-hover:scale-110 transition-transform">
+                                    <Search className="text-pink-400" size={16}/>
+                                 </div>
+                                 <div>
+                                    <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Find Florists</p>
+                                    <p>お花屋さんを探す</p>
+                                 </div>
                              </Link>
                          )}
                          {project?.status === 'SUCCESSFUL' && (
