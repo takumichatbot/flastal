@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import '@google/model-viewer';
 import { FiBox, FiMaximize, FiRotateCw, FiAlertCircle } from 'react-icons/fi';
 
 export default function ArViewer({ src, iosSrc, alt, poster }) {
@@ -9,8 +8,21 @@ export default function ArViewer({ src, iosSrc, alt, poster }) {
   const [progress, setProgress] = useState(0);
   const [isLoaded, setIsLoaded] = useState(false);
   const [error, setError] = useState(null);
+  const [isMounted, setIsMounted] = useState(false); // ★ 追加: クライアント判定用フラグ
 
   useEffect(() => {
+    setIsMounted(true); // ★ 追加: コンポーネントがマウントされたことを記録
+
+    // ★ 修正: ブラウザ環境でのみ model-viewer を動的にインポートする
+    import('@google/model-viewer').catch((err) => {
+        console.error('model-viewer import error:', err);
+        setError('ARビューアの読み込みに失敗しました');
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!isMounted) return; // ★ マウント前はイベントリスナーを登録しない
+
     const modelViewer = modelViewerRef.current;
     
     if (modelViewer) {
@@ -37,7 +49,17 @@ export default function ArViewer({ src, iosSrc, alt, poster }) {
         modelViewer.removeEventListener('error', onError);
       };
     }
-  }, []);
+  }, [isMounted]); // ★ 依存配列に isMounted を追加
+
+  // ★ 追加: サーバーサイドレンダリング時（またはマウント前）は何も表示しないかローダーを表示
+  if (!isMounted) {
+    return (
+        <div className="w-full h-96 bg-gray-50 rounded-3xl flex flex-col items-center justify-center border border-gray-200">
+            <div className="w-8 h-8 border-4 border-t-indigo-500 border-indigo-100 rounded-full animate-spin mb-2"></div>
+            <p className="text-xs font-bold text-gray-400">Loading AR Engine...</p>
+        </div>
+    );
+  }
 
   if (error) {
     return (

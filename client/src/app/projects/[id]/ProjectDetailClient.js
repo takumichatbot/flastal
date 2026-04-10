@@ -883,17 +883,19 @@ export default function ProjectDetailClient() {
                    </div>
                </div>
                
-               <div className="w-full md:w-3/5 flex flex-col gap-2">
+               <div className="w-full md:w-3/5 flex flex-col gap-3">
                    <div className="flex justify-between items-end px-1">
-                       <div className="flex items-center gap-2">
-                           <span className="text-[10px] md:text-xs font-black text-slate-400 tracking-widest">現在</span>
-                           <span className="text-xl md:text-3xl font-black text-emerald-500 tracking-tighter leading-none">
-                               ¥{(project.collectedAmount || 0).toLocaleString()}
-                           </span>
+                       <div className="flex flex-col">
+                           <span className="text-[10px] md:text-xs font-black text-slate-400 tracking-widest mb-1">現在の支援総額</span>
+                           <div className="flex items-baseline gap-1">
+                               <span className="text-xl md:text-4xl font-black text-emerald-500 tracking-tighter leading-none">
+                                   ¥{(project.collectedAmount || 0).toLocaleString()}
+                               </span>
+                           </div>
                        </div>
-                       <div className="text-right">
-                           <span className="text-[10px] md:text-xs font-bold text-slate-400">目標: </span>
-                           <span className="text-sm md:text-base font-black text-slate-700 tracking-tight">
+                       <div className="flex flex-col text-right">
+                           <span className="text-[10px] md:text-xs font-bold text-slate-400 mb-1">目標金額</span>
+                           <span className="text-sm md:text-xl font-black text-slate-700 tracking-tight leading-none">
                                ¥{(project.targetAmount || 0).toLocaleString()}
                            </span>
                        </div>
@@ -1351,12 +1353,12 @@ export default function ProjectDetailClient() {
          <div className="sticky top-24 space-y-5 md:space-y-6">
              <PledgeForm project={project} user={user} onPledgeSubmit={onPledgeSubmit} isPledger={isPledger} />
              {isPlanner && (
-                 <AppCard id="planner-menu" className="!p-5 md:!p-6 bg-slate-50 border-slate-200">
+                 <AppCard id="planner-menu" className="!p-5 md:!p-6 bg-slate-50 border-slate-200 shadow-xl">
                      <div className="flex items-center gap-2 mb-6">
                          <div className="w-8 h-8 rounded-xl bg-pink-100 flex items-center justify-center border border-pink-200">
                              <Award size={16} className="text-pink-500"/>
                          </div>
-                         <h3 className="text-sm font-black text-slate-800 tracking-wider">企画者メニュー</h3>
+                         <h3 className="text-sm font-black text-slate-800 tracking-widest">企画者メニュー</h3>
                      </div>
                      <div className="space-y-3">
                          <button 
