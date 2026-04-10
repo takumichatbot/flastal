@@ -522,61 +522,88 @@ const TrendingProjects = () => {
 const BentoFeatures = () => {
   const features = [
     {
-      title: "集金トラブルをゼロに。",
-      desc: "クレジットカードやPayPay等での自動集金。主催者が個人の銀行口座を公開する必要はありません。",
-      span: "col-span-1 md:col-span-2 row-span-1 md:row-span-2",
+      title: "集金・お金の管理をスマートに",
+      desc: "クレジットカードやPayPayで自動集金。主催者が個人の銀行口座を晒したり、入金確認に追われるストレスをゼロにします。",
+      span: "col-span-1 md:col-span-2",
       icon: Shield,
-      color: "bg-white",
-      text: "text-slate-700",
+      color: "bg-gradient-to-br from-white to-emerald-50/30",
+      text: "text-slate-800",
       descColor: "text-slate-500",
-      iconColor: "text-slate-600",
-      visual: <div className="absolute right-0 bottom-0 w-64 h-64 bg-gradient-to-tl from-emerald-400/20 to-transparent rounded-tl-full blur-2xl"></div>
+      iconColor: "text-emerald-500",
+      iconBg: "bg-emerald-100/50",
+      visual: (
+        <div className="absolute -right-8 -bottom-8 w-48 h-48 bg-emerald-200/20 rounded-full blur-3xl" />
+      )
     },
     {
-      title: "完全匿名で参加",
-      desc: "本名や住所は不要。安心して推し活を楽しめます。",
-      span: "col-span-1 md:col-span-1 row-span-1",
+      title: "完全匿名・安全に参加",
+      desc: "住所や本名を明かさず、ハンドルネームだけでOK。プライバシーを守りながら、安心して推しへの愛を形にできます。",
+      span: "col-span-1",
       icon: KeyRound,
       color: "bg-white",
       text: "text-slate-800",
       descColor: "text-slate-500",
       iconColor: "text-pink-500",
-      visual: <div className="absolute -right-4 -bottom-4 opacity-5"><KeyRound size={120} /></div>
+      iconBg: "bg-pink-50",
+      visual: <div className="absolute -right-4 -bottom-4 opacity-[0.03] rotate-12"><KeyRound size={120} /></div>
     },
     {
-      title: "神絵師に依頼",
-      desc: "イラストパネルの作成を、サイト内で絵師に直接依頼できます。",
-      span: "col-span-1 md:col-span-1 row-span-1",
+      title: "憧れの絵師に直接依頼",
+      desc: "企画にぴったりのイラストレーターを公募・指名可能。パネル制作のやり取りもサイト内で完結します。",
+      span: "col-span-1",
       icon: PenTool,
       color: "bg-white",
       text: "text-slate-800",
       descColor: "text-slate-500",
       iconColor: "text-violet-500",
-      visual: <div className="absolute right-4 bottom-4 opacity-5"><Command size={80} /></div>
+      iconBg: "bg-violet-50",
+      visual: <div className="absolute -right-4 -bottom-4 opacity-[0.03] -rotate-12"><Command size={100} /></div>
+    },
+    {
+      title: "会場レギュレーション確認済み",
+      desc: "FLASTALがお花送付のルールを会場・主催者と連携。当日「置けなかった」という悲劇を防ぎます。",
+      span: "col-span-1 md:col-span-2",
+      icon: Building,
+      color: "bg-gradient-to-br from-white to-sky-50/30",
+      text: "text-slate-800",
+      descColor: "text-slate-500",
+      iconColor: "text-sky-500",
+      iconBg: "bg-sky-50",
+      visual: (
+        <div className="absolute right-10 top-10 opacity-[0.05]"><MapPin size={120} /></div>
+      )
     }
   ];
 
   return (
-    <section className="py-24 md:py-36 bg-white relative z-10 border-t border-slate-100">
+    <section className="py-20 md:py-36 bg-white relative z-10 border-t border-slate-100">
       <div className="container mx-auto px-4 md:px-6 max-w-6xl">
-        <div className="mb-14 md:mb-20">
-          <span className="text-emerald-500 font-mono text-xs font-bold tracking-widest uppercase block mb-3">Safety & Features</span>
-          <h2 className="text-3xl md:text-6xl font-black text-slate-800 tracking-tighter leading-tight max-w-2xl">
-            裏方の面倒な作業は、<br/>すべてFLASTALにお任せ。
-          </h2>
+        <div className="mb-12 md:mb-20 text-center md:text-left">
+          <Reveal>
+            <span className="text-emerald-500 font-black text-[10px] md:text-xs tracking-[0.2em] uppercase block mb-4">Safety & Professional</span>
+            <h2 className="text-3xl md:text-6xl font-black text-slate-800 tracking-tighter leading-[1.1] max-w-3xl">
+              面倒な事務作業は、<br className="hidden md:block"/>
+              すべてFLASTALにお任せ。
+            </h2>
+          </Reveal>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 md:gap-7 auto-rows-auto md:auto-rows-[280px]">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
           {features.map((feat, i) => (
-            <Reveal key={i} delay={i * 0.1} className={cn("rounded-[2.5rem] overflow-hidden relative group shadow-[0_8px_30px_rgb(0,0,0,0.03)] border border-slate-200/50 hover:shadow-lg transition-all duration-500", feat.span, feat.color)}>
-              <div className="absolute inset-0 p-8 md:p-10 flex flex-col z-20">
-                <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center mb-6 border", feat.text === 'text-white' ? 'bg-white/5 border-white/10' : 'bg-slate-50 border-slate-100', feat.iconColor)}>
-                  <feat.icon size={24} strokeWidth={1.5} />
+            <Reveal key={i} delay={i * 0.1} className={cn(
+              "rounded-[2.5rem] overflow-hidden relative group border border-slate-200/60 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-500",
+              feat.span, 
+              feat.color
+            )}>
+              <div className="p-8 md:p-10 flex flex-col h-full z-20 relative">
+                <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center mb-6 border border-white shadow-sm", feat.iconBg, feat.iconColor)}>
+                  <feat.icon size={28} strokeWidth={2} />
                 </div>
-                <h3 className={cn("text-xl md:text-2xl font-black mb-2 tracking-tight", feat.text)}>{feat.title}</h3>
-                <p className={cn("text-sm md:text-base font-medium leading-relaxed max-w-sm", feat.descColor)}>{feat.desc}</p>
+                <h3 className={cn("text-xl md:text-2xl font-black mb-3 tracking-tight", feat.text)}>{feat.title}</h3>
+                <p className={cn("text-sm md:text-base font-bold leading-relaxed", feat.descColor)}>{feat.desc}</p>
               </div>
-              <div className="absolute inset-0 z-10 opacity-70 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none">
+              {/* 背景の装飾要素 */}
+              <div className="absolute inset-0 z-10 pointer-events-none">
                 {feat.visual}
               </div>
             </Reveal>

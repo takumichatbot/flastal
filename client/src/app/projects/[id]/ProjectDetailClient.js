@@ -871,32 +871,36 @@ export default function ProjectDetailClient() {
         ) : null}
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 relative z-10">
+      <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-8 lg:gap-12 relative z-10">
         
         {/* --- MAIN COLUMN --- */}
         <div className="lg:col-span-8 space-y-5 md:space-y-6">
           
           {/* Organizer Info, Progress & Share */}
-          <AppCard className="flex flex-col gap-6 md:gap-8">
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-                <div className="flex items-center gap-4 w-full md:w-auto">
-                    <div className="w-14 h-14 md:w-16 md:h-16 bg-slate-100 rounded-full flex items-center justify-center overflow-hidden border border-slate-200 shrink-0">
+          <AppCard className="flex flex-col gap-4 md:gap-8 !p-4 sm:!p-8">
+            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+                {/* 企画者情報：スマホでは少し小さめに、PCではゆったり */}
+                <div className="flex items-center gap-3 md:gap-4 w-full lg:w-auto">
+                    <div className="w-12 h-12 md:w-16 md:h-16 bg-slate-100 rounded-full flex items-center justify-center overflow-hidden border border-slate-200 shrink-0">
                         {project.planner?.iconUrl ? <Image src={project.planner.iconUrl} alt="" width={64} height={64} className="object-cover" /> : <User size={24} className="text-slate-400"/>}
                     </div>
                     <div>
-                        <p className="text-[10px] md:text-xs font-black text-slate-400 uppercase tracking-widest mb-0.5">Organizer</p>
-                        <p className="font-black text-slate-800 text-base md:text-lg">{project.planner?.handleName || project.planner?.name || '不明'}</p>
+                        <p className="text-[9px] md:text-xs font-black text-slate-400 uppercase tracking-widest mb-0.5">Organizer</p>
+                        <p className="font-black text-slate-800 text-sm md:text-lg leading-tight">{project.planner?.handleName || project.planner?.name || '不明'}</p>
                     </div>
                 </div>
-                <div className="w-full md:w-1/2 lg:w-3/5">
+                
+                {/* 進捗ゲージ：スマホで幅いっぱい */}
+                <div className="w-full lg:w-3/5">
                    <UpsellAlert target={project.targetAmount} collected={project.collectedAmount} />
                 </div>
             </div>
             
-            <div className="flex justify-end border-t border-slate-100 pt-4 md:pt-6 mt-2">
-                <div className="flex items-center gap-4 bg-slate-50/80 px-5 py-3 rounded-2xl border border-slate-100">
-                  <span className="text-xs font-black text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
-                    <Share2 size={16} /> Share
+            {/* シェアボタン：スマホでは中央寄せ、PCでは右寄せ */}
+            <div className="flex justify-center lg:justify-end border-t border-slate-100 pt-4 md:pt-6 mt-2">
+                <div className="flex items-center gap-3 md:gap-4 bg-slate-50/80 px-4 py-2.5 md:px-5 md:py-3 rounded-2xl border border-slate-100 w-full sm:w-auto justify-center">
+                  <span className="text-[10px] md:text-xs font-black text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
+                    <Share2 size={14} className="md:w-4 md:h-4" /> <span className="hidden xs:inline">Share</span>
                   </span>
                   <ShareButtons text={`${project.title} のフラスタ企画が進行中！一緒に参加しませんか？🌸`} />
                 </div>
@@ -913,7 +917,7 @@ export default function ProjectDetailClient() {
           </div>
 
           {/* App-like Segmented Tabs */}
-          <div className="bg-white p-1 rounded-xl shadow-sm border border-slate-100 flex overflow-x-auto w-full mb-4 no-scrollbar">
+          <div className="bg-white p-1 rounded-xl shadow-sm border border-slate-100 flex overflow-x-auto w-full mb-2 md:mb-4 no-scrollbar sticky top-[70px] z-30">
               {TABS.map(tab => (
                   <button key={tab.id} onClick={() => setActiveTab(tab.id)} 
                     className={cn(
@@ -937,7 +941,7 @@ export default function ProjectDetailClient() {
                           <h2 className="text-lg md:text-xl font-black text-slate-800 mb-6 flex items-center gap-2">
                               <Book className="text-slate-400" size={20}/> 企画の詳細
                           </h2>
-                          <div className="text-slate-700 whitespace-pre-wrap leading-loose font-medium text-sm md:text-base">
+                          <div className="text-slate-700 whitespace-pre-wrap leading-relaxed md:leading-loose font-medium text-xs sm:text-sm md:text-base">
                             <JpText>{project.description}</JpText>
                           </div>
                       </AppCard>
