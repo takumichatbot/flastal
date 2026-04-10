@@ -482,6 +482,12 @@ export default function ProjectDetailClient() {
  const [isArModalOpen, setIsArModalOpen] = useState(false);
  const [isQuotationModalOpen, setIsQuotationModalOpen] = useState(false); 
 
+ // ★★★ 不足していた AR用の状態 (State) を追加 ★★★
+ const [arSrc, setArSrc] = useState(null); // エラーの原因：これがないためクラッシュしていました
+ const [arImageFile, setArImageFile] = useState(null);
+ const [arHeight, setArHeight] = useState(200); // デフォルト200cm
+ const [arGenLoading, setArGenLoading] = useState(false);
+ // ★★★ 追加終わり ★★★
  // Forms state
  const [showAnnouncementForm, setShowAnnouncementForm] = useState(false);
  const [announcementTitle, setAnnouncementTitle] = useState('');
@@ -1447,6 +1453,14 @@ export default function ProjectDetailClient() {
        {isInstructionModalOpen && <InstructionSheetModal project={project} onClose={() => setIsInstructionModalOpen(false)} />}
        {isQuotationModalOpen && <QuotationApprovalModal project={project} user={user} onClose={() => setIsQuotationModalOpen(false)} onUpdate={fetchProject} />}
        {isCancelModalOpen && <ProjectCancelModal isOpen={isCancelModalOpen} onClose={() => setIsCancelModalOpen(false)} project={project} onCancelComplete={() => { fetchProject(); router.push('/mypage'); }} />}
+       {isTargetAmountModalOpen && (
+            <TargetAmountModal 
+                project={project} 
+                user={user} 
+                onClose={() => setIsTargetAmountModalOpen(false)} 
+                onUpdate={fetchProject} 
+            />
+        )}
        {isArModalOpen && (
          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/80 flex justify-center items-center z-[100] p-4 backdrop-blur-md">
            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="bg-white rounded-[3rem] w-full max-w-lg overflow-hidden relative shadow-2xl flex flex-col max-h-[90vh] border border-white">
