@@ -43,7 +43,8 @@ export const getCreatedProjects = async (req, res) => {
             where: { plannerId: userId },
             orderBy: { createdAt: 'desc' },
             include: {
-                offer: { include: { chatRoom: true, florist: true } },
+                // ★ 修正箇所: offer を offers に変更
+                offers: { include: { chatRoom: true, florist: true } },
                 review: true,
             }
         });
@@ -76,7 +77,8 @@ export const getOfferableProjects = async (req, res) => {
             where: {
                 plannerId: userId,
                 OR: [{ status: 'FUNDRAISING' }, { status: 'SUCCESSFUL' }],
-                offer: null,
+                // ★ 修正箇所: offer: null を offers: { none: {} } に変更 (リレーションがないことを確認)
+                offers: { none: {} },
             },
             orderBy: { createdAt: 'desc' }
         });

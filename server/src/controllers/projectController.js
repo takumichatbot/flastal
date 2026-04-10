@@ -135,6 +135,7 @@ export const getProjectById = async (req, res) => {
                     orderBy: { createdAt: 'asc' },
                     include: { user: { select: { id: true, handleName: true } } }
                 },
+                // ★ 修正箇所: offer を offers に変更
                 offers: {
                     include: {
                         florist: { select: { id: true, platformName: true } },
@@ -394,7 +395,8 @@ export const cancelProject = async (req, res) => {
         const result = await prisma.$transaction(async (tx) => {
             const project = await tx.project.findUnique({
                 where: { id: projectId },
-                include: { pledges: true, offer: true }
+                // ★ 修正箇所: offer を offers に変更
+                include: { pledges: true, offers: true }
             });
 
             if (!project) throw new Error('企画が見つかりません。');
@@ -504,11 +506,15 @@ export const updateProductionDetails = async (req, res) => {
     } = req.body;
 
     try {
-        const project = await prisma.project.findUnique({ where: { id: projectId }, include: { offer: true } });
+        // ★ 修正箇所: offer を offers に変更
+        const project = await prisma.project.findUnique({ where: { id: projectId }, include: { offers: true } });
         if (!project) return res.status(404).json({ message: '企画が見つかりません' });
 
+        // 互換性処理：現在アクティブなオファーを取得
+        const activeOffer = project.offers.find(o => o.status === 'ACCEPTED') || project.offers[0];
+
         const isPlanner = project.plannerId === userId;
-        const isFlorist = project.offer?.floristId === userId;
+        const isFlorist = activeOffer?.floristId === userId;
 
         if (!isPlanner && !isFlorist) return res.status(403).json({ message: '権限がありません' });
 
@@ -523,7 +529,7 @@ export const updateProductionDetails = async (req, res) => {
             }
         });
 
-        const targetUserId = isPlanner ? project.offer?.floristId : project.plannerId;
+        const targetUserId = isPlanner ? activeOffer?.floristId : project.plannerId;
         if (targetUserId) {
             await createNotification(targetUserId, 'PROJECT_STATUS_UPDATE', '制作状況が更新されました', projectId, `/projects/${projectId}`);
         }
@@ -543,8 +549,11 @@ export const updateMaterialCost = async (req, res) => {
     if (req.user.role !== 'FLORIST') return res.status(403).json({ message: '権限がありません。' });
 
     try {
-        const project = await prisma.project.findUnique({ where: { id: projectId }, include: { offer: true } });
-        if (!project || project.offer?.floristId !== floristId) return res.status(403).json({ message: '担当ではありません。' });
+        // ★ 修正箇所: offer を offers に変更
+        const project = await prisma.project.findUnique({ where: { id: projectId }, include: { offers: true } });
+        const activeOffer = project?.offers.find(o => o.status === 'ACCEPTED') || project?.offers[0];
+
+        if (!project || activeOffer?.floristId !== floristId) return res.status(403).json({ message: '担当ではありません。' });
 
         const updatedProject = await prisma.project.update({
             where: { id: projectId },
@@ -571,8 +580,11 @@ export const updateProductionStatus = async (req, res) => {
     }
 
     try {
-        const project = await prisma.project.findUnique({ where: { id: projectId }, include: { offer: true } });
-        if (!project || project.offer?.floristId !== floristId) return res.status(403).json({ message: '権限がありません。' });
+        // ★ 修正箇所: offer を offers に変更
+        const project = await prisma.project.findUnique({ where: { id: projectId }, include: { offers: true } });
+        const activeOffer = project?.offers.find(o => o.status === 'ACCEPTED') || project?.offers[0];
+
+        if (!project || activeOffer?.floristId !== floristId) return res.status(403).json({ message: '権限がありません。' });
 
         const updatedProject = await prisma.project.update({
             where: { id: projectId },
@@ -600,10 +612,13 @@ export const updateProjectStatus = async (req, res) => {
     }
 
     try {
-        const project = await prisma.project.findUnique({ where: { id: projectId }, include: { offer: true } });
+        // ★ 修正箇所: offer を offers に変更
+        const project = await prisma.project.findUnique({ where: { id: projectId }, include: { offers: true } });
         if (!project) return res.status(404).json({ message: '企画なし' });
 
-        const isFlorist = project.offer?.floristId === req.user.id;
+        const activeOffer = project.offers.find(o => o.status === 'ACCEPTED') || project.offers[0];
+        const isFlorist = activeOffer?.floristId === req.user.id;
+        
         if (req.user.role !== 'ADMIN' && !isFlorist) return res.status(403).json({ message: '権限なし' });
 
         const updated = await prisma.project.update({
@@ -617,8 +632,6 @@ export const updateProjectStatus = async (req, res) => {
             projectId, `/projects/${projectId}`
         );
         
-        res.json(updated);
-
         const io = getIO();
         let tickerType = 'info';
         let tickerText = '';
@@ -734,6 +747,7 @@ export const getChatRoomInfo = async (req, res) => {
     try {
         const room = await prisma.chatRoom.findUnique({
             where: { id: roomId },
+            // ★ 修正箇所: offer -> offers を考慮したネスト (必要に応じて)
             include: {
                 messages: { orderBy: { createdAt: 'asc' } },
                 offer: { include: { project: { include: { planner: true, quotation: { include: { items: true } } } }, florist: true } }
@@ -888,7 +902,7 @@ export const acceptIllustrationDelivery = async (req, res) => {
     try {
         const project = await prisma.project.findUnique({ 
             where: { id: projectId },
-            include: { illustrator: true }
+            include: { illustrator: true, offers: true }
         });
 
         if (!project || project.plannerId !== plannerId) {
@@ -918,9 +932,10 @@ export const acceptIllustrationDelivery = async (req, res) => {
         });
 
         // 任意: お花屋さんへ「イラストが確定しました」の通知を送る
-        if (project.offer?.floristId) {
+        const activeOffer = project.offers?.find(o => o.status === 'ACCEPTED') || project.offers?.[0];
+        if (activeOffer?.floristId) {
              await createNotification(
-                project.offer.floristId, 'PROJECT_STATUS_UPDATE', 
+                activeOffer.floristId, 'PROJECT_STATUS_UPDATE', 
                 `企画「${project.title}」のイラストデータが確定・納品されました。`, 
                 projectId, `/projects/${projectId}`
              );
