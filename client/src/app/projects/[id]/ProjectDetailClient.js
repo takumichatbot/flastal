@@ -504,19 +504,27 @@ export default function ProjectDetailClient() {
  });
 
  const fetchProject = useCallback(async () => {
-   if (!id) return;
-   try {
-     setLoading(true);
-     const response = await fetch(`${API_URL}/api/projects/${id}`); 
-     if (!response.ok) throw new Error('企画が見つかりません');
-     const data = await response.json();
-     setProject(data);
-   } catch (error) {
-     toast.error(error.message);
-   } finally {
-     setLoading(false);
-   }
- }, [id]); 
+    if (!id) return;
+    try {
+      setLoading(true);
+      const response = await fetch(`${API_URL}/api/projects/${id}`); 
+      if (!response.ok) throw new Error('企画が見つかりません');
+      const data = await response.json();
+      
+      // ★ 追加: offers 配列から表示用の offer を1つ抜き出す互換性処理
+      if (data.offers && data.offers.length > 0) {
+          // 承諾されたオファーがあればそれ優先、なければ最新のもの
+          const acceptedOffer = data.offers.find(o => o.status === 'ACCEPTED');
+          data.offer = acceptedOffer || data.offers[0];
+      }
+
+      setProject(data);
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
 
  useEffect(() => { fetchProject(); }, [fetchProject]);
 
