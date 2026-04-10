@@ -45,6 +45,8 @@ enum NotificationType {
   NEW_CHAT_MESSAGE
   NEW_ANNOUNCEMENT
   OFFER_STATUS_UPDATE
+  OFFER_ACCEPTED      // ★追加: お花屋さんがオファーを受諾したとき
+  QUOTATION_RECEIVED  // ★追加: お花屋さんから見積もりが届いたとき
   QUOTATION_APPROVED
   TASK_ASSIGNED
   PROJECT_STATUS_UPDATE
@@ -254,7 +256,7 @@ model Project {
   plannerId               String
   planner                 User               @relation("PlannerProjects", fields: [plannerId], references: [id])
   pledges                 Pledge[]
-  offer                   Offer?
+  offers                  Offer[]
   review                  Review?
   announcements           Announcement[]
   expenses                Expense[]
@@ -378,7 +380,7 @@ model Offer {
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
 
-  projectId String    @unique
+  projectId String    // ★ @unique を削除しました
   project   Project   @relation(fields: [projectId], references: [id])
   floristId String
   florist   Florist   @relation(fields: [floristId], references: [id])
