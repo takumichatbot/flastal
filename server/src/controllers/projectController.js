@@ -135,7 +135,7 @@ export const getProjectById = async (req, res) => {
                     orderBy: { createdAt: 'asc' },
                     include: { user: { select: { id: true, handleName: true } } }
                 },
-                offer: {
+                offers: {
                     include: {
                         florist: { select: { id: true, platformName: true } },
                         chatRoom: true
