@@ -645,6 +645,7 @@ const LaruSeoEmbed = () => {
       // 横スワイプ（カルーセル）用のスタイルを注入
       const style = document.createElement('style');
       style.innerHTML = `
+        /* コンテナ全体のレイアウト強制上書き */
         #laru-blog-container > div {
           display: flex !important;
           flex-wrap: nowrap !important;
@@ -657,18 +658,45 @@ const LaruSeoEmbed = () => {
           padding-right: 16px !important;
           gap: 20px !important;
         }
+        
+        /* スクロールバーを隠す */
         #laru-blog-container > div::-webkit-scrollbar {
           display: none;
         }
+
+        /* 🌟 修正: 各カードのサイズを厳密に固定して間延びを防ぐ */
         #laru-blog-container > div > div {
-          min-width: 85vw !important;
-          flex: 0 0 auto !important;
+          flex: 0 0 auto !important; /* 勝手に伸び縮みさせない */
+          width: 85vw !important;    /* スマホ時の幅 */
+          max-width: 320px !important; /* スマホでもこれ以上は太らせない */
           scroll-snap-align: center !important;
+          display: flex !important;
+          flex-direction: column !important;
+          height: 100% !important; /* 高さを揃える */
         }
+
+        /* 🌟 PC時のカードサイズ調整 */
         @media (min-width: 768px) {
-          #laru-blog-container > div > div {
-            min-width: 380px !important;
+          #laru-blog-container > div {
+            /* PCではスワイプではなく通常のグリッドに戻す場合 */
+            /* display: grid !important; */
+            /* grid-template-columns: repeat(3, 1fr) !important; */
+            /* 今回はPCでも横スワイプ(または左詰め配置)を維持する設定にしています */
+            margin: 0 !important;
+            padding-left: 0 !important;
+            padding-right: 0 !important;
           }
+          #laru-blog-container > div > div {
+            width: 340px !important; /* PC時の固定幅 */
+            max-width: none !important;
+          }
+        }
+        
+        /* 画像の比率を固定 */
+        #laru-blog-container img {
+          aspect-ratio: 16 / 9 !important;
+          height: auto !important;
+          object-fit: cover !important;
         }
       `;
       container.appendChild(style);
