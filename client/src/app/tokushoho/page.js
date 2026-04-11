@@ -68,8 +68,9 @@ export default function TokushohoPage() {
               label="所在地" 
               value={
                 <>
-                  〒174-0043<br/>
-                  東京都板橋区坂下3-6-1-113
+                  〒170-0005<br/>
+                  東京都豊島区南大塚
+                  １丁目２２−２　CASA大塚１０１
                 </>
               } 
             />
