@@ -548,8 +548,8 @@ const BentoFeatures = () => {
       visual: <div className="absolute -right-4 -bottom-4 opacity-[0.03] rotate-12"><KeyRound size={120} /></div>
     },
     {
-      title: "憧れの絵師に直接依頼",
-      desc: "企画にぴったりのイラストレーターを公募・指名可能。パネル制作のやり取りもサイト内で完結します。",
+      title: "お花屋さん・絵師へ直接依頼",
+      desc: "企画にぴったりのフラスタ専門のお花屋さんやイラストレーターを公募・指名可能。デザインのすり合わせもサイト内で完結します。",
       span: "col-span-1",
       icon: PenTool,
       color: "bg-white",
@@ -561,7 +561,7 @@ const BentoFeatures = () => {
     },
     {
       title: "会場レギュレーション確認済み",
-      desc: "FLASTALがお花送付のルールを会場・主催者と連携。当日「置けなかった」という悲劇を防ぎます。",
+      desc: "FLASTALがお花送付のルールを会場・主催者と連携。当日「サイズオーバーでフラスタが置けなかった」という悲劇を防ぎます。",
       span: "col-span-1 md:col-span-2",
       icon: Building,
       color: "bg-gradient-to-br from-white to-sky-50/30",
@@ -582,7 +582,7 @@ const BentoFeatures = () => {
           <Reveal>
             <span className="text-emerald-500 font-black text-[10px] md:text-xs tracking-[0.2em] uppercase block mb-4">Safety & Professional</span>
             <h2 className="text-3xl md:text-6xl font-black text-slate-800 tracking-tighter leading-[1.1] max-w-3xl">
-              面倒な事務作業は、<br className="hidden md:block"/>
+              フラスタ企画の面倒な裏方は、<br className="hidden md:block"/>
               すべてFLASTALにお任せ。
             </h2>
           </Reveal>

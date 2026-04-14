@@ -25,6 +25,7 @@ router.get('/settings', adminController.getSystemSettings);
 router.get('/commissions', adminController.getCommissions);
 router.get('/payouts', adminController.getAdminPayouts);
 router.get('/email-templates', adminController.getEmailTemplates);
+router.post('/email-templates', adminController.createEmailTemplate);
 
 // --- 2. 動的IDパス (優先順位：中) ---
 router.get('/projects/:projectId/chats', adminController.getProjectChatLogs);
@@ -45,12 +46,18 @@ router.get('/pending/:type', adminController.getPendingItems);
 router.post('/approve/:type/:id', adminController.approveItem);
 router.patch('/settings', adminController.updateSystemSettings);
 router.patch('/payouts/:id', adminController.updateAdminPayoutStatus);
-router.post('/email-templates', adminController.saveEmailTemplate);
+router.post('/email-templates', adminController.createEmailTemplate);
+router.get('/email-templates/:id', adminController.getEmailTemplate);
+router.put('/email-templates/:id', adminController.updateEmailTemplate);
+router.delete('/email-templates/:id', adminController.deleteEmailTemplate);
 router.post('/send-email', adminController.sendIndividualEmail);
 router.patch('/reports/:reportId/review', adminController.reviewReport);
 router.post('/chat-rooms', adminController.createAdminChatRoom);
 router.get('/chat-rooms/:roomId/messages', adminController.getAdminChatMessages);
 router.get('/users/search', adminController.searchAllUsers);
 router.patch('/projects/:projectId/visibility', adminController.updateProjectVisibility);
+router.get('/email-templates/:id', adminController.getEmailTemplate);
+router.put('/email-templates/:id', adminController.updateEmailTemplate);
+router.delete('/email-templates/:id', adminController.deleteEmailTemplate);
 
 export default router;

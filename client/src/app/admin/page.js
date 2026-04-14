@@ -7,12 +7,11 @@ import Link from 'next/link';
 import { useAuth } from '../contexts/AuthContext';
 import { motion } from 'framer-motion';
 
-// ★ 修正箇所： 'Users' を import に追加しました
 import { 
     MessageSquare, AlertTriangle, RefreshCw, DollarSign, 
     Award, MapPin, Calendar, Clock, Settings, Edit3, 
     Mail, Activity, TrendingUp, UserCheck, CheckCircle2, LogOut, ArrowRight, Palette,
-    Flower2, Building2, ShieldCheck, FileText, Users
+    Flower2, Building2, ShieldCheck, FileText, Users, Send // ★ 送信アイコンを念のため追加
 } from 'lucide-react'; 
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
@@ -209,7 +208,6 @@ export default function AdminPage() {
             {/* --- 右カラム (サイドバー) --- */}
             <div className="space-y-8">
                 
-                {/* 統合審査センターへのリンクに変更 */}
                 <GlassCard className="!p-8 !border-amber-200">
                     <h3 className="font-black text-slate-800 mb-6 flex items-center gap-2"><Activity className="text-amber-500"/> 要対応アクション</h3>
                     <div className="space-y-3">
@@ -225,7 +223,6 @@ export default function AdminPage() {
                     )}
                 </GlassCard>
 
-                {/* クイックリンク集も統合審査センターへのリンクに更新 */}
                 <GlassCard className="!p-8">
                     <h3 className="font-black text-slate-800 mb-6 text-xs uppercase tracking-widest text-slate-400">Control Menu</h3>
                     <div className="grid grid-cols-1 gap-2">
@@ -236,12 +233,14 @@ export default function AdminPage() {
                         <QuickLink href="/admin/approval?tab=organizers" icon={<ShieldCheck/>} label="主催者審査管理" />
                         <div className="my-3 border-t border-slate-100/50"></div>
                         
-                        {/* ★ Users をインポートし、ここにリンクを追加しました！ */}
                         <QuickLink href="/admin/users" icon={<Users/>} label="全ユーザー一覧・情報管理" />
-                        
-                        <QuickLink href="/admin/contact" icon={<Mail/>} label="個別チャット連絡" />
+                        <QuickLink href="/admin/contact" icon={<MessageSquare/>} label="個別チャット連絡" />
                         <QuickLink href="/admin/payouts" icon={<DollarSign/>} label="出金申請の管理" />
                         <QuickLink href="/admin/florists" icon={<Edit3/>} label="花屋手数料設定" />
+                        
+                        {/* ★ ここにメールテンプレート管理のリンクを追加しました！ */}
+                        <QuickLink href="/admin/email-templates" icon={<Mail/>} label="メールテンプレート設定" />
+                        
                         <QuickLink href="/admin/settings" icon={<Settings/>} label="システム全体設定" />
                     </div>
                 </GlassCard>

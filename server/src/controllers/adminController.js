@@ -172,15 +172,70 @@ export const updateAdminPayoutStatus = async (req, res) => {
     } catch (e) { return res.status(500).json({ message: 'Error' }); }
 };
 
+// ==========================================
+// ★★★ メールテンプレート管理 (CRUD) ★★★
+// ==========================================
+
 export const getEmailTemplates = async (req, res) => {
-    try { return res.json(await prisma.emailTemplate.findMany() || []); } catch (e) { return res.status(200).json([]); }
+    try { 
+        return res.json(await prisma.emailTemplate.findMany({ orderBy: { createdAt: 'desc' } }) || []); 
+    } catch (e) { 
+        return res.status(200).json([]); 
+    }
 };
 
-export const saveEmailTemplate = async (req, res) => {
+export const getEmailTemplate = async (req, res) => {
     try {
-        const r = req.body.id ? await prisma.emailTemplate.update({ where: { id: req.body.id }, data: req.body }) : await prisma.emailTemplate.create({ data: req.body });
-        return res.json(r);
-    } catch (e) { return res.status(500).json({ message: 'Error' }); }
+        const template = await prisma.emailTemplate.findUnique({ where: { id: req.params.id } });
+        if (!template) return res.status(404).json({ message: 'テンプレートが見つかりません' });
+        return res.json(template);
+    } catch (error) {
+        return res.status(500).json({ message: 'テンプレートの取得に失敗しました' });
+    }
+};
+
+export const createEmailTemplate = async (req, res) => {
+    try {
+        const { key, name, subject, body, targetRole, isSystemTemplate } = req.body;
+        const existing = await prisma.emailTemplate.findUnique({ where: { key } });
+        if (existing) return res.status(400).json({ message: 'このキーは既に使用されています' });
+
+        const template = await prisma.emailTemplate.create({
+            data: { key, name, subject, body, targetRole, isSystemTemplate }
+        });
+        return res.status(201).json(template);
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ message: 'テンプレートの作成に失敗しました' });
+    }
+};
+
+export const updateEmailTemplate = async (req, res) => {
+    try {
+        const { key, name, subject, body, targetRole, isSystemTemplate } = req.body;
+        const template = await prisma.emailTemplate.update({
+            where: { id: req.params.id },
+            data: { key, name, subject, body, targetRole, isSystemTemplate }
+        });
+        return res.json(template);
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ message: 'テンプレートの更新に失敗しました' });
+    }
+};
+
+export const deleteEmailTemplate = async (req, res) => {
+    try {
+        const template = await prisma.emailTemplate.findUnique({ where: { id: req.params.id } });
+        if (!template) return res.status(404).json({ message: 'テンプレートが見つかりません' });
+        if (template.isSystemTemplate) return res.status(400).json({ message: 'システム必須テンプレートは削除できません' });
+
+        await prisma.emailTemplate.delete({ where: { id: req.params.id } });
+        return res.status(204).send();
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ message: 'テンプレートの削除に失敗しました' });
+    }
 };
 
 export const sendIndividualEmail = async (req, res) => {
