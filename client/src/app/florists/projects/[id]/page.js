@@ -81,7 +81,8 @@ function DeliveryNoteModal({ project, onClose }) {
                         </div>
                         <div class="issuer-info">
                             <p class="issuer-name">FLASTAL運営事務局 (KIREI-CHANNEL)</p>
-                            <p>〒174-0043<br>東京都板橋区坂下3-6-1-113</p>
+                            <p>〒170-0005<br> 東京都豊島区南大塚１丁目２２−２　CASA大塚１０１
+</p>
                             <p>Email: support@flastal.com</p>
                         </div>
                     </div>

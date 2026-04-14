@@ -51,7 +51,8 @@ export default function AboutPage() {
                     <div>
                         <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1.5"><MapPin size={14}/> Location / 所在地</p>
                         <p className="font-bold text-slate-700 leading-relaxed">
-                            〒174-0043<br/>東京都板橋区坂下3-6-1-113
+                            〒170-0005<br/> 東京都豊島区南大塚１丁目２２−２　CASA大塚１０１
+
                         </p>
                     </div>
                 </div>
