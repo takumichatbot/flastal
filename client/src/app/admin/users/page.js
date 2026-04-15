@@ -8,7 +8,7 @@ import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { 
     Search, Users, Mail, Shield, Filter, ArrowLeft, 
-    MoreVertical, ShieldCheck, Palette, Store, Building2, User, RefreshCw, MessageSquare
+    MoreVertical, ShieldCheck, Palette, Store, Building2, User, RefreshCw, MessageSquare, Trash2
 } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
@@ -27,7 +27,7 @@ const getRoleBadge = (role) => {
 };
 
 export default function AdminUsersPage() {
-    const { user, isAuthenticated, loading } = useAuth();
+    const { user, isAuthenticated, loading, authenticatedFetch } = useAuth(); // ★ authenticatedFetch を追加
     const router = useRouter();
 
     const [users, setUsers] = useState([]);
@@ -51,18 +51,16 @@ export default function AdminUsersPage() {
             const data = await res.json();
             const rawUsers = Array.isArray(data) ? data : [];
 
-            // ★ 強制整形ロジック: 全ロールをここで強制的に表示可能な形にマッピングする
+            // ★ 強制整形ロジック
             const mappedUsers = rawUsers.map(u => {
                 let role = u.role ? String(u.role).toUpperCase() : 'USER';
                 let displayName = u.displayName || u.handleName || u.name || '未設定';
 
-                // バックエンドで `illustratorProfile` を含めているため、それがあれば強制的に ILLUSTRATOR にする
                 if (u.illustratorProfile) {
                     role = 'ILLUSTRATOR';
                     displayName = u.illustratorProfile.penName || displayName;
                 }
 
-                // 念のため他のロールの displayName も再確認
                 if (role === 'FLORIST' && u.platformName) displayName = u.platformName;
                 if (role === 'ORGANIZER' && u.name) displayName = u.name;
                 if (role === 'VENUE' && u.venueName) displayName = u.venueName;
@@ -74,8 +72,6 @@ export default function AdminUsersPage() {
                     email: u.email || '非公開（プロフ連携のみ）'
                 };
             });
-
-            console.log("Mapped Users:", mappedUsers); // デバッグ用
 
             setUsers(mappedUsers);
             
@@ -133,6 +129,30 @@ export default function AdminUsersPage() {
             }
         } catch (error) {
             toast.error('チャットルームへの接続に失敗しました', { id: toastId });
+        }
+    };
+
+    // ★ 追加: ユーザー削除処理
+    const handleDeleteUser = async (targetUserId, targetUserName) => {
+        if (!window.confirm(`本当にユーザー「${targetUserName}」を削除しますか？\nこの操作は取り消せません。（※企画や支援データが紐づいている場合はエラーになることがあります）`)) {
+            return;
+        }
+
+        const toastId = toast.loading('削除中...');
+        try {
+            const res = await authenticatedFetch(`${API_URL}/api/admin/users/${targetUserId}`, {
+                method: 'DELETE',
+            });
+
+            if (!res.ok) {
+                const errorData = await res.json();
+                throw new Error(errorData.message || '削除に失敗しました');
+            }
+
+            toast.success('ユーザーを削除しました。', { id: toastId });
+            fetchUsers(); // 一覧を再取得して画面を更新
+        } catch (error) {
+            toast.error(error.message, { id: toastId });
         }
     };
 
@@ -284,18 +304,17 @@ export default function AdminUsersPage() {
                                                             className="flex items-center gap-1 px-3 py-1.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white border border-indigo-100 hover:border-indigo-600 rounded-lg transition-all text-xs font-bold shadow-sm"
                                                             title="チャットを開始"
                                                         >
-                                                            <MessageSquare size={14} /> 連絡
+                                                            <MessageSquare size={14} /> <span className="hidden sm:inline">連絡</span>
                                                         </button>
                                                         
-                                                        {u.email !== '非公開（プロフ連携のみ）' && (
-                                                          <a 
-                                                              href={`mailto:${u.email}`}
-                                                              className="flex items-center gap-1 px-3 py-1.5 bg-white text-slate-600 hover:bg-slate-100 hover:text-slate-900 border border-slate-200 rounded-lg transition-all text-xs font-bold shadow-sm"
-                                                              title="メールを送信"
-                                                          >
-                                                              <Mail size={14} /> メール
-                                                          </a>
-                                                        )}
+                                                        {/* ★ 追加: 削除ボタン */}
+                                                        <button 
+                                                            onClick={() => handleDeleteUser(u.id, u.displayName)}
+                                                            className="flex items-center gap-1 px-3 py-1.5 bg-white text-rose-500 hover:bg-rose-500 hover:text-white border border-rose-200 hover:border-rose-500 rounded-lg transition-all text-xs font-bold shadow-sm"
+                                                            title="ユーザーを削除"
+                                                        >
+                                                            <Trash2 size={14} /> <span className="hidden sm:inline">削除</span>
+                                                        </button>
                                                     </div>
                                                 </td>
                                             </tr>

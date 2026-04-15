@@ -56,8 +56,10 @@ router.post('/chat-rooms', adminController.createAdminChatRoom);
 router.get('/chat-rooms/:roomId/messages', adminController.getAdminChatMessages);
 router.get('/users/search', adminController.searchAllUsers);
 router.patch('/projects/:projectId/visibility', adminController.updateProjectVisibility);
-router.get('/email-templates/:id', adminController.getEmailTemplate);
-router.put('/email-templates/:id', adminController.updateEmailTemplate);
-router.delete('/email-templates/:id', adminController.deleteEmailTemplate);
+
+// ★★★ ここから追加: 強制削除用エンドポイント ★★★
+router.delete('/users/:userId', adminController.deleteUserByAdmin);
+router.delete('/projects/:projectId', adminController.deleteProjectByAdmin);
+// ★★★ ここまで追加 ★★★
 
 export default router;

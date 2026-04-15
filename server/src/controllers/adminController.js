@@ -388,3 +388,81 @@ export const banEvent = async (req, res) => {
 export const dismissEventReport = async (req, res) => {
     try { await prisma.eventReport.update({ where: { id: req.params.reportId }, data: { status: 'RESOLVED' } }); return res.json({message:'OK'}); } catch(e) { return res.status(500).json({message:'Error'}); }
 };
+
+// ==========================================
+// 追加: 管理者による削除機能
+// ==========================================
+
+// ユーザーの強制削除
+export const deleteUserByAdmin = async (req, res) => {
+    const { userId } = req.params;
+
+    try {
+        // 対象ユーザーの存在確認
+        const targetUser = await prisma.user.findUnique({
+            where: { id: userId }
+        });
+
+        if (!targetUser) {
+            return res.status(404).json({ message: 'ユーザーが見つかりません。' });
+        }
+
+        // 管理者自身を削除しようとしていないかチェック（オプション）
+        if (targetUser.role === 'ADMIN' && targetUser.id === req.user.id) {
+            return res.status(400).json({ message: '自身のアカウントは削除できません。' });
+        }
+
+        // トランザクションで関連データごと削除
+        await prisma.$transaction(async (tx) => {
+            // 例: もし削除前に特定のデータを保持・退避したい場合はここに書く
+            
+            // ユーザーを削除（schema.prisma で onDelete: Cascade が設定されているリレーションは自動削除されます）
+            await tx.user.delete({
+                where: { id: userId }
+            });
+        });
+
+        res.status(200).json({ message: 'ユーザーを削除しました。' });
+    } catch (error) {
+        console.error('Admin User Delete Error:', error);
+        
+        // Prismaの外部キー制約エラーなどの場合
+        if (error.code === 'P2003') {
+            return res.status(400).json({ message: 'このユーザーに関連するデータ（企画など）が残っているため削除できません。先に該当データを削除してください。' });
+        }
+        
+        res.status(500).json({ message: 'ユーザーの削除に失敗しました。' });
+    }
+};
+
+// 企画の強制削除
+export const deleteProjectByAdmin = async (req, res) => {
+    const { projectId } = req.params;
+
+    try {
+        const project = await prisma.project.findUnique({
+            where: { id: projectId }
+        });
+
+        if (!project) {
+            return res.status(404).json({ message: '企画が見つかりません。' });
+        }
+
+        // トランザクションで削除
+        await prisma.$transaction(async (tx) => {
+            await tx.project.delete({
+                where: { id: projectId }
+            });
+        });
+
+        res.status(200).json({ message: '企画を削除しました。' });
+    } catch (error) {
+        console.error('Admin Project Delete Error:', error);
+        
+        if (error.code === 'P2003') {
+            return res.status(400).json({ message: 'この企画に関連する決済データなどが存在するため、安全に削除できません。' });
+        }
+        
+        res.status(500).json({ message: '企画の削除に失敗しました。' });
+    }
+};
