@@ -5,11 +5,16 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Share2, Star, Heart, Sparkles, Loader2, User, MessageCircle } from 'lucide-react';
+import { 
+  ArrowLeft, Share2, Star, Heart, Sparkles, 
+  Loader2, User, MessageCircle, ChevronDown 
+} from 'lucide-react';
+
+// ★ 既存の VirtualStage をインポート
+import VirtualStage from '@/app/components/VirtualStage';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
-// ライブ会場のペンライトのように、ふわふわ光るパーティクル
 const GlowingParticles = () => {
   const [windowSize, setWindowSize] = useState({ width: 1000, height: 1000 });
   useEffect(() => { setWindowSize({ width: window.innerWidth, height: window.innerHeight }); }, []);
@@ -69,23 +74,18 @@ export default function DigitalNameBoardPage() {
   return (
     <div className="min-h-screen bg-slate-950 text-white overflow-hidden relative font-sans selection:bg-pink-500 selection:text-white">
       
-      {/* 背景エフェクト（ダークガラスモーフィズム） */}
+      {/* 背景エフェクト */}
       <div className="fixed inset-0 pointer-events-none z-0">
         {data.imageUrl && (
             <img src={data.imageUrl} alt="" className="w-full h-full object-cover blur-3xl opacity-20 scale-110" />
         )}
         <div className="absolute inset-0 bg-gradient-to-b from-slate-950 via-slate-900/90 to-slate-950"></div>
         <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-20"></div>
-        
-        {/* ぼんやりした光 */}
-        <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-pink-600/20 blur-[120px] rounded-full mix-blend-screen" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-sky-600/20 blur-[120px] rounded-full mix-blend-screen" />
-        
         <GlowingParticles />
       </div>
 
       {/* ヘッダーナビ (固定) */}
-      <div className="fixed top-0 left-0 right-0 z-50 p-4 md:p-6 flex justify-between items-center pointer-events-none">
+      <div className="fixed top-0 left-0 right-0 z-[100] p-4 md:p-6 flex justify-between items-center pointer-events-none">
         <Link href={`/projects/${id}`} className="text-white/70 hover:text-white flex items-center transition-all hover:-translate-x-1 pointer-events-auto backdrop-blur-md bg-white/10 px-5 py-2.5 rounded-full border border-white/10 shadow-lg text-sm font-bold">
             <ArrowLeft className="mr-2" size={18}/> BACK
         </Link>
@@ -94,12 +94,32 @@ export default function DigitalNameBoardPage() {
         </a>
       </div>
 
-      {/* エンドロール・コンテンツ */}
+      {/* メインコンテンツ（スクロールエリア） */}
       <div className="relative z-10 w-full h-screen overflow-y-auto overflow-x-hidden scroll-smooth no-scrollbar">
+        
+        {/* --- SECTION 1: INTERACTIVE VIRTUAL STAGE --- */}
+        <section className="min-h-screen flex flex-col items-center justify-center p-4 pt-24 relative">
+            <div className="w-full max-w-5xl">
+                {/* 既存の VirtualStage コンポーネントを呼び出し */}
+                <VirtualStage projectId={id} />
+            </div>
+
+            {/* 下への誘導 */}
+            <motion.div 
+              animate={{ y: [0, 10, 0] }} 
+              transition={{ repeat: Infinity, duration: 2 }}
+              className="absolute bottom-10 flex flex-col items-center gap-2 text-white/30"
+            >
+                <span className="text-[10px] font-black tracking-widest uppercase">Scroll to Credits</span>
+                <ChevronDown size={20}/>
+            </motion.div>
+        </section>
+
+        {/* --- SECTION 2: THE END ROLL (Digital Name Board) --- */}
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-32 md:py-40 text-center space-y-32">
             
             {/* タイトルセクション */}
-            <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 1 }} className="relative">
+            <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 1 }} className="relative">
                 <div className="absolute -top-20 left-1/2 -translate-x-1/2 w-px h-20 bg-gradient-to-b from-transparent via-pink-400/50 to-pink-400"></div>
                 <p className="text-pink-400 font-black tracking-[0.3em] text-[10px] md:text-xs mb-6 uppercase flex items-center justify-center gap-3 drop-shadow-[0_0_10px_rgba(244,114,182,0.8)]">
                     <span className="w-8 h-px bg-pink-400/50"></span>
@@ -115,10 +135,9 @@ export default function DigitalNameBoardPage() {
                 </div>
             </motion.div>
 
-            {/* 支援者リスト */}
+            {/* 支援者リストセクション */}
             <div className="space-y-20">
-                
-                {/* 1. VIP (Top 3) */}
+                {/* VIP (Top 3) */}
                 <div className="space-y-12">
                     {data.pledges.slice(0, 3).map((pledge, index) => (
                         <motion.div 
@@ -132,13 +151,13 @@ export default function DigitalNameBoardPage() {
                                     {index === 0 ? <Star size={36} className="fill-yellow-400"/> : <Star size={28} className="fill-yellow-400/80"/>}
                                 </div>
                                 <div className="flex items-center gap-4 bg-white/5 px-8 py-4 rounded-full backdrop-blur-md border border-white/10 shadow-2xl">
-                                    {pledge.user.iconUrl ? (
+                                    {pledge.user?.iconUrl ? (
                                         <Image src={pledge.user.iconUrl} alt="" width={48} height={48} className="rounded-full border-2 border-white/50 shadow-[0_0_15px_rgba(255,255,255,0.2)] object-cover" />
                                     ) : (
                                         <div className="w-12 h-12 rounded-full border-2 border-white/50 bg-white/10 flex items-center justify-center text-white/50"><User size={24}/></div>
                                     )}
                                     <span className="text-2xl md:text-4xl font-black text-white tracking-wide drop-shadow-lg">
-                                        {pledge.user.handleName}
+                                        {pledge.user?.handleName || 'Anonymous Supporter'}
                                     </span>
                                 </div>
                                 {pledge.comment && (
@@ -153,14 +172,14 @@ export default function DigitalNameBoardPage() {
                     ))}
                 </div>
 
-                {/* 2. Divider */}
+                {/* Divider */}
                 <div className="flex items-center justify-center gap-4 opacity-40 py-8">
                     <span className="w-16 md:w-32 h-px bg-gradient-to-r from-transparent to-pink-400"></span>
                     <Heart size={20} className="text-pink-400 fill-pink-400" />
                     <span className="w-16 md:w-32 h-px bg-gradient-to-l from-transparent to-pink-400"></span>
                 </div>
 
-                {/* 3. Regular Supporters (Grid Layout) */}
+                {/* Regular Supporters */}
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-y-10 gap-x-4 px-4">
                     {data.pledges.slice(3).map((pledge, i) => (
                         <motion.div 
@@ -169,15 +188,15 @@ export default function DigitalNameBoardPage() {
                           className="flex flex-col items-center group cursor-default"
                         >
                             <span className="text-sm md:text-base text-slate-300 font-bold group-hover:text-white transition-colors duration-300 group-hover:scale-110 transform drop-shadow-md">
-                                {pledge.user.handleName}
+                                {pledge.user?.handleName || 'Anonymous'}
                             </span>
                         </motion.div>
                     ))}
                 </div>
             </div>
 
-            {/* メッセージカード一覧 (Masonry Layout風) */}
-            {data.messages.length > 0 && (
+            {/* Messages Card Area */}
+            {data.messages && data.messages.length > 0 && (
                 <div className="pt-24 border-t border-white/10 relative">
                     <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-1 bg-gradient-to-r from-transparent via-sky-400 to-transparent blur-sm"></div>
                     
@@ -208,7 +227,7 @@ export default function DigitalNameBoardPage() {
                 </div>
             )}
 
-            {/* フッター */}
+            {/* Footer Credits */}
             <div className="pt-40 pb-24 relative">
                 <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-pink-500/10 blur-[100px] pointer-events-none"></div>
                 <div className="flex flex-col items-center gap-4 relative z-10">
@@ -225,13 +244,12 @@ export default function DigitalNameBoardPage() {
       </div>
 
       <style jsx global>{`
-        /* スクロールバーを隠す (没入感のため) */
         .no-scrollbar::-webkit-scrollbar {
             display: none;
         }
         .no-scrollbar {
-            -ms-overflow-style: none;  /* IE and Edge */
-            scrollbar-width: none;  /* Firefox */
+            -ms-overflow-style: none;
+            scrollbar-width: none;
         }
       `}</style>
     </div>

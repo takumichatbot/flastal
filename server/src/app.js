@@ -7,7 +7,6 @@ import postRoutes from './routes/posts.js';
 import { sendEmail } from './utils/email.js';
 import { createNotification } from './utils/notification.js';
 
-
 // --- ルーティングファイルのインポート ---
 import authRoutes from './routes/auth.js';
 import projectRoutes from './routes/projects.js';
@@ -21,6 +20,9 @@ import paymentRoutes from './routes/payment.js';
 import projectDetailRoutes from './routes/projectDetails.js';
 import organizerRoutes from './routes/organizers.js';
 import illustratorRoutes from './routes/illustrators.js';
+
+// ★ 追加: 新しく作成したWebhookコントローラーをインポート
+import { handleStripeWebhook } from './controllers/webhookController.js';
 
 const app = express();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
@@ -72,70 +74,13 @@ app.use(cors({
 // ==========================================
 // ★★★ Stripe Webhook (JSONパース前に配置) ★★★
 // ==========================================
-app.post('/api/webhooks/stripe', express.raw({type: 'application/json'}), async (req, res) => {
-    const sig = req.headers['stripe-signature'];
-    const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
-    let event;
-    
-    try {
-        event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
-    } catch (err) {
-        return res.status(400).send(`Webhook Error: ${err.message}`);
-    }
-    
-    if (event.type === 'checkout.session.completed') {
-        const session = event.data.object;
-        const userId = session.client_reference_id;
-        const amount = session.amount_total;
+// ★ 修正: 直接書いていた長い処理を消し、コントローラーに任せるように変更しました
+app.post('/api/webhooks/stripe', express.raw({type: 'application/json'}), handleStripeWebhook);
 
-        if (session.metadata && session.metadata.isGuestPledge === 'true') {
-            const { projectId, tierId, comment, guestName, guestEmail } = session.metadata;
-            try {
-                await prisma.$transaction(async (tx) => {
-                    await tx.pledge.create({
-                        data: {
-                            amount: amount, 
-                            projectId: projectId,
-                            userId: null,
-                            guestName: guestName,
-                            guestEmail: guestEmail,
-                            comment: comment,
-                            pledgeTierId: tierId !== 'none' ? tierId : null,
-                            stripePaymentIntentId: session.payment_intent
-                        },
-                    });
-                    const updatedProject = await tx.project.update({
-                        where: { id: projectId },
-                        data: { collectedAmount: { increment: amount } },
-                        include: { planner: true }
-                    });
-                    await createNotification(
-                        updatedProject.plannerId,
-                        'NEW_PLEDGE',
-                        `ゲストの ${guestName} 様から ${amount.toLocaleString()}円 の支援がありました！`,
-                        projectId,
-                        `/projects/${projectId}`
-                    );
-                });
-            } catch (error) {
-                console.error(`[Webhook Error] Guest pledge failed:`, error);
-            }
-        } else if (userId) {
-            try {
-                const pointsPurchased = parseInt(session.metadata.points) || amount;
-                await prisma.user.update({ where: { id: userId }, data: { points: { increment: pointsPurchased } } });
-            } catch(error) {
-                console.error(`[Webhook Error] Point purchase failed:`, error);
-            }
-        }
-    }
-    res.json({ received: true });
-});
-
+// お問い合わせフォーム
 app.post('/api/contact', async (req, res) => {
     const { name, email, message } = req.body;
     try {
-        // 管理者宛にメールを飛ばすなどの処理
         await sendEmail("admin@flastal.com", `【お問い合わせ】${name}様より`, `<p>${message}</p><p>返信先: ${email}</p>`);
         res.json({ message: "お問い合わせを送信しました。" });
     } catch (e) {
@@ -166,7 +111,7 @@ app.use('/api/project-details', projectDetailRoutes);
 app.use('/api/organizers', organizerRoutes);
 app.use('/api/illustrators', illustratorRoutes);
 app.use('/api/tools', toolRoutes);
-app.use('/api/ai', toolRoutes); // ★ 追加：フロントエンドの /api/ai/... リクエストに対応
+app.use('/api/ai', toolRoutes); 
 app.use('/api/payment', paymentRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/posts', postRoutes);

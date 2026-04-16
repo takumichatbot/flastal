@@ -5,7 +5,7 @@ import { getIO } from '../config/socket.js';
 
 const LEVEL_CONFIG = { 'Bronze': 10000, 'Silver': 50000, 'Gold': 100000 };
 
-async function checkUserLevelAndBadges(tx, userId) {
+export async function checkUserLevelAndBadges(tx, userId) {
     const user = await tx.user.findUnique({ where: { id: userId } });
     if (!user) return;
     let newLevel = user.supportLevel;
@@ -22,7 +22,7 @@ async function checkUserLevelAndBadges(tx, userId) {
     }
 }
 
-const broadcastTicker = (type, text, href) => {
+export const broadcastTicker = (type, text, href) => {
     try {
         const io = getIO();
         io.emit('publicTickerUpdate', { 
@@ -37,11 +37,12 @@ const broadcastTicker = (type, text, href) => {
     }
 };
 
-// ★ 修正: ポイントチャージのセッション作成をより強固に
+// ==========================================
+// ★ ポイントチャージのセッション作成
+// ==========================================
 export const createPointSession = async (req, res) => {
     const { amount, points } = req.body;
     const userId = req.user.id;
-    // ヘッダーからOriginを取得して動的に遷移先を作る（Render対応）
     const frontendUrl = req.headers.origin || process.env.FRONTEND_URL || 'https://www.flastal.com';
 
     if (!amount || !points) {
@@ -79,72 +80,70 @@ export const createPointSession = async (req, res) => {
 };
 
 // ==========================================
-// ★ 履歴取得API（フロントエンドの履歴タブ用に追加）
+// ★ 新規: 統合チェックアウトセッション (ハイブリッド決済対応)
 // ==========================================
-export const getPaymentHistory = async (req, res) => {
-    const userId = req.user.id;
-    try {
-        // 1. ポイントを使った履歴 (Pledge)
-        const pledges = await prisma.pledge.findMany({
-            where: { userId: userId },
-            include: { project: { select: { title: true } } },
-            orderBy: { createdAt: 'desc' }
-        });
+export const createCheckoutSession = async (req, res) => {
+    const { 
+        projectId, amount, pointsToUse, cardAmount, 
+        comment, tierId, guestName, guestEmail, successUrl, cancelUrl 
+    } = req.body;
 
-        // 2. 履歴データの整形
-        // ※ 本来は Stripe Webhook等でCHARGE履歴もDB保存するのが理想ですが、
-        // ここではPledge(使用)履歴をメインに返します。
-        const history = pledges.map(p => ({
-            id: `use_${p.id}`,
-            type: 'USE',
-            amount: p.amount,
-            description: `『${p.project?.title || '企画'}』への支援`,
-            createdAt: p.createdAt
-        }));
+    // req.user が存在すればログインユーザー、存在しなければゲスト
+    const userId = req.user ? req.user.id : null;
 
-        res.json(history);
-    } catch (error) {
-        console.error("History Error:", error);
-        res.status(500).json({ message: '履歴の取得に失敗しました' });
+    // カード決済額が 0 以下の場合はエラー (全額ポイント決済の場合は createPledge を呼ぶべき)
+    if (!cardAmount || cardAmount <= 0) {
+        return res.status(400).json({ message: 'クレジットカードでの決済金額が無効です' });
     }
-};
-
-
-export const createGuestSession = async (req, res) => {
-    const { projectId, amount, comment, tierId, guestName, guestEmail, successUrl, cancelUrl } = req.body;
-    if (!amount || amount <= 0) return res.status(400).json({ message: '金額が無効です' });
 
     try {
+        const project = await prisma.project.findUnique({ where: { id: projectId } });
+        if (!project) return res.status(404).json({ message: '企画が見つかりません' });
+
         const session = await stripe.checkout.sessions.create({
             payment_method_types: ['card'],
             line_items: [{
                 price_data: {
                     currency: 'jpy',
-                    product_data: { name: `フラスタ企画支援: ${projectId}`, description: `支援者: ${guestName}様` },
-                    unit_amount: parseInt(amount),
+                    product_data: { 
+                        name: `企画支援: ${project.title}`,
+                        description: userId 
+                            ? `支援総額 ${amount}円 (ポイント充当: ${pointsToUse || 0}pt)` 
+                            : `ゲスト支援: ${guestName}様`
+                    },
+                    unit_amount: parseInt(cardAmount),
                 },
                 quantity: 1,
             }],
             mode: 'payment',
             success_url: successUrl,
             cancel_url: cancelUrl,
-            metadata: { 
-                projectId, 
-                tierId: tierId || 'none', 
-                comment: comment || '', 
-                isGuestPledge: 'true', 
-                guestName, 
-                guestEmail 
+            customer_email: userId ? req.user.email : guestEmail,
+            client_reference_id: userId || undefined,
+            metadata: {
+                type: 'pledge',
+                projectId: projectId,
+                userId: userId || 'guest',
+                totalAmount: amount.toString(),
+                pointsUsed: (pointsToUse || 0).toString(),
+                cardAmount: cardAmount.toString(),
+                tierId: tierId || 'none',
+                comment: comment || '',
+                guestName: guestName || '',
+                guestEmail: guestEmail || ''
             },
-            customer_email: guestEmail,
         });
+
         res.json({ sessionUrl: session.url });
     } catch (error) {
-        console.error("Guest Session Error:", error);
-        res.status(500).json({ message: 'チェックアウトセッションの作成に失敗しました: ' + error.message });
+        console.error("Checkout Session Error:", error);
+        res.status(500).json({ message: 'セッション作成に失敗しました' });
     }
 };
 
+// ==========================================
+// ★ 支援 (全額ポイント支払い)
+// ==========================================
 export const createPledge = async (req, res) => {
     const userId = req.user.id;
     const { projectId, amount, comment, tierId } = req.body;
@@ -165,6 +164,7 @@ export const createPledge = async (req, res) => {
             if (project.status !== 'FUNDRAISING') throw new Error('この企画は現在募集を停止しています');
             if (user.points < pledgeAmount) throw new Error('ポイントが不足しています');
 
+            // ポイント減算と合計支援額の加算
             await tx.user.update({
                 where: { id: userId },
                 data: { points: { decrement: pledgeAmount }, totalPledgedAmount: { increment: pledgeAmount } },
@@ -193,7 +193,7 @@ export const createPledge = async (req, res) => {
         });
 
         if (result) {
-            const { newPledge, project, user } = result;
+            const { project, user } = result;
             broadcastTicker(
                 'pledge', 
                 `${user.handleName}さんが『${project.title}』に支援しました！🎉`, 
@@ -216,6 +216,9 @@ export const createPledge = async (req, res) => {
     }
 };
 
+// ==========================================
+// ★ ゲスト直接支援 (認証不要、現在は createCheckoutSession で統合可能ですが互換性のために残します)
+// ==========================================
 export const createGuestPledgeDirect = async (req, res) => {
     const { projectId, amount, comment, tierId, guestName, guestEmail } = req.body;
     if (!guestName || !guestEmail) return res.status(400).json({ message: 'お名前とメールアドレスは必須です' });
@@ -260,5 +263,32 @@ export const createGuestPledgeDirect = async (req, res) => {
         res.status(201).json({ message: 'ゲスト支援完了', pledge: result.newPledge });
     } catch (error) {
         res.status(400).json({ message: error.message || 'エラーが発生しました' });
+    }
+};
+
+// ==========================================
+// ★ 履歴取得API
+// ==========================================
+export const getPaymentHistory = async (req, res) => {
+    const userId = req.user.id;
+    try {
+        const pledges = await prisma.pledge.findMany({
+            where: { userId: userId },
+            include: { project: { select: { title: true } } },
+            orderBy: { createdAt: 'desc' }
+        });
+
+        const history = pledges.map(p => ({
+            id: `use_${p.id}`,
+            type: 'USE',
+            amount: p.amount,
+            description: `『${p.project?.title || '企画'}』への支援`,
+            createdAt: p.createdAt
+        }));
+
+        res.json(history);
+    } catch (error) {
+        console.error("History Error:", error);
+        res.status(500).json({ message: '履歴の取得に失敗しました' });
     }
 };

@@ -32,6 +32,7 @@ router.patch('/:projectId/materials', authenticateToken, projectController.updat
 router.patch('/:projectId/production-status', authenticateToken, projectController.updateProductionStatus);
 router.patch('/:projectId/status', authenticateToken, projectController.updateProjectStatus);
 router.get('/:projectId/instruction-sheet', authenticateToken, projectController.getInstructionSheet);
+router.patch('/:projectId/logistics', authenticateToken, projectController.updateLogisticsStatus);
 
 // ==========================================
 // ★ クリエイター（絵師）連携

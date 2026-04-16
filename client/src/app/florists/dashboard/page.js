@@ -373,22 +373,83 @@ function DashboardContent() {
 
                   {/* --- ACCEPTED OFFERS --- */}
                   {activeTab === 'accepted' && (
-                    <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                       {acceptedOffers.length > 0 ? acceptedOffers.map(o => (
-                        <div key={o.id} className="p-6 bg-white rounded-[2rem] border border-slate-100 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:border-sky-300 hover:shadow-md transition-all group">
-                          <div>
-                              <h3 className="font-black text-slate-800 text-lg mb-3 line-clamp-1 group-hover:text-sky-600 transition-colors">{o.project?.title}</h3>
-                              <div className="flex flex-wrap gap-2">
-                                  <span className="text-[10px] bg-emerald-50 border border-emerald-100 text-emerald-600 px-3 py-1 rounded-md font-black flex items-center gap-1 uppercase tracking-widest"><DollarSign size={12}/> 予算: {o.project?.targetAmount?.toLocaleString()} pt</span>
-                                  <span className="text-[10px] bg-slate-50 border border-slate-100 text-slate-500 px-3 py-1 rounded-md font-black flex items-center gap-1 uppercase tracking-widest"><Calendar size={12}/> 納品: {new Date(o.project?.deliveryDateTime).toLocaleDateString()}</span>
-                              </div>
+                        <div key={o.id} className="bg-white rounded-[2rem] border border-slate-200 shadow-sm hover:shadow-lg hover:border-sky-300 hover:-translate-y-1 transition-all group flex flex-col h-full overflow-hidden">
+                          
+                          {/* ヘッダー部分（ステータスバッジ） */}
+                          <div className={cn(
+                              "px-5 py-3 border-b flex justify-between items-center",
+                              o.project?.status === 'COMPLETED' ? 'bg-slate-50 border-slate-200' : 'bg-sky-50/50 border-sky-100'
+                          )}>
+                              <span className={cn(
+                                  "text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5",
+                                  o.project?.status === 'COMPLETED' ? 'text-slate-500' : 'text-sky-600'
+                              )}>
+                                  {o.project?.status === 'COMPLETED' ? <CheckCircle2 size={14}/> : <Briefcase size={14}/>}
+                                  {STATUS_LABELS[o.project?.status] || '進行中'}
+                              </span>
+                              <span className="text-[10px] font-bold text-slate-400 font-mono">ID: {o.projectId.slice(0,6)}</span>
                           </div>
-                          <Link href={`/florists/projects/${o.projectId}`} className="w-full md:w-auto text-center px-8 py-3.5 bg-slate-900 text-white rounded-full font-black text-sm hover:bg-slate-800 shadow-md transition-colors flex items-center justify-center gap-2">
-                            管理画面へ <ArrowRight size={16}/>
-                          </Link>
+
+                          {/* メイン情報 */}
+                          <div className="p-6 flex-grow flex flex-col justify-between">
+                              <div>
+                                  <h3 className="font-black text-slate-800 text-lg mb-4 line-clamp-2 leading-snug group-hover:text-sky-600 transition-colors">
+                                      {o.project?.title}
+                                  </h3>
+                                  
+                                  <div className="space-y-3 mb-6">
+                                      <div className="flex items-start gap-2.5">
+                                          <Calendar className="text-slate-400 shrink-0 mt-0.5" size={16}/>
+                                          <div>
+                                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">納品日時</p>
+                                              <p className="text-sm font-bold text-slate-700">{new Date(o.project?.deliveryDateTime).toLocaleString('ja-JP', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
+                                          </div>
+                                      </div>
+                                      <div className="flex items-start gap-2.5">
+                                          <MapPin className="text-rose-400 shrink-0 mt-0.5" size={16}/>
+                                          <div>
+                                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">会場</p>
+                                              <p className="text-sm font-bold text-slate-700 line-clamp-1">{o.project?.venue?.venueName || '未定'}</p>
+                                          </div>
+                                      </div>
+                                      
+                                      {o.project?.quotation && (
+                                          <div className="flex items-start gap-2.5 pt-2 border-t border-slate-100">
+                                              <DollarSign className="text-emerald-500 shrink-0 mt-0.5" size={16}/>
+                                              <div>
+                                                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">受注確定額</p>
+                                                  <p className="text-base font-black text-emerald-600">{o.project.quotation.totalAmount?.toLocaleString()} <span className="text-xs">pt</span></p>
+                                              </div>
+                                          </div>
+                                      )}
+                                  </div>
+                              </div>
+
+                              {/* ミニステータスインジケーター（写真提出状況など） */}
+                              {o.project?.quotation?.isApproved && (
+                                  <div className="flex gap-2 mb-6">
+                                      <div className={cn("flex-1 text-center py-1.5 rounded-lg text-[9px] font-black border", o.project?.preEventPhotoUrls?.length > 0 ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-slate-50 text-slate-400 border-slate-200")}>
+                                          {o.project?.preEventPhotoUrls?.length > 0 ? '前日写真OK' : '前日写真未'}
+                                      </div>
+                                      <div className={cn("flex-1 text-center py-1.5 rounded-lg text-[9px] font-black border", o.project?.completionPhotoUrls?.length > 0 ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-slate-50 text-slate-400 border-slate-200")}>
+                                          {o.project?.completionPhotoUrls?.length > 0 ? '完了写真OK' : '完了写真未'}
+                                      </div>
+                                  </div>
+                              )}
+
+                              {/* アクションボタン */}
+                              <Link 
+                                  href={`/florists/projects/${o.projectId}`} 
+                                  className="w-full text-center py-3.5 bg-slate-900 text-white rounded-xl font-black text-sm hover:bg-slate-800 shadow-md transition-colors flex items-center justify-center gap-2 group-hover:scale-[1.02]"
+                              >
+                                  管理画面を開く <ArrowRight size={16}/>
+                              </Link>
+                          </div>
                         </div>
                       )) : (
-                        <div className="text-center py-32 bg-slate-50/50 rounded-[2.5rem] border-2 border-dashed border-slate-200">
+                        <div className="col-span-full text-center py-32 bg-slate-50/50 rounded-[2.5rem] border-2 border-dashed border-slate-200">
                           <CheckCircle2 className="mx-auto text-slate-300 mb-4" size={48}/>
                           <p className="text-slate-500 font-bold">進行中の企画はありません。</p>
                         </div>

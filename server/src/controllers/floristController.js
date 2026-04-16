@@ -749,18 +749,29 @@ export const searchDeals = async (req, res) => {
 export const getDeliverySettings = async (req, res) => {
     try {
         const florist = await prisma.florist.findUnique({
-            where: { id: req.user.id } // JWTトークンから取得したお花屋さんID
+            where: { id: req.user.id },
+            select: {
+                baseRecoveryFee: true,
+                lateNightFee: true,
+                deliveryAreas: true,
+                acceptsGoods: true,
+                acceptsPanelReturn: true,
+                panelReturnFee: true,
+                deliveryNotes: true
+            }
         });
 
         if (!florist) return res.status(404).json({ message: 'Florist not found' });
 
+        // JSON文字列として保存されている可能性があるためパース
+        let areas = florist.deliveryAreas;
+        if (typeof areas === 'string') {
+            try { areas = JSON.parse(areas); } catch(e) { areas = []; }
+        }
+
         res.json({
-            baseArea: florist.baseDeliveryArea || '',
-            baseFee: florist.baseDeliveryFee || 0,
-            collectionType: florist.collectionType || 'INCLUDED',
-            collectionFee: florist.collectionFee || 0,
-            areaFees: florist.areaFees || [],
-            conditionFees: florist.conditionFees || []
+            ...florist,
+            deliveryAreas: areas || []
         });
     } catch (error) {
         console.error("getDeliverySettings Error:", error);
@@ -771,17 +782,23 @@ export const getDeliverySettings = async (req, res) => {
 // --- 配送料金・回収費設定の保存 ---
 export const updateDeliverySettings = async (req, res) => {
     try {
-        const { baseArea, baseFee, collectionType, collectionFee, areaFees, conditionFees } = req.body;
+        const { 
+            baseRecoveryFee, lateNightFee, deliveryAreas, 
+            acceptsGoods, acceptsPanelReturn, panelReturnFee, deliveryNotes 
+        } = req.body;
+
+        const areasJson = Array.isArray(deliveryAreas) ? deliveryAreas : [];
 
         await prisma.florist.update({
             where: { id: req.user.id },
             data: {
-                baseDeliveryArea: baseArea,
-                baseDeliveryFee: Number(baseFee),
-                collectionType: collectionType,
-                collectionFee: Number(collectionFee),
-                areaFees: areaFees || [],
-                conditionFees: conditionFees || []
+                baseRecoveryFee: parseInt(baseRecoveryFee) || 0,
+                lateNightFee: parseInt(lateNightFee) || 0,
+                deliveryAreas: areasJson,
+                acceptsGoods: Boolean(acceptsGoods),
+                acceptsPanelReturn: Boolean(acceptsPanelReturn),
+                panelReturnFee: parseInt(panelReturnFee) || 0,
+                deliveryNotes: deliveryNotes || ''
             }
         });
 

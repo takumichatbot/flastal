@@ -1,20 +1,38 @@
 import express from 'express';
 import * as paymentController from '../controllers/paymentController.js';
 import { authenticateToken } from '../middleware/auth.js';
+import jwt from 'jsonwebtoken';
 
 const router = express.Router();
 
-// 支援 (ポイント払い)
+// ★ ゲストでもユーザーでも通すためのカスタムミドルウェア
+const optionalAuthenticate = (req, res, next) => {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+    
+    if (token) {
+        jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret', (err, user) => {
+            if (!err) req.user = user;
+            next();
+        });
+    } else {
+        next();
+    }
+};
+
+// 支援 (全額ポイント払い)
 router.post('/pledges', authenticateToken, paymentController.createPledge);
 
-// 決済セッション
+// ポイントチャージの決済セッション
 router.post('/checkout/create-session', authenticateToken, paymentController.createPointSession);
-router.post('/checkout/create-guest-session', paymentController.createGuestSession); // 認証不要
 
-// ★ 追加: ゲスト直接支援 (認証不要)
+// ★ 新規: 統合チェックアウト (ハイブリッド決済 or ゲスト)
+router.post('/checkout/create-checkout-session', optionalAuthenticate, paymentController.createCheckoutSession);
+
+// ゲスト直接支援 (直接DB更新、必要に応じて残す)
 router.post('/guest/pledges', paymentController.createGuestPledgeDirect);
 
-// ★ 追加: ポイント・支援の履歴取得
+// ポイント・支援の履歴取得
 router.get('/history', authenticateToken, paymentController.getPaymentHistory);
 
 export default router;

@@ -276,37 +276,51 @@ function PledgeForm({ project, user, onPledgeSubmit, isPledger }) {
  const selectedTier = project.pledgeTiers?.find(t => t.id === selectedTierId);
  const finalAmount = pledgeType === 'tier' && selectedTier ? selectedTier.amount : parseInt(watch('pledgeAmount')) || 0;
 
+ // ★ 追加: ポイント計算ロジック
+ const userPoints = user?.points || 0;
+ const pointsToUse = user ? Math.min(userPoints, finalAmount) : 0; // 使えるポイント上限
+ const cardAmount = finalAmount - pointsToUse; // クレジットカードで支払う不足分
+
  const onSubmit = async (data) => {
    if (finalAmount <= 0) return toast.error('支援金額は1円以上である必要があります。');
    
-   if (user && user.points < finalAmount) {
-       return toast.error(`ポイントが不足しています。（不足分: ${(finalAmount - user.points).toLocaleString()}pt）`);
-   }
-
-   if (user) {
+   // ① 全額ポイントで決済できる場合（カード決済不要）
+   if (user && cardAmount === 0) {
        onPledgeSubmit({
            projectId: project.id, userId: user.id, comment: data.comment,
            tierId: pledgeType === 'tier' ? data.selectedTierId : undefined,
-           amount: pledgeType === 'free' ? parseInt(data.pledgeAmount) : finalAmount, 
+           amount: finalAmount, 
        });
        reset();
-   } else {
+   } 
+   // ② ポイントが足りない（手出しがある）、またはゲストの場合（Stripeカード決済へ）
+   else {
        const loadingToast = toast.loading('Stripe決済ページへ移動中...');
        try {
-           const res = await fetch(`${API_URL}/api/payment/checkout/create-guest-session`, {
+           const token = typeof window !== 'undefined' ? localStorage.getItem('authToken')?.replace(/^"|"$/g, '') : null;
+           const headers = { 'Content-Type': 'application/json' };
+           if (token) headers['Authorization'] = `Bearer ${token}`;
+
+           // ゲスト用APIから、統合チェックアウトAPIに名前を変更して呼び出します（後でバックエンドを作ります）
+           const res = await fetch(`${API_URL}/api/payment/checkout/create-checkout-session`, {
                method: 'POST',
-               headers: { 'Content-Type': 'application/json' },
+               headers: headers,
                body: JSON.stringify({
-                   projectId: project.id, amount: finalAmount, comment: data.comment,
+                   projectId: project.id, 
+                   amount: finalAmount, // 支援総額
+                   pointsToUse: pointsToUse, // 使用するポイント
+                   cardAmount: cardAmount, // クレジットカード決済額
+                   comment: data.comment,
                    tierId: pledgeType === 'tier' ? data.selectedTierId : undefined,
-                   guestName: data.guestName, guestEmail: data.guestEmail,
+                   guestName: !user ? data.guestName : undefined, 
+                   guestEmail: !user ? data.guestEmail : undefined,
                    successUrl: `${window.location.origin}/projects/${project.id}?payment=success`, 
                    cancelUrl: `${window.location.origin}/projects/${project.id}?payment=cancelled`,
                })
            });
            const result = await res.json();
            if (!res.ok) throw new Error(result.message || 'エラー');
-           if (result.sessionUrl) window.location.href = result.sessionUrl;
+           if (result.sessionUrl) window.location.href = result.sessionUrl; // Stripe画面へリダイレクト
        } catch (error) { toast.error(error.message, { id: loadingToast }); }
    }
  };
@@ -334,13 +348,6 @@ function PledgeForm({ project, user, onPledgeSubmit, isPledger }) {
    <AppCard className="border-none shadow-[0_10px_30px_rgba(244,114,182,0.06)] ring-1 ring-slate-100">
      <h3 className="text-lg md:text-xl font-black text-slate-800 mb-4 md:mb-6 flex items-center gap-2"><Heart className="text-pink-500 fill-pink-500" size={20}/> 支援して参加する</h3>
      
-     {user && (
-       <div className="mb-4 p-3 bg-pink-50/50 border border-pink-100 rounded-xl flex items-center justify-between">
-           <span className="text-xs font-black text-pink-500 tracking-widest uppercase">所持ポイント</span>
-           <span className="text-sm font-black text-slate-800">{(user.points || 0).toLocaleString()} pt</span>
-       </div>
-     )}
-
      {!user && (
        <div className="mb-4 md:mb-6 p-3 bg-slate-50 rounded-xl flex items-start gap-2">
            <Info className="mt-0.5 shrink-0 text-slate-400" size={14}/>
@@ -349,6 +356,7 @@ function PledgeForm({ project, user, onPledgeSubmit, isPledger }) {
            </div>
        </div>
      )}
+     
      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 md:space-y-6">
        <div className="flex bg-slate-100 p-1 rounded-xl">
          <label className={cn("flex-1 text-center py-2.5 rounded-lg cursor-pointer text-xs md:text-sm font-black transition-all", pledgeType === 'tier' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400 hover:text-slate-600')}>
@@ -366,7 +374,7 @@ function PledgeForm({ project, user, onPledgeSubmit, isPledger }) {
                <label key={tier.id} className={cn("block p-4 border-2 rounded-xl md:rounded-2xl cursor-pointer transition-all relative overflow-hidden", selectedTierId === tier.id ? 'border-pink-500 bg-pink-50/30' : 'border-slate-100 bg-white hover:border-slate-200')}>
                  <input type="radio" {...register('selectedTierId')} value={tier.id} className="hidden" />
                  <div className="flex justify-between items-center mb-1">
-                   <span className="font-black text-xl md:text-2xl text-slate-800 tracking-tight">{tier.amount.toLocaleString()} <span className="text-xs font-bold text-slate-400">{user ? 'pt' : '円'}</span></span>
+                   <span className="font-black text-xl md:text-2xl text-slate-800 tracking-tight">{tier.amount.toLocaleString()} <span className="text-xs font-bold text-slate-400">pt(円)</span></span>
                    {selectedTierId === tier.id ? <CheckCircle2 className="text-pink-500 fill-pink-100" size={20}/> : <div className="w-5 h-5 rounded-full border-2 border-slate-200"/>}
                  </div>
                  <span className="text-xs md:text-sm font-bold text-pink-500 block mb-1">{tier.title}</span>
@@ -384,10 +392,28 @@ function PledgeForm({ project, user, onPledgeSubmit, isPledger }) {
 
        {pledgeType === 'free' && (
          <div>
-           <label className="block text-[10px] md:text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">支援金額 ({user ? 'pt' : '円'})</label>
+           <label className="block text-[10px] md:text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">支援金額 (pt/円)</label>
            <input type="number" {...register('pledgeAmount')} min="100" className="w-full p-3.5 bg-slate-50 border-transparent rounded-xl text-xl font-black text-slate-800 focus:bg-white focus:border-pink-400 focus:ring-4 focus:ring-pink-50 outline-none transition-all" placeholder="例: 3000"/>
            <p className="text-[10px] text-slate-400 font-bold mt-1.5 ml-1">※好きな金額を入力できます</p>
          </div>
+       )}
+
+       {/* ★ 追加: 決済内訳（ポイント充当）の表示 */}
+       {user && finalAmount > 0 && (
+           <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 space-y-2">
+               <div className="flex justify-between items-center text-xs font-bold text-slate-500">
+                   <span>支援総額</span>
+                   <span>{finalAmount.toLocaleString()} 円</span>
+               </div>
+               <div className="flex justify-between items-center text-xs font-bold text-pink-500 border-b border-slate-200 pb-2">
+                   <span>ポイント利用 (所持: {userPoints.toLocaleString()}pt)</span>
+                   <span>- {pointsToUse.toLocaleString()} pt</span>
+               </div>
+               <div className="flex justify-between items-center pt-1">
+                   <span className="text-sm font-black text-slate-800">クレジットカード決済額</span>
+                   <span className="text-lg font-black text-slate-800">{cardAmount.toLocaleString()} <span className="text-xs">円</span></span>
+               </div>
+           </div>
        )}
 
        {!user && (
@@ -404,14 +430,14 @@ function PledgeForm({ project, user, onPledgeSubmit, isPledger }) {
                type="submit" disabled={isSubmitting || finalAmount <= 0} 
                className="w-full py-3.5 md:py-4 font-black text-white bg-slate-900 hover:bg-slate-800 rounded-xl md:rounded-2xl disabled:opacity-50 flex justify-center items-center gap-2 text-sm md:text-base transition-colors shadow-lg"
            >
-               {isSubmitting ? <Loader2 className="animate-spin" size={16}/> : <Sparkles size={16} className="text-pink-400"/>}
-               {isSubmitting ? '処理中...' : (user ? 'ポイントで支援する' : '決済へ進む')}
+               {isSubmitting ? <Loader2 className="animate-spin" size={16}/> : (cardAmount === 0 ? <Sparkles size={16} className="text-pink-400"/> : <DollarSign size={16}/>)}
+               {isSubmitting ? '処理中...' : (cardAmount === 0 ? 'ポイントだけで支援を完了する' : 'カード決済へ進む')}
            </motion.button>
            
-           {user && (
+           {user && userPoints < finalAmount && (
                <Link href="/points" className="w-full py-3 bg-white border border-slate-200 text-slate-600 rounded-xl font-bold flex justify-center items-center gap-2 text-xs hover:bg-slate-50 hover:text-amber-500 transition-colors shadow-sm">
                    <Zap size={14} className="text-amber-400" />
-                   ポイントをチャージする
+                   事前にポイントをチャージしておく
                </Link>
            )}
        </div>
@@ -466,7 +492,7 @@ export default function ProjectDetailClient() {
  const [aiSummary, setAiSummary] = useState(null);
  const { user, authenticatedFetch } = useAuth(); 
  const componentRef = useRef();
-
+const [isFloristMaterialModalOpen, setIsFloristMaterialModalOpen] = useState(false);
  const [project, setProject] = useState(null);
  const [loading, setLoading] = useState(true);
  const [socket, setSocket] = useState(null);
@@ -1408,10 +1434,14 @@ export default function ProjectDetailClient() {
                              </button>
                          )}
                          {project?.status !== 'CANCELED' && project?.status !== 'COMPLETED' && (
-                             <button onClick={() => setIsCancelModalOpen(true)} className="w-full mt-4 text-slate-400 text-[10px] md:text-xs font-bold text-center hover:text-rose-400 py-2 transition-colors">
-                                 企画を中止する...
-                             </button>
-                         )}
+                            <button 
+                                onClick={() => setIsCancelModalOpen(true)} 
+                                className="w-full mt-4 bg-white hover:bg-rose-50 border border-slate-200 hover:border-rose-200 text-rose-500 p-4 rounded-2xl text-xs md:text-sm font-bold transition-all flex items-center justify-center gap-2 group shadow-sm"
+                            >
+                                <AlertTriangle size={16} className="text-rose-400 group-hover:scale-110 transition-transform"/> 
+                                企画を中止して精算する
+                            </button>
+                        )}
                      </div>
                  </AppCard>
              )}
@@ -1452,7 +1482,18 @@ export default function ProjectDetailClient() {
        {isCompletionModalOpen && <CompletionReportModal project={project} user={user} onClose={() => setIsCompletionModalOpen(false)} onReportSubmitted={fetchProject} />}
        {isInstructionModalOpen && <InstructionSheetModal project={project} onClose={() => setIsInstructionModalOpen(false)} />}
        {isQuotationModalOpen && <QuotationApprovalModal project={project} user={user} onClose={() => setIsQuotationModalOpen(false)} onUpdate={fetchProject} />}
-       {isCancelModalOpen && <ProjectCancelModal isOpen={isCancelModalOpen} onClose={() => setIsCancelModalOpen(false)} project={project} onCancelComplete={() => { fetchProject(); router.push('/mypage'); }} />}
+       {isCancelModalOpen && (
+            <ProjectCancelModal 
+                isOpen={isCancelModalOpen} 
+                onClose={() => setIsCancelModalOpen(false)} 
+                project={project} 
+                onCancelComplete={() => { 
+                    fetchProject(); // データを再取得して画面のステータスを更新
+                    toast.success('企画を中止し、支援者へポイントを返還しました。');
+                    router.push('/projects'); // 一覧に戻す（または /mypage）
+                }} 
+            />
+        )}
        {isTargetAmountModalOpen && (
             <TargetAmountModal 
                 project={project} 

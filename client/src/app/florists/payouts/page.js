@@ -7,21 +7,9 @@ import { useAuth } from '@/app/contexts/AuthContext';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 
-// lucide-reactに統一
 import { 
-  DollarSign, 
-  CreditCard, 
-  List, 
-  AlertCircle, 
-  CheckCircle2, 
-  Save, 
-  ChevronLeft,
-  Edit3,
-  Plus,
-  X,
-  Info,
-  Loader2,
-  ArrowRight
+  DollarSign, CreditCard, List, AlertCircle, CheckCircle2, 
+  Save, ChevronLeft, Edit3, Plus, X, Info, Loader2, ArrowRight
 } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
@@ -56,7 +44,6 @@ const GlassCard = ({ children, className }) => (
   </div>
 );
 
-// ステータスバッジ用コンポーネント
 const StatusBadge = ({ status }) => {
   const styles = {
     'PENDING': { bg: 'bg-amber-50', text: 'text-amber-600', border: 'border-amber-200', label: '申請中' },
@@ -78,20 +65,18 @@ export default function FloristPayoutsPage() {
 
   const [bankAccount, setBankAccount] = useState(null);
   const [payouts, setPayouts] = useState([]);
+  const [floristBalance, setFloristBalance] = useState(0); // ★ お花屋さんの売上残高
   const [loading, setLoading] = useState(true);
   
-  // モーダル表示ステート
   const [showBankForm, setShowBankForm] = useState(false);
   const [showRequestModal, setShowRequestModal] = useState(false);
   
-  // フォームデータ
   const [bankForm, setBankForm] = useState({
     bankName: '', branchName: '', accountType: '普通', accountNumber: '', accountHolder: ''
   });
   const [requestAmount, setRequestAmount] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // データ取得
   const fetchData = useCallback(async () => {
     if (!isAuthenticated) return;
     try {
@@ -99,9 +84,11 @@ export default function FloristPayoutsPage() {
       const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
       const headers = { 'Authorization': `Bearer ${token}` };
 
-      const [bankRes, payoutRes] = await Promise.all([
+      // ★ プロフィールAPIも叩いて売上残高（balance）を取得する
+      const [bankRes, payoutRes, profileRes] = await Promise.all([
           fetch(`${API_URL}/api/florists/bank-accounts`, { headers }),
-          fetch(`${API_URL}/api/florists/payouts`, { headers }) 
+          fetch(`${API_URL}/api/florists/payouts`, { headers }),
+          fetch(`${API_URL}/api/florists/profile`, { headers }) 
       ]);
 
       if (bankRes.ok) {
@@ -123,6 +110,11 @@ export default function FloristPayoutsPage() {
         setPayouts(Array.isArray(history) ? history : []);
       }
 
+      if (profileRes.ok) {
+          const profileData = await profileRes.json();
+          setFloristBalance(profileData.balance || 0);
+      }
+
     } catch (error) {
       console.error(error);
       toast.error('データの取得に失敗しました');
@@ -141,11 +133,8 @@ export default function FloristPayoutsPage() {
     fetchData();
   }, [authLoading, isAuthenticated, user, router, fetchData]);
 
-  // --- ハンドラ関数 ---
-
   const handleSaveBank = async (e) => {
     e.preventDefault();
-    
     if(!bankForm.bankName || !bankForm.accountNumber || !bankForm.accountHolder) {
         return toast.error("必須項目を入力してください");
     }
@@ -176,17 +165,22 @@ export default function FloristPayoutsPage() {
     const amount = parseInt(requestAmount);
     
     if (isNaN(amount) || amount < 1000) return toast.error('申請は1,000円分から可能です');
-    if (amount > (user?.points || 0)) return toast.error('ポイント残高が不足しています');
+    if (amount > floristBalance) return toast.error('売上残高が不足しています'); // ★ 修正: floristBalanceを使用
 
     if (!confirm(`${amount.toLocaleString()}円の出金申請を行いますか？\n(手数料250円が差し引かれます)`)) return;
 
     setIsSubmitting(true);
     try {
         const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
-        const res = await fetch(`${API_URL}/api/payouts`, {
+        
+        // ★ 修正: 口座情報を文字列化してバックエンドに渡す
+        const accountInfoStr = `銀行名: ${bankAccount.bankName}\n支店名: ${bankAccount.branchName}\n種別: ${bankAccount.accountType}\n口座番号: ${bankAccount.accountNumber}\n名義: ${bankAccount.accountHolder}`;
+
+        // ★ 修正: 正しいAPIエンドポイントへリクエスト
+        const res = await fetch(`${API_URL}/api/florists/request-payout`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-            body: JSON.stringify({ amount })
+            body: JSON.stringify({ amount, accountInfo: accountInfoStr })
         });
         
         if (!res.ok) {
@@ -199,7 +193,6 @@ export default function FloristPayoutsPage() {
         setRequestAmount('');
         
         await fetchData();
-        router.refresh();
 
     } catch (error) {
         toast.error(error.message);
@@ -207,8 +200,6 @@ export default function FloristPayoutsPage() {
         setIsSubmitting(false);
     }
   };
-
-  // --- レンダリング ---
 
   if (loading || authLoading) {
     return (
@@ -226,18 +217,13 @@ export default function FloristPayoutsPage() {
 
       <div className="max-w-5xl mx-auto space-y-8 px-4 sm:px-6 lg:px-8 py-8 md:py-12 relative z-10">
         
-        {/* ヘッダー */}
         <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-8">
-            <Link 
-                href="/florists/dashboard" 
-                className="inline-flex items-center gap-2 text-sm font-black text-slate-500 hover:text-emerald-600 transition-colors bg-white/60 backdrop-blur-md px-5 py-2.5 rounded-full shadow-sm border border-white w-fit"
-            >
+            <Link href="/florists/dashboard" className="inline-flex items-center gap-2 text-sm font-black text-slate-500 hover:text-emerald-600 transition-colors bg-white/60 backdrop-blur-md px-5 py-2.5 rounded-full shadow-sm border border-white w-fit">
                 <ChevronLeft size={16}/> ダッシュボードへ戻る
             </Link>
             <h1 className="text-2xl font-black text-slate-800 ml-2 tracking-tighter">売上・出金管理</h1>
         </div>
 
-        {/* 1. ポイント残高カード (ヒーローセクション) */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-gradient-to-br from-emerald-400 via-teal-500 to-sky-400 rounded-[3rem] p-8 md:p-10 text-white shadow-xl relative overflow-hidden border border-emerald-300/50">
             <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10 mix-blend-overlay"></div>
             
@@ -248,13 +234,10 @@ export default function FloristPayoutsPage() {
                     </p>
                     <div className="flex items-baseline gap-2 mb-2">
                         <span className="text-6xl font-black tracking-tighter font-mono drop-shadow-md">
-                            {user?.points?.toLocaleString() || 0}
+                            {floristBalance.toLocaleString()} {/* ★ 修正: 売上残高を表示 */}
                         </span>
-                        <span className="text-2xl font-bold text-emerald-100">pt</span>
+                        <span className="text-2xl font-bold text-emerald-100">円</span>
                     </div>
-                    <p className="text-xs font-bold text-emerald-100 opacity-90 tracking-wider">
-                        ※ 1pt = 1円として換算されます
-                    </p>
                 </div>
 
                 <div className="bg-white/10 backdrop-blur-md rounded-[2rem] p-6 border border-white/20 shadow-inner">
@@ -265,7 +248,7 @@ export default function FloristPayoutsPage() {
                             if (!bankAccount) return toast.error('先に出金先の銀行口座を登録してください');
                             setShowRequestModal(true);
                         }}
-                        disabled={!user || user.points < 1000}
+                        disabled={floristBalance < 1000} // ★ 修正
                         className="w-full bg-white text-emerald-600 px-6 py-4 rounded-2xl font-black shadow-lg hover:bg-emerald-50 disabled:opacity-60 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 text-lg"
                     >
                         <DollarSign size={20} /> 出金申請をする
@@ -276,13 +259,10 @@ export default function FloristPayoutsPage() {
                 </div>
             </div>
             
-            {/* 装飾用背景アイコン */}
             <DollarSign className="absolute -right-10 -bottom-10 text-[15rem] text-white opacity-10 rotate-12 pointer-events-none" />
         </motion.div>
 
         <div className="grid lg:grid-cols-2 gap-8">
-            
-            {/* 2. 銀行口座情報 */}
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="h-full">
               <GlassCard className="!p-0 h-full flex flex-col overflow-hidden">
                   <div className="p-6 md:p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
@@ -340,7 +320,6 @@ export default function FloristPayoutsPage() {
               </GlassCard>
             </motion.div>
 
-            {/* 3. 最近の申請履歴 */}
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="h-full">
               <GlassCard className="!p-0 h-full flex flex-col overflow-hidden">
                   <div className="p-6 md:p-8 border-b border-slate-100 bg-slate-50/50">
@@ -365,7 +344,7 @@ export default function FloristPayoutsPage() {
                                               </span>
                                           </div>
                                           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                                              申請日: {new Date(pay.requestedAt).toLocaleDateString('ja-JP')}
+                                              申請日: {new Date(pay.requestedAt || pay.createdAt).toLocaleDateString('ja-JP')}
                                           </p>
                                       </div>
                                       <div className="text-right">
@@ -450,15 +429,14 @@ export default function FloristPayoutsPage() {
                               <div className="relative">
                                   <input 
                                       type="number" value={requestAmount} onChange={e=>setRequestAmount(e.target.value)} 
-                                      placeholder="1000" min="1000" max={user?.points} required
+                                      placeholder="1000" min="1000" max={floristBalance} required // ★上限修正
                                       className="w-full p-4 border-2 border-slate-100 bg-slate-50 rounded-2xl text-center text-3xl font-black text-slate-800 focus:bg-white focus:border-emerald-300 focus:ring-4 focus:ring-emerald-50 outline-none transition-all font-mono"
                                   />
                                   <span className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-400 font-black">円</span>
                               </div>
-                              <p className="text-right text-[10px] font-bold text-slate-400 mt-2">出金可能額: {user?.points?.toLocaleString()}円</p>
+                              <p className="text-right text-[10px] font-bold text-slate-400 mt-2">出金可能額: {floristBalance.toLocaleString()}円</p>
                           </div>
                           
-                          {/* 計算プレビュー */}
                           <div className="bg-slate-50/80 p-5 rounded-2xl space-y-3 border border-slate-100">
                               <div className="flex justify-between text-xs font-bold text-slate-500">
                                   <span>申請額</span><span>{requestAmount ? parseInt(requestAmount).toLocaleString() : 0} 円</span>
