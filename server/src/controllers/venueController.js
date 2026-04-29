@@ -7,7 +7,13 @@ export const getVenues = async (req, res) => {
         const isUrlAdmin = req.originalUrl.includes('/admin');
 
         const venues = await prisma.venue.findMany({
-            where: (isAdminRole && isUrlAdmin) ? {} : { isOfficial: true },
+            where: (isAdminRole && isUrlAdmin) ? {} : { 
+                // ★ 修正: 公式(isOfficial) か 承認済み(status: 'APPROVED') のどちらかを取得
+                OR: [
+                    { isOfficial: true },
+                    { status: 'APPROVED' }
+                ]
+            },
             orderBy: { venueName: 'asc' }
         });
         res.json(venues || []);
