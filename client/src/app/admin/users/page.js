@@ -21,7 +21,8 @@ const getRoleBadge = (role) => {
         case 'FLORIST': return { bg: 'bg-emerald-100', text: 'text-emerald-700', label: 'お花屋さん', icon: Store };
         case 'VENUE': return { bg: 'bg-blue-100', text: 'text-blue-700', label: '会場', icon: Building2 };
         case 'ORGANIZER': return { bg: 'bg-amber-100', text: 'text-amber-700', label: '主催者', icon: Shield };
-        case 'ILLUSTRATOR': return { bg: 'bg-purple-100', text: 'text-purple-700', label: 'クリエイター', icon: Palette };
+        case 'ILLUSTRATOR_OLD': // 追加
+        case 'ILLUSTRATOR': return { bg: 'bg-purple-100', text: 'text-purple-700', label: 'イラストレーター', icon: Palette };
         default: return { bg: 'bg-slate-100', text: 'text-slate-700', label: 'ファン', icon: User };
     }
 };
@@ -100,6 +101,8 @@ export default function AdminUsersPage() {
     const filteredUsers = useMemo(() => {
         if (activeTab === 'ALL') return users;
         if (activeTab === 'USER') return users.filter(u => u.role === 'USER' || !u.role);
+        // ★ 修正: 両方のイラストレーターを表示
+        if (activeTab === 'ILLUSTRATOR') return users.filter(u => u.role === 'ILLUSTRATOR' || u.role === 'ILLUSTRATOR_OLD'); 
         return users.filter(u => u.role === activeTab);
     }, [users, activeTab]);
 
@@ -132,15 +135,16 @@ export default function AdminUsersPage() {
         }
     };
 
-    // ★ 追加: ユーザー削除処理
-    const handleDeleteUser = async (targetUserId, targetUserName) => {
-        if (!window.confirm(`本当にユーザー「${targetUserName}」を削除しますか？\nこの操作は取り消せません。（※企画や支援データが紐づいている場合はエラーになることがあります）`)) {
+    // ★ 修正: targetRole を引数に追加
+    const handleDeleteUser = async (targetUserId, targetUserName, targetRole) => {
+        if (!window.confirm(`本当にアカウント「${targetUserName}」を削除しますか？\nこの操作は取り消せません。（※企画や支援データが紐づいている場合はエラーになることがあります）`)) {
             return;
         }
 
         const toastId = toast.loading('削除中...');
         try {
-            const res = await authenticatedFetch(`${API_URL}/api/admin/users/${targetUserId}`, {
+            // ★ 修正: URLに ?role= を追加
+            const res = await authenticatedFetch(`${API_URL}/api/admin/users/${targetUserId}?role=${targetRole}`, {
                 method: 'DELETE',
             });
 
@@ -149,8 +153,8 @@ export default function AdminUsersPage() {
                 throw new Error(errorData.message || '削除に失敗しました');
             }
 
-            toast.success('ユーザーを削除しました。', { id: toastId });
-            fetchUsers(); // 一覧を再取得して画面を更新
+            toast.success('アカウントを削除しました。', { id: toastId });
+            fetchUsers();
         } catch (error) {
             toast.error(error.message, { id: toastId });
         }
@@ -203,7 +207,8 @@ export default function AdminUsersPage() {
                             { id: 'USER', label: 'ファン' },
                             { id: 'ORGANIZER', label: '主催者' },
                             { id: 'FLORIST', label: 'お花屋さん' },
-                            { id: 'ILLUSTRATOR', label: 'クリエイター' },
+                            // ★ 修正: ラベルを「イラストレーター」に変更
+                            { id: 'ILLUSTRATOR', label: 'イラストレーター' }, 
                             { id: 'VENUE', label: '会場' },
                         ].map((tab) => (
                             <button
@@ -307,9 +312,9 @@ export default function AdminUsersPage() {
                                                             <MessageSquare size={14} /> <span className="hidden sm:inline">連絡</span>
                                                         </button>
                                                         
-                                                        {/* ★ 追加: 削除ボタン */}
+                                                        {/* ★ 修正: 第3引数に u.role を追加 */}
                                                         <button 
-                                                            onClick={() => handleDeleteUser(u.id, u.displayName)}
+                                                            onClick={() => handleDeleteUser(u.id, u.displayName, u.role)}
                                                             className="flex items-center gap-1 px-3 py-1.5 bg-white text-rose-500 hover:bg-rose-500 hover:text-white border border-rose-200 hover:border-rose-500 rounded-lg transition-all text-xs font-bold shadow-sm"
                                                             title="ユーザーを削除"
                                                         >

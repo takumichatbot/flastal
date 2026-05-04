@@ -260,32 +260,33 @@ export const getAdminChatMessages = async (req, res) => {
 // ==========================================
 // ★ 修正: 全テーブルを愚直に取得し、完全にマージするロジック
 // ==========================================
+// ==========================================
+// ★ 修正: 独立した Illustrator テーブルのデータも取得する
+// ==========================================
 export const searchAllUsers = async (req, res) => {
     try {
         const keyword = req.query.keyword || '';
         const keywordLower = keyword.toLowerCase();
 
-        // 1. 各テーブルから一切の検索条件を入れずに全件取得する
-        // ※ ここで illustratorProfile のデータが確実に取れるように include します
-        const [users, florists, organizers, venues] = await Promise.all([
+        // 1. 各テーブルから全件取得（★ Illustrator テーブルを追加）
+        const [users, florists, organizers, venues, illustrators] = await Promise.all([
             prisma.user.findMany({ 
-                include: { illustratorProfile: true }, // クリエイター（絵師）のプロフィールを含める
+                include: { illustratorProfile: true },
                 orderBy: { createdAt: 'desc' } 
             }).catch(() => []),
             prisma.florist.findMany({ orderBy: { createdAt: 'desc' } }).catch(() => []),
             prisma.organizer.findMany({ orderBy: { createdAt: 'desc' } }).catch(() => []),
-            prisma.venue.findMany({ orderBy: { createdAt: 'desc' } }).catch(() => [])
+            prisma.venue.findMany({ orderBy: { createdAt: 'desc' } }).catch(() => []),
+            prisma.illustrator.findMany({ orderBy: { createdAt: 'desc' } }).catch(() => []) // ★ 追加
         ]);
 
-        // 2. 取得した全データを「フロントエンドがそのまま表示できる形」に統一して配列に突っ込む
         let finalUsers = [];
 
-        // ① ファン・管理者・クリエイター（Userテーブル）
+        // ① ファン・管理者・統合版イラストレーター（Userテーブル）
         users.forEach(u => {
             let role = u.role ? u.role.toUpperCase().trim() : 'USER';
             let displayName = u.handleName || u.name || '未設定';
 
-            // ★ ここが重要！ クリエイター情報を確実にセットする
             if (u.illustratorProfile || role === 'ILLUSTRATOR') {
                 role = 'ILLUSTRATOR';
                 displayName = u.illustratorProfile?.penName || u.handleName || '未設定'; 
@@ -301,43 +302,35 @@ export const searchAllUsers = async (req, res) => {
             });
         });
 
-        // ② お花屋さん（Floristテーブル）
+        // ② お花屋さん
         florists.forEach(f => {
-            finalUsers.push({
-                id: f.id,
-                email: f.email || '非公開',
-                displayName: f.platformName || f.shopName || f.contactName || '未設定',
-                role: 'FLORIST',
-                createdAt: f.createdAt,
-                iconUrl: f.iconUrl || null
-            });
+            finalUsers.push({ id: f.id, email: f.email || '非公開', displayName: f.platformName || f.shopName || f.contactName || '未設定', role: 'FLORIST', createdAt: f.createdAt, iconUrl: f.iconUrl || null });
         });
 
-        // ③ 主催者（Organizerテーブル）
+        // ③ 主催者
         organizers.forEach(o => {
-            finalUsers.push({
-                id: o.id,
-                email: o.email || '非公開',
-                displayName: o.name || '未設定',
-                role: 'ORGANIZER',
-                createdAt: o.createdAt,
-                iconUrl: null
-            });
+            finalUsers.push({ id: o.id, email: o.email || '非公開', displayName: o.name || '未設定', role: 'ORGANIZER', createdAt: o.createdAt, iconUrl: null });
         });
 
-        // ④ 会場（Venueテーブル）
+        // ④ 会場
         venues.forEach(v => {
-            finalUsers.push({
-                id: v.id,
-                email: v.email || '非公開',
-                displayName: v.venueName || '未設定',
-                role: 'VENUE',
-                createdAt: v.createdAt,
-                iconUrl: v.imageUrls && v.imageUrls.length > 0 ? v.imageUrls[0] : null
-            });
+            finalUsers.push({ id: v.id, email: v.email || '非公開', displayName: v.venueName || '未設定', role: 'VENUE', createdAt: v.createdAt, iconUrl: v.imageUrls && v.imageUrls.length > 0 ? v.imageUrls[0] : null });
         });
 
-        // 3. キーワード検索がある場合は、合体させた後に絞り込む
+        // ⑤ ★旧イラストレーター（独立テーブル）
+        if (illustrators && illustrators.length > 0) {
+            illustrators.forEach(i => {
+                finalUsers.push({
+                    id: i.id,
+                    email: i.email || '非公開',
+                    displayName: i.name || i.handleName || '未設定',
+                    role: 'ILLUSTRATOR_OLD', // 削除用に別名をつけておく
+                    createdAt: i.createdAt,
+                    iconUrl: i.iconUrl || null
+                });
+            });
+        }
+
         if (keywordLower) {
             finalUsers = finalUsers.filter(u => 
                 u.displayName?.toLowerCase().includes(keywordLower) || 
@@ -346,15 +339,67 @@ export const searchAllUsers = async (req, res) => {
             );
         }
 
-        // 新しい順に並び替え
         finalUsers.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
 
-        // 完了！
         return res.json(finalUsers);
 
     } catch (e) {
         console.error("searchAllUsers API Error:", e);
         return res.status(500).json([]);
+    }
+};
+
+// ==========================================
+// ★ 修正: 旧イラストレーターの削除処理を追加
+// ==========================================
+export const deleteUserByAdmin = async (req, res) => {
+    const { userId } = req.params;
+    const { role } = req.query;
+
+    try {
+        await prisma.$transaction(async (tx) => {
+            if (role === 'FLORIST') {
+                const target = await tx.florist.findUnique({ where: { id: userId } });
+                if (!target) throw new Error('お花屋さんのデータが見つかりません。');
+                await tx.florist.delete({ where: { id: userId } });
+                
+            } else if (role === 'VENUE') {
+                const target = await tx.venue.findUnique({ where: { id: userId } });
+                if (!target) throw new Error('会場のデータが見つかりません。');
+                await tx.venue.delete({ where: { id: userId } });
+                
+            } else if (role === 'ORGANIZER') {
+                const target = await tx.organizer.findUnique({ where: { id: userId } });
+                if (!target) throw new Error('主催者のデータが見つかりません。');
+                await tx.organizer.delete({ where: { id: userId } });
+                
+            } else if (role === 'ILLUSTRATOR_OLD') {
+                // ★ 旧テーブルのイラストレーター削除
+                const target = await tx.illustrator.findUnique({ where: { id: userId } });
+                if (!target) throw new Error('イラストレーターのデータが見つかりません。');
+                await tx.illustrator.delete({ where: { id: userId } });
+
+            } else {
+                // USER または 新 ILLUSTRATOR (両方とも Userテーブル)
+                const target = await tx.user.findUnique({ where: { id: userId } });
+                if (!target) throw new Error('ユーザーが見つかりません。');
+                
+                if (target.role === 'ADMIN' && target.id === req.user.id) {
+                    throw new Error('自身のアカウントは削除できません。');
+                }
+                await tx.user.delete({ where: { id: userId } });
+            }
+        });
+
+        res.status(200).json({ message: 'アカウントを削除しました。' });
+    } catch (error) {
+        console.error('Admin User Delete Error:', error);
+        if (error.code === 'P2003') {
+            return res.status(400).json({ message: 'このアカウントに関連するデータ（企画など）が残っているため削除できません。' });
+        }
+        res.status(error.message.includes('見つかりません') ? 404 : 400).json({ 
+            message: error.message || '削除に失敗しました。' 
+        });
     }
 };
 
@@ -389,51 +434,7 @@ export const dismissEventReport = async (req, res) => {
     try { await prisma.eventReport.update({ where: { id: req.params.reportId }, data: { status: 'RESOLVED' } }); return res.json({message:'OK'}); } catch(e) { return res.status(500).json({message:'Error'}); }
 };
 
-// ==========================================
-// 追加: 管理者による削除機能
-// ==========================================
 
-// ユーザーの強制削除
-export const deleteUserByAdmin = async (req, res) => {
-    const { userId } = req.params;
-
-    try {
-        // 対象ユーザーの存在確認
-        const targetUser = await prisma.user.findUnique({
-            where: { id: userId }
-        });
-
-        if (!targetUser) {
-            return res.status(404).json({ message: 'ユーザーが見つかりません。' });
-        }
-
-        // 管理者自身を削除しようとしていないかチェック（オプション）
-        if (targetUser.role === 'ADMIN' && targetUser.id === req.user.id) {
-            return res.status(400).json({ message: '自身のアカウントは削除できません。' });
-        }
-
-        // トランザクションで関連データごと削除
-        await prisma.$transaction(async (tx) => {
-            // 例: もし削除前に特定のデータを保持・退避したい場合はここに書く
-            
-            // ユーザーを削除（schema.prisma で onDelete: Cascade が設定されているリレーションは自動削除されます）
-            await tx.user.delete({
-                where: { id: userId }
-            });
-        });
-
-        res.status(200).json({ message: 'ユーザーを削除しました。' });
-    } catch (error) {
-        console.error('Admin User Delete Error:', error);
-        
-        // Prismaの外部キー制約エラーなどの場合
-        if (error.code === 'P2003') {
-            return res.status(400).json({ message: 'このユーザーに関連するデータ（企画など）が残っているため削除できません。先に該当データを削除してください。' });
-        }
-        
-        res.status(500).json({ message: 'ユーザーの削除に失敗しました。' });
-    }
-};
 
 // 企画の強制削除
 export const deleteProjectByAdmin = async (req, res) => {
