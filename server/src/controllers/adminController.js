@@ -258,26 +258,22 @@ export const getAdminChatMessages = async (req, res) => {
 
 
 // ==========================================
-// ★ 修正: 全テーブルを愚直に取得し、完全にマージするロジック
-// ==========================================
-// ==========================================
-// ★ 修正: 独立した Illustrator テーブルのデータも取得する
+// ★ 修正: 全テーブルをマージするロジック（旧 Illustrator は削除）
 // ==========================================
 export const searchAllUsers = async (req, res) => {
     try {
         const keyword = req.query.keyword || '';
         const keywordLower = keyword.toLowerCase();
 
-        // 1. 各テーブルから全件取得（★ Illustrator テーブルを追加）
-        const [users, florists, organizers, venues, illustrators] = await Promise.all([
+        // 1. 各テーブルから全件取得（存在しない旧 Illustrator テーブルの取得を削除）
+        const [users, florists, organizers, venues] = await Promise.all([
             prisma.user.findMany({ 
                 include: { illustratorProfile: true },
                 orderBy: { createdAt: 'desc' } 
             }).catch(() => []),
             prisma.florist.findMany({ orderBy: { createdAt: 'desc' } }).catch(() => []),
             prisma.organizer.findMany({ orderBy: { createdAt: 'desc' } }).catch(() => []),
-            prisma.venue.findMany({ orderBy: { createdAt: 'desc' } }).catch(() => []),
-            prisma.illustrator.findMany({ orderBy: { createdAt: 'desc' } }).catch(() => []) // ★ 追加
+            prisma.venue.findMany({ orderBy: { createdAt: 'desc' } }).catch(() => [])
         ]);
 
         let finalUsers = [];
@@ -317,20 +313,6 @@ export const searchAllUsers = async (req, res) => {
             finalUsers.push({ id: v.id, email: v.email || '非公開', displayName: v.venueName || '未設定', role: 'VENUE', createdAt: v.createdAt, iconUrl: v.imageUrls && v.imageUrls.length > 0 ? v.imageUrls[0] : null });
         });
 
-        // ⑤ ★旧イラストレーター（独立テーブル）
-        if (illustrators && illustrators.length > 0) {
-            illustrators.forEach(i => {
-                finalUsers.push({
-                    id: i.id,
-                    email: i.email || '非公開',
-                    displayName: i.name || i.handleName || '未設定',
-                    role: 'ILLUSTRATOR_OLD', // 削除用に別名をつけておく
-                    createdAt: i.createdAt,
-                    iconUrl: i.iconUrl || null
-                });
-            });
-        }
-
         if (keywordLower) {
             finalUsers = finalUsers.filter(u => 
                 u.displayName?.toLowerCase().includes(keywordLower) || 
@@ -350,7 +332,7 @@ export const searchAllUsers = async (req, res) => {
 };
 
 // ==========================================
-// ★ 修正: 旧イラストレーターの削除処理を追加
+// ★ 修正: 旧イラストレーターの削除処理を削除
 // ==========================================
 export const deleteUserByAdmin = async (req, res) => {
     const { userId } = req.params;
@@ -373,12 +355,6 @@ export const deleteUserByAdmin = async (req, res) => {
                 if (!target) throw new Error('主催者のデータが見つかりません。');
                 await tx.organizer.delete({ where: { id: userId } });
                 
-            } else if (role === 'ILLUSTRATOR_OLD') {
-                // ★ 旧テーブルのイラストレーター削除
-                const target = await tx.illustrator.findUnique({ where: { id: userId } });
-                if (!target) throw new Error('イラストレーターのデータが見つかりません。');
-                await tx.illustrator.delete({ where: { id: userId } });
-
             } else {
                 // USER または 新 ILLUSTRATOR (両方とも Userテーブル)
                 const target = await tx.user.findUnique({ where: { id: userId } });
