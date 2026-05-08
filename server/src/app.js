@@ -21,8 +21,11 @@ import projectDetailRoutes from './routes/projectDetails.js';
 import organizerRoutes from './routes/organizers.js';
 import illustratorRoutes from './routes/illustrators.js';
 
-// ★ 追加: 新しく作成したWebhookコントローラーをインポート
+// ★ 追加: Webhook、アップロード、認証関連のインポート
 import { handleStripeWebhook } from './controllers/webhookController.js';
+import upload from './middleware/upload.js';
+import { uploadImage } from './controllers/toolController.js';
+import { authenticateToken } from './middleware/auth.js';
 
 const app = express();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
@@ -74,7 +77,6 @@ app.use(cors({
 // ==========================================
 // ★★★ Stripe Webhook (JSONパース前に配置) ★★★
 // ==========================================
-// ★ 修正: 直接書いていた長い処理を消し、コントローラーに任せるように変更しました
 app.post('/api/webhooks/stripe', express.raw({type: 'application/json'}), handleStripeWebhook);
 
 // お問い合わせフォーム
@@ -115,6 +117,10 @@ app.use('/api/ai', toolRoutes);
 app.use('/api/payment', paymentRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/posts', postRoutes);
+
+// ★★★ 追加：画像アップロード用の汎用エンドポイント ★★★
+app.post('/api/upload', authenticateToken, upload.single('image'), uploadImage);
+
 
 // 404ハンドラー
 app.use((req, res) => {
