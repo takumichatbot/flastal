@@ -165,11 +165,25 @@ export default function AdminProjectsPage() {
         return () => clearTimeout(timer);
     }, [isAuthenticated, user, loading, router]);
 
-    // 検索とフィルタリング
+
+    // 検索とフィルタリングのロジックを修正
     const filteredProjects = useMemo(() => {
         let result = projects;
 
-        if (activeTab !== 'ALL') {
+        // 非表示判定の共通関数
+        const isProjectHidden = (p) => p.visibility === 'UNLISTED' || p.isVisible === false;
+
+        // 1. タブによる絞り込み
+        if (activeTab === 'ALL') {
+            // 全て表示（非表示のものも含むが、リストには出す）
+            result = projects;
+        } else if (activeTab === 'UNLISTED') {
+            // 非公開タブ：非表示のものだけを表示
+            result = result.filter(p => isProjectHidden(p));
+        } else {
+            // それ以外のタブ（進行中、完了済など）：非表示のものは除外する
+            result = result.filter(p => !isProjectHidden(p));
+        
             if (activeTab === 'ACTIVE') {
                 result = result.filter(p => ['FUNDRAISING', 'SUCCESSFUL', 'PRODUCTION_IN_PROGRESS'].includes(p.status));
             } else if (activeTab === 'COMPLETED') {
@@ -178,18 +192,15 @@ export default function AdminProjectsPage() {
                 result = result.filter(p => p.status === 'CANCELED');
             } else if (activeTab === 'PENDING') {
                 result = result.filter(p => p.status === 'PENDING_APPROVAL');
-            } else if (activeTab === 'UNLISTED') {
-                // 非公開タブを追加
-                result = result.filter(p => p.visibility === 'UNLISTED' || p.isVisible === false);
             }
         }
 
+        // 2. キーワード検索
         if (searchKeyword.trim() !== '') {
             const keyword = searchKeyword.toLowerCase();
             result = result.filter(p => 
                 (p.title && p.title.toLowerCase().includes(keyword)) ||
-                (p.planner?.handleName && p.planner.handleName.toLowerCase().includes(keyword)) ||
-                (p.planner?.name && p.planner.name.toLowerCase().includes(keyword))
+                (p.planner?.handleName && p.planner.handleName.toLowerCase().includes(keyword))
             );
         }
 
