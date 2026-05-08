@@ -1,13 +1,12 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '../../contexts/AuthContext';
 import toast from 'react-hot-toast';
 import { 
-    Search, Filter, ArrowLeft, RefreshCw, 
-    Trash2, ExternalLink, Calendar, Edit3, X, Eye, EyeOff, CheckCircle2, Clock
+    ArrowLeft, RefreshCw, Trash2, Calendar, Edit3, X, CheckCircle2 
 } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
@@ -34,6 +33,7 @@ function EventEditModal({ event, isOpen, onClose, onSuccess, authenticatedFetch 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setIsSaving(true);
+        const tid = toast.loading('保存中...');
         try {
             const res = await authenticatedFetch(`${API_URL}/api/admin/events/${event.id}`, {
                 method: 'PATCH',
@@ -41,10 +41,10 @@ function EventEditModal({ event, isOpen, onClose, onSuccess, authenticatedFetch 
                 body: JSON.stringify(formData)
             });
             if (!res.ok) throw new Error('保存失敗');
-            toast.success('イベントを更新しました');
+            toast.success('イベントを更新しました', { id: tid });
             onSuccess();
         } catch (error) {
-            toast.error('エラーが発生しました');
+            toast.error('エラーが発生しました', { id: tid });
         } finally { setIsSaving(false); }
     };
 
@@ -87,14 +87,37 @@ export default function AdminEventsPage() {
         setIsLoading(true);
         try {
             const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
-            const res = await fetch(`${API_URL}/api/admin/events`, { headers: { 'Authorization': `Bearer ${token}` } });
+            // 🌟 キャッシュを完全に無効化
+            const res = await fetch(`${API_URL}/api/admin/events?t=${Date.now()}`, { 
+                headers: { 
+                    'Authorization': `Bearer ${token}`,
+                    'Cache-Control': 'no-cache'
+                } 
+            });
+            if (!res.ok) throw new Error('取得失敗');
+            
             const data = await res.json();
-            setEvents(Array.isArray(data) ? data : []);
-        } catch (error) { toast.error('イベント取得失敗'); }
-        finally { setIsLoading(false); }
+            
+            // 🌟 オブジェクト形式でも配列形式でも確実にイベントリストを抽出する鉄壁のパース処理
+            const eventsArray = Array.isArray(data) ? data : (data.events || data.data || Object.values(data).find(val => Array.isArray(val)) || []);
+            setEvents(eventsArray);
+
+        } catch (error) { 
+            console.error(error);
+            toast.error('イベント取得失敗'); 
+        } finally { 
+            setIsLoading(false); 
+        }
     };
 
-    useEffect(() => { if (isAuthenticated && user?.role === 'ADMIN') fetchEvents(); }, [isAuthenticated, user]);
+    useEffect(() => { 
+        if (loading) return;
+        if (!isAuthenticated || user?.role !== 'ADMIN') {
+            router.push('/login');
+            return;
+        }
+        fetchEvents(); 
+    }, [isAuthenticated, user, loading, router]);
 
     const handleDelete = async (id, title) => {
         if (!window.confirm(`「${title}」を完全に削除しますか？`)) return;
@@ -114,44 +137,77 @@ export default function AdminEventsPage() {
             <div className="bg-white border-b sticky top-0 z-10 shadow-sm">
                 <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                        <Link href="/admin" className="p-2 hover:bg-slate-100 rounded-full text-slate-500"><ArrowLeft size={20} /></Link>
-                        <h1 className="text-xl font-black text-slate-800 flex items-center gap-2"><Calendar className="text-pink-500" size={24} /> 全イベント管理</h1>
+                        <Link href="/admin" className="p-2 hover:bg-slate-100 rounded-full text-slate-500 transition-colors"><ArrowLeft size={20} /></Link>
+                        <div>
+                            <h1 className="text-xl font-black text-slate-800 flex items-center gap-2"><Calendar className="text-pink-500" size={24} /> 全イベント管理</h1>
+                            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">Event Management Console</p>
+                        </div>
                     </div>
+                    <button onClick={fetchEvents} className="p-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-500 hover:bg-slate-100 transition-colors shadow-sm">
+                        <RefreshCw size={18} className={isLoading ? "animate-spin" : ""}/>
+                    </button>
                 </div>
             </div>
             <div className="max-w-7xl mx-auto px-6 py-8">
-                <div className="bg-white rounded-[2rem] border overflow-hidden shadow-sm">
+                <div className="bg-white rounded-[2rem] border border-slate-200 overflow-hidden shadow-sm">
                     <table className="w-full text-left border-collapse">
-                        <thead className="bg-slate-50 border-b text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        <thead className="bg-slate-50 border-b border-slate-200 text-[10px] font-black text-slate-400 uppercase tracking-widest">
                             <tr>
                                 <th className="px-6 py-4">イベント情報</th>
                                 <th className="px-6 py-4">開催日</th>
                                 <th className="px-6 py-4 text-right">アクション</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y">
-                            {events.map(ev => (
-                                <tr key={ev.id} className="hover:bg-slate-50 transition-colors group">
-                                    <td className="px-6 py-4">
-                                        <p className="font-bold text-slate-800">{ev.title}</p>
-                                        <p className="text-[10px] text-slate-400 font-mono">ID: {ev.id.substring(0,8)}</p>
-                                    </td>
-                                    <td className="px-6 py-4 text-sm font-bold text-slate-600">
-                                        {ev.eventDate ? new Date(ev.eventDate).toLocaleDateString() : '未設定'}
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <div className="flex items-center justify-end gap-2">
-                                            <button onClick={() => setEditingEvent(ev)} className="p-2 bg-white border rounded-lg text-indigo-500 hover:bg-indigo-50 transition-all"><Edit3 size={16} /></button>
-                                            <button onClick={() => handleDelete(ev.id, ev.title)} className="p-2 bg-white border rounded-lg text-rose-500 hover:bg-rose-50 transition-all"><Trash2 size={16} /></button>
-                                        </div>
+                        <tbody className="divide-y divide-slate-100">
+                            {isLoading ? (
+                                <tr>
+                                    <td colSpan="3" className="px-6 py-20 text-center text-slate-400">
+                                        <RefreshCw className="animate-spin text-pink-500 mx-auto mb-3" size={32}/>
+                                        <p className="font-bold text-sm">データを読み込み中...</p>
                                     </td>
                                 </tr>
-                            ))}
+                            ) : events.length === 0 ? (
+                                <tr>
+                                    <td colSpan="3" className="px-6 py-20 text-center text-slate-400">
+                                        <Calendar className="text-slate-300 mx-auto mb-3" size={32}/>
+                                        <p className="font-bold text-sm">登録されているイベントがありません</p>
+                                    </td>
+                                </tr>
+                            ) : (
+                                events.map(ev => (
+                                    <tr key={ev.id} className="hover:bg-pink-50/30 transition-colors group">
+                                        <td className="px-6 py-4">
+                                            <p className="font-bold text-slate-800 text-sm md:text-base group-hover:text-pink-600 transition-colors">{ev.title}</p>
+                                            <p className="text-[10px] text-slate-400 font-mono mt-1">ID: {ev.id.substring(0,8)}...</p>
+                                        </td>
+                                        <td className="px-6 py-4 text-sm font-bold text-slate-600">
+                                            {ev.eventDate ? new Date(ev.eventDate).toLocaleDateString() : '未設定'}
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center justify-end gap-2">
+                                                <button onClick={() => setEditingEvent(ev)} className="flex items-center gap-1 px-3 py-1.5 bg-white border border-indigo-200 text-indigo-500 hover:bg-indigo-50 hover:border-indigo-400 rounded-lg transition-all text-xs font-bold shadow-sm">
+                                                    <Edit3 size={14} /> <span className="hidden sm:inline">編集</span>
+                                                </button>
+                                                <button onClick={() => handleDelete(ev.id, ev.title)} className="flex items-center gap-1 px-3 py-1.5 bg-white border border-rose-200 text-rose-500 hover:bg-rose-50 hover:border-rose-400 hover:text-rose-600 rounded-lg transition-all text-xs font-bold shadow-sm">
+                                                    <Trash2 size={14} /> <span className="hidden sm:inline">削除</span>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
                         </tbody>
                     </table>
                 </div>
             </div>
-            <EventEditModal event={editingEvent} isOpen={!!editingEvent} onClose={() => setEditingEvent(null)} onSuccess={() => { setEditingEvent(null); fetchEvents(); }} authenticatedFetch={authenticatedFetch} />
+            
+            <EventEditModal 
+                event={editingEvent} 
+                isOpen={!!editingEvent} 
+                onClose={() => setEditingEvent(null)} 
+                onSuccess={() => { setEditingEvent(null); fetchEvents(); }} 
+                authenticatedFetch={authenticatedFetch} 
+            />
         </div>
     );
 }
