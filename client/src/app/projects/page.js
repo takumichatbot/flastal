@@ -119,7 +119,8 @@ function ProjectsContent() {
       if (currentPrefecture) params.append('prefecture', currentPrefecture);
       
       const queryString = params.toString();
-      const fetchPath = queryString ? `/projects?${queryString}` : '/projects';
+      // 🌟 キャッシュを完全に無視して最新の状態を取得するためのパラメータ(t)を追加
+      const fetchPath = queryString ? `/projects?${queryString}&t=${Date.now()}` : `/projects?t=${Date.now()}`;
 
       const res = await authenticatedFetch(fetchPath);
       
@@ -132,11 +133,14 @@ function ProjectsContent() {
       
       // 🌟🌟 修正のコア部分：表示したくない企画を、データをセットする前に「配列から消し去る」 🌟🌟
       projectsArray = projectsArray.filter(project => {
-        // お届け日が過去かどうか
+        // 1. 管理画面で「非公開」に設定されたものかチェック
+        const isHidden = project.visibility === 'UNLISTED' || project.isVisible === false;
+
+        // 2. お届け日が過去かどうか
         const isPast = project.deliveryDateTime ? new Date(project.deliveryDateTime) < new Date() : false;
         
-        // ステータスが完了(COMPLETED)でもなく、中止(CANCELED)でもなく、過去でもないもの「だけ」を残す
-        return project.status !== 'COMPLETED' && project.status !== 'CANCELED' && !isPast;
+        // 3. 非公開ではなく、完了・中止でもなく、過去でもないもの「だけ」を残す
+        return !isHidden && project.status !== 'COMPLETED' && project.status !== 'CANCELED' && !isPast;
       });
 
       setProjects(projectsArray);
@@ -270,7 +274,6 @@ function ProjectsContent() {
                 const percent = Math.min(Math.round(((project.collectedAmount || 0) / (project.targetAmount || 1)) * 100), 100);
                 const isSuccess = percent >= 100;
                 
-                // すでにフィルタリング済みなので、「終了」などの判定は不要になりました
                 let badgeLabel = isSuccess ? 'SUCCESS!' : '募集中';
                 let badgeClass = isSuccess ? 'bg-emerald-500/90 border-emerald-400' : 'bg-pink-500/90 border-pink-400';
 
