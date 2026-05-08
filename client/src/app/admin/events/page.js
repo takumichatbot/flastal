@@ -13,7 +13,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onre
 
 function cn(...classes) { return classes.filter(Boolean).join(' '); }
 
-// イベント編集モーダル
+// 🌟 イベント編集モーダル
 function EventEditModal({ event, isOpen, onClose, onSuccess, authenticatedFetch }) {
     const [formData, setFormData] = useState({ title: '', eventDate: '', status: '' });
     const [isSaving, setIsSaving] = useState(false);
@@ -35,11 +35,21 @@ function EventEditModal({ event, isOpen, onClose, onSuccess, authenticatedFetch 
         setIsSaving(true);
         const tid = toast.loading('保存中...');
         try {
-            const res = await authenticatedFetch(`${API_URL}/api/admin/events/${event.id}`, {
+            // 管理者用APIを試し、無ければ一般用APIにフォールバック
+            let res = await authenticatedFetch(`${API_URL}/api/admin/events/${event.id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(formData)
             });
+
+            if (res.status === 404) {
+                res = await authenticatedFetch(`${API_URL}/api/events/${event.id}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(formData)
+                });
+            }
+
             if (!res.ok) throw new Error('保存失敗');
             toast.success('イベントを更新しました', { id: tid });
             onSuccess();
@@ -87,24 +97,37 @@ export default function AdminEventsPage() {
         setIsLoading(true);
         try {
             const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
-            // 🌟 キャッシュを完全に無効化
-            const res = await fetch(`${API_URL}/api/admin/events?t=${Date.now()}`, { 
-                headers: { 
-                    'Authorization': `Bearer ${token}`,
-                    'Cache-Control': 'no-cache'
-                } 
-            });
-            if (!res.ok) throw new Error('取得失敗');
+            const headers = { 
+                'Authorization': `Bearer ${token}`,
+                'Cache-Control': 'no-cache'
+            };
+
+            // 🌟 1. まず /api/admin/events を試す
+            let res = await fetch(`${API_URL}/api/admin/events?t=${Date.now()}`, { headers });
             
-            const data = await res.json();
+            // 🌟 2. 404エラー（存在しない）なら、一般用の /api/events を試す
+            if (res.status === 404) {
+                res = await fetch(`${API_URL}/api/events?t=${Date.now()}`, { headers });
+            }
+
+            if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
             
-            // 🌟 オブジェクト形式でも配列形式でも確実にイベントリストを抽出する鉄壁のパース処理
+            // HTMLエラーでクラッシュしないように、まずはテキストとして取得
+            const text = await res.text();
+            let data;
+            try {
+                data = JSON.parse(text);
+            } catch (e) {
+                throw new Error("サーバーから不正なデータが返されました");
+            }
+            
+            // オブジェクト形式でも配列形式でも確実に抽出
             const eventsArray = Array.isArray(data) ? data : (data.events || data.data || Object.values(data).find(val => Array.isArray(val)) || []);
             setEvents(eventsArray);
 
         } catch (error) { 
-            console.error(error);
-            toast.error('イベント取得失敗'); 
+            console.error("Fetch Events Error:", error);
+            toast.error(`イベント取得失敗: ${error.message}`); 
         } finally { 
             setIsLoading(false); 
         }
@@ -123,11 +146,18 @@ export default function AdminEventsPage() {
         if (!window.confirm(`「${title}」を完全に削除しますか？`)) return;
         const tid = toast.loading('削除中...');
         try {
-            const res = await authenticatedFetch(`${API_URL}/api/admin/events/${id}`, { method: 'DELETE' });
+            // こちらもフォールバック対応
+            let res = await authenticatedFetch(`${API_URL}/api/admin/events/${id}`, { method: 'DELETE' });
+            if (res.status === 404) {
+                res = await authenticatedFetch(`${API_URL}/api/events/${id}`, { method: 'DELETE' });
+            }
+
             if (!res.ok) throw new Error();
             toast.success('削除しました', { id: tid });
             fetchEvents();
-        } catch (e) { toast.error('削除に失敗しました', { id: tid }); }
+        } catch (e) { 
+            toast.error('削除に失敗しました', { id: tid }); 
+        }
     };
 
     if (loading) return <div className="min-h-screen flex items-center justify-center"><RefreshCw className="animate-spin text-sky-500" /></div>;
