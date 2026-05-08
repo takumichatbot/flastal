@@ -11,7 +11,7 @@ import {
     MessageSquare, AlertTriangle, RefreshCw, DollarSign, 
     Award, MapPin, Calendar, Clock, Settings, Edit3, 
     Mail, Activity, TrendingUp, UserCheck, CheckCircle2, LogOut, ArrowRight, Palette,
-    Flower2, Building2, ShieldCheck, FileText, Users, Send // ★ 送信アイコンを念のため追加
+    Flower2, Building2, ShieldCheck, FileText, Users, Send, LayoutGrid
 } from 'lucide-react'; 
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
@@ -45,6 +45,7 @@ export default function AdminPage() {
   const router = useRouter();
 
   const [commissions, setCommissions] = useState([]);
+  const [recentProjects, setRecentProjects] = useState([]); // ★ 最近の企画用
   const [loadingData, setLoadingData] = useState(true);
   
   const [chatReportCount, setChatReportCount] = useState(0); 
@@ -58,7 +59,7 @@ export default function AdminPage() {
       const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
       const headers = { 'Authorization': `Bearer ${token}` };
       
-      const [commissionsRes, reportsRes, floristRes, illustratorRes, venueRes, organizerRes, projectRes] = await Promise.all([
+      const [commissionsRes, reportsRes, floristRes, illustratorRes, venueRes, organizerRes, pendingProjectRes, allProjectsRes] = await Promise.all([
           fetch(`${API_URL}/api/admin/commissions`, { headers }),
           fetch(`${API_URL}/api/admin/chat-reports`, { headers }),
           fetch(`${API_URL}/api/admin/florists/pending`, { headers }), 
@@ -66,25 +67,33 @@ export default function AdminPage() {
           fetch(`${API_URL}/api/admin/venues/pending`, { headers }), 
           fetch(`${API_URL}/api/admin/organizers/pending`, { headers }), 
           fetch(`${API_URL}/api/admin/projects/pending`, { headers }),
+          fetch(`${API_URL}/api/admin/projects`, { headers }), // ★ 全企画を取得
       ]);
       
       const commissionData = commissionsRes.ok ? await commissionsRes.json() : [];
       const reportData = reportsRes.ok ? await reportsRes.json() : []; 
-      const florists = floristRes.ok ? await floristRes.json() : [];
+      const florists = floristRes.ok ? await floristsRes.json() : [];
       const illustrators = illustratorRes.ok ? await illustratorRes.json() : [];
       const venues = venueRes.ok ? await venueRes.json() : [];
       const organizers = organizerRes.ok ? await organizerRes.json() : [];
-      const projects = projectRes.ok ? await projectRes.json() : [];
+      const pendingProjects = pendingProjectRes.ok ? await pendingProjectRes.json() : [];
+      const allProjects = allProjectsRes.ok ? await allProjectsRes.json() : [];
 
       setCommissions(Array.isArray(commissionData) ? commissionData : []);
       setChatReportCount(Array.isArray(reportData) ? reportData.length : 0); 
+      
+      // ★ 最近の企画5件を抽出
+      if (Array.isArray(allProjects)) {
+          const sorted = [...allProjects].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 5);
+          setRecentProjects(sorted);
+      }
       
       setPendingCounts({
           florists: Array.isArray(florists) ? florists.length : 0,
           illustrators: Array.isArray(illustrators) ? illustrators.length : 0,
           venues: Array.isArray(venues) ? venues.length : 0,
           organizers: Array.isArray(organizers) ? organizers.length : 0,
-          projects: Array.isArray(projects) ? projects.length : 0,
+          projects: Array.isArray(pendingProjects) ? pendingProjects.length : 0,
       });
 
     } catch (error) {
@@ -155,25 +164,48 @@ export default function AdminPage() {
             
             {/* --- 左カラム (メイン) --- */}
             <div className="lg:col-span-2 space-y-8">
+                
+                {/* 🌟 1. 最近作成された企画パネル（追加） */}
                 <GlassCard className="!p-8">
-                    <div className="flex justify-between items-center mb-8">
-                        <h2 className="font-black text-xl text-slate-800 flex items-center gap-2"><TrendingUp className="text-sky-500"/> 売上推移 <span className="text-sm text-slate-400 font-bold">(過去6ヶ月)</span></h2>
-                        <span className="text-[10px] font-black bg-slate-100 px-3 py-1 rounded-full text-slate-500 uppercase tracking-widest">Monthly</span>
-                    </div>
-                    <div className="h-56 flex items-end justify-between gap-4 px-2">
-                        {chartData.map((height, idx) => (
-                            <div key={idx} className="w-full flex flex-col justify-end group cursor-pointer h-full">
-                                <div className="relative w-full bg-gradient-to-t from-sky-100 to-sky-200 rounded-t-xl hover:from-sky-200 hover:to-sky-300 transition-all duration-500 shadow-inner" style={{ height: `${height}%` }}>
-                                    <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-xs font-black px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 shadow-lg">
-                                        ¥{(height * 10000).toLocaleString()}
+                    <h2 className="font-black text-xl text-slate-800 mb-6 flex items-center gap-2">
+                        <LayoutGrid className="text-indigo-500"/> 最近作成された企画
+                    </h2>
+                    <div className="divide-y divide-slate-100">
+                        {recentProjects.length === 0 ? (
+                            <p className="py-12 text-center text-slate-400 font-bold">データがありません</p>
+                        ) : (
+                            recentProjects.map((p) => (
+                                <div key={p.id} className="py-4 flex items-center justify-between hover:bg-slate-50/50 transition-colors px-4 rounded-2xl group">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-12 h-12 rounded-[1rem] bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 font-black shadow-sm">
+                                            <Award size={20}/>
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-black text-slate-800 truncate max-w-[200px] group-hover:text-indigo-600 transition-colors">
+                                                {p.title || 'タイトル未設定'}
+                                            </p>
+                                            <p className="text-[10px] font-bold text-slate-400 mt-1">
+                                                作成日: {new Date(p.createdAt).toLocaleDateString()}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <Link href={`/admin/projects`} className="px-3 py-1.5 bg-white border border-slate-200 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 text-slate-600 rounded-lg text-[10px] font-black transition-all shadow-sm">
+                                            編集 / 削除
+                                        </Link>
                                     </div>
                                 </div>
-                                <span className="text-[10px] font-black text-center text-slate-400 mt-3">{idx + 1}月</span>
-                            </div>
-                        ))}
+                            ))
+                        )}
+                    </div>
+                    <div className="mt-6 pt-6 border-t border-slate-100 text-center">
+                        <Link href="/admin/projects" className="text-xs text-indigo-600 font-black hover:text-indigo-700 transition-colors uppercase tracking-widest flex items-center justify-center gap-1">
+                            すべての企画を管理する (編集・削除) <ArrowRight size={14}/>
+                        </Link>
                     </div>
                 </GlassCard>
 
+                {/* 2. 最近の収益発生 */}
                 <GlassCard className="!p-8">
                     <h2 className="font-black text-xl text-slate-800 mb-6 flex items-center gap-2"><DollarSign className="text-emerald-500"/> 最近の収益発生</h2>
                     <div className="divide-y divide-slate-100">
@@ -203,6 +235,26 @@ export default function AdminPage() {
                         </Link>
                     </div>
                 </GlassCard>
+
+                {/* 3. 売上推移 */}
+                <GlassCard className="!p-8">
+                    <div className="flex justify-between items-center mb-8">
+                        <h2 className="font-black text-xl text-slate-800 flex items-center gap-2"><TrendingUp className="text-sky-500"/> 売上推移 <span className="text-sm text-slate-400 font-bold">(過去6ヶ月)</span></h2>
+                        <span className="text-[10px] font-black bg-slate-100 px-3 py-1 rounded-full text-slate-500 uppercase tracking-widest">Monthly</span>
+                    </div>
+                    <div className="h-56 flex items-end justify-between gap-4 px-2">
+                        {chartData.map((height, idx) => (
+                            <div key={idx} className="w-full flex flex-col justify-end group cursor-pointer h-full">
+                                <div className="relative w-full bg-gradient-to-t from-sky-100 to-sky-200 rounded-t-xl hover:from-sky-200 hover:to-sky-300 transition-all duration-500 shadow-inner" style={{ height: `${height}%` }}>
+                                    <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-xs font-black px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 shadow-lg">
+                                        ¥{(height * 10000).toLocaleString()}
+                                    </div>
+                                </div>
+                                <span className="text-[10px] font-black text-center text-slate-400 mt-3">{idx + 1}月</span>
+                            </div>
+                        ))}
+                    </div>
+                </GlassCard>
             </div>
 
             {/* --- 右カラム (サイドバー) --- */}
@@ -226,6 +278,10 @@ export default function AdminPage() {
                 <GlassCard className="!p-8">
                     <h3 className="font-black text-slate-800 mb-6 text-xs uppercase tracking-widest text-slate-400">Control Menu</h3>
                     <div className="grid grid-cols-1 gap-2">
+                        {/* 🌟 メニューの先頭に「全企画一覧・編集・削除」を追加！ */}
+                        <QuickLink href="/admin/projects" icon={<LayoutGrid/>} label="全企画一覧・情報編集・削除" />
+                        
+                        <div className="my-3 border-t border-slate-100/50"></div>
                         <QuickLink href="/admin/approval?tab=projects" icon={<Award/>} label="プロジェクト審査" />
                         <QuickLink href="/admin/approval?tab=florists" icon={<Flower2/>} label="花屋審査管理" />
                         <QuickLink href="/admin/approval?tab=illustrators" icon={<Palette/>} label="絵師審査管理" />
@@ -238,7 +294,6 @@ export default function AdminPage() {
                         <QuickLink href="/admin/payouts" icon={<DollarSign/>} label="出金申請の管理" />
                         <QuickLink href="/admin/florists" icon={<Edit3/>} label="花屋手数料設定" />
                         
-                        {/* ★ ここにメールテンプレート管理のリンクを追加しました！ */}
                         <QuickLink href="/admin/email-templates" icon={<Mail/>} label="メールテンプレート設定" />
                         
                         <QuickLink href="/admin/settings" icon={<Settings/>} label="システム全体設定" />
