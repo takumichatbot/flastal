@@ -466,7 +466,7 @@ const TrendingProjects = () => {
           </div>
         ) : projects.length > 0 ? (
           <div className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar pb-8 -mx-4 px-4 md:mx-0 md:px-0 md:grid md:grid-cols-4 gap-5 md:gap-6">
-            {projects.map((project, i) => {
+            {projects.filter(p => p.visibility !== 'UNLISTED' && p.isVisible !== false).map((project, i) => {
               const percent = project.targetAmount > 0 ? Math.floor((project.collectedAmount / project.targetAmount) * 100) : 0;
               const imageSrc = project.imageUrl || "https://images.unsplash.com/photo-1526047932273-341f2a7631f9?q=80&w=800&auto=format&fit=crop";
               const category = project.event?.genre || project.genre || "OTHER";

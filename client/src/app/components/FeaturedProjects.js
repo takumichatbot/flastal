@@ -38,10 +38,19 @@ export default function FeaturedProjects() {
     const fetchFeatured = async () => {
       setLoading(true); 
       try {
-        const res = await fetch(`${API_URL}/api/projects/featured`);
+        // 🌟 URLに現在時刻(?t=...)を付け、cache: 'no-store' を指定してキャッシュを完全に無効化
+        const res = await fetch(`${API_URL}/api/projects/featured?t=${Date.now()}`, {
+            cache: 'no-store',
+            headers: { 'Cache-Control': 'no-cache' }
+        });
+        
         if(res.ok) {
           const data = await res.json();
-          setProjects(Array.isArray(data) ? data : []); 
+          // 🌟 ここでも念のためフロントエンド側で「非公開設定」のものを弾く二重ブロック！
+          const publicProjects = Array.isArray(data) 
+            ? data.filter(p => p.visibility !== 'UNLISTED' && p.isVisible !== false)
+            : [];
+          setProjects(publicProjects); 
         } else {
             console.error("Failed to fetch featured projects");
             setProjects([]); 
