@@ -296,6 +296,7 @@ export default function AdminPage() {
                     <div className="grid grid-cols-1 gap-2">
                         {/* 🌟 メニューの先頭に「全企画一覧・編集・削除」を追加！ */}
                         <QuickLink href="/admin/projects" icon={<LayoutGrid/>} label="全企画一覧・情報編集・削除" />
+                        <QuickLink href="/admin/events" icon={<Calendar/>} label="全イベント一覧・編集・削除" />
                         
                         <div className="my-3 border-t border-slate-100/50"></div>
                         <QuickLink href="/admin/approval?tab=projects" icon={<Award/>} label="プロジェクト審査" />
