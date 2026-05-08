@@ -1,5 +1,6 @@
 import express from 'express';
 import * as adminController from '../controllers/adminController.js';
+import * as eventController from '../controllers/eventController.js'; // ★ 追加: イベントコントローラーをインポート
 import { authenticateToken, requireAdmin } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -10,13 +11,15 @@ router.use(requireAdmin);
 // --- 1. 静的・固定パス (優先順位：最高) ---
 router.get('/projects/pending', (req, res) => { req.params.type = 'projects'; adminController.getPendingItems(req, res); });
 router.get('/florists/pending', (req, res) => { req.params.type = 'florists'; adminController.getPendingItems(req, res); });
-// ★ 追加: 絵師の審査待ち一覧取得
 router.get('/illustrators/pending', (req, res) => { req.params.type = 'illustrators'; adminController.getPendingItems(req, res); });
 router.get('/venues/pending', (req, res) => { req.params.type = 'venues'; adminController.getPendingItems(req, res); });
 router.get('/organizers/pending', (req, res) => { req.params.type = 'organizers'; adminController.getPendingItems(req, res); });
 
 router.get('/projects', adminController.getAllProjectsAdmin);
 router.get('/florists/all', adminController.getAllFloristsAdmin);
+
+// ★ 追加: 全イベントの取得
+router.get('/events', eventController.getEvents);
 
 router.get('/chat-reports', (req, res) => { req.params.type = 'chat'; adminController.getReports(req, res); });
 router.get('/event-reports', (req, res) => { req.params.type = 'events'; adminController.getReports(req, res); });
@@ -32,7 +35,6 @@ router.get('/projects/:projectId/chats', adminController.getProjectChatLogs);
 
 router.patch('/projects/:id/status', (req, res) => { req.params.type = 'projects'; adminController.approveItem(req, res); });
 router.patch('/florists/:id/status', (req, res) => { req.params.type = 'florists'; adminController.approveItem(req, res); });
-// ★ 追加: 絵師の審査承認・却下
 router.patch('/illustrators/:id/status', (req, res) => { req.params.type = 'illustrators'; adminController.approveItem(req, res); });
 router.patch('/venues/:id/status', (req, res) => { req.params.type = 'venues'; adminController.approveItem(req, res); });
 router.patch('/organizers/:id/status', (req, res) => { req.params.type = 'organizers'; adminController.approveItem(req, res); });
@@ -40,6 +42,10 @@ router.patch('/organizers/:id/status', (req, res) => { req.params.type = 'organi
 router.get('/florists/:id/fee', adminController.getFloristFee);
 router.patch('/florists/:id/fee', adminController.updateFloristFee);
 router.get('/florists/:id', adminController.getFloristByIdAdmin);
+
+// ★ 追加: イベントの編集と削除
+router.patch('/events/:id', eventController.updateEvent);
+router.delete('/events/:id', eventController.deleteEvent);
 
 // --- 3. その他・汎用 (優先順位：低) ---
 router.get('/pending/:type', adminController.getPendingItems);
