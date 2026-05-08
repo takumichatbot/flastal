@@ -15,7 +15,6 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onre
 
 function cn(...classes) { return classes.filter(Boolean).join(' '); }
 
-// ステータスに応じたバッジを返す関数
 const getStatusBadge = (status) => {
     switch (status) {
         case 'FUNDRAISING': return { bg: 'bg-emerald-100', text: 'text-emerald-700', label: '支援募集中', icon: Target };
@@ -29,7 +28,6 @@ const getStatusBadge = (status) => {
     }
 };
 
-// --- 🌟 編集用モーダルコンポーネント ---
 function ProjectEditModal({ project, isOpen, onClose, onSuccess, authenticatedFetch }) {
     const [formData, setFormData] = useState({ title: '', status: '', targetAmount: 0 });
     const [isSaving, setIsSaving] = useState(false);
@@ -128,23 +126,24 @@ export default function AdminProjectsPage() {
     const [isLoadingData, setIsLoadingData] = useState(true);
     const [searchKeyword, setSearchKeyword] = useState('');
     const [activeTab, setActiveTab] = useState('ALL');
-    
-    // 編集モーダル用のState
     const [editingProject, setEditingProject] = useState(null);
 
     const fetchProjects = async () => {
         setIsLoadingData(true);
         try {
             const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
-            const res = await fetch(`${API_URL}/api/admin/projects`, {
-                headers: { 'Authorization': `Bearer ${token}` }
+            // 🌟 キャッシュを無効化して確実に最新のデータを取得する
+            const res = await fetch(`${API_URL}/api/admin/projects?t=${Date.now()}`, {
+                headers: { 
+                    'Authorization': `Bearer ${token}`,
+                    'Cache-Control': 'no-cache'
+                }
             });
             
             if (!res.ok) throw new Error('企画一覧の取得に失敗しました');
             const data = await res.json();
             setProjects(Array.isArray(data) ? data : []);
         } catch (error) {
-            console.error('Fetch error:', error);
             toast.error('企画一覧の取得に失敗しました');
         } finally {
             setIsLoadingData(false);
@@ -166,22 +165,17 @@ export default function AdminProjectsPage() {
     }, [isAuthenticated, user, loading, router]);
 
 
-    // 検索とフィルタリングのロジックを修正
+    // 🌟 検索とフィルタリングのロジックを修正
     const filteredProjects = useMemo(() => {
         let result = projects;
 
-        // 非表示判定の共通関数
         const isProjectHidden = (p) => p.visibility === 'UNLISTED' || p.isVisible === false;
 
-        // 1. タブによる絞り込み
-        if (activeTab === 'ALL') {
-            // 全て表示（非表示のものも含むが、リストには出す）
-            result = projects;
-        } else if (activeTab === 'UNLISTED') {
-            // 非公開タブ：非表示のものだけを表示
+        if (activeTab === 'UNLISTED') {
+            // 非公開タブ：非表示のもの"だけ"を表示
             result = result.filter(p => isProjectHidden(p));
         } else {
-            // それ以外のタブ（進行中、完了済など）：非表示のものは除外する
+            // 🌟 ALLタブも含めて、非表示のものは基本のリストから完全に除外する
             result = result.filter(p => !isProjectHidden(p));
         
             if (activeTab === 'ACTIVE') {
@@ -195,7 +189,6 @@ export default function AdminProjectsPage() {
             }
         }
 
-        // 2. キーワード検索
         if (searchKeyword.trim() !== '') {
             const keyword = searchKeyword.toLowerCase();
             result = result.filter(p => 
@@ -207,13 +200,12 @@ export default function AdminProjectsPage() {
         return result.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     }, [projects, activeTab, searchKeyword]);
 
-    // 🌟 公開・非公開（アーカイブ）の切り替え
     const handleToggleVisibility = async (p) => {
         const isHidden = p.visibility === 'UNLISTED' || p.isVisible === false;
         const newIsVisible = !isHidden ? false : true;
         const actionText = newIsVisible ? '公開' : '非公開';
 
-        if (!window.confirm(`本当にこの企画を「${actionText}」にしますか？\n（非公開にすると、一般ユーザーの検索や一覧には表示されなくなります）`)) {
+        if (!window.confirm(`本当にこの企画を「${actionText}」にしますか？`)) {
             return;
         }
 
@@ -222,24 +214,26 @@ export default function AdminProjectsPage() {
             const res = await authenticatedFetch(`${API_URL}/api/admin/projects/${p.id}/visibility`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ isVisible: newIsVisible })
+                // 🌟 バックエンドの仕様差異を吸収するため、2つのプロパティを同時に送信
+                body: JSON.stringify({ 
+                    isVisible: newIsVisible,
+                    visibility: newIsVisible ? 'PUBLIC' : 'UNLISTED'
+                })
             });
 
             if (!res.ok) {
-                const errorData = await res.json();
-                throw new Error(errorData.message || '状態の変更に失敗しました');
+                throw new Error('状態の変更に失敗しました');
             }
 
             toast.success(`企画を${actionText}にしました`, { id: toastId });
-            fetchProjects();
+            fetchProjects(); // 最新のデータを再取得
         } catch (error) {
             toast.error(error.message, { id: toastId });
         }
     };
 
-    // 🌟 強制削除処理
     const handleDeleteProject = async (projectId, projectTitle) => {
-        if (!window.confirm(`本当に企画「${projectTitle}」を完全に削除しますか？\nこの操作は取り消せません。\n※決済履歴が紐づいている場合は、原則として「非公開」にすることを推奨します。`)) {
+        if (!window.confirm(`本当に企画「${projectTitle}」を完全に削除しますか？\nこの操作は取り消せません。`)) {
             return;
         }
 
@@ -265,8 +259,6 @@ export default function AdminProjectsPage() {
 
     return (
         <div className="min-h-screen bg-slate-50 pb-24">
-            
-            {/* Header */}
             <div className="bg-white border-b border-slate-200 sticky top-0 z-10 shadow-sm">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="py-4 flex items-center justify-between">
@@ -289,8 +281,6 @@ export default function AdminProjectsPage() {
             </div>
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                
-                {/* Search & Filters */}
                 <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 mb-6 flex flex-col md:flex-row gap-4 justify-between items-center">
                     <div className="relative w-full md:w-96 group">
                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-sky-500 transition-colors" size={18} />
@@ -310,7 +300,7 @@ export default function AdminProjectsPage() {
                             { id: 'PENDING', label: '審査待ち' },
                             { id: 'COMPLETED', label: '完了済' },
                             { id: 'CANCELED', label: '中止' },
-                            { id: 'UNLISTED', label: '非公開' }, // 🌟 非公開タブも追加
+                            { id: 'UNLISTED', label: '非公開' },
                         ].map((tab) => (
                             <button
                                 key={tab.id}
@@ -328,7 +318,6 @@ export default function AdminProjectsPage() {
                     </div>
                 </div>
 
-                {/* Data Table */}
                 <div className="bg-white border border-slate-200 rounded-[2rem] shadow-sm overflow-hidden">
                     <div className="overflow-x-auto">
                         <table className="w-full text-left border-collapse">
@@ -346,14 +335,14 @@ export default function AdminProjectsPage() {
                                     <tr>
                                         <td colSpan="5" className="px-6 py-20 text-center">
                                             <RefreshCw className="animate-spin text-sky-400 mx-auto mb-4" size={32} />
-                                            <p className="text-sm font-bold text-slate-500">データを読み込み中...</p>
+                                            <p className="text-sm font-bold text-slate-500">データを同期中...</p>
                                         </td>
                                     </tr>
                                 ) : filteredProjects.length === 0 ? (
                                     <tr>
                                         <td colSpan="5" className="px-6 py-20 text-center">
                                             <Filter className="text-slate-300 mx-auto mb-4" size={32} />
-                                            <p className="text-sm font-bold text-slate-500">条件に一致する企画がありません</p>
+                                            <p className="text-sm font-bold text-slate-500">該当する企画がありません</p>
                                         </td>
                                     </tr>
                                 ) : (
@@ -363,7 +352,7 @@ export default function AdminProjectsPage() {
                                         const isHidden = p.visibility === 'UNLISTED' || p.isVisible === false;
                                         
                                         return (
-                                            <tr key={p.id} className={cn("hover:bg-sky-50/30 transition-colors group", isHidden ? "opacity-70 bg-slate-50" : "")}>
+                                            <tr key={p.id} className={cn("hover:bg-sky-50/30 transition-colors group", isHidden ? "bg-slate-50 opacity-80" : "")}>
                                                 
                                                 <td className="px-6 py-4 min-w-[250px]">
                                                     <div className="flex items-center gap-4">
@@ -423,16 +412,15 @@ export default function AdminProjectsPage() {
                                                 <td className="px-6 py-4">
                                                     <div className="flex items-center justify-end gap-2 flex-wrap max-w-[250px]">
                                                         
-                                                        {/* 🌟 非公開/公開トグルボタン */}
                                                         <button 
                                                             onClick={() => handleToggleVisibility(p)}
                                                             className={cn(
                                                                 "flex items-center gap-1 px-3 py-1.5 border rounded-lg transition-all text-xs font-bold shadow-sm",
                                                                 isHidden
-                                                                    ? "bg-amber-50 text-amber-600 hover:bg-amber-500 hover:text-white border-amber-200 hover:border-amber-500"
+                                                                    ? "bg-emerald-50 text-emerald-600 hover:bg-emerald-500 hover:text-white border-emerald-200 hover:border-emerald-500"
                                                                     : "bg-slate-100 text-slate-500 hover:bg-slate-200 border-slate-300"
                                                             )}
-                                                            title={isHidden ? "公開する" : "非公開（アーカイブ）にする"}
+                                                            title={isHidden ? "公開する" : "非公開にする"}
                                                         >
                                                             {isHidden ? (
                                                                 <><Eye size={14} /> <span className="hidden xl:inline">公開する</span></>
@@ -441,7 +429,6 @@ export default function AdminProjectsPage() {
                                                             )}
                                                         </button>
 
-                                                        {/* 編集ボタン */}
                                                         <button 
                                                             onClick={() => setEditingProject(p)}
                                                             className="flex items-center gap-1 px-3 py-1.5 bg-white text-indigo-500 hover:bg-indigo-50 border border-indigo-200 hover:border-indigo-400 rounded-lg transition-all text-xs font-bold shadow-sm"
@@ -450,11 +437,10 @@ export default function AdminProjectsPage() {
                                                             <Edit3 size={14} /> <span className="hidden xl:inline">編集</span>
                                                         </button>
 
-                                                        {/* 削除ボタン */}
                                                         <button 
                                                             onClick={() => handleDeleteProject(p.id, p.title)}
                                                             className="flex items-center gap-1 px-3 py-1.5 bg-white text-rose-500 hover:bg-rose-500 hover:text-white border border-rose-200 hover:border-rose-500 rounded-lg transition-all text-xs font-bold shadow-sm"
-                                                            title="強制削除（※要注意）"
+                                                            title="強制削除"
                                                         >
                                                             <Trash2 size={14} /> <span className="hidden xl:inline">削除</span>
                                                         </button>
@@ -471,7 +457,6 @@ export default function AdminProjectsPage() {
 
             </div>
 
-            {/* モーダルのレンダリング */}
             <ProjectEditModal 
                 project={editingProject} 
                 isOpen={!!editingProject} 
