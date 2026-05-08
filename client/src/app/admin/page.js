@@ -59,7 +59,8 @@ export default function AdminPage() {
       const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
       const headers = { 'Authorization': `Bearer ${token}` };
       
-      const [commissionsRes, reportsRes, floristRes, illustratorRes, venueRes, organizerRes, pendingProjectRes, allProjectsRes] = await Promise.all([
+      // ★ Promise.allSettled に変更し、1つのエラーで全体が止まらないようにする
+      const endpoints = [
           fetch(`${API_URL}/api/admin/commissions`, { headers }),
           fetch(`${API_URL}/api/admin/chat-reports`, { headers }),
           fetch(`${API_URL}/api/admin/florists/pending`, { headers }), 
@@ -67,22 +68,36 @@ export default function AdminPage() {
           fetch(`${API_URL}/api/admin/venues/pending`, { headers }), 
           fetch(`${API_URL}/api/admin/organizers/pending`, { headers }), 
           fetch(`${API_URL}/api/admin/projects/pending`, { headers }),
-          fetch(`${API_URL}/api/admin/projects`, { headers }), // ★ 全企画を取得
-      ]);
+          fetch(`${API_URL}/api/admin/projects`, { headers }), // 全企画を取得
+      ];
+
+      const results = await Promise.allSettled(endpoints);
       
-      const commissionData = commissionsRes.ok ? await commissionsRes.json() : [];
-      const reportData = reportsRes.ok ? await reportsRes.json() : []; 
-      const florists = floristRes.ok ? await floristsRes.json() : [];
-      const illustrators = illustratorRes.ok ? await illustratorRes.json() : [];
-      const venues = venueRes.ok ? await venueRes.json() : [];
-      const organizers = organizerRes.ok ? await organizerRes.json() : [];
-      const pendingProjects = pendingProjectRes.ok ? await pendingProjectRes.json() : [];
-      const allProjects = allProjectsRes.ok ? await allProjectsRes.json() : [];
+      // JSONパース時のエラーも防ぐ安全な関数
+      const parseJsonSafe = async (result, name) => {
+          if (result.status === 'fulfilled' && result.value.ok) {
+              try { return await result.value.json(); } 
+              catch(e) { console.warn(`JSONパース失敗: ${name}`); return []; }
+          }
+          if (result.status === 'rejected') {
+              console.error(`API通信エラー (${name}):`, result.reason);
+          }
+          return [];
+      };
+
+      const commissionData = await parseJsonSafe(results[0], 'commissions');
+      const reportData = await parseJsonSafe(results[1], 'chat-reports'); 
+      const florists = await parseJsonSafe(results[2], 'florists');
+      const illustrators = await parseJsonSafe(results[3], 'illustrators');
+      const venues = await parseJsonSafe(results[4], 'venues');
+      const organizers = await parseJsonSafe(results[5], 'organizers');
+      const pendingProjects = await parseJsonSafe(results[6], 'pending-projects');
+      const allProjects = await parseJsonSafe(results[7], 'all-projects');
 
       setCommissions(Array.isArray(commissionData) ? commissionData : []);
       setChatReportCount(Array.isArray(reportData) ? reportData.length : 0); 
       
-      // ★ 最近の企画5件を抽出
+      // 最近の企画5件を抽出
       if (Array.isArray(allProjects)) {
           const sorted = [...allProjects].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 5);
           setRecentProjects(sorted);
@@ -97,7 +112,8 @@ export default function AdminPage() {
       });
 
     } catch (error) {
-      toast.error('データ更新中に一部エラーが発生しました');
+      console.error('Fatal fetch error:', error);
+      toast.error('データ更新中に一部エラーが発生しました（詳細はコンソールを確認）');
     } finally {
       setLoadingData(false);
     }
