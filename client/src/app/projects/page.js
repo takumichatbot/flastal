@@ -14,7 +14,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 // Lucide Iconsに統一
 import { 
   Search, MapPin, Calendar, User, Loader2, Filter, 
-  PlusCircle, Sparkles, Heart, Clock, Users 
+  PlusCircle, Sparkles 
 } from 'lucide-react';
 
 const PREFECTURES = [
@@ -91,15 +91,6 @@ const GlassCard = ({ children, className }) => (
   </div>
 );
 
-const PROJECT_STATUS_CONFIG = {
-  'PENDING_APPROVAL': { label: '審査中', color: 'text-orange-500', bg: 'bg-orange-500', border: 'border-orange-400' },
-  'FUNDRAISING': { label: '募集中', color: 'text-pink-500', bg: 'bg-pink-500', border: 'border-pink-400' },
-  'SUCCESSFUL': { label: '達成!', color: 'text-emerald-500', bg: 'bg-emerald-500', border: 'border-emerald-400' },
-  'IN_PRODUCTION': { label: '制作中', color: 'text-sky-500', bg: 'bg-sky-500', border: 'border-sky-400' },
-  'COMPLETED': { label: '完了', color: 'text-purple-500', bg: 'bg-purple-500', border: 'border-purple-400' },
-  'CANCELED': { label: '中止', color: 'text-slate-400', bg: 'bg-slate-400', border: 'border-slate-300' },
-};
-
 // ==========================================
 // 💡 メインのコンテンツコンポーネント
 // ==========================================
@@ -137,7 +128,17 @@ function ProjectsContent() {
       }
       
       const data = await res.json();
-      const projectsArray = Array.isArray(data) ? data : (data?.projects || []);
+      let projectsArray = Array.isArray(data) ? data : (data?.projects || []);
+      
+      // 🌟🌟 修正のコア部分：表示したくない企画を、データをセットする前に「配列から消し去る」 🌟🌟
+      projectsArray = projectsArray.filter(project => {
+        // お届け日が過去かどうか
+        const isPast = project.deliveryDateTime ? new Date(project.deliveryDateTime) < new Date() : false;
+        
+        // ステータスが完了(COMPLETED)でもなく、中止(CANCELED)でもなく、過去でもないもの「だけ」を残す
+        return project.status !== 'COMPLETED' && project.status !== 'CANCELED' && !isPast;
+      });
+
       setProjects(projectsArray);
       
       if (projectsArray.length === 0 && (currentKeyword || currentPrefecture)) {
@@ -269,34 +270,17 @@ function ProjectsContent() {
                 const percent = Math.min(Math.round(((project.collectedAmount || 0) / (project.targetAmount || 1)) * 100), 100);
                 const isSuccess = percent >= 100;
                 
-                // ★ 修正: 終了判定 (ステータスが完了・中止、またはお届け日が過去の場合)
-                const isPast = project.deliveryDateTime ? new Date(project.deliveryDateTime) < new Date() : false;
-                const isEnded = project.status === 'COMPLETED' || project.status === 'CANCELED' || isPast;
-
-                let badgeLabel = '募集中';
-                let badgeClass = 'bg-pink-500/90 border-pink-400';
-
-                if (project.status === 'CANCELED') {
-                    badgeLabel = '中止';
-                    badgeClass = 'bg-slate-600/90 border-slate-500';
-                } else if (isEnded) {
-                    badgeLabel = '終了';
-                    badgeClass = 'bg-slate-900/80 border-slate-700';
-                } else if (isSuccess) {
-                    badgeLabel = 'SUCCESS!';
-                    badgeClass = 'bg-emerald-500/90 border-emerald-400';
-                }
+                // すでにフィルタリング済みなので、「終了」などの判定は不要になりました
+                let badgeLabel = isSuccess ? 'SUCCESS!' : '募集中';
+                let badgeClass = isSuccess ? 'bg-emerald-500/90 border-emerald-400' : 'bg-pink-500/90 border-pink-400';
 
                 return (
                   <Reveal key={project.id} delay={i * 0.05} className="h-full">
                     <Link href={`/projects/${project.id}`} className="group h-full block">
-                      {/* ★ 修正: 終了した企画は hoverエフェクトを弱め、少し透けさせる */}
-                      <GlassCard className={cn("!p-4 sm:!p-5 h-full flex flex-col transition-all duration-500 overflow-hidden bg-white", 
-                        isEnded ? "opacity-80" : "hover:-translate-y-2 hover:shadow-[0_16px_40px_rgba(244,114,182,0.15)] group-hover:border-pink-200"
-                      )}>
+                      
+                      <GlassCard className="!p-4 sm:!p-5 h-full flex flex-col transition-all duration-500 overflow-hidden bg-white hover:-translate-y-2 hover:shadow-[0_16px_40px_rgba(244,114,182,0.15)] group-hover:border-pink-200">
                         
-                        {/* ★ 修正: 終了した企画の画像は少し彩度を下げる */}
-                        <div className={cn("relative w-full aspect-[4/3] rounded-[2rem] overflow-hidden bg-slate-100 shrink-0", isEnded && "grayscale-[0.3]")}>
+                        <div className="relative w-full aspect-[4/3] rounded-[2rem] overflow-hidden bg-slate-100 shrink-0">
                           {project.imageUrl ? (
                             <Image 
                               src={project.imageUrl} alt={project.title} fill 
@@ -316,19 +300,19 @@ function ProjectsContent() {
                         </div>
 
                         <div className="pt-5 flex flex-col flex-grow px-2">
-                          <h2 className={cn("text-base font-bold transition-colors line-clamp-2 mb-4 leading-snug", isEnded ? "text-slate-600" : "text-slate-800 group-hover:text-pink-500")}>
+                          <h2 className="text-base font-bold transition-colors line-clamp-2 mb-4 leading-snug text-slate-800 group-hover:text-pink-500">
                               <JpText>{project.title}</JpText>
                           </h2>
                           
                           <div className="space-y-2 mb-4">
                               {project.deliveryDateTime && (
                                   <p className="text-[11px] font-bold text-slate-500 flex items-center">
-                                      <Calendar className={cn("mr-1.5 shrink-0", isEnded ? "text-slate-400" : "text-pink-400")} size={14}/> 
+                                      <Calendar className="mr-1.5 shrink-0 text-pink-400" size={14}/> 
                                       {new Date(project.deliveryDateTime).toLocaleDateString()}
                                   </p>
                               )}
                               <p className="text-[11px] font-bold text-slate-500 flex items-center truncate">
-                                  <MapPin className={cn("mr-1.5 shrink-0", isEnded ? "text-slate-400" : "text-sky-400")} size={14}/> 
+                                  <MapPin className="mr-1.5 shrink-0 text-sky-400" size={14}/> 
                                   <span className="truncate">{project.deliveryAddress || '場所未定'}</span>
                               </p>
                           </div>
@@ -337,26 +321,26 @@ function ProjectsContent() {
                               <div className="flex justify-between items-end mb-2">
                                   <div>
                                     <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Current</p>
-                                    <p className={cn("text-base font-black leading-none", isEnded ? "text-slate-600" : "text-slate-800")}>
+                                    <p className="text-base font-black leading-none text-slate-800">
                                       ¥{(project.collectedAmount || 0).toLocaleString()}
                                       <span className="text-[9px] text-slate-400 font-medium ml-1">/ ¥{(project.targetAmount || 0).toLocaleString()}</span>
                                     </p>
                                   </div>
-                                  <span className={cn("text-xl font-black font-mono leading-none", isEnded ? "text-slate-500" : isSuccess ? "text-emerald-500" : "text-pink-500")}>
+                                  <span className={cn("text-xl font-black font-mono leading-none", isSuccess ? "text-emerald-500" : "text-pink-500")}>
                                     {percent}%
                                   </span>
                               </div>
                               <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden shadow-inner">
                                   <motion.div 
                                       initial={{ width: 0 }} whileInView={{ width: `${percent}%` }} transition={{ duration: 1 }}
-                                      className={cn("h-full rounded-full", isEnded ? "bg-slate-400" : isSuccess ? "bg-emerald-400" : "bg-gradient-to-r from-pink-400 to-rose-400")} 
+                                      className={cn("h-full rounded-full", isSuccess ? "bg-emerald-400" : "bg-gradient-to-r from-pink-400 to-rose-400")} 
                                   />
                               </div>
                           </div>
 
                           <div className="mt-4 flex items-center gap-2">
                               {project.planner?.iconUrl ? (
-                                  <Image src={project.planner.iconUrl} alt="" width={24} height={24} className={cn("rounded-full object-cover border border-slate-200", isEnded && "grayscale")} />
+                                  <Image src={project.planner.iconUrl} alt="" width={24} height={24} className="rounded-full object-cover border border-slate-200" />
                               ) : (
                                   <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-slate-400"><User size={12}/></div>
                               )}
