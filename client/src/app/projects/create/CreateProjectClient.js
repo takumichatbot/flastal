@@ -306,15 +306,24 @@ function EventSelectionModal({ onClose, onSelect }) {
   );
 }
 
+// ===========================================
+// ★ 会場選択モーダル (検索機能付きカスタムドロップダウン版)
+// ===========================================
 function VenueSelectionModal({ onClose, onSelect }) {
   const [venues, setVenues] = useState([]);
+  const [filteredVenues, setFilteredVenues] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     const fetchVenues = async () => {
       try {
         const res = await fetch(`${API_URL}/api/venues`);
-        if (res.ok) setVenues(await res.json());
+        if (res.ok) {
+          const data = await res.json();
+          setVenues(data);
+          setFilteredVenues(data);
+        }
       } catch (e) {
         toast.error('会場リストの読み込みに失敗しました');
       } finally {
@@ -324,25 +333,74 @@ function VenueSelectionModal({ onClose, onSelect }) {
     fetchVenues();
   }, []);
 
+  // 検索クエリが変わるたびにリストを絞り込む
+  useEffect(() => {
+    const query = searchQuery.toLowerCase();
+    setFilteredVenues(
+      venues.filter(v => 
+        v.venueName.toLowerCase().includes(query) || 
+        (v.address || '').toLowerCase().includes(query)
+      )
+    );
+  }, [searchQuery, venues]);
+
   return (
-    <div className="fixed inset-0 bg-slate-900/60 flex justify-center items-center z-50 p-4 backdrop-blur-md">
+    <div className="fixed inset-0 bg-slate-900/60 flex justify-center items-center z-50 p-4 backdrop-blur-md animate-fadeIn">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-[3rem] shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden border border-white">
-        <div className="p-6 md:p-8 border-b border-slate-100 flex justify-between items-center bg-emerald-50">
-          <h3 className="text-2xl font-black text-slate-800 flex items-center gap-2"><MapPin className="text-emerald-500" size={24}/> 会場を選択</h3>
-          <button onClick={onClose} className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all shadow-sm"><X size={20} /></button>
+        
+        {/* ヘッダー */}
+        <div className="p-6 md:p-8 border-b border-emerald-100 flex justify-between items-center bg-gradient-to-r from-emerald-50 to-white">
+          <div>
+            <span className="text-[10px] font-black text-emerald-500 tracking-widest uppercase mb-1 block">Venue Select</span>
+            <h3 className="text-2xl font-black text-slate-800 flex items-center gap-2">
+              <MapPin className="text-emerald-500" size={24}/> 会場を選択
+            </h3>
+          </div>
+          <button onClick={onClose} className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all shadow-sm border border-emerald-50">
+            <X size={20} />
+          </button>
         </div>
-        <div className="p-6 overflow-y-auto flex-grow bg-slate-50/50 space-y-4">
+
+        {/* 検索バー */}
+        <div className="p-4 md:p-6 bg-white border-b border-slate-100">
+            <div className="relative">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                <input 
+                    type="text" 
+                    placeholder="会場名や住所で検索..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-4 focus:ring-emerald-100 focus:border-emerald-300 outline-none text-sm font-bold transition-all text-slate-700"
+                />
+            </div>
+        </div>
+
+        {/* 会場リスト */}
+        <div className="p-4 md:p-6 overflow-y-auto flex-grow bg-slate-50/50 space-y-4">
           {loading ? (
-            <div className="text-center py-20 text-slate-400 font-bold"><Loader2 className="animate-spin text-emerald-500 mx-auto mb-4" size={32}/>読み込み中...</div>
+            <div className="text-center py-20 text-slate-400 font-bold flex flex-col items-center gap-3">
+              <Loader2 className="animate-spin text-emerald-500" size={32}/>
+              読み込み中...
+            </div>
+          ) : filteredVenues.length === 0 ? (
+            <div className="text-center py-20 text-slate-400">
+              <div className="text-4xl mb-4 opacity-50">🏢</div>
+              <p className="font-bold">該当する会場が見つかりません。</p>
+            </div>
           ) : (
-            venues.map(venue => (
+            filteredVenues.map(venue => (
                 <button
                   key={venue.id}
                   onClick={() => { onSelect(venue); onClose(); }}
-                  className="w-full text-left p-6 bg-white border border-slate-100 rounded-[2rem] hover:border-emerald-300 hover:shadow-[0_8px_30px_rgba(16,185,129,0.15)] transition-all group"
+                  className="w-full text-left p-6 bg-white border border-slate-100 rounded-[2rem] hover:border-emerald-300 hover:shadow-[0_8px_30px_rgba(16,185,129,0.15)] transition-all group relative overflow-hidden"
                 >
-                  <div className="font-black text-slate-800 group-hover:text-emerald-600 text-lg mb-2">{venue.venueName}</div>
-                  <div className="text-xs font-bold text-slate-500 flex items-center bg-slate-50 p-2 rounded-lg"><MapPin className="mr-2 text-emerald-400" size={14}/> {venue.address}</div>
+                  <div className="font-black text-slate-800 group-hover:text-emerald-600 text-lg mb-3 relative z-10 transition-colors">
+                    {venue.venueName}
+                  </div>
+                  <div className="text-xs font-bold text-slate-500 flex items-center bg-slate-50 p-2.5 rounded-xl relative z-10">
+                    <MapPin className="mr-2 text-emerald-400 shrink-0" size={16}/> 
+                    <span className="truncate">{venue.address || '住所未登録'}</span>
+                  </div>
                 </button>
             ))
           )}

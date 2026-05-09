@@ -1,3 +1,6 @@
 /node_modules
 .env
 
+# GCP Service Account Key
+src/config/gcp-key.jsonserver/config/gcp-key.json
+server/config/gcp-key.json

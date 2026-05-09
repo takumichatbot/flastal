@@ -21,11 +21,12 @@ import projectDetailRoutes from './routes/projectDetails.js';
 import organizerRoutes from './routes/organizers.js';
 import illustratorRoutes from './routes/illustrators.js';
 
-// ★ 追加: Webhook、アップロード、認証関連のインポート
+// ★ 追加: Webhook、アップロード、認証関連、ユーザーコントローラーのインポート
 import { handleStripeWebhook } from './controllers/webhookController.js';
 import upload from './middleware/upload.js';
 import { uploadImage } from './controllers/toolController.js';
 import { authenticateToken } from './middleware/auth.js';
+import * as userController from './controllers/userController.js'; // 🌟 追記: 通知用にインポート
 
 const app = express();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
@@ -118,8 +119,12 @@ app.use('/api/payment', paymentRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/posts', postRoutes);
 
-// ★★★ 追加：画像アップロード用の汎用エンドポイント ★★★
+// ★★★ 画像アップロード用の汎用エンドポイント ★★★
 app.post('/api/upload', authenticateToken, upload.single('image'), uploadImage);
+
+// 🌟 追記: フロントエンドからの通知取得URL(/api/notifications)の受け皿
+app.get('/api/notifications', authenticateToken, userController.getNotifications);
+app.patch('/api/notifications/:notificationId/read', authenticateToken, userController.markNotificationRead);
 
 
 // 404ハンドラー

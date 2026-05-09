@@ -1,13 +1,23 @@
 import sharp from 'sharp';
 import { Document, NodeIO } from '@gltf-transform/core';
 import cloudinary from '../config/cloudinary.js';
-import OpenAI from 'openai';
 import webpush from 'web-push';
 import prisma from '../config/prisma.js';
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+// ★ Google AI (Gemini / Imagen 4) のインポート
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import { VertexAI } from '@google-cloud/vertexai';
+
+// ★ Gemini (テキスト・画像解析用) の初期化
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+
+// ★ Vertex AI (Imagen 画像生成用) の初期化
+const vertexAI = new VertexAI({
+    project: process.env.GOOGLE_CLOUD_PROJECT_ID,
+    location: process.env.GOOGLE_CLOUD_LOCATION || 'asia-northeast1',
+});
 
 // AWS S3 Clientの初期化
 const s3Client = new S3Client({
@@ -39,7 +49,6 @@ export const getS3UploadUrl = async (req, res) => {
             ContentType: fileType,
         });
 
-        // 5分間有効な署名付きURLを生成
         const signedUrl = await getSignedUrl(s3Client, command, { 
             expiresIn: 300,
             unhoistableHeaders: new Set(['content-type']),
@@ -122,43 +131,64 @@ export const createArPanel = async (req, res) => {
 };
 
 // ==========================================
-// 3. AI画像生成 (DALL-E)
+// 3. AI画像生成 (Geminiによるプロンプト拡張 + Imagen 4.0 Ultra)
 // ==========================================
 export const generateAiImage = async (req, res) => {
     const { prompt } = req.body;
     if (!prompt) return res.status(400).json({ message: 'プロンプトが必要です。' });
 
-    // APIキーがない場合は即座にエラーを返す (Unsplashへのフォールバックは削除)
-    if (!process.env.OPENAI_API_KEY) {
-        console.error("OpenAI API Key is missing.");
-        return res.status(500).json({ message: 'サーバー側のAI設定が不足しています(API Key未設定)' });
-    }
-
     try {
-        // 1. OpenAI (DALL-E 3) で画像を生成
-        const response = await openai.images.generate({
-            model: "dall-e-3",
-            prompt: `フラワースタンドのデザイン画。アニメやアイドルのライブイベント用。詳細: ${prompt}`,
-            n: 1,
-            size: "1024x1024",
-            quality: "standard",
+        // ★ STEP 1: Geminiを使って「ユーザーの短い言葉」を「プロの英語プロンプト」に自動拡張（疑似学習）
+        const promptEnhancerModel = genAI.getGenerativeModel({
+            model: 'gemini-2.5-flash',
+            systemInstruction: `あなたはアイドルのライブイベント等に贈られる「フラワースタンド（祝花）」専門のプロデザイナーです。
+ユーザーから入力された短いキーワードを、画像生成AI（Imagen）が最高品質の画像を出力するための「英語のプロンプト」に変換してください。
+
+【厳守するルール】
+1. ユーザーが特に「卓上」「アレンジメント」と指定しない限り、基本は「豪華なフラワースタンド（スタンド花・フラスタ）」を前提とすること。
+2. もし「卓上」と指定があれば「Tabletop flower arrangement」とすること。
+3. "masterpiece", "highly detailed", "photorealistic", "beautiful lighting", "luxury concert flower stand" などの高品質化キーワードを必ず含めること。
+4. 出力は「英語のプロンプト文字列のみ」とすること。挨拶や解説は一切不要。`
         });
 
-        const tempUrl = response.data[0].url;
+        const enhancedResult = await promptEnhancerModel.generateContent(prompt);
+        // Geminiが作ってくれた最強のプロンプト
+        const finalPrompt = enhancedResult.response.text().trim(); 
+        
+        // ログでどのように変換されたか確認できます
+        console.log(`[AI Image] Original: ${prompt} \n-> Enhanced: ${finalPrompt}`);
 
-        // 2. Cloudinaryへアップロード (生成されたURLは一時的なものなので保存必須)
-        // ※ CLOUDINARY_... の環境変数が設定されているか確認してください
-        const uploadResult = await cloudinary.uploader.upload(tempUrl, { 
+        // ★ STEP 2: 拡張された最強のプロンプトを Imagen 4 に渡して画像生成
+        const imagenModel = vertexAI.getGenerativeModel({
+            model: 'imagen-4.0-ultra-generate-001',
+        });
+
+        const request = {
+            instances: [{ prompt: finalPrompt }],
+            parameters: {
+                sampleCount: 1,
+                aspectRatio: "1:1",
+            }
+        };
+        
+
+        const [response] = await imagenModel.predict(request);
+        
+        if (!response.predictions || response.predictions.length === 0) {
+            throw new Error('画像の生成結果が空でした。');
+        }
+
+        const base64Image = response.predictions[0].bytesBase64Encoded;
+        const dataUri = `data:image/png;base64,${base64Image}`;
+
+        const uploadResult = await cloudinary.uploader.upload(dataUri, { 
             folder: 'flastal_ai_generated' 
         });
         
-        const imageUrl = uploadResult.secure_url;
-
-        res.status(200).json({ url: imageUrl });
+        res.status(200).json({ url: uploadResult.secure_url });
 
     } catch (error) {
-        console.error("AI画像生成エラー:", error);
-        // エラー内容をフロントエンドに返す
+        console.error("Imagen 4 生成エラー:", error);
         res.status(500).json({ 
             message: '画像の生成に失敗しました。', 
             detail: error.message 
@@ -167,7 +197,7 @@ export const generateAiImage = async (req, res) => {
 };
 
 // ==========================================
-// 4. AIによるテキスト解析
+// 4. AIによるテキスト解析 (Gemini 2.5 Flash)
 // ==========================================
 
 export const translateText = async (req, res) => {
@@ -176,81 +206,79 @@ export const translateText = async (req, res) => {
 
     try {
         let translatedText = '';
-        if (process.env.OPENAI_API_KEY) {
+        if (process.env.GEMINI_API_KEY) {
             const systemPrompt = targetLang 
                 ? `Translate to ${targetLang}. Only output text.`
                 : `Detect language. If JP -> EN, if others -> JP. Only output text.`;
             
-            const completion = await openai.chat.completions.create({
-                model: "gpt-3.5-turbo",
-                messages: [{ role: "system", content: systemPrompt }, { role: "user", content: text }],
+            // ★ 最新の 2.5 Flash モデルを指定
+            const model = genAI.getGenerativeModel({ 
+                model: "gemini-2.5-flash",
+                systemInstruction: systemPrompt
             });
-            translatedText = completion.choices[0].message.content.trim();
+            const result = await model.generateContent(text);
+            translatedText = result.response.text().trim();
         } else {
             translatedText = "[翻訳] " + text;
         }
         res.json({ translatedText });
     } catch (error) {
-        console.error("翻訳エラー:", error);
+        console.error("Gemini 翻訳エラー:", error);
         res.status(500).json({ message: '翻訳エラー' });
     }
 };
 
-// 企画説明文生成 (AIアシスタント)
+// 企画説明文生成 (Gemini)
 export const generatePlanText = async (req, res) => {
     const { targetName, eventName, tone, extraInfo } = req.body;
     try {
         let title = "", description = "";
         
-        if (process.env.OPENAI_API_KEY) {
-            const prompt = `推し: ${targetName}, イベント: ${eventName}, トーン: ${tone}, 補足: ${extraInfo}。支援者が参加したくなるようなフラスタ企画の説明文を作成してください。
-            必ず以下のJSON形式のみで出力してください。
-            {"title": "企画タイトル", "description": "企画の詳しい説明文"}`;
+        if (process.env.GEMINI_API_KEY) {
+            const prompt = `推し: ${targetName}, イベント: ${eventName}, トーン: ${tone}, 補足: ${extraInfo}。
+支援者が参加したくなるようなフラスタ企画の説明文を作成してください。`;
 
-            // 修正箇所：timeoutをcreateの引数内から削除し、第2引数のオプションへ移動
-            const completion = await openai.chat.completions.create({
-                model: "gpt-3.5-turbo",
-                messages: [{ role: "user", content: prompt }],
-            }, {
-                timeout: 15000 // 正しい渡し方
+            // ★ 最新の 2.5 Flash モデルを指定
+            const model = genAI.getGenerativeModel({ 
+                model: "gemini-2.5-flash",
+                generationConfig: { responseMimeType: "application/json" },
+                systemInstruction: `必ず以下のJSONスキーマに従って出力してください。\n{"title": "企画タイトル", "description": "企画の詳しい説明文"}`
             });
 
-            const content = completion.choices[0].message.content;
-            try {
-                const jsonMatch = content.match(/\{[\s\S]*\}/);
-                const parsed = JSON.parse(jsonMatch ? jsonMatch[0] : content);
-                title = parsed.title;
-                description = parsed.description;
-            } catch (e) {
-                title = `${targetName}様へフラスタを贈りましょう！`;
-                description = content;
-            }
+            const result = await model.generateContent(prompt);
+            const parsed = JSON.parse(result.response.text());
+            
+            title = parsed.title;
+            description = parsed.description;
         } else {
             title = `${targetName}様への祝花企画`;
             description = `${eventName}でのご出演を祝して、フラスタを贈る企画です。`;
         }
         res.json({ title, description });
     } catch (error) {
-        console.error("AIテキスト生成エラー:", error);
+        console.error("Gemini テキスト生成エラー:", error);
         res.status(500).json({ message: 'AIによる文章生成に失敗しました。時間をおいてお試しください。' });
     }
 };
 
+// イベント情報解析 (Gemini)
 export const parseEventInfo = async (req, res) => {
     const { text, sourceUrl } = req.body;
     try {
         let eventData = { title: 'AI解析イベント', description: '詳細不明', eventDate: new Date().toISOString() };
         
-        if (process.env.OPENAI_API_KEY) {
-            const completion = await openai.chat.completions.create({
-                model: "gpt-4o",
-                messages: [
-                    { role: "system", content: "Extract JSON {title, description, eventDate(ISO), venueName} from text." },
-                    { role: "user", content: text }
-                ],
-                response_format: { type: "json_object" }
+        if (process.env.GEMINI_API_KEY) {
+            const prompt = `以下のテキストからイベント情報を抽出してください:\n\n${text}`;
+            
+            // ★ 最新の 2.5 Flash モデルを指定
+            const model = genAI.getGenerativeModel({ 
+                model: "gemini-2.5-flash",
+                generationConfig: { responseMimeType: "application/json" },
+                systemInstruction: `Extract information and strictly output in this JSON format: {"title": "Event Title", "description": "Summary of the event", "eventDate": "ISO 8601 Date string", "venueName": "Name of the venue"}`
             });
-            eventData = JSON.parse(completion.choices[0].message.content);
+
+            const result = await model.generateContent(prompt);
+            eventData = JSON.parse(result.response.text());
         }
 
         let venueId = null;
@@ -272,13 +300,48 @@ export const parseEventInfo = async (req, res) => {
         });
         res.status(201).json({ message: '登録しました', event: newEvent });
     } catch (error) {
-        console.error("イベント解析エラー:", error);
+        console.error("Gemini イベント解析エラー:", error);
         res.status(500).json({ message: '解析エラー' });
     }
 };
 
+// 画像からお花屋さん検索 (Gemini Vision)
+export const searchFloristByImage = async (req, res) => {
+    if (!req.file) return res.status(400).json({ message: '画像なし' });
+    const STYLE_TAGS = ['かわいい/キュート', 'クール/かっこいい', 'おしゃれ/モダン', '和風/和モダン', 'ゴージャス/豪華', 'パステルカラー', 'ビビッドカラー', 'バルーン装飾', 'ペーパーフラワー', '大型/連結', '卓上/楽屋花'];
+    
+    try {
+        let targetTags = ['かわいい/キュート']; 
+        if (process.env.GEMINI_API_KEY) {
+            // ★ 最新の 2.5 Flash モデルを指定
+            const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+            const prompt = `Select exactly 3 tags from this list that best match the style of the flower arrangement in the image: ${STYLE_TAGS.join(', ')}. Output only the selected tags separated by commas, with no other text.`;
+            
+            const imagePart = {
+                inlineData: {
+                    data: req.file.buffer.toString("base64"),
+                    mimeType: req.file.mimetype
+                }
+            };
+
+            const result = await model.generateContent([prompt, imagePart]);
+            targetTags = result.response.text().split(',').map(t => t.trim());
+        }
+        
+        const florists = await prisma.florist.findMany({
+            where: { status: 'APPROVED', specialties: { hasSome: targetTags } },
+            select: { id: true, platformName: true, iconUrl: true, portfolioImages: true, specialties: true, address: true },
+            take: 6
+        });
+        res.json({ analyzedTags: targetTags, florists });
+    } catch(e) { 
+        console.error("Gemini 画像検索解析エラー:", e);
+        res.status(500).json({ message: '解析エラー' }); 
+    }
+};
+
 // ==========================================
-// 5. Push通知 (WebPush)
+// 5. Push通知 (WebPush) & クラウドアップロード
 // ==========================================
 export const subscribePush = async (req, res) => {
     const { subscription } = req.body;
@@ -307,38 +370,4 @@ export const uploadImage = async (req, res) => {
         if (error) return res.status(500).json({ message: 'アップロード失敗' });
         res.status(200).json({ url: result.secure_url });
     }).end(req.file.buffer);
-};
-
-// 画像からお花屋さん検索 (GPT-4o Vision)
-export const searchFloristByImage = async (req, res) => {
-    if (!req.file) return res.status(400).json({ message: '画像なし' });
-    const STYLE_TAGS = ['かわいい/キュート', 'クール/かっこいい', 'おしゃれ/モダン', '和風/和モダン', 'ゴージャス/豪華', 'パステルカラー', 'ビビッドカラー', 'バルーン装飾', 'ペーパーフラワー', '大型/連結', '卓上/楽屋花'];
-    
-    try {
-        let targetTags = ['かわいい/キュート']; 
-        if (process.env.OPENAI_API_KEY) {
-            const base64Image = req.file.buffer.toString('base64');
-            const dataUrl = `data:${req.file.mimetype};base64,${base64Image}`;
-            const response = await openai.chat.completions.create({
-                model: "gpt-4o",
-                messages: [
-                    { role: "user", content: [
-                        { type: "text", text: `Select 3 tags from: ${STYLE_TAGS.join(', ')} based on this image. Output comma separated tags only.` },
-                        { type: "image_url", image_url: { url: dataUrl } }
-                    ]}
-                ]
-            });
-            targetTags = response.choices[0].message.content.split(',').map(t => t.trim());
-        }
-        
-        const florists = await prisma.florist.findMany({
-            where: { status: 'APPROVED', specialties: { hasSome: targetTags } },
-            select: { id: true, platformName: true, iconUrl: true, portfolioImages: true, specialties: true, address: true },
-            take: 6
-        });
-        res.json({ analyzedTags: targetTags, florists });
-    } catch(e) { 
-        console.error("画像検索解析エラー:", e);
-        res.status(500).json({ message: '解析エラー' }); 
-    }
 };

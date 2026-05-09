@@ -332,7 +332,7 @@ export const searchAllUsers = async (req, res) => {
 };
 
 // ==========================================
-// ★ 修正: 旧イラストレーターの削除処理を削除
+// ★ 修正: アカウント強制削除（関連データもすべて道連れにして削除）
 // ==========================================
 export const deleteUserByAdmin = async (req, res) => {
     const { userId } = req.params;
@@ -343,16 +343,59 @@ export const deleteUserByAdmin = async (req, res) => {
             if (role === 'FLORIST') {
                 const target = await tx.florist.findUnique({ where: { id: userId } });
                 if (!target) throw new Error('お花屋さんのデータが見つかりません。');
+                
+                // ★ 関連データの手動カスケード削除 (外部キー制約 P2003 回避)
+                // 1. オファーとチャット関連をすべて削除
+                const offers = await tx.offer.findMany({ where: { floristId: userId } });
+                for (const offer of offers) {
+                    const chatRoom = await tx.chatRoom.findFirst({ where: { offerId: offer.id } });
+                    if (chatRoom) {
+                        // チャットメッセージとその通報履歴を削除
+                        const messages = await tx.chatMessage.findMany({ where: { chatRoomId: chatRoom.id } });
+                        const msgIds = messages.map(m => m.id);
+                        if (msgIds.length > 0) {
+                            await tx.chatMessageReport.deleteMany({ where: { messageId: { in: msgIds } } }).catch(()=>{});
+                        }
+                        await tx.chatMessage.deleteMany({ where: { chatRoomId: chatRoom.id } }).catch(()=>{});
+                        await tx.chatRoom.delete({ where: { id: chatRoom.id } }).catch(()=>{});
+                    }
+                    await tx.offer.delete({ where: { id: offer.id } }).catch(()=>{});
+                }
+
+                // 2. アピール投稿関連をすべて削除
+                const posts = await tx.floristPost.findMany({ where: { floristId: userId } }).catch(()=>[]);
+                if (posts.length > 0) {
+                    const postIds = posts.map(p => p.id);
+                    await tx.floristPostLike.deleteMany({ where: { floristPostId: { in: postIds } } }).catch(()=>{});
+                    await tx.floristPost.deleteMany({ where: { floristId: userId } }).catch(()=>{});
+                }
+
+                // 3. その他の紐づきデータも安全に削除
+                await tx.floristDeal.deleteMany({ where: { floristId: userId } }).catch(()=>{});
+                await tx.payoutRequest.deleteMany({ where: { floristId: userId } }).catch(()=>{});
+                await tx.bankAccount.deleteMany({ where: { floristId: userId } }).catch(()=>{});
+                await tx.review.deleteMany({ where: { floristId: userId } }).catch(()=>{});
+                await tx.adminChatRoom.deleteMany({ where: { userId: userId, userRole: 'FLORIST' } }).catch(()=>{});
+                await tx.chatMessage.deleteMany({ where: { floristId: userId } }).catch(()=>{});
+
+                // 最後に本体を削除
                 await tx.florist.delete({ where: { id: userId } });
                 
             } else if (role === 'VENUE') {
                 const target = await tx.venue.findUnique({ where: { id: userId } });
                 if (!target) throw new Error('会場のデータが見つかりません。');
+                
+                await tx.event.deleteMany({ where: { venueId: userId } }).catch(()=>{});
+                await tx.venueLogisticsInfo.deleteMany({ where: { venueId: userId } }).catch(()=>{});
+                
                 await tx.venue.delete({ where: { id: userId } });
                 
             } else if (role === 'ORGANIZER') {
                 const target = await tx.organizer.findUnique({ where: { id: userId } });
                 if (!target) throw new Error('主催者のデータが見つかりません。');
+                
+                await tx.event.deleteMany({ where: { organizerId: userId } }).catch(()=>{});
+                
                 await tx.organizer.delete({ where: { id: userId } });
                 
             } else {
@@ -363,15 +406,23 @@ export const deleteUserByAdmin = async (req, res) => {
                 if (target.role === 'ADMIN' && target.id === req.user.id) {
                     throw new Error('自身のアカウントは削除できません。');
                 }
+                
+                // ファン・絵師の関連データ
+                await tx.illustratorProfile.deleteMany({ where: { userId: userId } }).catch(()=>{});
+                await tx.illustratorApplication.deleteMany({ where: { illustratorId: userId } }).catch(()=>{});
+                await tx.illustratorOffer.deleteMany({ where: { illustratorId: userId } }).catch(()=>{});
+                await tx.bankAccount.deleteMany({ where: { userId: userId } }).catch(()=>{});
+                await tx.payout.deleteMany({ where: { userId: userId } }).catch(()=>{});
+                
                 await tx.user.delete({ where: { id: userId } });
             }
         });
 
-        res.status(200).json({ message: 'アカウントを削除しました。' });
+        res.status(200).json({ message: 'アカウントを強制削除しました。' });
     } catch (error) {
         console.error('Admin User Delete Error:', error);
         if (error.code === 'P2003') {
-            return res.status(400).json({ message: 'このアカウントに関連するデータ（企画など）が残っているため削除できません。' });
+            return res.status(400).json({ message: '関連データが複雑すぎるため削除できませんでした。手動でのデータ整理が必要です。' });
         }
         res.status(error.message.includes('見つかりません') ? 404 : 400).json({ 
             message: error.message || '削除に失敗しました。' 

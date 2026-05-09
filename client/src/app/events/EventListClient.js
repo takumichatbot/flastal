@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, Suspense } from 'react';
+import { useState, useEffect, useCallback, Suspense, useRef } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/app/contexts/AuthContext';
 import { 
@@ -255,11 +255,9 @@ function EventListContent() {
                 const isOfficial = event.sourceType === 'OFFICIAL' || 
                                  (event.creator && (['ADMIN', 'VENUE', 'ORGANIZER'].includes(event.creator.role)));
                 
-                // ★ 追加: 現在時刻と比較して過去のイベントか判定
                 const isPastEvent = new Date(event.eventDate) < new Date();
 
                 return (
-                  // ★ 修正: 過去のイベントの場合は opacity-80 で少し薄くする
                   <div key={event.id} className={cn("group bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden transition-all duration-500 flex flex-col h-full relative", isPastEvent ? "opacity-75" : "hover:shadow-2xl hover:-translate-y-2")}>
                     
                     <div className="absolute top-3 right-3 z-20 flex -space-x-2">
@@ -276,7 +274,6 @@ function EventListContent() {
                     </div>
 
                     <Link href={`/events/${event.id}`} className="flex-grow flex flex-col">
-                        {/* ★ 修正: 過去イベントの画像は少し彩度を下げる (grayscale) */}
                         <div className={cn("h-44 flex items-center justify-center relative bg-slate-100 transition-all duration-700 overflow-hidden", isPastEvent && "grayscale-[0.6]")}>
                             {event.imageUrls && event.imageUrls.length > 0 ? (
                               <img 
@@ -292,7 +289,6 @@ function EventListContent() {
                               </div>
                             )}
                             
-                            {/* ★ 修正: 終了バッジの追加 */}
                             <div className="absolute top-4 left-4 flex flex-col items-start gap-1">
                                 <span className="bg-white/20 backdrop-blur-md text-white text-[10px] font-black px-3 py-1 rounded-full border border-white/30 uppercase tracking-widest shadow-sm">
                                     {genreData.label}
@@ -548,6 +544,7 @@ function AiAddModal({ onClose, onAdded }) {
   );
 }
 
+// ★ 手動登録モーダル (会場検索ドロップダウン付き) ★
 function ManualAddModal({ onClose, onAdded, editData = null }) {
   const [formData, setFormData] = useState({ title: '', eventDate: '', description: '', genre: 'OTHER', sourceUrl: '', venueId: '' });
   const [images, setImages] = useState([]);
@@ -555,6 +552,11 @@ function ManualAddModal({ onClose, onAdded, editData = null }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const { authenticatedFetch } = useAuth();
+
+  // ★ 追加: 会場検索用の状態とRef
+  const [venueSearch, setVenueSearch] = useState('');
+  const [isVenueDropdownOpen, setIsVenueDropdownOpen] = useState(false);
+  const venueDropdownRef = useRef(null);
 
   useEffect(() => {
     const fetchVenues = async () => {
@@ -588,6 +590,17 @@ function ManualAddModal({ onClose, onAdded, editData = null }) {
     }
   }, [editData]);
 
+  // ★ 追加: 外側クリックでドロップダウンを閉じる処理
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (venueDropdownRef.current && !venueDropdownRef.current.contains(event.target)) {
+        setIsVenueDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.venueId) return toast.error('会場を選択してください');
@@ -614,6 +627,12 @@ function ManualAddModal({ onClose, onAdded, editData = null }) {
     } finally { setIsSubmitting(false); }
   };
 
+  // ★ 追加: 選択されている会場オブジェクトと、フィルタリングされた一覧の取得
+  const selectedVenue = venues.find(v => v.id === formData.venueId);
+  const filteredVenues = venues.filter(v => 
+    v.venueName.toLowerCase().includes(venueSearch.toLowerCase())
+  );
+
   return (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[100] p-4 backdrop-blur-md">
       <div className="bg-white rounded-[2.5rem] p-8 w-full max-w-lg shadow-2xl relative max-h-[90vh] overflow-y-auto">
@@ -629,22 +648,67 @@ function ManualAddModal({ onClose, onAdded, editData = null }) {
             <input required className="w-full p-4 border border-slate-100 bg-slate-50 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500 transition-all text-sm" placeholder="イベント名を入力" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} />
           </div>
 
-          <div>
+          {/* ★ 変更: カスタムドロップダウンによる会場選択 */}
+          <div ref={venueDropdownRef} className="relative">
             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">開催会場</label>
-            <select required className="w-full p-4 border border-slate-100 bg-slate-50 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500 transition-all text-sm appearance-none cursor-pointer" value={formData.venueId} onChange={e => setFormData({...formData, venueId: e.target.value})}>
-              <option value="">会場を選択してください</option>
-              {venues.map(v => <option key={v.id} value={v.id}>{v.venueName}</option>)}
-            </select>
+            <div 
+              className={cn("w-full p-4 border rounded-xl outline-none transition-all text-sm flex justify-between items-center cursor-pointer", isVenueDropdownOpen ? "bg-white ring-2 ring-indigo-500 border-transparent shadow-sm" : "border-slate-100 bg-slate-50 hover:bg-white")}
+              onClick={() => setIsVenueDropdownOpen(!isVenueDropdownOpen)}
+            >
+              <span className={formData.venueId ? "text-slate-800 font-bold" : "text-slate-400 font-medium"}>
+                {selectedVenue ? selectedVenue.venueName : '会場を選択してください'}
+              </span>
+              <span className="text-slate-400 text-xs">▼</span>
+            </div>
+
+            {isVenueDropdownOpen && (
+              <div className="absolute z-10 w-full mt-2 bg-white border border-slate-200 rounded-xl shadow-xl max-h-60 overflow-y-auto">
+                <div className="p-3 sticky top-0 bg-white border-b border-slate-100 z-20">
+                  <div className="relative">
+                    <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 size-4" />
+                    <input 
+                      type="text" 
+                      placeholder="会場名で検索..." 
+                      className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium outline-none focus:bg-white focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all"
+                      value={venueSearch}
+                      onChange={e => setVenueSearch(e.target.value)}
+                      onClick={e => e.stopPropagation()} 
+                    />
+                  </div>
+                </div>
+                <div className="p-2">
+                  {filteredVenues.length > 0 ? (
+                    filteredVenues.map(v => (
+                      <div 
+                        key={v.id} 
+                        className={cn("p-3 rounded-lg cursor-pointer text-sm font-bold transition-colors", formData.venueId === v.id ? "bg-indigo-50 text-indigo-600" : "hover:bg-slate-50 text-slate-700")}
+                        onClick={() => {
+                          setFormData({...formData, venueId: v.id});
+                          setIsVenueDropdownOpen(false);
+                          setVenueSearch(''); 
+                        }}
+                      >
+                        {v.venueName}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="p-4 text-center text-sm text-gray-400 font-bold">
+                      見つかりませんでした
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">開催日時</label>
-                <input required type="datetime-local" className="w-full p-3 border border-slate-100 bg-slate-50 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500 transition-all text-xs" value={formData.eventDate} onChange={e => setFormData({...formData, eventDate: e.target.value})} />
+                <input required type="datetime-local" className="w-full p-3 border border-slate-100 bg-slate-50 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500 transition-all text-xs font-medium" value={formData.eventDate} onChange={e => setFormData({...formData, eventDate: e.target.value})} />
               </div>
               <div>
                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">ジャンル</label>
-                <select className="w-full p-3 border border-slate-100 bg-slate-50 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500 transition-all text-xs" value={formData.genre} onChange={e => setFormData({...formData, genre: e.target.value})}>
+                <select className="w-full p-3 border border-slate-100 bg-slate-50 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500 transition-all text-xs font-bold text-slate-700 cursor-pointer" value={formData.genre} onChange={e => setFormData({...formData, genre: e.target.value})}>
                   {GENRES.filter(g => g.id !== 'ALL').map(g => <option key={g.id} value={g.id}>{g.label}</option>)}
                 </select>
               </div>
