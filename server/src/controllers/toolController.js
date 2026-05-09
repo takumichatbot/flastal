@@ -6,17 +6,17 @@ import prisma from '../config/prisma.js';
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
-// ★ Google AI (Gemini / Imagen 4) のインポート
+// ★ Google AI (Gemini) のインポート
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { VertexAI } from '@google-cloud/vertexai';
+// ★ Google Cloud 認証用 (Imagen REST API呼出用) のインポート
+import { GoogleAuth } from 'google-auth-library';
 
 // ★ Gemini (テキスト・画像解析用) の初期化
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
-// ★ Vertex AI (Imagen 画像生成用) の初期化
-const vertexAI = new VertexAI({
-    project: process.env.GOOGLE_CLOUD_PROJECT_ID,
-    location: process.env.GOOGLE_CLOUD_LOCATION || 'asia-northeast1',
+// ★ GCP認証の初期化 (VertexAIパッケージの代わりにこちらを使います)
+const gcpAuth = new GoogleAuth({
+    scopes: ['https://www.googleapis.com/auth/cloud-platform']
 });
 
 // AWS S3 Clientの初期化
@@ -131,14 +131,14 @@ export const createArPanel = async (req, res) => {
 };
 
 // ==========================================
-// 3. AI画像生成 (Geminiによるプロンプト拡張 + Imagen 4.0 Ultra)
+// 3. AI画像生成 (Gemini拡張 + Imagen 4 Ultra REST API)
 // ==========================================
 export const generateAiImage = async (req, res) => {
     const { prompt } = req.body;
     if (!prompt) return res.status(400).json({ message: 'プロンプトが必要です。' });
 
     try {
-        // ★ STEP 1: Geminiを使って「ユーザーの短い言葉」を「プロの英語プロンプト」に自動拡張（疑似学習）
+        // ★ STEP 1: Geminiによるプロンプト拡張
         const promptEnhancerModel = genAI.getGenerativeModel({
             model: 'gemini-2.5-flash',
             systemInstruction: `あなたはアイドルのライブイベント等に贈られる「フラワースタンド（祝花）」専門のプロデザイナーです。
@@ -152,33 +152,51 @@ export const generateAiImage = async (req, res) => {
         });
 
         const enhancedResult = await promptEnhancerModel.generateContent(prompt);
-        // Geminiが作ってくれた最強のプロンプト
         const finalPrompt = enhancedResult.response.text().trim(); 
         
-        // ログでどのように変換されたか確認できます
         console.log(`[AI Image] Original: ${prompt} \n-> Enhanced: ${finalPrompt}`);
 
-        // ★ STEP 2: 拡張された最強のプロンプトを Imagen 4 に渡して画像生成
-        const imagenModel = vertexAI.getGenerativeModel({
-            model: 'imagen-4.0-ultra-generate-001',
-        });
+        // ★ STEP 2: Imagen 4 Ultra へのリクエスト (REST API方式)
+        const location = process.env.GOOGLE_CLOUD_LOCATION || 'asia-northeast1';
+        
+        // 認証情報の自動取得
+        const client = await gcpAuth.getClient();
+        const projectId = await gcpAuth.getProjectId();
+        const accessToken = await client.getAccessToken();
 
-        const request = {
+        // API URL の構築
+        const url = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/imagen-4.0-ultra-generate-001:predict`;
+
+        const requestBody = {
             instances: [{ prompt: finalPrompt }],
             parameters: {
                 sampleCount: 1,
                 aspectRatio: "1:1",
             }
         };
-        
 
-        const [response] = await imagenModel.predict(request);
-        
-        if (!response.predictions || response.predictions.length === 0) {
+        // 直接通信でSDKのエラーを回避！
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${accessToken.token}`,
+                'Content-Type': 'application/json; charset=utf-8'
+            },
+            body: JSON.stringify(requestBody)
+        });
+
+        if (!response.ok) {
+            const errData = await response.json();
+            throw new Error(`Imagen API Error: ${JSON.stringify(errData)}`);
+        }
+
+        const data = await response.json();
+
+        if (!data.predictions || data.predictions.length === 0) {
             throw new Error('画像の生成結果が空でした。');
         }
 
-        const base64Image = response.predictions[0].bytesBase64Encoded;
+        const base64Image = data.predictions[0].bytesBase64Encoded;
         const dataUri = `data:image/png;base64,${base64Image}`;
 
         const uploadResult = await cloudinary.uploader.upload(dataUri, { 
@@ -211,7 +229,6 @@ export const translateText = async (req, res) => {
                 ? `Translate to ${targetLang}. Only output text.`
                 : `Detect language. If JP -> EN, if others -> JP. Only output text.`;
             
-            // ★ 最新の 2.5 Flash モデルを指定
             const model = genAI.getGenerativeModel({ 
                 model: "gemini-2.5-flash",
                 systemInstruction: systemPrompt
@@ -238,7 +255,6 @@ export const generatePlanText = async (req, res) => {
             const prompt = `推し: ${targetName}, イベント: ${eventName}, トーン: ${tone}, 補足: ${extraInfo}。
 支援者が参加したくなるようなフラスタ企画の説明文を作成してください。`;
 
-            // ★ 最新の 2.5 Flash モデルを指定
             const model = genAI.getGenerativeModel({ 
                 model: "gemini-2.5-flash",
                 generationConfig: { responseMimeType: "application/json" },
@@ -270,7 +286,6 @@ export const parseEventInfo = async (req, res) => {
         if (process.env.GEMINI_API_KEY) {
             const prompt = `以下のテキストからイベント情報を抽出してください:\n\n${text}`;
             
-            // ★ 最新の 2.5 Flash モデルを指定
             const model = genAI.getGenerativeModel({ 
                 model: "gemini-2.5-flash",
                 generationConfig: { responseMimeType: "application/json" },
@@ -313,7 +328,6 @@ export const searchFloristByImage = async (req, res) => {
     try {
         let targetTags = ['かわいい/キュート']; 
         if (process.env.GEMINI_API_KEY) {
-            // ★ 最新の 2.5 Flash モデルを指定
             const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
             const prompt = `Select exactly 3 tags from this list that best match the style of the flower arrangement in the image: ${STYLE_TAGS.join(', ')}. Output only the selected tags separated by commas, with no other text.`;
             
