@@ -581,9 +581,11 @@ const BentoFeatures = () => {
         <div className="mb-12 md:mb-20 text-center md:text-left">
           <Reveal>
             <span className="text-emerald-500 font-black text-[10px] md:text-xs tracking-[0.2em] uppercase block mb-4">Safety & Professional</span>
-            <h2 className="text-3xl md:text-6xl font-black text-slate-800 tracking-tighter leading-[1.1] max-w-3xl">
-              フラスタ企画の面倒な裏方は、<br className="hidden md:block"/>
-              すべてFLASTALにお任せ。
+            {/* ★ 文字サイズを微調整し、文節ごとに inline-block で囲んで変な改行を防ぐ */}
+            <h2 className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-black text-slate-800 tracking-tighter leading-[1.4] md:leading-[1.2] max-w-4xl">
+              <span className="inline-block">フラスタ企画の</span>
+              <span className="inline-block">面倒な裏方は、</span><br className="hidden sm:block"/>
+              <span className="inline-block">すべてFLASTALにお任せ。</span>
             </h2>
           </Reveal>
         </div>
@@ -600,7 +602,8 @@ const BentoFeatures = () => {
                   <feat.icon size={28} strokeWidth={2} />
                 </div>
                 <h3 className={cn("text-xl md:text-2xl font-black mb-3 tracking-tight", feat.text)}>{feat.title}</h3>
-                <p className={cn("text-sm md:text-base font-bold leading-relaxed", feat.descColor)}>{feat.desc}</p>
+                {/* ★ 説明文も leading-relaxed で読みやすくする */}
+                <p className={cn("text-xs sm:text-sm md:text-base font-bold leading-relaxed", feat.descColor)}>{feat.desc}</p>
               </div>
               {/* 背景の装飾要素 */}
               <div className="absolute inset-0 z-10 pointer-events-none">
@@ -612,7 +615,6 @@ const BentoFeatures = () => {
       </div>
     </section>
   );
-};
 
 // --- 6. CATEGORIES ---
 const CategoryGrid = () => {

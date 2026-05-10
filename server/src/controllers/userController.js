@@ -40,10 +40,14 @@ export const getCreatedProjects = async (req, res) => {
     const { userId } = req.params;
     try {
         const projects = await prisma.project.findMany({
-            where: { plannerId: userId },
+            where: { 
+                plannerId: userId,
+                // ★ 修正: 管理者が「非表示(UNLISTED)」にしたものや、「BAN/却下(REJECTED)」にしたものを一覧から除外する
+                visibility: 'PUBLIC', 
+                NOT: { status: 'REJECTED' } 
+            },
             orderBy: { createdAt: 'desc' },
             include: {
-                // ★ 修正箇所: offer を offers に変更
                 offers: { include: { chatRoom: true, florist: true } },
                 review: true,
             }
@@ -59,7 +63,14 @@ export const getPledgedProjects = async (req, res) => {
     const { userId } = req.params;
     try {
         const pledges = await prisma.pledge.findMany({
-            where: { userId: userId },
+            where: { 
+                userId: userId,
+                // ★ 修正: 自分が支援した企画でも、あとからBANされたり非表示になったものは表示しない
+                project: {
+                    visibility: 'PUBLIC',
+                    NOT: { status: 'REJECTED' }
+                }
+            },
             orderBy: { createdAt: 'desc' },
             include: { project: true }
         });
@@ -76,8 +87,8 @@ export const getOfferableProjects = async (req, res) => {
         const projects = await prisma.project.findMany({
             where: {
                 plannerId: userId,
+                visibility: 'PUBLIC', // ★ 念のため追加
                 OR: [{ status: 'FUNDRAISING' }, { status: 'SUCCESSFUL' }],
-                // ★ 修正箇所: offer: null を offers: { none: {} } に変更 (リレーションがないことを確認)
                 offers: { none: {} },
             },
             orderBy: { createdAt: 'desc' }
