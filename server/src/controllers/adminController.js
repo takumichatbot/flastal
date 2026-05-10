@@ -258,14 +258,13 @@ export const getAdminChatMessages = async (req, res) => {
 
 
 // ==========================================
-// ★ 修正: 全テーブルをマージするロジック（旧 Illustrator は削除）
+// ★ 修正: 全テーブルをマージするロジック（status も取得）
 // ==========================================
 export const searchAllUsers = async (req, res) => {
     try {
         const keyword = req.query.keyword || '';
         const keywordLower = keyword.toLowerCase();
 
-        // 1. 各テーブルから全件取得（存在しない旧 Illustrator テーブルの取得を削除）
         const [users, florists, organizers, venues] = await Promise.all([
             prisma.user.findMany({ 
                 include: { illustratorProfile: true },
@@ -293,6 +292,7 @@ export const searchAllUsers = async (req, res) => {
                 email: u.email || '非公開',
                 displayName: displayName,
                 role: role,
+                status: u.status || 'ACTIVE', // ★ 追加: ステータス
                 createdAt: u.createdAt,
                 iconUrl: u.iconUrl || null
             });
@@ -300,17 +300,17 @@ export const searchAllUsers = async (req, res) => {
 
         // ② お花屋さん
         florists.forEach(f => {
-            finalUsers.push({ id: f.id, email: f.email || '非公開', displayName: f.platformName || f.shopName || f.contactName || '未設定', role: 'FLORIST', createdAt: f.createdAt, iconUrl: f.iconUrl || null });
+            finalUsers.push({ id: f.id, email: f.email || '非公開', displayName: f.platformName || f.shopName || f.contactName || '未設定', role: 'FLORIST', status: f.status || 'PENDING', createdAt: f.createdAt, iconUrl: f.iconUrl || null });
         });
 
         // ③ 主催者
         organizers.forEach(o => {
-            finalUsers.push({ id: o.id, email: o.email || '非公開', displayName: o.name || '未設定', role: 'ORGANIZER', createdAt: o.createdAt, iconUrl: null });
+            finalUsers.push({ id: o.id, email: o.email || '非公開', displayName: o.name || '未設定', role: 'ORGANIZER', status: o.status || 'PENDING', createdAt: o.createdAt, iconUrl: null });
         });
 
         // ④ 会場
         venues.forEach(v => {
-            finalUsers.push({ id: v.id, email: v.email || '非公開', displayName: v.venueName || '未設定', role: 'VENUE', createdAt: v.createdAt, iconUrl: v.imageUrls && v.imageUrls.length > 0 ? v.imageUrls[0] : null });
+            finalUsers.push({ id: v.id, email: v.email || '非公開', displayName: v.venueName || '未設定', role: 'VENUE', status: v.status || 'PENDING', createdAt: v.createdAt, iconUrl: v.imageUrls && v.imageUrls.length > 0 ? v.imageUrls[0] : null });
         });
 
         if (keywordLower) {
@@ -332,7 +332,36 @@ export const searchAllUsers = async (req, res) => {
 };
 
 // ==========================================
-// ★ 修正: アカウント強制削除（関連データもすべて道連れにして削除）
+// ★ 新規追加: アカウントの非表示(BAN) / 復旧の切り替え
+// ==========================================
+export const toggleUserStatus = async (req, res) => {
+    const { userId } = req.params;
+    const { role, status } = req.body; // 例: status = 'SUSPENDED' または 'APPROVED' / 'ACTIVE'
+
+    try {
+        let updated;
+        if (role === 'FLORIST') {
+            updated = await prisma.florist.update({ where: { id: userId }, data: { status } });
+        } else if (role === 'VENUE') {
+            updated = await prisma.venue.update({ where: { id: userId }, data: { status } });
+        } else if (role === 'ORGANIZER') {
+            updated = await prisma.organizer.update({ where: { id: userId }, data: { status } });
+        } else {
+            // USER または ILLUSTRATOR または ADMIN
+            if (userId === req.user.id) {
+                return res.status(400).json({ message: '自身のアカウントのステータスは変更できません。' });
+            }
+            updated = await prisma.user.update({ where: { id: userId }, data: { status } });
+        }
+        res.status(200).json({ message: `ステータスを ${status} に更新しました。`, data: updated });
+    } catch (error) {
+        console.error('Toggle User Status Error:', error);
+        res.status(500).json({ message: 'ステータスの更新に失敗しました。' });
+    }
+};
+
+// ==========================================
+// ★ アカウント強制削除（関連データもすべて道連れにして削除）
 // ==========================================
 export const deleteUserByAdmin = async (req, res) => {
     const { userId } = req.params;
@@ -344,13 +373,11 @@ export const deleteUserByAdmin = async (req, res) => {
                 const target = await tx.florist.findUnique({ where: { id: userId } });
                 if (!target) throw new Error('お花屋さんのデータが見つかりません。');
                 
-                // ★ 関連データの手動カスケード削除 (外部キー制約 P2003 回避)
                 // 1. オファーとチャット関連をすべて削除
                 const offers = await tx.offer.findMany({ where: { floristId: userId } });
                 for (const offer of offers) {
                     const chatRoom = await tx.chatRoom.findFirst({ where: { offerId: offer.id } });
                     if (chatRoom) {
-                        // チャットメッセージとその通報履歴を削除
                         const messages = await tx.chatMessage.findMany({ where: { chatRoomId: chatRoom.id } });
                         const msgIds = messages.map(m => m.id);
                         if (msgIds.length > 0) {
@@ -399,7 +426,7 @@ export const deleteUserByAdmin = async (req, res) => {
                 await tx.organizer.delete({ where: { id: userId } });
                 
             } else {
-                // USER または 新 ILLUSTRATOR (両方とも Userテーブル)
+                // USER または ILLUSTRATOR (両方とも Userテーブル)
                 const target = await tx.user.findUnique({ where: { id: userId } });
                 if (!target) throw new Error('ユーザーが見つかりません。');
                 
@@ -461,8 +488,6 @@ export const dismissEventReport = async (req, res) => {
     try { await prisma.eventReport.update({ where: { id: req.params.reportId }, data: { status: 'RESOLVED' } }); return res.json({message:'OK'}); } catch(e) { return res.status(500).json({message:'Error'}); }
 };
 
-
-
 // 企画の強制削除
 export const deleteProjectByAdmin = async (req, res) => {
     const { projectId } = req.params;
@@ -476,7 +501,6 @@ export const deleteProjectByAdmin = async (req, res) => {
             return res.status(404).json({ message: '企画が見つかりません。' });
         }
 
-        // トランザクションで削除
         await prisma.$transaction(async (tx) => {
             await tx.project.delete({
                 where: { id: projectId }
@@ -499,7 +523,6 @@ export const deleteProjectByAdmin = async (req, res) => {
 // ★★★ 予算別参考写真 (BudgetReference) 管理 ★★★
 // ==========================================
 
-// 一覧の取得
 export const getBudgetReferences = async (req, res) => {
     try {
         const refs = await prisma.budgetReferenceImage.findMany({
@@ -512,7 +535,6 @@ export const getBudgetReferences = async (req, res) => {
     }
 };
 
-// 作成・更新 (Upsert)
 export const upsertBudgetReference = async (req, res) => {
     const { priceRange, label, description, imageUrl, isActive } = req.body;
     try {
@@ -528,7 +550,6 @@ export const upsertBudgetReference = async (req, res) => {
     }
 };
 
-// 削除
 export const deleteBudgetReference = async (req, res) => {
     const { priceRange } = req.params;
     try {

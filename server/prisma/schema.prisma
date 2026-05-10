@@ -252,7 +252,7 @@ model Project {
   messagePanelUrls        String[]
   sponsorPanelUrls        String[]
   preEventPhotoUrls       String[]
-
+  minContributionAmount Int @default(1000)
   plannerId               String
   planner                 User               @relation("PlannerProjects", fields: [plannerId], references: [id])
   pledges                 Pledge[]

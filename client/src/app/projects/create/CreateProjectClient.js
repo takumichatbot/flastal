@@ -357,6 +357,7 @@ function CreateProjectForm() {
     title: '',
     description: '',
     targetAmount: '',
+    minContributionAmount: '1000', // ★ 最低参加額の初期値
     deliveryAddress: '', 
     venueId: '',
     eventId: '',
@@ -580,6 +581,7 @@ function CreateProjectForm() {
         title: formData.title || "",
         description: formData.description || "",
         targetAmount: amount,
+        minContributionAmount: parseInt(formData.minContributionAmount, 10) || 1000, // ★ 最低参加額を送信
         deliveryAddress: `${formData.deliveryAddress || (selectedVenue?.address || "")} 【希望時間帯: ${deliveryTimeText || '指定なし'}】`,
         deliveryDateTime: deliveryDateTimeISO,
         imageUrl: formData.imageUrl || "",
@@ -751,7 +753,7 @@ function CreateProjectForm() {
             <p className="text-[10px] text-slate-400 font-bold mt-4 text-center">※上記はあくまで目安です。実際はお花屋さんとの相談で柔軟に調整できます。</p>
           </GlassCard>
 
-          {/* --- BLOCK 3: 目標金額 --- */}
+          {/* --- BLOCK 3: 目標金額と最低参加額 --- */}
           <GlassCard className="border-4 border-pink-100 bg-gradient-to-b from-white/90 to-pink-50/30">
             <InputLabel icon={Award} title="目標金額" subtitle="お花の制作や装飾品にかかる総予算を決めましょう" required />
             <div className="mt-4 flex items-center justify-center bg-white/80 p-8 rounded-[2.5rem] border border-pink-100 shadow-inner">
@@ -759,6 +761,25 @@ function CreateProjectForm() {
                 <input type="number" name="targetAmount" required value={formData.targetAmount} onChange={handleChange} 
                   className="text-5xl md:text-7xl font-black text-slate-800 bg-transparent border-none focus:ring-0 w-full max-w-[300px] text-center placeholder:text-slate-200 outline-none" 
                   placeholder="30000" />
+            </div>
+
+            {/* ★★★ ここに一口あたりの最低参加額を追加 ★★★ */}
+            <div className="mt-8 border-t border-pink-100/50 pt-6">
+                <InputLabel title="一口あたりの最低参加額（最低支援額）" subtitle="参加者が支援する際の最低金額を設定します" required />
+                <div className="flex items-center gap-2 max-w-xs">
+                    <span className="text-xl text-pink-400 font-black">¥</span>
+                    <GlassInput 
+                        type="number" 
+                        name="minContributionAmount" 
+                        min="100" 
+                        step="100"
+                        required 
+                        value={formData.minContributionAmount} 
+                        onChange={handleChange} 
+                        className="text-xl text-center" 
+                    />
+                    <span className="font-bold text-slate-400">から</span>
+                </div>
             </div>
           </GlassCard>
 

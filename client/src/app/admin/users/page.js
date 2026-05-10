@@ -8,7 +8,8 @@ import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { 
     Search, Users, Mail, Shield, Filter, ArrowLeft, 
-    MoreVertical, ShieldCheck, Palette, Store, Building2, User, RefreshCw, MessageSquare, Trash2
+    ShieldCheck, Palette, Store, Building2, User, RefreshCw, 
+    MessageSquare, Trash2, EyeOff, CheckCircle // ★ EyeOff, CheckCircle を追加
 } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
@@ -21,14 +22,21 @@ const getRoleBadge = (role) => {
         case 'FLORIST': return { bg: 'bg-emerald-100', text: 'text-emerald-700', label: 'お花屋さん', icon: Store };
         case 'VENUE': return { bg: 'bg-blue-100', text: 'text-blue-700', label: '会場', icon: Building2 };
         case 'ORGANIZER': return { bg: 'bg-amber-100', text: 'text-amber-700', label: '主催者', icon: Shield };
-        case 'ILLUSTRATOR_OLD': // 追加
+        case 'ILLUSTRATOR_OLD': 
         case 'ILLUSTRATOR': return { bg: 'bg-purple-100', text: 'text-purple-700', label: 'イラストレーター', icon: Palette };
         default: return { bg: 'bg-slate-100', text: 'text-slate-700', label: 'ファン', icon: User };
     }
 };
 
+// ★ 追加: ステータスバッジの取得ロジック
+const getStatusBadge = (status) => {
+    if (status === 'SUSPENDED') return { bg: 'bg-rose-100', text: 'text-rose-700', border: 'border-rose-200', label: '非表示 (BAN)' };
+    if (status === 'PENDING') return { bg: 'bg-amber-100', text: 'text-amber-700', border: 'border-amber-200', label: '審査中' };
+    return { bg: 'bg-emerald-100', text: 'text-emerald-700', border: 'border-emerald-200', label: '有効' }; // ACTIVE または APPROVED
+};
+
 export default function AdminUsersPage() {
-    const { user, isAuthenticated, loading, authenticatedFetch } = useAuth(); // ★ authenticatedFetch を追加
+    const { user, isAuthenticated, loading, authenticatedFetch } = useAuth();
     const router = useRouter();
 
     const [users, setUsers] = useState([]);
@@ -52,7 +60,6 @@ export default function AdminUsersPage() {
             const data = await res.json();
             const rawUsers = Array.isArray(data) ? data : [];
 
-            // ★ 強制整形ロジック
             const mappedUsers = rawUsers.map(u => {
                 let role = u.role ? String(u.role).toUpperCase() : 'USER';
                 let displayName = u.displayName || u.handleName || u.name || '未設定';
@@ -70,7 +77,8 @@ export default function AdminUsersPage() {
                     ...u,
                     role: role,
                     displayName: displayName,
-                    email: u.email || '非公開（プロフ連携のみ）'
+                    email: u.email || '非公開（プロフ連携のみ）',
+                    status: u.status || 'ACTIVE' // ステータスを保持
                 };
             });
 
@@ -101,7 +109,6 @@ export default function AdminUsersPage() {
     const filteredUsers = useMemo(() => {
         if (activeTab === 'ALL') return users;
         if (activeTab === 'USER') return users.filter(u => u.role === 'USER' || !u.role);
-        // ★ 修正: 両方のイラストレーターを表示
         if (activeTab === 'ILLUSTRATOR') return users.filter(u => u.role === 'ILLUSTRATOR' || u.role === 'ILLUSTRATOR_OLD'); 
         return users.filter(u => u.role === activeTab);
     }, [users, activeTab]);
@@ -135,15 +142,50 @@ export default function AdminUsersPage() {
         }
     };
 
-    // ★ 修正: targetRole を引数に追加
+    // ★ 追加: ステータス(BAN/復旧)の切り替えロジック
+    const handleToggleStatus = async (targetUserId, targetUserName, targetRole, currentStatus) => {
+        // BAN状態なら適切な「有効化」ステータスに戻し、それ以外なら「SUSPENDED」にする
+        const newStatus = currentStatus === 'SUSPENDED' 
+            ? (['FLORIST', 'VENUE', 'ORGANIZER'].includes(targetRole) ? 'APPROVED' : 'ACTIVE') 
+            : 'SUSPENDED';
+            
+        const actionName = newStatus === 'SUSPENDED' ? '非表示（BAN）' : '有効化（復旧）';
+
+        if (!window.confirm(`本当にアカウント「${targetUserName}」を${actionName}にしますか？`)) {
+            return;
+        }
+
+        const toastId = toast.loading('更新中...');
+        try {
+            const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+            const res = await fetch(`${API_URL}/api/admin/users/${targetUserId}/status`, {
+                method: 'PATCH',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}` 
+                },
+                body: JSON.stringify({ role: targetRole, status: newStatus })
+            });
+
+            if (!res.ok) {
+                const errorData = await res.json();
+                throw new Error(errorData.message || '更新に失敗しました');
+            }
+
+            toast.success(`アカウントを${actionName}にしました。`, { id: toastId });
+            fetchUsers(); // 成功したらリストを再取得
+        } catch (error) {
+            toast.error(error.message, { id: toastId });
+        }
+    };
+
     const handleDeleteUser = async (targetUserId, targetUserName, targetRole) => {
-        if (!window.confirm(`本当にアカウント「${targetUserName}」を削除しますか？\nこの操作は取り消せません。（※企画や支援データが紐づいている場合はエラーになることがあります）`)) {
+        if (!window.confirm(`本当にアカウント「${targetUserName}」を物理削除しますか？\n※基本的には「BAN（非表示）」を推奨します。物理削除は紐づく全データが消去されます。`)) {
             return;
         }
 
         const toastId = toast.loading('削除中...');
         try {
-            // ★ 修正: URLに ?role= を追加
             const res = await authenticatedFetch(`${API_URL}/api/admin/users/${targetUserId}?role=${targetRole}`, {
                 method: 'DELETE',
             });
@@ -207,7 +249,6 @@ export default function AdminUsersPage() {
                             { id: 'USER', label: 'ファン' },
                             { id: 'ORGANIZER', label: '主催者' },
                             { id: 'FLORIST', label: 'お花屋さん' },
-                            // ★ 修正: ラベルを「イラストレーター」に変更
                             { id: 'ILLUSTRATOR', label: 'イラストレーター' }, 
                             { id: 'VENUE', label: '会場' },
                         ].map((tab) => (
@@ -235,6 +276,7 @@ export default function AdminUsersPage() {
                                     <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">ユーザー情報</th>
                                     <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">連絡先</th>
                                     <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">権限・ロール</th>
+                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">状態</th>
                                     <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">登録日</th>
                                     <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap text-right">アクション</th>
                                 </tr>
@@ -242,23 +284,25 @@ export default function AdminUsersPage() {
                             <tbody className="divide-y divide-slate-100">
                                 {isLoadingData ? (
                                     <tr>
-                                        <td colSpan="5" className="px-6 py-20 text-center">
+                                        <td colSpan="6" className="px-6 py-20 text-center">
                                             <RefreshCw className="animate-spin text-sky-400 mx-auto mb-4" size={32} />
                                             <p className="text-sm font-bold text-slate-500">データを読み込み中...</p>
                                         </td>
                                     </tr>
                                 ) : filteredUsers.length === 0 ? (
                                     <tr>
-                                        <td colSpan="5" className="px-6 py-20 text-center">
+                                        <td colSpan="6" className="px-6 py-20 text-center">
                                             <Filter className="text-slate-300 mx-auto mb-4" size={32} />
                                             <p className="text-sm font-bold text-slate-500">条件に一致するユーザーがいません</p>
                                         </td>
                                     </tr>
                                 ) : (
                                     filteredUsers.map((u) => {
-                                        const badge = getRoleBadge(u.role);
+                                        const roleBadge = getRoleBadge(u.role);
+                                        const statusBadge = getStatusBadge(u.status); // ★ 状態バッジを取得
+
                                         return (
-                                            <tr key={u.id} className="hover:bg-sky-50/30 transition-colors group">
+                                            <tr key={u.id} className={cn("transition-colors group", u.status === 'SUSPENDED' ? 'bg-slate-50 opacity-60' : 'hover:bg-sky-50/30')}>
                                                 <td className="px-6 py-4">
                                                     <div className="flex items-center gap-4">
                                                         <div className="w-10 h-10 rounded-full bg-white border border-slate-200 overflow-hidden flex items-center justify-center shrink-0 shadow-sm">
@@ -269,7 +313,7 @@ export default function AdminUsersPage() {
                                                             )}
                                                         </div>
                                                         <div>
-                                                            <p className="text-sm font-bold text-slate-800 group-hover:text-sky-600 transition-colors">
+                                                            <p className={cn("text-sm font-bold transition-colors", u.status === 'SUSPENDED' ? 'text-slate-500 line-through' : 'text-slate-800 group-hover:text-sky-600')}>
                                                                 {u.displayName}
                                                             </p>
                                                             <p className="text-[10px] text-slate-400 font-mono mt-0.5">ID: {u.id.substring(0, 8)}...</p>
@@ -291,8 +335,15 @@ export default function AdminUsersPage() {
                                                 </td>
 
                                                 <td className="px-6 py-4">
-                                                    <span className={cn("inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border shadow-sm", badge.bg, badge.text, badge.bg.replace('bg-', 'border-'))}>
-                                                        <badge.icon size={12} /> {badge.label}
+                                                    <span className={cn("inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border shadow-sm", roleBadge.bg, roleBadge.text, roleBadge.bg.replace('bg-', 'border-'))}>
+                                                        <roleBadge.icon size={12} /> {roleBadge.label}
+                                                    </span>
+                                                </td>
+
+                                                {/* ★ 状態(ステータス)カラム */}
+                                                <td className="px-6 py-4">
+                                                    <span className={cn("inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-black border", statusBadge.bg, statusBadge.text, statusBadge.border)}>
+                                                        {statusBadge.label}
                                                     </span>
                                                 </td>
 
@@ -312,13 +363,31 @@ export default function AdminUsersPage() {
                                                             <MessageSquare size={14} /> <span className="hidden sm:inline">連絡</span>
                                                         </button>
                                                         
-                                                        {/* ★ 修正: 第3引数に u.role を追加 */}
+                                                        {/* ★ BAN/復旧トグルボタン */}
+                                                        {u.status === 'SUSPENDED' ? (
+                                                            <button 
+                                                                onClick={() => handleToggleStatus(u.id, u.displayName, u.role, u.status)}
+                                                                className="flex items-center gap-1 px-3 py-1.5 bg-slate-50 text-emerald-600 hover:bg-emerald-600 hover:text-white border border-slate-200 hover:border-emerald-600 rounded-lg transition-all text-xs font-bold shadow-sm"
+                                                                title="アカウントを復旧させる"
+                                                            >
+                                                                <CheckCircle size={14} /> <span className="hidden sm:inline">復旧</span>
+                                                            </button>
+                                                        ) : (
+                                                            <button 
+                                                                onClick={() => handleToggleStatus(u.id, u.displayName, u.role, u.status)}
+                                                                className="flex items-center gap-1 px-3 py-1.5 bg-slate-50 text-amber-600 hover:bg-amber-600 hover:text-white border border-slate-200 hover:border-amber-600 rounded-lg transition-all text-xs font-bold shadow-sm"
+                                                                title="サイトから非表示にする(BAN)"
+                                                            >
+                                                                <EyeOff size={14} /> <span className="hidden sm:inline">BAN</span>
+                                                            </button>
+                                                        )}
+
                                                         <button 
                                                             onClick={() => handleDeleteUser(u.id, u.displayName, u.role)}
-                                                            className="flex items-center gap-1 px-3 py-1.5 bg-white text-rose-500 hover:bg-rose-500 hover:text-white border border-rose-200 hover:border-rose-500 rounded-lg transition-all text-xs font-bold shadow-sm"
-                                                            title="ユーザーを削除"
+                                                            className="flex items-center gap-1 px-3 py-1.5 bg-white text-rose-500 hover:bg-rose-500 hover:text-white border border-rose-200 hover:border-rose-500 rounded-lg transition-all text-xs font-bold shadow-sm ml-2"
+                                                            title="ユーザーを物理削除"
                                                         >
-                                                            <Trash2 size={14} /> <span className="hidden sm:inline">削除</span>
+                                                            <Trash2 size={14} />
                                                         </button>
                                                     </div>
                                                 </td>

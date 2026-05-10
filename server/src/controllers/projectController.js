@@ -135,7 +135,6 @@ export const getProjectById = async (req, res) => {
                     orderBy: { createdAt: 'asc' },
                     include: { user: { select: { id: true, handleName: true } } }
                 },
-                // ★ 修正箇所: offer を offers に変更
                 offers: {
                     include: {
                         florist: { select: { id: true, platformName: true } },
@@ -205,7 +204,9 @@ export const createProject = async (req, res) => {
         const {
             title, description, targetAmount, deliveryAddress, deliveryDateTime,
             imageUrl, designImageUrls, designDetails, size, flowerTypes,
-            visibility, venueId, eventId, projectType, password
+            visibility, venueId, eventId, projectType, password,
+            // ★ 新規追加: 最低参加額と絵師募集
+            minContributionAmount, needsIllustrator, illustratorBudget, illustratorRequirements
         } = req.body;
 
         // 1. バリデーション
@@ -223,11 +224,20 @@ export const createProject = async (req, res) => {
             return res.status(400).json({ message: '有効な納品希望日時を入力してください。' });
         }
 
-        // 2. Prismaデータ作成 (スキーマの型に完全に準拠させる)
+        // 2. Prismaデータ作成
         const projectData = {
             title: String(title).trim(),
             description: description ? String(description) : "",
             targetAmount: amount,
+            
+            // ★ 新規追加: 最低参加額 (指定がなければ1000円)
+            minContributionAmount: minContributionAmount ? parseInt(minContributionAmount, 10) : 1000,
+            
+            // ★ 新規追加: クリエイター（絵師）募集設定
+            needsIllustrator: Boolean(needsIllustrator),
+            illustratorBudget: illustratorBudget ? parseInt(illustratorBudget, 10) : null,
+            illustratorRequirements: illustratorRequirements ? String(illustratorRequirements) : null,
+
             collectedAmount: 0,
             deliveryAddress: deliveryAddress ? String(deliveryAddress) : "",
             deliveryDateTime: deliveryDate,
@@ -237,17 +247,14 @@ export const createProject = async (req, res) => {
             size: size ? String(size) : "",
             flowerTypes: flowerTypes ? String(flowerTypes) : "",
             
-            // Enumの不一致を避けるための正規化
             status: 'PENDING_APPROVAL',
             projectType: (projectType === 'PRIVATE' || projectType === 'SOLO') ? projectType : 'PUBLIC',
             visibility: visibility === 'UNLISTED' ? 'UNLISTED' : 'PUBLIC',
             password: (password && password !== "") ? String(password) : null,
             
-            // ID系の処理（空文字が送られてきた場合にPrismaエラーになるのを防ぐ）
             venueId: (venueId && String(venueId).trim() !== "") ? venueId : null,
             eventId: (eventId && String(eventId).trim() !== "") ? eventId : null,
 
-            // 必須配列フィールドを確実に空配列で初期化
             designImageUrls: Array.isArray(designImageUrls) ? designImageUrls : [],
             completionImageUrls: [],
             illustrationPanelUrls: [],
@@ -255,10 +262,8 @@ export const createProject = async (req, res) => {
             sponsorPanelUrls: [],
             preEventPhotoUrls: [],
             
-            // JSON配列
             progressHistory: [],
 
-            // 数値型のデフォルト設定
             cancellationFee: 0,
             materialCost: 0,
             refundStatus: "NONE",
@@ -278,7 +283,6 @@ export const createProject = async (req, res) => {
         console.error('Code:', error.code);
         console.error('Message:', error.message);
         
-        // Prismaのバリデーションエラー(P2002等)や型エラーを拾う
         res.status(500).json({ 
             message: 'サーバー側のバリデーションエラーです。入力形式や必須項目を確認してください。',
             details: error.message 
@@ -291,7 +295,7 @@ export const updateProject = async (req, res) => {
     const { id } = req.params;
     const {
         title, description, imageUrl, designImageUrls,
-        designDetails, size, flowerTypes
+        designDetails, size, flowerTypes, minContributionAmount
     } = req.body;
     const userId = req.user.id;
 
@@ -305,6 +309,7 @@ export const updateProject = async (req, res) => {
             data: {
                 title, description, imageUrl, designImageUrls,
                 designDetails, size, flowerTypes,
+                minContributionAmount: minContributionAmount ? parseInt(minContributionAmount, 10) : undefined
             },
         });
         res.status(200).json(updatedProject);
@@ -391,7 +396,6 @@ export const setPledgeTiers = async (req, res) => {
 export const cancelProject = async (req, res) => {
     const { projectId } = req.params;
     const userId = req.user.id;
-    // ①の期間でお花屋さんが入力した実費を受け取る（任意）
     const { actualMaterialCost = 0 } = req.body; 
 
     try {
@@ -410,60 +414,42 @@ export const cancelProject = async (req, res) => {
             const deliveryDate = new Date(project.deliveryDateTime);
             const now = new Date();
             
-            // お届け日までの日数を計算（端数切り捨てで「何日前か」を判定）
             const diffTime = deliveryDate.getTime() - now.getTime();
             const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
 
             let totalCancelFee = 0;
             let refundRatio = 0;
 
-            // --- ★ キャンセル料の自動判定ロジック ★ ---
-            
             if (diffDays >= 7) {
-                // ① お届け7日前までの中止
-                // お花屋さんへの支払い: 実費のみ（入力がある場合）
-                // 支援者への還元: 実費を引いた残額を100%ポイントバック
                 const finalMaterialCost = parseInt(actualMaterialCost, 10) || 0;
                 totalCancelFee = Math.min(finalMaterialCost, collectedAmount);
                 refundRatio = collectedAmount > 0 ? (collectedAmount - totalCancelFee) / collectedAmount : 0;
                 
             } else if (diffDays >= 4 && diffDays <= 5) {
-                // ② お届け5日前〜4日前の中止 (※6日前は実質①と同じ扱いにするか、②に含めるか規約次第ですが、ここでは要件に合わせて4-5日を50%とします。6日前は要件に明記がないため、安全側に倒して①と同じく実費精算とします。厳密に「6日前〜4日前」とする場合は `diffDays >= 4 && diffDays <= 6` に変更してください。)
-                // お花屋さんへの支払い: 総額の50%
-                // 支援者への還元: 残りの50%をポイントバック
                 totalCancelFee = Math.floor(collectedAmount * 0.5);
                 refundRatio = 0.5;
                 
             } else if (diffDays >= 0 && diffDays <= 3) {
-                // ③ お届け3日前〜当日の中止
-                // お花屋さんへの支払い: 総額の100%
-                // 支援者への還元: なし（0%）
                 totalCancelFee = collectedAmount;
                 refundRatio = 0;
                 
             } else {
-                 // お届け日を過ぎている場合（当日以降）
                 totalCancelFee = collectedAmount;
                 refundRatio = 0;
             }
 
-            // 支援者に返す総額
             const totalRefundAmount = collectedAmount - totalCancelFee;
 
-            // --- ポイントバック処理（即時按分） ---
-            
             if (totalRefundAmount > 0 && collectedAmount > 0) {
                 for (const pledge of project.pledges) {
                     const refundForPledge = Math.floor(pledge.amount * refundRatio);
                     
                     if (refundForPledge > 0 && pledge.userId) {
-                        // FLASTALポイントを即時付与
                         await tx.user.update({
                             where: { id: pledge.userId },
                             data: { points: { increment: refundForPledge } }
                         });
                         
-                        // 通知
                         await createNotification(
                             pledge.userId, 
                             'PROJECT_STATUS_UPDATE', 
@@ -475,7 +461,6 @@ export const cancelProject = async (req, res) => {
                 }
             }
 
-            // --- 企画ステータスの更新 ---
             const canceledProject = await tx.project.update({
                 where: { id: projectId },
                 data: {
@@ -486,7 +471,6 @@ export const cancelProject = async (req, res) => {
                 },
             });
             
-            // 主催者に通知
              await createNotification(
                 project.plannerId, 
                 'PROJECT_STATUS_UPDATE', 
@@ -559,11 +543,9 @@ export const updateProductionDetails = async (req, res) => {
     } = req.body;
 
     try {
-        // ★ 修正箇所: offer を offers に変更
         const project = await prisma.project.findUnique({ where: { id: projectId }, include: { offers: true } });
         if (!project) return res.status(404).json({ message: '企画が見つかりません' });
 
-        // 互換性処理：現在アクティブなオファーを取得
         const activeOffer = project.offers.find(o => o.status === 'ACCEPTED') || project.offers[0];
 
         const isPlanner = project.plannerId === userId;
@@ -602,7 +584,6 @@ export const updateMaterialCost = async (req, res) => {
     if (req.user.role !== 'FLORIST') return res.status(403).json({ message: '権限がありません。' });
 
     try {
-        // ★ 修正箇所: offer を offers に変更
         const project = await prisma.project.findUnique({ where: { id: projectId }, include: { offers: true } });
         const activeOffer = project?.offers.find(o => o.status === 'ACCEPTED') || project?.offers[0];
 
@@ -633,7 +614,6 @@ export const updateProductionStatus = async (req, res) => {
     }
 
     try {
-        // ★ 修正箇所: offer を offers に変更
         const project = await prisma.project.findUnique({ where: { id: projectId }, include: { offers: true } });
         const activeOffer = project?.offers.find(o => o.status === 'ACCEPTED') || project?.offers[0];
 
@@ -665,7 +645,6 @@ export const updateProjectStatus = async (req, res) => {
     }
 
     try {
-        // ★ 修正箇所: offer を offers に変更
         const project = await prisma.project.findUnique({ where: { id: projectId }, include: { offers: true } });
         if (!project) return res.status(404).json({ message: '企画なし' });
 
@@ -694,12 +673,11 @@ export const updateProjectStatus = async (req, res) => {
                 tickerType = 'production';
                 tickerText = `お花屋さんが『${project.title}』の制作を開始しました💐`;
                 break;
-            case 'DELIVERED_OR_FINISHED': // または 'COMPLETED'
+            case 'DELIVERED_OR_FINISHED': 
             case 'COMPLETED':
                 tickerType = 'delivery';
                 tickerText = `『${project.title}』のフラスタが設置完了しました📸`;
                 break;
-            // 必要に応じて他のステータスも追加
         }
 
         if (tickerText) {
@@ -800,7 +778,6 @@ export const getChatRoomInfo = async (req, res) => {
     try {
         const room = await prisma.chatRoom.findUnique({
             where: { id: roomId },
-            // ★ 修正箇所: offer -> offers を考慮したネスト (必要に応じて)
             include: {
                 messages: { orderBy: { createdAt: 'asc' } },
                 offer: { include: { project: { include: { planner: true, quotation: { include: { items: true } } } }, florist: true } }
@@ -906,25 +883,21 @@ export const acceptIllustratorApplication = async (req, res) => {
 
         // 2. トランザクション処理 (ポイント減算・アサイン・ステータス更新)
         await prisma.$transaction(async (tx) => {
-            // 企画者のポイント残高チェック
             const planner = await tx.user.findUnique({ where: { id: plannerId } });
             if (planner.points < application.proposedAmount) {
                 throw new Error('ポイントが不足しています。');
             }
 
-            // ポイントを引く (仮払いとしてシステムに預ける)
             await tx.user.update({
                 where: { id: plannerId },
                 data: { points: { decrement: application.proposedAmount } }
             });
 
-            // 応募を承認ステータスに
             await tx.illustratorApplication.update({
                 where: { id: applicationId },
                 data: { status: 'ACCEPTED' }
             });
 
-            // プロジェクトに絵師をアサインし、報酬額を記録
             await tx.project.update({
                 where: { id: projectId },
                 data: { 
@@ -933,7 +906,6 @@ export const acceptIllustratorApplication = async (req, res) => {
                 }
             });
 
-            // (オプション) 他の応募を自動的に「お見送り(REJECTED)」にする
             await tx.illustratorApplication.updateMany({
                 where: { projectId: projectId, id: { not: applicationId } },
                 data: { status: 'REJECTED' }
@@ -968,23 +940,18 @@ export const acceptIllustrationDelivery = async (req, res) => {
             return res.status(400).json({ message: 'すでに検収済みです。' });
         }
 
-        // トランザクション処理 (ステータス更新・絵師へのポイント付与)
         await prisma.$transaction(async (tx) => {
-            // 1. プロジェクトのイラストを「検収済み」にする
             await tx.project.update({
                 where: { id: projectId },
                 data: { isIllustrationAccepted: true }
             });
 
-            // 2. 絵師にポイントを付与する（※ここでシステム手数料10%などを引く場合は計算を入れる）
-            // 今回はそのまま全額（100%）付与するロジック
             await tx.user.update({
                 where: { id: project.illustratorId },
                 data: { points: { increment: project.illustratorReward } }
             });
         });
 
-        // 任意: お花屋さんへ「イラストが確定しました」の通知を送る
         const activeOffer = project.offers?.find(o => o.status === 'ACCEPTED') || project.offers?.[0];
         if (activeOffer?.floristId) {
              await createNotification(
@@ -1005,12 +972,10 @@ export const acceptIllustrationDelivery = async (req, res) => {
 // ★ ロジスティクス・実費管理 (Florist Only)
 // ==========================================
 
-// ロジスティクス（物品受取・返送）のステータス更新
 export const updateLogisticsStatus = async (req, res) => {
     const { projectId } = req.params;
     const floristId = req.user.id;
     
-    // req.bodyには { isPanelReceived: true } などの単一の更新データが来る想定
     const updates = req.body;
 
     try {
@@ -1025,10 +990,9 @@ export const updateLogisticsStatus = async (req, res) => {
 
         const updatedProject = await prisma.project.update({
             where: { id: projectId },
-            data: updates // 受け取ったフィールドだけを更新
+            data: updates 
         });
 
-        // 主催者へ通知（オプション）
         let itemName = '';
         if ('isPanelReceived' in updates) itemName = '自作パネル';
         if ('isGoodsReceived' in updates) itemName = '持ち込みグッズ';
