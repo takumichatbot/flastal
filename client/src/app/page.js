@@ -615,6 +615,7 @@ const BentoFeatures = () => {
       </div>
     </section>
   );
+};
 
 // --- 6. CATEGORIES ---
 const CategoryGrid = () => {
