@@ -282,7 +282,8 @@ function PledgeForm({ project, user, onPledgeSubmit, isPledger }) {
  const cardAmount = finalAmount - pointsToUse; // クレジットカードで支払う不足分
 
  const onSubmit = async (data) => {
-   if (finalAmount <= 0) return toast.error('支援金額は1円以上である必要があります。');
+   const minAmount = project.minContributionAmount || 1000;
+   if (finalAmount < minAmount) return toast.error(`支援金額は ${minAmount.toLocaleString()} pt以上に設定してください。`);
    
    // ① 全額ポイントで決済できる場合（カード決済不要）
    if (user && cardAmount === 0) {
@@ -390,13 +391,26 @@ function PledgeForm({ project, user, onPledgeSubmit, isPledger }) {
          )
        ) : null}
 
+       {/* ↓↓↓ ここから書き換え ↓↓↓ */}
        {pledgeType === 'free' && (
          <div>
-           <label className="block text-[10px] md:text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">支援金額 (pt/円)</label>
-           <input type="number" {...register('pledgeAmount')} min="100" className="w-full p-3.5 bg-slate-50 border-transparent rounded-xl text-xl font-black text-slate-800 focus:bg-white focus:border-pink-400 focus:ring-4 focus:ring-pink-50 outline-none transition-all" placeholder="例: 3000"/>
-           <p className="text-[10px] text-slate-400 font-bold mt-1.5 ml-1">※好きな金額を入力できます</p>
+           <label className="block text-[10px] md:text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1 flex items-center gap-2">
+             支援金額 (pt/円)
+             <span className="bg-pink-100 text-pink-600 px-2 py-0.5 rounded-md normal-case tracking-normal">
+               1口 {project.minContributionAmount?.toLocaleString() || '1,000'}pt〜
+             </span>
+           </label>
+           <input 
+             type="number" 
+             {...register('pledgeAmount')} 
+             min={project.minContributionAmount || 1000} 
+             className="w-full p-3.5 bg-slate-50 border-transparent rounded-xl text-xl font-black text-slate-800 focus:bg-white focus:border-pink-400 focus:ring-4 focus:ring-pink-50 outline-none transition-all" 
+             placeholder={`例: ${project.minContributionAmount || 1000}`}
+           />
+           <p className="text-[10px] text-slate-400 font-bold mt-1.5 ml-1">※最低額以上の好きな金額を入力できます</p>
          </div>
        )}
+       {/* ↑↑↑ ここまで書き換え ↑↑↑ */}
 
        {/* ★ 追加: 決済内訳（ポイント充当）の表示 */}
        {user && finalAmount > 0 && (
@@ -939,19 +953,24 @@ const [isFloristMaterialModalOpen, setIsFloristMaterialModalOpen] = useState(fal
                <div className="w-full md:w-3/5 flex flex-col gap-3">
                    <div className="flex justify-between items-end px-1">
                        <div className="flex flex-col">
-                           <span className="text-[10px] md:text-xs font-black text-slate-400 tracking-widest mb-1">現在の支援総額</span>
+                           <span className="text-[10px] md:text-xs font-bold text-slate-400 tracking-widest mb-1">現在の支援総額</span>
                            <div className="flex items-baseline gap-1">
                                <span className="text-xl md:text-4xl font-black text-emerald-500 tracking-tighter leading-none">
                                    ¥{(project.collectedAmount || 0).toLocaleString()}
                                </span>
                            </div>
                        </div>
+                       {/* ↓↓↓ ここから書き換え ↓↓↓ */}
                        <div className="flex flex-col text-right">
                            <span className="text-[10px] md:text-xs font-bold text-slate-400 mb-1">目標金額</span>
                            <span className="text-sm md:text-xl font-black text-slate-700 tracking-tight leading-none">
                                ¥{(project.targetAmount || 0).toLocaleString()}
                            </span>
+                           <span className="text-[10px] font-bold text-slate-400 mt-1.5">
+                               (1口 ¥{(project.minContributionAmount || 1000).toLocaleString()}〜)
+                           </span>
                        </div>
+                       {/* ↑↑↑ ここまで書き換え ↑↑↑ */}
                    </div>
                    <UpsellAlert target={project.targetAmount} collected={project.collectedAmount} />
                </div>
