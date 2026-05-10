@@ -12,12 +12,11 @@ import ApprovalPendingCard from '@/components/dashboard/ApprovalPendingCard';
 import FloristAppealPostForm from '@/components/dashboard/FloristAppealPostForm';
 import { motion, AnimatePresence } from 'framer-motion';
 
-// lucide-reactに統一
 import { 
   CheckCircle2, FileText, Calendar, MapPin, 
   Clock, ChevronLeft, ChevronRight, Camera, User, 
   Eye, EyeOff, Trash2, DollarSign, LogOut, ArrowRight,
-  Briefcase, AlertCircle, Loader2, Star, Image as ImageIcon, Send, Truck
+  Briefcase, AlertCircle, Loader2, Star, Image as ImageIcon, Send, Truck, MessageSquare
 } from 'lucide-react'; 
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
@@ -25,7 +24,6 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onre
 function cn(...classes) {
   return classes.filter(Boolean).join(' ');
 }
-
 
 // 🎨 Glassmorphism UI Components
 const GlassCard = ({ children, className }) => (
@@ -39,6 +37,7 @@ const Reveal = ({ children, delay = 0 }) => (
     {children}
   </motion.div>
 );
+
 const JpText = ({ children, className }) => <span className={cn("inline-block", className)}>{children}</span>;
 
 const StatCard = ({ title, value, icon: Icon, color = "sky" }) => {
@@ -270,7 +269,17 @@ function DashboardContent() {
   if (!data) return <div className="min-h-screen flex items-center justify-center bg-slate-50"><Loader2 className="animate-spin text-pink-500" size={40}/></div>;
 
   const { offers = [], appealPosts = [], scheduleEvents = [], balance = 0, platformName } = data;
-  const pendingOffers = offers.filter(o => o.status === 'PENDING');
+  
+  // ★ 修正1: 新着オファーからキャンセル・完了・BANされた企画を除外する
+  const pendingOffers = offers.filter(o => 
+      o.status === 'PENDING' && 
+      o.project && 
+      o.project.status !== 'CANCELED' && 
+      o.project.status !== 'COMPLETED' && 
+      o.project.status !== 'REJECTED' &&
+      o.project.visibility !== 'UNLISTED'
+  );
+  
   const acceptedOffers = offers.filter(o => o.status === 'ACCEPTED');
 
   return (
@@ -327,7 +336,7 @@ function DashboardContent() {
                   { id: 'pending', label: '新着オファー', count: pendingOffers.length, icon: Star },
                   { id: 'accepted', label: '対応中の企画', count: acceptedOffers.length, icon: CheckCircle2 },
                   { id: 'schedule', label: 'スケジュール', icon: Calendar },
-                  { id: 'delivery', label: '配送・回収設定', icon: Truck }, // ★ 追加
+                  { id: 'delivery', label: '配送・回収設定', icon: Truck },
                   { id: 'payout', label: '売上・出金', icon: DollarSign },
                   { id: 'appeal', label: '制作アピール', count: appealPosts.length, icon: Camera }
                 ].map(tab => (
@@ -360,7 +369,8 @@ function DashboardContent() {
                               <h3 className="font-black text-slate-800 text-lg mt-3 mb-1 line-clamp-1 group-hover:text-pink-600 transition-colors">{o.project?.title}</h3>
                               <p className="text-xs font-bold text-slate-400 flex items-center gap-1"><Clock size={12}/> 依頼日: {new Date(o.createdAt).toLocaleDateString()}</p>
                           </div>
-                          <Link href={`/florists/projects/${o.projectId}`} className="w-full md:w-auto text-center px-8 py-3.5 bg-white border-2 border-pink-200 text-pink-600 rounded-full font-black hover:bg-pink-500 hover:text-white hover:border-pink-500 transition-all shadow-sm">詳細を確認する</Link>
+                          {/* ★ 修正2: チャット画面に遷移するようにリンク先を修正 */}
+                          <Link href={`/florists/projects/${o.projectId}/chat`} className="w-full md:w-auto text-center px-8 py-3.5 bg-white border-2 border-pink-200 text-pink-600 rounded-full font-black hover:bg-pink-500 hover:text-white hover:border-pink-500 transition-all shadow-sm">詳細を確認する</Link>
                         </div>
                       )) : (
                         <div className="text-center py-32 bg-slate-50/50 rounded-[2.5rem] border-2 border-dashed border-slate-200">
@@ -377,7 +387,6 @@ function DashboardContent() {
                       {acceptedOffers.length > 0 ? acceptedOffers.map(o => (
                         <div key={o.id} className="bg-white rounded-[2rem] border border-slate-200 shadow-sm hover:shadow-lg hover:border-sky-300 hover:-translate-y-1 transition-all group flex flex-col h-full overflow-hidden">
                           
-                          {/* ヘッダー部分（ステータスバッジ） */}
                           <div className={cn(
                               "px-5 py-3 border-b flex justify-between items-center",
                               o.project?.status === 'COMPLETED' ? 'bg-slate-50 border-slate-200' : 'bg-sky-50/50 border-sky-100'
@@ -392,7 +401,6 @@ function DashboardContent() {
                               <span className="text-[10px] font-bold text-slate-400 font-mono">ID: {o.projectId.slice(0,6)}</span>
                           </div>
 
-                          {/* メイン情報 */}
                           <div className="p-6 flex-grow flex flex-col justify-between">
                               <div>
                                   <h3 className="font-black text-slate-800 text-lg mb-4 line-clamp-2 leading-snug group-hover:text-sky-600 transition-colors">
@@ -427,7 +435,6 @@ function DashboardContent() {
                                   </div>
                               </div>
 
-                              {/* ミニステータスインジケーター（写真提出状況など） */}
                               {o.project?.quotation?.isApproved && (
                                   <div className="flex gap-2 mb-6">
                                       <div className={cn("flex-1 text-center py-1.5 rounded-lg text-[9px] font-black border", o.project?.preEventPhotoUrls?.length > 0 ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-slate-50 text-slate-400 border-slate-200")}>
@@ -439,13 +446,21 @@ function DashboardContent() {
                                   </div>
                               )}
 
-                              {/* アクションボタン */}
-                              <Link 
-                                  href={`/florists/projects/${o.projectId}`} 
-                                  className="w-full text-center py-3.5 bg-slate-900 text-white rounded-xl font-black text-sm hover:bg-slate-800 shadow-md transition-colors flex items-center justify-center gap-2 group-hover:scale-[1.02]"
-                              >
-                                  管理画面を開く <ArrowRight size={16}/>
-                              </Link>
+                              <div className="flex flex-col gap-2">
+                                {/* ★ 修正3: 「企画者とチャット」に変更し、リンク先を /chat に修正 */}
+                                <Link 
+                                    href={`/florists/projects/${o.projectId}/chat`} 
+                                    className="w-full text-center py-3 bg-sky-50 text-sky-600 rounded-xl font-black text-sm hover:bg-sky-100 border border-sky-200 transition-colors flex items-center justify-center gap-2"
+                                >
+                                    <MessageSquare size={16}/> 企画者とチャット
+                                </Link>
+                                <Link 
+                                    href={`/florists/projects/${o.projectId}`} 
+                                    className="w-full text-center py-3 bg-slate-900 text-white rounded-xl font-black text-sm hover:bg-slate-800 shadow-md transition-colors flex items-center justify-center gap-2 group-hover:scale-[1.02]"
+                                >
+                                    管理画面を開く <ArrowRight size={16}/>
+                                </Link>
+                              </div>
                           </div>
                         </div>
                       )) : (
@@ -460,7 +475,7 @@ function DashboardContent() {
                   {/* --- SCHEDULE --- */}
                   {activeTab === 'schedule' && <CalendarView events={scheduleEvents} />}
 
-                  {/* --- ★ 追加: DELIVERY SETTINGS --- */}
+                  {/* --- DELIVERY SETTINGS --- */}
                   {activeTab === 'delivery' && (
                     <div className="flex flex-col items-center justify-center py-20 bg-gradient-to-br from-sky-50 to-indigo-50/30 rounded-[3rem] border border-white shadow-[0_8px_30px_rgba(0,0,0,0.02)] text-center relative overflow-hidden">
                       <div className="w-24 h-24 bg-white rounded-[2rem] shadow-xl mb-6 text-sky-500 flex items-center justify-center -rotate-3 border-4 border-sky-50 relative z-10">
