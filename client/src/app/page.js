@@ -581,11 +581,11 @@ const BentoFeatures = () => {
         <div className="mb-12 md:mb-20 text-center md:text-left">
           <Reveal>
             <span className="text-emerald-500 font-black text-[10px] md:text-xs tracking-[0.2em] uppercase block mb-4">Safety & Professional</span>
-            {/* ★ 文字サイズを微調整し、文節ごとに inline-block で囲んで変な改行を防ぐ */}
-            <h2 className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-black text-slate-800 tracking-tighter leading-[1.4] md:leading-[1.2] max-w-4xl">
-              <span className="inline-block">フラスタ企画の</span>
-              <span className="inline-block">面倒な裏方は、</span><br className="hidden sm:block"/>
-              <span className="inline-block">すべてFLASTALにお任せ。</span>
+            
+            {/* ★ スマホは text-[20px] または text-xl にして、必ず「2行」で美しく収める */}
+            <h2 className="text-[21px] sm:text-3xl md:text-5xl lg:text-6xl font-black text-slate-800 tracking-tighter leading-[1.5] md:leading-[1.2]">
+              フラスタ企画の面倒な裏方は、<br />
+              すべてFLASTALにお任せ。
             </h2>
           </Reveal>
         </div>
