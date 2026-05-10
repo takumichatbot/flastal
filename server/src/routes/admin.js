@@ -30,6 +30,11 @@ router.get('/payouts', adminController.getAdminPayouts);
 router.get('/email-templates', adminController.getEmailTemplates);
 router.post('/email-templates', adminController.createEmailTemplate);
 
+// ★ 追加: 予算別参考写真 (Budget Reference) の管理エンドポイント
+router.get('/budget-references', adminController.getBudgetReferences);
+router.post('/budget-references', adminController.upsertBudgetReference);
+router.delete('/budget-references/:priceRange', adminController.deleteBudgetReference);
+
 // --- 2. 動的IDパス (優先順位：中) ---
 router.get('/projects/:projectId/chats', adminController.getProjectChatLogs);
 

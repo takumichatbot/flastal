@@ -11,8 +11,9 @@ import {
     MessageSquare, AlertTriangle, RefreshCw, DollarSign, 
     Award, MapPin, Calendar, Clock, Settings, Edit3, 
     Mail, Activity, TrendingUp, UserCheck, CheckCircle2, LogOut, ArrowRight, Palette,
-    Flower2, Building2, ShieldCheck, FileText, Users, Send, LayoutGrid
-} from 'lucide-react'; 
+    Flower2, Building2, ShieldCheck, FileText, Users, Send, LayoutGrid, Image as ImageIcon
+} from 'lucide-react';
+
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -297,6 +298,7 @@ export default function AdminPage() {
                         {/* 🌟 メニューの先頭に「全企画一覧・編集・削除」を追加！ */}
                         <QuickLink href="/admin/projects" icon={<LayoutGrid/>} label="全企画一覧・情報編集・削除" />
                         <QuickLink href="/admin/events" icon={<Calendar/>} label="全イベント一覧・編集・削除" />
+                        <QuickLink href="/admin/budget-references" icon={<ImageIcon/>} label="予算別カタログ画像の設定" />
                         
                         <div className="my-3 border-t border-slate-100/50"></div>
                         <QuickLink href="/admin/approval?tab=projects" icon={<Award/>} label="プロジェクト審査" />

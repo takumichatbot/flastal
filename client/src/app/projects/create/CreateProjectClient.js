@@ -4,7 +4,7 @@
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
 
-import { useState, useEffect, useCallback, Suspense, useRef } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/app/contexts/AuthContext';
 import toast from 'react-hot-toast';
@@ -15,8 +15,8 @@ import AiPlanGenerator from '@/app/components/AiPlanGenerator';
 // Lucide Icons
 import { 
   Calendar, MapPin, X, Image as ImageIcon, Loader2, Plus, 
-  User, Award, Search, CheckCircle2, AlertTriangle, ZoomIn, Sparkles, 
-  Heart, Wand2, Lock, Globe, UploadCloud, ArrowRight, Paintbrush, FileText, Clock, UserPlus
+  Award, Search, AlertTriangle, ZoomIn, Sparkles, 
+  Wand2, Lock, Globe, ArrowRight, Paintbrush, FileText, Clock, UserPlus
 } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
@@ -25,27 +25,7 @@ function cn(...classes) {
   return classes.filter(Boolean).join(' ');
 }
 
-const JpText = ({ children, className }) => (
-  <span className={cn("inline-block", className)}>{children}</span>
-);
-
 // 日付関連フォーマット関数
-const formatToLocalISO = (dateString) => {
-  if (!dateString) return '';
-  try {
-      const date = new Date(dateString);
-      if (isNaN(date.getTime())) return '';
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-      const hours = String(date.getHours()).padStart(2, '0');
-      const minutes = String(date.getMinutes()).padStart(2, '0');
-      return `${year}-${month}-${day}T${hours}:${minutes}`;
-  } catch (e) {
-      return '';
-  }
-};
-
 const formatDisplayDate = (dateString) => {
   if (!dateString) return '日付未定';
   return new Date(dateString).toLocaleString('ja-JP', {
@@ -127,84 +107,6 @@ const GlassTextarea = (props) => (
 // ===========================================
 // 🪄 MODALS
 // ===========================================
-
-function AIGenerationModal({ onClose, onGenerate }) {
-  const [prompt, setPrompt] = useState('');
-  const [isGenerating, setIsGenerating] = useState(false);
-  const { authenticatedFetch } = useAuth();
-
-  const handleGenerate = async () => {
-    if (!prompt.trim()) return toast.error('キーワードを入力してください');
-    
-    setIsGenerating(true);
-    try {
-      const res = await authenticatedFetch(`${API_URL}/api/ai/generate-ai-image`, {
-        method: 'POST',
-        body: JSON.stringify({ prompt }),
-      });
-
-      if (!res.ok) throw new Error('生成に失敗しました');
-      
-      const data = await res.json();
-      onGenerate(data.url);
-      onClose();
-      toast.success('イメージ画像を生成しました！');
-    } catch (error) {
-      console.error(error);
-      toast.error('画像の生成に失敗しました。しばらく待ってからお試しください。');
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 bg-slate-900/60 flex justify-center items-center z-50 p-4 backdrop-blur-md">
-      <motion.div 
-        initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
-        className="bg-white rounded-[3rem] shadow-2xl w-full max-w-lg overflow-hidden border border-white"
-      >
-        <div className="bg-gradient-to-r from-purple-500 to-indigo-500 p-8 text-center relative overflow-hidden">
-          <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-30" />
-          <button onClick={onClose} disabled={isGenerating} className="absolute top-6 right-6 text-white/80 hover:text-white transition-colors bg-black/10 rounded-full p-2">
-            <X size={20} />
-          </button>
-          <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-4 backdrop-blur-sm border border-white/30">
-            <Wand2 className="text-white" size={32} />
-          </div>
-          <h3 className="text-2xl font-black text-white tracking-tighter relative z-10">AI デザイン生成</h3>
-          <p className="text-white/80 text-xs font-bold mt-2 relative z-10">魔法のようにお花のイメージを描き出します</p>
-        </div>
-        
-        <div className="p-8 bg-slate-50/50">
-          <p className="text-xs text-slate-500 mb-4 font-bold leading-relaxed">
-            作りたいフラスタのイメージを言葉で入力してください。<br/>
-            AIが数秒でラフ画（デザイン案）を生成します。
-          </p>
-          
-          <textarea
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            placeholder="例: 全体的にピンク色、大きなリボン、天使の羽、キラキラした装飾、かわいらしい雰囲気"
-            rows="4"
-            className="w-full p-5 border-2 border-purple-100 bg-white rounded-2xl focus:ring-4 focus:ring-purple-100 focus:border-purple-400 outline-none text-slate-800 transition-all resize-none font-bold"
-            disabled={isGenerating}
-          ></textarea>
-
-          <div className="mt-8 flex justify-end gap-3">
-            <button onClick={onClose} disabled={isGenerating} className="px-6 py-3.5 text-slate-500 bg-white border border-slate-200 hover:bg-slate-50 rounded-full font-bold transition-all text-sm">キャンセル</button>
-            <button 
-              onClick={handleGenerate}
-              disabled={isGenerating || !prompt.trim()}
-              className="px-8 py-3.5 bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-black rounded-full hover:shadow-lg hover:shadow-purple-500/30 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-all"
-            >
-              {isGenerating ? <><Loader2 className="animate-spin" size={18}/> 生成中...</> : <><Sparkles size={18}/> 生成する</>}
-            </button>
-          </div>
-        </div>
-      </motion.div>
-    </div>
-  );
-}
 
 function EventSelectionModal({ onClose, onSelect }) {
   const [events, setEvents] = useState([]);
@@ -306,9 +208,6 @@ function EventSelectionModal({ onClose, onSelect }) {
   );
 }
 
-// ===========================================
-// ★ 会場選択モーダル (検索機能付きカスタムドロップダウン版)
-// ===========================================
 function VenueSelectionModal({ onClose, onSelect }) {
   const [venues, setVenues] = useState([]);
   const [filteredVenues, setFilteredVenues] = useState([]);
@@ -333,7 +232,6 @@ function VenueSelectionModal({ onClose, onSelect }) {
     fetchVenues();
   }, []);
 
-  // 検索クエリが変わるたびにリストを絞り込む
   useEffect(() => {
     const query = searchQuery.toLowerCase();
     setFilteredVenues(
@@ -348,7 +246,6 @@ function VenueSelectionModal({ onClose, onSelect }) {
     <div className="fixed inset-0 bg-slate-900/60 flex justify-center items-center z-50 p-4 backdrop-blur-md animate-fadeIn">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-[3rem] shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden border border-white">
         
-        {/* ヘッダー */}
         <div className="p-6 md:p-8 border-b border-emerald-100 flex justify-between items-center bg-gradient-to-r from-emerald-50 to-white">
           <div>
             <span className="text-[10px] font-black text-emerald-500 tracking-widest uppercase mb-1 block">Venue Select</span>
@@ -361,7 +258,6 @@ function VenueSelectionModal({ onClose, onSelect }) {
           </button>
         </div>
 
-        {/* 検索バー */}
         <div className="p-4 md:p-6 bg-white border-b border-slate-100">
             <div className="relative">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
@@ -375,7 +271,6 @@ function VenueSelectionModal({ onClose, onSelect }) {
             </div>
         </div>
 
-        {/* 会場リスト */}
         <div className="p-4 md:p-6 overflow-y-auto flex-grow bg-slate-50/50 space-y-4">
           {loading ? (
             <div className="text-center py-20 text-slate-400 font-bold flex flex-col items-center gap-3">
@@ -441,7 +336,6 @@ function CreateProjectForm() {
   
   const [isVenueModalOpen, setIsVenueModalOpen] = useState(false);
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
-  const [isAIModalOpen, setIsAIModalOpen] = useState(false); 
   const [isAiPlanModalOpen, setIsAiPlanModalOpen] = useState(false); 
   const [previewImageUrl, setPreviewImageUrl] = useState(null);
 
@@ -452,8 +346,12 @@ function CreateProjectForm() {
   const [deliveryDateObj, setDeliveryDateObj] = useState('');
   const [deliveryTimeText, setDeliveryTimeText] = useState('午前中');
 
-  // ★ 追加：クリエイター募集設定用のステート
+  // クリエイター募集設定用のステート
   const [needsIllustrator, setNeedsIllustrator] = useState(false);
+
+  // ★ 予算別カタログ用のステート
+  const [budgetRefs, setBudgetRefs] = useState([]);
+  const [isLoadingRefs, setIsLoadingRefs] = useState(true);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -469,17 +367,33 @@ function CreateProjectForm() {
     flowerTypes: '',
     projectType: 'PUBLIC',
     password: '',
-    // ★ 追加
     illustratorBudget: '',
     illustratorRequirements: ''
   });
 
-  // 日付をもとに Rush Fee を計算（時間は考慮しない）
+  // ★ カタログデータの取得
+  useEffect(() => {
+    const fetchBudgetRefs = async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/tools/budget-references`);
+        if (res.ok) {
+          const data = await res.json();
+          setBudgetRefs(data);
+        }
+      } catch (error) {
+        console.error('カタログ取得エラー', error);
+      } finally {
+        setIsLoadingRefs(false);
+      }
+    };
+    fetchBudgetRefs();
+  }, []);
+
+  // 日付をもとに Rush Fee を計算
   const calculateRushFee = () => {
     if (!deliveryDateObj) return null;
     
     const now = new Date();
-    // タイムゾーンによるズレを防ぐため、12:00（正午）を基準に計算
     const target = new Date(`${deliveryDateObj}T12:00:00+09:00`);
     const diffTime = target.getTime() - now.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -553,13 +467,6 @@ function CreateProjectForm() {
         setIsDesignUploading(false);
         e.target.value = '';
     }
-  };
-
-  const handleAIGenerated = (url) => {
-    setFormData(prev => ({
-      ...prev,
-      designImageUrls: [...prev.designImageUrls, url]
-    }));
   };
 
   const fetchEventDetails = useCallback(async (id) => {
@@ -652,7 +559,6 @@ function CreateProjectForm() {
     try {
         if (!deliveryDateObj) throw new Error("納品希望日を選択してください");
         
-        // データベースに保存するための仮の日時（正午）を作成
         const dateObj = new Date(`${deliveryDateObj}T12:00:00+09:00`); 
         if (isNaN(dateObj.getTime())) throw new Error("日時の形式が正しくありません");
         
@@ -687,7 +593,6 @@ function CreateProjectForm() {
         eventId: selectedEvent?.id || null,
         visibility: "PUBLIC",
         
-        // ★ 追加: 絵師募集フラグと条件
         needsIllustrator: needsIllustrator,
         illustratorBudget: needsIllustrator ? parseInt(formData.illustratorBudget, 10) : null,
         illustratorRequirements: needsIllustrator ? formData.illustratorRequirements : null
@@ -816,6 +721,36 @@ function CreateProjectForm() {
             </div>
           </GlassCard>
 
+          {/* --- BLOCK 2.5: 予算とボリュームの目安 (カタログ) --- */}
+          <GlassCard>
+            <InputLabel icon={ImageIcon} title="予算とボリュームの目安" subtitle="過去の実績を参考に、作りたいフラスタの規模をイメージしましょう" />
+            
+            {isLoadingRefs ? (
+                <div className="flex justify-center items-center py-12">
+                    <Loader2 className="animate-spin text-pink-400" size={32}/>
+                </div>
+            ) : budgetRefs.length === 0 ? (
+                <div className="text-center py-8 text-slate-400 font-bold bg-slate-50 rounded-2xl border border-slate-100 mt-4">
+                    現在登録されているカタログはありません
+                </div>
+            ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mt-6">
+                    {budgetRefs.map(ref => (
+                        <div key={ref.id} className="border-2 border-slate-100 rounded-[2rem] overflow-hidden bg-white hover:border-pink-300 hover:shadow-xl hover:-translate-y-1 transition-all group">
+                            <div className="relative h-40 w-full bg-slate-100 overflow-hidden">
+                                <img src={ref.imageUrl} alt={ref.label} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                            </div>
+                            <div className="p-4 text-center bg-white relative z-10">
+                                <h4 className="font-black text-slate-800 mb-1">{ref.label}</h4>
+                                <p className="text-[10px] sm:text-xs text-slate-500 font-bold leading-relaxed">{ref.description}</p>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+            <p className="text-[10px] text-slate-400 font-bold mt-4 text-center">※上記はあくまで目安です。実際はお花屋さんとの相談で柔軟に調整できます。</p>
+          </GlassCard>
+
           {/* --- BLOCK 3: 目標金額 --- */}
           <GlassCard className="border-4 border-pink-100 bg-gradient-to-b from-white/90 to-pink-50/30">
             <InputLabel icon={Award} title="目標金額" subtitle="お花の制作や装飾品にかかる総予算を決めましょう" required />
@@ -910,7 +845,6 @@ function CreateProjectForm() {
               <div className="bg-slate-50/50 p-6 rounded-[2.5rem] border border-slate-100">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
                       <label className="block text-sm font-black text-slate-700">参考画像・ラフ画 <span className="text-[10px] text-slate-400 font-bold ml-2">(複数枚OK)</span></label>
-                      <button type="button" onClick={() => setIsAIModalOpen(true)} className="text-xs bg-gradient-to-r from-purple-500 to-indigo-500 text-white px-5 py-2.5 rounded-full hover:shadow-lg hover:shadow-purple-500/30 font-black transition-all flex items-center justify-center gap-2"><Wand2 size={14}/> AIでラフ画を作る</button>
                   </div>
                   <div className="flex flex-wrap gap-4">
                       {formData.designImageUrls.map((url, index) => (
@@ -949,7 +883,7 @@ function CreateProjectForm() {
             </div>
           </GlassCard>
 
-          {/* --- BLOCK 6: クリエイター募集設定 (★新規追加) --- */}
+          {/* --- BLOCK 6: クリエイター募集設定 --- */}
           <GlassCard className="border-4 border-amber-100 bg-gradient-to-br from-white/90 to-amber-50/50">
             <div className="flex items-start justify-between gap-4">
                 <div>
@@ -1010,7 +944,6 @@ function CreateProjectForm() {
       <AnimatePresence>
         {isVenueModalOpen && <VenueSelectionModal onClose={() => setIsVenueModalOpen(false)} onSelect={handleVenueSelect} />}
         {isEventModalOpen && <EventSelectionModal onClose={() => setIsEventModalOpen(false)} onSelect={handleEventSelect} />}
-        {isAIModalOpen && <AIGenerationModal onClose={() => setIsAIModalOpen(false)} onGenerate={handleAIGenerated} />}
         {previewImageUrl && <ImageLightbox url={previewImageUrl} onClose={() => setPreviewImageUrl(null)} />}
         {isAiPlanModalOpen && (
           <AiPlanGenerator 

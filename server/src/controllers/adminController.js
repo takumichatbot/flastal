@@ -494,3 +494,50 @@ export const deleteProjectByAdmin = async (req, res) => {
         res.status(500).json({ message: '企画の削除に失敗しました。' });
     }
 };
+
+// ==========================================
+// ★★★ 予算別参考写真 (BudgetReference) 管理 ★★★
+// ==========================================
+
+// 一覧の取得
+export const getBudgetReferences = async (req, res) => {
+    try {
+        const refs = await prisma.budgetReferenceImage.findMany({
+            orderBy: { createdAt: 'asc' }
+        });
+        return res.json(refs);
+    } catch (error) {
+        console.error('getBudgetReferences Error:', error);
+        return res.status(500).json({ message: '取得に失敗しました' });
+    }
+};
+
+// 作成・更新 (Upsert)
+export const upsertBudgetReference = async (req, res) => {
+    const { priceRange, label, description, imageUrl, isActive } = req.body;
+    try {
+        const ref = await prisma.budgetReferenceImage.upsert({
+            where: { priceRange },
+            update: { label, description, imageUrl, isActive: isActive ?? true },
+            create: { priceRange, label, description, imageUrl, isActive: isActive ?? true }
+        });
+        return res.status(200).json(ref);
+    } catch (error) {
+        console.error('upsertBudgetReference Error:', error);
+        return res.status(500).json({ message: '保存に失敗しました' });
+    }
+};
+
+// 削除
+export const deleteBudgetReference = async (req, res) => {
+    const { priceRange } = req.params;
+    try {
+        await prisma.budgetReferenceImage.delete({
+            where: { priceRange }
+        });
+        return res.status(204).send();
+    } catch (error) {
+        console.error('deleteBudgetReference Error:', error);
+        return res.status(500).json({ message: '削除に失敗しました' });
+    }
+};

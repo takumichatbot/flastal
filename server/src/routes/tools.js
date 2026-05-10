@@ -2,9 +2,27 @@ import express from 'express';
 import { authenticateToken } from '../middleware/auth.js';
 import * as toolController from '../controllers/toolController.js';
 import multer from 'multer';
+import prisma from '../config/prisma.js'; // ★ 追加：データベース操作用
 
 const router = express.Router();
 const upload = multer();
+
+// ==========================================
+// ★ 追加: 一般ユーザー向けに予算カタログを返すエンドポイント
+// （企画作成画面などで誰でも見れるように、ここは認証不要にしています）
+// ==========================================
+router.get('/budget-references', async (req, res) => {
+    try {
+        const refs = await prisma.budgetReferenceImage.findMany({
+            where: { isActive: true }, // アクティブなものだけを返す
+            orderBy: { createdAt: 'asc' }
+        });
+        res.json(refs);
+    } catch (error) {
+        console.error("Budget References Fetch Error:", error);
+        res.status(500).json({ message: 'カタログの取得に失敗しました' });
+    }
+});
 
 // S3署名付きURL発行
 router.post('/s3-upload-url', authenticateToken, toolController.getS3UploadUrl);
