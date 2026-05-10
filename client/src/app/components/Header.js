@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'; 
 import { motion, AnimatePresence, useScroll, useMotionValueEvent } from 'framer-motion';
 import toast from 'react-hot-toast';
+import { usePathname } from 'next/navigation';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -62,26 +63,27 @@ function NotificationDropdown({ notifications, fetchNotifications, unreadCount, 
     };
   
     return (
-      <div className="relative flex items-center" ref={dropdownRef}>
-        <button 
+      <div className="relative" ref={dropdownRef}>
+        <motion.button 
+          whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
           onClick={() => { setIsOpen(!isOpen); if (!isOpen) fetchNotifications(); }} 
-          className="relative p-2 rounded-full hover:bg-slate-100 text-slate-500 hover:text-pink-500 transition-colors"
+          className="relative p-2.5 rounded-full hover:bg-slate-100 text-slate-500 hover:text-pink-500 transition-colors"
         >
           <Bell size={20} />
           {unreadCount > 0 && (
-            <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[9px] font-black text-white shadow-sm ring-2 ring-white">
+            <span className="absolute top-1.5 right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[9px] font-black text-white shadow-sm ring-2 ring-white animate-pulse">
               {unreadCount > 9 ? '9+' : unreadCount}
             </span>
           )}
-        </button>
+        </motion.button>
   
         <AnimatePresence>
           {isOpen && (
             <motion.div
               initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: 0.95 }} transition={{ duration: 0.2 }}
-              className="absolute right-0 top-full mt-3 w-80 bg-white/95 backdrop-blur-xl border border-slate-200 rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.1)] z-50 overflow-hidden"
+              className="absolute right-0 mt-4 w-80 bg-white/95 backdrop-blur-xl border border-white/50 rounded-3xl shadow-[0_10px_40px_rgba(0,0,0,0.1)] z-50 overflow-hidden ring-1 ring-slate-100"
             >
-              <div className="flex justify-between items-center px-5 py-4 border-b border-slate-100 bg-slate-50/80">
+              <div className="flex justify-between items-center px-5 py-4 border-b border-slate-100/50 bg-slate-50/80">
                 <h3 className="font-black text-sm text-slate-800 flex items-center gap-2"><Bell size={14} className="text-pink-500"/> 通知</h3>
                 <button onClick={handleMarkAllAsRead} disabled={unreadCount === 0} className="text-[10px] font-black uppercase tracking-widest text-sky-500 hover:text-sky-600 disabled:text-slate-300 transition-colors">
                   すべて既読
@@ -128,12 +130,31 @@ export default function Header() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); 
   const userMenuRef = useRef(null);
   
+  const [hoveredNav, setHoveredNav] = useState(null);
+  
   const { scrollY } = useScroll();
   const [isScrolled, setIsScrolled] = useState(false);
+  const [isHidden, setIsHidden] = useState(false);
+
+  const [tickerOffset, setTickerOffset] = useState("top-10"); 
 
   useMotionValueEvent(scrollY, "change", (latest) => {
-    setIsScrolled(latest > 10);
-    // PC向けにはヘッダーを隠さず、常に上部固定（Sticky）にするため isHidden ロジックは削除
+    const previous = scrollY.getPrevious();
+    setIsScrolled(latest > 20);
+    
+    // スクロールしたら Ticker の分の offset を消して画面上部にぴったりつける
+    if (latest > 40) {
+        setTickerOffset("top-0");
+    } else {
+        setTickerOffset("top-10");
+    }
+
+    if (latest > previous && latest > 150) {
+      setIsHidden(true);
+      setIsUserMenuOpen(false); 
+    } else {
+      setIsHidden(false);
+    }
   });
 
   const unreadCount = useMemo(() => notifications.filter(n => !n.isRead).length, [notifications]);
@@ -256,7 +277,8 @@ export default function Header() {
           { href: '/organizers/messages', label: '参加者メッセージ', icon: <Bell size={14} /> },
       ];
       default: return [
-          { href: '/mypage', label: 'マイページ (ホーム)', icon: <User size={14} /> },
+          { href: '/mypage', label: '参加した企画', icon: <Heart size={14} /> },
+          { href: '/mypage?tab=created', label: '主催した企画', icon: <ClipboardList size={14} /> },
           { href: '/mypage/edit', label: 'プロフィール設定', icon: <Settings size={14} /> },
       ];
     }
@@ -264,51 +286,66 @@ export default function Header() {
 
   return (
     <>
-      {/* ★ 王道のPCデザイン：ヘッダーの高さ分だけの正確なスペーサー（コンテンツ被りを防ぐ） */}
-      <div className="h-16 md:h-20 w-full shrink-0 bg-transparent pointer-events-none" aria-hidden="true" />
+      {/* ★ 新規追加: ヘッダーの下敷きになるのを防ぐための「透明なスペーサー」 */}
+      <div className="w-full shrink-0 pointer-events-none bg-transparent h-[104px] md:h-[120px]" aria-hidden="true" />
 
-      <header 
+      <motion.header 
+        variants={{ visible: { y: 0 }, hidden: { y: "-100%" } }}
+        animate={isHidden ? "hidden" : "visible"}
+        transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }} 
         className={cn(
-          "fixed top-0 inset-x-0 z-[100] transition-all duration-300",
+          "fixed inset-x-0 z-[100] transition-all duration-500",
+          tickerOffset,
           isScrolled 
-            ? "bg-white/95 backdrop-blur-md shadow-sm border-b border-slate-200/60" 
-            : "bg-white border-b border-slate-100"
+            ? "bg-transparent pointer-events-none border-transparent" 
+            : "bg-white/95 backdrop-blur-md border-b border-slate-200/60 pointer-events-auto"
         )}
       >
-        {/* PC表示時はフル幅を広く使い、スッキリとした1行レイアウトにする */}
-        <div className="mx-auto flex items-center justify-between w-full max-w-7xl h-16 md:h-20 px-4 sm:px-6 lg:px-8">
-            
-            {/* 左側：ロゴ ＆ ナビゲーション */}
-            <div className="flex items-center gap-8">
+        <div 
+          className={cn(
+              "mx-auto flex items-center justify-between w-full max-w-7xl transition-all duration-500",
+              isScrolled 
+                ? "max-w-6xl h-14 md:h-16 mt-3 md:mt-5 bg-white/90 backdrop-blur-xl shadow-[0_10px_40px_rgba(0,0,0,0.08)] border border-slate-200/50 rounded-full px-5 md:px-8 pointer-events-auto"
+                : "h-16 md:h-20 px-4 sm:px-6 lg:px-8"
+          )}
+        >
+            <div className="flex items-center gap-4 md:gap-6">
               <Link href="/" className="flex items-center gap-2 group shrink-0" onClick={() => setIsMobileMenuOpen(false)}>
-                <div className="relative w-8 h-8 md:w-9 md:h-9 overflow-hidden rounded-[10px] shadow-sm group-hover:scale-105 transition-transform duration-300">
+                <div className="relative w-8 h-8 overflow-hidden rounded-[10px] shadow-sm group-hover:scale-105 transition-transform duration-300">
                   <Image src="/icon-512x512.png" alt="FLASTAL" fill className="object-cover" priority />
                 </div>
-                <span className="font-black bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-600 tracking-tighter text-xl md:text-2xl group-hover:from-pink-500 group-hover:to-purple-500 transition-all duration-300">
+                <span className={`font-black bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-600 tracking-tighter group-hover:from-pink-500 group-hover:to-purple-500 transition-all duration-300 ${isScrolled ? 'hidden sm:block text-xl' : 'text-xl md:text-2xl'}`}>
                   FLASTAL
                 </span>
               </Link>
 
-              {/* PC用ナビゲーション */}
-              <nav className="hidden lg:flex items-center gap-6">
+              <nav className="hidden lg:flex items-center relative" onMouseLeave={() => setHoveredNav(null)}>
                 {navLinks.map((link) => (
                   <Link 
                     key={link.href} 
                     href={link.href}
-                    className={cn(
-                        "text-sm font-bold flex items-center gap-1.5 transition-colors", 
-                        link.highlight ? "text-rose-500 hover:text-rose-600" : "text-slate-600 hover:text-slate-900"
-                    )}
+                    onMouseEnter={() => setHoveredNav(link.href)}
+                    className="relative px-4 py-2 text-sm font-bold flex items-center gap-2 group z-10"
                   >
-                    <span className={cn("opacity-70", link.highlight && "opacity-100")}>{link.icon}</span>
-                    {link.label}
+                    {hoveredNav === link.href && (
+                      <motion.div
+                        layoutId="magic-nav-pill"
+                        className="absolute inset-0 bg-slate-100/80 rounded-full -z-10"
+                        transition={{ type: "spring", bounce: 0.15, duration: 0.5 }}
+                      />
+                    )}
+                    <span className={cn("transition-colors flex items-center gap-2", link.highlight ? 'text-rose-500' : 'text-slate-600 group-hover:text-slate-900')}>
+                      <span className={cn("transition-colors inline-block group-hover:scale-110 duration-300", link.highlight ? 'text-rose-400' : 'text-slate-400 group-hover:text-pink-500')}>
+                        {link.highlight ? <Star size={16} className="fill-rose-400" /> : link.icon}
+                      </span>
+                      {link.label}
+                    </span>
                   </Link>
                 ))}
               </nav>
             </div>
             
-            {/* 右側：ユーザーメニュー ＆ 通知 */}
-            <div className="flex items-center gap-2 md:gap-4">
+            <div className="flex items-center space-x-1 md:space-x-3">
               {user ? (
                 <>
                   <NotificationDropdown 
@@ -318,50 +355,56 @@ export default function Header() {
                       authenticatedFetch={authenticatedFetch}
                   />
 
-                  {/* 王道Webアプリ風のユーザーボタンドロップダウン */}
                   <div className="relative" ref={userMenuRef}>
                     <button 
                       onClick={() => setIsUserMenuOpen(!isUserMenuOpen)} 
-                      className="flex items-center gap-2 pl-1 pr-1 md:pr-3 py-1 bg-white border border-slate-200 hover:bg-slate-50 rounded-full transition-all"
+                      className={cn(
+                          "flex items-center gap-2 py-1 rounded-full bg-white hover:bg-slate-50 transition-all group",
+                          isScrolled ? 'pr-1 pl-1 border-transparent' : 'pr-1 pl-1 md:pr-3 border border-slate-200 hover:shadow-sm'
+                      )}
                     >
-                      <div className="relative w-8 h-8 rounded-full overflow-hidden bg-indigo-50 border border-indigo-100 shrink-0">
+                      <div className="relative w-8 h-8 rounded-full overflow-hidden bg-indigo-50 border border-indigo-100 shrink-0 transition-transform group-hover:scale-105">
                           {user.iconUrl ? (
                               <Image src={user.iconUrl} alt="User Icon" fill className="object-cover" />
                           ) : (
                               <div className="w-full h-full flex items-center justify-center text-indigo-400"><User size={16}/></div>
                           )}
                       </div>
-                      <span className="text-sm font-bold hidden md:block text-slate-700 max-w-[120px] truncate">{displayName}</span>
-                      <ChevronDown size={14} className={cn("text-slate-400 transition-transform hidden md:block", isUserMenuOpen && "rotate-180")} />
+                      {!isScrolled && (
+                          <>
+                             <span className="text-sm font-bold hidden sm:block text-slate-700 max-w-[100px] truncate">{displayName}</span>
+                             <ChevronDown size={14} className={`text-slate-400 transition-transform hidden md:block duration-300 ${isUserMenuOpen ? 'rotate-180' : ''}`} />
+                          </>
+                      )}
                     </button>
 
                     <AnimatePresence>
                       {isUserMenuOpen && (
                           <motion.div
                               initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: 0.95 }} transition={{ duration: 0.2 }}
-                              className="absolute right-0 top-full mt-3 w-64 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 overflow-hidden origin-top-right"
+                              className="absolute right-0 mt-3 w-64 bg-white/95 backdrop-blur-xl border border-white/50 rounded-3xl shadow-[0_10px_40px_rgba(0,0,0,0.1)] z-50 overflow-hidden ring-1 ring-slate-100 origin-top-right"
                           >
-                          <Link href={getPrimaryLink} onClick={() => setIsUserMenuOpen(false)} className="block px-5 py-4 border-b border-slate-100 bg-slate-50 hover:bg-pink-50/50 transition-colors">
-                              <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">Signed in as</p>
+                          <Link href={getPrimaryLink} onClick={() => setIsUserMenuOpen(false)} className="block px-6 py-5 border-b border-slate-50 bg-gradient-to-br from-slate-50 to-white hover:from-pink-50 hover:to-white transition-colors">
+                              <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest mb-1">Signed in as</p>
                               <p className="text-sm font-black text-slate-800 truncate">{displayName}</p>
-                              <div className="mt-1.5">
-                                  <span className="text-[10px] font-black px-2 py-0.5 rounded bg-white text-pink-500 border border-pink-100 inline-block uppercase">
+                              <div className="mt-2">
+                                  <span className="text-[9px] font-black px-2 py-0.5 rounded-md bg-pink-100 text-pink-600 border border-pink-200 inline-block uppercase tracking-widest">
                                       {user.role}
                                   </span>
                               </div>
                           </Link>
-                          <div className="p-2 space-y-1">
+                          <div className="p-3 space-y-1">
                               {userMenuItems.map((item) => (
                                   <Link key={item.href} href={item.href} onClick={() => setIsUserMenuOpen(false)} 
-                                      className="flex items-center px-3 py-2 text-sm font-bold text-slate-600 hover:bg-slate-50 hover:text-pink-500 rounded-xl transition-colors group"
+                                      className="flex items-center px-4 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-50 hover:text-pink-600 rounded-2xl transition-colors group"
                                   >
-                                      <span className="mr-3 text-slate-400 group-hover:text-pink-400">{item.icon}</span>
+                                      <span className="mr-3 text-slate-400 group-hover:text-pink-400 transition-colors group-hover:scale-110">{item.icon}</span>
                                       {item.label}
                                   </Link>
                               ))}
-                              <div className="h-px bg-slate-100 my-2 mx-2"></div>
-                              <button onClick={handleLogout} className="flex items-center w-full px-3 py-2 text-sm font-bold text-rose-500 hover:bg-rose-50 rounded-xl transition-colors">
-                                  <LogOut className="mr-3" size={14} /> ログアウト
+                              <div className="h-px bg-slate-100 my-2 mx-3"></div>
+                              <button onClick={handleLogout} className="flex items-center w-full px-4 py-2.5 text-sm font-bold text-rose-500 hover:bg-rose-50 rounded-2xl transition-colors group">
+                                  <LogOut className="mr-3 group-hover:scale-110 transition-transform" size={14} /> ログアウト
                               </button>
                           </div>
                           </motion.div>
@@ -371,18 +414,17 @@ export default function Header() {
                 </>
               ) : (
                 <div className="flex items-center gap-2 md:gap-3">
-                  <Link href="/login" className="hidden md:flex items-center px-5 py-2 text-sm font-bold text-slate-600 hover:text-slate-900 transition-colors">
+                  <Link href="/login" className="hidden md:flex items-center gap-2 px-5 py-2 text-sm font-bold text-slate-600 bg-white hover:bg-slate-50 rounded-full transition-all border border-slate-200">
                     ログイン
                   </Link>
                   <Link href="/register">
-                      <button className="flex items-center gap-2 px-5 py-2 text-sm font-bold text-white bg-slate-900 rounded-full shadow-md hover:bg-slate-800 transition-colors">
-                          登録
-                      </button>
+                      <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="flex items-center gap-2 px-5 py-2 text-sm font-bold text-white bg-slate-900 rounded-full shadow-lg hover:shadow-xl transition-all">
+                          <Sparkles size={14} className="text-pink-400"/> 登録
+                      </motion.button>
                   </Link>
                 </div>
               )}
 
-              {/* モバイル用ハンバーガーメニュー */}
               <button 
                   className="lg:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
                   onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -398,7 +440,7 @@ export default function Header() {
           {isMobileMenuOpen && (
               <motion.div
                   initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 200 }}
-                  className="lg:hidden fixed inset-0 top-0 left-0 w-full h-[100dvh] bg-white z-[200] overflow-y-auto pointer-events-auto"
+                  className="lg:hidden fixed inset-0 top-0 left-0 w-full h-[100dvh] bg-white/95 backdrop-blur-2xl z-[200] overflow-y-auto pointer-events-auto"
               >
                   <div className="p-4 flex justify-between items-center border-b border-slate-100 bg-white sticky top-0 z-10">
                       <Link href="/" onClick={() => setIsMobileMenuOpen(false)} className="text-xl font-black text-slate-900 tracking-tighter hover:text-pink-500 transition-colors">
@@ -411,10 +453,10 @@ export default function Header() {
 
                   <nav className="p-6 space-y-8 pb-32">
                       {user && (
-                          <div className="flex items-center justify-between bg-slate-50 p-5 rounded-2xl border border-slate-100 shadow-sm">
+                          <div className="flex items-center justify-between bg-slate-50/80 p-5 rounded-[2rem] border border-slate-100 shadow-sm">
                               <div className="flex items-center gap-4">
-                                  <div className="relative w-14 h-14 rounded-full overflow-hidden bg-white border border-slate-200">
-                                      {user.iconUrl ? <Image src={user.iconUrl} alt="Avatar" fill className="object-cover" /> : <User size={24} className="m-3 text-slate-300" />}
+                                  <div className="relative w-14 h-14 rounded-full overflow-hidden bg-white border-2 border-white shadow-sm">
+                                      {user.iconUrl ? <Image src={user.iconUrl} alt="User Avatar" fill className="object-cover" /> : <User size={24} className="m-3 text-slate-300" />}
                                   </div>
                                   <div>
                                       <p className="font-black text-lg text-slate-800">{displayName}</p>
@@ -425,10 +467,10 @@ export default function Header() {
                       )}
 
                       <div className="grid grid-cols-2 gap-4">
-                          <Link href="/projects/create" onClick={() => setIsMobileMenuOpen(false)} className="flex flex-col items-center justify-center gap-2 py-6 bg-pink-50 text-pink-600 rounded-2xl font-black shadow-sm active:scale-95 transition-transform">
+                          <Link href="/projects/create" onClick={() => setIsMobileMenuOpen(false)} className="flex flex-col items-center justify-center gap-2 py-6 bg-gradient-to-br from-pink-500 to-rose-500 text-white rounded-[2rem] font-black shadow-lg shadow-pink-200 transition-transform active:scale-95">
                               <PlusCircle size={28} /> 企画を立てる
                           </Link>
-                          <Link href="/projects" onClick={() => setIsMobileMenuOpen(false)} className="flex flex-col items-center justify-center gap-2 py-6 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-2xl font-black shadow-sm active:scale-95 transition-transform">
+                          <Link href="/projects" onClick={() => setIsMobileMenuOpen(false)} className="flex flex-col items-center justify-center gap-2 py-6 bg-white border-2 border-pink-50 text-pink-500 hover:bg-pink-50 rounded-[2rem] font-black transition-transform active:scale-95 shadow-sm">
                               <Search size={28} /> 企画を探す
                           </Link>
                       </div>
@@ -436,7 +478,7 @@ export default function Header() {
                       <div className="space-y-1">
                           {navLinks.map((link) => (
                               <Link key={link.href} href={link.href} onClick={() => setIsMobileMenuOpen(false)}
-                                  className={`flex items-center justify-between px-4 py-4 font-bold rounded-xl transition-colors ${link.highlight ? 'text-rose-600 bg-rose-50' : 'text-slate-700 hover:bg-slate-50'}`}
+                                  className={`flex items-center justify-between px-4 py-4 font-black rounded-2xl transition-colors ${link.highlight ? 'text-rose-600 bg-rose-50' : 'text-slate-700 hover:bg-slate-50'}`}
                               >
                                   <div className="flex items-center gap-4">
                                       <span className={`${link.highlight ? 'text-rose-500' : 'text-slate-400'}`}>
@@ -451,9 +493,9 @@ export default function Header() {
 
                       {user && (
                           <div className="space-y-1 pt-6 border-t border-slate-100">
-                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 pl-4">Account Menu</p>
+                              <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.3em] mb-4 pl-4">Account Menu</p>
                               {userMenuItems.map((item) => (
-                                  <Link key={item.href} href={item.href} onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-4 px-4 py-3 text-slate-600 font-bold hover:bg-slate-50 rounded-xl transition-colors">
+                                  <Link key={item.href} href={item.href} onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-4 px-4 py-3.5 text-slate-600 font-bold hover:bg-slate-50 rounded-2xl transition-colors">
                                       <span className="text-slate-400">{item.icon}</span>
                                       {item.label}
                                   </Link>
@@ -463,13 +505,13 @@ export default function Header() {
 
                       {!user && (
                           <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-100">
-                              <Link href="/login" onClick={() => setIsMobileMenuOpen(false)} className="flex justify-center py-4 bg-slate-100 rounded-xl font-black text-slate-600">ログイン</Link>
-                              <Link href="/register" onClick={() => setIsMobileMenuOpen(false)} className="flex justify-center py-4 bg-slate-900 text-white rounded-xl font-black">新規登録</Link>
+                              <Link href="/login" onClick={() => setIsMobileMenuOpen(false)} className="flex justify-center py-4 bg-slate-100 rounded-2xl font-black text-slate-600">ログイン</Link>
+                              <Link href="/register" onClick={() => setIsMobileMenuOpen(false)} className="flex justify-center py-4 bg-slate-900 text-white rounded-2xl font-black">新規登録</Link>
                           </div>
                       )}
 
                       {user && (
-                          <button onClick={handleLogout} className="w-full mt-4 py-4 text-rose-500 font-black border border-rose-100 bg-rose-50 rounded-xl flex items-center justify-center gap-2 active:scale-95 transition-transform">
+                          <button onClick={handleLogout} className="w-full mt-4 py-5 text-rose-500 font-black border-2 border-rose-50 rounded-[2rem] hover:bg-rose-50 transition-colors flex items-center justify-center gap-2 active:scale-95">
                               <LogOut size={18} /> ログアウト
                           </button>
                       )}
@@ -477,7 +519,7 @@ export default function Header() {
               </motion.div>
           )}
         </AnimatePresence>
-      </header>
+      </motion.header>
     </>
   );
 }
