@@ -134,24 +134,44 @@ export default function EditProjectPage() {
 
     setIsUploading(true);
     const toastId = toast.loading('画像をアップロード中...');
-    const uploadFormData = new FormData();
-    uploadFormData.append('image', file);
 
     try {
       const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
-      const res = await fetch(`${API_URL}/api/upload`, {
+
+      // ★ 1. S3署名付きURLを取得
+      const urlRes = await fetch(`${API_URL}/api/tools/s3-upload-url`, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` },
-        body: uploadFormData,
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}` 
+        },
+        body: JSON.stringify({ fileName: file.name, fileType: file.type })
       });
-      if (!res.ok) throw new Error('アップロード失敗');
-      const data = await res.json();
-      setFormData(prev => ({ ...prev, imageUrl: data.url }));
+      
+      if (!urlRes.ok) throw new Error('署名付きURLの取得に失敗しました');
+      const { uploadUrl, fileUrl } = await urlRes.json();
+
+      // ★ 2. S3へ直接PUT (ファイルサイズ制限を受けにくい)
+      await new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('PUT', uploadUrl);
+        xhr.setRequestHeader('Content-Type', file.type);
+        xhr.onload = () => {
+          if (xhr.status === 200) resolve(fileUrl);
+          else reject(new Error('S3へのアップロードに失敗しました'));
+        };
+        xhr.onerror = () => reject(new Error('ネットワークエラーが発生しました'));
+        xhr.send(file);
+      });
+
+      // ★ 3. フォームデータにS3の画像URLをセット
+      setFormData(prev => ({ ...prev, imageUrl: fileUrl }));
       toast.success('画像を更新しました', { id: toastId });
     } catch (error) {
-      toast.error('アップロードに失敗しました', { id: toastId });
+      toast.error(error.message || 'アップロードに失敗しました', { id: toastId });
     } finally {
       setIsUploading(false);
+      e.target.value = ''; // ファイル選択をリセット
     }
   };
 
