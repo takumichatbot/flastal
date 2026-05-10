@@ -180,7 +180,7 @@ function DashboardContent() {
       <div className="fixed top-40 left-0 w-[400px] h-[400px] bg-sky-200/30 rounded-full blur-[100px] -translate-x-1/2 pointer-events-none z-0" />
 
       {/* --- アプリ風 トップ固定ヘッダー --- */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-xl border-b border-pink-100/50 px-4 py-3 flex justify-between items-center shadow-[0_4px_20px_rgba(0,0,0,0.02)]">
+      <header className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-xl border-b border-pink-100/50 px-4 py-3 flex justify-between items-center shadow-[0_4px_20px_rgba(0,0,0,0.02)]">
         <div className="flex items-center gap-3 cursor-pointer" onClick={() => setActiveTab('settings')}>
           <div className="relative w-10 h-10 rounded-full overflow-hidden border border-white shadow-sm bg-slate-100">
             {user.iconUrl ? <Image src={user.iconUrl} alt="Icon" fill className="object-cover" /> : <FiUser className="m-auto mt-2.5 text-slate-300" size={20}/>}
@@ -385,7 +385,7 @@ function DashboardContent() {
       </main>
 
       {/* --- DOPA風 Bottom Navigation (スマホ完全特化) --- */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-xl border-t border-slate-200 pb-safe shadow-[0_-10px_30px_rgba(0,0,0,0.05)]">
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-xl border-t border-slate-200 pb-safe shadow-[0_-10px_30px_rgba(0,0,0,0.05)]">
         <div className="flex justify-around items-end h-[64px] max-w-xl mx-auto px-2">
           {BOTTOM_NAVS.map(nav => {
             const isActive = activeTab === nav.id;
