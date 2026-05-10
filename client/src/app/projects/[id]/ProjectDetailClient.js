@@ -705,15 +705,34 @@ const [isFloristMaterialModalOpen, setIsFloristMaterialModalOpen] = useState(fal
      if (type === 'illustration_delivery') setIsIllustrationUploading(true);
 
      try {
-         const formData = new FormData();
-         formData.append('image', file);
-         const uploadRes = await authenticatedFetch(`${API_URL}/api/tools/upload-image`, {
+         // ★ 修正：S3署名付きURLを取得してアップロードする方式に変更
+         const token = getAuthToken();
+         const urlRes = await fetch(`${API_URL}/api/tools/s3-upload-url`, {
              method: 'POST',
-             body: formData
+             headers: { 
+                 'Content-Type': 'application/json',
+                 'Authorization': `Bearer ${token}`
+             },
+             body: JSON.stringify({ fileName: file.name, fileType: file.type })
          });
-         if (!uploadRes.ok) throw new Error('画像のアップロードに失敗しました');
-         const data = await uploadRes.json();
-         const uploadedUrl = data.url;
+         
+         if (!urlRes.ok) throw new Error('署名付きURLの取得に失敗しました');
+         const { uploadUrl, fileUrl } = await urlRes.json();
+
+         // S3へ直接PUT
+         await new Promise((resolve, reject) => {
+             const xhr = new XMLHttpRequest();
+             xhr.open('PUT', uploadUrl);
+             xhr.setRequestHeader('Content-Type', file.type);
+             xhr.onload = () => {
+                 if (xhr.status === 200) resolve(fileUrl);
+                 else reject(new Error('S3へのアップロードに失敗しました'));
+             };
+             xhr.onerror = () => reject(new Error('ネットワークエラーが発生しました'));
+             xhr.send(file);
+         });
+
+         const uploadedUrl = fileUrl; // ★ S3にアップロードされたURLを使用
 
          const payload = {};
          if (type === 'pre_photo') {
@@ -738,6 +757,8 @@ const [isFloristMaterialModalOpen, setIsFloristMaterialModalOpen] = useState(fal
          toast.error(error.message, { id: toastId });
      } finally {
          if (type === 'illustration_delivery') setIsIllustrationUploading(false);
+         // ファイル選択をリセット
+         e.target.value = '';
      }
  };
 
