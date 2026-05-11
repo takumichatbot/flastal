@@ -268,18 +268,27 @@ function QuotationApprovalModal({ project, user, onClose, onUpdate }) {
 }
 
 function PledgeForm({ project, user, onPledgeSubmit, isPledger }) {
- const { register, handleSubmit, formState: { isSubmitting }, reset, watch } = useForm({
-   defaultValues: { pledgeType: 'tier', selectedTierId: project.pledgeTiers?.[0]?.id || '', pledgeAmount: '', comment: '', guestName: '', guestEmail: '' }
+ // ★ 修正: setValue を追加し、初期値を minContributionAmount に設定
+ const { register, handleSubmit, formState: { isSubmitting }, reset, watch, setValue } = useForm({
+   defaultValues: { pledgeType: 'tier', selectedTierId: project.pledgeTiers?.[0]?.id || '', pledgeAmount: project.minContributionAmount || 1000, comment: '', guestName: '', guestEmail: '' }
  });
  const pledgeType = watch('pledgeType');
  const selectedTierId = watch('selectedTierId');
  const selectedTier = project.pledgeTiers?.find(t => t.id === selectedTierId);
  const finalAmount = pledgeType === 'tier' && selectedTier ? selectedTier.amount : parseInt(watch('pledgeAmount')) || 0;
 
- // ★ 追加: ポイント計算ロジック
  const userPoints = user?.points || 0;
- const pointsToUse = user ? Math.min(userPoints, finalAmount) : 0; // 使えるポイント上限
- const cardAmount = finalAmount - pointsToUse; // クレジットカードで支払う不足分
+ const pointsToUse = user ? Math.min(userPoints, finalAmount) : 0; 
+ const cardAmount = finalAmount - pointsToUse; 
+
+ // ★ 新規追加: 口数計算ロジック
+ const minAmount = project.minContributionAmount || 1000;
+ const [quantity, setQuantity] = useState(1);
+
+ const handleQuantityChange = (newQty) => {
+     setQuantity(newQty);
+     setValue('pledgeAmount', newQty * minAmount); // 口数に応じて合計金額を自動計算
+ };
 
  const onSubmit = async (data) => {
    const minAmount = project.minContributionAmount || 1000;
@@ -391,26 +400,38 @@ function PledgeForm({ project, user, onPledgeSubmit, isPledger }) {
          )
        ) : null}
 
-       {/* ↓↓↓ ここから書き換え ↓↓↓ */}
+       {/* ★ 修正: 「金額を指定」タブを「口数選択」のUIに変更 */}
        {pledgeType === 'free' && (
-         <div>
-           <label className="block text-[10px] md:text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1 flex items-center gap-2">
-             支援金額 (pt/円)
-             <span className="bg-pink-100 text-pink-600 px-2 py-0.5 rounded-md normal-case tracking-normal">
-               1口 {project.minContributionAmount?.toLocaleString() || '1,000'}pt〜
-             </span>
-           </label>
-           <input 
-             type="number" 
-             {...register('pledgeAmount')} 
-             min={project.minContributionAmount || 1000} 
-             className="w-full p-3.5 bg-slate-50 border-transparent rounded-xl text-xl font-black text-slate-800 focus:bg-white focus:border-pink-400 focus:ring-4 focus:ring-pink-50 outline-none transition-all" 
-             placeholder={`例: ${project.minContributionAmount || 1000}`}
-           />
-           <p className="text-[10px] text-slate-400 font-bold mt-1.5 ml-1">※最低額以上の好きな金額を入力できます</p>
+         <div className="space-y-5 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+           <div>
+             <label className="block text-[10px] md:text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">
+               支援口数 (1口 {minAmount.toLocaleString()}pt〜)
+             </label>
+             <div className="flex items-center justify-between bg-slate-50 p-2 rounded-xl border border-slate-200">
+                <button type="button" onClick={() => handleQuantityChange(Math.max(1, quantity - 1))} className="w-12 h-12 bg-white rounded-lg shadow-sm font-black text-slate-500 hover:text-pink-500 text-xl transition-all active:scale-95">-</button>
+                <div className="font-black text-2xl text-slate-800">{quantity} <span className="text-sm text-slate-400">口</span></div>
+                <button type="button" onClick={() => handleQuantityChange(quantity + 1)} className="w-12 h-12 bg-white rounded-lg shadow-sm font-black text-slate-500 hover:text-pink-500 text-xl transition-all active:scale-95">+</button>
+             </div>
+           </div>
+
+           <div>
+             <label className="block text-[10px] md:text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">
+               合計支援金額 (pt/円)
+             </label>
+             <div className="relative">
+                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-pink-400 font-black text-xl">¥</span>
+                 <input
+                   type="number"
+                   {...register('pledgeAmount', { valueAsNumber: true })}
+                   min={minAmount}
+                   className="w-full pl-10 pr-4 py-3.5 bg-slate-50 border-2 border-slate-100 rounded-xl text-xl font-black text-slate-800 focus:bg-white focus:border-pink-400 focus:ring-4 focus:ring-pink-50 outline-none transition-all"
+                   placeholder={`例: ${minAmount}`}
+                 />
+             </div>
+             <p className="text-[10px] text-slate-400 font-bold mt-1.5 ml-1">※金額を手入力で上乗せすることも可能です</p>
+           </div>
          </div>
        )}
-       {/* ↑↑↑ ここまで書き換え ↑↑↑ */}
 
        {/* ★ 追加: 決済内訳（ポイント充当）の表示 */}
        {user && finalAmount > 0 && (

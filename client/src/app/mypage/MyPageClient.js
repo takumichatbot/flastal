@@ -11,6 +11,7 @@ import {
   FiPlus, FiSearch, FiCamera, FiSettings, 
   FiCheckCircle, FiLogOut, FiAward, FiStar
 } from 'react-icons/fi';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2, Zap, ArrowRight } from 'lucide-react';
 
@@ -22,11 +23,12 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onre
 function cn(...classes) {
   return classes.filter(Boolean).join(' ');
 }
-
 // ==========================================
-// 🎨 DOPA風! リッチな企画カード (PCでは複数列、スマホでは2列)
+// 🎨 DOPA風! リッチな2カラム企画カード
 // ==========================================
 function ProjectCard({ project, roleType }) {
+  const router = useRouter(); // ★ 追加
+  
   const targetAmount = project.targetAmount || 0;
   const collectedAmount = project.collectedAmount || 0;
   const percent = targetAmount > 0 ? Math.min((collectedAmount / targetAmount) * 100, 100) : 0;
@@ -37,17 +39,17 @@ function ProjectCard({ project, roleType }) {
   const badgeColor = project.status === 'COMPLETED' ? 'bg-purple-500' : isSuccess ? 'bg-emerald-500' : 'bg-pink-500';
 
   return (
-    <Link href={`/projects/${project.id}`} className="block group h-full">
+    // ★ 修正: <Link> から <div> onClick に変更
+    <div onClick={() => router.push(`/projects/${project.id}`)} className="block group h-full cursor-pointer">
       <div className="bg-white/90 backdrop-blur-md rounded-[1.5rem] overflow-hidden border border-white shadow-sm hover:shadow-[0_12px_30px_rgba(244,114,182,0.15)] transition-all duration-300 hover:-translate-y-1 relative h-full flex flex-col">
         
-        {/* 画像エリア (縦長/正方形比率) */}
+        {/* === 画像エリアなどはそのまま === */}
         <div className="relative w-full aspect-[4/5] bg-slate-100 shrink-0">
           {project.imageUrl ? (
             <Image src={project.imageUrl} alt={project.title || "企画画像"} fill className="object-cover group-hover:scale-105 transition-transform duration-700" />
           ) : (
             <div className="absolute inset-0 bg-gradient-to-br from-pink-100 to-sky-100 flex items-center justify-center text-4xl">💐</div>
           )}
-          
           <div className="absolute inset-x-0 top-0 h-1/3 bg-gradient-to-b from-slate-900/50 to-transparent" />
           <div className="absolute top-2 left-2 flex flex-col gap-1">
             <span className={cn("px-2 py-1 rounded-md text-[9px] font-black shadow-sm text-white", badgeColor)}>
@@ -58,12 +60,6 @@ function ProjectCard({ project, roleType }) {
             )}>
               {isOrganizer ? <FiStar size={10} className="fill-yellow-400 text-yellow-400"/> : <FiHeart size={10} className="fill-pink-500 text-pink-500"/>}
               {isOrganizer ? '主催' : '参加'}
-            </span>
-          </div>
-
-          <div className="absolute bottom-2 right-2">
-            <span className="bg-black/60 backdrop-blur-md text-white px-2 py-1 rounded-full text-[9px] font-black shadow-md border border-white/10">
-              1口 ¥{(project.minContributionAmount || 1000).toLocaleString()}〜
             </span>
           </div>
         </div>
@@ -89,10 +85,27 @@ function ProjectCard({ project, roleType }) {
                 className={cn("h-full rounded-full absolute left-0 top-0", percent >= 100 ? "bg-emerald-400" : "bg-gradient-to-r from-pink-400 to-rose-400")} 
               />
             </div>
+
+            {/* ★ 新規追加: 支援するダイレクトボタン */}
+            {project.status === 'FUNDRAISING' && (
+                <div className="mt-3 pt-3 border-t border-slate-100 border-dashed relative z-20">
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation(); // 親の onClick を発火させない
+                            router.push(`/projects/${project.id}#pledge-section`);
+                        }}
+                        className="w-full py-2 bg-pink-50 hover:bg-pink-500 text-pink-600 hover:text-white rounded-lg text-[10px] lg:text-xs font-black transition-colors flex items-center justify-center gap-1.5"
+                    >
+                        <FiHeart size={12} className="fill-current" />
+                        支援する (1口 ¥{(project.minContributionAmount || 1000).toLocaleString()}〜)
+                    </button>
+                </div>
+            )}
+
           </div>
         </div>
       </div>
-    </Link>
+    </div>
   );
 }
 

@@ -273,7 +273,8 @@ function ProjectsContent() {
 
                 return (
                   <Reveal key={project.id} delay={i * 0.05} className="h-full">
-                    <Link href={`/projects/${project.id}`} className="group h-full block">
+                    {/* ★ 修正: <Link> から <div> onClick に変更 */}
+                    <div onClick={() => router.push(`/projects/${project.id}`)} className="group h-full block cursor-pointer">
                       
                       <GlassCard className="!p-4 sm:!p-5 h-full flex flex-col transition-all duration-500 overflow-hidden bg-white hover:-translate-y-2 hover:shadow-[0_16px_40px_rgba(244,114,182,0.15)] group-hover:border-pink-200">
                         
@@ -288,7 +289,6 @@ function ProjectsContent() {
                             <div className="absolute inset-0 bg-gradient-to-br from-pink-100 to-sky-100 flex items-center justify-center text-4xl">💐</div>
                           )}
                           <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 via-transparent to-transparent" />
-                          
                           <div className="absolute top-4 left-4">
                               <span className={cn("px-3 py-1.5 rounded-full text-[10px] font-black shadow-md border backdrop-blur-md text-white uppercase tracking-widest", badgeClass)}>
                                   {badgeLabel}
@@ -317,15 +317,7 @@ function ProjectsContent() {
                           <div className="mt-auto pt-4 border-t border-slate-100/50">
                               <div className="flex justify-between items-end mb-2">
                                   <div>
-                                    {/* ★「1口いくら」の表記 */}
-                                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5 flex items-center gap-1.5">
-                                      Current
-                                      {project.minContributionAmount && (
-                                        <span className="text-[9px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-md normal-case tracking-normal">
-                                          1口 ¥{project.minContributionAmount.toLocaleString()}〜
-                                        </span>
-                                      )}
-                                    </p>
+                                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Current</p>
                                     <p className="text-base font-black leading-none text-slate-800">
                                       ¥{(project.collectedAmount || 0).toLocaleString()}
                                       <span className="text-[9px] text-slate-400 font-medium ml-1">/ ¥{(project.targetAmount || 0).toLocaleString()}</span>
@@ -335,25 +327,32 @@ function ProjectsContent() {
                                     {percent}%
                                   </span>
                               </div>
-                              <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden shadow-inner">
+                              <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden shadow-inner mb-3">
                                   <motion.div 
                                       initial={{ width: 0 }} whileInView={{ width: `${percent}%` }} transition={{ duration: 1 }}
                                       className={cn("h-full rounded-full", isSuccess ? "bg-emerald-400" : "bg-gradient-to-r from-pink-400 to-rose-400")} 
                                   />
                               </div>
-                          </div>
 
-                          <div className="mt-4 flex items-center gap-2">
-                              {project.planner?.iconUrl ? (
-                                  <Image src={project.planner.iconUrl} alt="" width={24} height={24} className="rounded-full object-cover border border-slate-200" />
-                              ) : (
-                                  <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-slate-400"><User size={12}/></div>
+                              {/* ★ 新規追加: 支援するダイレクトボタン */}
+                              {project.status === 'FUNDRAISING' && (
+                                  <div className="pt-3 border-t border-slate-100 border-dashed relative z-20">
+                                      <button
+                                          onClick={(e) => {
+                                              e.stopPropagation();
+                                              router.push(`/projects/${project.id}#pledge-section`);
+                                          }}
+                                          className="w-full py-2.5 bg-pink-50 hover:bg-pink-500 text-pink-600 hover:text-white rounded-xl text-xs font-black transition-colors flex items-center justify-center gap-1.5"
+                                      >
+                                          <Heart size={14} className="fill-current" />
+                                          支援する (1口 ¥{(project.minContributionAmount || 1000).toLocaleString()}〜)
+                                      </button>
+                                  </div>
                               )}
-                              <span className="text-[10px] font-bold text-slate-500 truncate max-w-[150px]">{project.planner?.handleName || '企画者'}</span>
                           </div>
                         </div>
                       </GlassCard>
-                    </Link>
+                    </div>
                   </Reveal>
                 );
               })}
