@@ -11,7 +11,6 @@ import {
   FiPlus, FiSearch, FiCamera, FiSettings, 
   FiCheckCircle, FiLogOut, FiAward, FiStar
 } from 'react-icons/fi';
-import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2, Zap, ArrowRight } from 'lucide-react';
 
@@ -23,11 +22,12 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onre
 function cn(...classes) {
   return classes.filter(Boolean).join(' ');
 }
+
 // ==========================================
 // 🎨 DOPA風! リッチな2カラム企画カード
 // ==========================================
 function ProjectCard({ project, roleType }) {
-  const router = useRouter(); // ★ 追加
+  const router = useRouter();
   
   const targetAmount = project.targetAmount || 0;
   const collectedAmount = project.collectedAmount || 0;
@@ -39,11 +39,10 @@ function ProjectCard({ project, roleType }) {
   const badgeColor = project.status === 'COMPLETED' ? 'bg-purple-500' : isSuccess ? 'bg-emerald-500' : 'bg-pink-500';
 
   return (
-    // ★ 修正: <Link> から <div> onClick に変更
     <div onClick={() => router.push(`/projects/${project.id}`)} className="block group h-full cursor-pointer">
       <div className="bg-white/90 backdrop-blur-md rounded-[1.5rem] overflow-hidden border border-white shadow-sm hover:shadow-[0_12px_30px_rgba(244,114,182,0.15)] transition-all duration-300 hover:-translate-y-1 relative h-full flex flex-col">
         
-        {/* === 画像エリアなどはそのまま === */}
+        {/* === 画像エリア === */}
         <div className="relative w-full aspect-[4/5] bg-slate-100 shrink-0">
           {project.imageUrl ? (
             <Image src={project.imageUrl} alt={project.title || "企画画像"} fill className="object-cover group-hover:scale-105 transition-transform duration-700" />
@@ -86,12 +85,12 @@ function ProjectCard({ project, roleType }) {
               />
             </div>
 
-            {/* ★ 新規追加: 支援するダイレクトボタン */}
+            {/* 支援するダイレクトボタン */}
             {project.status === 'FUNDRAISING' && (
                 <div className="mt-3 pt-3 border-t border-slate-100 border-dashed relative z-20">
                     <button
                         onClick={(e) => {
-                            e.stopPropagation(); // 親の onClick を発火させない
+                            e.stopPropagation(); 
                             router.push(`/projects/${project.id}#pledge-section`);
                         }}
                         className="w-full py-2 bg-pink-50 hover:bg-pink-500 text-pink-600 hover:text-white rounded-lg text-[10px] lg:text-xs font-black transition-colors flex items-center justify-center gap-1.5"
@@ -184,10 +183,9 @@ function DashboardContent() {
       <div className="fixed top-0 right-0 w-[500px] h-[500px] bg-pink-200/40 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/3 pointer-events-none z-0" />
       <div className="fixed top-40 left-0 w-[400px] h-[400px] bg-sky-200/30 rounded-full blur-[100px] -translate-x-1/2 pointer-events-none z-0" />
 
-      {/* ★ PCでは max-w-6xl で広々と見せる */}
       <main className="max-w-xl lg:max-w-6xl mx-auto px-4 relative z-10 w-full pt-4">
         
-        {/* PCのみ表示のサイドタブ (設定等の切り替え用) または上部ヘッダー的要素 */}
+        {/* PCのみ表示のヘッダー的要素 */}
         <div className="hidden lg:flex justify-between items-end mb-8">
             <div className="flex items-center gap-5">
               <div className="relative w-20 h-20 rounded-[2rem] overflow-hidden shadow-xl border-4 border-white bg-white shrink-0 group cursor-pointer" onClick={() => setActiveTab('settings')}>
@@ -214,7 +212,7 @@ function DashboardContent() {
             </div>
         </div>
 
-        {/* スマホのみ表示の簡易ポイント情報 (PCでは上の大きなカードで表示) */}
+        {/* スマホのみ表示の簡易ポイント情報 */}
         <div className="lg:hidden flex items-center justify-between bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl p-4 mb-6 shadow-lg text-white">
             <div>
                 <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-0.5">ポイント残高</p>
@@ -281,7 +279,6 @@ function DashboardContent() {
                       </div>
                     )}
 
-                    {/* ★ PCでは3カラムや4カラムになるよう lg:grid-cols-3 xl:grid-cols-4 を設定 */}
                     {displayProjects.length > 0 ? (
                       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
                         {displayProjects.map(p => <ProjectCard key={`${p._role}_${p.id}`} project={p} roleType={p._role} />)}
@@ -412,7 +409,7 @@ function DashboardContent() {
         </AnimatePresence>
       </main>
 
-      {/* --- DOPA風 Bottom Navigation (lg:hidden でPCでは非表示) --- */}
+      {/* --- DOPA風 Bottom Navigation --- */}
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-xl border-t border-slate-200 pb-safe shadow-[0_-10px_30px_rgba(0,0,0,0.05)]">
         <div className="flex justify-around items-end h-[64px] max-w-xl mx-auto px-2">
           {BOTTOM_NAVS.map(nav => {
