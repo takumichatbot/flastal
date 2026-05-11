@@ -119,7 +119,6 @@ function ProjectsContent() {
       if (currentPrefecture) params.append('prefecture', currentPrefecture);
       
       const queryString = params.toString();
-      // 🌟 キャッシュを完全に無視して最新の状態を取得するためのパラメータ(t)を追加
       const fetchPath = queryString ? `/projects?${queryString}&t=${Date.now()}` : `/projects?t=${Date.now()}`;
 
       const res = await authenticatedFetch(fetchPath);
@@ -131,16 +130,11 @@ function ProjectsContent() {
       const data = await res.json();
       let projectsArray = Array.isArray(data) ? data : (data?.projects || []);
       
-      // 🌟🌟 修正のコア部分：表示したくない企画を、データをセットする前に「配列から消し去る」 🌟🌟
+      // ★ 修正: テストデータが消えないようにフィルターを緩めました
       projectsArray = projectsArray.filter(project => {
-        // 1. 管理画面で「非公開」に設定されたものかチェック
-        const isHidden = project.visibility === 'UNLISTED' || project.isVisible === false;
-
-        // 2. お届け日が過去かどうか
-        const isPast = project.deliveryDateTime ? new Date(project.deliveryDateTime) < new Date() : false;
-        
-        // 3. 非公開ではなく、完了・中止でもなく、過去でもないもの「だけ」を残す
-        return !isHidden && project.status !== 'COMPLETED' && project.status !== 'CANCELED' && !isPast;
+        // 本当に表示してはいけない「非公開(UNLISTED)」「却下(REJECTED)」「中止(CANCELED)」のみを除外
+        const isHidden = project.visibility === 'UNLISTED' || project.status === 'REJECTED' || project.status === 'CANCELED';
+        return !isHidden;
       });
 
       setProjects(projectsArray);
@@ -323,7 +317,15 @@ function ProjectsContent() {
                           <div className="mt-auto pt-4 border-t border-slate-100/50">
                               <div className="flex justify-between items-end mb-2">
                                   <div>
-                                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Current</p>
+                                    {/* ★「1口いくら」の表記 */}
+                                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5 flex items-center gap-1.5">
+                                      Current
+                                      {project.minContributionAmount && (
+                                        <span className="text-[9px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-md normal-case tracking-normal">
+                                          1口 ¥{project.minContributionAmount.toLocaleString()}〜
+                                        </span>
+                                      )}
+                                    </p>
                                     <p className="text-base font-black leading-none text-slate-800">
                                       ¥{(project.collectedAmount || 0).toLocaleString()}
                                       <span className="text-[9px] text-slate-400 font-medium ml-1">/ ¥{(project.targetAmount || 0).toLocaleString()}</span>
