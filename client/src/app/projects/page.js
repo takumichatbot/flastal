@@ -11,10 +11,10 @@ import Image from 'next/image';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 
-// Lucide Iconsに統一
+// ★ 修正: Heart を追加しました！
 import { 
   Search, MapPin, Calendar, User, Loader2, Filter, 
-  PlusCircle, Sparkles 
+  PlusCircle, Sparkles, Heart 
 } from 'lucide-react';
 
 const PREFECTURES = [
@@ -130,9 +130,7 @@ function ProjectsContent() {
       const data = await res.json();
       let projectsArray = Array.isArray(data) ? data : (data?.projects || []);
       
-      // ★ 修正: テストデータが消えないようにフィルターを緩めました
       projectsArray = projectsArray.filter(project => {
-        // 本当に表示してはいけない「非公開(UNLISTED)」「却下(REJECTED)」「中止(CANCELED)」のみを除外
         const isHidden = project.visibility === 'UNLISTED' || project.status === 'REJECTED' || project.status === 'CANCELED';
         return !isHidden;
       });
@@ -273,7 +271,6 @@ function ProjectsContent() {
 
                 return (
                   <Reveal key={project.id} delay={i * 0.05} className="h-full">
-                    {/* ★ 修正: <Link> から <div> onClick に変更 */}
                     <div onClick={() => router.push(`/projects/${project.id}`)} className="group h-full block cursor-pointer">
                       
                       <GlassCard className="!p-4 sm:!p-5 h-full flex flex-col transition-all duration-500 overflow-hidden bg-white hover:-translate-y-2 hover:shadow-[0_16px_40px_rgba(244,114,182,0.15)] group-hover:border-pink-200">
@@ -334,7 +331,6 @@ function ProjectsContent() {
                                   />
                               </div>
 
-                              {/* ★ 新規追加: 支援するダイレクトボタン */}
                               {project.status === 'FUNDRAISING' && (
                                   <div className="pt-3 border-t border-slate-100 border-dashed relative z-20">
                                       <button
