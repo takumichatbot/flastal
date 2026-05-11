@@ -13,12 +13,12 @@ import {
     Clock, MapPin, User, Calendar, FileText, Send, 
     ArrowLeft, DollarSign, CheckCircle2, AlertTriangle, 
     XCircle, MessageSquare, Briefcase, Loader2, Image as ImageIcon,
-    Printer, X, Truck, ClipboardList, PackageCheck, Undo2, Camera // ★ アイコン追加
+    Printer, X, Truck, ClipboardList, PackageCheck, Undo2, Camera 
 } from 'lucide-react';
 
 // --- Components ---
 import QuotationCreateModal from '@/components/project/QuotationCreateModal';
-import FloristMaterialModal from '@/components/project/FloristMaterialModal'; // ★ 実費モーダル追加
+import FloristMaterialModal from '@/components/project/FloristMaterialModal';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -36,7 +36,7 @@ const JpText = ({ children }) => <span className="inline-block leading-relaxed">
 // 📄 サブコンポーネント群
 // ==========================================
 
-// 1. FLASTAL名義の納品書モーダル (印刷・PDF用)
+// 1. FLASTAL名義の納品書モーダル
 function DeliveryNoteModal({ project, onClose }) {
     const handlePrint = () => {
         const printWindow = window.open('', '_blank');
@@ -197,8 +197,8 @@ function LogisticsCard({ icon, label, status, onToggle, color = "sky" }) {
     );
 }
 
-// 3. 写真アップロードエリア
-function PhotoUploadArea({ urls = [], type, projectId, onUploadComplete, authenticatedFetch }) {
+// 3. 写真アップロードエリア (★S3への直接アップロードに修正)
+function PhotoUploadArea({ urls = [], type, projectId, onUploadComplete }) {
     const [uploading, setUploading] = useState(false);
 
     const handleUpload = async (e) => {
@@ -206,19 +206,47 @@ function PhotoUploadArea({ urls = [], type, projectId, onUploadComplete, authent
         if (!file) return;
         setUploading(true);
         const toastId = toast.loading('アップロード中...');
+        
         try {
-            const formData = new FormData();
-            formData.append('image', file);
-            const res = await authenticatedFetch(`${API_URL}/api/tools/upload-image`, { method: 'POST', body: formData });
-            if(!res.ok) throw new Error('画像の保存に失敗しました');
-            const { url } = await res.json();
+            const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
 
-            const field = type === 'pre_photo' ? 'preEventPhotoUrls' : 'completionPhotoUrls';
-            const updateRes = await authenticatedFetch(`${API_URL}/api/projects/${projectId}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ [field]: [...urls, url] })
+            // 1. S3署名付きURLを取得
+            const urlRes = await fetch(`${API_URL}/api/tools/s3-upload-url`, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}` 
+                },
+                body: JSON.stringify({ fileName: file.name, fileType: file.type })
             });
+            
+            if (!urlRes.ok) throw new Error('署名付きURLの取得に失敗しました');
+            const { uploadUrl, fileUrl } = await urlRes.json();
+
+            // 2. S3へ直接PUT
+            await new Promise((resolve, reject) => {
+                const xhr = new XMLHttpRequest();
+                xhr.open('PUT', uploadUrl);
+                xhr.setRequestHeader('Content-Type', file.type);
+                xhr.onload = () => {
+                    if (xhr.status === 200) resolve(fileUrl);
+                    else reject(new Error('S3へのアップロードに失敗しました'));
+                };
+                xhr.onerror = () => reject(new Error('ネットワークエラーが発生しました'));
+                xhr.send(file);
+            });
+
+            // 3. 企画情報の更新
+            const field = type === 'pre_photo' ? 'preEventPhotoUrls' : 'completionPhotoUrls';
+            const updateRes = await fetch(`${API_URL}/api/projects/${projectId}`, {
+                method: 'PATCH',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}` 
+                },
+                body: JSON.stringify({ [field]: [...urls, fileUrl] })
+            });
+            
             if(!updateRes.ok) throw new Error('企画情報の更新に失敗しました');
 
             toast.success('写真をアップロードしました', { id: toastId });
@@ -227,6 +255,7 @@ function PhotoUploadArea({ urls = [], type, projectId, onUploadComplete, authent
             toast.error(error.message, { id: toastId });
         } finally {
             setUploading(false);
+            e.target.value = ''; // inputのリセット
         }
     };
 
@@ -262,7 +291,7 @@ export default function FloristProjectDetailPage() {
     // モーダルの状態管理
     const [isQuotationModalOpen, setIsQuotationModalOpen] = useState(false);
     const [isDeliveryNoteModalOpen, setIsDeliveryNoteModalOpen] = useState(false);
-    const [isMaterialModalOpen, setIsMaterialModalOpen] = useState(false); // ★ 追加
+    const [isMaterialModalOpen, setIsMaterialModalOpen] = useState(false); 
 
     const fetchProjectDetails = useCallback(async () => {
         if (!id || !user) return;
@@ -314,25 +343,31 @@ export default function FloristProjectDetailPage() {
         }
     };
 
-    // ★ 追加: ロジスティクスステータスの更新
+    // ★ 修正: ロジスティクスステータスの更新（エラーハンドリング強化）
     const updateLogistics = async (field, value) => {
+        const toastId = toast.loading('ステータスを更新中...');
         try {
-            const res = await authenticatedFetch(`${API_URL}/api/projects/${id}`, {
+            const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+            const res = await fetch(`${API_URL}/api/projects/${id}`, {
                 method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
                 body: JSON.stringify({ [field]: value })
             });
-            if (res.ok) {
-                toast.success('ステータスを更新しました');
-                fetchProjectDetails();
-            } else {
-                throw new Error('更新失敗');
+            
+            if (!res.ok) {
+                const data = await res.json().catch(()=>({}));
+                throw new Error(data.message || '更新に失敗しました');
             }
+            
+            toast.success('ステータスを更新しました', { id: toastId });
+            fetchProjectDetails();
         } catch (error) {
-            toast.error('ステータスの更新に失敗しました');
+            toast.error(error.message, { id: toastId });
         }
     };
-
 
     if (authLoading || loading) {
         return <div className="min-h-screen flex items-center justify-center bg-slate-50"><Loader2 className="animate-spin text-sky-500" size={40}/></div>;
@@ -359,10 +394,10 @@ export default function FloristProjectDetailPage() {
                         <ArrowLeft size={16}/> ダッシュボードへ戻る
                     </Link>
                     
-                    {/* 直接チャットへのショートカット */}
+                    {/* ★ 修正: 直接チャットへのショートカットのリンクとテキストを変更 */}
                     <div className="flex gap-2">
-                        <Link href={`/projects/${project.id}`} className="bg-white border border-slate-200 text-slate-700 px-5 py-2.5 rounded-full text-xs font-black flex items-center gap-2 shadow-sm hover:bg-slate-50 transition-colors">
-                            <MessageSquare size={14}/> 主催者とチャット
+                        <Link href={`/florists/projects/${project.id}/chat`} className="bg-white border border-slate-200 text-slate-700 px-5 py-2.5 rounded-full text-xs font-black flex items-center gap-2 shadow-sm hover:bg-slate-50 transition-colors">
+                            <MessageSquare size={14}/> 企画者とチャット
                         </Link>
                     </div>
                 </div>
@@ -538,12 +573,12 @@ export default function FloristProjectDetailPage() {
                                 <div className="bg-slate-50 p-5 md:p-6 rounded-[1.5rem] border border-slate-100">
                                     <h3 className="text-sm font-black text-slate-700 mb-2 flex items-center gap-2"><CheckCircle2 className="text-emerald-500" size={16}/> 前日（仕上がり）写真</h3>
                                     <p className="text-xs text-slate-500 font-bold mb-4">発送前や完成直後の写真をアップロードしてください。企画者の安心に繋がります。</p>
-                                    <PhotoUploadArea urls={project.preEventPhotoUrls} type="pre_photo" projectId={id} onUploadComplete={fetchProjectDetails} authenticatedFetch={authenticatedFetch} />
+                                    <PhotoUploadArea urls={project.preEventPhotoUrls} type="pre_photo" projectId={id} onUploadComplete={fetchProjectDetails} />
                                 </div>
                                 <div className="bg-slate-50 p-5 md:p-6 rounded-[1.5rem] border border-slate-100">
                                     <h3 className="text-sm font-black text-slate-700 mb-2 flex items-center gap-2"><MapPin className="text-rose-500" size={16}/> 当日（納品完了）写真</h3>
                                     <p className="text-xs text-slate-500 font-bold mb-4">会場に設置完了した状態の写真をアップロードしてください。</p>
-                                    <PhotoUploadArea urls={project.completionPhotoUrls} type="completion_photo" projectId={id} onUploadComplete={fetchProjectDetails} authenticatedFetch={authenticatedFetch} />
+                                    <PhotoUploadArea urls={project.completionPhotoUrls} type="completion_photo" projectId={id} onUploadComplete={fetchProjectDetails} />
                                 </div>
                             </div>
                         </AppCard>
@@ -640,7 +675,6 @@ export default function FloristProjectDetailPage() {
                         onClose={() => setIsDeliveryNoteModalOpen(false)} 
                     />
                 )}
-                {/* ★ 追加: 実費入力モーダル */}
                 {isMaterialModalOpen && (
                     <FloristMaterialModal 
                         isOpen={isMaterialModalOpen} 
