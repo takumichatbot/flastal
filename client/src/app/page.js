@@ -8,6 +8,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import Script from 'next/script';
+// ★ 追加: useRouterのインポート
+import { useRouter } from 'next/navigation'; 
 import { 
   motion, 
   useScroll, 
@@ -15,10 +17,11 @@ import {
   AnimatePresence
 } from 'framer-motion';
 
+// ★ 追加: Calendar アイコンのインポート
 import { 
   Heart, Sparkles, ArrowRight, Search, Users,
   Gift, MessageCircle, Clock, Crown, PenTool, Video, Music, MapPin, Store,
-  ChevronRight, ChevronDown, ArrowUpRight, Shield, Command, KeyRound, Building, Star, Ticket, Loader2
+  ChevronRight, ChevronDown, ArrowUpRight, Shield, Command, KeyRound, Building, Star, Ticket, Loader2, Calendar
 } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
@@ -192,7 +195,6 @@ const CATEGORIES = [
 // --- 0. INTRO LOADER ---
 const IntroLoader = ({ onComplete }) => {
   useEffect(() => { 
-    // ★ 待機時間を 2400ms から 800ms (0.8秒) に超短縮！
     const timer = setTimeout(onComplete, 800); 
     return () => clearTimeout(timer); 
   }, [onComplete]);
@@ -201,14 +203,12 @@ const IntroLoader = ({ onComplete }) => {
     <motion.div 
       className="fixed inset-0 z-[99999] flex items-center justify-center pointer-events-none"
       initial={{ opacity: 1 }}
-      // ★ 消える時のアニメーションも短縮
       exit={{ scale: 1.5, opacity: 0, filter: "blur(5px)", transition: { duration: 0.4, ease: "easeInOut" } }}
     >
       <motion.div 
         className="absolute inset-y-0 left-0 w-1/2 bg-[#FDF2F8] shadow-[20px_0_50px_rgba(244,114,182,0.4)] z-10 origin-left"
         initial={{ x: 0, skewX: 0 }}
         animate={{ x: "-100%", skewX: -2 }} 
-        // ★ カーテンが開くスピードを 1.4秒→0.6秒 に高速化
         transition={{ duration: 0.6, delay: 0.1, ease: [0.76, 0, 0.24, 1] }}
         style={{ backgroundImage: `linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(244,114,182,0.05) 50%, rgba(0,0,0,0) 100%), url('https://www.transparenttextures.com/patterns/french-stucco.png')` }}
       >
@@ -230,7 +230,6 @@ const IntroLoader = ({ onComplete }) => {
         className="absolute inset-y-0 right-0 w-1/2 bg-[#FDF2F8] shadow-[-20px_0_50px_rgba(244,114,182,0.4)] z-10 origin-right"
         initial={{ x: 0, skewX: 0 }}
         animate={{ x: "100%", skewX: 2 }} 
-        // ★ 右のカーテンが開くスピードも 1.4秒→0.6秒 に高速化
         transition={{ duration: 0.6, delay: 0.1, ease: [0.76, 0, 0.24, 1] }}
         style={{ backgroundImage: `linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(244,114,182,0.05) 50%, rgba(0,0,0,0) 100%), url('https://www.transparenttextures.com/patterns/french-stucco.png')` }}
       >
@@ -252,7 +251,6 @@ const IntroLoader = ({ onComplete }) => {
         className="absolute z-20 flex flex-col items-center"
         initial={{ opacity: 0, scale: 0.8, y: 10 }} 
         animate={{ opacity: 1, scale: 1, y: 0 }} 
-        // ★ ロゴのフェードインも一瞬（0.4秒）で完了させる
         transition={{ duration: 0.4, ease: "easeOut", delay: 0 }}
       >
         <span className="font-calligraphy text-4xl text-pink-400 mb-2 drop-shadow-sm">Welcome to</span>
@@ -269,7 +267,6 @@ const IntroLoader = ({ onComplete }) => {
 const MainContent = () => {
   return (
     <motion.div
-      // ★ ぼかし（Blur）をさらに弱く、表示スピードを最速（0.4秒）に
       initial={{ opacity: 0, scale: 1.01, filter: "blur(4px)" }}
       animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
       transition={{ duration: 0.4, delay: 0, ease: "easeOut" }}
@@ -423,6 +420,7 @@ const HowItWorks = () => {
 const TrendingProjects = () => {
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
+  const router = useRouter(); // ★ 追加: カードからのジャンプ用
 
   useEffect(() => {
     const fetchProjects = async () => {
@@ -466,41 +464,96 @@ const TrendingProjects = () => {
           </div>
         ) : projects.length > 0 ? (
           <div className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar pb-8 -mx-4 px-4 md:mx-0 md:px-0 md:grid md:grid-cols-4 gap-5 md:gap-6">
+            
+            {/* ★ DOPA風カードに差し替え */}
             {projects.filter(p => p.visibility !== 'UNLISTED' && p.isVisible !== false).map((project, i) => {
-              const percent = project.targetAmount > 0 ? Math.floor((project.collectedAmount / project.targetAmount) * 100) : 0;
-              const imageSrc = project.imageUrl || "https://images.unsplash.com/photo-1526047932273-341f2a7631f9?q=80&w=800&auto=format&fit=crop";
-              const category = project.event?.genre || project.genre || "OTHER";
+              const percent = Math.min(Math.round(((project.collectedAmount || 0) / (project.targetAmount || 1)) * 100), 100);
+              const isSuccess = percent >= 100 || project.status === 'SUCCESSFUL' || project.status === 'COMPLETED';
+              const badgeLabel = project.status === 'COMPLETED' ? '完了' : isSuccess ? '達成!' : '募集中';
+              const badgeColor = project.status === 'COMPLETED' ? 'bg-purple-500' : isSuccess ? 'bg-emerald-500' : 'bg-pink-500';
 
               return (
-                <Reveal key={project.id} delay={i * 0.1} className="min-w-[85vw] sm:min-w-[320px] md:min-w-0 snap-center">
-                  <Link href={`/projects/${project.id}`}>
-                    <SpotlightCard className="h-full flex flex-col group cursor-pointer border-slate-200/60 p-2.5 bg-white">
-                      <div className="relative aspect-[4/3] rounded-[2rem] overflow-hidden bg-slate-100">
-                        <Image src={imageSrc} alt={project.title} fill className="object-cover transition-transform duration-700 group-hover:scale-105" />
-                        <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 via-transparent to-transparent opacity-60 group-hover:opacity-80 transition-opacity" />
+                <Reveal key={project.id} delay={i * 0.1} className="min-w-[85vw] sm:min-w-[320px] md:min-w-0 snap-center h-full">
+                  <div onClick={() => router.push(`/projects/${project.id}`)} className="block group h-full cursor-pointer">
+                    <div className="bg-white/90 backdrop-blur-md rounded-[1.5rem] overflow-hidden border border-slate-100 shadow-sm hover:shadow-[0_12px_30px_rgba(244,114,182,0.15)] transition-all duration-300 hover:-translate-y-1 relative h-full flex flex-col group-hover:border-pink-200">
+                      
+                      {/* 画像エリア */}
+                      <div className="relative w-full aspect-[4/5] bg-slate-100 shrink-0">
+                        {project.imageUrl ? (
+                          <Image src={project.imageUrl} alt={project.title || "企画画像"} fill className="object-cover group-hover:scale-105 transition-transform duration-700" />
+                        ) : (
+                          <div className="absolute inset-0 bg-gradient-to-br from-pink-100 to-sky-100 flex items-center justify-center text-4xl">💐</div>
+                        )}
+                        <div className="absolute inset-x-0 top-0 h-1/3 bg-gradient-to-b from-slate-900/50 to-transparent" />
                         <div className="absolute top-4 left-4">
-                          <span className="px-4 py-1.5 bg-white/90 backdrop-blur-md rounded-full text-[10px] md:text-xs font-black tracking-widest uppercase text-slate-800 shadow-sm">
-                            {category}
+                          <span className={cn("px-3 py-1.5 rounded-full text-[10px] font-black shadow-md border backdrop-blur-md text-white uppercase tracking-widest", badgeColor)}>
+                            {badgeLabel}
                           </span>
                         </div>
                       </div>
-                      <div className="p-5 flex flex-col flex-grow mt-2">
-                        <h3 className="text-sm md:text-base font-extrabold text-slate-800 leading-snug mb-5 group-hover:text-pink-500 transition-colors line-clamp-2">{project.title}</h3>
-                        <div className="mt-auto">
-                          <div className="flex justify-between items-end mb-2.5">
-                            <div className="text-base font-black text-slate-800">¥{(project.collectedAmount || 0).toLocaleString()}</div>
-                            <div className="text-xs font-black font-mono text-slate-400">{percent}%</div>
+
+                      {/* コンテンツエリア */}
+                      <div className="p-4 lg:p-5 flex flex-col flex-grow bg-white">
+                        <h3 className="font-bold text-slate-800 text-sm leading-snug group-hover:text-pink-500 transition-colors line-clamp-2 mb-3">
+                          {project.title}
+                        </h3>
+                        
+                        <div className="space-y-1.5 mb-4">
+                            {project.deliveryDateTime && (
+                                <p className="text-[11px] font-bold text-slate-500 flex items-center">
+                                    <Calendar className="mr-1.5 shrink-0 text-pink-400" size={14}/> 
+                                    {new Date(project.deliveryDateTime).toLocaleDateString()}
+                                </p>
+                            )}
+                            <p className="text-[11px] font-bold text-slate-500 flex items-center truncate">
+                                <MapPin className="mr-1.5 shrink-0 text-sky-400" size={14}/> 
+                                <span className="truncate">{project.venue?.venueName || project.deliveryAddress || '場所未定'}</span>
+                            </p>
+                        </div>
+
+                        <div className="mt-auto pt-4 border-t border-slate-100/50">
+                          <div className="flex justify-between items-end mb-2">
+                            <div>
+                              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Current</p>
+                              <p className="text-base font-black leading-none text-slate-800">
+                                ¥{(project.collectedAmount || 0).toLocaleString()}
+                                <span className="text-[9px] text-slate-400 font-medium ml-1">/ ¥{(project.targetAmount || 0).toLocaleString()}</span>
+                              </p>
+                            </div>
+                            <span className={cn("text-xl font-black font-mono leading-none", isSuccess ? "text-emerald-500" : "text-pink-500")}>
+                              {percent}%
+                            </span>
                           </div>
-                          <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
-                            <motion.div initial={{ width: 0 }} whileInView={{ width: `${Math.min(percent, 100)}%` }} transition={{ duration: 1.5, delay: 0.2 }} className="h-full bg-slate-900 rounded-full" />
+                          <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden shadow-inner mb-3">
+                            <motion.div 
+                              initial={{ width: 0 }} whileInView={{ width: `${percent}%` }} transition={{ duration: 1, ease: "easeOut" }}
+                              className={cn("h-full rounded-full absolute left-0 top-0", isSuccess ? "bg-emerald-400" : "bg-gradient-to-r from-pink-400 to-rose-400")} 
+                            />
                           </div>
+
+                          {/* 支援するダイレクトボタン */}
+                          {project.status === 'FUNDRAISING' && (
+                              <div className="pt-3 border-t border-slate-100 border-dashed relative z-20">
+                                  <button
+                                      onClick={(e) => {
+                                          e.stopPropagation(); 
+                                          router.push(`/projects/${project.id}#pledge-section`);
+                                      }}
+                                      className="w-full py-2.5 bg-pink-50 hover:bg-pink-500 text-pink-600 hover:text-white rounded-xl text-xs font-black transition-colors flex items-center justify-center gap-1.5"
+                                  >
+                                      <Heart size={14} className="fill-current" />
+                                      支援する (1口 ¥{(project.minContributionAmount || 1000).toLocaleString()}〜)
+                                  </button>
+                              </div>
+                          )}
                         </div>
                       </div>
-                    </SpotlightCard>
-                  </Link>
+                    </div>
+                  </div>
                 </Reveal>
               );
             })}
+
           </div>
         ) : (
           <div className="text-center py-20 text-slate-400 font-bold">
@@ -581,8 +634,6 @@ const BentoFeatures = () => {
         <div className="mb-12 md:mb-20 text-center md:text-left">
           <Reveal>
             <span className="text-emerald-500 font-black text-[10px] md:text-xs tracking-[0.2em] uppercase block mb-4">Safety & Professional</span>
-            
-            {/* ★ スマホは text-[20px] または text-xl にして、必ず「2行」で美しく収める */}
             <h2 className="text-[21px] sm:text-3xl md:text-5xl lg:text-6xl font-black text-slate-800 tracking-tighter leading-[1.5] md:leading-[1.2]">
               フラスタ企画の面倒な裏方は、<br />
               すべてFLASTALにお任せ。
@@ -602,10 +653,8 @@ const BentoFeatures = () => {
                   <feat.icon size={28} strokeWidth={2} />
                 </div>
                 <h3 className={cn("text-xl md:text-2xl font-black mb-3 tracking-tight", feat.text)}>{feat.title}</h3>
-                {/* ★ 説明文も leading-relaxed で読みやすくする */}
                 <p className={cn("text-xs sm:text-sm md:text-base font-bold leading-relaxed", feat.descColor)}>{feat.desc}</p>
               </div>
-              {/* 背景の装飾要素 */}
               <div className="absolute inset-0 z-10 pointer-events-none">
                 {feat.visual}
               </div>
@@ -654,28 +703,22 @@ const LaruSeoEmbed = () => {
   const containerRef = useRef(null);
   
   useEffect(() => {
-    // 確実にマウントされるまで少し待つ (Next.jsのハイドレーション対策)
     const timer = setTimeout(() => {
       const container = containerRef.current;
       if (!container) return;
 
-      // すでにScriptが注入されている場合はスキップ (Strict Mode対策)
       if (container.querySelector('script')) return;
 
-      // Scriptタグを動的に生成して挿入
       const script = document.createElement('script');
       script.src = "https://larubot.tokyo/embed/blog.js";
       script.setAttribute("data-id", "e19ed703-6238-49a5-ac83-c92c522a44cd");
       script.setAttribute("data-limit", "6"); 
       script.async = true;
       
-      // container (refを当てたdiv) の中に直接スクリプトを入れる
       container.appendChild(script);
 
-      // 横スワイプ（カルーセル）用のスタイルを注入
       const style = document.createElement('style');
       style.innerHTML = `
-        /* コンテナ全体のレイアウト強制上書き */
         #laru-blog-container > div {
           display: flex !important;
           flex-wrap: nowrap !important;
@@ -689,40 +732,32 @@ const LaruSeoEmbed = () => {
           gap: 20px !important;
         }
         
-        /* スクロールバーを隠す */
         #laru-blog-container > div::-webkit-scrollbar {
           display: none;
         }
 
-        /* 🌟 修正: 各カードのサイズを厳密に固定して間延びを防ぐ */
         #laru-blog-container > div > div {
-          flex: 0 0 auto !important; /* 勝手に伸び縮みさせない */
-          width: 85vw !important;    /* スマホ時の幅 */
-          max-width: 320px !important; /* スマホでもこれ以上は太らせない */
+          flex: 0 0 auto !important;
+          width: 85vw !important;
+          max-width: 320px !important;
           scroll-snap-align: center !important;
           display: flex !important;
           flex-direction: column !important;
-          height: 100% !important; /* 高さを揃える */
+          height: 100% !important;
         }
 
-        /* 🌟 PC時のカードサイズ調整 */
         @media (min-width: 768px) {
           #laru-blog-container > div {
-            /* PCではスワイプではなく通常のグリッドに戻す場合 */
-            /* display: grid !important; */
-            /* grid-template-columns: repeat(3, 1fr) !important; */
-            /* 今回はPCでも横スワイプ(または左詰め配置)を維持する設定にしています */
             margin: 0 !important;
             padding-left: 0 !important;
             padding-right: 0 !important;
           }
           #laru-blog-container > div > div {
-            width: 340px !important; /* PC時の固定幅 */
+            width: 340px !important;
             max-width: none !important;
           }
         }
         
-        /* 画像の比率を固定 */
         #laru-blog-container img {
           aspect-ratio: 16 / 9 !important;
           height: auto !important;
@@ -730,13 +765,12 @@ const LaruSeoEmbed = () => {
         }
       `;
       container.appendChild(style);
-    }, 100); // 100ミリ秒だけ待つ
+    }, 100);
 
     return () => clearTimeout(timer);
   }, []);
 
   return (
-    // 🌟 ここが最重要：id="laru-blog-container" をあらかじめ空箱として置いておく！
     <div ref={containerRef} className="w-full min-h-[400px] relative z-20">
        <div id="laru-blog-container"></div>
     </div>
@@ -763,7 +797,6 @@ const ArticlesSection = () => (
         <LaruSeoEmbed />
       </Reveal>
 
-      {/* モバイル用の「すべて見る」ボタン */}
       <Link href="/blog" className="md:hidden flex justify-center mt-4">
         <button className="px-6 py-3.5 w-full rounded-xl border border-slate-200 text-sm font-bold text-slate-600 bg-white flex items-center justify-center gap-2 shadow-sm hover:bg-slate-50 active:scale-[0.98] transition-all">
           すべての記事を見る <ArrowRight size={16}/>
@@ -844,7 +877,6 @@ export default function HomePage() {
         )}
       </AnimatePresence>
 
-      {/* ★ 追加: LARUbot の埋め込みスクリプト (画面の右下に表示されます) ★ */}
       <Script 
         src="https://larubot.tokyo/static/embed.js" 
         data-public-id="e19ed703-6238-49a5-ac83-c92c522a44cd" 

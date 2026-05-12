@@ -958,7 +958,6 @@ export default function ProjectDetailClient() {
                             <p className="font-black text-slate-800 text-sm md:text-lg leading-tight">{project.planner?.handleName || project.planner?.name || '不明'}</p>
                         </div>
                     </div>
-                </div>
                 
                 {/* ★ 追加: 企画のタイトルと、その直下に日時・場所を可愛くバッジ表示 */}
                 <div className="mt-4 mb-2">
