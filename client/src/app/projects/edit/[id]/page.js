@@ -8,9 +8,8 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
 
-// lucide-react に統一
 import { 
-  Save, X, Image as ImageIcon, Edit3, ArrowLeft, Loader2, Sparkles, Paintbrush, FileText
+  Save, X, Image as ImageIcon, Edit3, ArrowLeft, Loader2, Sparkles, Paintbrush, FileText, Calendar, MapPin
 } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
@@ -79,6 +78,8 @@ export default function EditProjectPage() {
     designDetails: '',
     size: '',
     flowerTypes: '',
+    deliveryDateTime: '', // ★追加
+    deliveryAddress: '',  // ★追加
   });
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -105,6 +106,11 @@ export default function EditProjectPage() {
           return;
         }
 
+        // DBのISO文字列(UTC)を、datetime-local の形式 (YYYY-MM-DDThh:mm) に変換してセット
+        const formattedDate = data.deliveryDateTime 
+            ? new Date(data.deliveryDateTime).toISOString().slice(0, 16) 
+            : '';
+
         setFormData({
           title: data.title || '',
           description: data.description || '',
@@ -112,6 +118,8 @@ export default function EditProjectPage() {
           designDetails: data.designDetails || '',
           size: data.size || '',
           flowerTypes: data.flowerTypes || '',
+          deliveryDateTime: formattedDate,
+          deliveryAddress: data.deliveryAddress || data.venue?.address || '',
         });
       } catch (error) {
         console.error(error);
@@ -137,8 +145,6 @@ export default function EditProjectPage() {
 
     try {
       const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
-
-      // ★ 1. S3署名付きURLを取得
       const urlRes = await fetch(`${API_URL}/api/tools/s3-upload-url`, {
         method: 'POST',
         headers: { 
@@ -151,7 +157,6 @@ export default function EditProjectPage() {
       if (!urlRes.ok) throw new Error('署名付きURLの取得に失敗しました');
       const { uploadUrl, fileUrl } = await urlRes.json();
 
-      // ★ 2. S3へ直接PUT (ファイルサイズ制限を受けにくい)
       await new Promise((resolve, reject) => {
         const xhr = new XMLHttpRequest();
         xhr.open('PUT', uploadUrl);
@@ -164,14 +169,13 @@ export default function EditProjectPage() {
         xhr.send(file);
       });
 
-      // ★ 3. フォームデータにS3の画像URLをセット
       setFormData(prev => ({ ...prev, imageUrl: fileUrl }));
       toast.success('画像を更新しました', { id: toastId });
     } catch (error) {
       toast.error(error.message || 'アップロードに失敗しました', { id: toastId });
     } finally {
       setIsUploading(false);
-      e.target.value = ''; // ファイル選択をリセット
+      e.target.value = ''; 
     }
   };
 
@@ -184,13 +188,18 @@ export default function EditProjectPage() {
     const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
     
     try {
+        const payload = { ...formData };
+        if (payload.deliveryDateTime) {
+            payload.deliveryDateTime = new Date(payload.deliveryDateTime).toISOString();
+        }
+
         const res = await fetch(`${API_URL}/api/projects/${projectId}`, { 
             method: 'PATCH',
             headers: { 
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}` 
             },
-            body: JSON.stringify(formData), 
+            body: JSON.stringify(payload), 
         });
 
         if (!res.ok) {
@@ -265,6 +274,24 @@ export default function EditProjectPage() {
                 </div>
             </div>
           </GlassCard>
+
+          {/* ★ 追加: 日時・場所の設定 */}
+          <GlassCard>
+            <div className="flex items-center gap-2 mb-6">
+                <Calendar className="text-emerald-500" size={20}/>
+                <h2 className="text-xl font-black text-slate-800">イベント日時・お届け先</h2>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label htmlFor="deliveryDateTime" className="block text-sm font-black text-slate-700 mb-2">お届け希望日時（イベント日時）</label>
+                    <GlassInput type="datetime-local" name="deliveryDateTime" id="deliveryDateTime" value={formData.deliveryDateTime} onChange={handleChange} />
+                </div>
+                <div>
+                    <label htmlFor="deliveryAddress" className="block text-sm font-bold text-slate-700 mb-2">お届け先（会場名や住所など）</label>
+                    <GlassInput type="text" name="deliveryAddress" id="deliveryAddress" value={formData.deliveryAddress} onChange={handleChange} placeholder="例: 幕張メッセ" />
+                </div>
+            </div>
+          </GlassCard>
           
           {/* メイン画像 */}
           <GlassCard>
@@ -283,7 +310,6 @@ export default function EditProjectPage() {
                         </div>
                     )}
                     
-                    {/* アップロードオーバーレイ */}
                     <label className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center cursor-pointer text-white font-black backdrop-blur-sm">
                         <Edit3 size={32} className="mb-2"/>
                         <span>クリックして変更</span>

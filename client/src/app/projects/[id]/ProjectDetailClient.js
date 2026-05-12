@@ -952,14 +952,39 @@ export default function ProjectDetailClient() {
                     <div className="w-12 h-12 md:w-16 md:h-16 bg-slate-100 rounded-full flex items-center justify-center overflow-hidden border border-slate-200 shrink-0">
                         {project.planner?.iconUrl ? <Image src={project.planner.iconUrl} alt="" width={64} height={64} className="object-cover" /> : <User size={24} className="text-slate-400"/>}
                     </div>
-                    <div>
-                        <p className="text-[10px] md:text-xs font-black text-slate-400 uppercase tracking-widest mb-0.5">Organizer</p>
-                        <p className="font-black text-slate-800 text-sm md:text-lg leading-tight">{project.planner?.handleName || project.planner?.name || '不明'}</p>
+                    {/* ↓↓↓ ここから書き換え ↓↓↓ */}
+                        <div>
+                            <p className="text-[10px] md:text-xs font-black text-slate-400 uppercase tracking-widest mb-0.5">Organizer</p>
+                            <p className="font-black text-slate-800 text-sm md:text-lg leading-tight">{project.planner?.handleName || project.planner?.name || '不明'}</p>
+                        </div>
                     </div>
                 </div>
                 
-                <div className="w-full md:w-3/5 flex flex-col gap-3">
+                {/* ★ 追加: 企画のタイトルと、その直下に日時・場所を可愛くバッジ表示 */}
+                <div className="mt-4 mb-2">
+                    <h1 className="text-2xl md:text-3xl lg:text-4xl font-black text-slate-800 tracking-tight leading-snug mb-3">
+                        <JpText>{project.title}</JpText>
+                    </h1>
+                    <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-[10px] md:text-xs font-bold text-slate-500 uppercase tracking-widest bg-white px-2.5 py-1 rounded-md shadow-sm border border-slate-100">
+                            ID: {project.id.slice(0,6)}
+                        </span>
+                        {project.deliveryDateTime && (
+                            <span className="text-[10px] md:text-xs font-bold text-slate-600 bg-pink-50/50 px-2.5 py-1 rounded-md shadow-sm border border-pink-100 flex items-center gap-1.5">
+                                <Calendar size={14} className="text-pink-400"/>
+                                {new Date(project.deliveryDateTime).toLocaleString('ja-JP', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                        )}
+                        <span className="text-[10px] md:text-xs font-bold text-slate-600 bg-sky-50/50 px-2.5 py-1 rounded-md shadow-sm border border-sky-100 flex items-center gap-1.5">
+                            <MapPin size={14} className="text-sky-400"/>
+                            <span className="truncate max-w-[200px] md:max-w-xs">{project.venue?.venueName || project.deliveryAddress || '場所未定'}</span>
+                        </span>
+                    </div>
+                </div>
+
+                <div className="w-full flex flex-col gap-3 mt-4 pt-4 border-t border-slate-100">
                     <div className="flex justify-between items-end px-1">
+                        {/* ↑↑↑ ここまで書き換え ↑↑↑ */}
                         <div className="flex flex-col">
                             <span className="text-[10px] md:text-xs font-black text-slate-400 tracking-widest mb-1">現在の支援総額</span>
                             <div className="flex items-baseline gap-1">
