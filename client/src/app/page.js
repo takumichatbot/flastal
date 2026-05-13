@@ -28,30 +28,12 @@ function cn(...classes) {
   return classes.filter(Boolean).join(' ');
 }
 
-function useWindowSize() {
-  const [windowSize, setWindowSize] = useState({ width: 0, height: 0 });
-  useEffect(() => {
-    function handleResize() { setWindowSize({ width: window.innerWidth, height: window.innerHeight }); }
-    window.addEventListener("resize", handleResize);
-    handleResize();
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
-  return windowSize;
-}
-
-function useIsMounted() {
-  const [isMounted, setIsMounted] = useState(false);
-  useEffect(() => { setIsMounted(true); }, []);
-  return isMounted;
-}
-
 // ==========================================
 // 🌌 1. 呼吸するメッシュグラデーション背景
 // ==========================================
 const BreathingMeshGradient = () => {
   return (
     <div className="fixed inset-0 z-[-1] overflow-hidden bg-[#fdfcff] pointer-events-none">
-      {/* 修正: 重い filter や mix-blend を外し、Tailwind標準の blur-3xl で軽量化 */}
       <motion.div 
         animate={{ y: [0, -20, 0], x: [0, 10, 0], scale: [1, 1.05, 1] }} transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
         className="absolute top-[-20%] left-[-10%] w-[80vw] h-[80vw] md:w-[60vw] md:h-[60vw] rounded-full bg-pink-300/30 blur-3xl" 
@@ -64,6 +46,7 @@ const BreathingMeshGradient = () => {
         animate={{ y: [0, -10, 0], x: [0, -10, 0], scale: [1, 1.05, 1] }} transition={{ duration: 20, repeat: Infinity, ease: "easeInOut", delay: 4 }}
         className="absolute bottom-[-20%] left-[20%] w-[90vw] h-[90vw] md:w-[70vw] md:h-[70vw] rounded-full bg-violet-300/30 blur-3xl" 
       />
+      <div className="absolute inset-0 opacity-[0.015] mix-blend-overlay" style={{ backgroundImage: "url('https://www.transparenttextures.com/patterns/stardust.png')" }}></div>
     </div>
   );
 };
@@ -146,8 +129,9 @@ const Reveal = ({ children, delay = 0, className = "" }) => {
 
 const SplitTextReveal = ({ text, className, delay = 0 }) => {
   const words = text.split(" ");
+  // クラッシュ原因になる filter: blur を削除し、シンプルで安定したフェードインに変更
   const container = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.1, delayChildren: delay } } };
-  const child = { visible: { opacity: 1, y: 0, filter: "blur(0px)", transition: { type: "spring", damping: 14, stiffness: 100 } }, hidden: { opacity: 0, y: 30, filter: "blur(8px)" } };
+  const child = { visible: { opacity: 1, y: 0, transition: { type: "spring", damping: 14, stiffness: 100 } }, hidden: { opacity: 0, y: 30 } };
 
   return (
     <motion.div style={{ overflow: "hidden", display: "flex", flexWrap: "wrap", justifyContent: "center" }} variants={container} initial="hidden" whileInView="visible" viewport={{ once: true }} className={className}>
@@ -158,12 +142,13 @@ const SplitTextReveal = ({ text, className, delay = 0 }) => {
   );
 };
 
-// ★復活: リッチな動く絵文字パーティクル
+// ★修正: クラッシュを防ぐため scale を initial に移動
 const EmojiParticle = ({ emoji, delay = 0, x = "0%", y = "0%", scale = 1 }) => {
   return (
     <motion.div
       className="absolute opacity-0 pointer-events-none drop-shadow-md select-none z-0"
-      style={{ top: y, left: x, scale, fontSize: '2.5rem' }}
+      style={{ top: y, left: x, fontSize: '2.5rem' }}
+      initial={{ scale }}
       animate={{ 
         opacity: [0, 0.9, 0.5, 0.9, 0],
         y: ["0px", "-40px", "-20px", "-40px", "-60px"],
@@ -203,7 +188,7 @@ const IntroLoader = ({ onComplete }) => {
     <motion.div 
       className="fixed inset-0 z-[99999] flex items-center justify-center pointer-events-none"
       initial={{ opacity: 1 }}
-      exit={{ scale: 1.1, opacity: 0, filter: "blur(10px)", transition: { duration: 0.6, ease: "easeInOut" } }}
+      exit={{ scale: 1.1, opacity: 0, transition: { duration: 0.6, ease: "easeInOut" } }}
     >
       <motion.div 
         className="absolute inset-y-0 left-0 w-1/2 bg-[#FDF2F8] shadow-[20px_0_50px_rgba(244,114,182,0.4)] z-10 origin-left border-r border-white/50"
@@ -229,8 +214,8 @@ const IntroLoader = ({ onComplete }) => {
 const MainContent = () => {
   return (
     <motion.div
-      initial={{ opacity: 0, filter: "blur(10px)" }}
-      animate={{ opacity: 1, filter: "blur(0px)" }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
       transition={{ duration: 0.8, ease: "easeOut" }}
     >
       <BreathingMeshGradient />
@@ -251,8 +236,6 @@ const Hero = () => {
   const { scrollY } = useScroll();
   const y1 = useTransform(scrollY, [0, 1000], [0, 200]);
   const opacity = useTransform(scrollY, [0, 600], [1, 0]);
-  const isMounted = useIsMounted();
-  const { width } = useWindowSize();
 
   return (
     <section className="relative w-full min-h-[100svh] flex flex-col items-center justify-center overflow-hidden pt-20 pb-12 z-10">
@@ -265,22 +248,19 @@ const Hero = () => {
       <EmojiParticle emoji="👑" x="50%" y="85%" scale={1.2} delay={2.2} />
       <EmojiParticle emoji="🎉" x="10%" y="55%" scale={1.0} delay={1.8} />
 
-      {/* 🌸 修正: 確実に表示され、サイトを重くしない iframe 埋め込み */}
+      {/* 🌸 3Dダイヤモンドの安定したiframe埋め込み */}
       <div className="absolute inset-0 z-0 flex items-center justify-center pointer-events-auto opacity-70 md:opacity-100">
          <div className="w-[150%] h-[150%] md:w-[100%] md:h-[100%] md:translate-x-[25%]">
              <iframe 
-                src="https://my.spline.design/3-A-2W0z1sT3aD8Q/" 
-                frameBorder="0" 
-                width="100%" 
-                height="100%" 
-                className="border-none"
-                title="3D Hologram Flower"
+                src="https://my.spline.design/diamond3dcopycopy-wG2QFxtCNBSfnRGpsp6nNDqp-aq6/" 
+                style={{ border: 'none', width: '100%', height: '100%' }}
+                title="3D Hologram Diamond"
                 loading="lazy"
              ></iframe>
          </div>
       </div>
       
-      <motion.div style={isMounted && width >= 1024 ? { y: y1, opacity } : {}} className="container relative z-10 max-w-6xl mx-auto px-4 md:px-6 flex flex-col items-center md:items-start text-center md:text-left mt-24 md:mt-0">
+      <motion.div style={{ y: y1, opacity }} className="container relative z-10 max-w-6xl mx-auto px-4 md:px-6 flex flex-col items-center md:items-start text-center md:text-left mt-24 md:mt-0">
         
         <Reveal delay={0.2}>
           <div className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white/70 backdrop-blur-xl border border-white/80 shadow-lg shadow-pink-500/10 mb-6 md:mb-8">
@@ -411,9 +391,9 @@ const TrendingProjects = () => {
         const res = await fetch(`${API_URL}/api/projects?limit=8`);
         if (res.ok) {
           const data = await res.json();
-          // APIレスポンスが配列かオブジェクトかを判定し、クラッシュを防止
+          // ★修正: データがnullや空の場合のクラッシュを完全に防止
           const projectsArray = Array.isArray(data) ? data : (data?.projects || []);
-          const activeProjects = projectsArray.filter(p => p.status === 'FUNDRAISING' || p.status === 'SUCCESSFUL');
+          const activeProjects = projectsArray.filter(p => p?.status === 'FUNDRAISING' || p?.status === 'SUCCESSFUL');
           setProjects(activeProjects.slice(0, 4));
         }
       } catch (error) {
@@ -449,20 +429,21 @@ const TrendingProjects = () => {
         ) : projects.length > 0 ? (
           <div className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar pb-12 -mx-4 px-4 md:mx-0 md:px-0 md:grid md:grid-cols-4 gap-5 md:gap-6">
             
-            {projects.filter(p => p.visibility !== 'UNLISTED' && p.isVisible !== false).map((project, i) => {
-              const percent = Math.min(Math.round(((project.collectedAmount || 0) / (project.targetAmount || 1)) * 100), 100);
-              const isSuccess = percent >= 100 || project.status === 'SUCCESSFUL' || project.status === 'COMPLETED';
-              const badgeLabel = project.status === 'COMPLETED' ? '完了' : isSuccess ? '達成!' : '募集中';
-              const badgeColor = project.status === 'COMPLETED' ? 'bg-purple-500' : isSuccess ? 'bg-emerald-500' : 'bg-pink-500';
+            {projects.filter(p => p?.visibility !== 'UNLISTED' && p?.isVisible !== false).map((project, i) => {
+              // ★修正: オブジェクトのプロパティ欠落によるクラッシュを防止
+              const percent = Math.min(Math.round(((project?.collectedAmount || 0) / (project?.targetAmount || 1)) * 100), 100);
+              const isSuccess = percent >= 100 || project?.status === 'SUCCESSFUL' || project?.status === 'COMPLETED';
+              const badgeLabel = project?.status === 'COMPLETED' ? '完了' : isSuccess ? '達成!' : '募集中';
+              const badgeColor = project?.status === 'COMPLETED' ? 'bg-purple-500' : isSuccess ? 'bg-emerald-500' : 'bg-pink-500';
 
               return (
-                <Reveal key={project.id} delay={i * 0.1} className="min-w-[85vw] sm:min-w-[320px] md:min-w-0 snap-center h-full">
+                <Reveal key={project?.id || i} delay={i * 0.1} className="min-w-[85vw] sm:min-w-[320px] md:min-w-0 snap-center h-full">
                   <div onClick={() => router.push(`/projects/${project.id}`)} className="block group h-full cursor-pointer">
                     <GlassCard className="!p-4 lg:!p-5 h-full flex flex-col transition-all duration-500 hover:-translate-y-2 hover:shadow-[0_20px_40px_rgba(236,72,153,0.15)] group-hover:border-pink-300">
                       
                       <div className="relative w-full aspect-[4/5] rounded-[1.5rem] overflow-hidden bg-slate-100 shrink-0 shadow-inner">
-                        {project.imageUrl ? (
-                          <Image src={project.imageUrl} alt={project.title || "企画画像"} fill className="object-cover group-hover:scale-105 transition-transform duration-700" />
+                        {project?.imageUrl ? (
+                          <Image src={project.imageUrl} alt={project?.title || "企画画像"} fill className="object-cover group-hover:scale-105 transition-transform duration-700" />
                         ) : (
                           <div className="absolute inset-0 bg-gradient-to-br from-pink-100 to-sky-100 flex items-center justify-center text-4xl">💐</div>
                         )}
@@ -476,11 +457,11 @@ const TrendingProjects = () => {
 
                       <div className="pt-5 flex flex-col flex-grow">
                         <h3 className="font-black text-slate-800 text-sm leading-snug group-hover:text-pink-500 transition-colors line-clamp-2 mb-3">
-                          {project.title}
+                          {project?.title}
                         </h3>
                         
                         <div className="space-y-1.5 mb-4">
-                            {project.deliveryDateTime && (
+                            {project?.deliveryDateTime && (
                                 <p className="text-[11px] font-bold text-slate-500 flex items-center">
                                     <Calendar className="mr-1.5 shrink-0 text-pink-400" size={14}/> 
                                     {new Date(project.deliveryDateTime).toLocaleDateString()}
@@ -488,7 +469,7 @@ const TrendingProjects = () => {
                             )}
                             <p className="text-[11px] font-bold text-slate-500 flex items-center truncate">
                                 <MapPin className="mr-1.5 shrink-0 text-sky-400" size={14}/> 
-                                <span className="truncate">{project.venue?.venueName || project.deliveryAddress || '場所未定'}</span>
+                                <span className="truncate">{project?.venue?.venueName || project?.deliveryAddress || '場所未定'}</span>
                             </p>
                         </div>
 
@@ -497,8 +478,8 @@ const TrendingProjects = () => {
                             <div>
                               <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Current</p>
                               <p className="text-base font-black leading-none text-slate-800">
-                                ¥{(project.collectedAmount || 0).toLocaleString()}
-                                <span className="text-[9px] text-slate-400 font-bold ml-1">/ ¥{(project.targetAmount || 0).toLocaleString()}</span>
+                                ¥{(project?.collectedAmount || 0).toLocaleString()}
+                                <span className="text-[9px] text-slate-400 font-bold ml-1">/ ¥{(project?.targetAmount || 0).toLocaleString()}</span>
                               </p>
                             </div>
                             <span className={cn("text-xl font-black font-mono leading-none", isSuccess ? "text-emerald-500" : "text-pink-500")}>
@@ -512,7 +493,7 @@ const TrendingProjects = () => {
                             />
                           </div>
 
-                          {project.status === 'FUNDRAISING' && (
+                          {project?.status === 'FUNDRAISING' && (
                               <motion.button
                                   whileTap={{ scale: 0.9, y: 2 }}
                                   onClick={(e) => {
@@ -522,7 +503,7 @@ const TrendingProjects = () => {
                                   className="w-full py-3 bg-pink-50 hover:bg-pink-500 text-pink-600 hover:text-white rounded-xl text-xs font-black transition-colors flex items-center justify-center gap-1.5 shadow-sm hover:shadow-md"
                               >
                                   <Heart size={14} className="fill-current" />
-                                  支援する (1口 ¥{(project.minContributionAmount || 1000).toLocaleString()}〜)
+                                  支援する (1口 ¥{(project?.minContributionAmount || 1000).toLocaleString()}〜)
                               </motion.button>
                           )}
                         </div>
@@ -683,7 +664,8 @@ const LaruSeoEmbed = () => {
       script.async = true;
       container.appendChild(script);
 
-      // ここだけ標準のDOM操作で安全にスタイル追加
+      // React 18のStrict Modeでスタイルタグが二重に挿入されるのを防ぐ安全な処理
+      if (container.querySelector('style')) return;
       const style = document.createElement('style');
       style.innerHTML = `
         #laru-blog-container > div { display: flex !important; flex-wrap: nowrap !important; overflow-x: auto !important; scroll-snap-type: x mandatory !important; -webkit-overflow-scrolling: touch !important; padding-bottom: 24px !important; margin: 0 -16px !important; padding-left: 16px !important; padding-right: 16px !important; gap: 20px !important; }
@@ -792,12 +774,7 @@ const PartnerCTA = () => (
 // 👑 MAIN EXPORT (Page Assembler)
 // ==========================================
 export default function HomePage() {
-  const [isMounted, setIsMounted] = useState(false);
   const [introFinished, setIntroFinished] = useState(false);
-
-  useEffect(() => { setIsMounted(true); }, []);
-
-  if (!isMounted) return null; 
 
   return (
     <main className="bg-transparent min-h-screen text-slate-800 font-sans selection:bg-pink-200 selection:text-pink-600 relative overflow-hidden">
@@ -816,7 +793,8 @@ export default function HomePage() {
         strategy="afterInteractive" 
       />
 
-      <style dangerouslySetInnerHTML={{ __html: `
+      {/* ★ 修正: React 18の標準的なスタイル定義に変更 */}
+      <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&family=Parisienne&display=swap');
         
         :root {
@@ -834,7 +812,29 @@ export default function HomePage() {
         .font-calligraphy {
           font-family: var(--font-calligraphy);
         }
-      `}} />
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* Animation Keyframes */
+        .animate-marquee { animation: marquee 25s linear infinite; }
+        @keyframes marquee { 0% { transform: translateX(0%); } 100% { transform: translateX(-50%); } }
+        
+        @keyframes blob { 
+          0% { transform: translate(0px, 0px) scale(1); } 
+          33% { transform: translate(30px, -50px) scale(1.1); } 
+          66% { transform: translate(-20px, 20px) scale(0.9); } 
+          100% { transform: translate(0px, 0px) scale(1); } 
+        }
+        .animate-blob { animation: blob 15s infinite alternate ease-in-out; }
+        .animation-delay-2000 { animation-delay: 2s; }
+        .animation-delay-4000 { animation-delay: 4s; }
+      `}</style>
     </main>
   );
 }
