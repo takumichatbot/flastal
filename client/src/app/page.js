@@ -28,6 +28,12 @@ function cn(...classes) {
   return classes.filter(Boolean).join(' ');
 }
 
+function useIsMounted() {
+  const [isMounted, setIsMounted] = useState(false);
+  useEffect(() => { setIsMounted(true); }, []);
+  return isMounted;
+}
+
 // ==========================================
 // 🌌 1. 呼吸するメッシュグラデーション背景
 // ==========================================
@@ -230,7 +236,6 @@ const Hero = () => {
       
       {/* 🌸 Spline 3D Model */}
       <div className="absolute inset-0 z-0 flex items-center justify-center pointer-events-auto mix-blend-darken md:mix-blend-normal opacity-80 md:opacity-100">
-         <Script type="module" src="https://unpkg.com/@splinetool/viewer@1.0.96/build/spline-viewer.js" strategy="afterInteractive" />
          <div className="w-[120%] h-[120%] md:w-[100%] md:h-[100%] md:translate-x-[20%]">
              <spline-viewer 
                 url="https://prod.spline.design/3-A-2W0z1sT3aD8Q/scene.splinecode" 
@@ -240,6 +245,7 @@ const Hero = () => {
          </div>
       </div>
       
+      {/* ★ SSRとクライアントでスタイルが変わることで起きるHydrationエラーを回避するため、初期状態から motion を適用 */}
       <motion.div style={{ y: y1, opacity }} className="container relative z-10 max-w-6xl mx-auto px-4 md:px-6 flex flex-col items-center md:items-start text-center md:text-left mt-24 md:mt-0">
         
         <Reveal delay={0.2}>
@@ -367,7 +373,9 @@ const TrendingProjects = () => {
         const res = await fetch(`${API_URL}/api/projects?limit=8`);
         if (res.ok) {
           const data = await res.json();
-          const activeProjects = data.filter(p => p.status === 'FUNDRAISING' || p.status === 'SUCCESSFUL');
+          // ★ 修正：APIが配列以外を返した際のクラッシュ（TypeError）を完全に防止
+          const projectsArray = Array.isArray(data) ? data : (data?.projects || []);
+          const activeProjects = projectsArray.filter(p => p.status === 'FUNDRAISING' || p.status === 'SUCCESSFUL');
           setProjects(activeProjects.slice(0, 4));
         }
       } catch (error) {
@@ -414,6 +422,7 @@ const TrendingProjects = () => {
                   <div onClick={() => router.push(`/projects/${project.id}`)} className="block group h-full cursor-pointer">
                     <GlassCard className="!p-4 lg:!p-5 h-full flex flex-col transition-all duration-500 hover:-translate-y-2 hover:shadow-[0_20px_40px_rgba(236,72,153,0.15)] group-hover:border-pink-300">
                       
+                      {/* 画像エリア */}
                       <div className="relative w-full aspect-[4/5] rounded-[1.5rem] overflow-hidden bg-slate-100 shrink-0 shadow-inner">
                         {project.imageUrl ? (
                           <Image src={project.imageUrl} alt={project.title || "企画画像"} fill className="object-cover group-hover:scale-105 transition-transform duration-700" />
@@ -428,6 +437,7 @@ const TrendingProjects = () => {
                         </div>
                       </div>
 
+                      {/* コンテンツエリア */}
                       <div className="pt-5 flex flex-col flex-grow">
                         <h3 className="font-black text-slate-800 text-sm leading-snug group-hover:text-pink-500 transition-colors line-clamp-2 mb-3">
                           {project.title}
@@ -466,6 +476,7 @@ const TrendingProjects = () => {
                             />
                           </div>
 
+                          {/* 支援するダイレクトボタン */}
                           {project.status === 'FUNDRAISING' && (
                               <motion.button
                                   whileTap={{ scale: 0.9, y: 2 }}
@@ -691,7 +702,6 @@ const ArticlesSection = () => (
   </section>
 );
 
-
 // --- 8. PARTNER CTA ---
 const PartnerCTA = () => (
   <section className="py-24 md:py-36 bg-slate-950 relative z-10 overflow-hidden">
@@ -756,6 +766,9 @@ export default function HomePage() {
   return (
     <main className="bg-transparent min-h-screen text-slate-800 font-sans selection:bg-pink-200 selection:text-pink-600 relative overflow-hidden">
       
+      {/* 🌸 Spline 3D Viewer Script (Moved to top-level for safety) */}
+      <Script type="module" src="https://unpkg.com/@splinetool/viewer@1.0.96/build/spline-viewer.js" strategy="afterInteractive" />
+
       <AnimatePresence mode="wait">
         {!introFinished ? (
           <IntroLoader key="loader" onComplete={() => setIntroFinished(true)} />
