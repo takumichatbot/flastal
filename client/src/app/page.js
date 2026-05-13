@@ -48,23 +48,22 @@ function useIsMounted() {
 // ==========================================
 // 🌌 1. 呼吸するメッシュグラデーション背景
 // ==========================================
-// ★Tailwindの標準クラスのみで実装し、CSSクラッシュを防止
 const BreathingMeshGradient = () => {
   return (
     <div className="fixed inset-0 z-[-1] overflow-hidden bg-[#fdfcff] pointer-events-none">
+      {/* 修正: 重い filter や mix-blend を外し、Tailwind標準の blur-3xl で軽量化 */}
       <motion.div 
-        animate={{ y: [0, -30, 0], x: [0, 20, 0], scale: [1, 1.1, 1] }} transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
-        className="absolute top-[-20%] left-[-10%] w-[80vw] h-[80vw] md:w-[60vw] md:h-[60vw] rounded-full bg-pink-300/30 mix-blend-multiply filter blur-[120px] md:blur-[180px]" 
+        animate={{ y: [0, -20, 0], x: [0, 10, 0], scale: [1, 1.05, 1] }} transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
+        className="absolute top-[-20%] left-[-10%] w-[80vw] h-[80vw] md:w-[60vw] md:h-[60vw] rounded-full bg-pink-300/30 blur-3xl" 
       />
       <motion.div 
-        animate={{ y: [0, 20, 0], x: [0, -30, 0], scale: [1, 0.9, 1] }} transition={{ duration: 18, repeat: Infinity, ease: "easeInOut", delay: 2 }}
-        className="absolute top-[-10%] right-[-10%] w-[80vw] h-[80vw] md:w-[60vw] md:h-[60vw] rounded-full bg-sky-300/30 mix-blend-multiply filter blur-[120px] md:blur-[180px]" 
+        animate={{ y: [0, 15, 0], x: [0, -20, 0], scale: [1, 0.95, 1] }} transition={{ duration: 18, repeat: Infinity, ease: "easeInOut", delay: 2 }}
+        className="absolute top-[-10%] right-[-10%] w-[80vw] h-[80vw] md:w-[60vw] md:h-[60vw] rounded-full bg-sky-300/30 blur-3xl" 
       />
       <motion.div 
-        animate={{ y: [0, -20, 0], x: [0, -20, 0], scale: [1, 1.1, 1] }} transition={{ duration: 20, repeat: Infinity, ease: "easeInOut", delay: 4 }}
-        className="absolute bottom-[-20%] left-[20%] w-[90vw] h-[90vw] md:w-[70vw] md:h-[70vw] rounded-full bg-violet-300/30 mix-blend-multiply filter blur-[120px] md:blur-[180px]" 
+        animate={{ y: [0, -10, 0], x: [0, -10, 0], scale: [1, 1.05, 1] }} transition={{ duration: 20, repeat: Infinity, ease: "easeInOut", delay: 4 }}
+        className="absolute bottom-[-20%] left-[20%] w-[90vw] h-[90vw] md:w-[70vw] md:h-[70vw] rounded-full bg-violet-300/30 blur-3xl" 
       />
-      <div className="absolute inset-0 opacity-[0.015] mix-blend-overlay" style={{ backgroundImage: "url('https://www.transparenttextures.com/patterns/stardust.png')" }}></div>
     </div>
   );
 };
@@ -266,14 +265,18 @@ const Hero = () => {
       <EmojiParticle emoji="👑" x="50%" y="85%" scale={1.2} delay={2.2} />
       <EmojiParticle emoji="🎉" x="10%" y="55%" scale={1.0} delay={1.8} />
 
-      {/* 🌸 新追加: Spline 3D Model (PCでは右寄せ、スマホでは背景) */}
-      <div className="absolute inset-0 z-0 flex items-center justify-center pointer-events-auto mix-blend-darken md:mix-blend-normal opacity-70 md:opacity-100">
+      {/* 🌸 修正: 確実に表示され、サイトを重くしない iframe 埋め込み */}
+      <div className="absolute inset-0 z-0 flex items-center justify-center pointer-events-auto opacity-70 md:opacity-100">
          <div className="w-[150%] h-[150%] md:w-[100%] md:h-[100%] md:translate-x-[25%]">
-             <spline-viewer 
-                url="https://prod.spline.design/3-A-2W0z1sT3aD8Q/scene.splinecode" 
-                loading-anim="true" 
-                events-target="global"
-             ></spline-viewer>
+             <iframe 
+                src="https://my.spline.design/3-A-2W0z1sT3aD8Q/" 
+                frameBorder="0" 
+                width="100%" 
+                height="100%" 
+                className="border-none"
+                title="3D Hologram Flower"
+                loading="lazy"
+             ></iframe>
          </div>
       </div>
       
@@ -798,8 +801,6 @@ export default function HomePage() {
 
   return (
     <main className="bg-transparent min-h-screen text-slate-800 font-sans selection:bg-pink-200 selection:text-pink-600 relative overflow-hidden">
-      
-      <Script type="module" src="https://unpkg.com/@splinetool/viewer@1.0.96/build/spline-viewer.js" strategy="afterInteractive" />
 
       <AnimatePresence mode="wait">
         {!introFinished ? (
