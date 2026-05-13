@@ -13,53 +13,30 @@ import {
   motion, 
   useScroll, 
   useTransform, 
-  AnimatePresence,
-  useSpring
+  AnimatePresence
 } from 'framer-motion';
 
 import { 
   Heart, Sparkles, ArrowRight, Search, Users,
-  Gift, MessageCircle, Clock, Crown, PenTool, Video, Music, MapPin, Store,
-  ChevronRight, ChevronDown, ArrowUpRight, Shield, Command, KeyRound, Building, Star, Ticket, Loader2, Calendar
+  Gift, MessageCircle, Crown, PenTool, Video, Music, MapPin, Store,
+  ArrowUpRight, Shield, Command, KeyRound, Building, Ticket, Loader2, Calendar
 } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
-// ==========================================
-// 🛠️ UTILITIES & HELPER FUNCTIONS
-// ==========================================
 function cn(...classes) {
   return classes.filter(Boolean).join(' ');
 }
 
-function useWindowSize() {
-  const [windowSize, setWindowSize] = useState({ width: 0, height: 0 });
-  useEffect(() => {
-    function handleResize() { setWindowSize({ width: window.innerWidth, height: window.innerHeight }); }
-    window.addEventListener("resize", handleResize);
-    handleResize();
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
-  return windowSize;
-}
-
-function useIsMounted() {
-  const [isMounted, setIsMounted] = useState(false);
-  useEffect(() => { setIsMounted(true); }, []);
-  return isMounted;
-}
-
 // ==========================================
-// 🌌 1. 呼吸するメッシュグラデーション背景 (Dynamic Mesh Background)
+// 🌌 1. 呼吸するメッシュグラデーション背景
 // ==========================================
 const BreathingMeshGradient = () => {
   return (
     <div className="fixed inset-0 z-[-1] overflow-hidden bg-[#fdfcff] pointer-events-none">
-      {/* 3つの巨大な色の塊がゆっくりと交差して呼吸するアニメーション */}
       <div className="absolute top-[-20%] left-[-10%] w-[80vw] h-[80vw] md:w-[60vw] md:h-[60vw] rounded-full bg-pink-300/30 mix-blend-multiply filter blur-[120px] md:blur-[180px] animate-blob" />
       <div className="absolute top-[-10%] right-[-10%] w-[80vw] h-[80vw] md:w-[60vw] md:h-[60vw] rounded-full bg-sky-300/30 mix-blend-multiply filter blur-[120px] md:blur-[180px] animate-blob animation-delay-2000" />
       <div className="absolute bottom-[-20%] left-[20%] w-[90vw] h-[90vw] md:w-[70vw] md:h-[70vw] rounded-full bg-violet-300/30 mix-blend-multiply filter blur-[120px] md:blur-[180px] animate-blob animation-delay-4000" />
-      {/* 全体にノイズ（質感）を付与 */}
       <div className="absolute inset-0 opacity-[0.015] mix-blend-overlay" style={{ backgroundImage: "url('https://www.transparenttextures.com/patterns/stardust.png')" }}></div>
     </div>
   );
@@ -71,11 +48,9 @@ const BreathingMeshGradient = () => {
 const MagneticWrapper = ({ children, className }) => {
   const ref = useRef(null);
   const [position, setPosition] = useState({ x: 0, y: 0 });
-  const isMounted = useIsMounted();
-  const { width } = useWindowSize();
 
   const handleMouse = (e) => {
-    if (!isMounted || !ref.current || width < 1024) return;
+    if (!ref.current || window.innerWidth < 1024) return;
     const { clientX, clientY } = e;
     const { height, width: elemWidth, left, top } = ref.current.getBoundingClientRect();
     const middleX = clientX - (left + elemWidth / 2);
@@ -84,8 +59,6 @@ const MagneticWrapper = ({ children, className }) => {
   };
 
   const reset = () => { setPosition({ x: 0, y: 0 }); };
-
-  if (!isMounted) return <div className={className}>{children}</div>;
 
   return (
     <motion.div
@@ -101,18 +74,15 @@ const MagneticWrapper = ({ children, className }) => {
   );
 };
 
-// 究極のすりガラスカード（Inner Glow & Drop Shadow の多重レイヤー）
 const GlassCard = ({ children, className, spotColor = "rgba(236, 72, 153, 0.15)" }) => {
   const divRef = useRef(null);
   const [isFocused, setIsFocused] = useState(false);
   const [position, setPosition] = useState({ x: 0, y: 0 });
-  const isMounted = useIsMounted();
-  const { width } = useWindowSize();
   
-  const opacity = isMounted && isFocused ? 1 : 0;
+  const opacity = isFocused ? 1 : 0;
 
   const handleMouseMove = (e) => {
-    if (!isMounted || !divRef.current || isFocused || width < 1024) return;
+    if (!divRef.current || isFocused || window.innerWidth < 1024) return;
     const div = divRef.current;
     const rect = div.getBoundingClientRect();
     setPosition({ x: e.clientX - rect.left, y: e.clientY - rect.top });
@@ -127,7 +97,7 @@ const GlassCard = ({ children, className, spotColor = "rgba(236, 72, 153, 0.15)"
       className={cn(
         "relative overflow-hidden rounded-[2.5rem] bg-white/60 backdrop-blur-2xl",
         "border border-white/80 shadow-[0_8px_32px_rgba(0,0,0,0.04)]",
-        "before:absolute before:inset-0 before:rounded-[2.5rem] before:border before:border-white/50 before:pointer-events-none", // Inner Highlight
+        "before:absolute before:inset-0 before:rounded-[2.5rem] before:border before:border-white/50 before:pointer-events-none",
         className
       )}
     >
@@ -141,8 +111,6 @@ const GlassCard = ({ children, className, spotColor = "rgba(236, 72, 153, 0.15)"
 };
 
 const Reveal = ({ children, delay = 0, className = "" }) => {
-  const isMounted = useIsMounted();
-  if (!isMounted) return <div className={className}>{children}</div>;
   return (
     <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-10%" }} transition={{ duration: 0.8, delay, type: "spring", bounce: 0.3 }} className={className}>
       {children}
@@ -152,18 +120,31 @@ const Reveal = ({ children, delay = 0, className = "" }) => {
 
 const SplitTextReveal = ({ text, className, delay = 0 }) => {
   const words = text.split(" ");
-  const isMounted = useIsMounted();
-
   const container = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.1, delayChildren: delay } } };
   const child = { visible: { opacity: 1, y: 0, filter: "blur(0px)", transition: { type: "spring", damping: 14, stiffness: 100 } }, hidden: { opacity: 0, y: 30, filter: "blur(8px)" } };
-
-  if (!isMounted) return <div className={className}>{text}</div>;
 
   return (
     <motion.div style={{ overflow: "hidden", display: "flex", flexWrap: "wrap", justifyContent: "center" }} variants={container} initial="hidden" whileInView="visible" viewport={{ once: true }} className={className}>
       {words.map((word, index) => (
         <motion.span variants={child} style={{ marginRight: "0.25em", display: "inline-block" }} key={index}>{word}</motion.span>
       ))}
+    </motion.div>
+  );
+};
+
+const EmojiParticle = ({ emoji, delay = 0, x = "0%", y = "0%", scale = 1 }) => {
+  return (
+    <motion.div
+      className="absolute opacity-0 pointer-events-none drop-shadow-md select-none"
+      style={{ top: y, left: x, scale, fontSize: '2.5rem' }}
+      animate={{ 
+        opacity: [0, 0.8, 0.5, 0.8, 0],
+        y: ["0px", "-40px", "-20px", "-40px", "-60px"],
+        rotate: [0, 15, -15, 15, 0]
+      }}
+      transition={{ duration: 8, delay: delay, repeat: Infinity, ease: "easeInOut" }}
+    >
+      {emoji}
     </motion.div>
   );
 };
@@ -184,7 +165,7 @@ const CATEGORIES = [
 // 🚀 PAGE SECTIONS
 // ==========================================
 
-// --- 0. INTRO LOADER (Theater Curtain Effect) ---
+// --- 0. INTRO LOADER ---
 const IntroLoader = ({ onComplete }) => {
   useEffect(() => { 
     const timer = setTimeout(onComplete, 1200); 
@@ -241,22 +222,16 @@ const MainContent = () => {
 // --- 1. HERO SECTION (Spline 3D Hologram) ---
 const Hero = () => {
   const { scrollY } = useScroll();
-  const isMounted = useIsMounted();
-  const { width } = useWindowSize();
-
   const y1 = useTransform(scrollY, [0, 1000], [0, 200]);
   const opacity = useTransform(scrollY, [0, 600], [1, 0]);
 
   return (
     <section className="relative w-full min-h-[100svh] flex flex-col items-center justify-center overflow-hidden pt-20 pb-12 z-10">
       
-      {/* 🌸 Spline 3D Model (Hologram Flower / Crystal) */}
+      {/* 🌸 Spline 3D Model */}
       <div className="absolute inset-0 z-0 flex items-center justify-center pointer-events-auto mix-blend-darken md:mix-blend-normal opacity-80 md:opacity-100">
-         {/* Splineの公式Web Componentsスクリプト */}
          <Script type="module" src="https://unpkg.com/@splinetool/viewer@1.0.96/build/spline-viewer.js" strategy="afterInteractive" />
-         
          <div className="w-[120%] h-[120%] md:w-[100%] md:h-[100%] md:translate-x-[20%]">
-             {/* 仮の美しいガラスフラワー/クリスタルのURLを設定。ドラッグで回せます */}
              <spline-viewer 
                 url="https://prod.spline.design/3-A-2W0z1sT3aD8Q/scene.splinecode" 
                 loading-anim="true" 
@@ -265,7 +240,7 @@ const Hero = () => {
          </div>
       </div>
       
-      <motion.div style={isMounted && width >= 1024 ? { y: y1, opacity } : {}} className="container relative z-10 max-w-6xl mx-auto px-4 md:px-6 flex flex-col items-center md:items-start text-center md:text-left mt-24 md:mt-0">
+      <motion.div style={{ y: y1, opacity }} className="container relative z-10 max-w-6xl mx-auto px-4 md:px-6 flex flex-col items-center md:items-start text-center md:text-left mt-24 md:mt-0">
         
         <Reveal delay={0.2}>
           <div className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white/70 backdrop-blur-xl border border-white/80 shadow-lg shadow-pink-500/10 mb-6 md:mb-8">
@@ -315,7 +290,7 @@ const Hero = () => {
   );
 };
 
-// --- 2. INFINITE MARQUEE (Glassmorphism) ---
+// --- 2. INFINITE MARQUEE ---
 const InfiniteMarquee = () => {
   const words = ["IDOL", "VTUBER", "STAGE", "VOICE ACTOR", "ANIME", "ANNIVERSARY"];
   return (
@@ -334,20 +309,11 @@ const InfiniteMarquee = () => {
           </div>
         ))}
       </div>
-      <style jsx global>{`
-        .animate-marquee { animation: marquee 25s linear infinite; }
-        @keyframes marquee { 0% { transform: translateX(0%); } 100% { transform: translateX(-50%); } }
-        /* 背景グラデーション用キーフレーム */
-        @keyframes blob { 0% { transform: translate(0px, 0px) scale(1); } 33% { transform: translate(30px, -50px) scale(1.1); } 66% { transform: translate(-20px, 20px) scale(0.9); } 100% { transform: translate(0px, 0px) scale(1); } }
-        .animate-blob { animation: blob 15s infinite alternate ease-in-out; }
-        .animation-delay-2000 { animation-delay: 2s; }
-        .animation-delay-4000 { animation-delay: 4s; }
-      `}</style>
     </div>
   );
 };
 
-// --- 3. HOW IT WORKS (Scroll-driven Storytelling) ---
+// --- 3. HOW IT WORKS ---
 const HowItWorks = () => {
   const { scrollYProgress } = useScroll();
   const lineHeight = useTransform(scrollYProgress, [0.1, 0.4], ["0%", "100%"]);
@@ -367,7 +333,6 @@ const HowItWorks = () => {
         </div>
 
         <div className="relative">
-          {/* スクロールに連動して伸びる線 (PC用) */}
           <div className="absolute top-12 left-0 w-full h-1 bg-slate-200/50 -z-10 hidden md:block rounded-full">
               <motion.div style={{ width: lineHeight }} className="h-full bg-gradient-to-r from-pink-400 via-violet-400 to-sky-400 rounded-full" />
           </div>
@@ -390,7 +355,7 @@ const HowItWorks = () => {
   );
 };
 
-// --- 4. TRENDING PROJECTS (DOPA風 Glassmorphism) ---
+// --- 4. TRENDING PROJECTS ---
 const TrendingProjects = () => {
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -449,10 +414,9 @@ const TrendingProjects = () => {
                   <div onClick={() => router.push(`/projects/${project.id}`)} className="block group h-full cursor-pointer">
                     <GlassCard className="!p-4 lg:!p-5 h-full flex flex-col transition-all duration-500 hover:-translate-y-2 hover:shadow-[0_20px_40px_rgba(236,72,153,0.15)] group-hover:border-pink-300">
                       
-                      {/* 画像エリア */}
                       <div className="relative w-full aspect-[4/5] rounded-[1.5rem] overflow-hidden bg-slate-100 shrink-0 shadow-inner">
                         {project.imageUrl ? (
-                          <Image src={project.imageUrl} alt={project.title || "企画画像"} fill className="object-cover group-hover:scale-110 transition-transform duration-700" />
+                          <Image src={project.imageUrl} alt={project.title || "企画画像"} fill className="object-cover group-hover:scale-105 transition-transform duration-700" />
                         ) : (
                           <div className="absolute inset-0 bg-gradient-to-br from-pink-100 to-sky-100 flex items-center justify-center text-4xl">💐</div>
                         )}
@@ -464,7 +428,6 @@ const TrendingProjects = () => {
                         </div>
                       </div>
 
-                      {/* コンテンツエリア */}
                       <div className="pt-5 flex flex-col flex-grow">
                         <h3 className="font-black text-slate-800 text-sm leading-snug group-hover:text-pink-500 transition-colors line-clamp-2 mb-3">
                           {project.title}
@@ -486,7 +449,7 @@ const TrendingProjects = () => {
                         <div className="mt-auto pt-4 border-t border-slate-200/60">
                           <div className="flex justify-between items-end mb-2">
                             <div>
-                              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Current</p>
+                              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Current</p>
                               <p className="text-base font-black leading-none text-slate-800">
                                 ¥{(project.collectedAmount || 0).toLocaleString()}
                                 <span className="text-[9px] text-slate-400 font-bold ml-1">/ ¥{(project.targetAmount || 0).toLocaleString()}</span>
@@ -503,7 +466,6 @@ const TrendingProjects = () => {
                             />
                           </div>
 
-                          {/* 支援するゼリーボタン (Jelly Button Effect) */}
                           {project.status === 'FUNDRAISING' && (
                               <motion.button
                                   whileTap={{ scale: 0.9, y: 2 }}
@@ -542,7 +504,7 @@ const TrendingProjects = () => {
   );
 };
 
-// --- 5. BENTO FEATURES (Glassmorphism + Variable Layout) ---
+// --- 5. BENTO FEATURES ---
 const BentoFeatures = () => {
   const features = [
     {
@@ -658,7 +620,7 @@ const CategoryGrid = () => {
   );
 };
 
-// --- 7. ARTICLES (LARU SEO Embed Script版) ---
+// --- 7. ARTICLES ---
 const LaruSeoEmbed = () => {
   const containerRef = useRef(null);
   
@@ -730,11 +692,9 @@ const ArticlesSection = () => (
 );
 
 
-// --- 8. PARTNER CTA (Hologram / Dark Mode) ---
+// --- 8. PARTNER CTA ---
 const PartnerCTA = () => (
   <section className="py-24 md:py-36 bg-slate-950 relative z-10 overflow-hidden">
-    
-    {/* Holographic Glowing Background Elements */}
     <div className="absolute top-[-20%] left-[-10%] w-[60vw] h-[60vw] rounded-full bg-pink-500/10 mix-blend-screen filter blur-[100px] pointer-events-none" />
     <div className="absolute bottom-[-20%] right-[-10%] w-[60vw] h-[60vw] rounded-full bg-cyan-500/10 mix-blend-screen filter blur-[100px] pointer-events-none" />
     <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: "url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgdmlld0JveD0iMCAwIDQwIDQwIj48ZyBmaWxsPSIjRkZGRkZGIiBmaWxsLW9wYWNpdHk9IjAuNCI+PHBhdGggZD0iTTAgMGg0MHY0MEgwVjB6bTIwIDIwaDIwdjIwSDIWMjB6TTAgMjBoMjB2MjBIMFYyMHoyMCAwaDIwdjIwSDIwVjB6Ii8+PC9nPjwvc3ZnPg==')" }} />
@@ -810,7 +770,7 @@ export default function HomePage() {
         strategy="afterInteractive" 
       />
 
-      <style jsx global>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&family=Parisienne&display=swap');
         
         :root {
@@ -836,7 +796,21 @@ export default function HomePage() {
         
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-      `}</style>
+
+        /* Animation Keyframes */
+        .animate-marquee { animation: marquee 25s linear infinite; }
+        @keyframes marquee { 0% { transform: translateX(0%); } 100% { transform: translateX(-50%); } }
+        
+        @keyframes blob { 
+          0% { transform: translate(0px, 0px) scale(1); } 
+          33% { transform: translate(30px, -50px) scale(1.1); } 
+          66% { transform: translate(-20px, 20px) scale(0.9); } 
+          100% { transform: translate(0px, 0px) scale(1); } 
+        }
+        .animate-blob { animation: blob 15s infinite alternate ease-in-out; }
+        .animation-delay-2000 { animation-delay: 2s; }
+        .animation-delay-4000 { animation-delay: 4s; }
+      `}} />
     </main>
   );
 }
