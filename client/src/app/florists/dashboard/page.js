@@ -271,7 +271,7 @@ function DashboardContent() {
 
   const { offers = [], appealPosts = [], scheduleEvents = [], balance = 0, platformName } = data;
   
-  // ★ 修正1: 新着オファーからキャンセル・完了・BANされた企画を除外する
+  // 新着オファーのフィルター
   const pendingOffers = offers.filter(o => 
       o.status === 'PENDING' && 
       o.project && 
@@ -281,7 +281,7 @@ function DashboardContent() {
       o.project.visibility !== 'UNLISTED'
   );
   
-  // ★ 修正2: 対応中の企画から、企画自体がキャンセルされたものや、受諾しなかったものを除外する
+  // 対応中の企画のフィルター
   const acceptedOffers = offers.filter(o => 
       o.status === 'ACCEPTED' && 
       o.project && 
@@ -377,9 +377,9 @@ function DashboardContent() {
                               <p className="text-xs font-bold text-slate-400 flex items-center gap-1"><Clock size={12}/> 依頼日: {new Date(o.createdAt).toLocaleDateString()}</p>
                           </div>
                           
-                          {/* ★ 修正3: チャットへの導線と詳細への導線を並べる */}
+                          {/* ★ リンク先を正しい企画詳細画面（表側）に変更！ */}
                           <div className="w-full md:w-auto flex flex-col sm:flex-row gap-2">
-                             <Link href={`/florists/projects/${o.projectId}/chat`} className="w-full sm:w-auto text-center px-6 py-3.5 bg-white border border-slate-200 text-slate-600 rounded-full font-black hover:bg-slate-50 transition-all shadow-sm flex items-center justify-center gap-2">
+                             <Link href={`/projects/${o.projectId}`} className="w-full sm:w-auto text-center px-6 py-3.5 bg-white border border-slate-200 text-slate-600 rounded-full font-black hover:bg-slate-50 transition-all shadow-sm flex items-center justify-center gap-2">
                                 <MessageSquare size={16}/> 企画者とチャット
                              </Link>
                              <Link href={`/florists/projects/${o.projectId}`} className="w-full sm:w-auto text-center px-8 py-3.5 bg-pink-500 border border-transparent text-white rounded-full font-black hover:bg-pink-600 hover:shadow-lg transition-all shadow-sm">
@@ -462,8 +462,9 @@ function DashboardContent() {
                               )}
 
                               <div className="flex flex-col gap-2">
+                                {/* ★ リンク先を正しい企画詳細画面（表側）に変更！ */}
                                 <Link 
-                                    href={`/florists/projects/${o.projectId}/chat`} 
+                                    href={`/projects/${o.projectId}`} 
                                     className="w-full text-center py-3 bg-sky-50 text-sky-600 rounded-xl font-black text-sm hover:bg-sky-100 border border-sky-200 transition-colors flex items-center justify-center gap-2"
                                 >
                                     <MessageSquare size={16}/> 企画者とチャット

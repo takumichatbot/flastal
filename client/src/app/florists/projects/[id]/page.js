@@ -197,7 +197,7 @@ function LogisticsCard({ icon, label, status, onToggle, color = "sky" }) {
     );
 }
 
-// 3. 写真アップロードエリア (★S3への直接アップロードに修正)
+// 3. 写真アップロードエリア (S3への直接アップロード)
 function PhotoUploadArea({ urls = [], type, projectId, onUploadComplete }) {
     const [uploading, setUploading] = useState(false);
 
@@ -210,7 +210,6 @@ function PhotoUploadArea({ urls = [], type, projectId, onUploadComplete }) {
         try {
             const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
 
-            // 1. S3署名付きURLを取得
             const urlRes = await fetch(`${API_URL}/api/tools/s3-upload-url`, {
                 method: 'POST',
                 headers: { 
@@ -223,7 +222,6 @@ function PhotoUploadArea({ urls = [], type, projectId, onUploadComplete }) {
             if (!urlRes.ok) throw new Error('署名付きURLの取得に失敗しました');
             const { uploadUrl, fileUrl } = await urlRes.json();
 
-            // 2. S3へ直接PUT
             await new Promise((resolve, reject) => {
                 const xhr = new XMLHttpRequest();
                 xhr.open('PUT', uploadUrl);
@@ -236,7 +234,6 @@ function PhotoUploadArea({ urls = [], type, projectId, onUploadComplete }) {
                 xhr.send(file);
             });
 
-            // 3. 企画情報の更新
             const field = type === 'pre_photo' ? 'preEventPhotoUrls' : 'completionPhotoUrls';
             const updateRes = await fetch(`${API_URL}/api/projects/${projectId}`, {
                 method: 'PATCH',
@@ -255,7 +252,7 @@ function PhotoUploadArea({ urls = [], type, projectId, onUploadComplete }) {
             toast.error(error.message, { id: toastId });
         } finally {
             setUploading(false);
-            e.target.value = ''; // inputのリセット
+            e.target.value = ''; 
         }
     };
 
@@ -288,7 +285,6 @@ export default function FloristProjectDetailPage() {
     const [offer, setOffer] = useState(null);
     const [loading, setLoading] = useState(true);
     
-    // モーダルの状態管理
     const [isQuotationModalOpen, setIsQuotationModalOpen] = useState(false);
     const [isDeliveryNoteModalOpen, setIsDeliveryNoteModalOpen] = useState(false);
     const [isMaterialModalOpen, setIsMaterialModalOpen] = useState(false); 
@@ -343,7 +339,6 @@ export default function FloristProjectDetailPage() {
         }
     };
 
-    // ★ 修正: ロジスティクスステータスの更新（エラーハンドリング強化）
     const updateLogistics = async (field, value) => {
         const toastId = toast.loading('ステータスを更新中...');
         try {
@@ -394,9 +389,9 @@ export default function FloristProjectDetailPage() {
                         <ArrowLeft size={16}/> ダッシュボードへ戻る
                     </Link>
                     
-                    {/* ★ 修正: 直接チャットへのショートカットのリンクとテキストを変更 */}
+                    {/* ★ リンク先を正しい企画詳細画面（表側）に変更！ */}
                     <div className="flex gap-2">
-                        <Link href={`/florists/projects/${project.id}/chat`} className="bg-white border border-slate-200 text-slate-700 px-5 py-2.5 rounded-full text-xs font-black flex items-center gap-2 shadow-sm hover:bg-slate-50 transition-colors">
+                        <Link href={`/projects/${project.id}`} className="bg-white border border-slate-200 text-slate-700 px-5 py-2.5 rounded-full text-xs font-black flex items-center gap-2 shadow-sm hover:bg-slate-50 transition-colors">
                             <MessageSquare size={14}/> 企画者とチャット
                         </Link>
                     </div>
