@@ -57,31 +57,31 @@ const getAuthToken = () => {
 };
 
 const useIsMounted = () => {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => { setMounted(true); }, []);
-  return mounted;
+    const [mounted, setMounted] = useState(false);
+    useEffect(() => { setMounted(true); }, []);
+    return mounted;
 };
 
 // ===========================================
 // 🎨 UI COMPONENTS
 // ===========================================
 const AppCard = ({ children, className, id }) => (
-  <div id={id} className={cn("bg-white rounded-[2rem] shadow-sm border border-slate-100 p-5 md:p-8", className)}>
-    {children}
-  </div>
+ <div id={id} className={cn("bg-white rounded-[2rem] shadow-sm border border-slate-100 p-5 md:p-8", className)}>
+   {children}
+ </div>
 );
 
 function ImageLightbox({ url, onClose }) {
-  return (
-    <div className="fixed inset-0 bg-slate-900/95 flex justify-center items-center z-[100] p-4 backdrop-blur-md" onClick={onClose}>
-      <button onClick={onClose} className="absolute top-6 right-6 w-12 h-12 bg-white/10 rounded-full flex items-center justify-center text-white hover:bg-white/20 transition-colors z-[110] border border-white/20">
-        <X size={24} />
-      </button>
-      <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="relative w-full h-full flex items-center justify-center pointer-events-none">
-        <img src={url} alt="Enlarged" className="max-w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl" />
-      </motion.div>
-    </div>
-  );
+ return (
+   <div className="fixed inset-0 bg-slate-900/95 flex justify-center items-center z-[100] p-4 backdrop-blur-md" onClick={onClose}>
+     <button onClick={onClose} className="absolute top-6 right-6 w-12 h-12 bg-white/10 rounded-full flex items-center justify-center text-white hover:bg-white/20 transition-colors z-[110] border border-white/20">
+       <X size={24} />
+     </button>
+     <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="relative w-full h-full flex items-center justify-center pointer-events-none">
+       <img src={url} alt="Enlarged" className="max-w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl" />
+     </motion.div>
+   </div>
+ );
 }
 
 function InstructionSheetModal({ project, onClose }) {
@@ -949,68 +949,64 @@ export default function ProjectDetailClient() {
           <AppCard className="flex flex-col gap-5 md:gap-8 !p-5 sm:!p-8">
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
                 <div className="flex items-center gap-3 md:gap-4 w-full md:w-auto">
-                    <div className="w-12 h-12 md:w-16 md:h-16 bg-slate-100 rounded-full flex items-center justify-center overflow-hidden border border-slate-200 shrink-0">
+                    <div className="w-12 h-12 md:w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center overflow-hidden border border-slate-200 shrink-0">
                         {project.planner?.iconUrl ? <Image src={project.planner.iconUrl} alt="" width={64} height={64} className="object-cover" /> : <User size={24} className="text-slate-400"/>}
                     </div>
-                    {/* ↓↓↓ ここから書き換え ↓↓↓ */}
-                        <div>
-                            <p className="text-[10px] md:text-xs font-black text-slate-400 uppercase tracking-widest mb-0.5">Organizer</p>
-                            <p className="font-black text-slate-800 text-sm md:text-lg leading-tight">{project.planner?.handleName || project.planner?.name || '不明'}</p>
-                        </div>
+                    <div>
+                        <p className="text-[10px] md:text-xs font-black text-slate-400 uppercase tracking-widest mb-0.5">Organizer</p>
+                        <p className="font-black text-slate-800 text-sm md:text-lg leading-tight">{project.planner?.handleName || project.planner?.name || '不明'}</p>
                     </div>
-                
-                {/* ★ 追加: 企画のタイトルと、その直下に日時・場所を可愛くバッジ表示 */}
-                <div className="mt-4 mb-2">
-                    <h1 className="text-2xl md:text-3xl lg:text-4xl font-black text-slate-800 tracking-tight leading-snug mb-3">
-                        <JpText>{project.title}</JpText>
-                    </h1>
-                    <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-[10px] md:text-xs font-bold text-slate-500 uppercase tracking-widest bg-white px-2.5 py-1 rounded-md shadow-sm border border-slate-100">
-                            ID: {project.id.slice(0,6)}
-                        </span>
-                        {project.deliveryDateTime && (
-                            <span className="text-[10px] md:text-xs font-bold text-slate-600 bg-pink-50/50 px-2.5 py-1 rounded-md shadow-sm border border-pink-100 flex items-center gap-1.5">
-                                <Calendar size={14} className="text-pink-400"/>
-                                {new Date(project.deliveryDateTime).toLocaleString('ja-JP', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                            </span>
-                        )}
-                        <span className="text-[10px] md:text-xs font-bold text-slate-600 bg-sky-50/50 px-2.5 py-1 rounded-md shadow-sm border border-sky-100 flex items-center gap-1.5">
-                            <MapPin size={14} className="text-sky-400"/>
-                            <span className="truncate max-w-[200px] md:max-w-xs">{project.venue?.venueName || project.deliveryAddress || '場所未定'}</span>
-                        </span>
-                    </div>
-                </div>
-
-                <div className="w-full flex flex-col gap-3 mt-4 pt-4 border-t border-slate-100">
-                    <div className="flex justify-between items-end px-1">
-                        {/* ↑↑↑ ここまで書き換え ↑↑↑ */}
-                        <div className="flex flex-col">
-                            <span className="text-[10px] md:text-xs font-black text-slate-400 tracking-widest mb-1">現在の支援総額</span>
-                            <div className="flex items-baseline gap-1">
-                                <span className="text-xl md:text-4xl font-black text-emerald-500 tracking-tighter leading-none">
-                                    ¥{(project.collectedAmount || 0).toLocaleString()}
-                                </span>
-                            </div>
-                        </div>
-                        <div className="flex flex-col text-right">
-                            <div className="text-[10px] md:text-xs font-bold text-slate-400 mb-1 flex items-center justify-end gap-1.5">
-                                <span className="bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-md tracking-normal hidden sm:inline-block">1口 ¥{(project.minContributionAmount || 1000).toLocaleString()}〜</span>
-                                <span>目標金額</span>
-                            </div>
-                            <span className="text-sm md:text-xl font-black text-slate-700 tracking-tight leading-none">
-                                ¥{(project.targetAmount || 0).toLocaleString()}
-                            </span>
-                            {/* スマホ用には金額の下に小さく表示 */}
-                            <span className="text-[9px] text-slate-400 mt-1 sm:hidden">
-                                1口 ¥{(project.minContributionAmount || 1000).toLocaleString()}〜
-                            </span>
-                        </div>
-                    </div>
-                    <UpsellAlert target={project.targetAmount} collected={project.collectedAmount} />
                 </div>
             </div>
             
-            <div className="flex justify-center md:justify-end border-t border-slate-100 pt-4 md:pt-6 mt-2">
+            <div>
+                <h1 className="text-2xl md:text-3xl lg:text-4xl font-black text-slate-800 tracking-tight leading-snug mb-3">
+                    <JpText>{project.title}</JpText>
+                </h1>
+                <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-[10px] md:text-xs font-bold text-slate-500 uppercase tracking-widest bg-white px-2.5 py-1 rounded-md shadow-sm border border-slate-100">
+                        ID: {project.id.slice(0,6)}
+                    </span>
+                    {project.deliveryDateTime && (
+                        <span className="text-[10px] md:text-xs font-bold text-slate-600 bg-pink-50/50 px-2.5 py-1 rounded-md shadow-sm border border-pink-100 flex items-center gap-1.5">
+                            <Calendar size={14} className="text-pink-400"/>
+                            {new Date(project.deliveryDateTime).toLocaleString('ja-JP', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                    )}
+                    <span className="text-[10px] md:text-xs font-bold text-slate-600 bg-sky-50/50 px-2.5 py-1 rounded-md shadow-sm border border-sky-100 flex items-center gap-1.5">
+                        <MapPin size={14} className="text-sky-400"/>
+                        <span className="truncate max-w-[200px] md:max-w-xs">{project.venue?.venueName || project.deliveryAddress || '場所未定'}</span>
+                    </span>
+                </div>
+            </div>
+
+            <div className="w-full flex flex-col gap-3 mt-2 pt-4 border-t border-slate-100">
+                <div className="flex justify-between items-end px-1">
+                    <div className="flex flex-col">
+                        <span className="text-[10px] md:text-xs font-black text-slate-400 tracking-widest mb-1">現在の支援総額</span>
+                        <div className="flex items-baseline gap-1">
+                            <span className="text-xl md:text-4xl font-black text-emerald-500 tracking-tighter leading-none">
+                                ¥{(project.collectedAmount || 0).toLocaleString()}
+                            </span>
+                        </div>
+                    </div>
+                    <div className="flex flex-col text-right">
+                        <div className="text-[10px] md:text-xs font-bold text-slate-400 mb-1 flex items-center justify-end gap-1.5">
+                            <span className="bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-md tracking-normal hidden sm:inline-block">1口 ¥{(project.minContributionAmount || 1000).toLocaleString()}〜</span>
+                            <span>目標金額</span>
+                        </div>
+                        <span className="text-sm md:text-xl font-black text-slate-700 tracking-tight leading-none">
+                            ¥{(project.targetAmount || 0).toLocaleString()}
+                        </span>
+                        <span className="text-[9px] text-slate-400 mt-1 sm:hidden">
+                            1口 ¥{(project.minContributionAmount || 1000).toLocaleString()}〜
+                        </span>
+                    </div>
+                </div>
+                <UpsellAlert target={project.targetAmount} collected={project.collectedAmount} />
+            </div>
+            
+            <div className="flex justify-center md:justify-end border-t border-slate-100 pt-4 md:pt-6">
                 <div className="flex items-center gap-3 md:gap-4 bg-slate-50 px-4 py-2.5 md:px-5 md:py-3 rounded-2xl border border-slate-100 w-full md:w-auto justify-center">
                   <span className="text-[10px] md:text-xs font-black text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
                     <Share2 size={14} className="md:w-4 md:h-4" /> <span className="hidden sm:inline">Share</span>

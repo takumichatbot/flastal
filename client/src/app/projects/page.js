@@ -11,10 +11,10 @@ import Image from 'next/image';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 
-// ★ 修正: Heart を追加しました！
+// ★ Heartアイコンを追加！
 import { 
   Search, MapPin, Calendar, User, Loader2, Filter, 
-  PlusCircle, Sparkles, Heart 
+  PlusCircle, Sparkles, Heart
 } from 'lucide-react';
 
 const PREFECTURES = [
@@ -307,7 +307,7 @@ function ProjectsContent() {
                               )}
                               <p className="text-[11px] font-bold text-slate-500 flex items-center truncate">
                                   <MapPin className="mr-1.5 shrink-0 text-sky-400" size={14}/> 
-                                  <span className="truncate">{project.deliveryAddress || '場所未定'}</span>
+                                  <span className="truncate">{project.venue?.venueName || project.deliveryAddress || '場所未定'}</span>
                               </p>
                           </div>
 
