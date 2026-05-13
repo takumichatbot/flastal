@@ -66,8 +66,9 @@ const STATUS_LABELS = {
   'PANELS_RECEIVED': 'パネル受取済',
   'IN_PRODUCTION': '制作中',
   'PRE_COMPLETION': '前日写真UP済',
-  'COMPLETED': '完了',
-  'FUNDRAISING': '募集中'
+  'COMPLETED': '完了済',
+  'FUNDRAISING': '募集中',
+  'CANCELED': '中止'
 };
 
 // --- カレンダーコンポーネント ---
@@ -280,7 +281,13 @@ function DashboardContent() {
       o.project.visibility !== 'UNLISTED'
   );
   
-  const acceptedOffers = offers.filter(o => o.status === 'ACCEPTED');
+  // ★ 修正2: 対応中の企画から、企画自体がキャンセルされたものや、受諾しなかったものを除外する
+  const acceptedOffers = offers.filter(o => 
+      o.status === 'ACCEPTED' && 
+      o.project && 
+      o.project.status !== 'CANCELED' && 
+      o.project.visibility !== 'UNLISTED'
+  );
 
   return (
     <div className="min-h-screen bg-slate-50/50 font-sans pb-24 relative overflow-hidden">
@@ -369,8 +376,16 @@ function DashboardContent() {
                               <h3 className="font-black text-slate-800 text-lg mt-3 mb-1 line-clamp-1 group-hover:text-pink-600 transition-colors">{o.project?.title}</h3>
                               <p className="text-xs font-bold text-slate-400 flex items-center gap-1"><Clock size={12}/> 依頼日: {new Date(o.createdAt).toLocaleDateString()}</p>
                           </div>
-                          {/* ★ 修正2: チャット画面に遷移するようにリンク先を修正 */}
-                          <Link href={`/florists/projects/${o.projectId}/chat`} className="w-full md:w-auto text-center px-8 py-3.5 bg-white border-2 border-pink-200 text-pink-600 rounded-full font-black hover:bg-pink-500 hover:text-white hover:border-pink-500 transition-all shadow-sm">詳細を確認する</Link>
+                          
+                          {/* ★ 修正3: チャットへの導線と詳細への導線を並べる */}
+                          <div className="w-full md:w-auto flex flex-col sm:flex-row gap-2">
+                             <Link href={`/florists/projects/${o.projectId}/chat`} className="w-full sm:w-auto text-center px-6 py-3.5 bg-white border border-slate-200 text-slate-600 rounded-full font-black hover:bg-slate-50 transition-all shadow-sm flex items-center justify-center gap-2">
+                                <MessageSquare size={16}/> 企画者とチャット
+                             </Link>
+                             <Link href={`/florists/projects/${o.projectId}`} className="w-full sm:w-auto text-center px-8 py-3.5 bg-pink-500 border border-transparent text-white rounded-full font-black hover:bg-pink-600 hover:shadow-lg transition-all shadow-sm">
+                                オファーを確認する
+                             </Link>
+                          </div>
                         </div>
                       )) : (
                         <div className="text-center py-32 bg-slate-50/50 rounded-[2.5rem] border-2 border-dashed border-slate-200">
@@ -447,7 +462,6 @@ function DashboardContent() {
                               )}
 
                               <div className="flex flex-col gap-2">
-                                {/* ★ 修正3: 「企画者とチャット」に変更し、リンク先を /chat に修正 */}
                                 <Link 
                                     href={`/florists/projects/${o.projectId}/chat`} 
                                     className="w-full text-center py-3 bg-sky-50 text-sky-600 rounded-xl font-black text-sm hover:bg-sky-100 border border-sky-200 transition-colors flex items-center justify-center gap-2"
