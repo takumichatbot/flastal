@@ -374,6 +374,7 @@ model Florist {
   acceptsPanelReturn Boolean   @default(true)  // パネル返送の対応
   panelReturnFee     Int       @default(0)     // パネル返送時の手数料
   deliveryNotes      String?   @db.Text        // 配送の特記事項
+  groupChatMessages GroupChatMessage[]
 }
 
 model FloristDeal {
@@ -591,12 +592,19 @@ model GroupChatMessage {
   content     String?     @db.Text
   createdAt   DateTime    @default(now())
 
-  projectId String
-  project   Project                    @relation(fields: [projectId], references: [id])
-  userId    String
-  user      User                       @relation(fields: [userId], references: [id])
-  reactions GroupChatMessageReaction[]
-  reports   GroupChatMessageReport[]
+  projectId   String
+  project     Project     @relation(fields: [projectId], references: [id])
+  
+  // ▼ 変更箇所（?をつけてオプショナルに）
+  userId      String?
+  user        User?       @relation(fields: [userId], references: [id])
+  
+  // ▼ 新規追加（お花屋さんの枠）
+  floristId   String?
+  florist     Florist?    @relation(fields: [floristId], references: [id])
+
+  reactions   GroupChatMessageReaction[]
+  reports     GroupChatMessageReport[]
 }
 
 model GroupChatMessageReaction {
