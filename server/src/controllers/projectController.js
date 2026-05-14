@@ -137,8 +137,18 @@ export const getProjectById = async (req, res) => {
                 },
                 offers: {
                     include: {
-                        florist: { select: { id: true, platformName: true } },
-                        chatRoom: true
+                        florist: { select: { id: true, platformName: true, iconUrl: true } }, // アイコンも追加
+                        chatRoom: {
+                            include: {
+                                messages: {
+                                    orderBy: { createdAt: 'asc' },
+                                    include: {
+                                        user: { select: { handleName: true, iconUrl: true } },
+                                        florist: { select: { platformName: true, shopName: true, iconUrl: true } }
+                                    }
+                                }
+                            }
+                        }
                     }
                 },
                 quotation: { include: { items: true } },

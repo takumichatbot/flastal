@@ -1463,6 +1463,22 @@ export default function ProjectDetailClient() {
                           <h3 className="text-sm font-black text-slate-800 tracking-widest">企画者メニュー</h3>
                       </div>
                       <div className="space-y-3">
+
+                          {isPlanner && project.offers?.find(o => o.status === 'ACCEPTED') && (
+                              <Link 
+                                  href={`/florists/projects/${project.id}/chat`} // お花屋さんと共通の機密チャット画面へ
+                                  className="w-full text-left p-4 bg-sky-500 hover:bg-sky-600 border border-sky-400 rounded-2xl transition-all flex items-center group shadow-md mb-3"
+                              >
+                                  <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center mr-3 group-hover:scale-110 transition-transform">
+                                      <MessageSquare className="text-white" size={16}/>
+                                  </div>
+                                  <div>
+                                      <p className="text-sm font-black text-white">お花屋さんと相談する</p>
+                                      <p className="text-[10px] font-bold text-sky-100">※機密チャット（支援者には非公開）</p>
+                                  </div>
+                              </Link>
+                          )}
+
                           <button 
                              onClick={()=>setIsTargetAmountModalOpen(true)} 
                              className="w-full text-left p-4 bg-white hover:bg-slate-100 border border-slate-200 rounded-2xl transition-all flex items-center group shadow-sm"
