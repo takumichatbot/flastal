@@ -165,21 +165,26 @@ export default function socketHandler(io) {
     socket.on('sendGroupChatMessage', async ({ projectId, templateId, content, messageType, fileUrl, fileName }) => {
       try {
         const userId = socket.user.id;
-
-        // 権限チェック
         const userRole = socket.user.role;
-        const project = await prisma.project.findUnique({ where: { id: projectId } });
-        if (!project) return;
+
+        // ★ 修正: オファー情報も一緒に引っ張ってくる
+        const project = await prisma.project.findUnique({ 
+            where: { id: projectId },
+            include: { offers: true }
+        });
+        
+        if (!project) {
+            socket.emit('messageError', '企画が見つかりません。');
+            return;
+        }
 
         let hasPermission = false;
         let senderIsFlorist = false;
 
         if (userRole === 'FLORIST') {
-            // お花屋さんの場合: 受注しているか確認
-            const offer = await prisma.offer.findFirst({
-                where: { projectId: projectId, floristId: userId, status: 'ACCEPTED' }
-            });
-            if (offer) {
+            // ★ 修正: オファーのステータスに縛られず、この企画に紐づく花屋なら一律で許可する
+            const isAssignedFlorist = project.offers.some(offer => offer.floristId === userId);
+            if (isAssignedFlorist) {
                 hasPermission = true;
                 senderIsFlorist = true;
             }
@@ -193,6 +198,7 @@ export default function socketHandler(io) {
         }
 
         if (!hasPermission) {
+          console.error(`Permission Denied: User(${userId}), Role(${userRole}), Project(${projectId})`);
           socket.emit('messageError', 'このグループチャットに参加する権限がありません。');
           return;
         }
