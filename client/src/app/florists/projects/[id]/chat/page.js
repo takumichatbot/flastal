@@ -28,6 +28,7 @@ export default function FloristChatPage() {
     const [project, setProject] = useState(null);
     const [loading, setLoading] = useState(true);
     const [socket, setSocket] = useState(null);
+    const [summary, setSummary] = useState(null); // ★追加: AI要約用ステート
 
     const fetchProjectDetails = useCallback(async () => {
         if (!id || !user) return;
@@ -37,6 +38,7 @@ export default function FloristChatPage() {
             if (!res.ok) throw new Error('企画情報の取得に失敗しました');
             const data = await res.json();
             setProject(data);
+            if (data?.summary) setSummary(data.summary);
         } catch (error) {
             toast.error(error.message);
         } finally {
@@ -74,34 +76,42 @@ export default function FloristChatPage() {
     }, [id, user]);
 
     if (authLoading || loading) {
-        return <div className="min-h-screen flex items-center justify-center bg-slate-50"><Loader2 className="animate-spin text-sky-500" size={40}/></div>;
+        return <div className="min-h-screen flex items-center justify-center bg-slate-50"><Loader2 className="animate-spin text-pink-500" size={40}/></div>;
     }
 
     if (!project) return null;
 
     return (
-        <div className="min-h-screen bg-slate-50/50 pb-24 font-sans text-slate-800">
-            <div className="max-w-4xl mx-auto px-4 sm:px-6 pt-8 md:pt-12">
+        <div className="min-h-screen bg-[#fdfcff] pb-24 font-sans text-slate-800 relative overflow-hidden">
+            {/* 背景装飾 */}
+            <div className="absolute top-[-10%] right-[-5%] w-[40vw] h-[40vw] bg-pink-100/50 rounded-full blur-[100px] pointer-events-none z-0" />
+            <div className="absolute bottom-[-10%] left-[-5%] w-[40vw] h-[40vw] bg-sky-100/50 rounded-full blur-[100px] pointer-events-none z-0" />
+
+            <div className="max-w-4xl mx-auto px-4 sm:px-6 pt-8 md:pt-12 relative z-10">
                 <div className="flex items-center gap-4 mb-6">
-                    <Link href={`/florists/projects/${id}`} className="inline-flex items-center gap-2 px-5 py-2.5 bg-white rounded-full text-sm font-black text-slate-500 hover:text-sky-600 shadow-sm border border-slate-200 transition-all">
+                    <Link href={`/florists/projects/${id}`} className="inline-flex items-center gap-2 px-5 py-2.5 bg-white/80 backdrop-blur-md rounded-full text-sm font-black text-slate-500 hover:text-sky-600 shadow-sm border border-slate-200 transition-all">
                         <ArrowLeft size={16}/> 案件詳細（管理画面）へ戻る
                     </Link>
                 </div>
                 
-                <div className="bg-white rounded-[2rem] shadow-sm border border-slate-200 overflow-hidden">
-                    <div className="p-6 md:p-8 bg-sky-50 border-b border-sky-100 flex items-center gap-4">
-                        <div className="w-12 h-12 bg-sky-500 text-white rounded-2xl flex items-center justify-center shadow-md shrink-0">
-                            <MessageSquare size={24}/>
+                <div className="bg-white/80 backdrop-blur-xl rounded-[2.5rem] shadow-lg border border-white overflow-hidden">
+                    <div className="p-6 md:p-8 bg-gradient-to-r from-sky-50 to-indigo-50 border-b border-sky-100/50 flex items-center gap-5">
+                        <div className="w-14 h-14 bg-sky-500 text-white rounded-2xl flex items-center justify-center shadow-md shadow-sky-200 shrink-0">
+                            <MessageSquare size={26}/>
                         </div>
                         <div>
-                            <h1 className="font-black text-slate-800 text-lg md:text-xl tracking-tight">専用グループチャット</h1>
-                            <p className="text-xs font-bold text-slate-500 mt-1">企画名: {project.title}</p>
+                            <h1 className="font-black text-slate-800 text-xl md:text-2xl tracking-tight mb-1">専用グループチャット</h1>
+                            <p className="text-xs font-bold text-slate-500 flex items-center gap-1.5 line-clamp-1">
+                                <span className="bg-sky-200 text-sky-700 px-2 py-0.5 rounded shadow-sm text-[10px] uppercase tracking-widest shrink-0">Target</span>
+                                {/* ★ 修正: クラッシュ防止のオプショナルチェーン */}
+                                {project?.title || '企画タイトル未設定'}
+                            </p>
                         </div>
                     </div>
                     
-                    <div className="p-4 md:p-6 bg-white">
-                        <div className="flex items-start gap-2 text-xs text-sky-700 font-bold mb-6 bg-sky-50/50 p-4 rounded-xl border border-sky-100">
-                            <Info size={16} className="shrink-0 mt-0.5" />
+                    <div className="p-4 md:p-8 bg-white/50">
+                        <div className="flex items-start gap-3 text-xs text-sky-700 font-bold mb-8 bg-sky-50 p-5 rounded-2xl border border-sky-100 shadow-sm">
+                            <Info size={18} className="shrink-0 mt-0.5 text-sky-500" />
                             <p className="leading-relaxed">
                                 このチャットは企画者と支援者（参加者）が見ています。<br/>
                                 デザインのすり合わせや、進捗状況（完成した写真など）を共有して企画を盛り上げましょう！
@@ -109,12 +119,14 @@ export default function FloristChatPage() {
                         </div>
 
                         {/* ここに既存のGroupChatを埋め込み */}
-                        <div className="border-2 border-slate-100 rounded-2xl overflow-hidden shadow-sm">
+                        <div className="rounded-[2rem] overflow-hidden shadow-sm border border-slate-200 bg-white">
                             <GroupChat 
                                 project={project} 
                                 user={user} 
                                 isFlorist={true}  /* ★ 花屋権限を渡す */
-                                socket={socket} 
+                                socket={socket}
+                                summary={summary}
+                                onSummaryUpdate={(newSummary) => setSummary(newSummary)}
                             />
                         </div>
                     </div>
