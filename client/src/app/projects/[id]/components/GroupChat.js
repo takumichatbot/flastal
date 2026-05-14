@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import Markdown from 'react-markdown';
 import { 
   FiGlobe, FiLoader, FiUser, FiSend, FiImage, FiSmile, 
-  FiAlertTriangle, FiX, FiFileText, FiCpu, FiRefreshCw, FiCopy 
+  FiAlertTriangle, FiX, FiFileText, FiCpu, FiRefreshCw, FiCopy, FiMessageSquare 
 } from 'react-icons/fi';
 
 import PollCreationModal from './PollCreationModal';
@@ -528,7 +528,7 @@ export default function GroupChat({ project, user, isPlanner, isPledger, isFlori
             ))
           ) : (
             <div className="h-full flex flex-col items-center justify-center text-slate-400">
-                <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4"><MessageSquare size={24} className="text-slate-300"/></div>
+                <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4"><FiMessageSquare size={24} className="text-slate-300"/></div>
                 <p className="text-sm font-bold text-center leading-relaxed">
                     まだメッセージはありません。<br/>
                     {isFlorist ? 'お花屋さんとして挨拶してみましょう！🌸' : '挨拶して企画を盛り上げましょう！'}
