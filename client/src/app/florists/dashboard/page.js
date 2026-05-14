@@ -40,10 +40,14 @@ const JpText = ({ children }) => <span className="inline-block leading-relaxed">
 function DeliveryNoteModal({ project, onClose }) {
     const handlePrint = () => {
         const printWindow = window.open('', '_blank');
+        const deliveryDateStr = project?.deliveryDateTime 
+            ? new Date(project.deliveryDateTime).toLocaleString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) 
+            : '未定';
+        
         printWindow.document.write(`
             <html>
             <head>
-                <title>納品書_${project.title}</title>
+                <title>納品書_${project?.title || '企画'}</title>
                 <style>
                     body { font-family: "Noto Sans JP", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif; margin: 0; padding: 20px; color: #333; }
                     .print-container { max-width: 800px; margin: 0 auto; padding: 40px; background: #fff; }
@@ -73,16 +77,16 @@ function DeliveryNoteModal({ project, onClose }) {
                         </div>
                         <div class="meta">
                             <p style="margin: 0;">発行日: ${new Date().toLocaleDateString('ja-JP')}</p>
-                            <p style="margin: 0;">企画ID: ${project.id.slice(0, 8).toUpperCase()}</p>
+                            <p style="margin: 0;">企画ID: ${project?.id?.slice(0, 8)?.toUpperCase() || '不明'}</p>
                         </div>
                     </div>
 
                     <div class="info-blocks">
                         <div class="venue-info">
                             <h2>お届け先（会場）</h2>
-                            <p><strong>会場名:</strong> ${project.venue?.venueName || '未定'}</p>
-                            <p><strong>住所:</strong> ${project.venue?.address || project.deliveryAddress || '未定'}</p>
-                            <p><strong>イベント名:</strong> ${project.event?.title || '未定'}</p>
+                            <p><strong>会場名:</strong> ${project?.venue?.venueName || '未定'}</p>
+                            <p><strong>住所:</strong> ${project?.venue?.address || project?.deliveryAddress || '未定'}</p>
+                            <p><strong>イベント名:</strong> ${project?.event?.title || '未定'}</p>
                         </div>
                         <div class="issuer-info">
                             <p class="issuer-name">FLASTAL運営事務局 (KIREI-CHANNEL)</p>
@@ -103,24 +107,24 @@ function DeliveryNoteModal({ project, onClose }) {
                             <tbody>
                                 <tr>
                                     <td style="font-weight: bold; color: #475569;">企画名</td>
-                                    <td>${project.title}</td>
+                                    <td>${project?.title || '未設定'}</td>
                                 </tr>
                                 <tr>
                                     <td style="font-weight: bold; color: #475569;">ご依頼主（企画者）</td>
-                                    <td>${project.planner?.handleName || project.planner?.name || '不明'} 様</td>
+                                    <td>${project?.planner?.handleName || project?.planner?.name || '不明'} 様</td>
                                 </tr>
                                 <tr>
                                     <td style="font-weight: bold; color: #475569;">納品日時</td>
-                                    <td>${new Date(project.deliveryDateTime).toLocaleString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</td>
+                                    <td>${deliveryDateStr}</td>
                                 </tr>
                                 <tr>
                                     <td style="font-weight: bold; color: #475569;">品名</td>
                                     <td>祝花・フラワースタンド一式</td>
                                 </tr>
-                                ${project.quotation ? `
+                                ${project?.quotation ? `
                                 <tr class="total-row">
                                     <td>合計金額（参考）</td>
-                                    <td>${project.quotation.totalAmount.toLocaleString()} 円 (税込)</td>
+                                    <td>${(project.quotation.totalAmount || 0).toLocaleString()} 円 (税込)</td>
                                 </tr>
                                 ` : ''}
                             </tbody>
@@ -247,7 +251,7 @@ function PhotoUploadArea({ urls = [], type, projectId, onUploadComplete }) {
             if(!updateRes.ok) throw new Error('企画情報の更新に失敗しました');
 
             toast.success('写真をアップロードしました', { id: toastId });
-            onUploadComplete();
+            if(onUploadComplete) onUploadComplete();
         } catch (error) {
             toast.error(error.message, { id: toastId });
         } finally {
@@ -258,7 +262,7 @@ function PhotoUploadArea({ urls = [], type, projectId, onUploadComplete }) {
 
     return (
         <div className="flex flex-wrap gap-3">
-            {urls.map((url, i) => (
+            {urls?.map((url, i) => (
                 <div key={i} className="relative w-20 h-20 md:w-24 md:h-24 rounded-xl overflow-hidden border border-slate-200 shadow-sm cursor-zoom-in hover:scale-105 transition-transform" onClick={()=>window.open(url,'_blank')}>
                     <Image src={url} alt="" fill className="object-cover" />
                 </div>
@@ -389,9 +393,8 @@ export default function FloristProjectDetailPage() {
                         <ArrowLeft size={16}/> ダッシュボードへ戻る
                     </Link>
                     
-                    {/* ★ リンク先を花屋専用チャット画面に変更！ */}
                     <div className="flex gap-2">
-                        <Link href={`/florists/projects/${project.id}/chat`} className="bg-white border border-slate-200 text-slate-700 px-5 py-2.5 rounded-full text-xs font-black flex items-center gap-2 shadow-sm hover:bg-slate-50 transition-colors">
+                        <Link href={`/florists/projects/${project?.id}/chat`} className="bg-white border border-slate-200 text-slate-700 px-5 py-2.5 rounded-full text-xs font-black flex items-center gap-2 shadow-sm hover:bg-slate-50 transition-colors">
                             <MessageSquare size={14}/> 企画者とチャット
                         </Link>
                     </div>
@@ -404,14 +407,14 @@ export default function FloristProjectDetailPage() {
                         </div>
                         <div>
                             <h1 className="text-2xl md:text-3xl font-black text-slate-800 tracking-tight leading-tight">
-                                <JpText>{project.title}</JpText>
+                                <JpText>{project?.title || 'タイトルなし'}</JpText>
                             </h1>
                             <div className="flex items-center gap-3 mt-1.5">
                                 <span className="text-[10px] md:text-xs font-bold text-slate-500 uppercase tracking-widest bg-white px-2 py-0.5 rounded shadow-sm">
-                                    Project ID: {project.id.slice(0,6)}
+                                    Project ID: {project?.id?.slice(0,6) || '不明'}
                                 </span>
                                 <span className="text-[10px] md:text-xs font-bold text-slate-400 flex items-center gap-1">
-                                    <MapPin size={12}/> {project.venue?.venueName || '会場未定'}
+                                    <MapPin size={12}/> {project?.venue?.venueName || '会場未定'}
                                 </span>
                             </div>
                         </div>
@@ -428,7 +431,7 @@ export default function FloristProjectDetailPage() {
                                 {offer?.status === 'ACCEPTED' && <span className="bg-emerald-500 text-white px-4 py-1.5 rounded-full text-sm font-black flex items-center gap-2"><CheckCircle2 size={16}/> オファー受諾済み</span>}
                                 {offer?.status === 'REJECTED' && <span className="bg-rose-500 text-white px-4 py-1.5 rounded-full text-sm font-black flex items-center gap-2"><XCircle size={16}/> 辞退済み</span>}
                                 
-                                {project.quotation?.isApproved && (
+                                {project?.quotation?.isApproved && (
                                     <span className="bg-sky-500 text-white px-4 py-1.5 rounded-full text-sm font-black flex items-center gap-2 shadow-sm">
                                         <DollarSign size={16}/> 発注確定 (制作進行中)
                                     </span>
@@ -449,7 +452,7 @@ export default function FloristProjectDetailPage() {
                                 </div>
                             )}
 
-                            {offer?.status === 'ACCEPTED' && !project.quotation && (
+                            {offer?.status === 'ACCEPTED' && !project?.quotation && (
                                 <button 
                                     onClick={() => setIsQuotationModalOpen(true)}
                                     className="w-full md:w-auto px-8 py-3.5 bg-gradient-to-r from-sky-400 to-indigo-500 text-white font-black rounded-xl shadow-lg hover:shadow-indigo-500/30 active:scale-95 transition-all flex items-center justify-center gap-2"
@@ -458,13 +461,13 @@ export default function FloristProjectDetailPage() {
                                 </button>
                             )}
 
-                            {project.quotation && !project.quotation.isApproved && (
+                            {project?.quotation && !project?.quotation?.isApproved && (
                                 <div className="px-6 py-3 bg-slate-800 rounded-xl border border-slate-700 flex items-center gap-2 text-sm font-bold text-sky-300">
                                     <Clock size={16}/> 企画者の支払い・承認待ち
                                 </div>
                             )}
 
-                            {project.quotation?.isApproved && (
+                            {project?.quotation?.isApproved && (
                                 <div className="flex flex-col sm:flex-row gap-3">
                                     <button 
                                         onClick={() => setIsDeliveryNoteModalOpen(true)} 
@@ -477,22 +480,22 @@ export default function FloristProjectDetailPage() {
                         </div>
                     </div>
 
-                    {project.quotation && (
+                    {project?.quotation && (
                         <div className="p-6 md:p-8 bg-sky-50/50 border-t border-slate-100 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
                             <div className="flex-1 w-full">
                                 <h3 className="font-black text-slate-700 text-xs uppercase tracking-widest mb-3 flex items-center gap-2"><FileText size={14} className="text-sky-500"/> 提出済みの見積もり</h3>
                                 <div className="space-y-2 mb-4">
-                                    {project.quotation.items?.map((item, idx) => (
+                                    {project?.quotation?.items?.map((item, idx) => (
                                         <div key={idx} className="flex justify-between text-sm bg-white p-3 rounded-lg border border-slate-100 shadow-sm">
                                             <span className="font-bold text-slate-600">{item.itemName}</span>
-                                            <span className="font-black text-slate-800">{item.amount.toLocaleString()} pt</span>
+                                            <span className="font-black text-slate-800">{(item?.amount || 0).toLocaleString()} pt</span>
                                         </div>
                                     ))}
                                 </div>
                             </div>
                             <div className="w-full md:w-1/3 bg-sky-100 p-5 rounded-2xl border border-sky-200 text-center shrink-0 shadow-sm">
                                 <p className="font-black text-sky-800 text-[10px] uppercase tracking-widest mb-1">お見積り合計 (確定額)</p>
-                                <p className="text-3xl font-black text-sky-600 tracking-tight">{project.quotation.totalAmount.toLocaleString()} <span className="text-sm">pt</span></p>
+                                <p className="text-3xl font-black text-sky-600 tracking-tight">{(project?.quotation?.totalAmount || 0).toLocaleString()} <span className="text-sm">pt</span></p>
                             </div>
                         </div>
                     )}
@@ -513,19 +516,19 @@ export default function FloristProjectDetailPage() {
                                 <LogisticsCard 
                                     icon={<ClipboardList size={28}/>} 
                                     label="自作パネル受取" 
-                                    status={project.isPanelReceived} 
+                                    status={project?.isPanelReceived} 
                                     onToggle={(val) => updateLogistics('isPanelReceived', val)}
                                 />
                                 <LogisticsCard 
                                     icon={<PackageCheck size={28}/>} 
                                     label="持ち込みグッズ受取" 
-                                    status={project.isGoodsReceived} 
+                                    status={project?.isGoodsReceived} 
                                     onToggle={(val) => updateLogistics('isGoodsReceived', val)}
                                 />
                                 <LogisticsCard 
                                     icon={<Undo2 size={28}/>} 
                                     label="パネル・小物返送" 
-                                    status={project.isReturnCompleted} 
+                                    status={project?.isReturnCompleted} 
                                     onToggle={(val) => updateLogistics('isReturnCompleted', val)}
                                     color="amber"
                                 />
@@ -545,15 +548,15 @@ export default function FloristProjectDetailPage() {
                             <div className="bg-white p-6 rounded-[1.5rem] border border-slate-100 shadow-sm">
                                 <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">現在発生している実費総額</p>
                                 <p className="text-3xl font-black text-slate-800 tracking-tight">
-                                    {project.materialCost?.toLocaleString() || 0} <span className="text-sm font-bold text-slate-500">pt (円)</span>
+                                    {(project?.materialCost || 0).toLocaleString()} <span className="text-sm font-bold text-slate-500">pt (円)</span>
                                 </p>
-                                {project.materialDescription && (
+                                {project?.materialDescription && (
                                     <div className="mt-4 pt-4 border-t border-dashed border-slate-200">
                                         <p className="text-[10px] font-black text-amber-500 uppercase tracking-widest mb-1.5">内訳・備考</p>
                                         <p className="text-sm text-slate-600 font-medium leading-relaxed">{project.materialDescription}</p>
                                     </div>
                                 )}
-                                {(!project.materialCost || project.materialCost === 0) && (
+                                {(!project?.materialCost || project.materialCost === 0) && (
                                     <p className="text-xs text-slate-400 font-bold mt-4">※実費を入力しておくと、万が一企画が中止になった際、この金額が優先して補填されます。</p>
                                 )}
                             </div>
@@ -568,12 +571,12 @@ export default function FloristProjectDetailPage() {
                                 <div className="bg-slate-50 p-5 md:p-6 rounded-[1.5rem] border border-slate-100">
                                     <h3 className="text-sm font-black text-slate-700 mb-2 flex items-center gap-2"><CheckCircle2 className="text-emerald-500" size={16}/> 前日（仕上がり）写真</h3>
                                     <p className="text-xs text-slate-500 font-bold mb-4">発送前や完成直後の写真をアップロードしてください。企画者の安心に繋がります。</p>
-                                    <PhotoUploadArea urls={project.preEventPhotoUrls} type="pre_photo" projectId={id} onUploadComplete={fetchProjectDetails} />
+                                    <PhotoUploadArea urls={project?.preEventPhotoUrls || []} type="pre_photo" projectId={id} onUploadComplete={fetchProjectDetails} />
                                 </div>
                                 <div className="bg-slate-50 p-5 md:p-6 rounded-[1.5rem] border border-slate-100">
                                     <h3 className="text-sm font-black text-slate-700 mb-2 flex items-center gap-2"><MapPin className="text-rose-500" size={16}/> 当日（納品完了）写真</h3>
                                     <p className="text-xs text-slate-500 font-bold mb-4">会場に設置完了した状態の写真をアップロードしてください。</p>
-                                    <PhotoUploadArea urls={project.completionPhotoUrls} type="completion_photo" projectId={id} onUploadComplete={fetchProjectDetails} />
+                                    <PhotoUploadArea urls={project?.completionPhotoUrls || []} type="completion_photo" projectId={id} onUploadComplete={fetchProjectDetails} />
                                 </div>
                             </div>
                         </AppCard>
@@ -587,16 +590,16 @@ export default function FloristProjectDetailPage() {
                             <div className="space-y-6 relative z-10">
                                 <div>
                                     <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">希望納品日時</p>
-                                    <p className="text-base font-black text-white">{new Date(project.deliveryDateTime).toLocaleString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
+                                    <p className="text-base font-black text-white">{project?.deliveryDateTime ? new Date(project.deliveryDateTime).toLocaleString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '未設定'}</p>
                                 </div>
                                 <div>
                                     <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">お届け先（会場）</p>
                                     <div className="bg-white/10 p-4 rounded-xl mt-2 backdrop-blur-sm border border-white/10">
-                                        <p className="text-sm font-black text-white">{project.venue?.venueName || '未定'}</p>
-                                        <p className="text-xs text-slate-300 mt-1.5 leading-relaxed">{project.venue?.address || project.deliveryAddress || '未設定'}</p>
+                                        <p className="text-sm font-black text-white">{project?.venue?.venueName || '未定'}</p>
+                                        <p className="text-xs text-slate-300 mt-1.5 leading-relaxed">{project?.venue?.address || project?.deliveryAddress || '未設定'}</p>
                                     </div>
                                 </div>
-                                <Link href={`/venues/${project.venue?.id}`} className="block w-full py-3.5 bg-white text-slate-900 rounded-xl text-xs font-black text-center transition-all hover:bg-slate-100 shadow-md">
+                                <Link href={`/venues/${project?.venue?.id || ''}`} className="block w-full py-3.5 bg-white text-slate-900 rounded-xl text-xs font-black text-center transition-all hover:bg-slate-100 shadow-md">
                                     会場の規定・レギュレーションを確認
                                 </Link>
                             </div>
@@ -607,22 +610,22 @@ export default function FloristProjectDetailPage() {
                             <div className="space-y-5 text-sm font-medium text-slate-600">
                                 <div>
                                     <p className="text-[10px] font-black text-indigo-400 uppercase mb-1">希望サイズ</p>
-                                    <p className="font-bold text-slate-800">{project.size || '規定なし'}</p>
+                                    <p className="font-bold text-slate-800">{project?.size || '規定なし'}</p>
                                 </div>
                                 <div>
                                     <p className="text-[10px] font-black text-indigo-400 uppercase mb-1">花材・色味</p>
-                                    <p className="font-bold text-slate-800">{project.flowerTypes || 'おまかせ'}</p>
+                                    <p className="font-bold text-slate-800">{project?.flowerTypes || 'おまかせ'}</p>
                                 </div>
                                 <div>
                                     <p className="text-[10px] font-black text-indigo-400 uppercase mb-1">デザイン詳細</p>
                                     <div className="p-4 bg-slate-50 rounded-xl text-xs leading-relaxed border border-slate-100">
-                                        <JpText>{project.designDetails || '特に指定はありません'}</JpText>
+                                        <JpText>{project?.designDetails || '特に指定はありません'}</JpText>
                                     </div>
                                 </div>
                                 <div className="pt-2">
                                     <p className="text-[10px] font-black text-indigo-400 uppercase mb-2">参考デザイン画像</p>
                                     <div className="grid grid-cols-2 gap-3">
-                                        {project.designImageUrls?.length > 0 ? (
+                                        {project?.designImageUrls?.length > 0 ? (
                                             project.designImageUrls.map((url, i) => (
                                                 <div key={i} className="aspect-square rounded-xl bg-slate-100 overflow-hidden relative border border-slate-200 cursor-zoom-in hover:scale-105 transition-transform" onClick={()=>window.open(url,'_blank')}>
                                                     <Image src={url} alt="Design" fill className="object-cover" />
@@ -643,11 +646,11 @@ export default function FloristProjectDetailPage() {
                             <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2"><User size={16}/> 企画者情報</h3>
                             <div className="flex items-center gap-4">
                                 <div className="w-12 h-12 rounded-full bg-slate-100 overflow-hidden shrink-0 border border-slate-200">
-                                    {project.planner?.iconUrl ? <Image src={project.planner.iconUrl} alt="" width={48} height={48} className="object-cover"/> : <User size={24} className="m-3 text-slate-400"/>}
+                                    {project?.planner?.iconUrl ? <Image src={project.planner.iconUrl} alt="" width={48} height={48} className="object-cover"/> : <User size={24} className="m-3 text-slate-400"/>}
                                 </div>
                                 <div>
-                                    <p className="font-black text-slate-800 text-sm">{project.planner?.handleName || project.planner?.name || '不明'}</p>
-                                    <p className="text-[10px] font-bold text-slate-400 mt-0.5">ID: {project.planner?.id.slice(0,8)}</p>
+                                    <p className="font-black text-slate-800 text-sm">{project?.planner?.handleName || project?.planner?.name || '不明'}</p>
+                                    <p className="text-[10px] font-bold text-slate-400 mt-0.5">ID: {project?.planner?.id?.slice(0,8) || '不明'}</p>
                                 </div>
                             </div>
                         </AppCard>
@@ -659,7 +662,7 @@ export default function FloristProjectDetailPage() {
             <AnimatePresence>
                 {isQuotationModalOpen && (
                     <QuotationCreateModal 
-                        projectId={project.id} 
+                        projectId={project?.id} 
                         onClose={() => setIsQuotationModalOpen(false)} 
                         onSuccess={fetchProjectDetails} 
                     />
