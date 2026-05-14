@@ -33,7 +33,8 @@ const ChatReportModal = ({ messageId, onClose }) => {
         setIsSubmitting(true);
         try {
             const token = getAuthToken();
-            const res = await fetch(`${API_URL}/api/group-chat/${messageId}/report`, {
+            // ★ 修正: 正しいAPIエンドポイントに変更
+            const res = await fetch(`${API_URL}/api/project-details/group-chat/${messageId}/report`, {
                 method: 'POST',
                 headers: { 
                     'Content-Type': 'application/json',
@@ -46,8 +47,7 @@ const ChatReportModal = ({ messageId, onClose }) => {
                 toast.success('通報しました。運営が確認します。');
                 onClose();
             } else {
-                const data = await res.json();
-                throw new Error(data.message || '送信に失敗しました');
+                throw new Error('送信に失敗しました');
             }
         } catch (err) {
             toast.error(err.message);
@@ -155,10 +155,11 @@ const ChatMessage = ({ msg, user, isPlanner, isPledger, onReaction, onReport, te
     const [translatedText, setTranslatedText] = useState(null);
     const [isTranslating, setIsTranslating] = useState(false);
 
-    const isFloristMsg = !!msg.floristId || msg.user?.role === 'FLORIST';
+    // ★ 修正: お花屋さんの判定
+    const isFloristMsg = !!msg.floristId || msg.user?.role === 'FLORIST' || msg.florist != null;
     const isOwn = user && (msg.userId === user.id || msg.floristId === user.id);
 
-    // ★ 修正: Unknownを排除し、店舗名や「お花屋さん」「参加者」にフォールバックする安全な設計
+    // ★ 修正: Unknownを排除する強力な名前フォールバック
     const senderName = 
         msg.florist?.platformName || 
         msg.florist?.shopName || 
@@ -188,7 +189,8 @@ const ChatMessage = ({ msg, user, isPlanner, isPledger, onReaction, onReport, te
         setIsTranslating(true);
         const token = getAuthToken();
         try {
-            const res = await fetch(`${API_URL}/api/translate`, {
+            // ★ 修正: 正しいAPIエンドポイントに変更 (/api/tools/translate)
+            const res = await fetch(`${API_URL}/api/tools/translate`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify({ text: contentText })
@@ -386,7 +388,8 @@ export default function GroupChat({ project, user, isPlanner, isPledger, isFlori
   useEffect(() => {
     const fetchTemplates = async () => {
       try {
-        const res = await fetch(`${API_URL}/api/chat-templates`);
+        // ★ 修正: 正しいAPIエンドポイントに変更
+        const res = await fetch(`${API_URL}/api/project-details/chat-templates`);
         if (res.ok) setTemplates(await res.json());
       } catch (error) { console.error(error); }
     };
@@ -395,7 +398,6 @@ export default function GroupChat({ project, user, isPlanner, isPledger, isFlori
 
   const handleSendMessage = (templateId, content, messageType, fileUrl, fileName) => {
     if (!socket || !user) return toast.error('接続エラー');
-    // 送信処理
     socket.emit('sendGroupChatMessage', {
       projectId: project.id,
       userId: user.id,
@@ -428,6 +430,7 @@ export default function GroupChat({ project, user, isPlanner, isPledger, isFlori
 
     try {
       const token = getAuthToken();
+      // /api/upload は src/app.js にあるのでそのまま
       const res = await fetch(`${API_URL}/api/upload`, { 
           method: 'POST', 
           headers: { 'Authorization': `Bearer ${token}` },
@@ -462,7 +465,8 @@ export default function GroupChat({ project, user, isPlanner, isPledger, isFlori
     const toastId = toast.loading('AIが会話を分析中...');
     const token = getAuthToken();
     try {
-        const res = await fetch(`${API_URL}/api/group-chat/${project.id}/summarize`, {
+        // ★ 修正: 正しいAPIエンドポイントに変更
+        const res = await fetch(`${API_URL}/api/project-details/group-chat/${project.id}/summarize`, {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${token}` }
         });
