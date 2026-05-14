@@ -137,14 +137,14 @@ export const getProjectById = async (req, res) => {
                 },
                 offers: {
                     include: {
-                        florist: { select: { id: true, platformName: true, iconUrl: true } }, // アイコンも追加
+                        florist: { select: { id: true, platformName: true, shopName: true, iconUrl: true } },
                         chatRoom: {
                             include: {
                                 messages: {
                                     orderBy: { createdAt: 'asc' },
                                     include: {
-                                        user: { select: { handleName: true, iconUrl: true } },
-                                        florist: { select: { platformName: true, shopName: true, iconUrl: true } }
+                                        user: { select: { id: true, handleName: true, iconUrl: true } },
+                                        florist: { select: { id: true, platformName: true, shopName: true, iconUrl: true } }
                                     }
                                 }
                             }

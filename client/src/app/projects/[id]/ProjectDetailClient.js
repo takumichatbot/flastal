@@ -1140,6 +1140,20 @@ export default function ProjectDetailClient() {
                         </AppCard>
                     )}
 
+                    {isPlanner && project.offers?.some(o => o.status === 'ACCEPTED') && (
+                        <AppCard className="bg-gradient-to-r from-sky-500 to-indigo-500 border-none !p-4 md:!p-6 text-white shadow-lg shadow-indigo-200/50">
+                            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                                <div>
+                                    <h3 className="text-base font-black flex items-center gap-2"><MessageSquare size={18}/> お花屋さんとの専用チャット</h3>
+                                    <p className="text-xs font-bold text-sky-100 mt-1">デザインのすり合わせや進捗の確認はこちらで行います（支援者には非公開）</p>
+                                </div>
+                                <Link href={`/projects/${project.id}/florist-chat`} className="w-full sm:w-auto px-8 py-3.5 bg-white text-sky-600 rounded-xl font-black text-sm hover:bg-sky-50 transition-colors shadow-sm whitespace-nowrap text-center active:scale-95">
+                                    チャットを開く
+                                </Link>
+                            </div>
+                        </AppCard>
+                    )}
+
                     {!(isPlanner || isPledger || isFlorist || isAssignedIllustrator) && (
                         <AppCard className="text-center py-16 bg-slate-50">
                             <Lock size={32} className="mx-auto text-slate-300 mb-4" />
@@ -1465,10 +1479,10 @@ export default function ProjectDetailClient() {
                       <div className="space-y-3">
 
                           {isPlanner && project.offers?.find(o => o.status === 'ACCEPTED') && (
-                              <Link 
-                                  href={`/florists/projects/${project.id}/chat`} // お花屋さんと共通の機密チャット画面へ
-                                  className="w-full text-left p-4 bg-sky-500 hover:bg-sky-600 border border-sky-400 rounded-2xl transition-all flex items-center group shadow-md mb-3"
-                              >
+                            <Link 
+                                href={`/projects/${project.id}/florist-chat`} // ⭕️正しいURLに修正
+                                className="w-full text-left p-4 bg-sky-500 hover:bg-sky-600 border border-sky-400 rounded-2xl transition-all flex items-center group shadow-md mb-3"
+                            >
                                   <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center mr-3 group-hover:scale-110 transition-transform">
                                       <MessageSquare className="text-white" size={16}/>
                                   </div>
