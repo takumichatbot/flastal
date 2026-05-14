@@ -13,12 +13,12 @@ import ApprovalPendingCard from '@/components/dashboard/ApprovalPendingCard';
 import FloristAppealPostForm from '@/components/dashboard/FloristAppealPostForm';
 import { motion, AnimatePresence } from 'framer-motion';
 
+// ★ 追加: XCircle アイコンを追加
 import { 
   CheckCircle2, FileText, Calendar, MapPin, 
   Clock, ChevronLeft, ChevronRight, Camera, User, 
   Eye, EyeOff, Trash2, DollarSign, LogOut, ArrowRight,
-  Briefcase, AlertCircle, Loader2, Star, Image as ImageIcon, Send, Truck, MessageSquare,
-  Search, Store // ★追加
+  Briefcase, AlertCircle, Loader2, Star, Image as ImageIcon, Send, Truck, MessageSquare, XCircle
 } from 'lucide-react'; 
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
@@ -49,13 +49,13 @@ const StatCard = ({ title, value, icon: Icon, color = "sky" }) => {
     emerald: "bg-emerald-50 text-emerald-500 border-emerald-100",
   };
   return (
-    <div className="bg-white/60 backdrop-blur-md p-5 md:p-6 rounded-[2rem] border border-white shadow-sm flex flex-col xl:flex-row items-start xl:items-center gap-4 transition-transform hover:-translate-y-1 h-full">
-      <div className={cn("p-4 rounded-[1.5rem] border shadow-inner shrink-0", colors[color])}>
-        <Icon size={24} />
+    <div className="bg-white/60 backdrop-blur-md p-6 md:p-8 rounded-[2rem] border border-white shadow-sm flex items-center gap-5 transition-transform hover:-translate-y-1">
+      <div className={cn("p-4 rounded-[1.5rem] border shadow-inner", colors[color])}>
+        <Icon size={28} />
       </div>
       <div>
-        <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">{title}</p>
-        <p className="text-xl md:text-2xl lg:text-3xl font-black text-slate-800 tracking-tighter leading-none">{value}</p>
+        <p className="text-[10px] md:text-xs text-slate-400 font-black uppercase tracking-widest mb-1">{title}</p>
+        <p className="text-2xl md:text-3xl font-black text-slate-800 tracking-tighter">{value}</p>
       </div>
     </div>
   );
@@ -221,6 +221,27 @@ function DashboardContent() {
     }
   }, [isLoading, user, fetchData]);
 
+  // ★ 追加: オファーを受諾・辞退する処理
+  const handleRespondToOffer = async (offerId, status) => {
+    const confirmMsg = status === 'ACCEPTED' ? 'このオファーを受諾しますか？\n受諾すると企画者との専用チャットが開始されます。' : '本当にこのオファーを辞退しますか？（取り消せません）';
+    if (!window.confirm(confirmMsg)) return;
+
+    const toastId = toast.loading('処理中...');
+    try {
+      const res = await authenticatedFetch(`${API_URL}/api/florists/offers/${offerId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status })
+      });
+
+      if (!res.ok) throw new Error('エラーが発生しました');
+      toast.success(status === 'ACCEPTED' ? 'オファーを受諾しました！' : 'オファーを辞退しました', { id: toastId });
+      fetchData(); // データを再取得して表示を更新
+    } catch (error) {
+      toast.error(error.message, { id: toastId });
+    }
+  };
+
   const handleDeleteAppealPost = async (postId) => {
     if (!window.confirm("本当に削除しますか？")) return;
     const toastId = toast.loading('削除中...');
@@ -328,34 +349,15 @@ function DashboardContent() {
           </div>
         </Reveal>
 
-        {/* ★ 修正: 4列グリッドにして「案件を探す」ボタンを追加 */}
+        {/* Stats */}
         <Reveal delay={0.1}>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
             <StatCard title="現在の売上残高" value={`${(balance || 0).toLocaleString()} pt`} icon={DollarSign} color="emerald" />
             <StatCard title="対応中の企画" value={`${acceptedOffers.length} 件`} icon={CheckCircle2} color="sky" />
-            
-            {/* 新規追加：案件を探してオファーする */}
-            <div className="bg-gradient-to-br from-sky-400 to-indigo-500 p-5 md:p-6 rounded-[2rem] shadow-xl flex flex-col justify-between items-center text-center group transition-transform hover:-translate-y-1">
-              <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center text-white mb-3 shadow-inner shrink-0">
-                <Search size={22}/>
-              </div>
-              <div className="flex-grow flex flex-col justify-center">
-                  <p className="text-xs text-white font-black mb-4 leading-snug">募集中の企画を探して<br/>提案・オファーを送る</p>
-              </div>
-              <Link href="/projects" className="w-full py-3 font-black text-sky-600 bg-white rounded-xl hover:bg-sky-50 transition-all shadow-md text-xs active:scale-95 flex items-center justify-center gap-1.5 mt-auto">
-                案件を探す <ArrowRight size={14}/>
-              </Link>
-            </div>
-
-            <div className="bg-gradient-to-br from-slate-900 to-slate-800 p-5 md:p-6 rounded-[2rem] border border-slate-700 shadow-xl flex flex-col justify-between items-center text-center group transition-transform hover:-translate-y-1">
-              <div className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center text-white mb-3 shadow-inner shrink-0">
-                <Store size={22}/>
-              </div>
-              <div className="flex-grow flex flex-col justify-center">
-                  <p className="text-xs text-white font-black mb-4 leading-snug">ポートフォリオや<br/>基本情報を更新する</p>
-              </div>
-              <Link href="/florists/profile/edit" className="w-full py-3 font-black text-slate-900 bg-white rounded-xl hover:bg-slate-100 transition-all shadow-md text-xs active:scale-95 flex items-center justify-center gap-1.5 mt-auto">
-                プロフィール編集 <ArrowRight size={14}/>
+            <div className="bg-gradient-to-br from-slate-900 to-slate-800 p-6 md:p-8 rounded-[2rem] border border-slate-700 shadow-xl flex flex-col justify-center items-center text-center group transition-transform hover:-translate-y-1">
+              <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-3">Shop Profile</p>
+              <Link href="/florists/profile/edit" className="w-full px-6 py-3.5 font-black text-slate-900 bg-white rounded-full hover:bg-pink-50 transition-colors shadow-md flex items-center justify-center gap-2">
+                プロフィールを編集 <ArrowRight size={16} className="text-pink-500 group-hover:translate-x-1 transition-transform" />
               </Link>
             </div>
           </div>
@@ -404,20 +406,23 @@ function DashboardContent() {
                               <p className="text-xs font-bold text-slate-400 flex items-center gap-1"><Clock size={12}/> 依頼日: {o?.createdAt ? new Date(o.createdAt).toLocaleDateString() : '不明'}</p>
                           </div>
                           
+                          {/* ★ 修正: 直接受諾・辞退できるボタンに変更 */}
                           <div className="w-full md:w-auto flex flex-col sm:flex-row gap-2">
-                             <Link href={`/florists/projects/${o?.projectId || ''}/chat`} className="w-full sm:w-auto text-center px-6 py-3.5 bg-white border border-slate-200 text-slate-600 rounded-full font-black hover:bg-slate-50 transition-all shadow-sm flex items-center justify-center gap-2">
-                                <MessageSquare size={16}/> 企画者とチャット
-                             </Link>
-                             <Link href={`/florists/projects/${o?.projectId || ''}`} className="w-full sm:w-auto text-center px-8 py-3.5 bg-pink-500 border border-transparent text-white rounded-full font-black hover:bg-pink-600 hover:shadow-lg transition-all shadow-sm">
-                                オファーを確認・回答する
+                             <button onClick={() => handleRespondToOffer(o.id, 'ACCEPTED')} className="w-full sm:w-auto text-center px-6 py-3.5 bg-sky-500 text-white rounded-full font-black hover:bg-sky-600 transition-all shadow-sm flex items-center justify-center gap-2 active:scale-95">
+                                <CheckCircle2 size={16}/> 受諾する
+                             </button>
+                             <button onClick={() => handleRespondToOffer(o.id, 'REJECTED')} className="w-full sm:w-auto text-center px-6 py-3.5 bg-white border border-slate-200 text-rose-500 rounded-full font-black hover:bg-rose-50 transition-all shadow-sm flex items-center justify-center gap-2 active:scale-95">
+                                <XCircle size={16}/> 辞退する
+                             </button>
+                             <Link href={`/florists/projects/${o?.projectId || ''}`} className="w-full sm:w-auto text-center px-6 py-3.5 bg-slate-900 border border-transparent text-white rounded-full font-black hover:bg-slate-800 hover:shadow-lg transition-all shadow-sm flex items-center justify-center">
+                                詳細を確認
                              </Link>
                           </div>
                         </div>
                       )) : (
                         <div className="text-center py-32 bg-slate-50/50 rounded-[2.5rem] border-2 border-dashed border-slate-200">
                           <Star className="mx-auto text-slate-300 mb-4" size={48}/>
-                          <p className="text-slate-500 font-bold mb-2">新着の制作オファーはありません。</p>
-                          <Link href="/projects" className="text-pink-500 text-xs font-bold hover:underline">募集中の企画を探しに行く</Link>
+                          <p className="text-slate-500 font-bold">新着の制作オファーはありません。</p>
                         </div>
                       )}
                     </div>
