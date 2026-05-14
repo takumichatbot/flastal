@@ -155,7 +155,18 @@ const ChatMessage = ({ msg, user, isPlanner, isPledger, onReaction, onReport, te
     const [translatedText, setTranslatedText] = useState(null);
     const [isTranslating, setIsTranslating] = useState(false);
 
-    const isOwn = user && msg.userId === user.id;
+    const isFloristMsg = !!msg.floristId || msg.user?.role === 'FLORIST';
+    const isOwn = user && (msg.userId === user.id || msg.floristId === user.id);
+
+    // ★ 修正: Unknownを排除し、店舗名や「お花屋さん」「参加者」にフォールバックする安全な設計
+    const senderName = 
+        msg.florist?.platformName || 
+        msg.florist?.shopName || 
+        msg.user?.handleName || 
+        msg.user?.name || 
+        (isFloristMsg ? 'お花屋さん' : '参加者');
+
+    const iconUrl = msg.florist?.iconUrl || msg.user?.iconUrl;
 
     const getMessageContent = () => {
         if (!msg.templateId) return msg.content;
@@ -210,8 +221,8 @@ const ChatMessage = ({ msg, user, isPlanner, isPledger, onReaction, onReport, te
             
             {/* アイコン */}
             <div className="flex-shrink-0 mb-1">
-                {msg.user?.iconUrl ? (
-                    <img src={msg.user.iconUrl} alt={msg.user.handleName} className="h-9 w-9 rounded-full object-cover shadow-sm border border-slate-100" />
+                {iconUrl ? (
+                    <img src={iconUrl} alt={senderName} className="h-9 w-9 rounded-full object-cover shadow-sm border border-slate-100" />
                 ) : (
                     <div className="h-9 w-9 rounded-full bg-gradient-to-br from-indigo-100 to-sky-100 text-indigo-500 flex items-center justify-center font-bold shadow-sm">
                         <FiUser size={16}/>
@@ -225,8 +236,8 @@ const ChatMessage = ({ msg, user, isPlanner, isPledger, onReaction, onReport, te
                 {/* ユーザー名と時間（自分以外の時のみ表示） */}
                 {!isOwn && (
                     <div className="flex items-baseline gap-2 mb-1.5 ml-1">
-                        <span className="text-xs text-slate-700 font-bold">{msg.user?.handleName || 'Unknown'}</span>
-                        {msg.user?.role === 'FLORIST' && (
+                        <span className="text-xs text-slate-700 font-bold">{senderName}</span>
+                        {isFloristMsg && (
                             <span className="text-[9px] bg-gradient-to-r from-sky-400 to-indigo-400 text-white px-1.5 py-0.5 rounded shadow-sm font-bold tracking-wider">
                                 お花屋さん
                             </span>
@@ -384,7 +395,7 @@ export default function GroupChat({ project, user, isPlanner, isPledger, isFlori
 
   const handleSendMessage = (templateId, content, messageType, fileUrl, fileName) => {
     if (!socket || !user) return toast.error('接続エラー');
-    // 送信処理（※バックエンドで花屋権限が許可されている必要があります）
+    // 送信処理
     socket.emit('sendGroupChatMessage', {
       projectId: project.id,
       userId: user.id,
