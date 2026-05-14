@@ -167,13 +167,32 @@ export default function socketHandler(io) {
         const userId = socket.user.id;
 
         // 権限チェック
+        const userRole = socket.user.role;
         const project = await prisma.project.findUnique({ where: { id: projectId } });
         if (!project) return;
 
-        const pledge = await prisma.pledge.findFirst({ where: { projectId, userId } });
-        const isPlanner = project.plannerId === userId;
+        let hasPermission = false;
+        let senderIsFlorist = false;
 
-        if (!pledge && !isPlanner) {
+        if (userRole === 'FLORIST') {
+            // お花屋さんの場合: 受注しているか確認
+            const offer = await prisma.offer.findFirst({
+                where: { projectId: projectId, floristId: userId, status: 'ACCEPTED' }
+            });
+            if (offer) {
+                hasPermission = true;
+                senderIsFlorist = true;
+            }
+        } else {
+            // ファン・企画者の場合
+            const pledge = await prisma.pledge.findFirst({ where: { projectId, userId } });
+            const isPlanner = project.plannerId === userId;
+            if (pledge || isPlanner) {
+                hasPermission = true;
+            }
+        }
+
+        if (!hasPermission) {
           socket.emit('messageError', 'このグループチャットに参加する権限がありません。');
           return;
         }
@@ -194,19 +213,28 @@ export default function socketHandler(io) {
           if (template.hasCustomInput && (!content || content.trim() === '')) return;
         }
 
-        // 保存
-        const newMessage = await prisma.groupChatMessage.create({
-          data: {
+        // 保存データの生成
+        const messageData = {
             projectId,
-            userId,
             templateId: templateId || null,
             messageType: messageType || 'TEXT',
             content: content || null,
             fileUrl: fileUrl || null,
             fileName: fileName || null,
-          },
+        };
+
+        // 花屋かユーザーかでIDの格納先を変える
+        if (senderIsFlorist) {
+            messageData.floristId = userId;
+        } else {
+            messageData.userId = userId;
+        }
+
+        const newMessage = await prisma.groupChatMessage.create({
+          data: messageData,
           include: {
             user: { select: { handleName: true, iconUrl: true } },
+            florist: { select: { platformName: true, iconUrl: true } }, // ★ 花屋情報も取得
             reactions: true
           }
         });

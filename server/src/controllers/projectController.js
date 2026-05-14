@@ -150,7 +150,10 @@ export const getProjectById = async (req, res) => {
                 },
                 groupChatMessages: {
                     orderBy: { createdAt: 'asc' },
-                    include: { user: { select: { id: true, handleName: true } } }
+                    include: { 
+                        user: { select: { id: true, handleName: true, iconUrl: true } },
+                        florist: { select: { id: true, platformName: true, iconUrl: true } } // ★ この1行を追加！
+                    }
                 }
             },
         });
