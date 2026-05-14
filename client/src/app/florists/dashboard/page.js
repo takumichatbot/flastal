@@ -17,7 +17,8 @@ import {
   CheckCircle2, FileText, Calendar, MapPin, 
   Clock, ChevronLeft, ChevronRight, Camera, User, 
   Eye, EyeOff, Trash2, DollarSign, LogOut, ArrowRight,
-  Briefcase, AlertCircle, Loader2, Star, Image as ImageIcon, Send, Truck, MessageSquare
+  Briefcase, AlertCircle, Loader2, Star, Image as ImageIcon, Send, Truck, MessageSquare,
+  Search, Store // ★追加
 } from 'lucide-react'; 
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
@@ -48,13 +49,13 @@ const StatCard = ({ title, value, icon: Icon, color = "sky" }) => {
     emerald: "bg-emerald-50 text-emerald-500 border-emerald-100",
   };
   return (
-    <div className="bg-white/60 backdrop-blur-md p-6 md:p-8 rounded-[2rem] border border-white shadow-sm flex items-center gap-5 transition-transform hover:-translate-y-1">
-      <div className={cn("p-4 rounded-[1.5rem] border shadow-inner", colors[color])}>
-        <Icon size={28} />
+    <div className="bg-white/60 backdrop-blur-md p-5 md:p-6 rounded-[2rem] border border-white shadow-sm flex flex-col xl:flex-row items-start xl:items-center gap-4 transition-transform hover:-translate-y-1 h-full">
+      <div className={cn("p-4 rounded-[1.5rem] border shadow-inner shrink-0", colors[color])}>
+        <Icon size={24} />
       </div>
       <div>
-        <p className="text-[10px] md:text-xs text-slate-400 font-black uppercase tracking-widest mb-1">{title}</p>
-        <p className="text-2xl md:text-3xl font-black text-slate-800 tracking-tighter">{value}</p>
+        <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">{title}</p>
+        <p className="text-xl md:text-2xl lg:text-3xl font-black text-slate-800 tracking-tighter leading-none">{value}</p>
       </div>
     </div>
   );
@@ -86,7 +87,6 @@ function CalendarView({ events = [] }) {
   for (let i = 0; i < firstDay.getDay(); i++) days.push(null);
   for (let i = 1; i <= lastDay.getDate(); i++) days.push(new Date(year, month, i));
 
-  // ★ 安全なフィルタリング
   const safeEvents = Array.isArray(events) ? events : [];
   const selectedEvents = safeEvents.filter(e => e?.date && new Date(e.date).toDateString() === selectedDate.toDateString());
 
@@ -279,7 +279,6 @@ function DashboardContent() {
 
   const { offers = [], appealPosts = [], scheduleEvents = [], balance = 0, platformName } = data;
   
-  // ★ 安全な配列フィルタリング（データが存在しない場合のクラッシュ防止）
   const safeOffers = Array.isArray(offers) ? offers : [];
   
   const pendingOffers = safeOffers.filter(o => 
@@ -329,16 +328,34 @@ function DashboardContent() {
           </div>
         </Reveal>
 
-        {/* Stats */}
+        {/* ★ 修正: 4列グリッドにして「案件を探す」ボタンを追加 */}
         <Reveal delay={0.1}>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-            {/* ★ 修正: balanceのデフォルト値処理 */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
             <StatCard title="現在の売上残高" value={`${(balance || 0).toLocaleString()} pt`} icon={DollarSign} color="emerald" />
             <StatCard title="対応中の企画" value={`${acceptedOffers.length} 件`} icon={CheckCircle2} color="sky" />
-            <div className="bg-gradient-to-br from-slate-900 to-slate-800 p-6 md:p-8 rounded-[2rem] border border-slate-700 shadow-xl flex flex-col justify-center items-center text-center group transition-transform hover:-translate-y-1">
-              <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-3">Shop Profile</p>
-              <Link href="/florists/profile/edit" className="w-full px-6 py-3.5 font-black text-slate-900 bg-white rounded-full hover:bg-pink-50 transition-colors shadow-md flex items-center justify-center gap-2">
-                プロフィールを編集 <ArrowRight size={16} className="text-pink-500 group-hover:translate-x-1 transition-transform" />
+            
+            {/* 新規追加：案件を探してオファーする */}
+            <div className="bg-gradient-to-br from-sky-400 to-indigo-500 p-5 md:p-6 rounded-[2rem] shadow-xl flex flex-col justify-between items-center text-center group transition-transform hover:-translate-y-1">
+              <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center text-white mb-3 shadow-inner shrink-0">
+                <Search size={22}/>
+              </div>
+              <div className="flex-grow flex flex-col justify-center">
+                  <p className="text-xs text-white font-black mb-4 leading-snug">募集中の企画を探して<br/>提案・オファーを送る</p>
+              </div>
+              <Link href="/projects" className="w-full py-3 font-black text-sky-600 bg-white rounded-xl hover:bg-sky-50 transition-all shadow-md text-xs active:scale-95 flex items-center justify-center gap-1.5 mt-auto">
+                案件を探す <ArrowRight size={14}/>
+              </Link>
+            </div>
+
+            <div className="bg-gradient-to-br from-slate-900 to-slate-800 p-5 md:p-6 rounded-[2rem] border border-slate-700 shadow-xl flex flex-col justify-between items-center text-center group transition-transform hover:-translate-y-1">
+              <div className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center text-white mb-3 shadow-inner shrink-0">
+                <Store size={22}/>
+              </div>
+              <div className="flex-grow flex flex-col justify-center">
+                  <p className="text-xs text-white font-black mb-4 leading-snug">ポートフォリオや<br/>基本情報を更新する</p>
+              </div>
+              <Link href="/florists/profile/edit" className="w-full py-3 font-black text-slate-900 bg-white rounded-xl hover:bg-slate-100 transition-all shadow-md text-xs active:scale-95 flex items-center justify-center gap-1.5 mt-auto">
+                プロフィール編集 <ArrowRight size={14}/>
               </Link>
             </div>
           </div>
@@ -383,7 +400,6 @@ function DashboardContent() {
                         <div key={o?.id || idx} className="p-6 bg-pink-50/50 rounded-[2rem] border-2 border-pink-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 group hover:bg-pink-50 transition-all shadow-sm">
                           <div>
                               <span className="text-[10px] bg-pink-500 text-white px-3 py-1 rounded-full font-black uppercase tracking-widest shadow-sm">New Offer</span>
-                              {/* ★ 修正: Null合体演算子でクラッシュ防止 */}
                               <h3 className="font-black text-slate-800 text-lg mt-3 mb-1 line-clamp-1 group-hover:text-pink-600 transition-colors">{o?.project?.title || 'タイトル未設定'}</h3>
                               <p className="text-xs font-bold text-slate-400 flex items-center gap-1"><Clock size={12}/> 依頼日: {o?.createdAt ? new Date(o.createdAt).toLocaleDateString() : '不明'}</p>
                           </div>
@@ -393,14 +409,15 @@ function DashboardContent() {
                                 <MessageSquare size={16}/> 企画者とチャット
                              </Link>
                              <Link href={`/florists/projects/${o?.projectId || ''}`} className="w-full sm:w-auto text-center px-8 py-3.5 bg-pink-500 border border-transparent text-white rounded-full font-black hover:bg-pink-600 hover:shadow-lg transition-all shadow-sm">
-                                オファーを確認する
+                                オファーを確認・回答する
                              </Link>
                           </div>
                         </div>
                       )) : (
                         <div className="text-center py-32 bg-slate-50/50 rounded-[2.5rem] border-2 border-dashed border-slate-200">
                           <Star className="mx-auto text-slate-300 mb-4" size={48}/>
-                          <p className="text-slate-500 font-bold">新着の制作オファーはありません。</p>
+                          <p className="text-slate-500 font-bold mb-2">新着の制作オファーはありません。</p>
+                          <Link href="/projects" className="text-pink-500 text-xs font-bold hover:underline">募集中の企画を探しに行く</Link>
                         </div>
                       )}
                     </div>
@@ -423,7 +440,6 @@ function DashboardContent() {
                                   {o?.project?.status === 'COMPLETED' ? <CheckCircle2 size={14}/> : <Briefcase size={14}/>}
                                   {STATUS_LABELS[o?.project?.status] || '進行中'}
                               </span>
-                              {/* ★ 修正: sliceエラー防止 */}
                               <span className="text-[10px] font-bold text-slate-400 font-mono">ID: {o?.projectId?.slice(0,6) || '不明'}</span>
                           </div>
 
@@ -438,7 +454,6 @@ function DashboardContent() {
                                           <Calendar className="text-slate-400 shrink-0 mt-0.5" size={16}/>
                                           <div>
                                               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">納品日時</p>
-                                              {/* ★ 修正: 日付のエラー防止 */}
                                               <p className="text-sm font-bold text-slate-700">{o?.project?.deliveryDateTime ? new Date(o.project.deliveryDateTime).toLocaleString('ja-JP', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '未定'}</p>
                                           </div>
                                       </div>
@@ -545,7 +560,6 @@ function DashboardContent() {
                             </div>
                           )}
                           <div className="p-5 flex flex-col flex-grow">
-                            {/* ★ 修正: 日付のエラー防止 */}
                             <p className="text-[10px] font-black text-slate-400 mb-2 uppercase tracking-widest flex items-center gap-1"><Clock size={12}/> {post?.createdAt ? new Date(post.createdAt).toLocaleDateString() : ''}</p>
                             <p className="text-sm font-bold text-slate-700 whitespace-pre-wrap leading-relaxed mb-4 line-clamp-4 flex-grow"><JpText>{post?.content || ''}</JpText></p>
                             

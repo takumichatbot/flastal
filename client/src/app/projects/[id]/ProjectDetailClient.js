@@ -1140,19 +1140,7 @@ export default function ProjectDetailClient() {
                         </AppCard>
                     )}
 
-                    {isPlanner && project.offers?.some(o => o.status === 'ACCEPTED') && (
-                        <AppCard className="bg-gradient-to-r from-sky-500 to-indigo-500 border-none !p-4 md:!p-6 text-white shadow-lg shadow-indigo-200/50">
-                            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-                                <div>
-                                    <h3 className="text-base font-black flex items-center gap-2"><MessageSquare size={18}/> お花屋さんとの専用チャット</h3>
-                                    <p className="text-xs font-bold text-sky-100 mt-1">デザインのすり合わせや進捗の確認はこちらで行います（支援者には非公開）</p>
-                                </div>
-                                <Link href={`/projects/${project.id}/florist-chat`} className="w-full sm:w-auto px-8 py-3.5 bg-white text-sky-600 rounded-xl font-black text-sm hover:bg-sky-50 transition-colors shadow-sm whitespace-nowrap text-center active:scale-95">
-                                    チャットを開く
-                                </Link>
-                            </div>
-                        </AppCard>
-                    )}
+                    
 
                     {!(isPlanner || isPledger || isFlorist || isAssignedIllustrator) && (
                         <AppCard className="text-center py-16 bg-slate-50">
@@ -1168,6 +1156,14 @@ export default function ProjectDetailClient() {
                                 <button onClick={() => setCollabTab('chat')} className={cn("px-4 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 whitespace-nowrap transition-all", collabTab === 'chat' ? 'bg-slate-900 text-white shadow-md' : 'bg-white text-slate-500 hover:bg-slate-100 shadow-sm border border-slate-200')}>
                                     <MessageSquare size={16}/> ミーティング
                                 </button>
+                                
+                                {/* ★ ここに「お花屋さんとチャット」ボタンを追加！(目立つように青色にしています) */}
+                                {isPlanner && project.offers?.some(o => o.status === 'ACCEPTED') && (
+                                    <Link href={`/projects/${project.id}/florist-chat`} className="px-4 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 whitespace-nowrap transition-all bg-sky-500 text-white hover:bg-sky-600 shadow-md border border-sky-400">
+                                        <MessageSquare size={16}/> 花屋と個別相談
+                                    </Link>
+                                )}
+
                                 <button onClick={() => setCollabTab('board')} className={cn("px-4 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 whitespace-nowrap transition-all", collabTab === 'board' ? 'bg-slate-900 text-white shadow-md' : 'bg-white text-slate-500 hover:bg-slate-100 shadow-sm border border-slate-200')}>
                                     <ImageIcon size={16}/> アイデアボード
                                 </button>
