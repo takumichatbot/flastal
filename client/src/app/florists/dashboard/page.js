@@ -1,570 +1,684 @@
 'use client';
 
-export const dynamic = 'force-dynamic';
-
-import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
-import Link from 'next/link';
-import Image from 'next/image';
-import { useRouter, useSearchParams } from 'next/navigation';
-import toast from 'react-hot-toast';
+import { useState, useEffect, useCallback } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/app/contexts/AuthContext';
-import ApprovalPendingCard from '@/components/dashboard/ApprovalPendingCard'; 
-import FloristAppealPostForm from '@/components/dashboard/FloristAppealPostForm';
+import Image from 'next/image';
+import Link from 'next/link';
+import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 
+// --- Icons ---
 import { 
-  CheckCircle2, FileText, Calendar, MapPin, 
-  Clock, ChevronLeft, ChevronRight, Camera, User, 
-  Eye, EyeOff, Trash2, DollarSign, LogOut, ArrowRight,
-  Briefcase, AlertCircle, Loader2, Star, Image as ImageIcon, Send, Truck, MessageSquare
-} from 'lucide-react'; 
+    Clock, MapPin, User, Calendar, FileText, Send, 
+    ArrowLeft, DollarSign, CheckCircle2, AlertTriangle, 
+    XCircle, MessageSquare, Briefcase, Loader2, Image as ImageIcon,
+    Printer, X, Truck, ClipboardList, PackageCheck, Undo2, Camera 
+} from 'lucide-react';
+
+// --- Components ---
+import QuotationCreateModal from '@/components/project/QuotationCreateModal';
+import FloristMaterialModal from '@/components/project/FloristMaterialModal';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
-function cn(...classes) {
-  return classes.filter(Boolean).join(' ');
+function cn(...classes) { return classes.filter(Boolean).join(' '); }
+
+// 🎨 ヘルパーコンポーネント
+const AppCard = ({ children, className }) => (
+    <div className={`bg-white/80 backdrop-blur-xl border border-white shadow-[0_8px_30px_rgba(0,0,0,0.04)] rounded-[2.5rem] p-6 md:p-8 ${className}`}>
+        {children}
+    </div>
+);
+const JpText = ({ children }) => <span className="inline-block leading-relaxed">{children}</span>;
+
+// ==========================================
+// 📄 サブコンポーネント群
+// ==========================================
+
+// 1. FLASTAL名義の納品書モーダル
+function DeliveryNoteModal({ project, onClose }) {
+    const handlePrint = () => {
+        const printWindow = window.open('', '_blank');
+        printWindow.document.write(`
+            <html>
+            <head>
+                <title>納品書_${project.title}</title>
+                <style>
+                    body { font-family: "Noto Sans JP", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif; margin: 0; padding: 20px; color: #333; }
+                    .print-container { max-width: 800px; margin: 0 auto; padding: 40px; background: #fff; }
+                    .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 40px; border-bottom: 2px solid #0284c7; padding-bottom: 20px; }
+                    .title { font-size: 28px; margin: 0; color: #0f172a; letter-spacing: 2px; }
+                    .subtitle { margin: 5px 0 0; color: #64748b; font-size: 14px; }
+                    .meta { text-align: right; color: #64748b; font-size: 14px; line-height: 1.6; }
+                    .info-blocks { display: flex; justify-content: space-between; margin-bottom: 50px; }
+                    .venue-info h2, .details-info h2 { font-size: 18px; margin: 0 0 10px; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px; color: #0f172a; }
+                    .venue-info p { margin: 5px 0; font-size: 15px; }
+                    .issuer-info { font-size: 14px; text-align: right; color: #475569; line-height: 1.6; }
+                    .issuer-name { margin: 0; font-weight: bold; color: #0284c7; font-size: 16px; }
+                    table { width: 100%; border-collapse: collapse; font-size: 15px; margin-bottom: 40px; }
+                    th { padding: 12px; text-align: left; background-color: #f8fafc; border-top: 1px solid #cbd5e1; border-bottom: 1px solid #cbd5e1; color: #475569; font-weight: bold; }
+                    td { padding: 15px 12px; border-bottom: 1px dashed #e2e8f0; }
+                    .total-row td { border-bottom: 1px solid #cbd5e1; background-color: #f0f9ff; font-weight: bold; color: #0369a1; font-size: 16px; }
+                    .notes { margin-top: 60px; padding: 20px; background-color: #f8fafc; border-radius: 8px; font-size: 13px; color: #64748b; line-height: 1.6; }
+                    .notes p { margin: 0 0 5px; }
+                </style>
+            </head>
+            <body>
+                <div class="print-container">
+                    <div class="header">
+                        <div>
+                            <h1 class="title">納品書</h1>
+                            <p class="subtitle">DELIVERY NOTE</p>
+                        </div>
+                        <div class="meta">
+                            <p style="margin: 0;">発行日: ${new Date().toLocaleDateString('ja-JP')}</p>
+                            <p style="margin: 0;">企画ID: ${project.id.slice(0, 8).toUpperCase()}</p>
+                        </div>
+                    </div>
+
+                    <div class="info-blocks">
+                        <div class="venue-info">
+                            <h2>お届け先（会場）</h2>
+                            <p><strong>会場名:</strong> ${project.venue?.venueName || '未定'}</p>
+                            <p><strong>住所:</strong> ${project.venue?.address || project.deliveryAddress || '未定'}</p>
+                            <p><strong>イベント名:</strong> ${project.event?.title || '未定'}</p>
+                        </div>
+                        <div class="issuer-info">
+                            <p class="issuer-name">FLASTAL運営事務局 (KIREI-CHANNEL)</p>
+                            <p>〒170-0005<br> 東京都豊島区南大塚１丁目２２−２　CASA大塚１０１</p>
+                            <p>Email: support@flastal.com</p>
+                        </div>
+                    </div>
+
+                    <div class="details-info">
+                        <h2>ご依頼内容</h2>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th style="width: 30%;">項目</th>
+                                    <th>詳細</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td style="font-weight: bold; color: #475569;">企画名</td>
+                                    <td>${project.title}</td>
+                                </tr>
+                                <tr>
+                                    <td style="font-weight: bold; color: #475569;">ご依頼主（企画者）</td>
+                                    <td>${project.planner?.handleName || project.planner?.name || '不明'} 様</td>
+                                </tr>
+                                <tr>
+                                    <td style="font-weight: bold; color: #475569;">納品日時</td>
+                                    <td>${new Date(project.deliveryDateTime).toLocaleString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</td>
+                                </tr>
+                                <tr>
+                                    <td style="font-weight: bold; color: #475569;">品名</td>
+                                    <td>祝花・フラワースタンド一式</td>
+                                </tr>
+                                ${project.quotation ? `
+                                <tr class="total-row">
+                                    <td>合計金額（参考）</td>
+                                    <td>${project.quotation.totalAmount.toLocaleString()} 円 (税込)</td>
+                                </tr>
+                                ` : ''}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="notes">
+                        <p style="font-weight: bold; margin-bottom: 10px; color: #334155;">【備考】</p>
+                        <p>※ 本納品書はFLASTALのシステムより自動発行されたものです。</p>
+                        <p>※ 代金はクラウドファンディングを通じた事前決済により、FLASTAL運営事務局より支払われます。</p>
+                        <p>※ この書類に関するお問い合わせは、FLASTAL運営事務局までお願いいたします。</p>
+                    </div>
+                </div>
+                <script>
+                    window.onload = function() { window.print(); }
+                </script>
+            </body>
+            </html>
+        `);
+        printWindow.document.close();
+    };
+
+    return (
+        <div className="fixed inset-0 bg-slate-900/60 flex justify-center items-center z-50 p-4 backdrop-blur-sm">
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-lg flex flex-col overflow-hidden border border-white">
+                <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                    <div>
+                        <h3 className="text-xl font-black flex items-center text-slate-800 tracking-tight">
+                            <Printer className="mr-2 text-sky-500" size={24}/> 納品書の発行
+                        </h3>
+                    </div>
+                    <button onClick={onClose} className="text-slate-400 hover:text-slate-600 bg-white p-2 rounded-full shadow-sm transition-colors"><X size={20}/></button>
+                </div>
+                
+                <div className="p-8 bg-white text-center">
+                    <div className="w-20 h-20 bg-sky-50 text-sky-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
+                        <FileText size={36} />
+                    </div>
+                    <h4 className="text-lg font-black text-slate-800 mb-2">FLASTAL名義の納品書</h4>
+                    <p className="text-sm font-bold text-slate-500 leading-relaxed mb-6">
+                        会場への搬入時に必要な納品書を印刷、またはPDFとして保存できます。<br/>
+                        金額などの情報は自動的に反映されます。
+                    </p>
+                    
+                    <button onClick={handlePrint} className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black hover:bg-slate-800 shadow-lg transition-all flex items-center justify-center gap-2 active:scale-95">
+                        <Printer size={18}/> 印刷・PDF保存プレビューを開く
+                    </button>
+                </div>
+            </motion.div>
+        </div>
+    );
 }
 
-// 🎨 Glassmorphism UI Components
-const GlassCard = ({ children, className }) => (
-  <div className={cn("bg-white/80 backdrop-blur-xl border border-white shadow-[0_8px_30px_rgba(0,0,0,0.04)] rounded-[2.5rem] p-6 md:p-8", className)}>
-    {children}
-  </div>
-);
-
-const Reveal = ({ children, delay = 0 }) => (
-  <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay, ease: "easeOut" }}>
-    {children}
-  </motion.div>
-);
-
-const JpText = ({ children, className }) => <span className={cn("inline-block", className)}>{children}</span>;
-
-const StatCard = ({ title, value, icon: Icon, color = "sky" }) => {
-  const colors = {
-    sky: "bg-sky-50 text-sky-500 border-sky-100",
-    pink: "bg-pink-50 text-pink-500 border-pink-100",
-    emerald: "bg-emerald-50 text-emerald-500 border-emerald-100",
-  };
-  return (
-    <div className="bg-white/60 backdrop-blur-md p-6 md:p-8 rounded-[2rem] border border-white shadow-sm flex items-center gap-5 transition-transform hover:-translate-y-1">
-      <div className={cn("p-4 rounded-[1.5rem] border shadow-inner", colors[color])}>
-        <Icon size={28} />
-      </div>
-      <div>
-        <p className="text-[10px] md:text-xs text-slate-400 font-black uppercase tracking-widest mb-1">{title}</p>
-        <p className="text-2xl md:text-3xl font-black text-slate-800 tracking-tighter">{value}</p>
-      </div>
-    </div>
-  );
-};
-
-const STATUS_LABELS = {
-  'NOT_STARTED': '未着手',
-  'FLORIST_MATCHED': '相談中',
-  'DESIGN_FIXED': 'デザイン決定',
-  'PANELS_RECEIVED': 'パネル受取済',
-  'IN_PRODUCTION': '制作中',
-  'PRE_COMPLETION': '前日写真UP済',
-  'COMPLETED': '完了済',
-  'FUNDRAISING': '募集中',
-  'CANCELED': '中止'
-};
-
-// --- カレンダーコンポーネント ---
-function CalendarView({ events }) {
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const [selectedDate, setSelectedDate] = useState(new Date());
-
-  const year = currentDate.getFullYear();
-  const month = currentDate.getMonth(); 
-  const firstDay = new Date(year, month, 1);
-  const lastDay = new Date(year, month + 1, 0);
-  
-  const days = [];
-  for (let i = 0; i < firstDay.getDay(); i++) days.push(null);
-  for (let i = 1; i <= lastDay.getDate(); i++) days.push(new Date(year, month, i));
-
-  const selectedEvents = events.filter(e => new Date(e.date).toDateString() === selectedDate.toDateString());
-
-  return (
-    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col lg:flex-row gap-6 md:gap-8">
-      {/* カレンダー本体 */}
-      <div className="lg:w-2/3 bg-slate-50/50 p-6 md:p-8 rounded-[2rem] border border-slate-100">
-        <div className="flex justify-between items-center mb-8">
-          <h3 className="text-xl md:text-2xl font-black text-slate-800 tracking-tighter">{year}年 {month + 1}月</h3>
-          <div className="flex gap-2 bg-white rounded-full p-1 border border-slate-200 shadow-sm">
-            <button onClick={() => setCurrentDate(new Date(year, month - 1, 1))} className="w-8 h-8 flex items-center justify-center hover:bg-slate-100 rounded-full text-slate-400 transition-colors"><ChevronLeft size={18}/></button>
-            <button onClick={() => setCurrentDate(new Date())} className="px-4 py-1 text-xs font-black text-slate-600 rounded-full hover:bg-slate-100 transition-colors">今日</button>
-            <button onClick={() => setCurrentDate(new Date(year, month + 1, 1))} className="w-8 h-8 flex items-center justify-center hover:bg-slate-100 rounded-full text-slate-400 transition-colors"><ChevronRight size={18}/></button>
-          </div>
-        </div>
-        
-        <div className="grid grid-cols-7 gap-2 text-center mb-3">
-          {['日', '月', '火', '水', '木', '金', '土'].map((d, i) => (
-            <div key={i} className={cn("text-[10px] font-black uppercase tracking-widest", i === 0 ? 'text-rose-400' : i === 6 ? 'text-sky-400' : 'text-slate-400')}>{d}</div>
-          ))}
-        </div>
-        
-        <div className="grid grid-cols-7 gap-2">
-          {days.map((date, idx) => {
-            if (!date) return <div key={idx} className="min-h-[80px] md:min-h-[100px] bg-transparent"></div>;
-            const dayEvents = events.filter(e => new Date(e.date).toDateString() === date.toDateString());
-            const isToday = new Date().toDateString() === date.toDateString();
-            const isSelected = selectedDate.toDateString() === date.toDateString();
-            
-            return (
-              <div key={idx} onClick={() => setSelectedDate(date)} 
-                className={cn(
-                  "min-h-[80px] md:min-h-[100px] rounded-2xl p-2 cursor-pointer transition-all flex flex-col justify-start border-2",
-                  isSelected ? 'border-pink-400 bg-pink-50 shadow-md ring-4 ring-pink-100/50' : 
-                  isToday ? 'border-sky-200 bg-white shadow-sm' : 'border-transparent bg-white hover:border-slate-200 hover:bg-slate-50'
-                )}
-              >
-                <div className="flex justify-between items-start mb-1">
-                    <span className={cn("text-xs font-black w-6 h-6 flex items-center justify-center rounded-full", isToday ? 'bg-sky-500 text-white' : isSelected ? 'text-pink-600' : 'text-slate-600')}>{date.getDate()}</span>
-                    {dayEvents.length > 0 && <span className="w-2 h-2 bg-pink-500 rounded-full mt-1.5 mr-1 shadow-sm shadow-pink-200"></span>}
-                </div>
-                <div className="space-y-1 overflow-hidden">
-                  {dayEvents.slice(0, 2).map(e => (
-                    <div key={e.id} className="text-[9px] font-bold bg-indigo-50 border border-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded-md truncate shadow-sm">
-                      {e.title}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* スケジュール詳細 */}
-      <div className="lg:w-1/3 space-y-4">
-        <div className="bg-white/60 p-6 md:p-8 rounded-[2rem] border border-white shadow-sm h-full backdrop-blur-md">
-          <h3 className="text-sm font-black text-slate-700 mb-6 flex items-center gap-2 uppercase tracking-widest"><Calendar className="text-pink-500" size={18}/> {selectedDate.toLocaleDateString('ja-JP')} の予定</h3>
-          <div className="space-y-4 overflow-y-auto max-h-[500px] pr-2 no-scrollbar">
-            {selectedEvents.length > 0 ? selectedEvents.map(event => (
-              <Link key={event.id} href={`/florists/projects/${event.projectId || event.id}`} className="block group">
-                <div className="p-4 md:p-5 bg-white rounded-2xl border border-slate-100 shadow-sm group-hover:border-pink-300 group-hover:shadow-md transition-all">
-                  <div className="flex justify-between items-center mb-3">
-                    <span className="text-[10px] font-black flex items-center text-slate-500 bg-slate-50 px-2 py-1 rounded-md border border-slate-100"><Clock className="mr-1.5" size={12}/> {new Date(event.date).getHours()}:{String(new Date(event.date).getMinutes()).padStart(2, '0')}</span>
-                    <span className="text-[9px] bg-emerald-50 border border-emerald-100 text-emerald-600 px-2 py-1 rounded-full font-black uppercase tracking-widest">{STATUS_LABELS[event.status] || '進行中'}</span>
-                  </div>
-                  <h4 className="font-bold text-slate-800 text-sm mb-3 line-clamp-2 group-hover:text-pink-600 transition-colors leading-snug">{event.title}</h4>
-                  <div className="text-xs font-bold text-slate-400 flex items-start gap-1.5 bg-slate-50 p-2 rounded-lg"><MapPin className="shrink-0 text-slate-300" size={14}/><span className="line-clamp-2">{event.location || '場所未定'}</span></div>
-                </div>
-              </Link>
-            )) : (
-              <div className="text-center py-16 bg-slate-50/50 rounded-2xl border-2 border-dashed border-slate-200">
-                <p className="mb-3 text-3xl opacity-50">🌿</p>
-                <p className="text-xs font-bold text-slate-400">納品予定はありません。</p>
-              </div>
+// 2. ロジスティクスカード
+function LogisticsCard({ icon, label, status, onToggle, color = "sky" }) {
+    const colors = {
+        sky: status ? "bg-sky-500 text-white border-sky-500" : "bg-white text-slate-400 border-slate-200 hover:border-sky-200",
+        amber: status ? "bg-amber-500 text-white border-amber-500" : "bg-white text-slate-400 border-slate-200 hover:border-amber-200",
+    };
+    return (
+        <button 
+            onClick={() => onToggle(!status)}
+            className={cn(
+                "flex flex-col items-center justify-center p-4 md:p-6 rounded-2xl border-2 transition-all group cursor-pointer w-full shadow-sm",
+                colors[color]
             )}
-          </div>
-        </div>
-      </div>
-    </motion.div>
-  );
+        >
+            <div className={cn("mb-2 group-hover:scale-110 transition-transform", status ? "text-white" : "text-slate-300")}>
+                {status ? <CheckCircle2 size={28}/> : icon}
+            </div>
+            <span className="text-[11px] md:text-xs font-black text-center leading-tight">{label}</span>
+            <span className="text-[10px] mt-1 opacity-70 font-bold">{status ? '完了' : '未完了'}</span>
+        </button>
+    );
 }
 
-// --- メインページコンテンツ ---
-function DashboardContent() {
-  const { user, logout, isLoading, authenticatedFetch } = useAuth(); 
-  const router = useRouter();
-  const searchParams = useSearchParams();
+// 3. 写真アップロードエリア (S3への直接アップロード)
+function PhotoUploadArea({ urls = [], type, projectId, onUploadComplete }) {
+    const [uploading, setUploading] = useState(false);
 
-  const [data, setData] = useState(null);
-  const [errorInfo, setErrorInfo] = useState(null);
-  const [activeTab, setActiveTab] = useState('pending');
-  const isFetching = useRef(false);
-
-  useEffect(() => {
-    const tab = searchParams.get('tab');
-    if (tab) setActiveTab(tab);
-  }, [searchParams]);
-
-  const fetchData = useCallback(async () => {
-    if (isFetching.current) return;
-    isFetching.current = true;
-    try {
-      const [dashboardRes, scheduleRes] = await Promise.all([
-        authenticatedFetch(`${API_URL}/api/florists/profile`),
-        authenticatedFetch(`${API_URL}/api/florists/schedule`).catch(() => null)
-      ]);
-
-      if (dashboardRes && dashboardRes.ok) {
-        const floristDataRes = await dashboardRes.json();
-        const scheduleData = (scheduleRes && scheduleRes.ok) ? await scheduleRes.json() : [];
-        setData({ ...floristDataRes, scheduleEvents: scheduleData });
-        setErrorInfo(null);
-      } else if (dashboardRes && dashboardRes.status === 401) {
-        setErrorInfo("API Error: 401");
-      }
-    } catch (error) {
-      setErrorInfo(error.message);
-    } finally {
-      isFetching.current = false;
-    }
-  }, [authenticatedFetch]);
-
-  useEffect(() => {
-    if (!isLoading && user && user.role === 'FLORIST' && user.status === 'APPROVED') {
-      fetchData();
-    }
-  }, [isLoading, user, fetchData]);
-
-  const handleDeleteAppealPost = async (postId) => {
-    if (!window.confirm("本当に削除しますか？")) return;
-    const toastId = toast.loading('削除中...');
-    try {
-      const res = await authenticatedFetch(`${API_URL}/api/florists/posts/${postId}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('削除に失敗しました');
-      toast.success('削除しました', { id: toastId });
-      fetchData();
-    } catch (e) { toast.error(e.message, { id: toastId }); }
-  };
-
-  const handleToggleVisibility = async (post) => {
-    const toastId = toast.loading('更新中...');
-    try {
-      const res = await authenticatedFetch(`${API_URL}/api/florists/posts/${post.id}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ isPublic: !post.isPublic })
-      });
-      if (!res.ok) throw new Error('更新に失敗しました');
-      toast.success('更新しました', { id: toastId });
-      fetchData();
-    } catch (e) { toast.error(e.message, { id: toastId }); }
-  };
-
-  if (isLoading) {
-    return <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50"><Loader2 className="animate-spin text-pink-500 mb-4" size={40}/><p className="text-xs font-black tracking-widest text-slate-400 uppercase">Loading Dashboard...</p></div>;
-  }
-
-  if (!user || user.role !== 'FLORIST' || errorInfo) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 p-4">
-        <div className="bg-white p-10 rounded-[3rem] border border-red-100 flex flex-col items-center max-w-md w-full shadow-2xl">
-          <div className="w-20 h-20 bg-red-50 text-red-500 rounded-[1.5rem] flex items-center justify-center mb-6 shadow-inner"><AlertCircle size={40} /></div>
-          <h1 className="text-2xl font-black text-slate-800 mb-2 text-center tracking-tighter">セッションエラー</h1>
-          <p className="text-xs font-bold text-slate-400 mb-8 text-center leading-relaxed">認証情報が確認できませんでした。<br/>再度ログインをお試しください。</p>
-          <button onClick={() => logout()} className="w-full py-4 bg-slate-900 text-white rounded-full font-black hover:bg-slate-800 transition-colors shadow-lg">再ログインする</button>
-        </div>
-      </div>
-    );
-  }
-
-  if (user.status !== 'APPROVED') {
-    return (
-      <div className="min-h-screen bg-slate-50 p-4 font-sans text-slate-800 relative overflow-hidden">
-        <div className="absolute top-[-10%] right-[-5%] w-[400px] h-[400px] bg-pink-200/30 rounded-full blur-[100px] pointer-events-none" />
-        <header className="flex justify-between items-center py-4 px-6 md:px-8 bg-white/80 backdrop-blur-md rounded-full shadow-sm border border-white max-w-5xl mx-auto mt-6 relative z-10">
-          <h1 className="font-black text-slate-800 flex items-center gap-2"><Briefcase className="text-pink-500" size={18}/> Florist Dashboard</h1>
-          <button onClick={() => logout()} className="text-xs font-bold text-slate-400 hover:text-red-500 flex items-center gap-1 transition-colors"><LogOut size={14}/> ログアウト</button>
-        </header>
-        <div className="max-w-2xl mx-auto mt-12 relative z-10"><ApprovalPendingCard /></div>
-      </div>
-    );
-  }
-
-  if (!data) return <div className="min-h-screen flex items-center justify-center bg-slate-50"><Loader2 className="animate-spin text-pink-500" size={40}/></div>;
-
-  const { offers = [], appealPosts = [], scheduleEvents = [], balance = 0, platformName } = data;
-  
-  // 新着オファーのフィルター
-  const pendingOffers = offers.filter(o => 
-      o.status === 'PENDING' && 
-      o.project && 
-      o.project.status !== 'CANCELED' && 
-      o.project.status !== 'COMPLETED' && 
-      o.project.status !== 'REJECTED' &&
-      o.project.visibility !== 'UNLISTED'
-  );
-  
-  // 対応中の企画のフィルター
-  const acceptedOffers = offers.filter(o => 
-      o.status === 'ACCEPTED' && 
-      o.project && 
-      o.project.status !== 'CANCELED' && 
-      o.project.visibility !== 'UNLISTED'
-  );
-
-  return (
-    <div className="min-h-screen bg-slate-50/50 font-sans pb-24 relative overflow-hidden">
-      {/* 背景の装飾 */}
-      <div className="absolute top-0 right-0 w-[50vw] h-[50vw] bg-pink-100/40 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/3 pointer-events-none z-0" />
-      <div className="absolute bottom-0 left-0 w-[50vw] h-[50vw] bg-sky-100/30 rounded-full blur-[120px] translate-y-1/3 -translate-x-1/3 pointer-events-none z-0" />
-
-      {/* Header */}
-      <header className="bg-white/80 backdrop-blur-xl border-b border-white sticky top-0 z-40 shadow-[0_4px_20px_rgba(0,0,0,0.02)]">
-        <div className="max-w-7xl mx-auto py-5 px-6 lg:px-8 flex justify-between items-center">
-          <div>
-            <p className="text-[9px] md:text-[10px] font-black text-pink-500 uppercase tracking-[0.2em] mb-0.5">Professional Menu</p>
-            <h1 className="text-lg md:text-2xl font-black text-slate-800 flex items-center gap-2 tracking-tighter"><Briefcase className="text-slate-400 hidden sm:block" size={20}/> お花屋さんダッシュボード</h1>
-          </div>
-          <div className="flex items-center gap-4">
-            <span className="hidden sm:inline-block text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1.5 rounded-full">{platformName} さん</span>
-            <button onClick={() => logout()} className="w-10 h-10 md:w-auto md:h-auto md:px-5 md:py-2.5 bg-white border border-slate-200 rounded-full text-slate-500 md:text-xs font-black hover:text-red-500 hover:border-red-200 hover:bg-red-50 flex items-center justify-center gap-1.5 shadow-sm transition-all">
-              <LogOut size={16}/> <span className="hidden md:inline">ログアウト</span>
-            </button>
-          </div>
-        </div>
-      </header>
-
-      <main className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8 space-y-8 md:space-y-12 relative z-10">
+    const handleUpload = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        setUploading(true);
+        const toastId = toast.loading('アップロード中...');
         
-        {/* Appeal Post Form */}
-        <Reveal>
-          <div className="bg-white/80 backdrop-blur-xl rounded-[2.5rem] border border-white shadow-sm p-6 md:p-8">
-            <FloristAppealPostForm user={user} onPostSuccess={fetchData} />
-          </div>
-        </Reveal>
+        try {
+            const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
 
-        {/* Stats */}
-        <Reveal delay={0.1}>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-            <StatCard title="現在の売上残高" value={`${balance.toLocaleString()} pt`} icon={DollarSign} color="emerald" />
-            <StatCard title="対応中の企画" value={`${acceptedOffers.length} 件`} icon={CheckCircle2} color="sky" />
-            <div className="bg-gradient-to-br from-slate-900 to-slate-800 p-6 md:p-8 rounded-[2rem] border border-slate-700 shadow-xl flex flex-col justify-center items-center text-center group transition-transform hover:-translate-y-1">
-              <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-3">Shop Profile</p>
-              <Link href="/florists/profile/edit" className="w-full px-6 py-3.5 font-black text-slate-900 bg-white rounded-full hover:bg-pink-50 transition-colors shadow-md flex items-center justify-center gap-2">
-                プロフィールを編集 <ArrowRight size={16} className="text-pink-500 group-hover:translate-x-1 transition-transform" />
-              </Link>
-            </div>
-          </div>
-        </Reveal>
+            const urlRes = await fetch(`${API_URL}/api/tools/s3-upload-url`, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}` 
+                },
+                body: JSON.stringify({ fileName: file.name, fileType: file.type })
+            });
+            
+            if (!urlRes.ok) throw new Error('署名付きURLの取得に失敗しました');
+            const { uploadUrl, fileUrl } = await urlRes.json();
 
-        {/* Main Tab Area */}
-        <Reveal delay={0.2}>
-          <GlassCard className="!p-0 overflow-hidden">
-            <div className="border-b border-slate-100 bg-slate-50/50 px-4 md:px-8 overflow-x-auto no-scrollbar">
-              <nav className="flex gap-2 md:gap-4 py-4 min-w-max">
-                {[
-                  { id: 'pending', label: '新着オファー', count: pendingOffers.length, icon: Star },
-                  { id: 'accepted', label: '対応中の企画', count: acceptedOffers.length, icon: CheckCircle2 },
-                  { id: 'schedule', label: 'スケジュール', icon: Calendar },
-                  { id: 'delivery', label: '配送・回収設定', icon: Truck },
-                  { id: 'payout', label: '売上・出金', icon: DollarSign },
-                  { id: 'appeal', label: '制作アピール', count: appealPosts.length, icon: Camera }
-                ].map(tab => (
-                  <button key={tab.id} onClick={() => setActiveTab(tab.id)} 
-                    className={cn(
-                      "px-5 py-3 rounded-full font-black text-xs md:text-sm flex items-center gap-2 transition-all shadow-sm border",
-                      activeTab === tab.id ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-500 border-slate-100 hover:border-pink-300 hover:text-pink-500'
-                    )}>
-                    <tab.icon size={16} className={activeTab === tab.id ? "text-pink-400" : ""}/>
-                    {tab.label}
-                    {tab.count !== undefined && (
-                      <span className={cn("px-2 py-0.5 rounded-full text-[10px]", activeTab === tab.id ? "bg-white/20" : "bg-slate-100 text-slate-400")}>{tab.count}</span>
-                    )}
-                  </button>
-                ))}
-              </nav>
-            </div>
+            await new Promise((resolve, reject) => {
+                const xhr = new XMLHttpRequest();
+                xhr.open('PUT', uploadUrl);
+                xhr.setRequestHeader('Content-Type', file.type);
+                xhr.onload = () => {
+                    if (xhr.status === 200) resolve(fileUrl);
+                    else reject(new Error('S3へのアップロードに失敗しました'));
+                };
+                xhr.onerror = () => reject(new Error('ネットワークエラーが発生しました'));
+                xhr.send(file);
+            });
 
-            <div className="p-6 md:p-10 min-h-[500px]">
-              <AnimatePresence mode="wait">
-                <motion.div key={activeTab} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.3 }}>
-                  
-                  {/* --- PENDING OFFERS --- */}
-                  {activeTab === 'pending' && (
-                    <div className="space-y-4">
-                      {pendingOffers.length > 0 ? pendingOffers.map(o => (
-                        <div key={o.id} className="p-6 bg-pink-50/50 rounded-[2rem] border-2 border-pink-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 group hover:bg-pink-50 transition-all shadow-sm">
-                          <div>
-                              <span className="text-[10px] bg-pink-500 text-white px-3 py-1 rounded-full font-black uppercase tracking-widest shadow-sm">New Offer</span>
-                              <h3 className="font-black text-slate-800 text-lg mt-3 mb-1 line-clamp-1 group-hover:text-pink-600 transition-colors">{o.project?.title}</h3>
-                              <p className="text-xs font-bold text-slate-400 flex items-center gap-1"><Clock size={12}/> 依頼日: {new Date(o.createdAt).toLocaleDateString()}</p>
-                          </div>
-                          
-                          {/* ★ リンク先を正しい企画詳細画面（表側）に変更！ */}
-                          <div className="w-full md:w-auto flex flex-col sm:flex-row gap-2">
-                             <Link href={`/projects/${o.projectId}`} className="w-full sm:w-auto text-center px-6 py-3.5 bg-white border border-slate-200 text-slate-600 rounded-full font-black hover:bg-slate-50 transition-all shadow-sm flex items-center justify-center gap-2">
-                                <MessageSquare size={16}/> 企画者とチャット
-                             </Link>
-                             <Link href={`/florists/projects/${o.projectId}`} className="w-full sm:w-auto text-center px-8 py-3.5 bg-pink-500 border border-transparent text-white rounded-full font-black hover:bg-pink-600 hover:shadow-lg transition-all shadow-sm">
-                                オファーを確認する
-                             </Link>
-                          </div>
-                        </div>
-                      )) : (
-                        <div className="text-center py-32 bg-slate-50/50 rounded-[2.5rem] border-2 border-dashed border-slate-200">
-                          <Star className="mx-auto text-slate-300 mb-4" size={48}/>
-                          <p className="text-slate-500 font-bold">新着の制作オファーはありません。</p>
-                        </div>
-                      )}
-                    </div>
-                  )}
+            const field = type === 'pre_photo' ? 'preEventPhotoUrls' : 'completionPhotoUrls';
+            const updateRes = await fetch(`${API_URL}/api/projects/${projectId}`, {
+                method: 'PATCH',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}` 
+                },
+                body: JSON.stringify({ [field]: [...urls, fileUrl] })
+            });
+            
+            if(!updateRes.ok) throw new Error('企画情報の更新に失敗しました');
 
-                  {/* --- ACCEPTED OFFERS --- */}
-                  {activeTab === 'accepted' && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                      {acceptedOffers.length > 0 ? acceptedOffers.map(o => (
-                        <div key={o.id} className="bg-white rounded-[2rem] border border-slate-200 shadow-sm hover:shadow-lg hover:border-sky-300 hover:-translate-y-1 transition-all group flex flex-col h-full overflow-hidden">
-                          
-                          <div className={cn(
-                              "px-5 py-3 border-b flex justify-between items-center",
-                              o.project?.status === 'COMPLETED' ? 'bg-slate-50 border-slate-200' : 'bg-sky-50/50 border-sky-100'
-                          )}>
-                              <span className={cn(
-                                  "text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5",
-                                  o.project?.status === 'COMPLETED' ? 'text-slate-500' : 'text-sky-600'
-                              )}>
-                                  {o.project?.status === 'COMPLETED' ? <CheckCircle2 size={14}/> : <Briefcase size={14}/>}
-                                  {STATUS_LABELS[o.project?.status] || '進行中'}
-                              </span>
-                              <span className="text-[10px] font-bold text-slate-400 font-mono">ID: {o.projectId.slice(0,6)}</span>
-                          </div>
+            toast.success('写真をアップロードしました', { id: toastId });
+            onUploadComplete();
+        } catch (error) {
+            toast.error(error.message, { id: toastId });
+        } finally {
+            setUploading(false);
+            e.target.value = ''; 
+        }
+    };
 
-                          <div className="p-6 flex-grow flex flex-col justify-between">
-                              <div>
-                                  <h3 className="font-black text-slate-800 text-lg mb-4 line-clamp-2 leading-snug group-hover:text-sky-600 transition-colors">
-                                      {o.project?.title}
-                                  </h3>
-                                  
-                                  <div className="space-y-3 mb-6">
-                                      <div className="flex items-start gap-2.5">
-                                          <Calendar className="text-slate-400 shrink-0 mt-0.5" size={16}/>
-                                          <div>
-                                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">納品日時</p>
-                                              <p className="text-sm font-bold text-slate-700">{new Date(o.project?.deliveryDateTime).toLocaleString('ja-JP', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
-                                          </div>
-                                      </div>
-                                      <div className="flex items-start gap-2.5">
-                                          <MapPin className="text-rose-400 shrink-0 mt-0.5" size={16}/>
-                                          <div>
-                                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">会場</p>
-                                              <p className="text-sm font-bold text-slate-700 line-clamp-1">{o.project?.venue?.venueName || '未定'}</p>
-                                          </div>
-                                      </div>
-                                      
-                                      {o.project?.quotation && (
-                                          <div className="flex items-start gap-2.5 pt-2 border-t border-slate-100">
-                                              <DollarSign className="text-emerald-500 shrink-0 mt-0.5" size={16}/>
-                                              <div>
-                                                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">受注確定額</p>
-                                                  <p className="text-base font-black text-emerald-600">{o.project.quotation.totalAmount?.toLocaleString()} <span className="text-xs">pt</span></p>
-                                              </div>
-                                          </div>
-                                      )}
-                                  </div>
-                              </div>
-
-                              {o.project?.quotation?.isApproved && (
-                                  <div className="flex gap-2 mb-6">
-                                      <div className={cn("flex-1 text-center py-1.5 rounded-lg text-[9px] font-black border", o.project?.preEventPhotoUrls?.length > 0 ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-slate-50 text-slate-400 border-slate-200")}>
-                                          {o.project?.preEventPhotoUrls?.length > 0 ? '前日写真OK' : '前日写真未'}
-                                      </div>
-                                      <div className={cn("flex-1 text-center py-1.5 rounded-lg text-[9px] font-black border", o.project?.completionPhotoUrls?.length > 0 ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-slate-50 text-slate-400 border-slate-200")}>
-                                          {o.project?.completionPhotoUrls?.length > 0 ? '完了写真OK' : '完了写真未'}
-                                      </div>
-                                  </div>
-                              )}
-
-                              <div className="flex flex-col gap-2">
-                                {/* ★ リンク先を正しい企画詳細画面（表側）に変更！ */}
-                                <Link 
-                                    href={`/projects/${o.projectId}`} 
-                                    className="w-full text-center py-3 bg-sky-50 text-sky-600 rounded-xl font-black text-sm hover:bg-sky-100 border border-sky-200 transition-colors flex items-center justify-center gap-2"
-                                >
-                                    <MessageSquare size={16}/> 企画者とチャット
-                                </Link>
-                                <Link 
-                                    href={`/florists/projects/${o.projectId}`} 
-                                    className="w-full text-center py-3 bg-slate-900 text-white rounded-xl font-black text-sm hover:bg-slate-800 shadow-md transition-colors flex items-center justify-center gap-2 group-hover:scale-[1.02]"
-                                >
-                                    管理画面を開く <ArrowRight size={16}/>
-                                </Link>
-                              </div>
-                          </div>
-                        </div>
-                      )) : (
-                        <div className="col-span-full text-center py-32 bg-slate-50/50 rounded-[2.5rem] border-2 border-dashed border-slate-200">
-                          <CheckCircle2 className="mx-auto text-slate-300 mb-4" size={48}/>
-                          <p className="text-slate-500 font-bold">進行中の企画はありません。</p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* --- SCHEDULE --- */}
-                  {activeTab === 'schedule' && <CalendarView events={scheduleEvents} />}
-
-                  {/* --- DELIVERY SETTINGS --- */}
-                  {activeTab === 'delivery' && (
-                    <div className="flex flex-col items-center justify-center py-20 bg-gradient-to-br from-sky-50 to-indigo-50/30 rounded-[3rem] border border-white shadow-[0_8px_30px_rgba(0,0,0,0.02)] text-center relative overflow-hidden">
-                      <div className="w-24 h-24 bg-white rounded-[2rem] shadow-xl mb-6 text-sky-500 flex items-center justify-center -rotate-3 border-4 border-sky-50 relative z-10">
-                        <Truck size={48} strokeWidth={2.5}/>
-                      </div>
-                      <h3 className="text-2xl md:text-3xl font-black text-slate-800 mb-4 tracking-tighter relative z-10">配送料金・回収費の設定</h3>
-                      <p className="text-sm font-bold text-slate-500 mb-8 relative z-10 leading-relaxed max-w-md mx-auto">
-                        配達エリアによる追加料金や、スタンド花の回収費を設定します。<br />
-                        ここで設定した内容は、ユーザーからのオファー時の見積もりに反映されます。
-                      </p>
-                      <Link href="/florists/dashboard/delivery" className="px-10 py-4 bg-slate-900 text-white font-black rounded-full shadow-lg flex items-center gap-2 hover:bg-slate-800 hover:-translate-y-1 transition-all relative z-10 text-lg">
-                        設定画面へ進む <ArrowRight size={20}/>
-                      </Link>
-                    </div>
-                  )}
-
-                  {/* --- PAYOUT --- */}
-                  {activeTab === 'payout' && (
-                    <div className="flex flex-col items-center justify-center py-24 bg-gradient-to-br from-emerald-50/50 to-sky-50/50 rounded-[3rem] border border-white shadow-[0_8px_30px_rgba(0,0,0,0.02)] text-center relative overflow-hidden">
-                      <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-5"></div>
-                      <div className="w-24 h-24 bg-white rounded-[2rem] shadow-xl mb-6 text-emerald-500 flex items-center justify-center rotate-3 border-4 border-emerald-50 relative z-10"><DollarSign size={48} strokeWidth={3}/></div>
-                      <h3 className="text-2xl md:text-3xl font-black text-slate-800 mb-3 tracking-tighter relative z-10">売上管理・出金申請</h3>
-                      <p className="text-sm font-bold text-slate-500 mb-8 relative z-10 leading-relaxed">銀行口座の設定や、<br className="md:hidden"/>確定した売上の引き出し手続きを行います。</p>
-                      <Link href="/florists/payouts" className="px-10 py-4 bg-emerald-500 text-white font-black rounded-full shadow-lg flex items-center gap-2 hover:bg-emerald-600 hover:scale-105 transition-all relative z-10 text-lg">
-                        出金管理ページへ <ArrowRight size={20}/>
-                      </Link>
-                    </div>
-                  )}
-
-                  {/* --- APPEAL POSTS --- */}
-                  {activeTab === 'appeal' && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                      {appealPosts.length > 0 ? appealPosts.map(post => (
-                        <div key={post.id} className="bg-white rounded-[2rem] shadow-sm border border-slate-100 overflow-hidden hover:shadow-md transition-shadow group flex flex-col h-full">
-                          <div className={cn("p-2 text-center font-black text-[10px] tracking-widest uppercase", post.isPublic ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-500')}>
-                            {post.isPublic ? '公開中' : '非公開 (下書き)'}
-                          </div>
-                          {post.imageUrl && (
-                            <div className="relative aspect-[4/3] bg-slate-50 overflow-hidden">
-                              <Image src={post.imageUrl} alt="" fill className="object-cover group-hover:scale-105 transition-transform duration-700" />
-                            </div>
-                          )}
-                          <div className="p-5 flex flex-col flex-grow">
-                            <p className="text-[10px] font-black text-slate-400 mb-2 uppercase tracking-widest flex items-center gap-1"><Clock size={12}/> {new Date(post.createdAt).toLocaleDateString()}</p>
-                            <p className="text-sm font-bold text-slate-700 whitespace-pre-wrap leading-relaxed mb-4 line-clamp-4 flex-grow"><JpText>{post.content}</JpText></p>
-                            
-                            <div className="pt-4 border-t border-slate-100 flex justify-end gap-2 mt-auto">
-                              <button onClick={() => handleToggleVisibility(post)} className="w-10 h-10 flex items-center justify-center bg-slate-50 border border-slate-100 rounded-full text-slate-500 hover:bg-sky-50 hover:text-sky-600 hover:border-sky-200 transition-colors shadow-sm" title={post.isPublic ? "非公開にする" : "公開する"}>
-                                {post.isPublic ? <EyeOff size={16}/> : <Eye size={16}/>}
-                              </button>
-                              <button onClick={() => handleDeleteAppealPost(post.id)} className="w-10 h-10 flex items-center justify-center bg-slate-50 border border-slate-100 rounded-full text-slate-400 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 transition-colors shadow-sm" title="削除">
-                                <Trash2 size={16}/>
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      )) : <div className="col-span-full text-center py-24 bg-slate-50/50 rounded-[2.5rem] border-2 border-dashed border-slate-200 text-slate-400 font-bold"><Camera className="mx-auto mb-4 opacity-50" size={48}/> アピール投稿の履歴がありません。</div>}
-                    </div>
-                  )}
-
-                </motion.div>
-              </AnimatePresence>
-            </div>
-          </GlassCard>
-        </Reveal>
-      </main>
-    </div>
-  );
+    return (
+        <div className="flex flex-wrap gap-3">
+            {urls.map((url, i) => (
+                <div key={i} className="relative w-20 h-20 md:w-24 md:h-24 rounded-xl overflow-hidden border border-slate-200 shadow-sm cursor-zoom-in hover:scale-105 transition-transform" onClick={()=>window.open(url,'_blank')}>
+                    <Image src={url} alt="" fill className="object-cover" />
+                </div>
+            ))}
+            <label className="w-20 h-20 md:w-24 md:h-24 rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 flex flex-col items-center justify-center cursor-pointer hover:bg-white hover:border-sky-300 transition-all text-slate-400 hover:text-sky-500 shadow-sm">
+                {uploading ? <Loader2 className="animate-spin" size={24}/> : <Camera size={24}/>}
+                <span className="text-[10px] font-black mt-2 uppercase">Upload</span>
+                <input type="file" className="hidden" accept="image/*" onChange={handleUpload} disabled={uploading} />
+            </label>
+        </div>
+    );
 }
 
-export default function FloristDashboardPage() {
-  return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50"><Loader2 className="animate-spin text-pink-500 w-12 h-12" /></div>}>
-      <DashboardContent />
-    </Suspense>
-  );
+// ==========================================
+// 👑 メイン画面
+// ==========================================
+export default function FloristProjectDetailPage() {
+    const params = useParams();
+    const router = useRouter();
+    const { id } = params; 
+    const { user, authenticatedFetch, loading: authLoading } = useAuth();
+
+    const [project, setProject] = useState(null);
+    const [offer, setOffer] = useState(null);
+    const [loading, setLoading] = useState(true);
+    
+    const [isQuotationModalOpen, setIsQuotationModalOpen] = useState(false);
+    const [isDeliveryNoteModalOpen, setIsDeliveryNoteModalOpen] = useState(false);
+    const [isMaterialModalOpen, setIsMaterialModalOpen] = useState(false); 
+
+    const fetchProjectDetails = useCallback(async () => {
+        if (!id || !user) return;
+        try {
+            setLoading(true);
+            const res = await authenticatedFetch(`${API_URL}/api/projects/${id}`);
+            if (!res.ok) throw new Error('企画情報の取得に失敗しました');
+            const data = await res.json();
+            setProject(data);
+
+            if (data.offer && data.offer.floristId === user.id) {
+                setOffer(data.offer);
+            }
+        } catch (error) {
+            toast.error(error.message);
+        } finally {
+            setLoading(false);
+        }
+    }, [id, user, authenticatedFetch]);
+
+    useEffect(() => {
+        if (!authLoading) {
+            if (!user || user.role !== 'FLORIST') {
+                router.push('/florists/login');
+                return;
+            }
+            fetchProjectDetails();
+        }
+    }, [authLoading, user, fetchProjectDetails, router]);
+
+    const handleRespondToOffer = async (status) => {
+        if (!offer) return;
+        const confirmMsg = status === 'ACCEPTED' ? 'このオファーを受諾して、チャットを開始しますか？' : '本当にこのオファーを辞退しますか？（取り消せません）';
+        if (!window.confirm(confirmMsg)) return;
+
+        const toastId = toast.loading('処理中...');
+        try {
+            const res = await authenticatedFetch(`${API_URL}/api/florists/offers/${offer.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status })
+            });
+
+            if (!res.ok) throw new Error('エラーが発生しました');
+            toast.success(status === 'ACCEPTED' ? 'オファーを受諾しました！' : 'オファーを辞退しました', { id: toastId });
+            fetchProjectDetails(); 
+        } catch (error) {
+            toast.error(error.message, { id: toastId });
+        }
+    };
+
+    const updateLogistics = async (field, value) => {
+        const toastId = toast.loading('ステータスを更新中...');
+        try {
+            const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+            const res = await fetch(`${API_URL}/api/projects/${id}`, {
+                method: 'PATCH',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ [field]: value })
+            });
+            
+            if (!res.ok) {
+                const data = await res.json().catch(()=>({}));
+                throw new Error(data.message || '更新に失敗しました');
+            }
+            
+            toast.success('ステータスを更新しました', { id: toastId });
+            fetchProjectDetails();
+        } catch (error) {
+            toast.error(error.message, { id: toastId });
+        }
+    };
+
+    if (authLoading || loading) {
+        return <div className="min-h-screen flex items-center justify-center bg-slate-50"><Loader2 className="animate-spin text-sky-500" size={40}/></div>;
+    }
+
+    if (!project) {
+        return (
+            <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 p-4">
+                <AlertTriangle size={48} className="text-slate-300 mb-4" />
+                <h2 className="text-xl font-black text-slate-700 mb-2">企画が見つかりません</h2>
+                <Link href="/florists/dashboard" className="px-6 py-3 bg-slate-900 text-white rounded-full font-bold hover:bg-slate-800 transition-colors">ダッシュボードに戻る</Link>
+            </div>
+        );
+    }
+
+    return (
+        <div className="min-h-screen bg-gradient-to-br from-sky-50/50 to-indigo-50/50 pb-24 font-sans text-slate-800 relative">
+            <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-sky-200/30 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/3 pointer-events-none z-0" />
+            
+            <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-8 relative z-10">
+                {/* ヘッダー・戻るボタン */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+                    <Link href="/florists/dashboard" className="inline-flex items-center gap-2 px-5 py-2.5 bg-white/80 backdrop-blur-sm rounded-full text-sm font-black text-slate-500 hover:text-sky-600 shadow-sm border border-white transition-all w-fit">
+                        <ArrowLeft size={16}/> ダッシュボードへ戻る
+                    </Link>
+                    
+                    {/* ★ リンク先を花屋専用チャット画面に変更！ */}
+                    <div className="flex gap-2">
+                        <Link href={`/florists/projects/${project.id}/chat`} className="bg-white border border-slate-200 text-slate-700 px-5 py-2.5 rounded-full text-xs font-black flex items-center gap-2 shadow-sm hover:bg-slate-50 transition-colors">
+                            <MessageSquare size={14}/> 企画者とチャット
+                        </Link>
+                    </div>
+                </div>
+
+                <div className="flex items-center justify-between mb-8">
+                    <div className="flex items-center gap-4">
+                        <div className="w-14 h-14 bg-sky-100 text-sky-500 rounded-[1.25rem] flex items-center justify-center shadow-inner shrink-0">
+                            <Briefcase size={28} />
+                        </div>
+                        <div>
+                            <h1 className="text-2xl md:text-3xl font-black text-slate-800 tracking-tight leading-tight">
+                                <JpText>{project.title}</JpText>
+                            </h1>
+                            <div className="flex items-center gap-3 mt-1.5">
+                                <span className="text-[10px] md:text-xs font-bold text-slate-500 uppercase tracking-widest bg-white px-2 py-0.5 rounded shadow-sm">
+                                    Project ID: {project.id.slice(0,6)}
+                                </span>
+                                <span className="text-[10px] md:text-xs font-bold text-slate-400 flex items-center gap-1">
+                                    <MapPin size={12}/> {project.venue?.venueName || '会場未定'}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* --- 案件ステータス・アクションエリア --- */}
+                <AppCard className="!p-0 overflow-hidden border-2 border-white shadow-xl mb-8">
+                    <div className="p-6 md:p-8 bg-slate-900 text-white flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                        <div>
+                            <p className="text-[10px] text-sky-300 font-black uppercase tracking-widest mb-2">現在のステータス</p>
+                            <div className="flex flex-wrap items-center gap-3">
+                                {offer?.status === 'PENDING' && <span className="bg-amber-500 text-white px-4 py-1.5 rounded-full text-sm font-black flex items-center gap-2"><Clock size={16}/> オファー回答待ち</span>}
+                                {offer?.status === 'ACCEPTED' && <span className="bg-emerald-500 text-white px-4 py-1.5 rounded-full text-sm font-black flex items-center gap-2"><CheckCircle2 size={16}/> オファー受諾済み</span>}
+                                {offer?.status === 'REJECTED' && <span className="bg-rose-500 text-white px-4 py-1.5 rounded-full text-sm font-black flex items-center gap-2"><XCircle size={16}/> 辞退済み</span>}
+                                
+                                {project.quotation?.isApproved && (
+                                    <span className="bg-sky-500 text-white px-4 py-1.5 rounded-full text-sm font-black flex items-center gap-2 shadow-sm">
+                                        <DollarSign size={16}/> 発注確定 (制作進行中)
+                                    </span>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* アクションボタン */}
+                        <div className="w-full md:w-auto">
+                            {offer?.status === 'PENDING' && (
+                                <div className="flex gap-3">
+                                    <button onClick={() => handleRespondToOffer('REJECTED')} className="flex-1 md:flex-none px-6 py-3 bg-slate-800 text-slate-300 font-black rounded-xl hover:bg-rose-500 hover:text-white transition-colors text-sm">
+                                        辞退する
+                                    </button>
+                                    <button onClick={() => handleRespondToOffer('ACCEPTED')} className="flex-1 md:flex-none px-8 py-3 bg-sky-500 text-white font-black rounded-xl hover:bg-sky-400 shadow-lg shadow-sky-500/30 transition-all text-sm">
+                                        受諾してチャットへ
+                                    </button>
+                                </div>
+                            )}
+
+                            {offer?.status === 'ACCEPTED' && !project.quotation && (
+                                <button 
+                                    onClick={() => setIsQuotationModalOpen(true)}
+                                    className="w-full md:w-auto px-8 py-3.5 bg-gradient-to-r from-sky-400 to-indigo-500 text-white font-black rounded-xl shadow-lg hover:shadow-indigo-500/30 active:scale-95 transition-all flex items-center justify-center gap-2"
+                                >
+                                    <FileText size={18}/> 見積もりを作成する
+                                </button>
+                            )}
+
+                            {project.quotation && !project.quotation.isApproved && (
+                                <div className="px-6 py-3 bg-slate-800 rounded-xl border border-slate-700 flex items-center gap-2 text-sm font-bold text-sky-300">
+                                    <Clock size={16}/> 企画者の支払い・承認待ち
+                                </div>
+                            )}
+
+                            {project.quotation?.isApproved && (
+                                <div className="flex flex-col sm:flex-row gap-3">
+                                    <button 
+                                        onClick={() => setIsDeliveryNoteModalOpen(true)} 
+                                        className="px-6 py-3.5 bg-white text-slate-800 font-black rounded-xl hover:bg-sky-50 transition-colors flex items-center justify-center gap-2 text-sm shadow-sm"
+                                    >
+                                        <Printer size={18}/> 納品書発行
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {project.quotation && (
+                        <div className="p-6 md:p-8 bg-sky-50/50 border-t border-slate-100 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+                            <div className="flex-1 w-full">
+                                <h3 className="font-black text-slate-700 text-xs uppercase tracking-widest mb-3 flex items-center gap-2"><FileText size={14} className="text-sky-500"/> 提出済みの見積もり</h3>
+                                <div className="space-y-2 mb-4">
+                                    {project.quotation.items?.map((item, idx) => (
+                                        <div key={idx} className="flex justify-between text-sm bg-white p-3 rounded-lg border border-slate-100 shadow-sm">
+                                            <span className="font-bold text-slate-600">{item.itemName}</span>
+                                            <span className="font-black text-slate-800">{item.amount.toLocaleString()} pt</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                            <div className="w-full md:w-1/3 bg-sky-100 p-5 rounded-2xl border border-sky-200 text-center shrink-0 shadow-sm">
+                                <p className="font-black text-sky-800 text-[10px] uppercase tracking-widest mb-1">お見積り合計 (確定額)</p>
+                                <p className="text-3xl font-black text-sky-600 tracking-tight">{project.quotation.totalAmount.toLocaleString()} <span className="text-sm">pt</span></p>
+                            </div>
+                        </div>
+                    )}
+                </AppCard>
+
+                {/* --- 案件詳細情報グリッド --- */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                    
+                    {/* 左側：メイン管理エリア */}
+                    <div className="lg:col-span-8 space-y-8">
+                        
+                        {/* 1. ロジスティクス管理 (物品受け取り) */}
+                        <AppCard className="!p-6 md:!p-8">
+                            <h2 className="text-lg font-black text-slate-800 mb-6 flex items-center gap-2 border-b border-slate-100 pb-4">
+                                <Truck className="text-sky-500" size={20}/> 物品・搬入管理
+                            </h2>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                <LogisticsCard 
+                                    icon={<ClipboardList size={28}/>} 
+                                    label="自作パネル受取" 
+                                    status={project.isPanelReceived} 
+                                    onToggle={(val) => updateLogistics('isPanelReceived', val)}
+                                />
+                                <LogisticsCard 
+                                    icon={<PackageCheck size={28}/>} 
+                                    label="持ち込みグッズ受取" 
+                                    status={project.isGoodsReceived} 
+                                    onToggle={(val) => updateLogistics('isGoodsReceived', val)}
+                                />
+                                <LogisticsCard 
+                                    icon={<Undo2 size={28}/>} 
+                                    label="パネル・小物返送" 
+                                    status={project.isReturnCompleted} 
+                                    onToggle={(val) => updateLogistics('isReturnCompleted', val)}
+                                    color="amber"
+                                />
+                            </div>
+                        </AppCard>
+
+                        {/* 2. 収支と実費精算 */}
+                        <AppCard className="!p-6 md:!p-8 bg-amber-50/30 border-amber-100/50">
+                            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6 border-b border-slate-100 pb-4">
+                                <h2 className="text-lg font-black text-slate-800 flex items-center gap-2">
+                                    <DollarSign className="text-amber-500" size={20}/> 実費・コスト管理
+                                </h2>
+                                <button onClick={() => setIsMaterialModalOpen(true)} className="text-xs font-black text-amber-600 bg-amber-100/80 px-4 py-2 rounded-xl hover:bg-amber-200 transition-colors shadow-sm flex items-center justify-center gap-1.5">
+                                    <DollarSign size={14}/> 実費を登録・更新する
+                                </button>
+                            </div>
+                            <div className="bg-white p-6 rounded-[1.5rem] border border-slate-100 shadow-sm">
+                                <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">現在発生している実費総額</p>
+                                <p className="text-3xl font-black text-slate-800 tracking-tight">
+                                    {project.materialCost?.toLocaleString() || 0} <span className="text-sm font-bold text-slate-500">pt (円)</span>
+                                </p>
+                                {project.materialDescription && (
+                                    <div className="mt-4 pt-4 border-t border-dashed border-slate-200">
+                                        <p className="text-[10px] font-black text-amber-500 uppercase tracking-widest mb-1.5">内訳・備考</p>
+                                        <p className="text-sm text-slate-600 font-medium leading-relaxed">{project.materialDescription}</p>
+                                    </div>
+                                )}
+                                {(!project.materialCost || project.materialCost === 0) && (
+                                    <p className="text-xs text-slate-400 font-bold mt-4">※実費を入力しておくと、万が一企画が中止になった際、この金額が優先して補填されます。</p>
+                                )}
+                            </div>
+                        </AppCard>
+
+                        {/* 3. 納品写真アップロード */}
+                        <AppCard className="!p-6 md:!p-8">
+                            <h2 className="text-lg font-black text-slate-800 mb-6 flex items-center gap-2 border-b border-slate-100 pb-4">
+                                <Camera className="text-rose-500" size={20}/> 納品・仕上がり写真
+                            </h2>
+                            <div className="space-y-8">
+                                <div className="bg-slate-50 p-5 md:p-6 rounded-[1.5rem] border border-slate-100">
+                                    <h3 className="text-sm font-black text-slate-700 mb-2 flex items-center gap-2"><CheckCircle2 className="text-emerald-500" size={16}/> 前日（仕上がり）写真</h3>
+                                    <p className="text-xs text-slate-500 font-bold mb-4">発送前や完成直後の写真をアップロードしてください。企画者の安心に繋がります。</p>
+                                    <PhotoUploadArea urls={project.preEventPhotoUrls} type="pre_photo" projectId={id} onUploadComplete={fetchProjectDetails} />
+                                </div>
+                                <div className="bg-slate-50 p-5 md:p-6 rounded-[1.5rem] border border-slate-100">
+                                    <h3 className="text-sm font-black text-slate-700 mb-2 flex items-center gap-2"><MapPin className="text-rose-500" size={16}/> 当日（納品完了）写真</h3>
+                                    <p className="text-xs text-slate-500 font-bold mb-4">会場に設置完了した状態の写真をアップロードしてください。</p>
+                                    <PhotoUploadArea urls={project.completionPhotoUrls} type="completion_photo" projectId={id} onUploadComplete={fetchProjectDetails} />
+                                </div>
+                            </div>
+                        </AppCard>
+                    </div>
+
+                    {/* 右側：インフォメーション */}
+                    <div className="lg:col-span-4 space-y-8">
+                        <section className="bg-slate-900 text-white rounded-[2rem] p-6 md:p-8 shadow-xl border border-slate-800 relative overflow-hidden">
+                            <div className="absolute top-0 right-0 w-32 h-32 bg-sky-500/20 rounded-full blur-2xl pointer-events-none"></div>
+                            <h3 className="text-xs font-black text-sky-400 uppercase tracking-widest mb-6 flex items-center gap-2"><Truck size={16}/> 配送・搬入情報</h3>
+                            <div className="space-y-6 relative z-10">
+                                <div>
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">希望納品日時</p>
+                                    <p className="text-base font-black text-white">{new Date(project.deliveryDateTime).toLocaleString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
+                                </div>
+                                <div>
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">お届け先（会場）</p>
+                                    <div className="bg-white/10 p-4 rounded-xl mt-2 backdrop-blur-sm border border-white/10">
+                                        <p className="text-sm font-black text-white">{project.venue?.venueName || '未定'}</p>
+                                        <p className="text-xs text-slate-300 mt-1.5 leading-relaxed">{project.venue?.address || project.deliveryAddress || '未設定'}</p>
+                                    </div>
+                                </div>
+                                <Link href={`/venues/${project.venue?.id}`} className="block w-full py-3.5 bg-white text-slate-900 rounded-xl text-xs font-black text-center transition-all hover:bg-slate-100 shadow-md">
+                                    会場の規定・レギュレーションを確認
+                                </Link>
+                            </div>
+                        </section>
+
+                        <AppCard className="!p-6 md:!p-8">
+                            <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-2"><ImageIcon size={16}/> デザイン指示</h3>
+                            <div className="space-y-5 text-sm font-medium text-slate-600">
+                                <div>
+                                    <p className="text-[10px] font-black text-indigo-400 uppercase mb-1">希望サイズ</p>
+                                    <p className="font-bold text-slate-800">{project.size || '規定なし'}</p>
+                                </div>
+                                <div>
+                                    <p className="text-[10px] font-black text-indigo-400 uppercase mb-1">花材・色味</p>
+                                    <p className="font-bold text-slate-800">{project.flowerTypes || 'おまかせ'}</p>
+                                </div>
+                                <div>
+                                    <p className="text-[10px] font-black text-indigo-400 uppercase mb-1">デザイン詳細</p>
+                                    <div className="p-4 bg-slate-50 rounded-xl text-xs leading-relaxed border border-slate-100">
+                                        <JpText>{project.designDetails || '特に指定はありません'}</JpText>
+                                    </div>
+                                </div>
+                                <div className="pt-2">
+                                    <p className="text-[10px] font-black text-indigo-400 uppercase mb-2">参考デザイン画像</p>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        {project.designImageUrls?.length > 0 ? (
+                                            project.designImageUrls.map((url, i) => (
+                                                <div key={i} className="aspect-square rounded-xl bg-slate-100 overflow-hidden relative border border-slate-200 cursor-zoom-in hover:scale-105 transition-transform" onClick={()=>window.open(url,'_blank')}>
+                                                    <Image src={url} alt="Design" fill className="object-cover" />
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <div className="col-span-2 aspect-[2/1] bg-slate-50 rounded-xl flex items-center justify-center border border-dashed border-slate-200">
+                                                <p className="text-xs font-bold text-slate-400">画像はありません</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        </AppCard>
+
+                        {/* 主催者情報 */}
+                        <AppCard className="!p-6">
+                            <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2"><User size={16}/> 企画者情報</h3>
+                            <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 rounded-full bg-slate-100 overflow-hidden shrink-0 border border-slate-200">
+                                    {project.planner?.iconUrl ? <Image src={project.planner.iconUrl} alt="" width={48} height={48} className="object-cover"/> : <User size={24} className="m-3 text-slate-400"/>}
+                                </div>
+                                <div>
+                                    <p className="font-black text-slate-800 text-sm">{project.planner?.handleName || project.planner?.name || '不明'}</p>
+                                    <p className="text-[10px] font-bold text-slate-400 mt-0.5">ID: {project.planner?.id.slice(0,8)}</p>
+                                </div>
+                            </div>
+                        </AppCard>
+                    </div>
+                </div>
+            </div>
+
+            {/* --- モーダル群 --- */}
+            <AnimatePresence>
+                {isQuotationModalOpen && (
+                    <QuotationCreateModal 
+                        projectId={project.id} 
+                        onClose={() => setIsQuotationModalOpen(false)} 
+                        onSuccess={fetchProjectDetails} 
+                    />
+                )}
+                {isDeliveryNoteModalOpen && (
+                    <DeliveryNoteModal 
+                        project={project} 
+                        onClose={() => setIsDeliveryNoteModalOpen(false)} 
+                    />
+                )}
+                {isMaterialModalOpen && (
+                    <FloristMaterialModal 
+                        isOpen={isMaterialModalOpen} 
+                        onClose={() => setIsMaterialModalOpen(false)} 
+                        project={project} 
+                        onUpdate={fetchProjectDetails} 
+                    />
+                )}
+            </AnimatePresence>
+        </div>
+    );
 }
