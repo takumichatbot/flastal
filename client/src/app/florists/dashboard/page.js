@@ -302,20 +302,41 @@ function DashboardContent() {
   
   const safeOffers = Array.isArray(offers) ? offers : [];
   
-  const pendingOffers = safeOffers.filter(o => 
-      o?.status === 'PENDING' && 
-      o?.project && 
-      o.project?.status !== 'CANCELED' && 
-      o.project?.status !== 'COMPLETED' && 
-      o.project?.status !== 'REJECTED' &&
-      o.project?.visibility !== 'UNLISTED'
+  // ★ 追加: 同じ企画のオファーが複数ある場合、1つにまとめる（重複排除関数）
+  const uniqueOffersByProject = (offersArray) => {
+    const map = new Map();
+    offersArray.forEach(o => {
+      if (o?.project?.id) {
+        map.set(o.project.id, o);
+      }
+    });
+    return Array.from(map.values());
+  };
+
+  // ★ 修正: 対応中の企画（受諾済み）を重複排除して取得
+  const acceptedOffers = uniqueOffersByProject(
+      safeOffers.filter(o => 
+          o?.status === 'ACCEPTED' && 
+          o?.project && 
+          o.project?.status !== 'CANCELED' && 
+          o.project?.visibility !== 'UNLISTED'
+      )
   );
+
+  // ★ 追加: 対応中の企画IDリスト（これらは新着オファーから消す）
+  const acceptedProjectIds = new Set(acceptedOffers.map(o => o.project.id));
   
-  const acceptedOffers = safeOffers.filter(o => 
-      o?.status === 'ACCEPTED' && 
-      o?.project && 
-      o.project?.status !== 'CANCELED' && 
-      o.project?.visibility !== 'UNLISTED'
+  // ★ 修正: 新着オファー（重複を消し、すでに受諾した企画も消す）
+  const pendingOffers = uniqueOffersByProject(
+      safeOffers.filter(o => 
+          o?.status === 'PENDING' && 
+          o?.project && 
+          o.project?.status !== 'CANCELED' && 
+          o.project?.status !== 'COMPLETED' && 
+          o.project?.status !== 'REJECTED' &&
+          o.project?.visibility !== 'UNLISTED' &&
+          !acceptedProjectIds.has(o.project.id) // 受諾済みの企画は新着に表示しない
+      )
   );
 
   return (
