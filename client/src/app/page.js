@@ -35,7 +35,7 @@ function useIsMounted() {
 }
 
 // ==========================================
-// 🪄 ANIMATION COMPONENTS (スピードUP & ポップ)
+// 🪄 ANIMATION COMPONENTS (超サクサク & ポップ)
 // ==========================================
 
 const Reveal = ({ children, delay = 0, className = "" }) => {
@@ -43,10 +43,10 @@ const Reveal = ({ children, delay = 0, className = "" }) => {
   if (!isMounted) return <div className={className}>{children}</div>;
   return (
     <motion.div 
-      initial={{ opacity: 0, y: 20 }} 
+      initial={{ opacity: 0, y: 15 }} 
       whileInView={{ opacity: 1, y: 0 }} 
       viewport={{ once: true, margin: "-10%" }} 
-      transition={{ duration: 0.5, delay, ease: "easeOut" }} // スピードUP
+      transition={{ duration: 0.4, delay, ease: "easeOut" }} // durationを0.4に短縮
       className={className}
     >
       {children}
@@ -54,18 +54,18 @@ const Reveal = ({ children, delay = 0, className = "" }) => {
   );
 };
 
-// Dribbble風の文字がボケながら1文字ずつフワッと出るアニメーション（日本語対応）
+// 出現スピードを爆速にした文字Reveal（日本語対応）
 const SplitTextReveal = ({ text, className, delay = 0 }) => {
-  const chars = Array.from(text); // 単語ではなく1文字ずつ分割する
+  const chars = Array.from(text); 
   const isMounted = useIsMounted();
 
   const container = { 
     hidden: { opacity: 0 }, 
-    visible: { opacity: 1, transition: { staggerChildren: 0.04, delayChildren: delay } } 
+    visible: { opacity: 1, transition: { staggerChildren: 0.02, delayChildren: delay } } // 0.04 -> 0.02に短縮
   };
   const child = { 
-    visible: { opacity: 1, y: 0, filter: "blur(0px)", transition: { duration: 0.5, ease: "easeOut" } }, 
-    hidden: { opacity: 0, y: 15, filter: "blur(4px)" } 
+    visible: { opacity: 1, y: 0, filter: "blur(0px)", transition: { duration: 0.3, ease: "easeOut" } }, // duration 0.3に短縮
+    hidden: { opacity: 0, y: 10, filter: "blur(2px)" } // ボケを弱く、距離を短く
   };
 
   if (!isMounted) return <div className={className}>{text}</div>;
@@ -76,7 +76,6 @@ const SplitTextReveal = ({ text, className, delay = 0 }) => {
       initial="hidden" 
       whileInView="visible" 
       viewport={{ once: true }} 
-      // ★ whitespace-nowrap で強制的に1行にする
       className={cn("whitespace-nowrap", className)}
     >
       {chars.map((char, index) => (
@@ -159,11 +158,11 @@ const CATEGORIES = [
 // 🚀 PAGE SECTIONS
 // ==========================================
 
-// --- 0. INTRO LOADER (レースのカーテン) ---
+// --- 0. INTRO LOADER (サクッと開くカーテン) ---
 const IntroLoader = ({ onComplete }) => {
   useEffect(() => { 
-    // サクッと開くように時間を短縮
-    const timer = setTimeout(onComplete, 1000); 
+    // 表示時間を1000msから600msに大幅カット
+    const timer = setTimeout(onComplete, 600); 
     return () => clearTimeout(timer); 
   }, [onComplete]);
 
@@ -171,13 +170,13 @@ const IntroLoader = ({ onComplete }) => {
     <motion.div 
       className="fixed inset-0 z-[99999] flex items-center justify-center pointer-events-none"
       initial={{ opacity: 1 }}
-      exit={{ scale: 1.05, opacity: 0, filter: "blur(5px)", transition: { duration: 0.4, ease: "easeOut" } }}
+      exit={{ scale: 1.05, opacity: 0, filter: "blur(2px)", transition: { duration: 0.3, ease: "easeOut" } }}
     >
       <motion.div 
         className="absolute inset-y-0 left-0 w-1/2 bg-[#FFF5F8] shadow-[20px_0_50px_rgba(244,114,182,0.3)] z-10 origin-left"
         initial={{ x: 0, skewX: 0 }}
         animate={{ x: "-100%", skewX: -2 }} 
-        transition={{ duration: 0.7, delay: 0.2, ease: [0.76, 0, 0.24, 1] }}
+        transition={{ duration: 0.5, delay: 0.1, ease: [0.76, 0, 0.24, 1] }} // カーテンの開く速度もUP
       >
         <div className="absolute top-0 bottom-0 -right-10 w-12 h-full drop-shadow-xl overflow-hidden text-[#FFF5F8]">
           <svg width="100%" height="100%" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
@@ -197,7 +196,7 @@ const IntroLoader = ({ onComplete }) => {
         className="absolute inset-y-0 right-0 w-1/2 bg-[#FFF5F8] shadow-[-20px_0_50px_rgba(244,114,182,0.3)] z-10 origin-right"
         initial={{ x: 0, skewX: 0 }}
         animate={{ x: "100%", skewX: 2 }} 
-        transition={{ duration: 0.7, delay: 0.2, ease: [0.76, 0, 0.24, 1] }}
+        transition={{ duration: 0.5, delay: 0.1, ease: [0.76, 0, 0.24, 1] }}
       >
         <div className="absolute top-0 bottom-0 -left-10 w-12 h-full drop-shadow-xl overflow-hidden text-[#FFF5F8]">
           <svg width="100%" height="100%" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
@@ -215,16 +214,16 @@ const IntroLoader = ({ onComplete }) => {
 
       <motion.div 
         className="absolute z-20 flex flex-col items-center"
-        initial={{ opacity: 0, scale: 0.9, y: 10 }} 
+        initial={{ opacity: 0, scale: 0.9, y: 5 }} 
         animate={{ opacity: 1, scale: 1, y: 0 }} 
-        transition={{ duration: 0.4, ease: "easeOut" }}
+        transition={{ duration: 0.3, ease: "easeOut" }}
       >
         <span className="font-calligraphy text-4xl text-pink-400 mb-2 drop-shadow-sm">Welcome to</span>
         <h1 className="text-5xl md:text-7xl font-black text-pink-500 tracking-[0.2em] font-serif-jp drop-shadow-md">
           FLASTAL
         </h1>
         <motion.div 
-          initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ duration: 0.4, delay: 0.1 }} 
+          initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ duration: 0.3, delay: 0.1 }} 
           className="w-full h-px bg-pink-300 mt-4 origin-center" 
         />
       </motion.div>
@@ -243,7 +242,7 @@ const SoftBackground = () => {
       <motion.div style={{ y: y1 }} className="absolute -top-[10%] -left-[5%] w-[80vw] h-[80vw] rounded-full bg-pink-100/50 blur-[80px]" />
       <motion.div style={{ y: y2 }} className="absolute top-[30%] -right-[10%] w-[60vw] h-[60vw] rounded-full bg-amber-50/50 blur-[80px]" />
       
-      {[...Array(5)].map((_, i) => {
+      {[...Array(6)].map((_, i) => {
         const colors = ["text-pink-300", "text-sky-300", "text-amber-300", "text-rose-300"];
         return (
           <ButterflyParticle 
@@ -266,7 +265,7 @@ const MainContent = () => {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      transition={{ duration: 0.4, ease: "easeOut" }} // フェードインを速く
+      transition={{ duration: 0.3, ease: "easeOut" }}
     >
       <SoftBackground />
       <Hero />
@@ -286,7 +285,6 @@ const Hero = () => {
   return (
     <section className="relative w-full min-h-[90svh] flex items-center justify-center overflow-hidden pt-28 pb-12 z-10 bg-[#FFFDFE]/50">
       
-      {/* 優しい装飾 */}
       <ButterflyParticle x="10%" y="20%" scale={1.2} delay={0} color="text-pink-400" />
       <ButterflyParticle x="90%" y="75%" scale={1} delay={2} color="text-amber-400" />
 
@@ -302,9 +300,8 @@ const Hero = () => {
               </div>
             </Reveal>
 
-            {/* タイトル：雑誌やポスターのような組み方 */}
             <div className="mb-6 flex flex-col items-center lg:items-start">
-              <Reveal delay={0.1}>
+              <Reveal delay={0.05}>
                 <span className="font-calligraphy text-4xl sm:text-5xl lg:text-6xl text-rose-300 -mb-4 block drop-shadow-sm ml-4 lg:ml-0">
                   To your favorite
                 </span>
@@ -312,19 +309,19 @@ const Hero = () => {
               <SplitTextReveal 
                 text="世界でひとつのお花を。" 
                 className="text-[1.75rem] sm:text-5xl md:text-6xl lg:text-[4.2rem] font-black text-slate-800 tracking-tighter leading-tight" 
-                delay={0.15} 
+                delay={0.1} 
               />
             </div>
             
-            <Reveal delay={0.3}>
+            <Reveal delay={0.15}>
               <p className="text-sm md:text-base text-slate-500 max-w-xl leading-relaxed font-bold mb-10">
                 推しの特別な日を、みんなの愛で彩ろう。<br className="hidden sm:block"/>
                 FLASTALはお金の管理や会場の確認など、面倒な裏方をすべてサポート。仲間を集めて、最高のお祝いを届けませんか？
               </p>
             </Reveal>
 
-            {/* ネオ・ブルータリズム風のポップなボタン */}
-            <Reveal delay={0.4} className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 w-full sm:w-auto">
+            {/* ディレイを極限まで短くしたボタン表示 */}
+            <Reveal delay={0.2} className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 w-full sm:w-auto">
               <Link href="/projects/create" className="w-full sm:w-auto block">
                 <motion.button 
                   whileHover={{ scale: 1.02 }}
@@ -347,14 +344,12 @@ const Hero = () => {
             </Reveal>
           </div>
 
-          {/* 右：コラージュ風ビジュアル（SaaS感をなくす） */}
+          {/* 右：コラージュ風ビジュアル */}
           <div className="lg:col-span-5 relative w-full h-[400px] lg:h-[500px] hidden md:block mt-10 lg:mt-0 perspective-1000">
-             
-             {/* ポラロイド風カード 1 */}
              <motion.div 
                initial={{ opacity: 0, rotate: -15, x: -30, y: 30 }}
                animate={{ opacity: 1, rotate: -8, x: 0, y: 0 }}
-               transition={{ duration: 0.8, delay: 0.3, type: "spring", bounce: 0.4 }}
+               transition={{ duration: 0.6, delay: 0.15, type: "spring", bounce: 0.4 }}
                className="absolute top-[10%] left-[5%] w-48 h-56 bg-white p-3 pb-8 rounded-xl shadow-xl border border-slate-100 z-10 cursor-pointer"
                whileHover={{ scale: 1.05, rotate: 0, zIndex: 30 }}
              >
@@ -364,11 +359,10 @@ const Hero = () => {
                 <p className="font-calligraphy text-center mt-3 text-slate-500 text-sm">Happy Anniversary!</p>
              </motion.div>
 
-             {/* ポラロイド風カード 2 */}
              <motion.div 
                initial={{ opacity: 0, rotate: 20, x: 30, y: -30 }}
                animate={{ opacity: 1, rotate: 10, x: 0, y: 0 }}
-               transition={{ duration: 0.8, delay: 0.4, type: "spring", bounce: 0.4 }}
+               transition={{ duration: 0.6, delay: 0.2, type: "spring", bounce: 0.4 }}
                className="absolute top-[20%] right-[5%] w-56 h-64 bg-white p-3 pb-10 rounded-xl shadow-2xl border border-slate-100 z-20 cursor-pointer"
                whileHover={{ scale: 1.05, rotate: 0, zIndex: 30 }}
              >
@@ -378,11 +372,10 @@ const Hero = () => {
                 <p className="font-calligraphy text-center mt-4 text-pink-500 text-lg">Thank you</p>
              </motion.div>
 
-             {/* チケット風カード */}
              <motion.div 
                initial={{ opacity: 0, y: 30 }}
                animate={{ opacity: 1, y: 0 }}
-               transition={{ duration: 0.8, delay: 0.6, type: "spring", bounce: 0.4 }}
+               transition={{ duration: 0.6, delay: 0.3, type: "spring", bounce: 0.4 }}
                className="absolute bottom-[5%] left-[20%] w-64 h-24 bg-gradient-to-r from-amber-100 to-orange-100 rounded-2xl shadow-[0_10px_30px_rgba(245,158,11,0.2)] border-2 border-white z-30 flex items-center p-4 cursor-pointer"
                whileHover={{ scale: 1.05, y: -5 }}
              >
@@ -394,7 +387,6 @@ const Hero = () => {
                   <p className="font-black text-slate-800 text-sm">フラスタ受付完了 🎉</p>
                 </div>
              </motion.div>
-
           </div>
         </div>
       </div>
