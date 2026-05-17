@@ -320,6 +320,13 @@ export default function Header() {
               </Link>
 
               <nav className="hidden lg:flex items-center relative" onMouseLeave={() => setHoveredNav(null)}>
+                
+                {/* ★ FLASTAL ANNEX へのボタンを追加 */}
+                <Link href="/annex" className="mr-4 px-4 py-2 bg-gradient-to-r from-slate-900 to-slate-800 text-white rounded-full text-xs font-black shadow-md hover:shadow-lg transition-all hover:-translate-y-0.5 flex items-center gap-1.5 shrink-0 z-20">
+                  <Building2 size={14} className="text-amber-400" />
+                  <span className="tracking-widest uppercase text-[10px]">法人向け</span> ANNEX
+                </Link>
+
                 {navLinks.map((link) => (
                   <Link 
                     key={link.href} 
