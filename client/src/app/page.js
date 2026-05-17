@@ -19,27 +19,13 @@ import {
 import { 
   Heart, Sparkles, ArrowRight, Search, Users,
   Gift, MessageCircle, Clock, Crown, PenTool, Video, Music, MapPin, Store,
-  ChevronRight, ChevronDown, ArrowUpRight, Shield, Command, KeyRound, Building, Star, Ticket, Loader2, Calendar
+  ArrowUpRight, Shield, Command, KeyRound, Building, Ticket, Loader2, Calendar
 } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
-// ==========================================
-// 🛠️ UTILITIES & HELPER FUNCTIONS
-// ==========================================
 function cn(...classes) {
   return classes.filter(Boolean).join(' ');
-}
-
-function useWindowSize() {
-  const [windowSize, setWindowSize] = useState({ width: 0, height: 0 });
-  useEffect(() => {
-    function handleResize() { setWindowSize({ width: window.innerWidth, height: window.innerHeight }); }
-    window.addEventListener("resize", handleResize);
-    handleResize();
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
-  return windowSize;
 }
 
 function useIsMounted() {
@@ -49,35 +35,18 @@ function useIsMounted() {
 }
 
 // ==========================================
-// 🎨 ULTRA-MODERN & OSHI-KATSU UI COMPONENTS
+// 🪄 ANIMATION COMPONENTS (スピードUP & ポップ)
 // ==========================================
 
-const MagneticWrapper = ({ children, className }) => {
-  const ref = useRef(null);
-  const [position, setPosition] = useState({ x: 0, y: 0 });
+const Reveal = ({ children, delay = 0, className = "" }) => {
   const isMounted = useIsMounted();
-  const { width } = useWindowSize();
-
-  const handleMouse = (e) => {
-    if (!isMounted || !ref.current || width < 1024) return;
-    const { clientX, clientY } = e;
-    const { height, width: elemWidth, left, top } = ref.current.getBoundingClientRect();
-    const middleX = clientX - (left + elemWidth / 2);
-    const middleY = clientY - (top + height / 2);
-    setPosition({ x: middleX * 0.2, y: middleY * 0.2 });
-  };
-
-  const reset = () => { setPosition({ x: 0, y: 0 }); };
-
   if (!isMounted) return <div className={className}>{children}</div>;
-
   return (
-    <motion.div
-      ref={ref}
-      onMouseMove={handleMouse}
-      onMouseLeave={reset}
-      animate={{ x: position.x, y: position.y }}
-      transition={{ type: "spring", stiffness: 150, damping: 15, mass: 0.1 }}
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }} 
+      whileInView={{ opacity: 1, y: 0 }} 
+      viewport={{ once: true, margin: "-10%" }} 
+      transition={{ duration: 0.5, delay, ease: "easeOut" }} // スピードUP
       className={className}
     >
       {children}
@@ -85,69 +54,42 @@ const MagneticWrapper = ({ children, className }) => {
   );
 };
 
-const SpotlightCard = ({ children, className, spotColor = "rgba(236, 72, 153, 0.15)" }) => {
-  const divRef = useRef(null);
-  const [isFocused, setIsFocused] = useState(false);
-  const [position, setPosition] = useState({ x: 0, y: 0 });
-  const isMounted = useIsMounted();
-  const { width } = useWindowSize();
-  
-  const opacity = isMounted && isFocused ? 1 : 0;
-
-  const handleMouseMove = (e) => {
-    if (!isMounted || !divRef.current || isFocused || width < 1024) return;
-    const div = divRef.current;
-    const rect = div.getBoundingClientRect();
-    setPosition({ x: e.clientX - rect.left, y: e.clientY - rect.top });
-  };
-
-  return (
-    <div
-      ref={divRef}
-      onMouseMove={handleMouseMove}
-      onMouseEnter={() => setIsFocused(true)}
-      onMouseLeave={() => setIsFocused(false)}
-      className={cn("relative overflow-hidden rounded-[2.5rem] border border-slate-200/50 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.03)]", className)}
-    >
-      <div
-        className="pointer-events-none absolute -inset-px rounded-[2.5rem] transition duration-300 hidden lg:block"
-        style={{ opacity, background: `radial-gradient(600px circle at ${position.x}px ${position.y}px, ${spotColor}, transparent 40%)` }}
-      />
-      {children}
-    </div>
-  );
-};
-
-const Reveal = ({ children, delay = 0, className = "" }) => {
-  const isMounted = useIsMounted();
-  if (!isMounted) return <div className={className}>{children}</div>;
-  return (
-    <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-10%" }} transition={{ duration: 0.6, delay, ease: "easeOut" }} className={className}>
-      {children}
-    </motion.div>
-  );
-};
-
+// Dribbble風の文字がボケながら1文字ずつフワッと出るアニメーション（日本語対応）
 const SplitTextReveal = ({ text, className, delay = 0 }) => {
-  const words = text.split(" ");
+  const chars = Array.from(text); // 単語ではなく1文字ずつ分割する
   const isMounted = useIsMounted();
 
-  const container = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.08, delayChildren: delay } } };
-  const child = { visible: { opacity: 1, y: 0, filter: "blur(0px)", transition: { type: "spring", damping: 12, stiffness: 100 } }, hidden: { opacity: 0, y: 20, filter: "blur(5px)" } };
+  const container = { 
+    hidden: { opacity: 0 }, 
+    visible: { opacity: 1, transition: { staggerChildren: 0.04, delayChildren: delay } } 
+  };
+  const child = { 
+    visible: { opacity: 1, y: 0, filter: "blur(0px)", transition: { duration: 0.5, ease: "easeOut" } }, 
+    hidden: { opacity: 0, y: 15, filter: "blur(4px)" } 
+  };
 
   if (!isMounted) return <div className={className}>{text}</div>;
 
   return (
-    <motion.div style={{ overflow: "hidden", display: "flex", flexWrap: "wrap", justifyContent: "center" }} variants={container} initial="hidden" whileInView="visible" viewport={{ once: true }} className={className}>
-      {words.map((word, index) => (
-        <motion.span variants={child} style={{ marginRight: "0.25em" }} key={index}>{word}</motion.span>
+    <motion.div 
+      variants={container} 
+      initial="hidden" 
+      whileInView="visible" 
+      viewport={{ once: true }} 
+      // ★ whitespace-nowrap で強制的に1行にする
+      className={cn("whitespace-nowrap", className)}
+    >
+      {chars.map((char, index) => (
+        <motion.span variants={child} key={index} className="inline-block">
+          {char}
+        </motion.span>
       ))}
     </motion.div>
   );
 };
 
 // ==========================================
-// 🎀 EMOJI PARTICLE 
+// 🎀 PARTICLES
 // ==========================================
 const EmojiParticle = ({ emoji, delay = 0, x = "0%", y = "0%", scale = 1 }) => {
   const isMounted = useIsMounted();
@@ -155,21 +97,48 @@ const EmojiParticle = ({ emoji, delay = 0, x = "0%", y = "0%", scale = 1 }) => {
 
   return (
     <motion.div
-      className="absolute opacity-0 pointer-events-none drop-shadow-md select-none"
+      className="absolute opacity-0 pointer-events-none drop-shadow-sm select-none"
       style={{ top: y, left: x, scale, fontSize: '2.5rem' }}
       animate={{ 
-        opacity: [0, 0.8, 0.5, 0.8, 0],
-        y: ["0px", "-40px", "-20px", "-40px", "-60px"],
-        rotate: [0, 15, -15, 15, 0]
+        opacity: [0, 0.9, 0.6, 0.9, 0],
+        y: ["0px", "-30px", "-15px", "-30px", "-50px"],
+        rotate: [0, 10, -10, 10, 0]
       }}
-      transition={{ 
-        duration: 8, 
-        delay: delay, 
-        repeat: Infinity, 
-        ease: "easeInOut" 
-      }}
+      transition={{ duration: 6, delay: delay, repeat: Infinity, ease: "easeInOut" }}
     >
       {emoji}
+    </motion.div>
+  );
+};
+
+const ButterflyParticle = ({ delay = 0, x = "0%", y = "0%", scale = 1, color = "text-pink-400" }) => {
+  const isMounted = useIsMounted();
+  if (!isMounted) return null;
+
+  const yEnd = -100 - Math.random() * 50;
+  const xOffset1 = 20 + Math.random() * 20;
+  const xOffset2 = -20 - Math.random() * 20;
+
+  return (
+    <motion.div
+      className={`absolute pointer-events-none select-none z-0 ${color}`}
+      style={{ top: y, left: x, scale, filter: "drop-shadow(0px 2px 4px rgba(0,0,0,0.1))" }}
+      animate={{ 
+        opacity: [0, 0.8, 1, 0.8, 0],
+        y: [0, yEnd * 0.25, yEnd * 0.5, yEnd * 0.75, yEnd],
+        x: [0, xOffset1, xOffset2, xOffset1, 0],
+        rotate: [-10, 10, -10, 10, -10]
+      }}
+      transition={{ duration: 7 + Math.random() * 3, delay: delay, repeat: Infinity, ease: "easeInOut" }}
+    >
+      <motion.div animate={{ scaleX: [1, 0.2, 1] }} transition={{ duration: 0.2 + Math.random() * 0.1, repeat: Infinity, ease: "linear" }}>
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M11.5 12C11.5 12 10 4 3 5C3 5 4 11 11.5 12Z" />
+          <path d="M11.5 12C11.5 12 9 18 4 19C4 19 7 14 11.5 12Z" />
+          <path d="M12.5 12C12.5 12 14 4 21 5C21 5 20 11 12.5 12Z" />
+          <path d="M12.5 12C12.5 12 15 18 20 19C20 19 17 14 12.5 12Z" />
+        </svg>
+      </motion.div>
     </motion.div>
   );
 };
@@ -178,22 +147,23 @@ const EmojiParticle = ({ emoji, delay = 0, x = "0%", y = "0%", scale = 1 }) => {
 // 📊 CATEGORIES
 // ==========================================
 const CATEGORIES = [
-  { id: 'idol', name: 'Idol / Artist', jp: 'アイドル・アーティスト', icon: Music, color: 'text-pink-500', bg: 'bg-pink-50' },
-  { id: 'vtuber', name: 'Virtual Creator', jp: 'VTuber・配信者', icon: Video, color: 'text-cyan-500', bg: 'bg-cyan-50' },
-  { id: 'stage', name: 'Stage / Musical', jp: '舞台・ミュージカル', icon: Users, color: 'text-purple-500', bg: 'bg-purple-50' },
-  { id: 'voice', name: 'Voice Actor', jp: '声優・役者', icon: MessageCircle, color: 'text-amber-500', bg: 'bg-amber-50' },
-  { id: 'anime', name: 'Anime / Game', jp: 'アニメ・ゲームイベント', icon: Command, color: 'text-emerald-500', bg: 'bg-emerald-50' },
-  { id: 'anniversary', name: 'Anniversary', jp: '生誕祭・周年記念', icon: Crown, color: 'text-rose-500', bg: 'bg-rose-50' },
+  { id: 'idol', name: 'Idol / Artist', jp: 'アイドル・アーティスト', icon: Music, color: 'text-pink-500', bg: 'bg-pink-100' },
+  { id: 'vtuber', name: 'Virtual Creator', jp: 'VTuber・配信者', icon: Video, color: 'text-cyan-500', bg: 'bg-cyan-100' },
+  { id: 'stage', name: 'Stage / Musical', jp: '舞台・ミュージカル', icon: Users, color: 'text-purple-500', bg: 'bg-purple-100' },
+  { id: 'voice', name: 'Voice Actor', jp: '声優・役者', icon: MessageCircle, color: 'text-amber-500', bg: 'bg-amber-100' },
+  { id: 'anime', name: 'Anime / Game', jp: 'アニメ・ゲームイベント', icon: Command, color: 'text-emerald-500', bg: 'bg-emerald-100' },
+  { id: 'anniversary', name: 'Anniversary', jp: '生誕祭・周年記念', icon: Crown, color: 'text-rose-500', bg: 'bg-rose-100' },
 ];
 
 // ==========================================
 // 🚀 PAGE SECTIONS
 // ==========================================
 
-// --- 0. INTRO LOADER ---
+// --- 0. INTRO LOADER (レースのカーテン) ---
 const IntroLoader = ({ onComplete }) => {
   useEffect(() => { 
-    const timer = setTimeout(onComplete, 800); 
+    // サクッと開くように時間を短縮
+    const timer = setTimeout(onComplete, 1000); 
     return () => clearTimeout(timer); 
   }, [onComplete]);
 
@@ -201,20 +171,19 @@ const IntroLoader = ({ onComplete }) => {
     <motion.div 
       className="fixed inset-0 z-[99999] flex items-center justify-center pointer-events-none"
       initial={{ opacity: 1 }}
-      exit={{ scale: 1.5, opacity: 0, filter: "blur(5px)", transition: { duration: 0.4, ease: "easeInOut" } }}
+      exit={{ scale: 1.05, opacity: 0, filter: "blur(5px)", transition: { duration: 0.4, ease: "easeOut" } }}
     >
       <motion.div 
-        className="absolute inset-y-0 left-0 w-1/2 bg-[#FDF2F8] shadow-[20px_0_50px_rgba(244,114,182,0.4)] z-10 origin-left"
+        className="absolute inset-y-0 left-0 w-1/2 bg-[#FFF5F8] shadow-[20px_0_50px_rgba(244,114,182,0.3)] z-10 origin-left"
         initial={{ x: 0, skewX: 0 }}
         animate={{ x: "-100%", skewX: -2 }} 
-        transition={{ duration: 0.6, delay: 0.1, ease: [0.76, 0, 0.24, 1] }}
-        style={{ backgroundImage: `linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(244,114,182,0.05) 50%, rgba(0,0,0,0) 100%), url('https://www.transparenttextures.com/patterns/french-stucco.png')` }}
+        transition={{ duration: 0.7, delay: 0.2, ease: [0.76, 0, 0.24, 1] }}
       >
-        <div className="absolute top-0 bottom-0 -right-10 w-12 h-full drop-shadow-xl overflow-hidden">
+        <div className="absolute top-0 bottom-0 -right-10 w-12 h-full drop-shadow-xl overflow-hidden text-[#FFF5F8]">
           <svg width="100%" height="100%" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
             <defs>
               <pattern id="lace-left" x="0" y="0" width="48" height="60" patternUnits="userSpaceOnUse">
-                <path d="M0,0 C24,0 48,15 48,30 C48,45 24,60 0,60 Z" fill="#FDF2F8" />
+                <path d="M0,0 C24,0 48,15 48,30 C48,45 24,60 0,60 Z" fill="currentColor" />
                 <circle cx="15" cy="30" r="5" fill="transparent" stroke="#FBCFE8" strokeWidth="2" />
                 <circle cx="30" cy="30" r="3" fill="#FBCFE8" />
               </pattern>
@@ -225,17 +194,16 @@ const IntroLoader = ({ onComplete }) => {
       </motion.div>
 
       <motion.div 
-        className="absolute inset-y-0 right-0 w-1/2 bg-[#FDF2F8] shadow-[-20px_0_50px_rgba(244,114,182,0.4)] z-10 origin-right"
+        className="absolute inset-y-0 right-0 w-1/2 bg-[#FFF5F8] shadow-[-20px_0_50px_rgba(244,114,182,0.3)] z-10 origin-right"
         initial={{ x: 0, skewX: 0 }}
         animate={{ x: "100%", skewX: 2 }} 
-        transition={{ duration: 0.6, delay: 0.1, ease: [0.76, 0, 0.24, 1] }}
-        style={{ backgroundImage: `linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(244,114,182,0.05) 50%, rgba(0,0,0,0) 100%), url('https://www.transparenttextures.com/patterns/french-stucco.png')` }}
+        transition={{ duration: 0.7, delay: 0.2, ease: [0.76, 0, 0.24, 1] }}
       >
-        <div className="absolute top-0 bottom-0 -left-10 w-12 h-full drop-shadow-xl overflow-hidden">
+        <div className="absolute top-0 bottom-0 -left-10 w-12 h-full drop-shadow-xl overflow-hidden text-[#FFF5F8]">
           <svg width="100%" height="100%" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
             <defs>
               <pattern id="lace-right" x="0" y="0" width="48" height="60" patternUnits="userSpaceOnUse">
-                <path d="M48,0 C24,0 0,15 0,30 C0,45 24,60 48,60 Z" fill="#FDF2F8" />
+                <path d="M48,0 C24,0 0,15 0,30 C0,45 24,60 48,60 Z" fill="currentColor" />
                 <circle cx="33" cy="30" r="5" fill="transparent" stroke="#FBCFE8" strokeWidth="2" />
                 <circle cx="18" cy="30" r="3" fill="#FBCFE8" />
               </pattern>
@@ -247,17 +215,48 @@ const IntroLoader = ({ onComplete }) => {
 
       <motion.div 
         className="absolute z-20 flex flex-col items-center"
-        initial={{ opacity: 0, scale: 0.8, y: 10 }} 
+        initial={{ opacity: 0, scale: 0.9, y: 10 }} 
         animate={{ opacity: 1, scale: 1, y: 0 }} 
-        transition={{ duration: 0.4, ease: "easeOut", delay: 0 }}
+        transition={{ duration: 0.4, ease: "easeOut" }}
       >
         <span className="font-calligraphy text-4xl text-pink-400 mb-2 drop-shadow-sm">Welcome to</span>
-        <h1 className="text-5xl md:text-7xl font-black text-pink-500 tracking-[0.3em] font-serif-jp drop-shadow-lg">
+        <h1 className="text-5xl md:text-7xl font-black text-pink-500 tracking-[0.2em] font-serif-jp drop-shadow-md">
           FLASTAL
         </h1>
-        <div className="w-full h-px bg-gradient-to-r from-transparent via-pink-400 to-transparent mt-4" />
+        <motion.div 
+          initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ duration: 0.4, delay: 0.1 }} 
+          className="w-full h-px bg-pink-300 mt-4 origin-center" 
+        />
       </motion.div>
     </motion.div>
+  );
+};
+
+// --- パララックス付き背景 ---
+const SoftBackground = () => {
+  const { scrollY } = useScroll();
+  const y1 = useTransform(scrollY, [0, 2000], [0, -150]);
+  const y2 = useTransform(scrollY, [0, 2000], [0, 100]);
+
+  return (
+    <div className="fixed inset-0 overflow-hidden pointer-events-none z-0 bg-[#FFFDFE]">
+      <motion.div style={{ y: y1 }} className="absolute -top-[10%] -left-[5%] w-[80vw] h-[80vw] rounded-full bg-pink-100/50 blur-[80px]" />
+      <motion.div style={{ y: y2 }} className="absolute top-[30%] -right-[10%] w-[60vw] h-[60vw] rounded-full bg-amber-50/50 blur-[80px]" />
+      
+      {[...Array(5)].map((_, i) => {
+        const colors = ["text-pink-300", "text-sky-300", "text-amber-300", "text-rose-300"];
+        return (
+          <ButterflyParticle 
+            key={`bf-${i}`}
+            x={`${Math.random() * 90}%`}
+            y={`${Math.random() * 100}%`}
+            delay={Math.random() * 5}
+            scale={0.5 + Math.random() * 0.6}
+            color={colors[i % colors.length]}
+          />
+        );
+      })}
+    </div>
   );
 };
 
@@ -265,10 +264,11 @@ const IntroLoader = ({ onComplete }) => {
 const MainContent = () => {
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 1.01, filter: "blur(4px)" }}
-      animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
-      transition={{ duration: 0.4, delay: 0, ease: "easeOut" }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.4, ease: "easeOut" }} // フェードインを速く
     >
+      <SoftBackground />
       <Hero />
       <InfiniteMarquee />
       <HowItWorks />
@@ -281,71 +281,123 @@ const MainContent = () => {
   );
 }
 
-// --- 1. HERO SECTION ---
+// --- 1. HERO SECTION (脱AI・雑誌レイアウト) ---
 const Hero = () => {
-  const { scrollY } = useScroll();
-  const isMounted = useIsMounted();
-  const { width } = useWindowSize();
-
-  const y1 = useTransform(scrollY, [0, 1000], [0, 150]);
-  const opacity = useTransform(scrollY, [0, 500], [1, 0]);
-
   return (
-    <section className="relative w-full min-h-[100svh] flex items-center justify-center overflow-hidden bg-[#FFF8FA] pt-20 pb-12 z-10">
+    <section className="relative w-full min-h-[90svh] flex items-center justify-center overflow-hidden pt-28 pb-12 z-10 bg-[#FFFDFE]/50">
       
-      <EmojiParticle emoji="🎀" x="15%" y="25%" scale={1.2} delay={0} />
-      <EmojiParticle emoji="🎂" x="80%" y="60%" scale={1.1} delay={1.5} />
-      <EmojiParticle emoji="💖" x="25%" y="75%" scale={0.9} delay={3} />
-      <EmojiParticle emoji="✨" x="85%" y="20%" scale={1.3} delay={0.5} />
-      <EmojiParticle emoji="👑" x="50%" y="85%" scale={1.2} delay={2.2} />
+      {/* 優しい装飾 */}
+      <ButterflyParticle x="10%" y="20%" scale={1.2} delay={0} color="text-pink-400" />
+      <ButterflyParticle x="90%" y="75%" scale={1} delay={2} color="text-amber-400" />
 
-      <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
-        <div className="absolute -top-[20%] -left-[10%] w-[150vw] md:w-[70vw] h-[150vw] md:h-[70vw] rounded-full bg-pink-300/15 blur-[80px] md:blur-[120px] mix-blend-multiply animate-pulse" />
-        <div className="absolute top-[20%] -right-[10%] w-[120vw] md:w-[60vw] h-[120vw] md:h-[60vw] rounded-full bg-violet-300/15 blur-[80px] md:blur-[120px] mix-blend-multiply animate-pulse" style={{ animationDelay: "2s" }} />
-      </div>
-      
-      <motion.div style={isMounted && width >= 1024 ? { y: y1, opacity } : {}} className="container relative z-10 max-w-5xl mx-auto px-4 md:px-6 flex flex-col items-center text-center">
-        <Reveal delay={0.1}>
-          <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-white backdrop-blur-md border border-slate-100 shadow-sm mb-6 md:mb-8">
-            <Sparkles size={16} className="text-pink-500" />
-            <span className="text-[11px] md:text-xs font-extrabold text-slate-700 tracking-widest uppercase">愛を叫ぼう。お花に乗せて。</span>
-          </div>
-        </Reveal>
-
-        <SplitTextReveal text="Celebrate with Flowers." className="text-4xl sm:text-5xl md:text-8xl font-black text-slate-700 tracking-tighter leading-[1.05] mb-4 md:mb-6" delay={0.2} />
-        
-        <Reveal delay={0.4}>
-          <h2 className="text-lg sm:text-xl md:text-3xl font-extrabold text-slate-600 mb-6 md:mb-10 tracking-tight leading-snug">
-            推しの特別な日に、ファンみんなで<br className="sm:hidden"/>
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-violet-500">とびきりのフラスタ</span>を贈ろう。
-          </h2>
-          <p className="text-xs sm:text-sm md:text-base text-slate-500 max-w-2xl mx-auto leading-relaxed font-medium mb-10 md:mb-14 px-2">
-            「おめでとう」の気持ちを、大きなお花に変えて届けよう。<br/>
-            FLASTALは、ファン同士で想いを形にするクラウドファンディングです。
-          </p>
-        </Reveal>
-
-        <Reveal delay={0.5} className="flex flex-col sm:flex-row items-center gap-5 w-full sm:w-auto px-4 sm:px-0">
-          <MagneticWrapper className="w-full sm:w-auto">
-            <Link href="/projects/create" className="block w-full">
-              <button className="group relative w-full sm:w-auto px-9 md:px-11 py-4 md:py-5 bg-slate-950 text-white rounded-full font-extrabold text-sm md:text-base shadow-[0_10px_30px_rgba(0,0,0,0.15)] overflow-hidden transition-transform">
-                <div className="absolute inset-0 bg-gradient-to-r from-pink-500 to-violet-500 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out" />
-                <span className="relative z-10 flex items-center justify-center gap-2">
-                  <Crown size={18} className="text-pink-300" /> 企画を立ち上げる <ArrowUpRight size={18} className="group-hover:rotate-45 transition-transform" />
-                </span>
-              </button>
-            </Link>
-          </MagneticWrapper>
+      <div className="container relative z-10 max-w-6xl mx-auto px-4 md:px-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-8 items-center">
           
-          <MagneticWrapper className="w-full sm:w-auto">
-            <Link href="/projects" className="block w-full">
-              <button className="group w-full sm:w-auto px-9 md:px-11 py-4 md:py-5 bg-white text-slate-800 rounded-full font-extrabold text-sm md:text-base shadow-sm border border-slate-200 hover:border-slate-300 transition-all flex items-center justify-center gap-2">
-                <Search size={18} className="text-slate-400 group-hover:text-slate-800 transition-colors" /> 参加する企画を探す
-              </button>
-            </Link>
-          </MagneticWrapper>
-        </Reveal>
-      </motion.div>
+          {/* 左：テキストエリア */}
+          <div className="lg:col-span-7 flex flex-col items-center lg:items-start text-center lg:text-left">
+            <Reveal delay={0}>
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border-2 border-pink-200 bg-pink-50 mb-6 text-pink-500 shadow-sm">
+                <Sparkles size={14} />
+                <span className="text-[10px] sm:text-xs font-black tracking-widest uppercase">ファン同士で贈る、フラスタ・クラウドファンディング</span>
+              </div>
+            </Reveal>
+
+            {/* タイトル：雑誌やポスターのような組み方 */}
+            <div className="mb-6 flex flex-col items-center lg:items-start">
+              <Reveal delay={0.1}>
+                <span className="font-calligraphy text-4xl sm:text-5xl lg:text-6xl text-rose-300 -mb-4 block drop-shadow-sm ml-4 lg:ml-0">
+                  To your favorite
+                </span>
+              </Reveal>
+              <SplitTextReveal 
+                text="世界でひとつのお花を。" 
+                className="text-[1.75rem] sm:text-5xl md:text-6xl lg:text-[4.2rem] font-black text-slate-800 tracking-tighter leading-tight" 
+                delay={0.15} 
+              />
+            </div>
+            
+            <Reveal delay={0.3}>
+              <p className="text-sm md:text-base text-slate-500 max-w-xl leading-relaxed font-bold mb-10">
+                推しの特別な日を、みんなの愛で彩ろう。<br className="hidden sm:block"/>
+                FLASTALはお金の管理や会場の確認など、面倒な裏方をすべてサポート。仲間を集めて、最高のお祝いを届けませんか？
+              </p>
+            </Reveal>
+
+            {/* ネオ・ブルータリズム風のポップなボタン */}
+            <Reveal delay={0.4} className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 w-full sm:w-auto">
+              <Link href="/projects/create" className="w-full sm:w-auto block">
+                <motion.button 
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="w-full sm:w-auto px-8 py-4 bg-pink-500 text-white rounded-2xl font-black text-sm md:text-base shadow-[4px_4px_0px_rgba(244,114,182,0.3)] hover:shadow-[2px_2px_0px_rgba(244,114,182,0.3)] hover:translate-y-[2px] hover:translate-x-[2px] transition-all flex items-center justify-center gap-2"
+                >
+                  <Crown size={18} /> 企画を立ち上げる
+                </motion.button>
+              </Link>
+              
+              <Link href="/projects" className="w-full sm:w-auto block">
+                <motion.button 
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="w-full sm:w-auto px-8 py-4 bg-white text-slate-700 rounded-2xl font-black text-sm md:text-base border-2 border-slate-200 hover:border-pink-300 shadow-[4px_4px_0px_rgba(226,232,240,1)] hover:shadow-[2px_2px_0px_rgba(244,114,182,0.3)] hover:translate-y-[2px] hover:translate-x-[2px] transition-all flex items-center justify-center gap-2"
+                >
+                  <Search size={18} className="text-slate-400" /> 参加する企画を探す
+                </motion.button>
+              </Link>
+            </Reveal>
+          </div>
+
+          {/* 右：コラージュ風ビジュアル（SaaS感をなくす） */}
+          <div className="lg:col-span-5 relative w-full h-[400px] lg:h-[500px] hidden md:block mt-10 lg:mt-0 perspective-1000">
+             
+             {/* ポラロイド風カード 1 */}
+             <motion.div 
+               initial={{ opacity: 0, rotate: -15, x: -30, y: 30 }}
+               animate={{ opacity: 1, rotate: -8, x: 0, y: 0 }}
+               transition={{ duration: 0.8, delay: 0.3, type: "spring", bounce: 0.4 }}
+               className="absolute top-[10%] left-[5%] w-48 h-56 bg-white p-3 pb-8 rounded-xl shadow-xl border border-slate-100 z-10 cursor-pointer"
+               whileHover={{ scale: 1.05, rotate: 0, zIndex: 30 }}
+             >
+                <div className="w-full h-full bg-sky-100 rounded-lg flex items-center justify-center border border-sky-200">
+                   <span className="text-5xl drop-shadow-md">💐</span>
+                </div>
+                <p className="font-calligraphy text-center mt-3 text-slate-500 text-sm">Happy Anniversary!</p>
+             </motion.div>
+
+             {/* ポラロイド風カード 2 */}
+             <motion.div 
+               initial={{ opacity: 0, rotate: 20, x: 30, y: -30 }}
+               animate={{ opacity: 1, rotate: 10, x: 0, y: 0 }}
+               transition={{ duration: 0.8, delay: 0.4, type: "spring", bounce: 0.4 }}
+               className="absolute top-[20%] right-[5%] w-56 h-64 bg-white p-3 pb-10 rounded-xl shadow-2xl border border-slate-100 z-20 cursor-pointer"
+               whileHover={{ scale: 1.05, rotate: 0, zIndex: 30 }}
+             >
+                <div className="w-full h-full bg-pink-100 rounded-lg flex items-center justify-center border border-pink-200">
+                   <span className="text-6xl drop-shadow-md">💖</span>
+                </div>
+                <p className="font-calligraphy text-center mt-4 text-pink-500 text-lg">Thank you</p>
+             </motion.div>
+
+             {/* チケット風カード */}
+             <motion.div 
+               initial={{ opacity: 0, y: 30 }}
+               animate={{ opacity: 1, y: 0 }}
+               transition={{ duration: 0.8, delay: 0.6, type: "spring", bounce: 0.4 }}
+               className="absolute bottom-[5%] left-[20%] w-64 h-24 bg-gradient-to-r from-amber-100 to-orange-100 rounded-2xl shadow-[0_10px_30px_rgba(245,158,11,0.2)] border-2 border-white z-30 flex items-center p-4 cursor-pointer"
+               whileHover={{ scale: 1.05, y: -5 }}
+             >
+                <div className="border-r-2 border-dashed border-amber-300 pr-4 mr-4">
+                  <Ticket className="text-amber-500" size={32} />
+                </div>
+                <div>
+                  <p className="text-[10px] font-black tracking-widest uppercase text-amber-500 mb-0.5">Live Event</p>
+                  <p className="font-black text-slate-800 text-sm">フラスタ受付完了 🎉</p>
+                </div>
+             </motion.div>
+
+          </div>
+        </div>
+      </div>
     </section>
   );
 };
@@ -354,23 +406,23 @@ const Hero = () => {
 const InfiniteMarquee = () => {
   const words = ["IDOL", "VTUBER", "STAGE", "VOICE ACTOR", "ANIME", "ANNIVERSARY"];
   return (
-    <div className="py-5 md:py-9 bg-slate-950 overflow-hidden flex whitespace-nowrap border-y border-white/5 relative z-20">
-      <div className="flex items-center gap-6 md:gap-16 animate-marquee">
+    <div className="py-5 md:py-6 bg-pink-400 overflow-hidden flex whitespace-nowrap relative z-20 shadow-inner">
+      <div className="flex items-center gap-6 md:gap-12 animate-marquee">
         {[...Array(4)].map((_, i) => (
-          <div key={i} className="flex items-center gap-6 md:gap-16">
+          <div key={i} className="flex items-center gap-6 md:gap-12">
             {words.map((word, j) => (
               <React.Fragment key={j}>
-                <span className="text-2xl md:text-5xl font-black text-slate-100 tracking-widest">
+                <span className="text-xl md:text-3xl font-black text-white tracking-widest">
                   {word}
                 </span>
-                <Heart size={20} className="text-pink-600/30 mx-2" fill="currentColor" />
+                <Heart size={20} className="text-pink-200 mx-2" fill="currentColor" />
               </React.Fragment>
             ))}
           </div>
         ))}
       </div>
       <style jsx global>{`
-        .animate-marquee { animation: marquee 30s linear infinite; }
+        .animate-marquee { animation: marquee 25s linear infinite; }
         @keyframes marquee { 0% { transform: translateX(0%); } 100% { transform: translateX(-50%); } }
       `}</style>
     </div>
@@ -380,32 +432,31 @@ const InfiniteMarquee = () => {
 // --- 3. HOW IT WORKS ---
 const HowItWorks = () => {
   const steps = [
-    { num: "01", title: "企画ページをつくる", desc: "イベントの日程や会場、贈りたいお花のイメージを入力してページを公開します。", icon: PenTool, color: "text-pink-500", bg: "bg-pink-100" },
-    { num: "02", title: "SNSでシェアして集金", desc: "みんなでお金を出し合います。クレジットカード対応で、面倒な口座管理は不要です。", icon: Heart, color: "text-violet-500", bg: "bg-violet-100" },
-    { num: "03", title: "お花屋さんがお届け", desc: "目標達成後、FLASTAL提携のプロのお花屋さんが制作し、直接会場へお届けします。", icon: Gift, color: "text-sky-500", bg: "bg-sky-100" },
+    { num: "1", title: "企画ページをつくる", desc: "イベントの日程や会場、贈りたいお花のイメージを入力してページを公開します。", icon: PenTool, color: "text-amber-500", bg: "bg-amber-100" },
+    { num: "2", title: "SNSでシェアして集金", desc: "みんなでお金を出し合います。クレジットカード対応で、面倒な口座管理は不要です。", icon: Heart, color: "text-pink-500", bg: "bg-pink-100" },
+    { num: "3", title: "お花屋さんがお届け", desc: "目標達成後、提携のプロのお花屋さんが制作し、直接会場へお届けします。", icon: Gift, color: "text-sky-500", bg: "bg-sky-100" },
   ];
 
   return (
-    <section className="py-24 md:py-36 bg-white relative z-10">
-      <div className="absolute top-1/4 left-0 w-24 h-24 bg-pink-100 rounded-full blur-3xl opacity-60" />
-      <div className="absolute bottom-1/4 right-0 w-32 h-32 bg-sky-100 rounded-full blur-3xl opacity-60" />
-
+    <section className="py-20 md:py-28 bg-white relative z-10">
       <div className="container mx-auto px-4 md:px-6 max-w-5xl relative z-10">
-        <div className="text-center mb-16 md:mb-28">
-          <span className="text-violet-500 font-mono text-xs font-bold tracking-widest uppercase block mb-3">Process</span>
-          <h2 className="text-3xl md:text-6xl font-black text-slate-800 tracking-tighter">フラスタが届くまで</h2>
+        <div className="text-center mb-16 md:mb-20">
+          <h2 className="text-3xl md:text-5xl font-black text-slate-800 tracking-tighter">フラスタが届くまで</h2>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-10 md:gap-14">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-12 relative">
+          <div className="absolute top-10 left-1/6 right-1/6 h-1 bg-slate-100 hidden md:block -z-10" />
+
           {steps.map((step, i) => (
-            <Reveal key={i} delay={i * 0.15} className="relative flex flex-col items-center text-center group">
-              <div className="absolute top-12 left-1/2 w-full h-0.5 bg-slate-100 -z-10 hidden md:block" />
-              <div className={cn("w-24 h-24 rounded-3xl flex items-center justify-center mb-7 shadow-sm border border-white relative z-10 transition-transform duration-500 group-hover:-translate-y-3", step.bg, step.color)}>
-                <step.icon size={36} strokeWidth={1.5} />
+            <Reveal key={i} delay={i * 0.1} className="relative flex flex-col items-center text-center bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl hover:-translate-y-2 transition-all duration-300">
+              <motion.div whileHover={{ scale: 1.1, rotate: 5 }} className={cn("w-20 h-20 rounded-full flex items-center justify-center mb-5 shadow-sm relative z-10", step.bg, step.color)}>
+                <step.icon size={32} strokeWidth={2} />
+              </motion.div>
+              <div className="bg-slate-100 text-slate-500 w-8 h-8 rounded-full flex items-center justify-center font-black text-sm mb-4">
+                {step.num}
               </div>
-              <span className="font-mono text-4xl font-black text-slate-200 mb-2">{step.num}</span>
-              <h3 className="text-xl md:text-2xl font-extrabold text-slate-800 mb-4">{step.title}</h3>
-              <p className="text-sm md:text-base text-slate-500 font-medium leading-relaxed px-3">{step.desc}</p>
+              <h3 className="text-xl font-black text-slate-800 mb-3">{step.title}</h3>
+              <p className="text-sm text-slate-600 font-bold leading-relaxed">{step.desc}</p>
             </Reveal>
           ))}
         </div>
@@ -414,7 +465,7 @@ const HowItWorks = () => {
   );
 };
 
-// --- 4. TRENDING PROJECTS (本番データフェッチ) ---
+// --- 4. TRENDING PROJECTS ---
 const TrendingProjects = () => {
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -427,7 +478,6 @@ const TrendingProjects = () => {
         if (res.ok) {
           const data = await res.json();
           const projectsArray = Array.isArray(data) ? data : (data?.projects || []);
-          // 進行中または成功したプロジェクトを優先して最大4件表示
           const activeProjects = projectsArray.filter(p => p?.status === 'FUNDRAISING' || p?.status === 'SUCCESSFUL');
           setProjects(activeProjects.slice(0, 4));
         }
@@ -441,30 +491,26 @@ const TrendingProjects = () => {
   }, []);
 
   return (
-    <section className="py-24 md:py-36 bg-slate-50 relative z-10 border-t border-slate-100">
-      <div className="container mx-auto px-4 md:px-6 max-w-7xl">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-14 gap-6">
-          <div>
-            <span className="text-pink-500 font-mono text-xs font-bold tracking-widest uppercase block mb-3">Trending</span>
-            <h2 className="text-3xl md:text-6xl font-black text-slate-800 tracking-tighter">注目の企画</h2>
+    <section className="py-20 md:py-28 bg-[#FAF9FF] relative z-10 border-t border-slate-100">
+      <div className="container mx-auto px-4 md:px-6 max-w-6xl">
+        <div className="flex flex-col md:flex-row justify-between items-center md:items-end mb-10 gap-6">
+          <div className="text-center md:text-left">
+            <h2 className="text-3xl md:text-5xl font-black text-slate-800 tracking-tighter">注目の企画</h2>
+            <p className="text-slate-500 font-bold mt-2 text-sm">みんなで応援中の素敵な企画をチェック！</p>
           </div>
           <Link href="/projects" className="hidden md:block">
-            <MagneticWrapper>
-              <button className="px-7 py-4 rounded-full border border-slate-200 text-sm font-extrabold text-slate-600 hover:bg-white transition-colors flex items-center gap-2">
-                すべての企画を見る <ArrowRight size={18}/>
-              </button>
-            </MagneticWrapper>
+            <motion.button whileHover={{ scale: 1.05 }} className="px-6 py-3 rounded-full bg-white border border-slate-200 text-sm font-black text-slate-600 hover:border-pink-300 hover:text-pink-500 transition-colors flex items-center gap-2 shadow-sm">
+              すべての企画を見る <ArrowRight size={16}/>
+            </motion.button>
           </Link>
         </div>
 
         {loading ? (
           <div className="flex justify-center items-center py-20">
-            <Loader2 className="w-10 h-10 text-pink-500 animate-spin" />
+            <Loader2 className="w-10 h-10 text-pink-400 animate-spin" />
           </div>
         ) : projects.length > 0 ? (
-          <div className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar pb-8 -mx-4 px-4 md:mx-0 md:px-0 md:grid md:grid-cols-4 gap-5 md:gap-6">
-            
-            {/* ★ DOPA風カード */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 md:gap-6">
             {projects.filter(p => p?.visibility !== 'UNLISTED' && p?.isVisible !== false).map((project, i) => {
               const percent = Math.min(Math.round(((project?.collectedAmount || 0) / (project?.targetAmount || 1)) * 100), 100);
               const isSuccess = percent >= 100 || project?.status === 'SUCCESSFUL' || project?.status === 'COMPLETED';
@@ -472,97 +518,62 @@ const TrendingProjects = () => {
               const badgeColor = project?.status === 'COMPLETED' ? 'bg-purple-500' : isSuccess ? 'bg-emerald-500' : 'bg-pink-500';
 
               return (
-                <Reveal key={project?.id || i} delay={i * 0.1} className="min-w-[85vw] sm:min-w-[320px] md:min-w-0 snap-center h-full">
-                  <div onClick={() => router.push(`/projects/${project.id}`)} className="block group h-full cursor-pointer">
-                    <div className="bg-white/90 backdrop-blur-md rounded-[1.5rem] overflow-hidden border border-slate-100 shadow-sm hover:shadow-[0_12px_30px_rgba(244,114,182,0.15)] transition-all duration-300 hover:-translate-y-1 relative h-full flex flex-col group-hover:border-pink-200">
+                <Reveal key={project?.id || i} delay={i * 0.1}>
+                  <motion.div 
+                    whileHover={{ y: -8, scale: 1.02 }} 
+                    transition={{ duration: 0.3 }}
+                    onClick={() => router.push(`/projects/${project.id}`)} 
+                    className="bg-white rounded-[2rem] overflow-hidden border border-slate-100 shadow-sm hover:shadow-xl cursor-pointer h-full flex flex-col group"
+                  >
+                    <div className="relative w-full aspect-square bg-slate-100 shrink-0 overflow-hidden">
+                      {project?.imageUrl ? (
+                        <Image src={project.imageUrl} alt={project?.title || "企画画像"} fill className="object-cover group-hover:scale-105 transition-transform duration-500" />
+                      ) : (
+                        <div className="absolute inset-0 bg-pink-50 flex items-center justify-center text-4xl">💐</div>
+                      )}
+                      <div className="absolute top-3 left-3">
+                        <span className={cn("px-3 py-1 rounded-full text-[10px] font-black text-white uppercase tracking-widest shadow-sm", badgeColor)}>
+                          {badgeLabel}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="p-5 flex flex-col flex-grow">
+                      <h3 className="font-black text-slate-800 text-sm leading-snug group-hover:text-pink-500 transition-colors line-clamp-2 mb-3">
+                        {project?.title}
+                      </h3>
                       
-                      {/* 画像エリア */}
-                      <div className="relative w-full aspect-[4/5] bg-slate-100 shrink-0">
-                        {project?.imageUrl ? (
-                          <Image src={project.imageUrl} alt={project?.title || "企画画像"} fill className="object-cover group-hover:scale-105 transition-transform duration-700" />
-                        ) : (
-                          <div className="absolute inset-0 bg-gradient-to-br from-pink-100 to-sky-100 flex items-center justify-center text-4xl">💐</div>
-                        )}
-                        <div className="absolute inset-x-0 top-0 h-1/3 bg-gradient-to-b from-slate-900/50 to-transparent" />
-                        <div className="absolute top-4 left-4">
-                          <span className={cn("px-3 py-1.5 rounded-full text-[10px] font-black shadow-md border backdrop-blur-md text-white uppercase tracking-widest", badgeColor)}>
-                            {badgeLabel}
+                      <div className="mt-auto pt-3 border-t border-slate-50">
+                        <div className="flex justify-between items-end mb-2">
+                          <p className="text-sm font-black text-slate-800">
+                            ¥{(project?.collectedAmount || 0).toLocaleString()}
+                          </p>
+                          <span className={cn("text-lg font-black leading-none", isSuccess ? "text-emerald-500" : "text-pink-500")}>
+                            {percent}%
                           </span>
                         </div>
-                      </div>
-
-                      {/* コンテンツエリア */}
-                      <div className="p-4 lg:p-5 flex flex-col flex-grow bg-white">
-                        <h3 className="font-bold text-slate-800 text-sm leading-snug group-hover:text-pink-500 transition-colors line-clamp-2 mb-3">
-                          {project?.title}
-                        </h3>
-                        
-                        <div className="space-y-1.5 mb-4">
-                            {project?.deliveryDateTime && (
-                                <p className="text-[11px] font-bold text-slate-500 flex items-center">
-                                    <Calendar className="mr-1.5 shrink-0 text-pink-400" size={14}/> 
-                                    {new Date(project.deliveryDateTime).toLocaleDateString()}
-                                </p>
-                            )}
-                            <p className="text-[11px] font-bold text-slate-500 flex items-center truncate">
-                                <MapPin className="mr-1.5 shrink-0 text-sky-400" size={14}/> 
-                                <span className="truncate">{project?.venue?.venueName || project?.deliveryAddress || '場所未定'}</span>
-                            </p>
-                        </div>
-
-                        <div className="mt-auto pt-4 border-t border-slate-100/50">
-                          <div className="flex justify-between items-end mb-2">
-                            <div>
-                              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Current</p>
-                              <p className="text-base font-black leading-none text-slate-800">
-                                ¥{(project?.collectedAmount || 0).toLocaleString()}
-                                <span className="text-[9px] text-slate-400 font-medium ml-1">/ ¥{(project?.targetAmount || 0).toLocaleString()}</span>
-                              </p>
-                            </div>
-                            <span className={cn("text-xl font-black font-mono leading-none", isSuccess ? "text-emerald-500" : "text-pink-500")}>
-                              {percent}%
-                            </span>
-                          </div>
-                          <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden shadow-inner mb-3">
-                            <motion.div 
-                              initial={{ width: 0 }} whileInView={{ width: `${percent}%` }} transition={{ duration: 1.5, delay: 0.2 }}
-                              className={cn("h-full rounded-full", isSuccess ? "bg-emerald-400" : "bg-gradient-to-r from-pink-400 to-rose-400")} 
-                            />
-                          </div>
-
-                          {/* 支援するダイレクトボタン */}
-                          {project?.status === 'FUNDRAISING' && (
-                              <div className="pt-3 border-t border-slate-100 border-dashed relative z-20">
-                                  <button
-                                      onClick={(e) => {
-                                          e.stopPropagation(); 
-                                          router.push(`/projects/${project.id}#pledge-section`);
-                                      }}
-                                      className="w-full py-2.5 bg-pink-50 hover:bg-pink-500 text-pink-600 hover:text-white rounded-xl text-xs font-black transition-colors flex items-center justify-center gap-1.5"
-                                  >
-                                      <Heart size={14} className="fill-current" />
-                                      支援する (1口 ¥{(project?.minContributionAmount || 1000).toLocaleString()}〜)
-                                  </button>
-                              </div>
-                          )}
+                        <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                          <motion.div 
+                            initial={{ width: 0 }} whileInView={{ width: `${percent}%` }} transition={{ duration: 1.5, delay: 0.2 }}
+                            className={cn("h-full rounded-full", isSuccess ? "bg-emerald-400" : "bg-pink-400")} 
+                          />
                         </div>
                       </div>
                     </div>
-                  </div>
+                  </motion.div>
                 </Reveal>
               );
             })}
-
           </div>
         ) : (
-          <div className="text-center py-20 text-slate-400 font-bold">
+          <div className="text-center py-20 text-slate-400 font-bold bg-white rounded-3xl border border-slate-100">
             現在表示できる注目の企画がありません。
           </div>
         )}
         
-        <Link href="/projects" className="md:hidden flex justify-center mt-5">
-          <button className="px-7 py-4 w-full rounded-full border border-slate-200 text-sm font-extrabold text-slate-600 bg-white flex items-center justify-center gap-2 shadow-sm">
-            すべての企画を見る <ArrowRight size={18}/>
+        <Link href="/projects" className="md:hidden flex justify-center mt-6">
+          <button className="px-6 py-3 w-full rounded-xl border border-slate-200 text-sm font-black text-slate-600 bg-white shadow-sm hover:bg-slate-50">
+            すべての企画を見る
           </button>
         </Link>
       </div>
@@ -575,88 +586,64 @@ const BentoFeatures = () => {
   const features = [
     {
       title: "集金・お金の管理をスマートに",
-      desc: "クレジットカードやPayPayで自動集金。主催者が個人の銀行口座を晒したり、入金確認に追われるストレスをゼロにします。",
+      desc: "クレジットカードやPayPayで自動集金。個人の口座を晒したり、入金確認に追われるストレスをゼロにします。",
       span: "col-span-1 md:col-span-2",
       icon: Shield,
-      color: "bg-gradient-to-br from-white to-emerald-50/30",
-      text: "text-slate-800",
-      descColor: "text-slate-500",
+      color: "bg-emerald-50/50 hover:bg-emerald-50",
+      text: "text-emerald-900",
       iconColor: "text-emerald-500",
-      iconBg: "bg-emerald-100/50",
-      visual: (
-        <div className="absolute -right-8 -bottom-8 w-48 h-48 bg-emerald-200/20 rounded-full blur-3xl" />
-      )
+      iconBg: "bg-emerald-100",
     },
     {
-      title: "完全匿名・安全に参加",
-      desc: "住所や本名を明かさず、ハンドルネームだけでOK。プライバシーを守りながら、安心して推しへの愛を形にできます。",
+      title: "完全匿名で安心",
+      desc: "住所や本名を明かさず、ハンドルネームだけで参加可能。プライバシーを守ります。",
       span: "col-span-1",
       icon: KeyRound,
-      color: "bg-white",
-      text: "text-slate-800",
-      descColor: "text-slate-500",
+      color: "bg-pink-50/50 hover:bg-pink-50",
+      text: "text-pink-900",
       iconColor: "text-pink-500",
-      iconBg: "bg-pink-50",
-      visual: <div className="absolute -right-4 -bottom-4 opacity-[0.03] rotate-12"><KeyRound size={120} /></div>
+      iconBg: "bg-pink-100",
     },
     {
-      title: "お花屋さん・絵師へ直接依頼",
-      desc: "企画にぴったりのフラスタ専門のお花屋さんやイラストレーターを公募・指名可能。デザインのすり合わせもサイト内で完結します。",
+      title: "プロに直接依頼",
+      desc: "フラスタ専門のお花屋さんや絵師さんをサイト内で指名・公募できます。",
       span: "col-span-1",
       icon: PenTool,
-      color: "bg-white",
-      text: "text-slate-800",
-      descColor: "text-slate-500",
-      iconColor: "text-violet-500",
-      iconBg: "bg-violet-50",
-      visual: <div className="absolute -right-4 -bottom-4 opacity-[0.03] -rotate-12"><Command size={100} /></div>
+      color: "bg-amber-50/50 hover:bg-amber-50",
+      text: "text-amber-900",
+      iconColor: "text-amber-500",
+      iconBg: "bg-amber-100",
     },
     {
-      title: "会場レギュレーション確認済み",
-      desc: "FLASTALがお花送付のルールを会場・主催者と連携。当日「サイズオーバーでフラスタが置けなかった」という悲劇を防ぎます。",
+      title: "レギュレーション確認済み",
+      desc: "お花送付のルールを会場と連携。当日「サイズオーバーで置けなかった」という悲劇を防ぎます。",
       span: "col-span-1 md:col-span-2",
       icon: Building,
-      color: "bg-gradient-to-br from-white to-sky-50/30",
-      text: "text-slate-800",
-      descColor: "text-slate-500",
+      color: "bg-sky-50/50 hover:bg-sky-50",
+      text: "text-sky-900",
       iconColor: "text-sky-500",
-      iconBg: "bg-sky-50",
-      visual: (
-        <div className="absolute right-10 top-10 opacity-[0.05]"><MapPin size={120} /></div>
-      )
+      iconBg: "bg-sky-100",
     }
   ];
 
   return (
-    <section className="py-20 md:py-36 bg-white relative z-10 border-t border-slate-100">
-      <div className="container mx-auto px-4 md:px-6 max-w-6xl">
-        <div className="mb-12 md:mb-20 text-center md:text-left">
-          <Reveal>
-            <span className="text-emerald-500 font-black text-[10px] md:text-xs tracking-[0.2em] uppercase block mb-4">Safety & Professional</span>
-            <h2 className="text-[21px] sm:text-3xl md:text-5xl lg:text-6xl font-black text-slate-800 tracking-tighter leading-[1.5] md:leading-[1.2]">
-              フラスタ企画の面倒な裏方は、<br />
-              すべてFLASTALにお任せ。
-            </h2>
-          </Reveal>
+    <section className="py-20 md:py-28 bg-white relative z-10 border-t border-slate-100">
+      <div className="container mx-auto px-4 md:px-6 max-w-5xl">
+        <div className="mb-12 text-center">
+          <h2 className="text-3xl md:text-5xl font-black text-slate-800 tracking-tighter mb-4">
+            面倒な裏方は、すべてFLASTALに。
+          </h2>
+          <p className="text-sm font-bold text-slate-500">お金の管理から会場への確認まで、もっと手軽に推し活を楽しめます。</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-5">
           {features.map((feat, i) => (
-            <Reveal key={i} delay={i * 0.1} className={cn(
-              "rounded-[2.5rem] overflow-hidden relative group border border-slate-200/60 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-500",
-              feat.span, 
-              feat.color
-            )}>
-              <div className="p-8 md:p-10 flex flex-col h-full z-20 relative">
-                <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center mb-6 border border-white shadow-sm", feat.iconBg, feat.iconColor)}>
-                  <feat.icon size={28} strokeWidth={2} />
-                </div>
-                <h3 className={cn("text-xl md:text-2xl font-black mb-3 tracking-tight", feat.text)}>{feat.title}</h3>
-                <p className={cn("text-xs sm:text-sm md:text-base font-bold leading-relaxed", feat.descColor)}>{feat.desc}</p>
-              </div>
-              <div className="absolute inset-0 z-10 pointer-events-none">
-                {feat.visual}
-              </div>
+            <Reveal key={i} delay={i * 0.1} className={cn("rounded-3xl p-6 md:p-8 border border-slate-100 shadow-sm hover:shadow-lg transition-all duration-300 hover:-translate-y-2 cursor-default group", feat.span, feat.color)}>
+              <motion.div whileHover={{ scale: 1.1, rotate: -5 }} className={cn("w-12 h-12 rounded-2xl flex items-center justify-center mb-5 transition-transform", feat.iconBg, feat.iconColor)}>
+                <feat.icon size={24} strokeWidth={2} />
+              </motion.div>
+              <h3 className={cn("text-lg font-black mb-2", feat.text)}>{feat.title}</h3>
+              <p className="text-sm font-bold text-slate-600 leading-relaxed">{feat.desc}</p>
             </Reveal>
           ))}
         </div>
@@ -668,27 +655,23 @@ const BentoFeatures = () => {
 // --- 6. CATEGORIES ---
 const CategoryGrid = () => {
   return (
-    <section className="py-24 md:py-32 bg-[#FAF9FF] relative z-10 border-t border-slate-100">
-      
-      <EmojiParticle emoji="🎂" x="5%" y="10%" scale={1.2} delay={0.5} />
-      <EmojiParticle emoji="✨" x="90%" y="80%" scale={1.5} delay={2} />
-
-      <div className="container mx-auto px-4 md:px-6 max-w-6xl relative z-10">
-        <div className="text-center mb-14">
-          <h2 className="text-3xl md:text-5xl font-black text-slate-800 tracking-tighter mb-4">対応ジャンル</h2>
-          <p className="text-sm md:text-base text-slate-500 font-medium max-w-lg mx-auto leading-relaxed">アイドル、配信者、俳優、アニメイベントなど、様々なシーンのお祝いに対応しています。</p>
+    <section className="py-20 md:py-28 bg-white relative z-10 border-t border-slate-100">
+      <div className="container mx-auto px-4 md:px-6 max-w-5xl relative z-10">
+        <div className="text-center mb-10">
+          <h2 className="text-3xl md:text-4xl font-black text-slate-800 tracking-tighter mb-3">対応ジャンル</h2>
+          <p className="text-sm text-slate-500 font-bold">様々なシーンのお祝いに対応しています。</p>
         </div>
         
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 md:gap-5">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-4">
           {CATEGORIES.map((cat, i) => (
             <Reveal key={cat.id} delay={i * 0.05}>
-              <div className="group bg-white border border-slate-100 hover:border-violet-200 rounded-3xl p-5 md:p-7 text-center cursor-pointer transition-all duration-300 shadow-sm hover:shadow-md">
-                <div className={cn("w-12 h-12 md:w-14 md:h-14 mx-auto rounded-2xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110", cat.bg, cat.color)}>
-                  <cat.icon className="w-6 h-6 md:w-7 md:h-7" strokeWidth={1.5} />
+              <motion.div whileHover={{ scale: 1.05, y: -5 }} className={cn("rounded-2xl p-4 text-center border border-slate-100 transition-shadow hover:shadow-md cursor-pointer", cat.bg)}>
+                <div className={cn("w-10 h-10 mx-auto bg-white rounded-full flex items-center justify-center mb-3 shadow-sm", cat.color)}>
+                  <cat.icon size={20} strokeWidth={2} />
                 </div>
-                <h3 className="text-slate-800 font-extrabold text-xs md:text-sm mb-1.5">{cat.name}</h3>
-                <p className="text-slate-400 text-[10px] md:text-xs">{cat.jp}</p>
-              </div>
+                <h3 className="text-slate-800 font-black text-xs mb-1">{cat.name}</h3>
+                <p className="text-slate-500 text-[9px] font-bold">{cat.jp}</p>
+              </motion.div>
             </Reveal>
           ))}
         </div>
@@ -697,7 +680,7 @@ const CategoryGrid = () => {
   );
 };
 
-// --- 7. ARTICLES (LARU SEO Embed Script版) ---
+// --- 7. ARTICLES ---
 const LaruSeoEmbed = () => {
   const containerRef = useRef(null);
   
@@ -705,102 +688,37 @@ const LaruSeoEmbed = () => {
     const timer = setTimeout(() => {
       const container = containerRef.current;
       if (!container) return;
-
       if (container.querySelector('script')) return;
 
       const script = document.createElement('script');
       script.src = "https://larubot.tokyo/embed/blog.js";
       script.setAttribute("data-id", "e19ed703-6238-49a5-ac83-c92c522a44cd");
-      script.setAttribute("data-limit", "6"); 
+      script.setAttribute("data-limit", "3"); 
       script.async = true;
-      
       container.appendChild(script);
-
-      const style = document.createElement('style');
-      style.innerHTML = `
-        #laru-blog-container > div {
-          display: flex !important;
-          flex-wrap: nowrap !important;
-          overflow-x: auto !important;
-          scroll-snap-type: x mandatory !important;
-          -webkit-overflow-scrolling: touch !important;
-          padding-bottom: 24px !important;
-          margin: 0 -16px !important;
-          padding-left: 16px !important;
-          padding-right: 16px !important;
-          gap: 20px !important;
-        }
-        
-        #laru-blog-container > div::-webkit-scrollbar {
-          display: none;
-        }
-
-        #laru-blog-container > div > div {
-          flex: 0 0 auto !important;
-          width: 85vw !important;
-          max-width: 320px !important;
-          scroll-snap-align: center !important;
-          display: flex !important;
-          flex-direction: column !important;
-          height: 100% !important;
-        }
-
-        @media (min-width: 768px) {
-          #laru-blog-container > div {
-            margin: 0 !important;
-            padding-left: 0 !important;
-            padding-right: 0 !important;
-          }
-          #laru-blog-container > div > div {
-            width: 340px !important;
-            max-width: none !important;
-          }
-        }
-        
-        #laru-blog-container img {
-          aspect-ratio: 16 / 9 !important;
-          height: auto !important;
-          object-fit: cover !important;
-        }
-      `;
-      container.appendChild(style);
     }, 100);
-
     return () => clearTimeout(timer);
   }, []);
 
-  return (
-    <div ref={containerRef} className="w-full min-h-[400px] relative z-20">
-       <div id="laru-blog-container"></div>
-    </div>
-  );
+  return <div ref={containerRef} className="w-full min-h-[300px]" />;
 };
 
 const ArticlesSection = () => (
-  <section className="py-24 md:py-36 bg-slate-50 relative z-10 border-t border-slate-100 overflow-hidden">
-    <div className="container mx-auto px-4 md:px-6 max-w-7xl">
-      <div className="flex flex-col md:flex-row justify-between items-center mb-10 md:mb-14">
-        <div className="text-center md:text-left mb-6 md:mb-0">
-          <span className="text-blue-500 font-mono text-xs font-bold tracking-widest uppercase block mb-3">Knowledge Base</span>
-          <h2 className="text-3xl md:text-5xl font-black text-slate-800 tracking-tighter">お役立ち情報・コラム</h2>
-        </div>
-        
-        <Link href="/blog" className="hidden md:block">
-          <button className="px-6 py-3 rounded-full border border-slate-200 text-sm font-bold text-slate-600 hover:bg-white hover:shadow-sm transition-all flex items-center gap-2 bg-white">
-            すべての記事を見る <ArrowRight size={16}/>
-          </button>
+  <section className="py-20 md:py-28 bg-[#FAF9FF] relative z-10 border-t border-slate-100">
+    <div className="container mx-auto px-4 md:px-6 max-w-5xl">
+      <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
+        <h2 className="text-3xl md:text-4xl font-black text-slate-800 tracking-tighter">お役立ち情報</h2>
+        <Link href="/blog">
+          <motion.button whileHover={{ scale: 1.05 }} className="px-5 py-2.5 rounded-full border border-slate-200 text-xs font-black text-slate-600 bg-white shadow-sm flex items-center gap-2">
+            すべての記事を見る <ArrowRight size={14}/>
+          </motion.button>
         </Link>
       </div>
-
       <Reveal>
-        <LaruSeoEmbed />
+        <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+          <LaruSeoEmbed />
+        </div>
       </Reveal>
-
-      <Link href="/blog" className="md:hidden flex justify-center mt-4">
-        <button className="px-6 py-3.5 w-full rounded-xl border border-slate-200 text-sm font-bold text-slate-600 bg-white flex items-center justify-center gap-2 shadow-sm hover:bg-slate-50 active:scale-[0.98] transition-all">
-          すべての記事を見る <ArrowRight size={16}/>
-        </button>
-      </Link>
     </div>
   </section>
 );
@@ -808,44 +726,36 @@ const ArticlesSection = () => (
 
 // --- 8. PARTNER CTA ---
 const PartnerCTA = () => (
-  <section className="py-24 md:py-28 bg-slate-950 relative z-10 overflow-hidden border-t border-white/5">
-    
-    <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: "url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgdmlld0JveD0iMCAwIDQwIDQwIj48ZyBmaWxsPSIjRkZGRkZGIiBmaWxsLW9wYWNpdHk9IjAuNCI+PHBhdGggZD0iTTAgMGg0MHY0MEgwVjB6bTIwIDIwaDIwdjIwSDIWMjB6TTAgMjBoMjB2MjBIMFYyMHoyMCAwaDIwdjIwSDIwVjB6Ii8+PC9nPjwvc3ZnPg==')" }} />
-
+  <section className="py-20 md:py-28 bg-pink-50 relative z-10 overflow-hidden border-t border-pink-100">
     <div className="container mx-auto px-4 md:px-6 max-w-5xl relative z-10">
       <Reveal>
-        <div className="text-center mb-14 md:mb-18">
-          <EmojiParticle emoji="🎀" x="45%" y="-40px" scale={1.5} delay={0.5} />
-          
-          <h2 className="text-3xl md:text-5xl font-black text-white mb-5 tracking-tighter mt-8">法人・クリエイターの皆様へ</h2>
-          <p className="text-slate-400 text-sm md:text-base max-w-2xl mx-auto leading-relaxed font-medium">
-            FLASTALは、お花屋さん、ライブ会場、イベント主催者、イラストレーターとファンを繋ぐエコシステムです。初期費用・月額費用は一切かかりません。推しの活動をみんなで支えましょう。
+        <div className="text-center mb-12">
+          <h2 className="text-2xl md:text-4xl font-black text-slate-800 mb-4 tracking-tighter">法人・クリエイターの皆様へ</h2>
+          <p className="text-slate-600 text-sm font-bold max-w-2xl mx-auto leading-relaxed">
+            FLASTALは、お花屋さん、ライブ会場、イベント主催者、イラストレーターとファンを繋ぐサービスです。初期費用・月額費用は一切かかりません。
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {[
-            { href: "/venues/login", title: "会場・ホールのご担当者様", desc: "搬入ルールの設定、お花屋さんとの連携", icon: Building, color: "text-blue-400", bg: "bg-blue-500/10", border: "border-blue-500/20" },
-            { href: "/organizers/login", title: "イベント主催者様", desc: "お祝い花のレギュレーション周知・管理", icon: Ticket, color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/20" },
-            { href: "/florists/login", title: "お花屋さん", desc: "フラスタの受注管理・納品報告", icon: Store, color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20" },
-            { href: "/illustrators/login", title: "クリエイター様", desc: "イラストパネルの受注・納品", icon: PenTool, color: "text-pink-400", bg: "bg-pink-500/10", border: "border-pink-500/20" },
+            { href: "/venues/login", title: "会場・ホールのご担当者様", desc: "搬入ルールの設定など", icon: Building, color: "text-blue-500" },
+            { href: "/organizers/login", title: "イベント主催者様", desc: "お祝い花のルール周知", icon: Ticket, color: "text-amber-500" },
+            { href: "/florists/login", title: "お花屋さん", desc: "フラスタの受注・納品報告", icon: Store, color: "text-emerald-500" },
+            { href: "/illustrators/login", title: "クリエイター様", desc: "イラストパネルの受注", icon: PenTool, color: "text-pink-500" },
           ].map((role, i) => (
             <Link key={i} href={role.href} className="group">
-              <div className={cn("bg-white/5 border rounded-3xl p-6 md:p-8 flex flex-col h-full hover:bg-white/10 transition-colors duration-300", role.border)}>
-                <div className="flex items-start gap-4 mb-6">
-                  <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center shrink-0 border border-white/10", role.bg, role.color)}>
-                    <role.icon size={24} strokeWidth={1.5}/>
+              <motion.div whileHover={{ scale: 1.02, y: -5 }} className="bg-white border border-pink-100 rounded-2xl p-6 flex items-center justify-between shadow-sm hover:shadow-md transition-all h-full">
+                <div className="flex items-center gap-4">
+                  <div className={cn("w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center shrink-0", role.color)}>
+                    <role.icon size={20} strokeWidth={2}/>
                   </div>
-                  <div className="text-left mt-1">
-                    <h3 className="text-lg md:text-xl font-black text-white mb-1.5">{role.title}</h3>
-                    <p className="text-slate-400 text-xs md:text-sm font-medium">{role.desc}</p>
+                  <div>
+                    <h3 className="text-sm font-black text-slate-800">{role.title}</h3>
+                    <p className="text-slate-500 text-[10px] font-bold mt-0.5">{role.desc}</p>
                   </div>
                 </div>
-                <div className="mt-auto pt-5 border-t border-white/5 flex justify-between items-center">
-                  <span className="text-slate-300 font-bold text-sm group-hover:text-white transition-colors">ログイン / 新規登録</span>
-                  <ArrowRight size={18} className="text-slate-500 group-hover:text-white transition-colors group-hover:translate-x-1" />
-                </div>
-              </div>
+                <ArrowRight size={16} className="text-slate-300 group-hover:text-pink-500 transition-colors group-hover:translate-x-1" />
+              </motion.div>
             </Link>
           ))}
         </div>
@@ -855,7 +765,7 @@ const PartnerCTA = () => (
 );
 
 // ==========================================
-// 👑 MAIN EXPORT (Page Assembler)
+// 👑 MAIN EXPORT
 // ==========================================
 export default function HomePage() {
   const [isMounted, setIsMounted] = useState(false);
@@ -887,7 +797,7 @@ export default function HomePage() {
         
         :root {
           --font-sans: 'Zen Kaku Gothic New', 'Plus Jakarta Sans', sans-serif;
-          --font-calligraphy: 'Parisienne', cursive; /* お洒落な筆記体 */
+          --font-calligraphy: 'Parisienne', cursive;
         }
 
         body {
