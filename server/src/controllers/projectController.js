@@ -218,8 +218,8 @@ export const createProject = async (req, res) => {
             title, description, targetAmount, deliveryAddress, deliveryDateTime,
             imageUrl, designImageUrls, designDetails, size, flowerTypes,
             visibility, venueId, eventId, projectType, password,
-            // ★ 新規追加: 最低参加額と絵師募集
-            minContributionAmount, needsIllustrator, illustratorBudget, illustratorRequirements
+            minContributionAmount, needsIllustrator, illustratorBudget, illustratorRequirements,
+            isExpress // ★ 新規追加: フロントから「お急ぎ便かどうか」を受け取る
         } = req.body;
 
         // 1. バリデーション
@@ -237,23 +237,33 @@ export const createProject = async (req, res) => {
             return res.status(400).json({ message: '有効な納品希望日時を入力してください。' });
         }
 
+        // ★ 新規追加: お急ぎ便かどうかで「募集締切日（deadline）」を自動計算
+        // 通常は7日前、お急ぎ便(isExpress=true)の場合は3日前を締切とする
+        const expressFlag = Boolean(isExpress); 
+        const daysToSubtract = expressFlag ? 3 : 7; 
+        
+        const deadlineDate = new Date(deliveryDate);
+        deadlineDate.setDate(deadlineDate.getDate() - daysToSubtract);
+
         // 2. Prismaデータ作成
         const projectData = {
             title: String(title).trim(),
             description: description ? String(description) : "",
             targetAmount: amount,
             
-            // ★ 新規追加: 最低参加額 (指定がなければ1000円)
             minContributionAmount: minContributionAmount ? parseInt(minContributionAmount, 10) : 1000,
-            
-            // ★ 新規追加: クリエイター（絵師）募集設定
             needsIllustrator: Boolean(needsIllustrator),
             illustratorBudget: illustratorBudget ? parseInt(illustratorBudget, 10) : null,
             illustratorRequirements: illustratorRequirements ? String(illustratorRequirements) : null,
 
             collectedAmount: 0,
             deliveryAddress: deliveryAddress ? String(deliveryAddress) : "",
+            
+            // ★ 新規追加: 納品日と締切日、お急ぎ便フラグを保存
             deliveryDateTime: deliveryDate,
+            deadline: deadlineDate,
+            isExpress: expressFlag,
+            
             plannerId: req.user.id,
             imageUrl: imageUrl ? String(imageUrl) : null,
             designDetails: designDetails ? String(designDetails) : "",

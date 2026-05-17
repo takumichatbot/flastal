@@ -202,7 +202,7 @@ export const updateEvent = async (req, res) => {
     try {
         const { id } = req.params;
         const { 
-            title, eventName, description, eventDate, venueId, genre, 
+            title, eventName, description, eventDate, venueId, venueName, genre, 
             sourceUrl, imageUrl, imageUrls, twitterUrl, instagramUrl, officialWebsite,
             announcement, isIllustratorRecruiting, illustratorRequirements
         } = req.body;
@@ -220,6 +220,28 @@ export const updateEvent = async (req, res) => {
 
         const finalImageUrls = Array.isArray(imageUrls) ? imageUrls : (imageUrl ? [imageUrl] : undefined);
 
+        // ★ 場所（会場）の自動解決・新規作成ロジックを追加
+        let finalVenueId = venueId;
+        if (!finalVenueId && venueName) {
+            let existingVenue = await prisma.venue.findFirst({
+                where: { venueName: { contains: venueName, mode: 'insensitive' } }
+            });
+            if (existingVenue) {
+                finalVenueId = existingVenue.id;
+            } else {
+                const newVenue = await prisma.venue.create({
+                    data: {
+                        venueName: venueName,
+                        address: "住所不明（手動更新時に追加）",
+                        email: `auto-${Date.now()}@flastal.com`,
+                        password: "temp-password",
+                        status: "PENDING"
+                    }
+                });
+                finalVenueId = newVenue.id;
+            }
+        }
+
         const updated = await prisma.event.update({
             where: { id },
             data: {
@@ -235,7 +257,7 @@ export const updateEvent = async (req, res) => {
                 announcement: announcement,
                 isIllustratorRecruiting: isIllustratorRecruiting,
                 illustratorRequirements: illustratorRequirements,
-                venue: venueId ? { connect: { id: venueId } } : undefined,
+                venue: finalVenueId ? { connect: { id: finalVenueId } } : undefined, // ★ 修正
                 sourceType: newSourceType,
                 lastEditor: req.user.role !== 'ORGANIZER' ? { connect: { id: req.user.id } } : undefined
             }

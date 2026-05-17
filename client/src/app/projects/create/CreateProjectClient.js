@@ -1,3 +1,4 @@
+// src/app/projects/create/page.js
 'use client';
 
 // Next.js 15 ビルドエラー回避用
@@ -353,11 +354,12 @@ function CreateProjectForm() {
   const [budgetRefs, setBudgetRefs] = useState([]);
   const [isLoadingRefs, setIsLoadingRefs] = useState(true);
 
+  // ★ 修正: formDataにお急ぎ便フラグ(isExpress)を追加
   const [formData, setFormData] = useState({
     title: '',
     description: '',
     targetAmount: '',
-    minContributionAmount: '1000', // ★ 最低参加額の初期値
+    minContributionAmount: '1000', 
     deliveryAddress: '', 
     venueId: '',
     eventId: '',
@@ -369,7 +371,8 @@ function CreateProjectForm() {
     projectType: 'PUBLIC',
     password: '',
     illustratorBudget: '',
-    illustratorRequirements: ''
+    illustratorRequirements: '',
+    isExpress: false // ★ 新規追加
   });
 
   // ★ カタログデータの取得
@@ -581,7 +584,7 @@ function CreateProjectForm() {
         title: formData.title || "",
         description: formData.description || "",
         targetAmount: amount,
-        minContributionAmount: parseInt(formData.minContributionAmount, 10) || 1000, // ★ 最低参加額を送信
+        minContributionAmount: parseInt(formData.minContributionAmount, 10) || 1000, 
         deliveryAddress: `${formData.deliveryAddress || (selectedVenue?.address || "")} 【希望時間帯: ${deliveryTimeText || '指定なし'}】`,
         deliveryDateTime: deliveryDateTimeISO,
         imageUrl: formData.imageUrl || "",
@@ -597,7 +600,10 @@ function CreateProjectForm() {
         
         needsIllustrator: needsIllustrator,
         illustratorBudget: needsIllustrator ? parseInt(formData.illustratorBudget, 10) : null,
-        illustratorRequirements: needsIllustrator ? formData.illustratorRequirements : null
+        illustratorRequirements: needsIllustrator ? formData.illustratorRequirements : null,
+        
+        // ★ 修正: お急ぎ便フラグを送信
+        isExpress: formData.isExpress
       };
 
       const res = await authenticatedFetch(`${API_URL}/api/projects`, {
@@ -763,7 +769,6 @@ function CreateProjectForm() {
                   placeholder="30000" />
             </div>
 
-            {/* ★★★ ここに一口あたりの最低参加額を追加 ★★★ */}
             <div className="mt-8 border-t border-pink-100/50 pt-6">
                 <InputLabel title="一口あたりの最低参加額（最低支援額）" subtitle="参加者が支援する際の最低金額を設定します" required />
                 <div className="flex items-center gap-2 max-w-xs">
@@ -836,6 +841,32 @@ function CreateProjectForm() {
                   )}
                 </AnimatePresence>
 
+                {/* ★ 追加: 募集締切とお急ぎ便の設定 */}
+                <div className="bg-sky-50 border border-sky-100 rounded-2xl p-5 md:p-6 my-6">
+                    <h3 className="font-black text-sky-800 text-sm mb-3 flex items-center gap-2">
+                        <Clock size={16}/> 募集締切について（自動設定）
+                    </h3>
+                    <p className="text-xs text-sky-700 leading-relaxed mb-4">
+                        お花屋さんへの発注と制作期間を確保するため、募集の締切日は原則として<br className="hidden md:block"/>
+                        <strong className="text-rose-500 font-black border-b-2 border-rose-200">「納品希望日の7日前の深夜0時」</strong> にシステムで自動設定されます。<br/>
+                        ※目標金額に到達した場合は、その時点で即時締め切り（発注確定）となります。
+                    </p>
+                    
+                    <label className="flex items-start gap-3 p-4 bg-white rounded-xl border border-sky-100 cursor-pointer hover:border-sky-300 transition-colors shadow-sm">
+                        <input 
+                            type="checkbox" 
+                            checked={formData.isExpress}
+                            onChange={(e) => setFormData(prev => ({ ...prev, isExpress: e.target.checked }))}
+                            className="w-5 h-5 text-sky-500 rounded border-gray-300 focus:ring-sky-500 mt-0.5 cursor-pointer"
+                        />
+                        <div>
+                            <p className="text-sm font-black text-slate-800">お急ぎ便を利用する（締切を納品日の3日前にする）</p>
+                            <p className="text-[10px] text-slate-500 mt-1 font-bold">
+                                ※ギリギリまで募集期間を延ばせますが、対応できるお花屋さんが限られる場合があります。
+                            </p>
+                        </div>
+                    </label>
+                </div>
              </div>
           </GlassCard>
 

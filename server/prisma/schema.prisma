@@ -275,6 +275,10 @@ model Project {
   officialReaction        OfficialReaction?
   digitalFlowers          DigitalFlower[]
 
+  // ▼ 新規追加（自動計算される締切日とお急ぎ便フラグ）
+  deadline         DateTime? 
+  isExpress        Boolean   @default(false)
+
   // ★ 絵師用のフィールド・リレーション追加
   needsIllustrator        Boolean   @default(false)
   illustratorBudget       Int?

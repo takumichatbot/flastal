@@ -1004,6 +1004,29 @@ export default function ProjectDetailClient() {
                     </div>
                 </div>
                 <UpsellAlert target={project.targetAmount} collected={project.collectedAmount} />
+
+                {/* ★ 追加：締切と返還ポリシーの表示 */}
+                {project.status === 'FUNDRAISING' && (
+                    <div className="mt-4 p-4 md:p-5 bg-slate-50 rounded-2xl border border-slate-200 shadow-sm">
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-3 pb-3 border-b border-slate-200/60 gap-2">
+                            <span className="text-xs font-black text-slate-500 flex items-center gap-1.5"><Clock size={14}/> 募集締切</span>
+                            <span className="text-sm font-black text-rose-500 bg-rose-50 px-3 py-1 rounded-full border border-rose-100">
+                                {project.deadline ? new Date(project.deadline).toLocaleDateString('ja-JP') : '未定'} 23:59 まで
+                            </span>
+                        </div>
+                        <ul className="text-[10px] text-slate-500 font-bold space-y-2 leading-relaxed">
+                            <li className="flex items-start gap-1.5">
+                                <span className="text-sky-500 shrink-0 mt-0.5">※</span>
+                                <span>目標金額に達した時点で、期限を待たずに<strong>即時締め切り（発注確定）</strong>となります。</span>
+                            </li>
+                            <li className="flex items-start gap-1.5">
+                                <span className="text-rose-500 shrink-0 mt-0.5">※</span>
+                                <span>万が一、締切日までに目標金額に達しなかった場合、企画は自動で中止となり、<strong className="text-rose-500">支援いただいたポイントは全額返還</strong>されます。安心してご支援ください。</span>
+                            </li>
+                        </ul>
+                    </div>
+                )}
+                {/* ★ 追加ここまで */}
             </div>
             
             <div className="flex justify-center md:justify-end border-t border-slate-100 pt-4 md:pt-6">

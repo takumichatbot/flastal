@@ -1,10 +1,10 @@
+// src/app/events/[id]/page.js
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import ShareButtons from '@/app/components/ShareButtons';
-// アイコンのインポートを修正
 import { 
   FiCalendar, FiMapPin, FiInfo, FiAlertTriangle, FiPlus, 
   FiExternalLink, FiCpu, FiUser, FiCheckCircle, FiX, FiImage,
@@ -55,6 +55,62 @@ function ProjectCard({ project }) {
   );
 }
 
+// 会場編集モーダル（★新規追加）
+function VenueEditModal({ event, onClose, onUpdate }) {
+  const [venueName, setVenueName] = useState(event.venue?.venueName || '');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!venueName.trim()) return toast.error('会場名を入力してください');
+    setIsSubmitting(true);
+    const toastId = toast.loading('更新中...');
+    
+    try {
+      const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+      const res = await fetch(`${API_URL}/api/events/${event.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ venueName }) // 新しい会場名を送信
+      });
+      if (res.ok) {
+        toast.success('会場情報を更新しました', { id: toastId });
+        onUpdate(); // 親のデータを再取得
+        onClose();
+      } else {
+        throw new Error('更新エラー');
+      }
+    } catch(e) { 
+      toast.error('更新に失敗しました', { id: toastId }); 
+    } finally { 
+      setIsSubmitting(false); 
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-sm animate-fadeIn">
+      <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl relative">
+        <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"><FiX size={24}/></button>
+        <h3 className="text-xl font-black mb-2 text-gray-800 flex items-center"><FiMapPin className="mr-2 text-indigo-500"/> 会場の変更</h3>
+        <p className="text-xs font-bold text-gray-500 mb-4 leading-relaxed">新しい会場名を入力してください。<br/>登録がない場合は自動でシステムに追加されます。</p>
+        <form onSubmit={handleSubmit}>
+          <input 
+            className="w-full p-4 border-2 border-slate-100 rounded-xl bg-slate-50 font-bold text-sm focus:bg-white focus:border-indigo-400 focus:ring-4 focus:ring-indigo-50 outline-none transition-all"
+            placeholder="会場名を入力 (例: 幕張メッセ)"
+            value={venueName}
+            onChange={(e) => setVenueName(e.target.value)}
+            autoFocus
+          />
+          <div className="flex justify-end gap-3 mt-6">
+            <button type="button" onClick={onClose} className="px-5 py-2.5 text-gray-500 text-sm font-bold hover:bg-gray-100 rounded-xl transition-colors">キャンセル</button>
+            <button type="submit" disabled={isSubmitting} className="px-6 py-2.5 bg-indigo-500 text-white rounded-xl text-sm font-black hover:bg-indigo-600 shadow-md transition-all active:scale-95 disabled:opacity-50">変更を保存</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 // 通報モーダル
 function ReportModal({ eventId, onClose }) {
   const [reason, setReason] = useState('');
@@ -102,29 +158,36 @@ function ReportModal({ eventId, onClose }) {
 
 export default function EventDetailPage() {
   const { id } = useParams();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth(); // ★ user情報を取得
+  
   const [event, setEvent] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [showReportModal, setShowReportModal] = useState(false);
   
-  // スライダー用のステート
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [showVenueEditModal, setShowVenueEditModal] = useState(false); // ★ 会場編集モーダル用のステート
+  
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
-  useEffect(() => {
-    const fetchEvent = async () => {
-      try {
-        const res = await fetch(`${API_URL}/api/events/${id}`);
-        if (!res.ok) throw new Error('イベントが見つかりません');
-        const data = await res.json();
-        setEvent(data);
-      } catch (error) {
-        console.error(error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    if (id) fetchEvent();
+  // データを取得する関数（更新時にも再利用できるように分離）
+  const fetchEvent = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/events/${id}`);
+      if (!res.ok) throw new Error('イベントが見つかりません');
+      const data = await res.json();
+      setEvent(data);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
   }, [id]);
+
+  useEffect(() => {
+    if (id) fetchEvent();
+  }, [id, fetchEvent]);
+
+  // ★ 編集権限のチェック（管理者、またはイベントの作成者・主催者）
+  const isOwner = user && (user.role === 'ADMIN' || user.id === event?.creator?.id || user.id === event?.organizer?.id);
 
   // スライダー操作
   const nextImage = () => {
@@ -247,9 +310,20 @@ export default function EventDetailPage() {
                   <FiCalendar className="w-5 h-5 mr-2 text-indigo-500 shrink-0"/>
                   <span className="font-medium">{new Date(event.eventDate).toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short', hour: '2-digit', minute: '2-digit' })}</span>
                 </div>
-                <div className="flex items-center">
+                
+                {/* ★ 変更: 会場名と編集ボタンをグループ化 */}
+                <div className="flex items-center group relative">
                   <FiMapPin className="w-5 h-5 mr-2 text-indigo-500 shrink-0"/>
                   <span className="font-medium">{event.venue ? event.venue.venueName : '会場未定'}</span>
+                  {isOwner && (
+                    <button 
+                      onClick={() => setShowVenueEditModal(true)} 
+                      className="ml-2 p-1.5 bg-slate-100 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-md opacity-0 group-hover:opacity-100 transition-all shadow-sm"
+                      title="会場を変更する"
+                    >
+                      <FiEdit3 size={14} />
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -270,7 +344,6 @@ export default function EventDetailPage() {
                     <FiInstagram size={18} /> Instagram
                   </a>
                 )}
-                {/* ★ ここに追加: イベントシェアボタン ★ */}
                 <div className="flex items-center gap-3 bg-slate-50 px-4 py-2 rounded-xl border border-slate-100 ml-auto sm:ml-0">
                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest hidden sm:inline">Share</span>
                   <ShareButtons text={`${event.title} にフラスタを贈りませんか？イベント詳細はこちら🌸`} />
@@ -419,6 +492,9 @@ export default function EventDetailPage() {
 
       {/* モーダル表示 */}
       {showReportModal && <ReportModal eventId={event.id} onClose={() => setShowReportModal(false)} />}
+      
+      {/* ★ 会場編集モーダルの表示 */}
+      {showVenueEditModal && <VenueEditModal event={event} onClose={() => setShowVenueEditModal(false)} onUpdate={fetchEvent} />}
     </div>
   );
 }
