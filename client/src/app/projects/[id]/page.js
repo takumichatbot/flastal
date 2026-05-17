@@ -13,21 +13,26 @@ export const viewport = {
 
 // ✅ 動的メタデータ生成 (SEO / OGP)
 export async function generateMetadata({ params }) {
-  const id = params.id;
+  // ★ 修正1: Next.js 15対応のため params を await する
+  const { id } = await params;
+
+  // ★ 修正2: 企画の画像がない場合や、エラー時に表示する「FLASTALの公式ロゴ画像」などのURLを指定
+  // ※ 実際の本番環境にある画像のURLに変更してください
+  const DEFAULT_IMAGE_URL = 'https://flastal.com/default-og.png'; 
 
   try {
     // APIからプロジェクト情報を取得 (キャッシュ有効化で高速化)
     const res = await fetch(`${API_URL}/api/projects/${id}`, { next: { revalidate: 60 } });
     
     if (!res.ok) {
-      return {
-        title: '企画が見つかりません | FLASTAL',
-        description: 'お探しの企画は存在しないか、削除された可能性があります。',
-      };
+      throw new Error('Project not found');
     }
 
     const project = await res.json();
     const description = project.description?.substring(0, 120) + (project.description?.length > 120 ? '...' : '') || '推し活フラスタ企画のクラウドファンディング';
+    
+    // 画像があればそれを使用し、なければデフォルト画像
+    const imageUrl = project.imageUrl || DEFAULT_IMAGE_URL;
 
     return {
       title: `${project.title} | FLASTAL`,
@@ -35,31 +40,42 @@ export async function generateMetadata({ params }) {
       openGraph: {
         title: project.title,
         description: description,
-        url: `https://flastal.com/projects/${id}`, // 本番ドメインに合わせて変更推奨
+        url: `https://flastal.com/projects/${id}`,
         siteName: 'FLASTAL',
-        images: project.imageUrl ? [
+        images: [
           {
-            url: project.imageUrl,
+            url: imageUrl,
             width: 1200,
             height: 630,
             alt: project.title,
           },
-        ] : [],
+        ],
         locale: 'ja_JP',
         type: 'article',
       },
       twitter: {
-        card: 'summary_large_image',
+        card: 'summary_large_image', // 大きな画像カード
         title: project.title,
         description: description,
-        images: project.imageUrl ? [project.imageUrl] : [],
+        images: [imageUrl], // ★ ここに画像URLが必須
       },
     };
   } catch (error) {
     console.error('Metadata fetch failed:', error);
+    
+    // ★ 修正3: エラー時（URLを間違えた場合など）でも、確実にデフォルト画像を表示させる
     return {
       title: '企画詳細 | FLASTAL',
       description: 'みんなで贈る、想いの結晶。',
+      openGraph: {
+        title: '企画詳細 | FLASTAL',
+        description: 'みんなで贈る、想いの結晶。',
+        images: [{ url: DEFAULT_IMAGE_URL, width: 1200, height: 630 }],
+      },
+      twitter: {
+        card: 'summary_large_image',
+        images: [DEFAULT_IMAGE_URL],
+      }
     };
   }
 }
