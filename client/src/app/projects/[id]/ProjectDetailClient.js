@@ -506,6 +506,66 @@ function TargetAmountModal({ project, user, onClose, onUpdate }) {
   );
 }
 
+function DeadlineEditModal({ project, onClose, onUpdate, authenticatedFetch }) {
+  const [newDeadline, setNewDeadline] = useState(
+    project.deadline ? new Date(project.deadline).toISOString().slice(0, 16) : ''
+  );
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!newDeadline) return toast.error('日付を選択してください');
+    
+    setIsSubmitting(true);
+    const toastId = toast.loading('締切を更新中...');
+    
+    try {
+      const res = await authenticatedFetch(`${API_URL}/api/projects/${project.id}/deadline`, {
+        method: 'PATCH',
+        body: JSON.stringify({ newDeadline: new Date(newDeadline).toISOString() })
+      });
+      
+      if (!res.ok) throw new Error('更新エラー');
+      
+      toast.success('締切日を修正しました！', { id: toastId });
+      onUpdate();
+      onClose();
+    } catch (error) {
+      toast.error('更新に失敗しました', { id: toastId });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center z-[200] p-4 backdrop-blur-sm">
+      <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-[2rem] p-8 w-full max-w-md shadow-2xl relative border border-white">
+        <button onClick={onClose} className="absolute top-6 right-6 text-slate-400 hover:text-slate-600"><X size={20}/></button>
+        <h3 className="text-xl font-black mb-2 text-slate-800 flex items-center gap-2">
+          <Clock className="text-rose-500"/> 締切日の強制変更
+        </h3>
+        <p className="text-xs font-bold text-slate-500 mb-6 leading-relaxed">
+          ※管理者（運営）専用の機能です。<br/>
+          ここで設定した日時に、未達成の場合は自動キャンセルバッチが実行されます。
+        </p>
+        <form onSubmit={handleSubmit}>
+          <input 
+            type="datetime-local"
+            className="w-full p-4 border-2 border-slate-100 rounded-xl bg-slate-50 font-bold text-sm focus:bg-white focus:border-rose-400 outline-none transition-all mb-6"
+            value={newDeadline}
+            onChange={(e) => setNewDeadline(e.target.value)}
+            required
+          />
+          <div className="flex justify-end gap-3">
+            <button type="button" onClick={onClose} className="px-5 py-2.5 text-slate-500 text-sm font-bold hover:bg-slate-100 rounded-xl transition-colors">キャンセル</button>
+            <button type="submit" disabled={isSubmitting} className="px-6 py-2.5 bg-rose-500 text-white rounded-xl text-sm font-black hover:bg-rose-600 transition-all disabled:opacity-50 shadow-md">変更を保存</button>
+          </div>
+        </form>
+      </motion.div>
+    </div>
+  );
+}
+
 // ===========================================
 // Main Component
 // ===========================================
@@ -535,7 +595,7 @@ export default function ProjectDetailClient() {
   const [isInstructionModalOpen, setIsInstructionModalOpen] = useState(false);
   const [isArModalOpen, setIsArModalOpen] = useState(false);
   const [isQuotationModalOpen, setIsQuotationModalOpen] = useState(false); 
-
+  const [showDeadlineModal, setShowDeadlineModal] = useState(false);
   const [arSrc, setArSrc] = useState(null); 
   const [arImageFile, setArImageFile] = useState(null);
   const [arHeight, setArHeight] = useState(200); 
@@ -1010,9 +1070,24 @@ export default function ProjectDetailClient() {
                     <div className="mt-4 p-4 md:p-5 bg-slate-50 rounded-2xl border border-slate-200 shadow-sm">
                         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-3 pb-3 border-b border-slate-200/60 gap-2">
                             <span className="text-xs font-black text-slate-500 flex items-center gap-1.5"><Clock size={14}/> 募集締切</span>
-                            <span className="text-sm font-black text-rose-500 bg-rose-50 px-3 py-1 rounded-full border border-rose-100">
-                                {project.deadline ? new Date(project.deadline).toLocaleDateString('ja-JP') : '未定'} 23:59 まで
-                            </span>
+                            
+                            {/* ★ 変更: 締切日と編集ボタンをグループ化 */}
+                            <div className="flex items-center gap-2">
+                                <span className="text-sm font-black text-rose-500 bg-rose-50 px-3 py-1 rounded-full border border-rose-100">
+                                    {project.deadline ? new Date(project.deadline).toLocaleDateString('ja-JP') : '未定'} 23:59 まで
+                                </span>
+                                
+                                {/* ★ 管理者(ADMIN)の時だけ表示される編集ボタン */}
+                                {user?.role === 'ADMIN' && (
+                                    <button 
+                                        onClick={() => setShowDeadlineModal(true)}
+                                        className="p-1.5 bg-white text-slate-400 hover:bg-rose-100 hover:text-rose-500 border border-slate-200 hover:border-rose-200 rounded-full transition-all shadow-sm"
+                                        title="【運営用】締切日を強制変更"
+                                    >
+                                        <PenTool size={14} />
+                                    </button>
+                                )}
+                            </div>
                         </div>
                         <ul className="text-[10px] text-slate-500 font-bold space-y-2 leading-relaxed">
                             <li className="flex items-start gap-1.5">
@@ -1621,6 +1696,15 @@ export default function ProjectDetailClient() {
                  onUpdate={fetchProject} 
              />
          )}
+
+        {showDeadlineModal && (
+             <DeadlineEditModal 
+                 project={project} 
+                 onClose={() => setShowDeadlineModal(false)} 
+                 onUpdate={fetchProject} 
+                 authenticatedFetch={authenticatedFetch}
+             />
+        )}
         {isArModalOpen && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/80 flex justify-center items-center z-[100] p-4 backdrop-blur-md">
             <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="bg-white rounded-[3rem] w-full max-w-lg overflow-hidden relative shadow-2xl flex flex-col max-h-[90vh] border border-white">

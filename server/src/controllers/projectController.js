@@ -1036,3 +1036,39 @@ export const updateLogisticsStatus = async (req, res) => {
         res.status(500).json({ message: 'ステータスの更新に失敗しました。' });
     }
 };
+
+
+// ==========================================
+// ★ 管理者専用 (ADMIN Only) 締切日変更
+// ==========================================
+export const updateProjectDeadlineAdmin = async (req, res) => {
+    const { projectId } = req.params;
+    const { newDeadline } = req.body;
+    const userId = req.user.id;
+
+    // 1. 管理者チェック（絶対に運営しか叩けないようにする）
+    if (req.user.role !== 'ADMIN') {
+        return res.status(403).json({ message: 'この操作を行う権限がありません。' });
+    }
+
+    try {
+        const parsedDate = new Date(newDeadline);
+        if (isNaN(parsedDate.getTime())) {
+            return res.status(400).json({ message: '無効な日付形式です。' });
+        }
+
+        // 2. 締切日の強制上書き
+        const updatedProject = await prisma.project.update({
+            where: { id: projectId },
+            data: { deadline: parsedDate }
+        });
+
+        res.status(200).json({ 
+            message: '締切日を強制更新しました。', 
+            project: updatedProject 
+        });
+    } catch (error) {
+        console.error('Deadline Update Error:', error);
+        res.status(500).json({ message: '締切の更新に失敗しました。' });
+    }
+};
