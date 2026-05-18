@@ -1,3 +1,4 @@
+// src/app/florists/profile/edit/page.js
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -9,10 +10,10 @@ import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import { motion } from 'framer-motion';
 
-// lucide-reactに統一
+// lucide-reactに統一 (Globeを削除し、Clockを追加)
 import { 
   Save, Camera, ArrowLeft, Zap, Check, MapPin, 
-  Phone, Globe, User, Image as ImageIcon, Trash2, Loader2, Sparkles, Building
+  Phone, Clock, User, Image as ImageIcon, Trash2, Loader2, Building
 } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
@@ -59,7 +60,7 @@ export default function FloristProfileEditPage() {
     register, 
     handleSubmit, 
     setValue, 
-    formState: { errors, isSubmitting } 
+    formState: { isSubmitting } 
   } = useForm();
   
   const [loadingData, setLoadingData] = useState(true);
@@ -90,7 +91,8 @@ export default function FloristProfileEditPage() {
           setValue('contactName', f.contactName || '');
           setValue('address', f.address || '');
           setValue('phoneNumber', f.phoneNumber || '');
-          setValue('website', f.website || '');
+          // ★ Webサイトを削除し、受付時間を設定
+          setValue('businessHours', f.businessHours || '');
           setValue('portfolio', f.portfolio || '');
           setValue('acceptsRushOrders', f.acceptsRushOrders || false);
           
@@ -206,7 +208,6 @@ export default function FloristProfileEditPage() {
       <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-pink-200/30 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/3 pointer-events-none z-0" />
       
       <div className="max-w-4xl mx-auto px-4 sm:px-6 relative z-10 pt-8">
-        {/* ヘッダー */}
         <div className="flex flex-col sm:flex-row items-center justify-between mb-8 gap-4 bg-white/80 backdrop-blur-md p-4 rounded-full shadow-sm border border-white">
             <div className="flex items-center gap-4 w-full sm:w-auto">
                 <Link href="/florists/dashboard" className="w-10 h-10 flex items-center justify-center bg-white rounded-full text-slate-400 hover:text-pink-600 shadow-sm border border-slate-100 transition-colors shrink-0">
@@ -228,7 +229,6 @@ export default function FloristProfileEditPage() {
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
-            {/* 基本情報 */}
             <GlassCard className="!p-0 overflow-hidden">
                 <div className="bg-slate-50/50 px-8 py-5 border-b border-slate-100">
                     <h2 className="font-black text-slate-800 flex items-center gap-2 text-lg">
@@ -275,21 +275,22 @@ export default function FloristProfileEditPage() {
                 </div>
             </GlassCard>
 
-            {/* 店舗詳細・Web */}
+            {/* 店舗詳細・営業時間 */}
             <GlassCard className="!p-0 overflow-hidden">
                 <div className="bg-slate-50/50 px-8 py-5 border-b border-slate-100">
                     <h2 className="font-black text-slate-800 flex items-center gap-2 text-lg">
-                        <MapPin className="text-pink-500" size={20}/> 店舗詳細・Web
+                        <MapPin className="text-pink-500" size={20}/> 拠点情報・営業時間
                     </h2>
                 </div>
                 <div className="p-8 space-y-6">
                     <div>
-                       <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">住所</label>
+                       <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">拠点住所（※市町村まで公開されます）</label>
                        <input type="text" {...register('address')} className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:bg-white focus:border-pink-300 focus:ring-4 focus:ring-pink-50 outline-none transition-all font-bold text-slate-800" placeholder="〒000-0000 東京都渋谷区..." />
                     </div>
+                    {/* ★ Webサイトを消して「営業時間」を追加 */}
                     <div>
-                       <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-1"><Globe size={12}/> ウェブサイト / SNS</label>
-                       <input type="url" {...register('website')} className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:bg-white focus:border-pink-300 focus:ring-4 focus:ring-pink-50 outline-none transition-all font-bold text-slate-800" placeholder="https://instagram.com/..." />
+                       <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-1"><Clock size={12}/> 営業時間 / 受付時間</label>
+                       <input type="text" {...register('businessHours')} className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:bg-white focus:border-pink-300 focus:ring-4 focus:ring-pink-50 outline-none transition-all font-bold text-slate-800" placeholder="例: 平日 10:00 〜 19:00 (水曜定休)" />
                     </div>
                 </div>
             </GlassCard>

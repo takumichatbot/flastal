@@ -1,3 +1,4 @@
+// src/app/florists/[id]/page.js
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -9,13 +10,11 @@ import { useAuth } from '@/app/contexts/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import ShareButtons from '@/app/components/ShareButtons';
 
-// lucide-reactに統一
 import { 
     MapPin, Camera, Award, Clock, CheckCircle2, 
     User, Heart, Star, X, Shield, Zap, AlertCircle, ArrowLeft, Briefcase
 } from 'lucide-react'; 
 
-// ★ 追加: 配送設定コンポーネントのインポート
 import FloristDeliveryInfo from '@/app/components/FloristDeliveryInfo';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
@@ -54,9 +53,9 @@ const ProfileItem = ({ icon, label, value, colorClass = "text-pink-500 bg-pink-5
         <div className={cn("p-3 rounded-[1rem] border shadow-inner shrink-0", colorClass)}>
             {icon}
         </div>
-        <div className="pt-1">
+        <div className="pt-1 w-full overflow-hidden">
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{label}</p>
-            <p className="text-sm md:text-base text-slate-800 font-bold break-words mt-1"><JpText>{value || '未設定'}</JpText></p>
+            <div className="text-sm md:text-base text-slate-800 font-bold break-words mt-1 truncate whitespace-normal"><JpText>{value || '未設定'}</JpText></div>
         </div>
     </div>
 );
@@ -95,6 +94,20 @@ function OfferModal({ floristId, floristName, onClose }) {
     );
 }
 
+// 画像プレビューモーダル
+function ImageLightbox({ url, onClose }) {
+    return (
+      <div className="fixed inset-0 bg-slate-900/95 flex justify-center items-center z-[200] p-4 backdrop-blur-md" onClick={onClose}>
+        <button onClick={onClose} className="absolute top-6 right-6 w-12 h-12 bg-white/10 rounded-full flex items-center justify-center text-white hover:bg-white/20 transition-colors z-[210] border border-white/20">
+          <X size={24} />
+        </button>
+        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="relative w-full h-full flex items-center justify-center pointer-events-none">
+          <img src={url} alt="Enlarged" className="max-w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl" />
+        </motion.div>
+      </div>
+    );
+  }
+
 // --- メインページコンポーネント ---
 
 export default function FloristDetailPage() { 
@@ -104,7 +117,11 @@ export default function FloristDetailPage() {
   
   const [florist, setFlorist] = useState(null);
   const [loading, setLoading] = useState(true);
+  
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isImageModalOpen, setIsImageModalOpen] = useState(false);
+  const [modalImageSrc, setModalImageSrc] = useState('');
+
   const [activeTab, setActiveTab] = useState('profile'); 
   const [appealPosts, setAppealPosts] = useState([]); 
   const [activeTag, setActiveTag] = useState(null); 
@@ -326,13 +343,26 @@ export default function FloristDetailPage() {
                                   <h2 className="text-xl font-black text-slate-800 mb-6 flex items-center gap-2">
                                       <User className="text-pink-500" size={20}/> 自己紹介 / コンセプト
                                   </h2>
-                                  <p className="text-slate-600 whitespace-pre-wrap leading-relaxed font-medium text-sm md:text-base relative z-10">
+                                  <p className="text-slate-600 whitespace-pre-wrap leading-relaxed font-medium text-sm md:text-base relative z-10 mb-8">
                                       <JpText>{florist.portfolio || '自己紹介文がまだ設定されていません。'}</JpText>
                                   </p>
+
+                                  {florist.portfolioImages && florist.portfolioImages.length > 0 && (
+                                      <div className="relative z-10 border-t border-slate-100 pt-6">
+                                          <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Portfolio</h3>
+                                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 md:gap-4">
+                                              {florist.portfolioImages.map((url, i) => (
+                                                  <div key={i} className="relative aspect-square rounded-[1rem] overflow-hidden border-2 border-white shadow-sm cursor-zoom-in group" onClick={() => { setModalImageSrc(url); setIsImageModalOpen(true); }}>
+                                                      <Image src={url} alt={`portfolio-${i}`} fill sizes="(max-width: 768px) 50vw, 33vw" style={{objectFit: 'cover'}} className="group-hover:scale-110 transition-transform duration-500" />
+                                                  </div>
+                                              ))}
+                                          </div>
+                                      </div>
+                                  )}
+
                                   <Award className="absolute -bottom-10 -right-10 text-slate-900 opacity-[0.03] pointer-events-none" size={200}/>
                                </GlassCard>
 
-                               {/* ★ 追加: 配送設定コンポーネントをここに表示 */}
                                {florist.deliverySettings && (
                                    <FloristDeliveryInfo deliverySettings={florist.deliverySettings} />
                                )}
@@ -343,9 +373,10 @@ export default function FloristDetailPage() {
                               
                               <div className="space-y-4">
                                   <ProfileItem icon={<MapPin size={20}/>} label="活動エリア" value={florist.displayPrefecture || '全国対応'} colorClass="text-sky-500 bg-sky-50 border-sky-100" />
-                                  <ProfileItem icon={<Clock size={20}/>} label="受付時間" value={florist.businessHours} colorClass="text-purple-500 bg-purple-50 border-purple-100" />
+                                  {/* ★ SNS/Webリンクを削除し、受付時間を復活 */}
+                                  <ProfileItem icon={<Clock size={20}/>} label="受付時間" value={florist.businessHours || '未設定'} colorClass="text-purple-500 bg-purple-50 border-purple-100" />
                                   <ProfileItem icon={<Zap size={20}/>} label="特急注文" value={florist.acceptsRushOrders ? '対応可能' : '要相談'} colorClass="text-amber-500 bg-amber-50 border-amber-100" />
-                                  <ProfileItem icon={<Award size={20}/>} label="得意な装飾" value={Array.isArray(florist.specialties) ? florist.specialties.join(' / ') : florist.specialties} colorClass="text-emerald-500 bg-emerald-50 border-emerald-100" />
+                                  <ProfileItem icon={<Award size={20}/>} label="得意な装飾" value={Array.isArray(florist.specialties) && florist.specialties.length > 0 ? florist.specialties.join(' / ') : (florist.specialties || '未設定')} colorClass="text-emerald-500 bg-emerald-50 border-emerald-100" />
                               </div>
 
                               <div className="pt-6 border-t border-slate-100">
@@ -449,6 +480,9 @@ export default function FloristDetailPage() {
         </div>
       </div>
 
+      <AnimatePresence>
+        {isImageModalOpen && <ImageLightbox url={modalImageSrc} onClose={() => setIsImageModalOpen(false)} />}
+      </AnimatePresence>
       {isModalOpen && <OfferModal floristId={id} floristName={florist.platformName || florist.shopName} onClose={() => setIsModalOpen(false)} />}
     </>
   );
