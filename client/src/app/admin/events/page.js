@@ -13,6 +13,19 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onre
 
 function cn(...classes) { return classes.filter(Boolean).join(' '); }
 
+// 🌟 日付データを input type="datetime-local" 用にフォーマットする関数
+const formatForDateTimeLocal = (dateString) => {
+    if (!dateString) return '';
+    const d = new Date(dateString);
+    if (isNaN(d.getTime())) return '';
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const hours = String(d.getHours()).padStart(2, '0');
+    const minutes = String(d.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+};
+
 // 🌟 イベント編集モーダル
 function EventEditModal({ event, isOpen, onClose, onSuccess, authenticatedFetch }) {
     const [formData, setFormData] = useState({ title: '', eventDate: '', status: '' });
@@ -22,7 +35,8 @@ function EventEditModal({ event, isOpen, onClose, onSuccess, authenticatedFetch 
         if (event && isOpen) {
             setFormData({
                 title: event.title || '',
-                eventDate: event.eventDate ? new Date(event.eventDate).toISOString().split('T')[0] : '',
+                // 時間情報を含めたフォーマットに変換
+                eventDate: formatForDateTimeLocal(event.eventDate),
                 status: event.status || 'OPEN',
             });
         }
@@ -34,19 +48,26 @@ function EventEditModal({ event, isOpen, onClose, onSuccess, authenticatedFetch 
         e.preventDefault();
         setIsSaving(true);
         const tid = toast.loading('保存中...');
+
+        // サーバーへ送る前に ISO フォーマット (UTC) に戻す
+        const payload = {
+            ...formData,
+            eventDate: formData.eventDate ? new Date(formData.eventDate).toISOString() : null
+        };
+
         try {
             // 管理者用APIを試し、無ければ一般用APIにフォールバック
             let res = await authenticatedFetch(`${API_URL}/api/admin/events/${event.id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData)
+                body: JSON.stringify(payload)
             });
 
             if (res.status === 404) {
                 res = await authenticatedFetch(`${API_URL}/api/events/${event.id}`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(formData)
+                    body: JSON.stringify(payload)
                 });
             }
 
@@ -71,8 +92,9 @@ function EventEditModal({ event, isOpen, onClose, onSuccess, authenticatedFetch 
                         <input type="text" required value={formData.title} onChange={(e) => setFormData({...formData, title: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold" />
                     </div>
                     <div>
-                        <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">開催日</label>
-                        <input type="date" required value={formData.eventDate} onChange={(e) => setFormData({...formData, eventDate: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold" />
+                        <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">開催日時</label>
+                        {/* 🌟 type="date" から "datetime-local" に変更 */}
+                        <input type="datetime-local" required value={formData.eventDate} onChange={(e) => setFormData({...formData, eventDate: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold" />
                     </div>
                     <div className="pt-4 flex justify-end gap-3">
                         <button type="button" onClick={onClose} className="px-6 py-3 bg-white border border-slate-200 text-slate-500 font-bold rounded-xl">キャンセル</button>
@@ -112,7 +134,6 @@ export default function AdminEventsPage() {
 
             if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
             
-            // HTMLエラーでクラッシュしないように、まずはテキストとして取得
             const text = await res.text();
             let data;
             try {
@@ -121,7 +142,6 @@ export default function AdminEventsPage() {
                 throw new Error("サーバーから不正なデータが返されました");
             }
             
-            // オブジェクト形式でも配列形式でも確実に抽出
             const eventsArray = Array.isArray(data) ? data : (data.events || data.data || Object.values(data).find(val => Array.isArray(val)) || []);
             setEvents(eventsArray);
 
@@ -146,7 +166,6 @@ export default function AdminEventsPage() {
         if (!window.confirm(`「${title}」を完全に削除しますか？`)) return;
         const tid = toast.loading('削除中...');
         try {
-            // こちらもフォールバック対応
             let res = await authenticatedFetch(`${API_URL}/api/admin/events/${id}`, { method: 'DELETE' });
             if (res.status === 404) {
                 res = await authenticatedFetch(`${API_URL}/api/events/${id}`, { method: 'DELETE' });
@@ -184,7 +203,7 @@ export default function AdminEventsPage() {
                         <thead className="bg-slate-50 border-b border-slate-200 text-[10px] font-black text-slate-400 uppercase tracking-widest">
                             <tr>
                                 <th className="px-6 py-4">イベント情報</th>
-                                <th className="px-6 py-4">開催日</th>
+                                <th className="px-6 py-4">開催日時</th>
                                 <th className="px-6 py-4 text-right">アクション</th>
                             </tr>
                         </thead>
@@ -211,7 +230,8 @@ export default function AdminEventsPage() {
                                             <p className="text-[10px] text-slate-400 font-mono mt-1">ID: {ev.id.substring(0,8)}...</p>
                                         </td>
                                         <td className="px-6 py-4 text-sm font-bold text-slate-600">
-                                            {ev.eventDate ? new Date(ev.eventDate).toLocaleDateString() : '未設定'}
+                                            {/* 🌟 開催日と時間を一緒に表示 */}
+                                            {ev.eventDate ? new Date(ev.eventDate).toLocaleString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '未設定'}
                                         </td>
                                         <td className="px-6 py-4">
                                             <div className="flex items-center justify-end gap-2">

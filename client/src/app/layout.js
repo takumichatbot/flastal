@@ -26,6 +26,7 @@ const notoSansJP = Noto_Sans_JP({
 });
 
 export const metadata = {
+  // 環境変数がない場合は本番ドメインをフォールバックとして使用
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://www.flastal.com'),
   title: {
     template: '%s | FLASTAL',
@@ -33,21 +34,30 @@ export const metadata = {
   },
   description: 'ファン有志で贈る「フラスタ企画」を安全・簡単・感動的に。FLASTAL（フラスタル）は推し活をアップデートするクラウドファンディング・プラットフォームです。',
   keywords: ['フラスタ', 'フラワースタンド', '推し活', 'クラウドファンディング', 'VTuber', 'アイドル', '応援花'],
+  
+  // ★ 追加・修正：SNSでシェアされたときの設定（OGP）
   openGraph: {
     title: 'FLASTAL - 推しにフラスタを贈ろう',
     description: 'ファン有志で贈る「フラスタ企画」を安全・簡単・感動的に。',
-    url: 'https://www.flastal.com',
+    url: '/', // metadataBaseと結合されて絶対パスになります
     siteName: 'FLASTAL',
     locale: 'ja_JP',
     type: 'website',
+    // ※ opengraph-image.png が src/app/ にあれば自動で読み込まれます
   },
   twitter: {
-    card: 'summary_large_image',
+    card: 'summary_large_image', // ★ 大きな画像で目立つようにシェアされる設定
     title: 'FLASTAL - 推しにフラスタを贈ろう',
     description: 'ファン有志で贈る「フラスタ企画」を安全・簡単・感動的に。',
   },
   alternates: {
     canonical: '/',
+  },
+  
+  // ★ 追加：Appleデバイス用などのアイコン明示的指定（ファイル自動読み込みの補助）
+  icons: {
+    icon: '/icon.png',
+    apple: '/apple-icon.png',
   },
 };
 
@@ -65,7 +75,6 @@ export default function RootLayout({ children }) {
           </header>
           
           <Suspense fallback={null}>
-            {/* ★修正: relative z-0 を削除し、単なる relative のみにする */}
             <main className="flex-grow w-full m-0 p-0 relative">
               {children}
             </main>
