@@ -237,7 +237,7 @@ export default function AnnexPage() {
               <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={fadeInUp}>
                 <span className="text-[#A68F7C] font-black text-[10px] md:text-xs tracking-[0.2em] block mb-4">ソリューション 01: 一般法人様向け</span>
                 <h2 className="font-serif text-3xl md:text-4xl lg:text-5xl font-bold text-[#3A3330] tracking-tighter leading-tight mb-6">
-                  ビジネスの祝花を、<br />もっとスマートに美しく。
+                  ビジネスの祝花を、<br className="hidden sm:block" />もっとスマートに美しく。
                 </h2>
                 <p className="text-[#7A6B65] text-sm md:text-base leading-relaxed font-light mb-8">
                   取引先の移転祝いや上場祝い。毎回電話やFAXで花屋を探す手間はもう不要です。<br /><br />
@@ -248,19 +248,22 @@ export default function AnnexPage() {
           </div>
         </section>
 
-        {/* ===== FOR ENTERTAINMENT (エンタメ事務所向け：公式フラスタ) ===== */}
+        {/* ===== ★ 修正箇所: FOR ENTERTAINMENT (エンタメ事務所向け：公式フラスタ) ===== */}
         <section className="py-24 md:py-28 bg-white border-t border-[#F3EBE1]">
           <div className="max-w-[90%] mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
             
             <div>
               <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={fadeInUp}>
                 <span className="text-[#A68F7C] font-black text-[10px] md:text-xs tracking-[0.2em] block mb-4">ソリューション 02: 事務所・主催者様向け</span>
+                
+                {/* 信頼と安心を強調するキャッチコピーへ変更 */}
                 <h2 className="font-serif text-3xl md:text-4xl lg:text-5xl font-bold text-[#3A3330] tracking-tighter leading-tight mb-6">
-                  ファンの熱量を、<br />安全に公式のチカラへ。
+                  ファンの想いを、<br />公式の「安心」で包み込む。
                 </h2>
                 <p className="text-[#7A6B65] text-sm md:text-base leading-relaxed font-light mb-8">
                   VTuber事務所様、アイドル運営企業様、イベント主催者様へ。<br /><br />
-                  ファンの皆様からの「お祝いしたい」というピュアな熱量を、公式としての品格と信頼を守りながら安全に管理。トラブルを未然に防ぎつつ、統一感のある巨大なフラスタやフォトスポットを豪華に作り上げることができます。
+                  「推しを祝いたい」というファンの皆様の温かい気持ちを、公式としての品格を守りながら安全に形にします。<br />
+                  コンプライアンスに準拠した資金管理で、非公式企画によるトラブルを未然に防止。統一感のある巨大なフラスタやフォトスポットで、会場全体を豪華に演出することができます。
                 </p>
               </motion.div>
             </div>
@@ -273,16 +276,17 @@ export default function AnnexPage() {
                     <Crown size={24} />
                   </div>
                   <div>
-                    <h3 className="text-[#4A3E3A] font-bold text-lg font-serif">公式フラスタ・サポート</h3>
+                    <h3 className="text-[#4A3E3A] font-bold text-lg font-serif">公式フラスタ・システム</h3>
                     <p className="text-[#A68F7C] text-[10px] font-bold tracking-[0.15em]">Official Flower System</p>
                   </div>
                 </div>
                 
+                {/* 項目内容もBtoB向けの表現に変更 */}
                 <ul className="space-y-6">
                   {[
-                    { title: "芳名帳（デジタル協賛ボード）を自動生成", desc: "参加したファンの名前を一覧にしたスタイリッシュな協賛ボードを自動作成。会場のモニター等に映し出せます。" },
-                    { title: "ファンからの協賛金を公式活動資金に", desc: "公式企画としてフラスタの協賛を募ることで、お花の制作費を超えた金額をイベントの売上（活動資金）として還元できます。" },
-                    { title: "勝手な企画・金銭トラブルを未然に防止", desc: "ファン有志による非公式企画の乱立や、SNS上での金銭トラブルを公式が安全なシステムで一括管理・防止します。" }
+                    { title: "芳名帳（デジタル協賛ボード）を自動生成", desc: "ご協賛いただいたファンの皆様のお名前を一覧化。スタイリッシュな協賛ボードとして自動生成し、会場のモニター等でスムーズに掲出可能です。" },
+                    { title: "透明性の高い資金管理で公式の活動を支援", desc: "公式企画としてフラスタの協賛を募ることで、お花の制作費を超過した金額を、次回のイベント費用などの公式活動資金として安全に活用いただけます。" },
+                    { title: "非公式企画による金銭トラブルを未然に防止", desc: "ファン有志による非公式企画の乱立や、SNS上での不透明な集金トラブルを、公式が安全なシステムを提供することで一括管理・防止します。" }
                   ].map((item, i) => (
                     <li key={i} className="flex items-start gap-4">
                       <CheckCircle2 className="text-[#C5A491] shrink-0 mt-0.5" size={18} />
@@ -326,7 +330,7 @@ export default function AnnexPage() {
           <div className="absolute inset-0 bg-gradient-to-b from-[#FAF6F2] to-white pointer-events-none" />
           
           <div className="max-w-3xl mx-auto px-6 relative z-10">
-            <span className="text-[10px] tracking-[0.2em] text-[#A68F7C] font-bold block mb-4">お問い合わせ</span>
+            <span className="text-[10px] tracking-[0.3em] text-[#A68F7C] font-bold block mb-4">お問い合わせ</span>
             <h2 className="font-serif text-3xl md:text-4xl text-[#3A3330] tracking-tight mb-6">お気軽にご相談ください。</h2>
             <p className="text-xs text-[#7A6B65] font-light mb-14 leading-relaxed max-w-lg mx-auto">
               FLASTAL ANNEX の導入・資料請求に関するお問い合わせは、以下のフォームよりご連絡ください。<br/>担当コンシェルジュより1〜2営業日以内にご返信いたします。
