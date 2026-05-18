@@ -248,7 +248,7 @@ export default function AnnexPage() {
           </div>
         </section>
 
-        {/* ===== ★ 修正箇所: FOR ENTERTAINMENT (エンタメ事務所向け：公式フラスタ) ===== */}
+        {/* ===== FOR ENTERTAINMENT (エンタメ事務所向け：公式フラスタ) ===== */}
         <section className="py-24 md:py-28 bg-white border-t border-[#F3EBE1]">
           <div className="max-w-[90%] mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
             
@@ -256,14 +256,14 @@ export default function AnnexPage() {
               <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={fadeInUp}>
                 <span className="text-[#A68F7C] font-black text-[10px] md:text-xs tracking-[0.2em] block mb-4">ソリューション 02: 事務所・主催者様向け</span>
                 
-                {/* 信頼と安心を強調するキャッチコピーへ変更 */}
+                {/* ★ 炎上リスクをなくし、ポジティブで美しい表現に変更 */}
                 <h2 className="font-serif text-3xl md:text-4xl lg:text-5xl font-bold text-[#3A3330] tracking-tighter leading-tight mb-6">
-                  ファンの想いを、<br />公式の「安心」で包み込む。
+                  ファンと創り上げる、<br />最高のお祝い空間。
                 </h2>
                 <p className="text-[#7A6B65] text-sm md:text-base leading-relaxed font-light mb-8">
                   VTuber事務所様、アイドル運営企業様、イベント主催者様へ。<br /><br />
-                  「推しを祝いたい」というファンの皆様の温かい気持ちを、公式としての品格を守りながら安全に形にします。<br />
-                  コンプライアンスに準拠した資金管理で、非公式企画によるトラブルを未然に防止。統一感のある巨大なフラスタやフォトスポットで、会場全体を豪華に演出することができます。
+                  ファンの皆様からの「お祝いしたい」という温かいお気持ちを、公式がサポートすることで、より美しく記憶に残る形へと昇華させます。<br />
+                  ロビーを彩る統一感のある装花や、ファン参加型のメモリアルな空間演出を通じて、イベントの一体感をさらに高めるお手伝いをいたします。
                 </p>
               </motion.div>
             </div>
@@ -276,17 +276,17 @@ export default function AnnexPage() {
                     <Crown size={24} />
                   </div>
                   <div>
-                    <h3 className="text-[#4A3E3A] font-bold text-lg font-serif">公式フラスタ・システム</h3>
+                    <h3 className="text-[#4A3E3A] font-bold text-lg font-serif">公式フラスタ・サポート</h3>
                     <p className="text-[#A68F7C] text-[10px] font-bold tracking-[0.15em]">Official Flower System</p>
                   </div>
                 </div>
                 
-                {/* 項目内容もBtoB向けの表現に変更 */}
+                {/* ★ 項目内容も「ファンへの感謝」と「空間プロデュース」を強調 */}
                 <ul className="space-y-6">
                   {[
-                    { title: "芳名帳（デジタル協賛ボード）を自動生成", desc: "ご協賛いただいたファンの皆様のお名前を一覧化。スタイリッシュな協賛ボードとして自動生成し、会場のモニター等でスムーズに掲出可能です。" },
-                    { title: "透明性の高い資金管理で公式の活動を支援", desc: "公式企画としてフラスタの協賛を募ることで、お花の制作費を超過した金額を、次回のイベント費用などの公式活動資金として安全に活用いただけます。" },
-                    { title: "非公式企画による金銭トラブルを未然に防止", desc: "ファン有志による非公式企画の乱立や、SNS上での不透明な集金トラブルを、公式が安全なシステムを提供することで一括管理・防止します。" }
+                    { title: "参加ファンへの感謝を伝える「デジタル芳名帳」", desc: "ご協賛いただいたファンの皆様のお名前を、スタイリッシュなデジタルボードとして自動生成。会場のモニター等で美しく掲出することができます。" },
+                    { title: "イベントコンセプトに調和する「空間プロデュース」", desc: "公式窓口で取りまとめることで、イベントのテーマや世界観に完全にマッチした、フォトジェニックで豪華な巨大フラスタ・装飾ブースを実現します。" },
+                    { title: "ファンも運営も安心な「公式お祝い窓口」", desc: "公式が安全な受付窓口をご用意することで、ファンの皆様も迷わず気軽にお祝いに参加できます。複雑な手配や資金管理はすべてシステムが代行します。" }
                   ].map((item, i) => (
                     <li key={i} className="flex items-start gap-4">
                       <CheckCircle2 className="text-[#C5A491] shrink-0 mt-0.5" size={18} />
