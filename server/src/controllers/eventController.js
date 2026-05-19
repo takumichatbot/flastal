@@ -204,7 +204,8 @@ export const updateEvent = async (req, res) => {
         const { 
             title, eventName, description, eventDate, venueId, venueName, genre, 
             sourceUrl, imageUrl, imageUrls, twitterUrl, instagramUrl, officialWebsite,
-            announcement, isIllustratorRecruiting, illustratorRequirements
+            announcement, isIllustratorRecruiting, illustratorRequirements,
+            regulationNote, isStandAllowed // 🌟 ここを追加：リクエストから受け取る
         } = req.body;
 
         const event = await prisma.event.findUnique({ where: { id } });
@@ -257,7 +258,9 @@ export const updateEvent = async (req, res) => {
                 announcement: announcement,
                 isIllustratorRecruiting: isIllustratorRecruiting,
                 illustratorRequirements: illustratorRequirements,
-                venue: finalVenueId ? { connect: { id: finalVenueId } } : undefined, // ★ 修正
+                regulationNote: regulationNote,     // 🌟 ここを追加：データベースに保存する
+                isStandAllowed: isStandAllowed,     // 🌟 ここを追加：データベースに保存する
+                venue: finalVenueId ? { connect: { id: finalVenueId } } : undefined,
                 sourceType: newSourceType,
                 lastEditor: req.user.role !== 'ORGANIZER' ? { connect: { id: req.user.id } } : undefined
             }
