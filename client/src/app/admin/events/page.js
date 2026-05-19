@@ -28,13 +28,13 @@ const formatForDateTimeLocal = (dateString) => {
 
 // 🌟 イベント編集モーダル
 function EventEditModal({ event, isOpen, onClose, onSuccess, authenticatedFetch }) {
-    // レギュレーションと受け入れ状況をステートに追加
+    // 🌟 修正: データベースの正しいカラム名（regulationNote, isStandAllowed）に修正
     const [formData, setFormData] = useState({ 
         title: '', 
         eventDate: '', 
         status: '',
-        regulations: '',
-        isAcceptingFlowers: true
+        regulationNote: '',
+        isStandAllowed: true
     });
     const [isSaving, setIsSaving] = useState(false);
 
@@ -44,9 +44,8 @@ function EventEditModal({ event, isOpen, onClose, onSuccess, authenticatedFetch 
                 title: event.title || '',
                 eventDate: formatForDateTimeLocal(event.eventDate),
                 status: event.status || 'OPEN',
-                regulations: event.regulations || '',
-                // undefined の場合はデフォルトで true (受け入れ可) とする
-                isAcceptingFlowers: event.isAcceptingFlowers !== false, 
+                regulationNote: event.regulationNote || '',
+                isStandAllowed: event.isStandAllowed !== false, // デフォルトで true (受け入れ可)
             });
         }
     }, [event, isOpen]);
@@ -58,14 +57,12 @@ function EventEditModal({ event, isOpen, onClose, onSuccess, authenticatedFetch 
         setIsSaving(true);
         const tid = toast.loading('保存中...');
 
-        // サーバーへ送る前に ISO フォーマット (UTC) に戻す
         const payload = {
             ...formData,
             eventDate: formData.eventDate ? new Date(formData.eventDate).toISOString() : null
         };
 
         try {
-            // 管理者用APIを試し、無ければ一般用APIにフォールバック
             let res = await authenticatedFetch(`${API_URL}/api/admin/events/${event.id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
@@ -90,7 +87,6 @@ function EventEditModal({ event, isOpen, onClose, onSuccess, authenticatedFetch 
 
     return (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex justify-center items-center z-50 p-4">
-            {/* 項目が増えたため、max-h-[90vh] を追加してスクロール可能に */}
             <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col border border-slate-100 overflow-hidden">
                 <div className="px-8 py-6 border-b flex justify-between items-center bg-slate-50 shrink-0">
                     <h2 className="text-xl font-black text-slate-800 flex items-center gap-2"><Edit3 className="text-pink-500"/> イベントの編集</h2>
@@ -106,31 +102,31 @@ function EventEditModal({ event, isOpen, onClose, onSuccess, authenticatedFetch 
                         <input type="datetime-local" required value={formData.eventDate} onChange={(e) => setFormData({...formData, eventDate: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-pink-300 transition-all font-bold" />
                     </div>
                     
-                    {/* 🌟 追加: 受け入れ状況の切り替え */}
+                    {/* 🌟 修正: データベースの名前 (isStandAllowed) と連動 */}
                     <div>
                         <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">お祝い花 受け入れ状況</label>
                         <label className="flex items-center gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200 cursor-pointer hover:bg-white transition-colors">
                             <input 
                                 type="checkbox" 
-                                checked={formData.isAcceptingFlowers} 
-                                onChange={(e) => setFormData({...formData, isAcceptingFlowers: e.target.checked})}
+                                checked={formData.isStandAllowed} 
+                                onChange={(e) => setFormData({...formData, isStandAllowed: e.target.checked})}
                                 className="w-5 h-5 text-pink-500 rounded border-slate-300 focus:ring-pink-500"
                             />
-                            <span className={cn("text-sm font-bold", formData.isAcceptingFlowers ? "text-slate-800" : "text-rose-500")}>
-                                {formData.isAcceptingFlowers ? '受け入れ可能 (OK)' : '受け入れ不可 (NG・辞退)'}
+                            <span className={cn("text-sm font-bold", formData.isStandAllowed ? "text-slate-800" : "text-rose-500")}>
+                                {formData.isStandAllowed ? '受け入れ可能 (OK)' : '受け入れ不可 (NG・辞退)'}
                             </span>
                         </label>
                     </div>
 
-                    {/* 🌟 追加: レギュレーション入力欄 */}
+                    {/* 🌟 修正: データベースの名前 (regulationNote) と連動 */}
                     <div>
                         <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1">
                             <FileText size={14}/> レギュレーション (搬入ルール等)
                         </label>
                         <textarea 
                             rows="4"
-                            value={formData.regulations} 
-                            onChange={(e) => setFormData({...formData, regulations: e.target.value})} 
+                            value={formData.regulationNote} 
+                            onChange={(e) => setFormData({...formData, regulationNote: e.target.value})} 
                             className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-pink-300 transition-all font-bold text-sm resize-none"
                             placeholder="サイズ規定、搬入時間の指定、回収の必須有無などを記載してください..."
                         />
@@ -267,14 +263,14 @@ export default function AdminEventsPage() {
                                             <p className="font-bold text-slate-800 text-sm md:text-base group-hover:text-pink-600 transition-colors">{ev.title}</p>
                                             <div className="flex items-center gap-2 mt-1.5">
                                                 <p className="text-[10px] text-slate-400 font-mono">ID: {ev.id.substring(0,8)}...</p>
-                                                {/* 🌟 受け入れ状況のバッジ */}
-                                                <span className={cn("text-[9px] font-bold px-2 py-0.5 rounded-full tracking-wider", ev.isAcceptingFlowers !== false ? "bg-emerald-100 text-emerald-600" : "bg-rose-100 text-rose-600")}>
-                                                    {ev.isAcceptingFlowers !== false ? '受入OK' : '受入NG'}
+                                                {/* 🌟 修正: データベースの名前 (isStandAllowed) と連動 */}
+                                                <span className={cn("text-[9px] font-bold px-2 py-0.5 rounded-full tracking-wider", ev.isStandAllowed !== false ? "bg-emerald-100 text-emerald-600" : "bg-rose-100 text-rose-600")}>
+                                                    {ev.isStandAllowed !== false ? '受入OK' : '受入NG'}
                                                 </span>
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 text-sm font-bold text-slate-600">
-                                            {ev.eventDate ? new Date(ev.eventDate).toLocaleString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '未設定'}
+                                            {ev.eventDate ? new Date(ev.eventDate).toLocaleString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Tokyo' }) : '未設定'}
                                         </td>
                                         <td className="px-6 py-4">
                                             <div className="flex items-center justify-end gap-2">
