@@ -52,13 +52,8 @@ export const metadata = {
   },
   alternates: {
     canonical: '/',
-  },
-  
-  // ★ 追加：Appleデバイス用などのアイコン明示的指定（ファイル自動読み込みの補助）
-  icons: {
-    icon: '/icon.png',
-    apple: '/apple-icon.png',
-  },
+  }
+  // ★ ここの icons ブロックを削除しました！
 };
 
 export default function RootLayout({ children }) {
