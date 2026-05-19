@@ -1,192 +1,304 @@
+// src/app/admin/events/page.js
 'use client';
 
-import { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
-import toast from 'react-hot-toast';
-import Link from 'next/link';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/app/contexts/AuthContext';
-import { motion } from 'framer-motion';
+import Link from 'next/link';
+import { useAuth } from '../../contexts/AuthContext';
+import toast from 'react-hot-toast';
 import { 
-    Award, DollarSign, Edit3, RefreshCw, Search, 
-    Filter, TrendingUp, Users, AlertTriangle, ArrowLeft, Loader2
+    ArrowLeft, RefreshCw, Trash2, Calendar, Edit3, X, CheckCircle2, FileText, ShieldAlert
 } from 'lucide-react';
-import FloristFeeModal from '../components/FloristFeeModal';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
-const getAuthToken = () => localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
 
 function cn(...classes) { return classes.filter(Boolean).join(' '); }
 
-const GlassCard = ({ children, className }) => (
-  <div className={cn("bg-white/80 backdrop-blur-xl border border-white shadow-[0_8px_30px_rgba(0,0,0,0.04)] rounded-[2.5rem] p-6", className)}>
-    {children}
-  </div>
-);
+// 🌟 日付データを input type="datetime-local" 用にフォーマットする関数
+const formatForDateTimeLocal = (dateString) => {
+    if (!dateString) return '';
+    const d = new Date(dateString);
+    if (isNaN(d.getTime())) return '';
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const hours = String(d.getHours()).padStart(2, '0');
+    const minutes = String(d.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+};
 
-function AdminFloristsInner() {
-    const { user, loading: authLoading, isAuthenticated } = useAuth();
-    const router = useRouter();
-
-    const [florists, setFlorists] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [targetFloristId, setTargetFloristId] = useState(null);
-
-    const [searchTerm, setSearchTerm] = useState('');
-    const [statusFilter, setStatusFilter] = useState('ALL'); 
-    const [sortConfig, setSortConfig] = useState({ key: 'createdAt', direction: 'desc' });
-
-    const fetchFlorists = useCallback(async () => {
-        if (!isAuthenticated || user?.role !== 'ADMIN') return;
-        setLoading(true);
-        try {
-            const token = getAuthToken();
-            const res = await fetch(`${API_URL}/api/admin/florists/all`, { headers: { 'Authorization': `Bearer ${token}` } });
-            if (!res.ok) throw new Error('花屋リストの取得に失敗しました。');
-            const data = await res.json();
-            setFlorists(Array.isArray(data) ? data : []);
-        } catch (error) {
-            toast.error(error.message);
-            setFlorists([]);
-        } finally {
-            setLoading(false);
-        }
-    }, [isAuthenticated, user]);
+// 🌟 イベント編集モーダル
+function EventEditModal({ event, isOpen, onClose, onSuccess, authenticatedFetch }) {
+    const [formData, setFormData] = useState({ 
+        title: '', 
+        eventDate: '', 
+        status: '',
+        regulations: '',           // ★ 追加: レギュレーション
+        isAcceptingFlowers: true   // ★ 追加: お花受け入れ状況
+    });
+    const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
-        if (authLoading) return;
-        if (!isAuthenticated || user?.role !== 'ADMIN') return router.push('/admin');
-        fetchFlorists();
-    }, [authLoading, isAuthenticated, user, router, fetchFlorists]);
-
-    const handleFeeUpdated = () => { setTargetFloristId(null); fetchFlorists(); };
-
-    const processedFlorists = useMemo(() => {
-        let data = [...florists];
-        if (statusFilter !== 'ALL') data = data.filter(f => f.status === statusFilter);
-        if (searchTerm) {
-            const lowerTerm = searchTerm.toLowerCase();
-            data = data.filter(f => (f.platformName && f.platformName.toLowerCase().includes(lowerTerm)) || (f.shopName && f.shopName.toLowerCase().includes(lowerTerm)) || (f.email && f.email.toLowerCase().includes(lowerTerm)));
+        if (event && isOpen) {
+            setFormData({
+                title: event.title || '',
+                eventDate: formatForDateTimeLocal(event.eventDate),
+                status: event.status || 'OPEN',
+                regulations: event.regulations || '',
+                // isAcceptingFlowers が未設定(undefined)の場合は true とみなす
+                isAcceptingFlowers: event.isAcceptingFlowers !== false, 
+            });
         }
-        data.sort((a, b) => {
-            let aValue = a[sortConfig.key];
-            let bValue = b[sortConfig.key];
-            if (sortConfig.key === 'customFeeRate') {
-                aValue = a.customFeeRate ?? -1;
-                bValue = b.customFeeRate ?? -1;
+    }, [event, isOpen]);
+
+    if (!isOpen || !event) return null;
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setIsSaving(true);
+        const tid = toast.loading('保存中...');
+
+        const payload = {
+            ...formData,
+            eventDate: formData.eventDate ? new Date(formData.eventDate).toISOString() : null
+        };
+
+        try {
+            let res = await authenticatedFetch(`${API_URL}/api/admin/events/${event.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (res.status === 404) {
+                res = await authenticatedFetch(`${API_URL}/api/events/${event.id}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
             }
-            if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
-            if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
-            return 0;
-        });
-        return data;
-    }, [florists, searchTerm, statusFilter, sortConfig]);
 
-    const stats = useMemo(() => {
-        return { total: florists.length, approved: florists.filter(f => f.status === 'APPROVED').length, customFee: florists.filter(f => f.customFeeRate !== null).length };
-    }, [florists]);
-
-    const handleSort = (key) => {
-        setSortConfig(current => ({ key, direction: current.key === key && current.direction === 'desc' ? 'asc' : 'desc' }));
+            if (!res.ok) throw new Error('保存失敗');
+            toast.success('イベントを更新しました', { id: tid });
+            onSuccess();
+        } catch (error) {
+            toast.error('エラーが発生しました', { id: tid });
+        } finally { setIsSaving(false); }
     };
 
-    if (authLoading) return <div className="min-h-screen flex items-center justify-center bg-slate-50"><Loader2 className="animate-spin text-3xl text-pink-500"/></div>;
-    if (!isAuthenticated || user?.role !== 'ADMIN') return null;
-
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 to-pink-50/30 py-8 md:py-12 font-sans text-slate-800 relative overflow-hidden pb-24">
-            <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-pink-200/20 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/3 pointer-events-none z-0" />
-            
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-10 gap-6">
-                    <div className="space-y-3">
-                        <Link href="/admin" className="inline-flex items-center text-[10px] font-black text-slate-400 hover:text-pink-600 transition-colors uppercase tracking-widest bg-white px-4 py-2 rounded-full shadow-sm border border-slate-100">
-                            <ArrowLeft size={14} className="mr-1.5"/> ダッシュボードに戻る
-                        </Link>
-                        <h1 className="text-3xl md:text-5xl font-black text-slate-900 tracking-tighter uppercase flex items-center gap-3"><Award className="text-pink-500"/> Florist Management</h1>
-                        <p className="text-slate-500 font-bold text-xs tracking-widest uppercase">お花屋さんのステータス管理と手数料率設定</p>
-                    </div>
-                    <button onClick={fetchFlorists} disabled={loading} className="px-6 py-3.5 bg-white text-slate-500 rounded-full text-xs font-black hover:bg-slate-50 flex items-center gap-2 transition-all shadow-sm border border-slate-200">
-                        <RefreshCw size={16} className={loading ? "animate-spin" : ""}/> データ同期
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex justify-center items-center z-50 p-4">
+            <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col border border-slate-100 max-h-[90vh]">
+                <div className="px-8 py-6 border-b flex justify-between items-center bg-slate-50 shrink-0">
+                    <h2 className="text-xl font-black text-slate-800 flex items-center gap-2"><Edit3 className="text-pink-500"/> イベントの編集</h2>
+                    <button onClick={onClose} className="p-2 hover:bg-white rounded-full text-slate-400 transition-colors"><X size={20} /></button>
+                </div>
+                <div className="overflow-y-auto p-8">
+                    <form id="eventEditForm" onSubmit={handleSubmit} className="space-y-6">
+                        
+                        {/* お花の受け入れ状況 (目立たせる) */}
+                        <div className="p-5 bg-slate-50 rounded-[1.5rem] border border-slate-200">
+                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1">
+                                <ShieldAlert size={14}/> お祝い花の受け入れ状況
+                            </label>
+                            <div className="flex gap-3">
+                                <label className={cn("flex-1 p-3 rounded-xl border-2 cursor-pointer transition-all flex items-center justify-center gap-2 font-black text-sm", formData.isAcceptingFlowers ? "bg-emerald-50 border-emerald-400 text-emerald-600" : "bg-white border-slate-200 text-slate-400 hover:bg-slate-50")}>
+                                    <input type="radio" checked={formData.isAcceptingFlowers} onChange={() => setFormData({...formData, isAcceptingFlowers: true})} className="hidden" />
+                                    <CheckCircle2 size={18}/> 受け入れOK
+                                </label>
+                                <label className={cn("flex-1 p-3 rounded-xl border-2 cursor-pointer transition-all flex items-center justify-center gap-2 font-black text-sm", !formData.isAcceptingFlowers ? "bg-rose-50 border-rose-400 text-rose-600" : "bg-white border-slate-200 text-slate-400 hover:bg-slate-50")}>
+                                    <input type="radio" checked={!formData.isAcceptingFlowers} onChange={() => setFormData({...formData, isAcceptingFlowers: false})} className="hidden" />
+                                    <X size={18}/> 受け入れNG (辞退)
+                                </label>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                            <div>
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">イベント名</label>
+                                <input type="text" required value={formData.title} onChange={(e) => setFormData({...formData, title: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold focus:border-pink-300 focus:bg-white transition-colors" />
+                            </div>
+                            <div>
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">開催日時</label>
+                                <input type="datetime-local" required value={formData.eventDate} onChange={(e) => setFormData({...formData, eventDate: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold focus:border-pink-300 focus:bg-white transition-colors" />
+                            </div>
+                        </div>
+
+                        {/* レギュレーション */}
+                        <div>
+                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1">
+                                <FileText size={14}/> レギュレーション（規定・ルール）
+                            </label>
+                            <textarea 
+                                value={formData.regulations} 
+                                onChange={(e) => setFormData({...formData, regulations: e.target.value})} 
+                                className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-sm min-h-[150px] resize-y focus:border-pink-300 focus:bg-white transition-colors leading-relaxed"
+                                placeholder="例：&#13;&#10;・底辺40cm×40cm、高さ180cm以下&#13;&#10;・搬入時間：当日の10:00〜12:00&#13;&#10;・回収時間：当日の21:00〜22:00"
+                            />
+                            <p className="text-[10px] font-bold text-slate-400 mt-2">※お花屋さんやファンが企画を立てる際に確認する重要なルールです。</p>
+                        </div>
+
+                    </form>
+                </div>
+                <div className="px-8 py-5 border-t bg-slate-50 flex justify-end gap-3 shrink-0">
+                    <button type="button" onClick={onClose} className="px-6 py-3 bg-white border border-slate-200 text-slate-500 font-bold rounded-xl hover:bg-slate-100 transition-colors">キャンセル</button>
+                    <button type="submit" form="eventEditForm" disabled={isSaving} className="px-8 py-3 bg-slate-900 text-white font-black rounded-xl hover:bg-pink-600 flex items-center gap-2 transition-colors disabled:opacity-50">
+                        {isSaving ? <RefreshCw className="animate-spin" size={16} /> : <CheckCircle2 size={16} />} 保存して更新
                     </button>
                 </div>
+            </div>
+        </div>
+    );
+}
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-                    <StatCard icon={<Users/>} label="登録花屋総数" value={`${stats.total}件`} color="sky" />
-                    <StatCard icon={<Award/>} label="承認済みアカウント" value={`${stats.approved}件`} color="emerald" />
-                    <StatCard icon={<DollarSign/>} label="個別手数料 適用中" value={`${stats.customFee}件`} color="pink" />
+export default function AdminEventsPage() {
+    const { user, isAuthenticated, loading, authenticatedFetch } = useAuth();
+    const router = useRouter();
+    const [events, setEvents] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [editingEvent, setEditingEvent] = useState(null);
+
+    const fetchEvents = async () => {
+        setIsLoading(true);
+        try {
+            const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+            const headers = { 
+                'Authorization': `Bearer ${token}`,
+                'Cache-Control': 'no-cache'
+            };
+
+            let res = await fetch(`${API_URL}/api/admin/events?t=${Date.now()}`, { headers });
+            
+            if (res.status === 404) {
+                res = await fetch(`${API_URL}/api/events?t=${Date.now()}`, { headers });
+            }
+
+            if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
+            
+            const text = await res.text();
+            let data;
+            try {
+                data = JSON.parse(text);
+            } catch (e) {
+                throw new Error("サーバーから不正なデータが返されました");
+            }
+            
+            const eventsArray = Array.isArray(data) ? data : (data.events || data.data || Object.values(data).find(val => Array.isArray(val)) || []);
+            setEvents(eventsArray);
+
+        } catch (error) { 
+            console.error("Fetch Events Error:", error);
+            toast.error(`イベント取得失敗: ${error.message}`); 
+        } finally { 
+            setIsLoading(false); 
+        }
+    };
+
+    useEffect(() => { 
+        if (loading) return;
+        if (!isAuthenticated || user?.role !== 'ADMIN') {
+            router.push('/login');
+            return;
+        }
+        fetchEvents(); 
+    }, [isAuthenticated, user, loading, router]);
+
+    const handleDelete = async (id, title) => {
+        if (!window.confirm(`「${title}」を完全に削除しますか？`)) return;
+        const tid = toast.loading('削除中...');
+        try {
+            let res = await authenticatedFetch(`${API_URL}/api/admin/events/${id}`, { method: 'DELETE' });
+            if (res.status === 404) {
+                res = await authenticatedFetch(`${API_URL}/api/events/${id}`, { method: 'DELETE' });
+            }
+
+            if (!res.ok) throw new Error();
+            toast.success('削除しました', { id: tid });
+            fetchEvents();
+        } catch (e) { 
+            toast.error('削除に失敗しました', { id: tid }); 
+        }
+    };
+
+    if (loading) return <div className="min-h-screen flex items-center justify-center"><RefreshCw className="animate-spin text-sky-500" /></div>;
+
+    return (
+        <div className="min-h-screen bg-slate-50 pb-24">
+            <div className="bg-white border-b sticky top-0 z-10 shadow-sm">
+                <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                        <Link href="/admin" className="p-2 hover:bg-slate-100 rounded-full text-slate-500 transition-colors"><ArrowLeft size={20} /></Link>
+                        <div>
+                            <h1 className="text-xl font-black text-slate-800 flex items-center gap-2"><Calendar className="text-pink-500" size={24} /> 全イベント管理</h1>
+                            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">Event Management Console</p>
+                        </div>
+                    </div>
+                    <button onClick={fetchEvents} className="p-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-500 hover:bg-slate-100 transition-colors shadow-sm">
+                        <RefreshCw size={18} className={isLoading ? "animate-spin" : ""}/>
+                    </button>
                 </div>
-
-                <GlassCard className="mb-8 !p-4 flex flex-col md:flex-row justify-between items-center gap-4">
-                    <div className="flex bg-slate-100/80 backdrop-blur-sm p-1.5 rounded-2xl w-full md:w-auto border border-white">
-                        {['ALL', 'APPROVED', 'PENDING'].map(status => (
-                            <button key={status} onClick={() => setStatusFilter(status)}
-                                className={cn("px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all", statusFilter === status ? 'bg-white text-pink-600 shadow-sm' : 'text-slate-400 hover:text-slate-600')}
-                            >
-                                {status === 'ALL' ? 'すべて' : status === 'APPROVED' ? '承認済み' : '審査待ち'}
-                            </button>
-                        ))}
-                    </div>
-                    <div className="relative w-full md:w-80 group">
-                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 size-4 group-focus-within:text-pink-500 transition-colors" />
-                        <input type="text" placeholder="名前、店舗名、メールで検索..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-10 pr-4 py-3 bg-slate-50 border-2 border-transparent rounded-2xl text-sm font-bold focus:bg-white focus:border-pink-200 outline-none transition-all placeholder:text-slate-300"
-                        />
-                    </div>
-                </GlassCard>
-
-                <div className="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 overflow-hidden min-h-[400px]">
-                    <div className="overflow-x-auto no-scrollbar">
-                        <table className="min-w-full text-left border-collapse">
-                            <thead className="bg-slate-50/80 border-b border-slate-100">
+            </div>
+            <div className="max-w-7xl mx-auto px-6 py-8">
+                <div className="bg-white rounded-[2rem] border border-slate-200 overflow-hidden shadow-sm">
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left border-collapse min-w-[800px]">
+                            <thead className="bg-slate-50 border-b border-slate-200 text-[10px] font-black text-slate-400 uppercase tracking-widest">
                                 <tr>
-                                    <SortableTh label="花屋情報" sortKey="platformName" currentSort={sortConfig} onSort={handleSort} />
-                                    <th className="px-8 py-5 text-xs font-black text-slate-400 uppercase tracking-widest">連絡先</th>
-                                    <SortableTh label="ステータス" sortKey="status" currentSort={sortConfig} onSort={handleSort} />
-                                    <SortableTh label="適用手数料率" sortKey="customFeeRate" currentSort={sortConfig} onSort={handleSort} align="right" />
-                                    <th className="px-8 py-5 text-center text-xs font-black text-slate-400 uppercase tracking-widest">設定</th>
+                                    <th className="px-6 py-4">ステータス</th>
+                                    <th className="px-6 py-4">イベント情報</th>
+                                    <th className="px-6 py-4">開催日時</th>
+                                    <th className="px-6 py-4 text-right">アクション</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-slate-50 bg-white">
-                                {loading ? (
-                                    <tr><td colSpan="5" className="px-8 py-20 text-center"><Loader2 className="animate-spin text-pink-500 size-8 mx-auto"/></td></tr>
-                                ) : processedFlorists.length === 0 ? (
-                                    <tr><td colSpan="5" className="px-8 py-20 text-center text-slate-400 font-bold">該当するデータが見つかりません</td></tr>
+                            <tbody className="divide-y divide-slate-100">
+                                {isLoading ? (
+                                    <tr>
+                                        <td colSpan="4" className="px-6 py-20 text-center text-slate-400">
+                                            <RefreshCw className="animate-spin text-pink-500 mx-auto mb-3" size={32}/>
+                                            <p className="font-bold text-sm">データを読み込み中...</p>
+                                        </td>
+                                    </tr>
+                                ) : events.length === 0 ? (
+                                    <tr>
+                                        <td colSpan="4" className="px-6 py-20 text-center text-slate-400">
+                                            <Calendar className="text-slate-300 mx-auto mb-3" size={32}/>
+                                            <p className="font-bold text-sm">登録されているイベントがありません</p>
+                                        </td>
+                                    </tr>
                                 ) : (
-                                    processedFlorists.map((florist) => (
-                                        <tr key={florist.id} className="hover:bg-slate-50/50 transition-colors group">
-                                            <td className="px-8 py-5 whitespace-nowrap">
-                                                <div className="flex items-center gap-4">
-                                                    <div className="h-10 w-10 bg-pink-50 rounded-[1rem] flex items-center justify-center text-pink-500 font-black shadow-sm border border-pink-100">
-                                                        {florist.platformName?.[0] || 'F'}
-                                                    </div>
-                                                    <div>
-                                                        <div className="text-sm font-black text-slate-800">{florist.platformName || '名称未設定'}</div>
-                                                        <div className="text-[10px] font-bold text-slate-400 mt-0.5 uppercase tracking-widest">ID: {florist.id.substring(0, 8)}...</div>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td className="px-8 py-5 whitespace-nowrap">
-                                                <div className="text-sm font-bold text-slate-700">{florist.email}</div>
-                                                <div className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-widest">{florist.shopName || '-'}</div>
-                                            </td>
-                                            <td className="px-8 py-5 whitespace-nowrap">
-                                                <StatusBadge status={florist.status} />
-                                            </td>
-                                            <td className="px-8 py-5 whitespace-nowrap text-right">
-                                                {florist.customFeeRate !== null ? (
-                                                    <span className="inline-flex items-center px-3 py-1 rounded-lg text-[10px] font-black bg-pink-50 text-pink-600 border border-pink-100 shadow-sm gap-1">
-                                                        <DollarSign size={12}/> {(florist.customFeeRate * 100).toFixed(1)}%
+                                    events.map(ev => (
+                                        <tr key={ev.id} className="hover:bg-pink-50/30 transition-colors group">
+                                            <td className="px-6 py-4">
+                                                {/* ★ お花受け入れ状況のバッジ */}
+                                                {ev.isAcceptingFlowers !== false ? (
+                                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 text-emerald-600 text-[10px] font-black rounded-full border border-emerald-200 whitespace-nowrap">
+                                                        <CheckCircle2 size={12}/> 受入OK
                                                     </span>
                                                 ) : (
-                                                    <span className="text-[10px] font-bold text-slate-400 bg-slate-50 px-3 py-1 rounded-lg border border-slate-100">
-                                                        全体設定 (標準)
+                                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-rose-50 text-rose-600 text-[10px] font-black rounded-full border border-rose-200 whitespace-nowrap">
+                                                        <X size={12}/> 辞退・不可
                                                     </span>
                                                 )}
                                             </td>
-                                            <td className="px-8 py-5 text-center">
-                                                <button onClick={() => setTargetFloristId(florist.id)} className="text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-pink-600 bg-white border border-slate-200 hover:border-pink-200 hover:bg-pink-50 px-4 py-2 rounded-xl transition-all shadow-sm flex items-center justify-center gap-1.5 mx-auto">
-                                                    <Edit3 size={14}/> 手数料設定
-                                                </button>
+                                            <td className="px-6 py-4">
+                                                <p className="font-bold text-slate-800 text-sm md:text-base group-hover:text-pink-600 transition-colors">{ev.title}</p>
+                                                <div className="flex items-center gap-2 mt-1">
+                                                    <p className="text-[10px] text-slate-400 font-mono">ID: {ev.id.substring(0,8)}...</p>
+                                                    {ev.regulations && <span className="text-[9px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded font-bold">レギュ記載あり</span>}
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4 text-sm font-bold text-slate-600">
+                                                {ev.eventDate ? new Date(ev.eventDate).toLocaleString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '未設定'}
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <div className="flex items-center justify-end gap-2">
+                                                    <button onClick={() => setEditingEvent(ev)} className="flex items-center gap-1 px-3 py-1.5 bg-white border border-indigo-200 text-indigo-500 hover:bg-indigo-50 hover:border-indigo-400 rounded-lg transition-all text-xs font-bold shadow-sm">
+                                                        <Edit3 size={14} /> <span className="hidden sm:inline">編集</span>
+                                                    </button>
+                                                    <button onClick={() => handleDelete(ev.id, ev.title)} className="flex items-center gap-1 px-3 py-1.5 bg-white border border-rose-200 text-rose-500 hover:bg-rose-50 hover:border-rose-400 hover:text-rose-600 rounded-lg transition-all text-xs font-bold shadow-sm">
+                                                        <Trash2 size={14} /> <span className="hidden sm:inline">削除</span>
+                                                    </button>
+                                                </div>
                                             </td>
                                         </tr>
                                     ))
@@ -195,54 +307,15 @@ function AdminFloristsInner() {
                         </table>
                     </div>
                 </div>
-
-                {targetFloristId && (
-                    <FloristFeeModal floristId={targetFloristId} onClose={() => setTargetFloristId(null)} onFeeUpdated={handleFeeUpdated} />
-                )}
             </div>
+            
+            <EventEditModal 
+                event={editingEvent} 
+                isOpen={!!editingEvent} 
+                onClose={() => setEditingEvent(null)} 
+                onSuccess={() => { setEditingEvent(null); fetchEvents(); }} 
+                authenticatedFetch={authenticatedFetch} 
+            />
         </div>
     );
 }
-
-export default function AdminFloristsPage() {
-  return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50"><Loader2 className="animate-spin text-pink-500 size-12" /></div>}>
-      <AdminFloristsInner />
-    </Suspense>
-  );
-}
-
-const StatCard = ({ icon, label, value, color }) => {
-    const colors = {
-        sky: 'bg-sky-50 text-sky-600 border-sky-100',
-        emerald: 'bg-emerald-50 text-emerald-600 border-emerald-100',
-        pink: 'bg-pink-50 text-pink-600 border-pink-100',
-    };
-    return (
-        <GlassCard className="!p-6 flex items-center gap-5 hover:-translate-y-1 transition-transform">
-            <div className={cn("p-4 rounded-[1.25rem] shadow-inner border", colors[color])}>{icon}</div>
-            <div>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{label}</p>
-                <p className="text-3xl font-black text-slate-800 tracking-tighter">{value}</p>
-            </div>
-        </GlassCard>
-    );
-};
-
-const SortableTh = ({ label, sortKey, currentSort, onSort, align = 'left' }) => (
-    <th className={cn("px-8 py-5 text-xs font-black text-slate-400 uppercase tracking-widest cursor-pointer hover:bg-slate-100 transition-colors select-none group", align === 'right' ? 'text-right' : 'text-left')} onClick={() => onSort(sortKey)}>
-        <div className={cn("flex items-center gap-1.5", align === 'right' ? 'justify-end' : '')}>
-            {label}
-            <div className="flex flex-col text-[8px] text-slate-300">
-                <span className={currentSort.key === sortKey && currentSort.direction === 'asc' ? 'text-pink-500' : ''}>▲</span>
-                <span className={currentSort.key === sortKey && currentSort.direction === 'desc' ? 'text-pink-500' : ''}>▼</span>
-            </div>
-        </div>
-    </th>
-);
-
-const StatusBadge = ({ status }) => {
-    const styles = { APPROVED: 'bg-emerald-50 text-emerald-600 border-emerald-200', PENDING: 'bg-amber-50 text-amber-600 border-amber-200', REJECTED: 'bg-rose-50 text-rose-600 border-rose-200' };
-    const labels = { APPROVED: '承認済み', PENDING: '審査待ち', REJECTED: '却下/停止' };
-    return <span className={cn("px-3 py-1.5 inline-flex text-[10px] font-black rounded-md border uppercase tracking-widest shadow-sm", styles[status] || 'bg-slate-50 text-slate-500 border-slate-200')}>{labels[status] || status}</span>;
-};
