@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useAuth } from '../../contexts/AuthContext';
 import toast from 'react-hot-toast';
 import { 
-    ArrowLeft, RefreshCw, Trash2, Calendar, Edit3, X, CheckCircle2 
+    ArrowLeft, RefreshCw, Trash2, Calendar, Edit3, X, CheckCircle2, FileText 
 } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
@@ -28,16 +28,25 @@ const formatForDateTimeLocal = (dateString) => {
 
 // 🌟 イベント編集モーダル
 function EventEditModal({ event, isOpen, onClose, onSuccess, authenticatedFetch }) {
-    const [formData, setFormData] = useState({ title: '', eventDate: '', status: '' });
+    // レギュレーションと受け入れ状況をステートに追加
+    const [formData, setFormData] = useState({ 
+        title: '', 
+        eventDate: '', 
+        status: '',
+        regulations: '',
+        isAcceptingFlowers: true
+    });
     const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
         if (event && isOpen) {
             setFormData({
                 title: event.title || '',
-                // 時間情報を含めたフォーマットに変換
                 eventDate: formatForDateTimeLocal(event.eventDate),
                 status: event.status || 'OPEN',
+                regulations: event.regulations || '',
+                // undefined の場合はデフォルトで true (受け入れ可) とする
+                isAcceptingFlowers: event.isAcceptingFlowers !== false, 
             });
         }
     }, [event, isOpen]);
@@ -81,24 +90,55 @@ function EventEditModal({ event, isOpen, onClose, onSuccess, authenticatedFetch 
 
     return (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex justify-center items-center z-50 p-4">
-            <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg overflow-hidden flex flex-col border border-slate-100">
-                <div className="px-8 py-6 border-b flex justify-between items-center bg-slate-50">
+            {/* 項目が増えたため、max-h-[90vh] を追加してスクロール可能に */}
+            <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col border border-slate-100 overflow-hidden">
+                <div className="px-8 py-6 border-b flex justify-between items-center bg-slate-50 shrink-0">
                     <h2 className="text-xl font-black text-slate-800 flex items-center gap-2"><Edit3 className="text-pink-500"/> イベントの編集</h2>
-                    <button onClick={onClose} className="p-2 hover:bg-white rounded-full text-slate-400"><X size={20} /></button>
+                    <button onClick={onClose} className="p-2 hover:bg-white rounded-full text-slate-400 transition-colors"><X size={20} /></button>
                 </div>
-                <form onSubmit={handleSubmit} className="p-8 space-y-6">
+                <form onSubmit={handleSubmit} className="p-8 space-y-6 overflow-y-auto">
                     <div>
                         <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">イベント名</label>
-                        <input type="text" required value={formData.title} onChange={(e) => setFormData({...formData, title: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold" />
+                        <input type="text" required value={formData.title} onChange={(e) => setFormData({...formData, title: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-pink-300 transition-all font-bold" />
                     </div>
                     <div>
                         <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">開催日時</label>
-                        {/* 🌟 type="date" から "datetime-local" に変更 */}
-                        <input type="datetime-local" required value={formData.eventDate} onChange={(e) => setFormData({...formData, eventDate: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold" />
+                        <input type="datetime-local" required value={formData.eventDate} onChange={(e) => setFormData({...formData, eventDate: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-pink-300 transition-all font-bold" />
                     </div>
-                    <div className="pt-4 flex justify-end gap-3">
-                        <button type="button" onClick={onClose} className="px-6 py-3 bg-white border border-slate-200 text-slate-500 font-bold rounded-xl">キャンセル</button>
-                        <button type="submit" disabled={isSaving} className="px-8 py-3 bg-slate-900 text-white font-black rounded-xl hover:bg-pink-600 flex items-center gap-2">
+                    
+                    {/* 🌟 追加: 受け入れ状況の切り替え */}
+                    <div>
+                        <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">お祝い花 受け入れ状況</label>
+                        <label className="flex items-center gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200 cursor-pointer hover:bg-white transition-colors">
+                            <input 
+                                type="checkbox" 
+                                checked={formData.isAcceptingFlowers} 
+                                onChange={(e) => setFormData({...formData, isAcceptingFlowers: e.target.checked})}
+                                className="w-5 h-5 text-pink-500 rounded border-slate-300 focus:ring-pink-500"
+                            />
+                            <span className={cn("text-sm font-bold", formData.isAcceptingFlowers ? "text-slate-800" : "text-rose-500")}>
+                                {formData.isAcceptingFlowers ? '受け入れ可能 (OK)' : '受け入れ不可 (NG・辞退)'}
+                            </span>
+                        </label>
+                    </div>
+
+                    {/* 🌟 追加: レギュレーション入力欄 */}
+                    <div>
+                        <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1">
+                            <FileText size={14}/> レギュレーション (搬入ルール等)
+                        </label>
+                        <textarea 
+                            rows="4"
+                            value={formData.regulations} 
+                            onChange={(e) => setFormData({...formData, regulations: e.target.value})} 
+                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-pink-300 transition-all font-bold text-sm resize-none"
+                            placeholder="サイズ規定、搬入時間の指定、回収の必須有無などを記載してください..."
+                        />
+                    </div>
+
+                    <div className="pt-4 flex justify-end gap-3 border-t border-slate-100">
+                        <button type="button" onClick={onClose} className="px-6 py-3 bg-white border border-slate-200 text-slate-500 font-bold rounded-xl hover:bg-slate-50 transition-colors">キャンセル</button>
+                        <button type="submit" disabled={isSaving} className="px-8 py-3 bg-slate-900 text-white font-black rounded-xl hover:bg-slate-800 transition-colors flex items-center gap-2 shadow-md">
                             {isSaving ? <RefreshCw className="animate-spin" size={16} /> : <CheckCircle2 size={16} />} 保存
                         </button>
                     </div>
@@ -124,10 +164,8 @@ export default function AdminEventsPage() {
                 'Cache-Control': 'no-cache'
             };
 
-            // 🌟 1. まず /api/admin/events を試す
             let res = await fetch(`${API_URL}/api/admin/events?t=${Date.now()}`, { headers });
             
-            // 🌟 2. 404エラー（存在しない）なら、一般用の /api/events を試す
             if (res.status === 404) {
                 res = await fetch(`${API_URL}/api/events?t=${Date.now()}`, { headers });
             }
@@ -227,10 +265,15 @@ export default function AdminEventsPage() {
                                     <tr key={ev.id} className="hover:bg-pink-50/30 transition-colors group">
                                         <td className="px-6 py-4">
                                             <p className="font-bold text-slate-800 text-sm md:text-base group-hover:text-pink-600 transition-colors">{ev.title}</p>
-                                            <p className="text-[10px] text-slate-400 font-mono mt-1">ID: {ev.id.substring(0,8)}...</p>
+                                            <div className="flex items-center gap-2 mt-1.5">
+                                                <p className="text-[10px] text-slate-400 font-mono">ID: {ev.id.substring(0,8)}...</p>
+                                                {/* 🌟 受け入れ状況のバッジ */}
+                                                <span className={cn("text-[9px] font-bold px-2 py-0.5 rounded-full tracking-wider", ev.isAcceptingFlowers !== false ? "bg-emerald-100 text-emerald-600" : "bg-rose-100 text-rose-600")}>
+                                                    {ev.isAcceptingFlowers !== false ? '受入OK' : '受入NG'}
+                                                </span>
+                                            </div>
                                         </td>
                                         <td className="px-6 py-4 text-sm font-bold text-slate-600">
-                                            {/* 🌟 開催日と時間を一緒に表示 */}
                                             {ev.eventDate ? new Date(ev.eventDate).toLocaleString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '未設定'}
                                         </td>
                                         <td className="px-6 py-4">
