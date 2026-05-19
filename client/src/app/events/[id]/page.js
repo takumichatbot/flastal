@@ -308,7 +308,17 @@ export default function EventDetailPage() {
               <div className="flex flex-wrap gap-y-2 gap-x-6 text-gray-600 mb-6 text-sm sm:text-base border-b border-slate-50 pb-6">
                 <div className="flex items-center">
                   <FiCalendar className="w-5 h-5 mr-2 text-indigo-500 shrink-0"/>
-                  <span className="font-medium">{new Date(event.eventDate).toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                  <span className="font-medium">
+                      {new Date(event.eventDate).toLocaleString('ja-JP', { 
+                          year: 'numeric', 
+                          month: 'long', 
+                          day: 'numeric', 
+                          weekday: 'short', 
+                          hour: '2-digit', 
+                          minute: '2-digit',
+                          timeZone: 'Asia/Tokyo' // 🌟 強制的に日本時間として表示
+                      })}
+                  </span>
                 </div>
                 
                 {/* ★ 変更: 会場名と編集ボタンをグループ化 */}

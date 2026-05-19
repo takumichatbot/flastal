@@ -332,7 +332,8 @@ function EventListContent() {
                                       day: 'numeric', 
                                       weekday: 'short',
                                       hour: '2-digit',
-                                      minute: '2-digit'
+                                      minute: '2-digit',
+                                      timeZone: 'Asia/Tokyo' // 🌟 強制的に日本時間として表示
                                     })}
                                 </div>
                                 <div className={cn("flex items-center text-sm font-medium", isPastEvent ? "text-slate-400" : "text-slate-500")}>
