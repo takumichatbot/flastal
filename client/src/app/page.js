@@ -708,7 +708,11 @@ const LaruSeoEmbed = () => {
       if (container.querySelector('script')) return;
 
       const script = document.createElement('script');
-      script.src = "https://larubot.tokyo/embed/blog.js";
+      
+      // 👇 変更：現在時刻を自動で取得してパラメーターにする
+      const timestamp = new Date().getTime();
+      script.src = `https://larubot.tokyo/embed/blog.js?t=${timestamp}`;
+      
       script.setAttribute("data-id", "e19ed703-6238-49a5-ac83-c92c522a44cd");
       script.setAttribute("data-limit", "3"); 
       script.async = true;
