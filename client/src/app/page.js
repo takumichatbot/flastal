@@ -436,7 +436,8 @@ const HowItWorks = () => {
           <h2 className="text-3xl md:text-5xl font-black text-slate-800 tracking-tighter">フラスタが届くまで</h2>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-12 relative">
+        {/* 余白（mb-16 md:mb-24）を追加してバナーとの間隔を確保 */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-12 relative mb-16 md:mb-24">
           <div className="absolute top-10 left-1/6 right-1/6 h-1 bg-slate-100 hidden md:block -z-10" />
 
           {steps.map((step, i) => (
@@ -452,6 +453,30 @@ const HowItWorks = () => {
             </Reveal>
           ))}
         </div>
+
+        {/* 🌟 追加：はじめての方へ（使い方ガイド）への誘導バナー */}
+        <Reveal delay={0.3}>
+          <Link href="/guide" className="block relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-pink-50 to-rose-50 border-2 border-pink-100 hover:border-pink-300 transition-all duration-300 group shadow-sm hover:shadow-xl max-w-4xl mx-auto">
+            <div className="absolute top-0 right-0 -mt-8 -mr-8 w-40 h-40 bg-pink-500/10 rounded-full blur-2xl group-hover:bg-pink-500/20 transition-all"></div>
+            <div className="relative z-10 p-8 md:p-12 flex flex-col md:flex-row items-center justify-between gap-6">
+              <div>
+                <h3 className="text-2xl md:text-3xl font-black text-slate-800 mb-2 group-hover:text-pink-600 transition-colors">
+                  はじめての方へ 🌸
+                </h3>
+                <p className="text-slate-600 font-bold text-sm md:text-base">
+                  企画の立て方からフラスタが届くまでの流れを、<br className="hidden sm:block"/>
+                  わかりやすく解説しています！まずはここからチェック！
+                </p>
+              </div>
+              <div className="shrink-0">
+                <span className="flex items-center gap-2 px-8 py-4 bg-white text-pink-600 font-black rounded-2xl shadow-md group-hover:bg-pink-600 group-hover:text-white transition-all">
+                  使い方を見る <ArrowRight size={20} />
+                </span>
+              </div>
+            </div>
+          </Link>
+        </Reveal>
+
       </div>
     </section>
   );
