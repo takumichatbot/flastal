@@ -287,11 +287,30 @@ export default function FloristProfileEditPage() {
                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">拠点住所（※市町村まで公開されます）</label>
                        <input type="text" {...register('address')} className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:bg-white focus:border-pink-300 focus:ring-4 focus:ring-pink-50 outline-none transition-all font-bold text-slate-800" placeholder="〒000-0000 東京都渋谷区..." />
                     </div>
-                    {/* ★ Webサイトを消して「営業時間」を追加 */}
                     <div>
                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-1"><Clock size={12}/> 営業時間 / 受付時間</label>
                        <input type="text" {...register('businessHours')} className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:bg-white focus:border-pink-300 focus:ring-4 focus:ring-pink-50 outline-none transition-all font-bold text-slate-800" placeholder="例: 平日 10:00 〜 19:00 (水曜定休)" />
                     </div>
+
+                    {/* 🌟 追加：配送・回収設定ページへの案内バナー */}
+                    <div className="mt-6 bg-sky-50 border border-sky-100 rounded-2xl p-5 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm">
+                        <div>
+                            <h3 className="font-black text-sky-800 flex items-center gap-2 mb-1">
+                                <Truck size={18} /> 配送料金・回収費の設定
+                            </h3>
+                            <p className="text-xs font-bold text-sky-600 leading-relaxed">
+                                エリアごとの配送料や、スタンドの回収費用は<br className="hidden sm:block"/>
+                                専用の「配送・回収設定」ページから行えます。
+                            </p>
+                        </div>
+                        <Link 
+                            href="/florists/dashboard/delivery" 
+                            className="shrink-0 px-6 py-3 bg-white border border-sky-200 text-sky-600 font-black rounded-xl hover:bg-sky-600 hover:text-white transition-colors shadow-sm text-sm"
+                        >
+                            設定画面を開く
+                        </Link>
+                    </div>
+
                 </div>
             </GlassCard>
 
