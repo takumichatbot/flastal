@@ -10,11 +10,8 @@ import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import { motion } from 'framer-motion';
 
-// lucide-reactに統一 (Globeを削除し、Clockを追加)
-import { 
-  Save, Camera, ArrowLeft, Zap, Check, MapPin, 
-  Phone, Clock, User, Image as ImageIcon, Trash2, Loader2, Building
-} from 'lucide-react';
+
+import { Save, Camera, ArrowLeft, Zap, Check, MapPin, Phone, Clock, User, Image as ImageIcon, Trash2, Loader2, Building, Truck } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
