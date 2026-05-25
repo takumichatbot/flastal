@@ -63,7 +63,7 @@ app.use(cors({
         }
     },
     credentials: true,
-    methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"], // 🌟 "PUT" を追加！
     allowedHeaders: [
         "Content-Type", 
         "Authorization", 
