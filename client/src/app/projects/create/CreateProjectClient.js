@@ -501,8 +501,8 @@ function CreateProjectForm() {
   useEffect(() => {
     if (authLoading) return;
     if (!user) { router.push('/login'); return; }
-    if (user.role !== 'USER' && user.role !== 'ORGANIZER') {
-        toast.error('企画作成は一般ユーザーまたは主催者のみ可能です。');
+    if (user.role !== 'USER' && user.role !== 'ORGANIZER' && user.role !== 'ADMIN') {
+        toast.error('企画作成は一般ユーザー、主催者のみ可能です。');
         router.push('/');
         return;
     }
