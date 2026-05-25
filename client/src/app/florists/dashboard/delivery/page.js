@@ -52,7 +52,7 @@ export default function FloristDeliverySettings() {
     const fetchSettings = async () => {
         try {
             setLoading(true);
-            const res = await authenticatedFetch(`${API_URL}/api/florists/delivery-settings`);
+            const res = await authenticatedFetch(`${API_URL}/api/florists/me/delivery-settings`);
             
             if (res.ok) {
                 const data = await res.json();
@@ -99,7 +99,7 @@ export default function FloristDeliverySettings() {
                 deliveryNotes
             };
 
-            const res = await authenticatedFetch(`${API_URL}/api/florists/delivery-settings`, {
+            const res = await authenticatedFetch(`${API_URL}/api/florists/me/delivery-settings`, {
                 method: 'PUT', // 作成・更新を兼ねる
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
