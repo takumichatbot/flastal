@@ -425,22 +425,39 @@ export default function GroupChat({ project, user, isPlanner, isPledger, isFlori
     setIsUploading(true);
     const toastId = toast.loading('画像を送信中...');
     
-    const uploadFormData = new FormData();
-    uploadFormData.append('image', file);
-
     try {
       const token = getAuthToken();
-      // /api/upload は src/app.js にあるのでそのまま
-      const res = await fetch(`${API_URL}/api/upload`, { 
-          method: 'POST', 
-          headers: { 'Authorization': `Bearer ${token}` },
-          body: uploadFormData 
-      });
-      if (!res.ok) throw new Error('アップロード失敗');
-      const data = await res.json();
       
+      // 1. S3のアップロード用URLを取得
+      const urlRes = await fetch(`${API_URL}/api/tools/s3-upload-url`, {
+          method: 'POST',
+          headers: { 
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ fileName: file.name, fileType: file.type })
+      });
+      
+      if (!urlRes.ok) throw new Error('アップロードURLの取得に失敗しました');
+      const { uploadUrl, fileUrl } = await urlRes.json();
+
+      // 2. 取得したURLを使って、S3へ直接ファイルを送信
+      await new Promise((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open('PUT', uploadUrl);
+          xhr.setRequestHeader('Content-Type', file.type);
+          xhr.onload = () => {
+              if (xhr.status === 200) resolve(fileUrl);
+              else reject(new Error('S3へのアップロードに失敗しました'));
+          };
+          xhr.onerror = () => reject(new Error('ネットワークエラーが発生しました'));
+          xhr.send(file);
+      });
+      
+      // 3. アップロード成功後、チャットにメッセージとして送信
       const messageType = file.type.startsWith('image/') ? 'IMAGE' : 'FILE';
-      handleSendMessage(null, null, messageType, data.url, file.name);
+      handleSendMessage(null, null, messageType, fileUrl, file.name);
+      
       toast.success('送信しました', { id: toastId });
     } catch (error) {
         toast.error(`送信失敗: ${error.message}`, { id: toastId });

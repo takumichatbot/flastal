@@ -129,32 +129,52 @@ export default function PlannerFloristChatPage() {
     const handleFileUpload = async (event) => {
         const file = event.target.files[0];
         if (!file) return;
+        if (!user || !socket) return toast.error('権限がありません。');
+
         setIsUploading(true);
         const toastId = toast.loading('画像を送信中...');
-        
-        const formData = new FormData();
-        formData.append('image', file);
-
+    
         try {
-            const token = getAuthToken();
-            const res = await fetch(`${API_URL}/api/upload`, { 
-                method: 'POST', 
-                headers: { 'Authorization': `Bearer ${token}` },
-                body: formData 
-            });
-            if (!res.ok) throw new Error('アップロード失敗');
-            const data = await res.json();
-            
-            const messageType = file.type.startsWith('image/') ? 'IMAGE' : 'FILE';
-            handleSendMessage(null, messageType, data.url, file.name);
-            toast.success('送信しました', { id: toastId });
+          const token = getAuthToken();
+      
+          // 1. S3のアップロード用URLを取得
+          const urlRes = await fetch(`${API_URL}/api/tools/s3-upload-url`, {
+              method: 'POST',
+              headers: { 
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify({ fileName: file.name, fileType: file.type })
+          });
+      
+          if (!urlRes.ok) throw new Error('アップロードURLの取得に失敗しました');
+          const { uploadUrl, fileUrl } = await urlRes.json();
+
+          // 2. 取得したURLを使って、S3へ直接ファイルを送信
+          await new Promise((resolve, reject) => {
+              const xhr = new XMLHttpRequest();
+              xhr.open('PUT', uploadUrl);
+              xhr.setRequestHeader('Content-Type', file.type);
+              xhr.onload = () => {
+                  if (xhr.status === 200) resolve(fileUrl);
+                  else reject(new Error('S3へのアップロードに失敗しました'));
+              };
+              xhr.onerror = () => reject(new Error('ネットワークエラーが発生しました'));
+              xhr.send(file);
+          });
+      
+          // 3. アップロード成功後、チャットにメッセージとして送信
+          const messageType = file.type.startsWith('image/') ? 'IMAGE' : 'FILE';
+          handleSendMessage(null, null, messageType, fileUrl, file.name);
+      
+          toast.success('送信しました', { id: toastId });
         } catch (error) {
             toast.error(`送信失敗: ${error.message}`, { id: toastId });
         } finally {
             setIsUploading(false);
             if (fileInputRef.current) fileInputRef.current.value = "";
         }
-    };
+      };
 
     if (authLoading || loading) return <div className="min-h-screen flex items-center justify-center bg-slate-50"><Loader2 className="animate-spin text-pink-500" size={40}/></div>;
     if (!project || !chatRoom) return null;
