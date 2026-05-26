@@ -22,6 +22,16 @@ const STYLE_TAGS = [
   '大型/連結', '卓上/楽屋花', 'リーズナブル'
 ];
 
+const PREFECTURES = [
+  '北海道', '青森県', '岩手県', '宮城県', '秋田県', '山形県', '福島県',
+  '茨城県', '栃木県', '群馬県', '埼玉県', '千葉県', '東京都', '神奈川県',
+  '新潟県', '富山県', '石川県', '福井県', '山梨県', '長野県', '岐阜県', 
+  '静岡県', '愛知県', '三重県', '滋賀県', '京都府', '大阪府', '兵庫県', 
+  '奈良県', '和歌山県', '鳥取県', '島根県', '岡山県', '広島県', '山口県',
+  '徳島県', '香川県', '愛媛県', '高知県', '福岡県', '佐賀県', '長崎県', 
+  '熊本県', '大分県', '宮崎県', '鹿児島県', '沖縄県', '全国対応'
+];
+
 function cn(...classes) {
   return classes.filter(Boolean).join(' ');
 }
@@ -62,6 +72,7 @@ export default function FloristProfileEditPage() {
   
   const [loadingData, setLoadingData] = useState(true);
   const [selectedTags, setSelectedTags] = useState([]);
+  const [selectedAreas, setSelectedAreas] = useState([]);
   const [portfolioImages, setPortfolioImages] = useState([]);
   const [iconUrl, setIconUrl] = useState('');
   
@@ -87,7 +98,10 @@ export default function FloristProfileEditPage() {
           setValue('platformName', f.platformName || '');
           setValue('contactName', f.contactName || '');
           setValue('address', f.address || '');
-          setValue('baseDeliveryArea', f.baseDeliveryArea || ''); // ★ ここを追加
+          if (f.baseDeliveryArea) {
+              const areas = f.baseDeliveryArea.split(',').map(a => a.trim()).filter(a => a);
+              setSelectedAreas(areas);
+          }
           setValue('phoneNumber', f.phoneNumber || '');
           // ★ Webサイトを削除し、受付時間を設定
           setValue('businessHours', f.businessHours || '');
@@ -112,6 +126,10 @@ export default function FloristProfileEditPage() {
 
   const toggleTag = (tag) => {
     setSelectedTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]);
+  };
+
+  const toggleArea = (area) => {
+    setSelectedAreas(prev => prev.includes(area) ? prev.filter(a => a !== area) : [...prev, area]);
   };
 
   const uploadFile = async (file) => {
@@ -181,7 +199,8 @@ export default function FloristProfileEditPage() {
           ...data,
           iconUrl: iconUrl,
           specialties: selectedTags,
-          portfolioImages: portfolioImages
+          portfolioImages: portfolioImages,
+          baseDeliveryArea: selectedAreas.join(', ')
         }),
       });
       if (!res.ok) throw new Error('更新失敗');
@@ -281,12 +300,28 @@ export default function FloristProfileEditPage() {
                     </h2>
                 </div>
                 <div className="p-8 space-y-6">
-                    {/* ★ 追加：活動エリア（配送対応エリア） */}
-                    <div>
-                       <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-1">
-                           <Truck size={12}/> 活動エリア（配送対応エリア）
+                    {/* ★ 修正：活動エリア（複数選択対応） */}
+                    <div className="space-y-3">
+                       <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1">
+                           <Truck size={12}/> 活動エリア（複数選択可）
                        </label>
-                       <input type="text" {...register('baseDeliveryArea')} className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:bg-white focus:border-pink-300 focus:ring-4 focus:ring-pink-50 outline-none transition-all font-bold text-slate-800" placeholder="例: 東京都、神奈川県、全国発送対応" />
+                       <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl">
+                           {PREFECTURES.map(pref => (
+                               <button
+                                   key={pref}
+                                   type="button"
+                                   onClick={() => toggleArea(pref)}
+                                   className={cn(
+                                       "px-3 py-1.5 rounded-full text-xs font-bold border transition-all",
+                                       selectedAreas.includes(pref)
+                                           ? 'bg-sky-500 text-white border-sky-500 shadow-md'
+                                           : 'bg-white text-slate-500 border-slate-200 hover:border-sky-300'
+                                   )}
+                               >
+                                   {pref}
+                               </button>
+                           ))}
+                       </div>
                        <p className="text-[10px] font-bold text-slate-400 mt-2">※検索一覧や詳細ページの「活動エリア」としてユーザーに表示されます。</p>
                     </div>
 
