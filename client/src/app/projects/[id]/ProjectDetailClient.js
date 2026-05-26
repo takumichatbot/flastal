@@ -942,6 +942,12 @@ export default function ProjectDetailClient() {
   const isFlorist = user && user.role === 'FLORIST';
   const isAssignedIllustrator = user && user.role === 'ILLUSTRATOR' && project?.illustratorId === user.id;
 
+  // ▼▼▼ 追加 ▼▼▼
+  // 受諾済みの花屋オファーを探し、花屋の名前を取得する
+  const acceptedOffer = project?.offers?.find(o => o.status === 'ACCEPTED');
+  const floristName = acceptedOffer?.florist?.shopName || acceptedOffer?.florist?.platformName || '担当のお花屋さん';
+  // ▲▲▲ 追加 ▲▲▲
+
   const isMounted = useIsMounted();
   
   if (!isMounted) return null;
@@ -1571,22 +1577,6 @@ export default function ProjectDetailClient() {
                           <h3 className="text-sm font-black text-slate-800 tracking-widest">企画者メニュー</h3>
                       </div>
                       <div className="space-y-3">
-
-                          {isPlanner && project.offers?.find(o => o.status === 'ACCEPTED') && (
-                            <Link 
-                                href={`/projects/${project.id}/florist-chat`} // ⭕️正しいURLに修正
-                                className="w-full text-left p-4 bg-sky-500 hover:bg-sky-600 border border-sky-400 rounded-2xl transition-all flex items-center group shadow-md mb-3"
-                            >
-                                  <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center mr-3 group-hover:scale-110 transition-transform">
-                                      <MessageSquare className="text-white" size={16}/>
-                                  </div>
-                                  <div>
-                                      <p className="text-sm font-black text-white">お花屋さんと相談する</p>
-                                      <p className="text-[10px] font-bold text-sky-100">※機密チャット（支援者には非公開）</p>
-                                  </div>
-                              </Link>
-                          )}
-
                           <button 
                              onClick={()=>setIsTargetAmountModalOpen(true)} 
                              className="w-full text-left p-4 bg-white hover:bg-slate-100 border border-slate-200 rounded-2xl transition-all flex items-center group shadow-sm"
@@ -1608,12 +1598,26 @@ export default function ProjectDetailClient() {
                               </div>
                           </Link>
                           
+                          {/* ▼▼▼ ここから条件分岐を修正 ▼▼▼ */}
                           {project?.quotation && project.quotation.isApproved === false ? (
+                              // 1. 見積もりが届いて未承認の場合
                               <button onClick={()=>setIsQuotationModalOpen(true)} className="w-full mt-4 bg-gradient-to-r from-pink-500 to-rose-500 text-white p-4 rounded-2xl text-sm font-black transition-all hover:brightness-110 active:scale-[0.98] shadow-lg flex items-center justify-center gap-2">
                                   <FileText size={18}/> 見積もりを承認して発注
                               </button>
+                          ) : acceptedOffer ? (
+                              // 2. お花屋さんが決定している場合（探すボタンの代わりにチャットボタンを表示）
+                              <Link href={`/projects/${project.id}/florist-chat`} className="w-full text-left p-4 bg-sky-500 hover:bg-sky-600 border border-sky-400 rounded-2xl transition-all flex items-center group shadow-md mt-4">
+                                  <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center mr-3 group-hover:scale-110 transition-transform">
+                                      <MessageSquare className="text-white" size={16}/>
+                                  </div>
+                                  <div>
+                                      <p className="text-sm font-black text-white">{floristName} と相談</p>
+                                      <p className="text-[10px] font-bold text-sky-100">※機密チャット（支援者には非公開）</p>
+                                  </div>
+                              </Link>
                           ) : (
-                              <Link href={`/florists?projectId=${id}`} className="w-full text-left p-4 bg-white hover:bg-slate-100 border border-slate-200 rounded-2xl transition-all flex items-center group shadow-sm">
+                              // 3. まだお花屋さんが決まっていない場合
+                              <Link href={`/florists?projectId=${id}`} className="w-full text-left p-4 bg-white hover:bg-slate-100 border border-slate-200 rounded-2xl transition-all flex items-center group shadow-sm mt-4">
                                   <div className="w-8 h-8 rounded-lg bg-pink-50 flex items-center justify-center mr-3 group-hover:scale-110 transition-transform">
                                      <Search className="text-pink-500" size={16}/>
                                  </div>
@@ -1621,6 +1625,13 @@ export default function ProjectDetailClient() {
                                      <p className="text-sm font-bold text-slate-800">お花屋さんを探す</p>
                                   </div>
                               </Link>
+                          )}
+                          {/* ▲▲▲ 条件分岐の修正ここまで ▲▲▲ */}
+
+                          {project?.status === 'SUCCESSFUL' && (
+                              <button onClick={()=>setIsCompletionModalOpen(true)} className="w-full mt-4 bg-emerald-500 hover:bg-emerald-600 text-white p-4 rounded-2xl text-sm font-black transition-colors shadow-md flex justify-center items-center gap-2">
+                                  <CheckCircle2 size={18}/> 完了報告をする
+                              </button>
                           )}
                           {project?.status === 'SUCCESSFUL' && (
                               <button onClick={()=>setIsCompletionModalOpen(true)} className="w-full mt-4 bg-emerald-500 hover:bg-emerald-600 text-white p-4 rounded-2xl text-sm font-black transition-colors shadow-md flex justify-center items-center gap-2">

@@ -24,6 +24,13 @@ function cn(...classes) {
 }
 const JpText = ({ children, className }) => <span className={cn("inline-block", className)}>{children}</span>;
 
+// 住所文字列から都道府県のみを抽出する関数
+const extractPrefecture = (address) => {
+  if (!address) return '全国対応';
+  const match = address.match(/^.{2,3}?[都道府県]/);
+  return match ? match[0] : address; 
+};
+
 // --- 🎨 Glassmorphism Components ---
 const GlassCard = ({ children, className }) => (
   <div className={cn("bg-white/80 backdrop-blur-xl border border-white shadow-[0_8px_30px_rgba(0,0,0,0.04)] rounded-[2.5rem] p-6 md:p-10", className)}>
@@ -137,11 +144,7 @@ export default function FloristDetailPage() {
       }
       
       const floristData = await floristRes.json();
-      
-      if (floristData && floristData.address) {
-          const prefMatch = floristData.address.match(/^(?:東京都|道庁所在地|.{2,3}府|.{2,3}県)/);
-          floristData.displayPrefecture = prefMatch ? prefMatch[0] : floristData.address;
-      }
+
 
       setFlorist(floristData);
       setAppealPosts(floristData.appealPosts || []);
@@ -372,7 +375,7 @@ export default function FloristDetailPage() {
                               <h2 className="text-sm font-black text-slate-400 uppercase tracking-widest mb-4">FLASTAL Info</h2>
                               
                               <div className="space-y-4">
-                                  <ProfileItem icon={<MapPin size={20}/>} label="活動エリア" value={florist.displayPrefecture || '全国対応'} colorClass="text-sky-500 bg-sky-50 border-sky-100" />
+                                  <ProfileItem icon={<MapPin size={20}/>} label="活動エリア" value={extractPrefecture(florist.address)} colorClass="text-sky-500 bg-sky-50 border-sky-100" />
                                   {/* ★ SNS/Webリンクを削除し、受付時間を復活 */}
                                   <ProfileItem icon={<Clock size={20}/>} label="受付時間" value={florist.businessHours || '未設定'} colorClass="text-purple-500 bg-purple-50 border-purple-100" />
                                   <ProfileItem icon={<Zap size={20}/>} label="特急注文" value={florist.acceptsRushOrders ? '対応可能' : '要相談'} colorClass="text-amber-500 bg-amber-50 border-amber-100" />

@@ -23,6 +23,13 @@ function cn(...classes) {
   return classes.filter(Boolean).join(' ');
 }
 
+// 住所文字列から都道府県のみを抽出する関数
+const extractPrefecture = (address) => {
+  if (!address) return '非公開';
+  const match = address.match(/^.{2,3}?[都道府県]/);
+  return match ? match[0] : address; 
+};
+
 // --- 共通コンポーネント ---
 const FloatingParticles = () => {
   const [windowSize, setWindowSize] = useState({ width: 1000, height: 1000 });
@@ -144,7 +151,7 @@ function FloristCard({ florist, projectId, onOffer, isOffering }) {
             {/* ★ 修正ポイント: 所在地と配送エリアを表示 */}
             <div className="flex items-center text-xs font-bold text-slate-500">
                 <MapPin className="mr-1.5 text-slate-300 shrink-0" size={14}/> 
-                <span className="truncate">店舗: {florist.address || '非公開'}</span>
+                <span className="truncate">店舗: {extractPrefecture(florist.address)}</span>
             </div>
             
             <div className="flex items-center justify-between text-xs font-bold text-sky-600 bg-sky-50 px-2 py-1.5 rounded-lg border border-sky-100">
