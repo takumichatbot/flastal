@@ -751,27 +751,26 @@ export const getDeliverySettings = async (req, res) => {
         const florist = await prisma.florist.findUnique({
             where: { id: req.user.id },
             select: {
-                baseRecoveryFee: true,
-                lateNightFee: true,
-                deliveryAreas: true,
-                acceptsGoods: true,
-                acceptsPanelReturn: true,
-                panelReturnFee: true,
+                baseDeliveryArea: true,
+                baseDeliveryFee: true,
+                collectionType: true,
+                collectionFee: true,
+                areaFees: true,
+                conditionFees: true,
                 deliveryNotes: true
             }
         });
 
         if (!florist) return res.status(404).json({ message: 'Florist not found' });
 
-        // JSON文字列として保存されている可能性があるためパース
-        let areas = florist.deliveryAreas;
-        if (typeof areas === 'string') {
-            try { areas = JSON.parse(areas); } catch(e) { areas = []; }
-        }
-
         res.json({
-            ...florist,
-            deliveryAreas: areas || []
+            baseArea: florist.baseDeliveryArea || '全国対応',
+            baseFee: florist.baseDeliveryFee ?? 0,
+            collectionType: florist.collectionType || 'INCLUDED',
+            collectionFee: florist.collectionFee ?? 0,
+            areaFees: florist.areaFees || [],
+            conditionFees: florist.conditionFees || [],
+            deliveryNotes: florist.deliveryNotes || ''
         });
     } catch (error) {
         console.error("getDeliverySettings Error:", error);
@@ -782,22 +781,23 @@ export const getDeliverySettings = async (req, res) => {
 // --- 配送料金・回収費設定の保存 ---
 export const updateDeliverySettings = async (req, res) => {
     try {
+        // 新しい変数名でデータを受け取る
         const { 
-            baseRecoveryFee, lateNightFee, deliveryAreas, 
-            acceptsGoods, acceptsPanelReturn, panelReturnFee, deliveryNotes 
+            baseArea, baseFee, 
+            collectionType, collectionFee, 
+            areaFees, conditionFees, deliveryNotes 
         } = req.body;
-
-        const areasJson = Array.isArray(deliveryAreas) ? deliveryAreas : [];
 
         await prisma.florist.update({
             where: { id: req.user.id },
             data: {
-                baseRecoveryFee: parseInt(baseRecoveryFee) || 0,
-                lateNightFee: parseInt(lateNightFee) || 0,
-                deliveryAreas: areasJson,
-                acceptsGoods: Boolean(acceptsGoods),
-                acceptsPanelReturn: Boolean(acceptsPanelReturn),
-                panelReturnFee: parseInt(panelReturnFee) || 0,
+                // Prismaスキーマ上の名前に合わせて保存する
+                baseDeliveryArea: baseArea || '全国対応',
+                baseDeliveryFee: parseInt(baseFee) ?? 0,
+                collectionType: collectionType || 'INCLUDED',
+                collectionFee: parseInt(collectionFee) ?? 0,
+                areaFees: Array.isArray(areaFees) ? areaFees : [],
+                conditionFees: Array.isArray(conditionFees) ? conditionFees : [],
                 deliveryNotes: deliveryNotes || ''
             }
         });

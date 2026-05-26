@@ -12,8 +12,9 @@ import ShareButtons from '@/app/components/ShareButtons';
 
 import { 
     MapPin, Camera, Award, Clock, CheckCircle2, 
-    User, Heart, Star, X, Shield, Zap, AlertCircle, ArrowLeft, Briefcase
-} from 'lucide-react'; 
+    User, Heart, Star, X, Shield, Zap, AlertCircle, ArrowLeft, Briefcase,
+    Store, Truck // ★ 追加
+} from 'lucide-react';
 
 import FloristDeliveryInfo from '@/app/components/FloristDeliveryInfo';
 
@@ -390,8 +391,12 @@ export default function FloristDetailPage() {
                               <h2 className="text-sm font-black text-slate-400 uppercase tracking-widest mb-4">FLASTAL Info</h2>
                               
                               <div className="space-y-4">
-                                  <ProfileItem icon={<MapPin size={20}/>} label="活動エリア" value={extractPrefecture(florist.address)} colorClass="text-sky-500 bg-sky-50 border-sky-100" />
-                                  {/* ★ SNS/Webリンクを削除し、受付時間を復活 */}
+                                  {/* 1. 活動エリア（配送対応エリア） */}
+                                  <ProfileItem icon={<Truck size={20}/>} label="活動エリア" value={florist.baseDeliveryArea || '全国対応'} colorClass="text-sky-500 bg-sky-50 border-sky-100" />
+                                  
+                                  {/* 2. 拠点住所（店舗のある都道府県のみ） */}
+                                  <ProfileItem icon={<Store size={20}/>} label="拠点住所" value={extractPrefecture(florist.address)} colorClass="text-pink-500 bg-pink-50 border-pink-100" />
+                                  
                                   <ProfileItem icon={<Clock size={20}/>} label="受付時間" value={florist.businessHours || '未設定'} colorClass="text-purple-500 bg-purple-50 border-purple-100" />
                                   <ProfileItem icon={<Zap size={20}/>} label="特急注文" value={florist.acceptsRushOrders ? '対応可能' : '要相談'} colorClass="text-amber-500 bg-amber-50 border-amber-100" />
                                   <ProfileItem icon={<Award size={20}/>} label="得意な装飾" value={Array.isArray(florist.specialties) && florist.specialties.length > 0 ? florist.specialties.join(' / ') : (florist.specialties || '未設定')} colorClass="text-emerald-500 bg-emerald-50 border-emerald-100" />

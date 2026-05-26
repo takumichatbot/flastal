@@ -87,6 +87,7 @@ export default function FloristProfileEditPage() {
           setValue('platformName', f.platformName || '');
           setValue('contactName', f.contactName || '');
           setValue('address', f.address || '');
+          setValue('baseDeliveryArea', f.baseDeliveryArea || ''); // ★ ここを追加
           setValue('phoneNumber', f.phoneNumber || '');
           // ★ Webサイトを削除し、受付時間を設定
           setValue('businessHours', f.businessHours || '');
@@ -280,8 +281,18 @@ export default function FloristProfileEditPage() {
                     </h2>
                 </div>
                 <div className="p-8 space-y-6">
+                    {/* ★ 追加：活動エリア（配送対応エリア） */}
                     <div>
-                       <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">拠点住所（※市町村まで公開されます）</label>
+                       <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-1">
+                           <Truck size={12}/> 活動エリア（配送対応エリア）
+                       </label>
+                       <input type="text" {...register('baseDeliveryArea')} className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:bg-white focus:border-pink-300 focus:ring-4 focus:ring-pink-50 outline-none transition-all font-bold text-slate-800" placeholder="例: 東京都、神奈川県、全国発送対応" />
+                       <p className="text-[10px] font-bold text-slate-400 mt-2">※検索一覧や詳細ページの「活動エリア」としてユーザーに表示されます。</p>
+                    </div>
+
+                    {/* 既存：拠点住所 */}
+                    <div>
+                       <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">拠点住所（※ユーザーには都道府県のみ公開されます）</label>
                        <input type="text" {...register('address')} className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:bg-white focus:border-pink-300 focus:ring-4 focus:ring-pink-50 outline-none transition-all font-bold text-slate-800" placeholder="〒000-0000 東京都渋谷区..." />
                     </div>
                     <div>

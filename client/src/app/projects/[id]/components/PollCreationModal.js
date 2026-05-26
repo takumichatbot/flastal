@@ -60,7 +60,7 @@ export default function PollCreationModal({ projectId, onClose, onPollCreated })
     const token = getAuthToken();
 
     try {
-        const res = await fetch(`${API_URL}/api/group-chat/polls`, {
+        const res = await fetch(`${API_URL}/api/project-details/group-chat/polls`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
