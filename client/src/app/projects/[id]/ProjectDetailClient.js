@@ -14,6 +14,7 @@ import { useReactToPrint } from 'react-to-print';
 import { motion, AnimatePresence } from 'framer-motion';
 import ShareButtons from '@/app/components/ShareButtons';
 
+
 // --- Icons ---
 import { 
   Clock, MapPin, User, Heart, Share2, MessageCircle, 
@@ -942,11 +943,11 @@ export default function ProjectDetailClient() {
   const isFlorist = user && user.role === 'FLORIST';
   const isAssignedIllustrator = user && user.role === 'ILLUSTRATOR' && project?.illustratorId === user.id;
 
-  // ▼▼▼ 追加 ▼▼▼
-  // 受諾済みの花屋オファーを探し、花屋の名前を取得する
-  const acceptedOffer = project?.offers?.find(o => o.status === 'ACCEPTED');
-  const floristName = acceptedOffer?.florist?.shopName || acceptedOffer?.florist?.platformName || '担当のお花屋さん';
-  // ▲▲▲ 追加 ▲▲▲
+  // ▼▼▼ 修正 ▼▼▼
+  // オファー中（PENDING）または受諾済み（ACCEPTED）のお花屋さんを探す
+  const activeOffer = project?.offers?.find(o => o.status === 'ACCEPTED' || o.status === 'PENDING');
+  const floristName = activeOffer?.florist?.shopName || activeOffer?.florist?.platformName || '担当のお花屋さん';
+  // ▲▲▲ 修正 ▲▲▲
 
   const isMounted = useIsMounted();
   
@@ -1262,7 +1263,7 @@ export default function ProjectDetailClient() {
                                 </button>
                                 
                                 {/* ★ ここに「お花屋さんとチャット」ボタンを追加！(目立つように青色にしています) */}
-                                {isPlanner && project.offers?.some(o => o.status === 'ACCEPTED') && (
+                                {isPlanner && activeOffer && (
                                     <Link href={`/projects/${project.id}/florist-chat`} className="px-4 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 whitespace-nowrap transition-all bg-sky-500 text-white hover:bg-sky-600 shadow-md border border-sky-400">
                                         <MessageSquare size={16}/> 花屋と個別相談
                                     </Link>
@@ -1604,15 +1605,17 @@ export default function ProjectDetailClient() {
                               <button onClick={()=>setIsQuotationModalOpen(true)} className="w-full mt-4 bg-gradient-to-r from-pink-500 to-rose-500 text-white p-4 rounded-2xl text-sm font-black transition-all hover:brightness-110 active:scale-[0.98] shadow-lg flex items-center justify-center gap-2">
                                   <FileText size={18}/> 見積もりを承認して発注
                               </button>
-                          ) : acceptedOffer ? (
-                              // 2. お花屋さんが決定している場合（探すボタンの代わりにチャットボタンを表示）
+                          ) : activeOffer ? (
+                              // 2. オファー中・お花屋さんが決定している場合（探すボタンの代わりにチャットボタンを表示）
                               <Link href={`/projects/${project.id}/florist-chat`} className="w-full text-left p-4 bg-sky-500 hover:bg-sky-600 border border-sky-400 rounded-2xl transition-all flex items-center group shadow-md mt-4">
                                   <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center mr-3 group-hover:scale-110 transition-transform">
                                       <MessageSquare className="text-white" size={16}/>
                                   </div>
                                   <div>
                                       <p className="text-sm font-black text-white">{floristName} と相談</p>
-                                      <p className="text-[10px] font-bold text-sky-100">※機密チャット（支援者には非公開）</p>
+                                      <p className="text-[10px] font-bold text-sky-100">
+                                          {activeOffer.status === 'PENDING' ? '※お花屋さんの返答・見積り待ち' : '※機密チャット（支援者には非公開）'}
+                                      </p>
                                   </div>
                               </Link>
                           ) : (

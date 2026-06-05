@@ -51,11 +51,14 @@ export function AuthProvider({ children }) {
         email: extraData?.email || decoded.email,
         role: role,
         handleName: handleName,
-        platformName: platformName, // 追加
+        platformName: platformName, 
         iconUrl: iconUrl,
         shopName: shopName,
         venueName: venueName,
         status: extraData?.status || decoded.status || 'APPROVED',
+        points: extraData?.points || 0,                 // 🌟 追加：ポイント
+        supportLevel: extraData?.supportLevel || 'Fan', // 🌟 追加：応援ランク
+        referralCode: extraData?.referralCode || '',    // 🌟 追加：招待コード
         sub: decoded.sub,
         _token: cleanToken 
       };
@@ -228,7 +231,8 @@ export function AuthProvider({ children }) {
       isAdmin: user?.role === 'ADMIN',
       isProfessional, isApproved: approved,
       isPending: user?.status === 'PENDING',
-      login, logout, updateUser, register, authenticatedFetch
+      login, logout, updateUser, register, authenticatedFetch, 
+      fetchUser: async () => {} // 🌟 追加：エラー防止用関数
     };
   }, [user, token, isLoading, login, logout, updateUser, register, authenticatedFetch]);
 

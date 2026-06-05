@@ -89,7 +89,10 @@ export const loginUser = async (req, res) => {
             status: 'APPROVED'
         });
 
-        res.status(200).json({ message: 'ログインに成功しました。', token });
+        // 🌟 追加：パスワードを隠して、ポイント等のユーザー情報を一緒に返す
+        const { password: _, ...userData } = user;
+
+        res.status(200).json({ message: 'ログインに成功しました。', token, user: userData });
     } catch (error) {
         console.error('Login Error:', error);
         res.status(500).json({ message: 'サーバーエラーが発生しました。' });

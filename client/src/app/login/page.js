@@ -92,7 +92,7 @@ function LoginForm() {
         throw new Error(data.message || 'メールアドレスまたはパスワードが違います。');
       }
 
-      login(data.token);
+      login(data.token, data.user); // 🌟 修正：トークンと一緒にユーザー情報も渡す
       toast.success('ログインしました！');
       router.push('/mypage');
 
