@@ -807,11 +807,7 @@ export default function HomePage() {
         )}
       </AnimatePresence>
 
-      <Script 
-        src="https://larubot.tokyo/static/embed.js" 
-        data-public-id="e19ed703-6238-49a5-ac83-c92c522a44cd" 
-        strategy="afterInteractive" 
-      />
+      <script src="https://larubot.tokyo/embed/blog.js" data-id="e19ed703-6238-49a5-ac83-c92c522a44cd"></script>
 
       <style jsx global>{`
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&family=Parisienne&display=swap');
