@@ -3,7 +3,7 @@
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
 
-import { useEffect, useState, Suspense } from 'react';
+import { useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { CheckCircle, ArrowRight, Search, Sparkles, Loader2 } from 'lucide-react';
@@ -11,16 +11,8 @@ import confetti from 'canvas-confetti';
 import FloatingParticles from '@/app/components/FloatingParticles';
 
 function SuccessPageInner() {
-  const [sessionId, setSessionId] = useState(null);
-  const [mounted, setMounted] = useState(false);
-
   useEffect(() => {
-    setMounted(true);
     if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      const sid = params.get('session_id');
-      if (sid) setSessionId(sid);
-
       setTimeout(() => {
         confetti({ particleCount: 120, spread: 80, origin: { y: 0.55 }, colors: ['#ec4899', '#f43f5e', '#a855f7', '#fbbf24', '#fff'] });
         setTimeout(() => confetti({ particleCount: 60, spread: 50, origin: { y: 0.55, x: 0.2 }, colors: ['#ec4899', '#a855f7'] }), 300);
@@ -77,16 +69,6 @@ function SuccessPageInner() {
             </p>
           </motion.div>
 
-          {/* トランザクションID */}
-          {sessionId && (
-            <motion.div
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}
-              className="bg-slate-50 rounded-2xl p-4 mb-8 border border-slate-100 text-left"
-            >
-              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Transaction ID</p>
-              <p className="text-[11px] text-slate-500 font-mono break-all leading-relaxed">{sessionId}</p>
-            </motion.div>
-          )}
 
           {/* ボタン */}
           <motion.div

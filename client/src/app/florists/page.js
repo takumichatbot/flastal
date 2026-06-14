@@ -3,7 +3,7 @@
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
 
-import { useState, useEffect, useCallback, Suspense, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, Suspense, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -11,8 +11,8 @@ import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // lucide-reactに統一
-import { 
-  Search, MapPin, Camera, Loader2, X, Zap, Award, Filter, Star, CheckCircle2, Sparkles, ChevronRight, User, Send, Truck
+import {
+  Search, MapPin, Camera, Loader2, Zap, Award, Filter, Star, Sparkles, ChevronRight, User, Send, Truck, ArrowLeft
 } from 'lucide-react';
 
 import { useAuth } from '../contexts/AuthContext';
@@ -150,7 +150,7 @@ function FloristCard({ florist, projectId, onOffer, isOffering }) {
                 <span className="truncate">店舗: {extractPrefecture(florist.address)}</span>
             </div>
             
-            <div className="flex items-center justify-between text-xs font-bold text-sky-600 bg-sky-50 px-2 py-1.5 rounded-lg border border-sky-100">
+            <div className="flex items-center justify-between text-xs font-bold text-slate-600 bg-slate-50 px-2 py-1.5 rounded-lg border border-slate-100">
                 <span className="flex items-center truncate max-w-[65%]">
                     <Truck className="mr-1.5 shrink-0" size={14}/> 
                     <span className="truncate">{florist.baseDeliveryArea || '全国対応'}</span>
@@ -163,7 +163,7 @@ function FloristCard({ florist, projectId, onOffer, isOffering }) {
 
           {projectId ? (
             <button onClick={(e) => { e.preventDefault(); onOffer(florist.id); }} disabled={isOffering}
-              className="w-full py-3.5 bg-gradient-to-r from-sky-400 to-indigo-500 text-white text-xs font-black rounded-xl hover:shadow-lg transition-all disabled:opacity-50 disabled:shadow-none mt-2 flex justify-center items-center gap-2"
+              className="w-full py-3.5 bg-gradient-to-r from-pink-500 to-rose-500 text-white text-xs font-black rounded-xl hover:shadow-lg hover:shadow-pink-200 transition-all disabled:opacity-50 disabled:shadow-none mt-2 flex justify-center items-center gap-2"
             >
               {isOffering ? <Loader2 className="animate-spin mx-auto" size={16}/> : <><Send size={14}/> この花屋さんにオファー</>}
             </button>
@@ -285,8 +285,6 @@ function FloristsListContent() {
     if (!projectId) return;
     if (!user) return toast.error('ログインが必要です');
     
-    if (!window.confirm('このお花屋さんにオファーを送信しますか？')) return;
-    
     setIsOffering(true);
     const toastId = toast.loading('オファー送信中...');
     
@@ -330,9 +328,17 @@ function FloristsListContent() {
             <p className="text-slate-500 font-bold text-sm md:text-base">あなたの想いをカタチにする、プロフェッショナルな制作者たち🌸</p>
           </div>
           {projectId && (
-             <span className="inline-flex items-center px-6 py-3 bg-indigo-500 text-white font-black rounded-full shadow-lg border border-indigo-400 animate-pulse text-sm">
-                オファー先を選択中 (企画ID: {projectId})
-             </span>
+            <div className="flex items-center gap-3">
+              <span className="inline-flex items-center px-5 py-2.5 bg-gradient-to-r from-pink-500 to-rose-500 text-white font-black rounded-full shadow-lg text-sm">
+                オファー先を選択中
+              </span>
+              <button
+                onClick={() => router.back()}
+                className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-white border border-slate-200 text-slate-500 font-bold rounded-full text-sm hover:border-pink-200 hover:text-pink-500 transition-all shadow-sm"
+              >
+                <ArrowLeft size={14} /> キャンセル
+              </button>
+            </div>
           )}
         </motion.div>
 

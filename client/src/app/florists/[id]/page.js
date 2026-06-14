@@ -10,10 +10,10 @@ import { useAuth } from '@/app/contexts/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import ShareButtons from '@/app/components/ShareButtons';
 
-import { 
-    MapPin, Camera, Award, Clock, CheckCircle2, 
+import {
+    Camera, Award, Clock,
     User, Heart, Star, X, Shield, Zap, AlertCircle, ArrowLeft, Briefcase,
-    Store, Truck // ★ 追加
+    Store, Truck, Loader2, CheckCircle2
 } from 'lucide-react';
 
 import FloristDeliveryInfo from '@/app/components/FloristDeliveryInfo';
@@ -68,34 +68,107 @@ const ProfileItem = ({ icon, label, value, colorClass = "text-pink-500 bg-pink-5
     </div>
 );
 
-// 制作オファーモーダル
+// 制作オファーモーダル（企画選択付き）
 function OfferModal({ floristId, floristName, onClose }) {
-    const router = useRouter();
+    const { authenticatedFetch } = useAuth();
+    const [projects, setProjects] = useState([]);
+    const [selectedId, setSelectedId] = useState(null);
+    const [loadingProjects, setLoadingProjects] = useState(true);
+    const [submitting, setSubmitting] = useState(false);
+    const [sent, setSent] = useState(false);
+
+    useEffect(() => {
+        authenticatedFetch(`${API_URL}/api/projects?myProjects=true&status=FUNDRAISING`)
+            .then(r => r.ok ? r.json() : [])
+            .then(data => setProjects(Array.isArray(data) ? data : []))
+            .catch(() => setProjects([]))
+            .finally(() => setLoadingProjects(false));
+    }, [authenticatedFetch]);
+
+    const handleSend = async () => {
+        if (!selectedId) return toast.error('企画を選択してください');
+        setSubmitting(true);
+        try {
+            const res = await authenticatedFetch(`${API_URL}/api/florists/offers`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ projectId: selectedId, floristId }),
+            });
+            if (!res.ok) {
+                const d = await res.json();
+                throw new Error(d.message || 'オファーに失敗しました');
+            }
+            setSent(true);
+            toast.success('オファーを送信しました！🎉');
+        } catch (err) {
+            toast.error(err.message);
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
     return (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm p-4 z-[100] flex items-center justify-center">
             <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-[3rem] shadow-2xl w-full max-w-md overflow-hidden border border-white">
                 <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                    <h3 className="text-lg font-black text-slate-800 flex items-center gap-2"><Zap className="text-pink-500"/> 制作オファーを出す</h3>
+                    <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
+                        <Zap className="text-pink-500" /> 制作オファーを出す
+                    </h3>
                     <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 bg-white rounded-full shadow-sm"><X size={20} /></button>
                 </div>
-                <div className="p-8 md:p-10 text-center">
-                    <div className="w-20 h-20 bg-gradient-to-br from-pink-100 to-rose-100 text-pink-500 rounded-[1.5rem] flex items-center justify-center mx-auto mb-6 shadow-inner -rotate-3">
-                        <Award size={36} />
-                    </div>
-                    <p className="text-slate-600 mb-8 leading-relaxed text-sm font-medium">
-                        <span className="font-black text-slate-900 text-base border-b-2 border-pink-200">{floristName}</span> さんに<br/>
-                        あなたの応援企画への参加を依頼します。<br/>
-                        <span className="text-[10px] text-slate-400 font-bold mt-4 block">※決済や進行はFLASTALが仲介し、安全を担保します</span>
-                    </p>
-                    <div className="flex flex-col gap-3">
-                        <button 
-                            onClick={() => router.push(`/mypage`)} 
-                            className="w-full py-4 bg-gradient-to-r from-pink-500 to-rose-500 text-white font-black rounded-full hover:shadow-lg hover:shadow-pink-200 active:scale-95 transition-all text-base"
-                        >
-                            マイページから企画を選択する
-                        </button>
-                        <button onClick={onClose} className="w-full py-4 bg-white border border-slate-200 text-slate-500 font-black rounded-full hover:bg-slate-50 transition-all text-sm">戻る</button>
-                    </div>
+
+                <div className="p-7 md:p-8">
+                    {sent ? (
+                        <div className="text-center py-6">
+                            <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-emerald-100">
+                                <CheckCircle2 className="text-emerald-500" size={32} />
+                            </div>
+                            <p className="font-black text-slate-800 mb-1">オファーを送信しました！</p>
+                            <p className="text-xs text-slate-500 font-medium mb-6">お花屋さんからの返答をお待ちください。</p>
+                            <button onClick={onClose} className="px-8 py-3 bg-slate-900 text-white font-black rounded-full text-sm">閉じる</button>
+                        </div>
+                    ) : (
+                        <>
+                            <p className="text-sm font-bold text-slate-500 mb-4">
+                                <span className="font-black text-slate-900 border-b-2 border-pink-200">{floristName}</span> さんにオファーを送る企画を選択してください。
+                            </p>
+
+                            {loadingProjects ? (
+                                <div className="py-10 flex justify-center">
+                                    <Loader2 className="animate-spin text-pink-400" size={28} />
+                                </div>
+                            ) : projects.length === 0 ? (
+                                <div className="py-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200 mb-6">
+                                    <p className="text-sm font-bold text-slate-500 mb-3">募集中の企画がありません</p>
+                                    <button onClick={onClose} className="text-xs text-pink-500 font-black hover:underline">企画を作ってからオファーしましょう</button>
+                                </div>
+                            ) : (
+                                <div className="space-y-2 max-h-56 overflow-y-auto mb-6 pr-1">
+                                    {projects.map(p => (
+                                        <button
+                                            key={p.id}
+                                            onClick={() => setSelectedId(p.id)}
+                                            className={`w-full text-left p-4 rounded-2xl border-2 transition-all ${selectedId === p.id ? 'border-pink-400 bg-pink-50' : 'border-slate-100 hover:border-pink-200 bg-white'}`}
+                                        >
+                                            <p className="font-black text-slate-800 text-sm line-clamp-1">{p.title}</p>
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+
+                            <div className="flex flex-col gap-3">
+                                <button
+                                    onClick={handleSend}
+                                    disabled={!selectedId || submitting || projects.length === 0}
+                                    className="w-full py-4 bg-gradient-to-r from-pink-500 to-rose-500 text-white font-black rounded-full hover:shadow-lg hover:shadow-pink-200 active:scale-95 transition-all disabled:opacity-40 disabled:shadow-none flex items-center justify-center gap-2"
+                                >
+                                    {submitting ? <Loader2 className="animate-spin" size={18} /> : <Zap size={18} />}
+                                    {submitting ? '送信中...' : 'オファーを送信する'}
+                                </button>
+                                <button onClick={onClose} className="w-full py-3.5 bg-white border border-slate-200 text-slate-500 font-black rounded-full hover:bg-slate-50 transition-all text-sm">戻る</button>
+                            </div>
+                        </>
+                    )}
                 </div>
             </motion.div>
         </div>
@@ -279,7 +352,7 @@ export default function FloristDetailPage() {
                   
                   <div className="flex-1 min-w-0 z-10">
                       <div className="flex items-center justify-center md:justify-start gap-2 mb-3">
-                          <span className="px-3 py-1.5 bg-indigo-50 border border-indigo-100 text-indigo-600 text-[10px] font-black uppercase tracking-widest rounded-full flex items-center gap-1.5 shadow-sm">
+                          <span className="px-3 py-1.5 bg-pink-50 border border-pink-100 text-pink-600 text-[10px] font-black uppercase tracking-widest rounded-full flex items-center gap-1.5 shadow-sm">
                               <Shield size={12}/> Verified Partner
                           </span>
                       </div>
