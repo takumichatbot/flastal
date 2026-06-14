@@ -1,10 +1,16 @@
 'use client';
 
 import React, { useState } from 'react';
-import { FiMail, FiSend, FiCheckCircle, FiMessageSquare } from 'react-icons/fi';
+import Link from 'next/link';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Mail, Send, CheckCircle2, ArrowLeft, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
+
+function cn(...classes) { return classes.filter(Boolean).join(' '); }
+
+const inputClass = "w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:border-pink-400 focus:ring-4 focus:ring-pink-100 transition-all font-medium text-slate-700 placeholder:text-slate-300";
 
 export default function ContactPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -13,8 +19,7 @@ export default function ContactPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
-    const formData = new FormData(e.target);
-    const data = Object.fromEntries(formData.entries());
+    const data = Object.fromEntries(new FormData(e.target).entries());
 
     try {
       const res = await fetch(`${API_URL}/api/contact`, {
@@ -22,14 +27,13 @@ export default function ContactPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
-
       if (res.ok) {
         setIsSent(true);
         toast.success('お問い合わせを送信しました');
       } else {
         throw new Error('送信失敗');
       }
-    } catch (err) {
+    } catch {
       toast.error('送信に失敗しました。時間をおいて再度お試しください。');
     } finally {
       setIsSubmitting(false);
@@ -37,65 +41,104 @@ export default function ContactPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 py-16 px-4">
-      <div className="max-w-xl mx-auto">
-        <div className="text-center mb-10">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-pink-100 text-pink-500 rounded-full mb-4">
-            <FiMail size={32} />
-          </div>
-          <h1 className="text-3xl font-black text-slate-900">お問い合わせ</h1>
-          <p className="text-slate-500 mt-2 font-medium">サービスに関するご質問やご相談を承ります。</p>
-        </div>
+    <div className="min-h-screen bg-gradient-to-br from-pink-50/60 to-rose-50/40 font-sans py-10 px-4">
 
-        {isSent ? (
-          <div className="bg-white p-10 rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 text-center animate-fadeIn">
-            <FiCheckCircle size={48} className="text-green-500 mx-auto mb-4" />
-            <h2 className="text-xl font-bold text-slate-800">送信完了</h2>
-            <p className="text-slate-500 mt-2">
-              お問い合わせありがとうございます。<br />
-              内容を確認次第、担当よりメールにてご連絡いたします。
-            </p>
-            <button 
-              onClick={() => window.location.href = '/'}
-              className="mt-8 px-8 py-3 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-full font-bold hover:brightness-105 transition-all shadow-md shadow-pink-100"
-            >
-              トップへ戻る
-            </button>
+      {/* 背景装飾 */}
+      <div className="fixed top-0 right-0 w-[500px] h-[500px] bg-pink-200/25 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/3 pointer-events-none" />
+      <div className="fixed bottom-0 left-0 w-[400px] h-[400px] bg-rose-100/30 rounded-full blur-[80px] translate-y-1/3 -translate-x-1/3 pointer-events-none" />
+
+      <div className="max-w-lg mx-auto relative z-10">
+
+        {/* 戻るリンク */}
+        <Link href="/" className="inline-flex items-center gap-1.5 text-sm font-bold text-slate-400 hover:text-pink-500 transition-colors mb-6">
+          <ArrowLeft size={15} /> トップページに戻る
+        </Link>
+
+        {/* ヘッダー */}
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+          className="text-center mb-8"
+        >
+          <div className="w-16 h-16 bg-gradient-to-br from-pink-100 to-rose-100 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm border border-pink-100">
+            <Mail size={28} className="text-pink-500" />
           </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="bg-white p-8 rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 space-y-6">
-            <div>
-              <label className="block text-sm font-bold text-slate-700 mb-1">お名前</label>
-              <input 
-                type="text" name="name" required 
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-pink-500 focus:bg-white outline-none transition-all"
-                placeholder="推し活 太郎"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-bold text-slate-700 mb-1">メールアドレス</label>
-              <input 
-                type="email" name="email" required 
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-pink-500 focus:bg-white outline-none transition-all"
-                placeholder="example@flastal.com"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-bold text-slate-700 mb-1">お問い合わせ内容</label>
-              <textarea 
-                name="message" rows="5" required 
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-pink-500 focus:bg-white outline-none transition-all resize-none"
-                placeholder="ご質問内容を入力してください"
-              ></textarea>
-            </div>
-            <button 
-              type="submit" disabled={isSubmitting}
-              className="w-full bg-gradient-to-r from-pink-500 to-rose-500 text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 hover:brightness-105 transition-all disabled:opacity-50 shadow-lg shadow-pink-100"
+          <h1 className="text-2xl md:text-3xl font-black text-slate-800 tracking-tight">お問い合わせ</h1>
+          <p className="text-slate-400 mt-2 font-medium text-sm">サービスに関するご質問やご相談を承ります。</p>
+        </motion.div>
+
+        <AnimatePresence mode="wait">
+          {isSent ? (
+            <motion.div
+              key="success"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+              className="bg-white/80 backdrop-blur-xl p-10 rounded-[2rem] shadow-sm border border-white text-center"
             >
-              {isSubmitting ? '送信中...' : <><FiSend /> メッセージを送信する</>}
-            </button>
-          </form>
-        )}
+              <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-emerald-100">
+                <CheckCircle2 size={32} className="text-emerald-500" />
+              </div>
+              <h2 className="text-xl font-black text-slate-800 mb-2">送信完了</h2>
+              <p className="text-slate-500 text-sm font-medium leading-relaxed mb-8">
+                お問い合わせありがとうございます。<br />
+                内容を確認次第、担当よりメールにてご連絡いたします。
+              </p>
+              <Link href="/">
+                <motion.button
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.97 }}
+                  className="px-8 py-3.5 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-2xl font-black shadow-lg shadow-pink-100 text-sm"
+                >
+                  トップページへ戻る
+                </motion.button>
+              </Link>
+            </motion.div>
+          ) : (
+            <motion.form
+              key="form"
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.6, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
+              onSubmit={handleSubmit}
+              className="bg-white/80 backdrop-blur-xl p-7 md:p-8 rounded-[2rem] shadow-sm border border-white space-y-5"
+            >
+              <div>
+                <label className="block text-xs font-black text-slate-500 mb-2 tracking-widest uppercase">お名前 <span className="text-pink-400">*</span></label>
+                <input type="text" name="name" required placeholder="推し活 太郎" className={inputClass} />
+              </div>
+              <div>
+                <label className="block text-xs font-black text-slate-500 mb-2 tracking-widest uppercase">メールアドレス <span className="text-pink-400">*</span></label>
+                <input type="email" name="email" required placeholder="example@flastal.com" className={inputClass} />
+              </div>
+              <div>
+                <label className="block text-xs font-black text-slate-500 mb-2 tracking-widest uppercase">お問い合わせ内容 <span className="text-pink-400">*</span></label>
+                <textarea
+                  name="message" rows={5} required
+                  placeholder="ご質問内容をご記入ください"
+                  className={cn(inputClass, "resize-none")}
+                />
+              </div>
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full bg-gradient-to-r from-pink-500 to-rose-500 text-white py-4 rounded-2xl font-black flex items-center justify-center gap-2 shadow-lg shadow-pink-100 disabled:opacity-50 transition-all"
+              >
+                {isSubmitting ? <Loader2 size={18} className="animate-spin" /> : <Send size={16} />}
+                {isSubmitting ? '送信中...' : 'メッセージを送信する'}
+              </motion.button>
+
+              <p className="text-center text-[11px] text-slate-400 font-medium">
+                通常3営業日以内にご返信いたします。
+              </p>
+            </motion.form>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );

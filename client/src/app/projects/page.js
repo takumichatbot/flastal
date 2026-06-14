@@ -12,8 +12,8 @@ import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // ★ Heartアイコンを追加！
-import { 
-  Search, MapPin, Calendar, User, Loader2, Filter, 
+import {
+  Search, MapPin, Calendar, Loader2, Filter,
   PlusCircle, Sparkles, Heart
 } from 'lucide-react';
 
@@ -206,7 +206,7 @@ function ProjectsContent() {
                     value={keyword}
                     onChange={(e) => setKeyword(e.target.value)}
                     placeholder="企画名、グループ名、イベント名..."
-                    className="w-full pl-12 pr-4 py-4 bg-white/60 backdrop-blur-sm border-2 border-slate-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-sky-100 focus:border-sky-300 outline-none transition-all font-bold text-slate-700 placeholder:text-slate-300"
+                    className="w-full pl-12 pr-4 py-4 bg-white/60 backdrop-blur-sm border-2 border-slate-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-pink-100 focus:border-pink-300 outline-none transition-all font-bold text-slate-700 placeholder:text-slate-300"
                   />
                 </div>
               </div>
@@ -218,7 +218,7 @@ function ProjectsContent() {
                   <select
                     value={prefecture}
                     onChange={(e) => setPrefecture(e.target.value)}
-                    className="w-full pl-12 pr-10 py-4 bg-white/60 backdrop-blur-sm border-2 border-slate-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-sky-100 focus:border-sky-300 outline-none appearance-none cursor-pointer transition-all font-bold text-slate-700"
+                    className="w-full pl-12 pr-10 py-4 bg-white/60 backdrop-blur-sm border-2 border-slate-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-pink-100 focus:border-pink-300 outline-none appearance-none cursor-pointer transition-all font-bold text-slate-700"
                   >
                     <option value="">すべての都道府県</option>
                     {PREFECTURES.map(pref => (

@@ -56,14 +56,14 @@ export default function RegisterPage() {
       <div className="min-h-screen bg-gradient-to-br from-pink-50 to-sky-50 flex items-center justify-center p-4 relative overflow-hidden font-sans">
         <FloatingParticles />
         <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-pink-200/40 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/3 pointer-events-none z-0" />
-        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-sky-200/30 rounded-full blur-[100px] translate-y-1/3 -translate-x-1/3 pointer-events-none z-0" />
+        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-rose-100/30 rounded-full blur-[100px] translate-y-1/3 -translate-x-1/3 pointer-events-none z-0" />
 
         <motion.div 
           initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.5 }}
           className="bg-white/80 backdrop-blur-xl max-w-lg w-full p-8 md:p-10 border border-white rounded-[2.5rem] shadow-[0_8px_30px_rgba(244,114,182,0.15)] relative z-10 text-center"
         >
           <div className="mb-6 flex justify-center">
-            <div className="w-20 h-20 bg-gradient-to-br from-pink-100 to-sky-100 rounded-full flex items-center justify-center shadow-inner border-4 border-white">
+            <div className="w-20 h-20 bg-gradient-to-br from-pink-100 to-rose-100 rounded-full flex items-center justify-center shadow-inner border-4 border-white">
               <CheckCircle2 className="text-pink-500 w-10 h-10" />
             </div>
           </div>
@@ -71,11 +71,11 @@ export default function RegisterPage() {
           <p className="text-sm font-bold text-slate-500 mb-8">あと少しで推し活がスタートできます✨</p>
           
           <div className="bg-white/60 border border-slate-100 rounded-[1.5rem] p-6 mb-8 text-left shadow-sm relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-16 h-16 bg-sky-100/50 rounded-full blur-[20px] -mr-4 -mt-4 pointer-events-none"/>
+            <div className="absolute top-0 right-0 w-16 h-16 bg-pink-100/50 rounded-full blur-[20px] -mr-4 -mt-4 pointer-events-none"/>
             <p className="text-xs font-black text-pink-500 tracking-widest uppercase mb-4 flex items-center gap-1"><Sparkles size={14}/> Next Steps</p>
             <ul className="text-sm text-slate-600 space-y-4 font-medium">
               <li className="flex items-start">
-                <span className="bg-sky-100 text-sky-600 rounded-full w-6 h-6 flex items-center justify-center font-black text-[10px] mt-0.5 mr-3 shrink-0 shadow-sm border border-white">1</span>
+                <span className="bg-pink-100 text-pink-600 rounded-full w-6 h-6 flex items-center justify-center font-black text-[10px] mt-0.5 mr-3 shrink-0 shadow-sm border border-white">1</span>
                 <span className="leading-relaxed">本人確認メールを送信しました。メール内のボタンをクリックして認証を完了させてください。</span>
               </li>
               <li className="flex items-start">
@@ -107,7 +107,7 @@ export default function RegisterPage() {
       
       {/* 背景のぼんやりした光 */}
       <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-pink-200/40 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/3 pointer-events-none z-0" />
-      <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-sky-200/30 rounded-full blur-[100px] translate-y-1/3 -translate-x-1/3 pointer-events-none z-0" />
+      <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-rose-100/30 rounded-full blur-[100px] translate-y-1/3 -translate-x-1/3 pointer-events-none z-0" />
 
       <motion.div 
         initial={{ opacity: 0, y: 20, scale: 0.95 }}
@@ -120,7 +120,7 @@ export default function RegisterPage() {
             <ArrowLeft size={20} />
           </Link>
           
-          <div className="w-16 h-16 bg-gradient-to-br from-sky-100 to-pink-100 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-inner -rotate-3">
+          <div className="w-16 h-16 bg-gradient-to-br from-pink-100 to-rose-100 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-inner -rotate-3">
             <Heart className="text-pink-500 fill-pink-500" size={28} />
           </div>
           
@@ -207,7 +207,7 @@ export default function RegisterPage() {
                 value={formData.referralCode} 
                 onChange={(e) => setFormData({...formData, referralCode: e.target.value})} 
                 placeholder="コードを入力" 
-                className="w-full pl-12 pr-4 py-3.5 bg-white/50 border border-slate-200 rounded-2xl focus:outline-none focus:border-sky-400 focus:ring-4 focus:ring-sky-100 transition-all font-bold text-slate-700 placeholder:text-slate-300" 
+                className="w-full pl-12 pr-4 py-3.5 bg-white/50 border border-slate-200 rounded-2xl focus:outline-none focus:border-pink-400 focus:ring-4 focus:ring-pink-100 transition-all font-bold text-slate-700 placeholder:text-slate-300"
               />
             </div>
           </div>
@@ -232,7 +232,7 @@ export default function RegisterPage() {
         <div className="text-center mt-8 pt-6 border-t border-slate-100/50">
           <p className="text-xs text-slate-400 font-bold mb-3">すでにアカウントをお持ちですか？</p>
           <Link href="/login">
-            <span className="inline-block px-8 py-3 bg-white text-sky-500 border-2 border-sky-100 font-black rounded-full hover:bg-sky-50 hover:border-sky-300 transition-all text-sm shadow-sm">
+            <span className="inline-block px-8 py-3 bg-white text-pink-500 border-2 border-pink-100 font-black rounded-full hover:bg-pink-50 hover:border-pink-300 transition-all text-sm shadow-sm">
               ログイン画面へ
             </span>
           </Link>
