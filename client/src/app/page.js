@@ -280,7 +280,7 @@ const MainContent = () => {
 // --- 1. HERO SECTION (脱AI・雑誌レイアウト) ---
 const Hero = () => {
   return (
-    <section className="relative w-full min-h-[90svh] flex items-center justify-center overflow-hidden pt-28 pb-12 z-10 bg-[#FFFDFE]/50">
+    <section className="relative w-full min-h-[90svh] flex items-center justify-center overflow-hidden pt-8 pb-12 z-10 bg-[#FFFDFE]/50">
       
       <ButterflyParticle x="10%" y="20%" scale={1.2} delay={0} color="text-pink-400" />
       <ButterflyParticle x="90%" y="75%" scale={1} delay={2} color="text-amber-400" />
