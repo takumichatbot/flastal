@@ -59,15 +59,6 @@ body {
   .pr-safe { padding-right: env(safe-area-inset-right); }
 }
 
-/* Capacitor iOS: viewport-fit=cover 対応 */
-@supports (padding-top: env(safe-area-inset-top)) {
-  body {
-    padding-top: env(safe-area-inset-top);
-    padding-left: env(safe-area-inset-left);
-    padding-right: env(safe-area-inset-right);
-  }
-}
-
 /* iOS WebView: 選択ハイライト・コールアウト無効化 */
 * {
   -webkit-tap-highlight-color: transparent;

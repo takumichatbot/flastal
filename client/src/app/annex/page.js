@@ -3,10 +3,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Building2, Crown, ShieldCheck, Gem, Briefcase, 
-  ArrowRight, FileText, CheckCircle2, Leaf, 
-  Mail, ArrowDownRight, Sprout, Star, Sparkles
+import {
+  Building2, Crown, ShieldCheck, Gem, Briefcase,
+  ArrowRight, FileText, CheckCircle2, Leaf,
+  Mail, ArrowDownRight, Sprout, Star, Sparkles, ArrowLeft
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -69,8 +69,14 @@ export default function AnnexPage() {
       <div className="absolute top-[-10%] left-[-20%] w-[60vw] h-[60vw] bg-gradient-to-tr from-[#F8F4E6] to-[#FFFBF5] rounded-full blur-[120px] pointer-events-none -z-10 animate-pulse" />
       <div className="absolute top-[30%] right-[-10%] w-[45vw] h-[45vw] bg-gradient-to-br from-[#FAF3F0] to-[#FDFBFB] rounded-full blur-[100px] pointer-events-none -z-10" />
 
-      <main className="pt-20">
-        
+      <div className="px-6 pt-6">
+        <Link href="/" className="inline-flex items-center gap-1.5 text-sm font-black text-[#4A3E3A]/50 hover:text-[#4A3E3A] transition-colors bg-white/80 px-4 py-2 rounded-full shadow-sm border border-[#EAD8D4]">
+          <ArrowLeft size={14} /> トップページに戻る
+        </Link>
+      </div>
+
+      <main className="pt-14">
+
         {/* ===== HERO SECTION (Premium Concierge Style) ===== */}
         <section className="relative min-h-[90vh] flex flex-col justify-center px-6 lg:px-16 pb-12 overflow-hidden">
           

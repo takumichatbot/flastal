@@ -6,7 +6,7 @@ import { motion } from 'framer-motion';
 import { 
   CreditCard, Lock, Palette, MessageCircle, Flower, PiggyBank,
   CheckCircle2, ArrowRight, Zap, ShieldCheck, Heart, Sparkles,
-  Smartphone, Users, Globe, BarChart3, ChevronRight, Search // Searchを追加
+  Smartphone, Users, Globe, BarChart3, ChevronRight, Search, ArrowLeft
 } from 'lucide-react';
 
 const cn = (...classes) => classes.filter(Boolean).join(' ');
@@ -161,6 +161,13 @@ export default function FeaturesPage() {
 
   return (
     <div className="bg-white min-h-screen">
+      {/* --- BACK NAV --- */}
+      <div className="absolute top-6 left-6 z-20">
+        <Link href="/" className="inline-flex items-center gap-1.5 text-sm font-black text-white/70 hover:text-white transition-colors bg-white/10 backdrop-blur px-4 py-2 rounded-full border border-white/20">
+          <ArrowLeft size={14} /> トップページに戻る
+        </Link>
+      </div>
+
       {/* --- HERO --- */}
       <section className="relative pt-32 pb-20 overflow-hidden bg-slate-900 text-white">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(99,102,241,0.15),transparent)]" />

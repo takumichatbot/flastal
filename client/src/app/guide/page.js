@@ -2,9 +2,9 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { 
-  FiSearch, FiUsers, FiEdit3, FiHeart, FiCheckCircle, 
-  FiCamera, FiArrowRight, FiInfo 
+import {
+  FiSearch, FiUsers, FiEdit3, FiHeart, FiCheckCircle,
+  FiCamera, FiArrowRight, FiInfo, FiArrowLeft
 } from 'react-icons/fi';
 
 export default function GuidePage() {
@@ -44,7 +44,13 @@ export default function GuidePage() {
   return (
     <div className="min-h-screen bg-slate-50 py-16 font-sans text-gray-800">
       <div className="max-w-4xl mx-auto px-6">
-        
+
+        <div className="mb-8">
+          <Link href="/" className="inline-flex items-center gap-1.5 text-sm font-black text-slate-400 hover:text-pink-500 transition-colors uppercase tracking-widest bg-white px-4 py-2 rounded-full shadow-sm border border-slate-100">
+            <FiArrowLeft size={14} /> トップページに戻る
+          </Link>
+        </div>
+
         {/* ヘッダー部分 */}
         <div className="text-center mb-16 animate-fadeIn">
           <span className="text-pink-500 font-black tracking-widest text-sm uppercase bg-pink-50 px-4 py-1.5 rounded-full mb-4 inline-block">
