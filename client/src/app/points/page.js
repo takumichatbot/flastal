@@ -20,7 +20,7 @@ function cn(...classes) {
 // ===========================================
 const POINT_PACKAGES = [
   { id: 'pkg_1000', points: 1000, price: 1000, icon: Zap, color: 'text-amber-500', bg: 'bg-amber-50', border: 'border-amber-100', button: 'bg-gradient-to-r from-amber-400 to-orange-500' },
-  { id: 'pkg_3000', points: 3000, price: 3000, icon: Star, color: 'text-sky-500', bg: 'bg-sky-50', border: 'border-sky-100', button: 'bg-gradient-to-r from-sky-400 to-blue-500' },
+  { id: 'pkg_3000', points: 3000, price: 3000, icon: Star, color: 'text-violet-500', bg: 'bg-violet-50', border: 'border-violet-100', button: 'bg-gradient-to-r from-violet-400 to-purple-500' },
   { id: 'pkg_5000', points: 5000, price: 5000, icon: Gem, color: 'text-pink-500', bg: 'bg-pink-50', border: 'border-pink-200', button: 'bg-gradient-to-r from-pink-400 to-rose-500', popular: true },
   { id: 'pkg_10000', points: 10000, price: 10000, icon: Gift, color: 'text-purple-500', bg: 'bg-purple-50', border: 'border-purple-100', button: 'bg-gradient-to-r from-purple-400 to-indigo-500' },
 ];
@@ -111,9 +111,9 @@ function PointsPageContent() {
     <div className="bg-slate-50/50 min-h-screen pb-32 md:pb-24 font-sans text-slate-800 relative overflow-hidden">
       <FloatingParticles />
       <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-amber-200/30 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/3 pointer-events-none" />
-      <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-sky-200/30 rounded-full blur-[80px] translate-y-1/3 -translate-x-1/3 pointer-events-none" />
+      <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-rose-100/30 rounded-full blur-[80px] translate-y-1/3 -translate-x-1/3 pointer-events-none" />
 
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 relative z-10">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 md:pt-10 relative z-10">
         
         {/* マイページへ戻るリンク */}
         <div className="mb-6">
@@ -154,7 +154,7 @@ function PointsPageContent() {
                     <>
                         <div className="text-center mb-8">
                             <h2 className="text-xl font-black text-slate-800 flex items-center justify-center gap-2"><Sparkles className="text-amber-500" size={20}/> ポイントパッケージを選択</h2>
-                            <p className="text-xs font-bold text-slate-500 mt-2">※決済にはStripeの安全なシステムを利用します。<br className="md:hidden"/>テストカード (4242 4242...) で購入可能です。</p>
+                            <p className="text-xs font-bold text-slate-500 mt-2">※決済にはStripeの安全なシステムを利用します。</p>
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
@@ -250,7 +250,7 @@ export default function PointsPage() {
   return (
     <Suspense fallback={
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <Loader2 className="animate-spin text-sky-400" size={40} />
+        <Loader2 className="animate-spin text-pink-400" size={40} />
       </div>
     }>
       <PointsPageContent />

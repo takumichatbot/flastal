@@ -24,7 +24,7 @@ function LegalCancelContent() {
         <Link href="/" className="flex items-center text-sm font-black text-slate-400 hover:text-pink-600 transition-colors uppercase tracking-widest bg-white px-5 py-2.5 rounded-full shadow-sm border border-slate-100">
           <ArrowLeft size={16} className="mr-1.5" /> トップページへ
         </Link>
-        <button onClick={handlePrint} className="flex items-center gap-2 px-5 py-2.5 bg-white border border-slate-200 rounded-full text-sm font-black text-slate-500 hover:text-sky-600 hover:bg-sky-50 transition-all shadow-sm">
+        <button onClick={handlePrint} className="flex items-center gap-2 px-5 py-2.5 bg-white border border-slate-200 rounded-full text-sm font-black text-slate-500 hover:text-pink-500 hover:bg-pink-50 transition-all shadow-sm">
           <Printer size={16} /> ポリシーを保存/印刷
         </button>
       </div>
@@ -42,11 +42,11 @@ function LegalCancelContent() {
 
         <div className="space-y-12">
           
-          <section className="bg-sky-50 p-8 rounded-[2rem] border border-sky-100 shadow-sm">
-            <h2 className="text-lg font-black text-sky-800 flex items-center mb-3">
+          <section className="bg-pink-50 p-8 rounded-[2rem] border border-pink-100 shadow-sm">
+            <h2 className="text-lg font-black text-pink-700 flex items-center mb-3">
                 <Info className="mr-2" size={24} /> 基本方針
             </h2>
-            <p className="text-sm text-sky-700 leading-relaxed font-bold">
+            <p className="text-sm text-pink-600 leading-relaxed font-bold">
                 本サービスにおいて提供されるフラワースタンド（祝花）やイラストパネルは、イベントに合わせた「受注生産品」および「寄付的性質」を持つため、<strong className="text-rose-600 px-1">原則として支援完了後のお客さま都合によるキャンセル・返金はお受けできません。</strong>
             </p>
           </section>

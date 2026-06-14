@@ -2,66 +2,44 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { 
-  FiPrinter, FiArrowLeft, FiFileText, FiAlertCircle, 
-  FiHelpCircle, FiCheckSquare 
-} from 'react-icons/fi';
+import { Printer, ArrowLeft, FileText, AlertCircle, HelpCircle } from 'lucide-react';
 
-function cn(...classes) {
-  return classes.filter(Boolean).join(' ');
-}
+function cn(...classes) { return classes.filter(Boolean).join(' '); }
 
 export default function TermsOfServicePage() {
-  
-  const handlePrint = () => {
-    window.print();
-  };
-
   return (
     <div className="min-h-screen bg-slate-50 py-8 px-4 sm:px-6 lg:px-8 font-sans text-slate-700">
-      
-      {/* ヘッダーナビゲーション */}
+
       <div className="max-w-4xl mx-auto mb-6 flex justify-between items-center print:hidden">
-        <Link href="/" className="flex items-center text-sm text-slate-500 hover:text-sky-600 transition-colors">
-          <FiArrowLeft className="mr-1" /> トップページに戻る
+        <Link href="/" className="inline-flex items-center gap-1.5 text-sm font-bold text-slate-400 hover:text-pink-500 transition-colors">
+          <ArrowLeft size={15} /> トップページに戻る
         </Link>
-        <button 
-          onClick={handlePrint}
-          className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-bold text-slate-600 hover:bg-slate-50 hover:text-slate-800 transition-all shadow-sm"
+        <button
+          onClick={() => window.print()}
+          className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-500 hover:bg-pink-50 hover:text-pink-500 hover:border-pink-200 transition-all shadow-sm"
         >
-          <FiPrinter /> 規約を保存/印刷
+          <Printer size={14} /> 規約を保存/印刷
         </button>
       </div>
 
-      <div className="max-w-4xl mx-auto bg-white p-8 md:p-12 rounded-2xl shadow-sm ring-1 ring-slate-100">
-        
-        {/* タイトルエリア */}
-        <div className="border-b border-slate-200 pb-6 mb-10 text-center">
-          <div className="flex justify-center mb-4">
-            <div className="bg-sky-50 p-3 rounded-full">
-                <FiFileText className="text-4xl text-sky-600" />
-            </div>
+      <div className="max-w-4xl mx-auto bg-white p-8 md:p-12 rounded-[2rem] shadow-sm border border-slate-100">
+
+        <div className="border-b border-slate-100 pb-6 mb-10 text-center">
+          <div className="w-14 h-14 bg-pink-50 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-pink-100">
+            <FileText size={26} className="text-pink-500" />
           </div>
-          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight mb-2">
-            利用規約
-          </h1>
-          <p className="text-sm text-slate-500">
-            この利用規約は、FLASTALの利用に関する条件を定めるものです。
-          </p>
+          <h1 className="text-3xl font-black text-slate-900 tracking-tight mb-2">利用規約</h1>
+          <p className="text-sm text-slate-400 font-medium">この利用規約は、FLASTALの利用に関する条件を定めるものです。</p>
         </div>
 
         <div className="space-y-10 text-sm leading-relaxed text-slate-600">
-          
-          {/* 前文 */}
+
           <section>
-            <p>
-              この利用規約（以下、「本規約」といいます。）は、FLASTAL（以下、「当社」といいます。）がこのウェブサイト上で提供するサービス（以下、「本サービス」といいます。）の利用条件を定めるものです。登録ユーザーの皆さま（以下、「ユーザー」といいます。）には、本規約に従って、本サービスをご利用いただきます。
-            </p>
+            <p>この利用規約（以下、「本規約」といいます。）は、FLASTAL（以下、「当社」といいます。）がこのウェブサイト上で提供するサービス（以下、「本サービス」といいます。）の利用条件を定めるものです。登録ユーザーの皆さま（以下、「ユーザー」といいます。）には、本規約に従って、本サービスをご利用いただきます。</p>
           </section>
 
-          {/* 条文リスト */}
           <div className="space-y-8">
-            
+
             <Article title="第1条（適用）">
               <ol className="list-decimal list-outside pl-5 space-y-2">
                 <li>本規約は、ユーザーと当社との間の本サービスの利用に関わる一切の関係に適用されるものとします。</li>
@@ -74,7 +52,7 @@ export default function TermsOfServicePage() {
               <ol className="list-decimal list-outside pl-5 space-y-2">
                 <li>本サービスにおいては、登録希望者が本規約に同意の上、当社の定める方法によって利用登録を申請し、当社がこれを承認することによって、利用登録が完了するものとします。</li>
                 <li>当社は、利用登録の申請者に以下の事由があると判断した場合、利用登録の申請を承認しないことがあり、その理由については一切の開示義務を負わないものとします。
-                  <ul className="list-disc list-outside pl-5 mt-1 space-y-1 text-slate-500">
+                  <ul className="list-disc list-outside pl-5 mt-1 space-y-1 text-slate-400">
                     <li>利用登録の申請に際して虚偽の事項を届け出た場合</li>
                     <li>本規約に違反したことがある者からの申請である場合</li>
                     <li>その他、当社が利用登録を相当でないと判断した場合</li>
@@ -99,19 +77,25 @@ export default function TermsOfServicePage() {
             </Article>
 
             <Article title="第5条（禁止事項）">
-              <p className="mb-2">ユーザーは、本サービスの利用にあたり、以下の行為をしてはなりません。</p>
-              <div className="bg-red-50 p-4 rounded-lg border border-red-100 text-red-800">
-                <ul className="grid md:grid-cols-2 gap-2 list-none text-xs md:text-sm">
-                  <li className="flex items-center"><FiAlertCircle className="mr-2 shrink-0"/> 法令または公序良俗に違反する行為</li>
-                  <li className="flex items-center"><FiAlertCircle className="mr-2 shrink-0"/> 犯罪行為に関連する行為</li>
-                  <li className="flex items-center"><FiAlertCircle className="mr-2 shrink-0"/> 本サービスの内容等、著作権等を侵害する行為</li>
-                  <li className="flex items-center"><FiAlertCircle className="mr-2 shrink-0"/> 当社、ほかのユーザー等のサーバー負担をかける行為</li>
-                  <li className="flex items-center"><FiAlertCircle className="mr-2 shrink-0"/> 商業目的で本サービスを利用する行為（許可を除く）</li>
-                  <li className="flex items-center"><FiAlertCircle className="mr-2 shrink-0"/> 不正なアクセスやこれを試みる行為</li>
-                  <li className="flex items-center"><FiAlertCircle className="mr-2 shrink-0"/> 他のユーザーに関する情報を収集または蓄積する行為</li>
-                  <li className="flex items-center"><FiAlertCircle className="mr-2 shrink-0"/> 不正な目的を持って本サービスを利用する行為</li>
-                  <li className="flex items-center"><FiAlertCircle className="mr-2 shrink-0"/> 他のユーザーに成りすます行為</li>
-                  <li className="flex items-center"><FiAlertCircle className="mr-2 shrink-0"/> 反社会的勢力に対して利益を供与する行為</li>
+              <p className="mb-3">ユーザーは、本サービスの利用にあたり、以下の行為をしてはなりません。</p>
+              <div className="bg-red-50 p-5 rounded-2xl border border-red-100 text-red-700">
+                <ul className="grid md:grid-cols-2 gap-2 text-xs md:text-sm">
+                  {[
+                    '法令または公序良俗に違反する行為',
+                    '犯罪行為に関連する行為',
+                    '本サービスの内容等、著作権等を侵害する行為',
+                    '当社、ほかのユーザー等のサーバー負担をかける行為',
+                    '商業目的で本サービスを利用する行為（許可を除く）',
+                    '不正なアクセスやこれを試みる行為',
+                    '他のユーザーに関する情報を収集または蓄積する行為',
+                    '不正な目的を持って本サービスを利用する行為',
+                    '他のユーザーに成りすます行為',
+                    '反社会的勢力に対して利益を供与する行為',
+                  ].map((item, i) => (
+                    <li key={i} className="flex items-center gap-2">
+                      <AlertCircle size={13} className="shrink-0" /> {item}
+                    </li>
+                  ))}
                 </ul>
               </div>
             </Article>
@@ -119,7 +103,7 @@ export default function TermsOfServicePage() {
             <Article title="第6条（本サービスの提供の停止等）">
               <ol className="list-decimal list-outside pl-5 space-y-2">
                 <li>当社は、以下のいずれかの事由があると判断した場合、ユーザーに事前に通知することなく本サービスの全部または一部の提供を停止または中断することができるものとします。
-                  <ul className="list-disc list-outside pl-5 mt-1 space-y-1 text-slate-500">
+                  <ul className="list-disc list-outside pl-5 mt-1 space-y-1 text-slate-400">
                     <li>本サービスにかかるコンピュータシステムの保守点検または更新を行う場合</li>
                     <li>地震、落雷、火災、停電または天災などの不可抗力により、本サービスの提供が困難となった場合</li>
                     <li>コンピュータまたは通信回線等が事故により停止した場合</li>
@@ -131,10 +115,8 @@ export default function TermsOfServicePage() {
             </Article>
 
             <Article title="第7条（利用制限および登録抹消）">
-              <p>
-                当社は、ユーザーが以下のいずれかに該当する場合には、事前の通知なく、ユーザーに対して本サービスの全部もしくは一部の利用を制限し、またはユーザーとしての登録を抹消することができるものとします。
-              </p>
-              <ul className="list-disc list-outside pl-5 mt-2 space-y-1 text-slate-500">
+              <p>当社は、ユーザーが以下のいずれかに該当する場合には、事前の通知なく、ユーザーに対して本サービスの全部もしくは一部の利用を制限し、またはユーザーとしての登録を抹消することができるものとします。</p>
+              <ul className="list-disc list-outside pl-5 mt-2 space-y-1 text-slate-400">
                 <li>本規約のいずれかの条項に違反した場合</li>
                 <li>登録事項に虚偽の事実があることが判明した場合</li>
                 <li>料金等の支払債務の不履行があった場合</li>
@@ -163,7 +145,7 @@ export default function TermsOfServicePage() {
             <Article title="第11条（利用規約の変更）">
               <ol className="list-decimal list-outside pl-5 space-y-2">
                 <li>当社は以下の場合には、ユーザーの個別の同意を要せず、本規約を変更することができるものとします。
-                  <ul className="list-disc list-outside pl-5 mt-1 space-y-1 text-slate-500">
+                  <ul className="list-disc list-outside pl-5 mt-1 space-y-1 text-slate-400">
                     <li>本規約の変更がユーザーの一般の利益に適合するとき。</li>
                     <li>本規約の変更が本サービス利用契約の目的に反せず、かつ、変更の必要性、変更後の内容の相当性その他の変更に係る事情に照らして合理的なものであるとき。</li>
                   </ul>
@@ -193,38 +175,33 @@ export default function TermsOfServicePage() {
 
           </div>
 
-          <div className="mt-12 pt-8 border-t border-slate-200 text-right text-sm text-slate-500">
+          <div className="mt-12 pt-8 border-t border-slate-100 text-right text-sm text-slate-400">
             <p>制定日: 2025年9月26日</p>
             <p>改定日: 2025年12月17日</p>
           </div>
 
-          {/* フッターお問い合わせ */}
-          <div className="mt-8 text-center bg-slate-50 p-6 rounded-xl border border-slate-200">
-            <p className="text-slate-600 mb-4 font-bold">規約に関するご質問・お問い合わせ</p>
-            <Link 
-              href="/contact" 
-              className="inline-flex items-center px-6 py-2.5 bg-white border border-slate-300 text-slate-700 font-bold rounded-full hover:bg-slate-50 hover:border-sky-400 hover:text-sky-600 transition-colors shadow-sm"
+          <div className="mt-6 text-center bg-pink-50 p-6 rounded-2xl border border-pink-100">
+            <p className="text-slate-600 mb-4 font-bold text-sm">規約に関するご質問・お問い合わせ</p>
+            <Link
+              href="/contact"
+              className="inline-flex items-center gap-2 px-6 py-2.5 bg-white border border-pink-200 text-pink-500 font-bold rounded-full hover:bg-pink-500 hover:text-white transition-all shadow-sm text-sm"
             >
-              <FiHelpCircle className="mr-2" /> お問い合わせフォーム
+              <HelpCircle size={15} /> お問い合わせフォーム
             </Link>
           </div>
-
         </div>
       </div>
     </div>
   );
 }
 
-// 条文コンポーネント (再利用用)
 function Article({ title, children }) {
   return (
     <section className="scroll-mt-20">
-      <h2 className="text-lg font-bold text-slate-800 flex items-center mb-3 border-l-4 border-sky-500 pl-3">
+      <h2 className="text-base font-black text-slate-800 flex items-center mb-3 border-l-4 border-pink-400 pl-3">
         {title}
       </h2>
-      <div className="text-slate-600 leading-7">
-        {children}
-      </div>
+      <div className="text-slate-600 leading-7">{children}</div>
     </section>
   );
 }

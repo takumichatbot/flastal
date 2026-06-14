@@ -24,8 +24,8 @@ function LoadingState() {
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center">
       <div className="flex flex-col items-center gap-4">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
-        <p className="text-gray-500 font-medium animate-pulse">イベント情報を読み込み中...</p>
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-pink-500"></div>
+        <p className="text-slate-500 font-medium animate-pulse">イベント情報を読み込み中...</p>
       </div>
     </div>
   );

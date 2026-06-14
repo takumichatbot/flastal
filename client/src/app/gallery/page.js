@@ -10,10 +10,9 @@ import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // lucide-reactに統一
-import { 
-  Camera, MessageSquare, Heart, User, ZoomIn, X, Loader2, Sparkles, Image as ImageIcon
+import {
+  Camera, Heart, User, ZoomIn, X, Sparkles
 } from 'lucide-react';
-import { useAuth } from '@/app/contexts/AuthContext';
 import FloatingParticles from '@/app/components/FloatingParticles';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
@@ -66,10 +65,10 @@ const ImageModal = ({ src, alt, onClose }) => {
 // ===========================================
 // ★★★ フィードカードコンポーネント ★★★
 // ===========================================
-function GalleryCard({ item, userId, onImageClick }) {
+function GalleryCard({ item, onImageClick }) {
     const mainImage = item.imageUrl;
     const [isLiked, setIsLiked] = useState(false);
-    const [likeCount, setLikeCount] = useState(Math.floor(Math.random() * 50) + 10); 
+    const [likeCount, setLikeCount] = useState(0);
 
     const handleLike = (e) => {
         e.preventDefault();
@@ -160,7 +159,6 @@ function GalleryCard({ item, userId, onImageClick }) {
 // ★★★ メインページコンポーネント ★★★
 // ===========================================
 export default function GalleryPage() {
-    const { user } = useAuth();
     const [feedItems, setFeedItems] = useState([]);
     const [loading, setLoading] = useState(true);
     const [modalImage, setModalImage] = useState(null);
@@ -223,10 +221,9 @@ export default function GalleryPage() {
                     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-8">
                         <AnimatePresence>
                             {feedItems.map((item) => (
-                                <GalleryCard 
-                                    key={item.id} 
-                                    item={item} 
-                                    userId={user?.id}
+                                <GalleryCard
+                                    key={item.id}
+                                    item={item}
                                     onImageClick={(src) => setModalImage({ src, alt: item.title })}
                                 />
                             ))}
