@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { io } from 'socket.io-client';
 import { FiActivity, FiGift, FiTruck, FiCheckCircle, FiTrendingUp, FiInfo } from 'react-icons/fi';
+import { useScroll, useMotionValueEvent } from 'framer-motion';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -15,6 +16,12 @@ export default function LiveTicker() {
   const [logs, setLogs] = useState(INITIAL_LOGS);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
+  const [isHidden, setIsHidden] = useState(false);
+
+  const { scrollY } = useScroll();
+  useMotionValueEvent(scrollY, "change", (latest) => {
+    setIsHidden(latest > 40);
+  });
 
   useEffect(() => {
     const socket = io(API_URL, {
@@ -69,7 +76,7 @@ export default function LiveTicker() {
 
   return (
     // ★ 変更点: fixed top-0 left-0 right-0 z-[110] を追加し、一番上に固定
-    <div className="fixed top-0 left-0 right-0 z-[110] bg-slate-900 border-b border-slate-800 h-10 w-full overflow-hidden shadow-sm m-0 p-0 block">
+    <div className={`fixed top-0 left-0 right-0 z-[110] bg-slate-900 border-b border-slate-800 h-10 w-full overflow-hidden shadow-sm m-0 p-0 block transition-transform duration-300 ease-in-out ${isHidden ? '-translate-y-full' : 'translate-y-0'}`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-center justify-between">
         
         <div className="flex items-center gap-4 flex-1 min-w-0 h-full">
