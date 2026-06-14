@@ -7,6 +7,7 @@ import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2, Zap, Star, Gem, Sparkles, Gift, CreditCard, ChevronLeft, History, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
+import FloatingParticles from '@/app/components/FloatingParticles';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -17,22 +18,6 @@ function cn(...classes) {
 // ===========================================
 // 🎨 UI COMPONENTS
 // ===========================================
-const FloatingParticles = () => {
-  const [windowSize, setWindowSize] = useState({ width: 1000, height: 1000 });
-  useEffect(() => { setWindowSize({ width: window.innerWidth, height: window.innerHeight }); }, []);
-  return (
-    <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
-      {[...Array(8)].map((_, i) => (
-        <motion.div key={i} className="absolute w-4 h-4 bg-amber-200 rounded-full mix-blend-multiply filter blur-[2px] opacity-30"
-          initial={{ x: Math.random() * windowSize.width, y: Math.random() * windowSize.height }}
-          animate={{ y: [null, Math.random() * -100], x: [null, (Math.random() - 0.5) * 50], opacity: [0.2, 0.4, 0.2], scale: [1, 1.2, 1] }}
-          transition={{ duration: Math.random() * 10 + 10, repeat: Infinity, ease: "linear" }}
-        />
-      ))}
-    </div>
-  );
-};
-
 const POINT_PACKAGES = [
   { id: 'pkg_1000', points: 1000, price: 1000, icon: Zap, color: 'text-amber-500', bg: 'bg-amber-50', border: 'border-amber-100', button: 'bg-gradient-to-r from-amber-400 to-orange-500' },
   { id: 'pkg_3000', points: 3000, price: 3000, icon: Star, color: 'text-sky-500', bg: 'bg-sky-50', border: 'border-sky-100', button: 'bg-gradient-to-r from-sky-400 to-blue-500' },

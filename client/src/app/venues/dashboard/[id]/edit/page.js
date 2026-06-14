@@ -12,26 +12,11 @@ import { motion } from 'framer-motion';
 import { 
   ArrowLeft, Save, MapPin, CheckCircle2, X, Image as ImageIcon, Plus, Loader2, Edit3, Settings, Camera
 } from 'lucide-react';
+import FloatingParticles from '@/app/components/FloatingParticles';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
 function cn(...classes) { return classes.filter(Boolean).join(' '); }
-
-const FloatingParticles = () => {
-  const [windowSize, setWindowSize] = useState({ width: 1000, height: 1000 });
-  useEffect(() => { setWindowSize({ width: window.innerWidth, height: window.innerHeight }); }, []);
-  return (
-    <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
-      {[...Array(12)].map((_, i) => (
-        <motion.div key={i} className="absolute w-3 h-3 bg-emerald-300 rounded-full mix-blend-multiply filter blur-[1px] opacity-30"
-          initial={{ x: Math.random() * windowSize.width, y: Math.random() * windowSize.height }}
-          animate={{ y: [null, Math.random() * -200], x: [null, (Math.random() - 0.5) * 100], opacity: [0.2, 0.5, 0.2], scale: [1, 1.5, 1] }}
-          transition={{ duration: Math.random() * 10 + 15, repeat: Infinity, ease: "linear" }}
-        />
-      ))}
-    </div>
-  );
-};
 
 const GlassCard = ({ children, className }) => (
   <div className={cn("bg-white/80 backdrop-blur-xl border border-white shadow-[0_8px_30px_rgba(16,185,129,0.05)] rounded-[2.5rem] p-6 md:p-10", className)}>

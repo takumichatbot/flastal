@@ -11,6 +11,7 @@ import {
   Eye, EyeOff, Home, Tag, User, Mail, Lock, ArrowLeft, 
   CheckCircle2, Sparkles, Store, ShieldCheck, Loader2 
 } from 'lucide-react';
+import FloatingParticles from '@/app/components/FloatingParticles';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -19,22 +20,6 @@ function cn(...classes) {
 }
 
 // ふわふわ浮かぶパーティクル
-const FloatingParticles = () => {
-  const [windowSize, setWindowSize] = useState({ width: 1000, height: 1000 });
-  useEffect(() => { setWindowSize({ width: window.innerWidth, height: window.innerHeight }); }, []);
-  return (
-    <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
-      {[...Array(12)].map((_, i) => (
-        <motion.div key={i} className="absolute w-3 h-3 bg-pink-300 rounded-full mix-blend-multiply filter blur-[1px] opacity-40"
-          initial={{ x: Math.random() * windowSize.width, y: Math.random() * windowSize.height }}
-          animate={{ y: [null, Math.random() * -200], x: [null, (Math.random() - 0.5) * 100], opacity: [0.2, 0.6, 0.2], scale: [1, 1.5, 1] }}
-          transition={{ duration: Math.random() * 10 + 15, repeat: Infinity, ease: "linear" }}
-        />
-      ))}
-    </div>
-  );
-};
-
 export default function FloristRegisterPage() {
   const [formData, setFormData] = useState({
     shopName: '',

@@ -39,6 +39,14 @@ const JpText = ({ children, className }) => (
 // 🎨 ANIMATION & MAGIC UI COMPONENTS
 // ==========================================
 
+const PROJECTS_PARTICLES = Array.from({ length: 12 }, () => ({
+  xRatio: Math.random(),
+  yRatio: Math.random(),
+  dy: -(Math.random() * 200 + 50),
+  dx: (Math.random() - 0.5) * 100,
+  duration: Math.random() * 10 + 15,
+}));
+
 const FloatingParticles = () => {
   const [windowSize, setWindowSize] = useState({ width: 1000, height: 1000 });
 
@@ -48,25 +56,18 @@ const FloatingParticles = () => {
 
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
-      {[...Array(12)].map((_, i) => (
+      {PROJECTS_PARTICLES.map((p, i) => (
         <motion.div
           key={i}
           className="absolute w-3 h-3 bg-pink-300 rounded-full mix-blend-multiply filter blur-[1px] opacity-40"
-          initial={{
-            x: Math.random() * windowSize.width,
-            y: Math.random() * windowSize.height,
-          }}
+          initial={{ x: p.xRatio * windowSize.width, y: p.yRatio * windowSize.height }}
           animate={{
-            y: [null, Math.random() * -200],
-            x: [null, (Math.random() - 0.5) * 100],
+            y: [null, p.dy],
+            x: [null, p.dx],
             opacity: [0.2, 0.6, 0.2],
             scale: [1, 1.5, 1],
           }}
-          transition={{
-            duration: Math.random() * 10 + 15,
-            repeat: Infinity,
-            ease: "linear"
-          }}
+          transition={{ duration: p.duration, repeat: Infinity, ease: "linear" }}
         />
       ))}
     </div>
@@ -235,7 +236,7 @@ function ProjectsContent() {
                   whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
                   type="submit" 
                   disabled={loading}
-                  className="w-full py-4 bg-slate-900 text-white font-black rounded-2xl shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-all"
+                  className="w-full py-4 bg-gradient-to-r from-pink-500 to-rose-500 text-white font-black rounded-2xl shadow-lg shadow-pink-100 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-all hover:brightness-105"
                 >
                   {loading ? <Loader2 className="animate-spin" size={20}/> : <><Search size={18}/> 検索</>}
                 </motion.button>
@@ -245,8 +246,8 @@ function ProjectsContent() {
         </Reveal>
 
         {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
-             {[...Array(6)].map((_, i) => (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 md:gap-6">
+             {[...Array(8)].map((_, i) => (
                  <div key={i} className="bg-white/50 backdrop-blur-sm rounded-[2.5rem] h-[400px] shadow-sm border border-white animate-pulse overflow-hidden p-4">
                      <div className="h-48 bg-slate-200/50 rounded-[2rem]"></div>
                      <div className="p-4 mt-2 space-y-4">
@@ -260,7 +261,7 @@ function ProjectsContent() {
              ))}
           </div>
         ) : projects.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 md:gap-6">
             <AnimatePresence>
               {projects.map((project, i) => {
                 const percent = Math.min(Math.round(((project.collectedAmount || 0) / (project.targetAmount || 1)) * 100), 100);
@@ -363,7 +364,7 @@ function ProjectsContent() {
               <p className="text-xl font-black text-slate-800 mb-2">企画が見つかりませんでした</p>
               <p className="text-sm font-bold text-slate-500 mb-8">条件を変更するか、新しい企画を立ち上げてみませんか？🌸</p>
               <Link href="/projects/create">
-                  <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="px-8 py-4 bg-slate-900 text-white font-black rounded-full shadow-lg flex items-center gap-2">
+                  <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="px-8 py-4 bg-gradient-to-r from-pink-500 to-rose-500 text-white font-black rounded-full shadow-lg shadow-pink-200 flex items-center gap-2">
                     <PlusCircle size={18}/> 企画を作成する
                   </motion.button>
               </Link>

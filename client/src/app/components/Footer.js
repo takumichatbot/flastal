@@ -30,10 +30,10 @@ export default function Footer() {
       >
         
         {/* 上部: ロゴとメインリンクエリア */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-10 mb-12">
-          
+        <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-5 gap-8 md:gap-10 mb-12">
+
           {/* ブランド情報 */}
-          <div className="lg:col-span-2">
+          <div className="col-span-2 lg:col-span-2">
             <Link href="/" className="inline-block">
               <span className="text-2xl font-black text-white tracking-tighter">
                 FLASTAL<span className="text-pink-500">.</span>

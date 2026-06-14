@@ -4,7 +4,7 @@
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import Script from 'next/script';
@@ -38,44 +38,36 @@ function useIsMounted() {
 // 🪄 ANIMATION COMPONENTS (超サクサク & ポップ)
 // ==========================================
 
-const Reveal = ({ children, delay = 0, className = "" }) => {
-  const isMounted = useIsMounted();
-  if (!isMounted) return <div className={className}>{children}</div>;
-  return (
-    <motion.div 
-      initial={{ opacity: 0, y: 15 }} 
-      whileInView={{ opacity: 1, y: 0 }} 
-      viewport={{ once: true, margin: "-10%" }} 
-      transition={{ duration: 0.4, delay, ease: "easeOut" }} // durationを0.4に短縮
-      className={className}
-    >
-      {children}
-    </motion.div>
-  );
-};
+const Reveal = ({ children, delay = 0, className = "" }) => (
+  <motion.div
+    initial={{ opacity: 0, y: 15 }}
+    whileInView={{ opacity: 1, y: 0 }}
+    viewport={{ once: true, margin: "-10%" }}
+    transition={{ duration: 0.4, delay, ease: "easeOut" }}
+    className={className}
+  >
+    {children}
+  </motion.div>
+);
 
-// 出現スピードを爆速にした文字Reveal（日本語対応）
 const SplitTextReveal = ({ text, className, delay = 0 }) => {
-  const chars = Array.from(text); 
-  const isMounted = useIsMounted();
+  const chars = Array.from(text);
 
-  const container = { 
-    hidden: { opacity: 0 }, 
-    visible: { opacity: 1, transition: { staggerChildren: 0.02, delayChildren: delay } } // 0.04 -> 0.02に短縮
+  const container = {
+    hidden: { opacity: 0 },
+    visible: { opacity: 1, transition: { staggerChildren: 0.02, delayChildren: delay } }
   };
-  const child = { 
-    visible: { opacity: 1, y: 0, filter: "blur(0px)", transition: { duration: 0.3, ease: "easeOut" } }, // duration 0.3に短縮
-    hidden: { opacity: 0, y: 10, filter: "blur(2px)" } // ボケを弱く、距離を短く
+  const child = {
+    visible: { opacity: 1, y: 0, filter: "blur(0px)", transition: { duration: 0.3, ease: "easeOut" } },
+    hidden: { opacity: 0, y: 10, filter: "blur(2px)" }
   };
-
-  if (!isMounted) return <div className={className}>{text}</div>;
 
   return (
-    <motion.div 
-      variants={container} 
-      initial="hidden" 
-      whileInView="visible" 
-      viewport={{ once: true }} 
+    <motion.div
+      variants={container}
+      initial="hidden"
+      whileInView="visible"
+      viewport={{ once: true }}
       className={cn("whitespace-nowrap", className)}
     >
       {chars.map((char, index) => (
@@ -112,25 +104,31 @@ const EmojiParticle = ({ emoji, delay = 0, x = "0%", y = "0%", scale = 1 }) => {
 
 const ButterflyParticle = ({ delay = 0, x = "0%", y = "0%", scale = 1, color = "text-pink-400" }) => {
   const isMounted = useIsMounted();
+  const motion_vals = useMemo(() => ({
+    yEnd: -100 - Math.random() * 50,
+    xOffset1: 20 + Math.random() * 20,
+    xOffset2: -20 - Math.random() * 20,
+    duration: 7 + Math.random() * 3,
+    wingDuration: 0.2 + Math.random() * 0.1,
+  }), []);
+
   if (!isMounted) return null;
 
-  const yEnd = -100 - Math.random() * 50;
-  const xOffset1 = 20 + Math.random() * 20;
-  const xOffset2 = -20 - Math.random() * 20;
+  const { yEnd, xOffset1, xOffset2, duration, wingDuration } = motion_vals;
 
   return (
     <motion.div
       className={`absolute pointer-events-none select-none z-0 ${color}`}
       style={{ top: y, left: x, scale, filter: "drop-shadow(0px 2px 4px rgba(0,0,0,0.1))" }}
-      animate={{ 
+      animate={{
         opacity: [0, 0.8, 1, 0.8, 0],
         y: [0, yEnd * 0.25, yEnd * 0.5, yEnd * 0.75, yEnd],
         x: [0, xOffset1, xOffset2, xOffset1, 0],
         rotate: [-10, 10, -10, 10, -10]
       }}
-      transition={{ duration: 7 + Math.random() * 3, delay: delay, repeat: Infinity, ease: "easeInOut" }}
+      transition={{ duration, delay, repeat: Infinity, ease: "easeInOut" }}
     >
-      <motion.div animate={{ scaleX: [1, 0.2, 1] }} transition={{ duration: 0.2 + Math.random() * 0.1, repeat: Infinity, ease: "linear" }}>
+      <motion.div animate={{ scaleX: [1, 0.2, 1] }} transition={{ duration: wingDuration, repeat: Infinity, ease: "linear" }}>
         <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
           <path d="M11.5 12C11.5 12 10 4 3 5C3 5 4 11 11.5 12Z" />
           <path d="M11.5 12C11.5 12 9 18 4 19C4 19 7 14 11.5 12Z" />
@@ -143,8 +141,17 @@ const ButterflyParticle = ({ delay = 0, x = "0%", y = "0%", scale = 1, color = "
 };
 
 // ==========================================
-// 📊 CATEGORIES
+// 📊 CATEGORIES & CONSTANTS
 // ==========================================
+
+const BACKGROUND_BUTTERFLIES = [
+  { x: "8%",  y: "12%", delay: 0,   scale: 0.8,  color: "text-pink-300"  },
+  { x: "22%", y: "58%", delay: 1.5, scale: 0.6,  color: "text-sky-300"   },
+  { x: "55%", y: "22%", delay: 2.8, scale: 1.0,  color: "text-amber-300" },
+  { x: "71%", y: "68%", delay: 0.7, scale: 0.7,  color: "text-rose-300"  },
+  { x: "86%", y: "38%", delay: 2.0, scale: 0.9,  color: "text-pink-300"  },
+  { x: "40%", y: "82%", delay: 4.0, scale: 0.55, color: "text-sky-300"   },
+];
 const CATEGORIES = [
   { id: 'idol', name: 'Idol / Artist', jp: 'アイドル・アーティスト', icon: Music, color: 'text-pink-500', bg: 'bg-pink-100' },
   { id: 'vtuber', name: 'Virtual Creator', jp: 'VTuber・配信者', icon: Video, color: 'text-cyan-500', bg: 'bg-cyan-100' },
@@ -167,10 +174,10 @@ const IntroLoader = ({ onComplete }) => {
   }, [onComplete]);
 
   return (
-    <motion.div 
+    <motion.div
       className="fixed inset-0 z-[99999] flex items-center justify-center pointer-events-none"
       initial={{ opacity: 1 }}
-      exit={{ scale: 1.05, opacity: 0, filter: "blur(2px)", transition: { duration: 0.3, ease: "easeOut" } }}
+      exit={{ opacity: 0, transition: { duration: 0.2, ease: "easeOut" } }}
     >
       <motion.div 
         className="absolute inset-y-0 left-0 w-1/2 bg-[#FFF5F8] shadow-[20px_0_50px_rgba(244,114,182,0.3)] z-10 origin-left"
@@ -242,19 +249,9 @@ const SoftBackground = () => {
       <motion.div style={{ y: y1 }} className="absolute -top-[10%] -left-[5%] w-[80vw] h-[80vw] rounded-full bg-pink-100/50 blur-[80px]" />
       <motion.div style={{ y: y2 }} className="absolute top-[30%] -right-[10%] w-[60vw] h-[60vw] rounded-full bg-amber-50/50 blur-[80px]" />
       
-      {[...Array(6)].map((_, i) => {
-        const colors = ["text-pink-300", "text-sky-300", "text-amber-300", "text-rose-300"];
-        return (
-          <ButterflyParticle 
-            key={`bf-${i}`}
-            x={`${Math.random() * 90}%`}
-            y={`${Math.random() * 100}%`}
-            delay={Math.random() * 5}
-            scale={0.5 + Math.random() * 0.6}
-            color={colors[i % colors.length]}
-          />
-        );
-      })}
+      {BACKGROUND_BUTTERFLIES.map((bf, i) => (
+        <ButterflyParticle key={`bf-${i}`} {...bf} />
+      ))}
     </div>
   );
 };

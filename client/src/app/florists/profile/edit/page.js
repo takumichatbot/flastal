@@ -12,6 +12,7 @@ import { motion } from 'framer-motion';
 
 
 import { Save, Camera, ArrowLeft, Zap, Check, MapPin, Phone, Clock, User, Image as ImageIcon, Trash2, Loader2, Building, Truck } from 'lucide-react';
+import FloatingParticles from '@/app/components/FloatingParticles';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -42,22 +43,6 @@ const GlassCard = ({ children, className }) => (
     {children}
   </div>
 );
-
-const FloatingParticles = () => {
-  const [windowSize, setWindowSize] = useState({ width: 1000, height: 1000 });
-  useEffect(() => { setWindowSize({ width: window.innerWidth, height: window.innerHeight }); }, []);
-  return (
-    <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
-      {[...Array(12)].map((_, i) => (
-        <motion.div key={i} className="absolute w-3 h-3 bg-emerald-300 rounded-full mix-blend-multiply filter blur-[1px] opacity-30"
-          initial={{ x: Math.random() * windowSize.width, y: Math.random() * windowSize.height }}
-          animate={{ y: [null, Math.random() * -200], x: [null, (Math.random() - 0.5) * 100], opacity: [0.2, 0.5, 0.2], scale: [1, 1.5, 1] }}
-          transition={{ duration: Math.random() * 10 + 15, repeat: Infinity, ease: "linear" }}
-        />
-      ))}
-    </div>
-  );
-};
 
 export default function FloristProfileEditPage() {
   const { user, isLoading: authLoading, authenticatedFetch, logout } = useAuth();

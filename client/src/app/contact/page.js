@@ -57,7 +57,7 @@ export default function ContactPage() {
             </p>
             <button 
               onClick={() => window.location.href = '/'}
-              className="mt-8 px-8 py-3 bg-slate-900 text-white rounded-full font-bold hover:bg-slate-800 transition-all"
+              className="mt-8 px-8 py-3 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-full font-bold hover:brightness-105 transition-all shadow-md shadow-pink-100"
             >
               トップへ戻る
             </button>
@@ -90,7 +90,7 @@ export default function ContactPage() {
             </div>
             <button 
               type="submit" disabled={isSubmitting}
-              className="w-full bg-slate-900 text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-slate-800 transition-all disabled:opacity-50"
+              className="w-full bg-gradient-to-r from-pink-500 to-rose-500 text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 hover:brightness-105 transition-all disabled:opacity-50 shadow-lg shadow-pink-100"
             >
               {isSubmitting ? '送信中...' : <><FiSend /> メッセージを送信する</>}
             </button>

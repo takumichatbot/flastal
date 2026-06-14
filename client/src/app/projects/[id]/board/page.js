@@ -15,27 +15,34 @@ import VirtualStage from '@/app/components/VirtualStage';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
+const GLOWING_PARTICLE_DATA = Array.from({ length: 20 }, (_, i) => ({
+  isPink: i % 2 === 0,
+  xRatio: Math.random(),
+  yRatio: Math.random(),
+  dy: -(Math.random() * 100 + 50),
+  dx: (Math.random() - 0.5) * 50,
+  duration: Math.random() * 5 + 5,
+  delay: Math.random() * 5,
+}));
+
 const GlowingParticles = () => {
   const [windowSize, setWindowSize] = useState({ width: 1000, height: 1000 });
   useEffect(() => { setWindowSize({ width: window.innerWidth, height: window.innerHeight }); }, []);
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
-      {[...Array(20)].map((_, i) => {
-        const isPink = i % 2 === 0;
-        return (
-          <motion.div key={i} 
-            className={`absolute w-2 h-2 rounded-full blur-[2px] ${isPink ? 'bg-pink-400' : 'bg-sky-400'}`}
-            initial={{ x: Math.random() * windowSize.width, y: Math.random() * windowSize.height, opacity: 0 }}
-            animate={{ 
-              y: [null, Math.random() * -100 - 50], 
-              x: [null, (Math.random() - 0.5) * 50], 
-              opacity: [0, 0.8, 0], 
-              scale: [0.5, 1.5, 0.5] 
-            }}
-            transition={{ duration: Math.random() * 5 + 5, repeat: Infinity, ease: "easeInOut", delay: Math.random() * 5 }}
-          />
-        );
-      })}
+      {GLOWING_PARTICLE_DATA.map((p, i) => (
+        <motion.div key={i}
+          className={`absolute w-2 h-2 rounded-full blur-[2px] ${p.isPink ? 'bg-pink-400' : 'bg-sky-400'}`}
+          initial={{ x: p.xRatio * windowSize.width, y: p.yRatio * windowSize.height, opacity: 0 }}
+          animate={{
+            y: [null, p.dy],
+            x: [null, p.dx],
+            opacity: [0, 0.8, 0],
+            scale: [0.5, 1.5, 0.5]
+          }}
+          transition={{ duration: p.duration, repeat: Infinity, ease: "easeInOut", delay: p.delay }}
+        />
+      ))}
     </div>
   );
 };

@@ -14,6 +14,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Star, Calendar, MapPin, ArrowRight, Info, Search, Loader2, PenTool, Sparkles, X, Coins, Send
 } from 'lucide-react';
+import FloatingParticles from '@/app/components/FloatingParticles';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -24,22 +25,6 @@ function cn(...classes) {
 // ===========================================
 // 🎨 UI COMPONENTS
 // ===========================================
-const FloatingParticles = () => {
-  const [windowSize, setWindowSize] = useState({ width: 1000, height: 1000 });
-  useEffect(() => { setWindowSize({ width: window.innerWidth, height: window.innerHeight }); }, []);
-  return (
-    <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
-      {[...Array(12)].map((_, i) => (
-        <motion.div key={i} className="absolute w-4 h-4 bg-amber-300 rounded-full mix-blend-multiply filter blur-[2px] opacity-20"
-          initial={{ x: Math.random() * windowSize.width, y: Math.random() * windowSize.height }}
-          animate={{ y: [null, Math.random() * -150], x: [null, (Math.random() - 0.5) * 80], opacity: [0.1, 0.5, 0.1], scale: [1, 1.5, 1] }}
-          transition={{ duration: Math.random() * 10 + 10, repeat: Infinity, ease: "linear" }}
-        />
-      ))}
-    </div>
-  );
-};
-
 // ===========================================
 // 🪄 Application Modal (立候補モーダル)
 // ===========================================

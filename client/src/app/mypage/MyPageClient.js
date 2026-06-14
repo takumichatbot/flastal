@@ -43,7 +43,7 @@ function ProjectCard({ project, roleType }) {
       <div className="bg-white/90 backdrop-blur-md rounded-[1.5rem] overflow-hidden border border-white shadow-sm hover:shadow-[0_12px_30px_rgba(244,114,182,0.15)] transition-all duration-300 hover:-translate-y-1 relative h-full flex flex-col">
         
         {/* === 画像エリア === */}
-        <div className="relative w-full aspect-[4/5] bg-slate-100 shrink-0">
+        <div className="relative w-full aspect-[3/4] bg-slate-100 shrink-0">
           {project.imageUrl ? (
             <Image src={project.imageUrl} alt={project.title || "企画画像"} fill className="object-cover group-hover:scale-105 transition-transform duration-700" />
           ) : (
@@ -65,7 +65,7 @@ function ProjectCard({ project, roleType }) {
 
         {/* コンテンツエリア */}
         <div className="p-3 lg:p-4 flex flex-col flex-grow bg-white">
-          <h3 className="font-bold text-slate-800 text-[11px] sm:text-xs lg:text-sm leading-snug group-hover:text-pink-500 transition-colors line-clamp-2 mb-2 lg:mb-3">
+          <h3 className="font-black text-slate-800 text-xs sm:text-xs lg:text-sm leading-snug group-hover:text-pink-500 transition-colors line-clamp-2 mb-2 lg:mb-3">
             {project.title}
           </h3>
           
@@ -93,7 +93,7 @@ function ProjectCard({ project, roleType }) {
                             e.stopPropagation(); 
                             router.push(`/projects/${project.id}#pledge-section`);
                         }}
-                        className="w-full py-2 bg-pink-50 hover:bg-pink-500 text-pink-600 hover:text-white rounded-lg text-[10px] lg:text-xs font-black transition-colors flex items-center justify-center gap-1.5"
+                        className="w-full py-2.5 bg-pink-50 hover:bg-pink-500 text-pink-600 hover:text-white rounded-xl text-xs font-black transition-colors flex items-center justify-center gap-1.5"
                     >
                         <FiHeart size={12} className="fill-current" />
                         支援する (1口 ¥{(project.minContributionAmount || 1000).toLocaleString()}〜)
@@ -224,8 +224,8 @@ function DashboardContent() {
         {/* PC向けのタブナビゲーション */}
         <div className="hidden lg:flex gap-2 mb-8 pb-4 border-b border-slate-200">
            {BOTTOM_NAVS.map(nav => (
-             <button key={nav.id} onClick={() => setActiveTab(nav.id)} className={cn("px-6 py-2.5 rounded-full text-sm font-bold transition-all flex items-center gap-2", activeTab === nav.id ? "bg-slate-900 text-white shadow-md" : "text-slate-500 hover:bg-slate-100")}>
-                <nav.icon size={16} className={activeTab === nav.id ? "text-pink-400" : ""}/>
+             <button key={nav.id} onClick={() => setActiveTab(nav.id)} className={cn("px-6 py-2.5 rounded-full text-sm font-bold transition-all flex items-center gap-2", activeTab === nav.id ? "bg-pink-500 text-white shadow-md shadow-pink-200" : "text-slate-500 hover:bg-slate-100 hover:text-slate-700")}>
+                <nav.icon size={16} className={activeTab === nav.id ? "text-white" : ""}/>
                 {nav.label}
                 {nav.badge && <span className="bg-rose-500 text-white text-[10px] px-2 py-0.5 rounded-full ml-1">{nav.badge}</span>}
              </button>
@@ -256,9 +256,9 @@ function DashboardContent() {
                           onClick={() => setFilterPill(pill.id)}
                           className={cn(
                             "px-5 lg:px-6 py-2 lg:py-2.5 rounded-full text-xs lg:text-sm font-black whitespace-nowrap snap-start transition-all duration-300 shadow-sm border",
-                            filterPill === pill.id 
-                              ? "bg-slate-900 text-white border-slate-900" 
-                              : "bg-white text-slate-500 border-white hover:border-pink-200"
+                            filterPill === pill.id
+                              ? "bg-pink-500 text-white border-pink-500 shadow-md shadow-pink-100"
+                              : "bg-white text-slate-500 border-white hover:border-pink-200 hover:text-pink-500"
                           )}
                         >
                           {pill.label}
@@ -322,9 +322,12 @@ function DashboardContent() {
                           </div>
                         </div>
                       )) : (
-                        <div className="col-span-full py-20 text-center text-slate-400 font-bold flex flex-col items-center">
-                          <FiCamera size={40} className="mb-3 opacity-30" />
-                          <span className="text-sm">まだ写真がありません</span>
+                        <div className="col-span-full py-16 text-center flex flex-col items-center bg-white/50 backdrop-blur-sm rounded-[2rem] border border-white">
+                          <div className="w-20 h-20 bg-sky-50 rounded-full flex items-center justify-center mb-4 shadow-sm border border-sky-100">
+                            <FiCamera size={32} className="text-sky-300" />
+                          </div>
+                          <h3 className="text-base font-black text-slate-700 mb-1">思い出写真がありません</h3>
+                          <p className="text-xs font-bold text-slate-400 mb-0">完成したフラスタの写真を投稿してみましょう📸</p>
                         </div>
                       )}
                     </div>
@@ -378,7 +381,7 @@ function DashboardContent() {
                       <p className="text-slate-400 text-[10px] lg:text-xs font-bold font-mono mb-4 lg:hidden">{user.email}</p>
                       
                       <div className="flex flex-wrap gap-2 justify-center mb-6 w-full lg:w-auto">
-                        <button onClick={() => router.push('/mypage/edit')} className="w-full lg:w-auto px-8 py-3 bg-slate-100 text-slate-700 text-sm font-black rounded-full hover:bg-slate-200 transition-colors flex items-center justify-center gap-2 border border-slate-200"><FiSettings size={16}/> プロフィールを編集する</button>
+                        <button onClick={() => router.push('/mypage/edit')} className="w-full lg:w-auto px-8 py-3.5 bg-pink-500 text-white text-sm font-black rounded-full hover:bg-pink-600 transition-colors flex items-center justify-center gap-2 shadow-md shadow-pink-200"><FiSettings size={16}/> プロフィールを編集する</button>
                       </div>
 
                       <div className="w-full bg-slate-50 p-5 rounded-[1.5rem] border border-slate-100 flex justify-between items-center mb-4">

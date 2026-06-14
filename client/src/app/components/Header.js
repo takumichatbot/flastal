@@ -425,8 +425,8 @@ export default function Header() {
                     ログイン
                   </Link>
                   <Link href="/register">
-                      <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="flex items-center gap-2 px-5 py-2 text-sm font-bold text-white bg-slate-900 rounded-full shadow-lg hover:shadow-xl transition-all">
-                          <Sparkles size={14} className="text-pink-400"/> 登録
+                      <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="flex items-center gap-2 px-5 py-2 text-sm font-bold text-white bg-gradient-to-r from-pink-500 to-rose-500 rounded-full shadow-lg shadow-pink-200 hover:brightness-105 transition-all">
+                          <Sparkles size={14} className="text-white/80"/> 登録
                       </motion.button>
                   </Link>
                 </div>
@@ -527,7 +527,7 @@ export default function Header() {
                       {!user && (
                           <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-100">
                               <Link href="/login" onClick={() => setIsMobileMenuOpen(false)} className="flex justify-center py-4 bg-slate-100 rounded-2xl font-black text-slate-600">ログイン</Link>
-                              <Link href="/register" onClick={() => setIsMobileMenuOpen(false)} className="flex justify-center py-4 bg-slate-900 text-white rounded-2xl font-black">新規登録</Link>
+                              <Link href="/register" onClick={() => setIsMobileMenuOpen(false)} className="flex justify-center py-4 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-2xl font-black shadow-md shadow-pink-100">新規登録</Link>
                           </div>
                       )}
 

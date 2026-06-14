@@ -258,7 +258,7 @@ function QuotationApprovalModal({ project, user, onClose, onUpdate }) {
         </div>
 
         <div className="p-5 md:p-6 bg-white border-t border-slate-100">
-            <button type="submit" form="approvalForm" disabled={!approvalMethod || isSubmitting} className="w-full py-4 bg-slate-900 text-white rounded-xl font-black shadow-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-800 transition-colors flex items-center justify-center gap-2">
+            <button type="submit" form="approvalForm" disabled={!approvalMethod || isSubmitting} className="w-full py-4 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-xl font-black shadow-lg shadow-pink-200 disabled:opacity-50 disabled:cursor-not-allowed hover:brightness-105 transition-all flex items-center justify-center gap-2">
                 {isSubmitting ? <Loader2 size={18} className="animate-spin"/> : <Send size={18}/>}
                 この内容で発注を確定する
             </button>
@@ -333,8 +333,8 @@ function PledgeForm({ project, user, onPledgeSubmit, isPledger }) {
 
   if (isPledger) {
       return (
-          <AppCard className="text-center bg-gradient-to-b from-sky-50 to-white border-2 border-sky-100">
-              <div className="inline-flex items-center justify-center w-12 h-12 md:w-16 md:h-16 bg-sky-100 rounded-full text-sky-500 mb-3 shadow-inner"><CheckCircle2 size={24} /></div>
+          <AppCard className="text-center bg-gradient-to-b from-pink-50 to-white border-2 border-pink-100 shadow-[0_8px_30px_rgba(244,114,182,0.1)]">
+              <div className="inline-flex items-center justify-center w-12 h-12 md:w-16 md:h-16 bg-gradient-to-br from-pink-100 to-rose-100 rounded-full text-pink-500 mb-3 shadow-inner border border-pink-100"><CheckCircle2 size={24} /></div>
               <h3 className="text-lg md:text-xl font-black text-slate-800 mb-2 tracking-tight">支援済みです</h3>
               <p className="text-slate-500 font-bold text-xs md:text-sm">ご協力ありがとうございます！🌸</p>
           </AppCard>
@@ -457,7 +457,7 @@ function PledgeForm({ project, user, onPledgeSubmit, isPledger }) {
             <motion.button 
                 whileTap={{ scale: 0.98 }}
                 type="submit" disabled={isSubmitting || finalAmount <= 0} 
-                className="w-full py-3.5 md:py-4 font-black text-white bg-slate-900 hover:bg-slate-800 rounded-xl md:rounded-2xl disabled:opacity-50 flex justify-center items-center gap-2 text-sm md:text-base transition-colors shadow-lg"
+                className="w-full py-3.5 md:py-4 font-black text-white bg-gradient-to-r from-pink-500 to-rose-500 hover:brightness-105 rounded-xl md:rounded-2xl disabled:opacity-50 flex justify-center items-center gap-2 text-sm md:text-base transition-all shadow-lg shadow-pink-200"
             >
                 {isSubmitting ? <Loader2 className="animate-spin" size={16}/> : (cardAmount === 0 ? <Sparkles size={16} className="text-pink-400"/> : <DollarSign size={16}/>)}
                 {isSubmitting ? '処理中...' : (cardAmount === 0 ? 'ポイントだけで支援を完了する' : 'カード決済へ進む')}
@@ -499,7 +499,7 @@ function TargetAmountModal({ project, user, onClose, onUpdate }) {
           <input type="number" value={newAmount} onChange={(e) => setNewAmount(e.target.value)} min={project.collectedAmount} required className="w-full p-4 border-2 border-slate-100 rounded-xl font-black text-xl md:text-2xl text-slate-800 focus:border-pink-400 outline-none mb-6 transition-colors" />
           <div className="flex justify-end gap-2 md:gap-3">
               <button type="button" onClick={onClose} className="px-5 py-2.5 text-sm bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-slate-200 transition-colors">キャンセル</button>
-              <button type="submit" disabled={isSubmitting} className="px-6 py-2.5 text-sm bg-slate-900 text-white rounded-xl font-black hover:bg-slate-800 shadow-md transition-colors">保存</button>
+              <button type="submit" disabled={isSubmitting} className="px-6 py-2.5 text-sm bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-xl font-black shadow-md shadow-pink-100 hover:brightness-105 transition-all">保存</button>
           </div>
         </form>
       </motion.div>
@@ -1126,9 +1126,9 @@ export default function ProjectDetailClient() {
                   <button key={tab.id} onClick={() => setActiveTab(tab.id)} 
                     className={cn(
                       "flex-1 min-w-[100px] py-2.5 md:py-3 rounded-lg font-black text-xs md:text-sm flex justify-center items-center gap-1.5 transition-all duration-200",
-                      activeTab === tab.id ? 'bg-slate-900 shadow-sm text-white' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                      activeTab === tab.id ? 'bg-pink-500 shadow-sm text-white' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
                     )}>
-                      <tab.icon size={14} className={activeTab === tab.id ? "text-pink-400" : ""}/> 
+                      <tab.icon size={14} className={activeTab === tab.id ? "text-white" : ""}/>
                       <span>{tab.label}</span>
                   </button>
               ))}
@@ -1180,9 +1180,9 @@ export default function ProjectDetailClient() {
 
                       <div className="pt-2">
                           <div className="flex flex-row justify-between items-center gap-2 mb-4 px-1">
-                              <h2 className="text-lg md:text-xl font-black text-slate-800 flex items-center gap-2"><MessageCircle className="text-emerald-500" size={20}/> 活動報告</h2>
+                              <h2 className="text-lg md:text-xl font-black text-slate-800 flex items-center gap-2"><MessageCircle className="text-pink-500" size={20}/> 活動報告</h2>
                               {isPlanner && (
-                                <button onClick={() => setShowAnnouncementForm(!showAnnouncementForm)} className="bg-slate-900 text-white px-4 py-2 rounded-lg text-xs font-black shadow-sm hover:bg-slate-800 transition-colors flex items-center gap-1.5">
+                                <button onClick={() => setShowAnnouncementForm(!showAnnouncementForm)} className="bg-pink-500 text-white px-4 py-2 rounded-lg text-xs font-black shadow-sm hover:bg-pink-600 transition-colors flex items-center gap-1.5">
                                   <PenTool size={12}/> 新規投稿
                                 </button>
                               )}
@@ -1199,7 +1199,7 @@ export default function ProjectDetailClient() {
                                     <textarea value={announcementContent} onChange={(e)=>setAnnouncementContent(e.target.value)} placeholder="本文を入力..." rows="3" disabled={isPostingAnnouncement} className="w-full p-3 mb-3 bg-slate-50 border border-transparent rounded-lg focus:bg-white focus:border-emerald-300 outline-none font-medium text-slate-700 text-sm resize-none transition-all disabled:opacity-50"/>
                                     <div className="flex justify-end gap-2">
                                         <button type="button" onClick={() => setShowAnnouncementForm(false)} disabled={isPostingAnnouncement} className="px-4 py-2 text-xs text-slate-500 hover:bg-slate-100 rounded-lg font-bold transition-colors disabled:opacity-50">キャンセル</button>
-                                        <button type="submit" disabled={isPostingAnnouncement} className="px-5 py-2 bg-emerald-500 text-white text-xs font-black rounded-lg hover:bg-emerald-600 shadow-sm transition-all flex items-center gap-1.5 disabled:opacity-50">
+                                        <button type="submit" disabled={isPostingAnnouncement} className="px-5 py-2 bg-pink-500 text-white text-xs font-black rounded-lg hover:bg-pink-600 shadow-sm transition-all flex items-center gap-1.5 disabled:opacity-50">
                                             {isPostingAnnouncement ? <Loader2 size={14} className="animate-spin"/> : <Send size={14}/>} 
                                             投稿する
                                         </button>
@@ -1258,7 +1258,7 @@ export default function ProjectDetailClient() {
                     {(isPlanner || isPledger || isFlorist || isAssignedIllustrator) && (
                         <>
                             <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2">
-                                <button onClick={() => setCollabTab('chat')} className={cn("px-4 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 whitespace-nowrap transition-all", collabTab === 'chat' ? 'bg-slate-900 text-white shadow-md' : 'bg-white text-slate-500 hover:bg-slate-100 shadow-sm border border-slate-200')}>
+                                <button onClick={() => setCollabTab('chat')} className={cn("px-4 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 whitespace-nowrap transition-all", collabTab === 'chat' ? 'bg-pink-500 text-white shadow-md shadow-pink-100' : 'bg-white text-slate-500 hover:bg-slate-100 shadow-sm border border-slate-200')}>
                                     <MessageSquare size={16}/> ミーティング
                                 </button>
                                 
@@ -1269,15 +1269,15 @@ export default function ProjectDetailClient() {
                                     </Link>
                                 )}
 
-                                <button onClick={() => setCollabTab('board')} className={cn("px-4 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 whitespace-nowrap transition-all", collabTab === 'board' ? 'bg-slate-900 text-white shadow-md' : 'bg-white text-slate-500 hover:bg-slate-100 shadow-sm border border-slate-200')}>
+                                <button onClick={() => setCollabTab('board')} className={cn("px-4 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 whitespace-nowrap transition-all", collabTab === 'board' ? 'bg-pink-500 text-white shadow-md shadow-pink-100' : 'bg-white text-slate-500 hover:bg-slate-100 shadow-sm border border-slate-200')}>
                                     <ImageIcon size={16}/> アイデアボード
                                 </button>
                                 {isPlanner && (
-                                    <button onClick={() => setCollabTab('tasks')} className={cn("px-4 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 whitespace-nowrap transition-all", collabTab === 'tasks' ? 'bg-slate-900 text-white shadow-md' : 'bg-white text-slate-500 hover:bg-slate-100 shadow-sm border border-slate-200')}>
+                                    <button onClick={() => setCollabTab('tasks')} className={cn("px-4 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 whitespace-nowrap transition-all", collabTab === 'tasks' ? 'bg-pink-500 text-white shadow-md shadow-pink-100' : 'bg-white text-slate-500 hover:bg-slate-100 shadow-sm border border-slate-200')}>
                                         <CheckCircle2 size={16}/> やることリスト
                                     </button>
                                 )}
-                                <button onClick={() => setCollabTab('tools')} className={cn("px-4 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 whitespace-nowrap transition-all", collabTab === 'tools' ? 'bg-slate-900 text-white shadow-md' : 'bg-white text-slate-500 hover:bg-slate-100 shadow-sm border border-slate-200')}>
+                                <button onClick={() => setCollabTab('tools')} className={cn("px-4 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 whitespace-nowrap transition-all", collabTab === 'tools' ? 'bg-pink-500 text-white shadow-md shadow-pink-100' : 'bg-white text-slate-500 hover:bg-slate-100 shadow-sm border border-slate-200')}>
                                     <UploadCloud size={16}/> 提出・データ
                                 </button>
                                 
@@ -1292,10 +1292,10 @@ export default function ProjectDetailClient() {
                                 <motion.div key={collabTab} initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} transition={{ duration: 0.2 }}>
                                     
                                     {collabTab === 'chat' && (
-                                        <AppCard className="!p-0 overflow-hidden flex flex-col h-[600px] border-sky-100 ring-4 ring-sky-50">
-                                            <div className="p-4 border-b border-slate-100 bg-sky-50 flex items-center justify-between">
+                                        <AppCard className="!p-0 overflow-hidden flex flex-col h-[600px] border-pink-100 ring-4 ring-pink-50">
+                                            <div className="p-4 border-b border-slate-100 bg-pink-50 flex items-center justify-between">
                                                 <div className="flex items-center gap-2">
-                                                  <MessageSquare className="text-sky-500" size={18}/>
+                                                  <MessageSquare className="text-pink-500" size={18}/>
                                                   <h2 className="text-sm font-black text-slate-800">企画チャット</h2>
                                                 </div>
                                             </div>
@@ -1499,7 +1499,7 @@ export default function ProjectDetailClient() {
                                                                 <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest mb-1.5 flex items-center gap-1"><MessageSquare size={12}/> 提案メッセージ</p>
                                                                 <p className="text-xs text-slate-700 font-medium whitespace-pre-wrap leading-relaxed">{app.message}</p>
                                                             </div>
-                                                            <button onClick={() => handleAcceptApplication(app.id, app.proposedAmount)} className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white text-sm font-black rounded-xl transition-colors shadow-md flex items-center justify-center gap-2">
+                                                            <button onClick={() => handleAcceptApplication(app.id, app.proposedAmount)} className="w-full py-3 bg-gradient-to-r from-amber-400 to-orange-500 hover:brightness-105 text-white text-sm font-black rounded-xl transition-all shadow-md shadow-amber-100 flex items-center justify-center gap-2">
                                                                 <CheckCircle2 size={16}/> 採用して {app.proposedAmount?.toLocaleString()}pt 仮払いする
                                                             </button>
                                                         </div>
@@ -1668,7 +1668,7 @@ export default function ProjectDetailClient() {
             <div className="flex gap-2 max-w-xl mx-auto">
                 <button onClick={() => {
                     document.getElementById('pledge-section')?.scrollIntoView({ behavior: 'smooth' });
-                }} className="flex-1 py-3.5 bg-slate-900 text-white rounded-xl font-black shadow-md flex justify-center items-center gap-2 text-sm active:scale-95 transition-transform">
+                }} className="flex-1 py-3.5 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-xl font-black shadow-md shadow-pink-200 flex justify-center items-center gap-2 text-sm active:scale-95 transition-transform">
                     <Heart size={16} className="text-pink-400 fill-pink-400" />
                     プロジェクトを支援する
                 </button>
