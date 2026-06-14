@@ -1,21 +1,36 @@
 {
-  "name": "FLASTAL",
+  "name": "FLASTAL - 推しにフラスタを贈ろう",
   "short_name": "FLASTAL",
-  "description": "推しに最高の花を贈ろう。",
+  "description": "ファン有志で贈る「フラスタ企画」を安全・簡単・感動的に。",
   "start_url": "/",
+  "id": "/",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
   "background_color": "#ffffff",
-  "theme_color": "#0ea5e9",
+  "theme_color": "#ec4899",
+  "orientation": "portrait",
+  "lang": "ja",
+  "categories": ["lifestyle", "social"],
   "icons": [
     {
-      "src": "/icon-192x192.png",
-      "sizes": "192x192",
-      "type": "image/png"
+      "src": "/apple-icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
-      "src": "/icon-512x512.png",
-      "sizes": "512x512",
-      "type": "image/png"
+      "src": "/favicon.ico",
+      "sizes": "48x48",
+      "type": "image/x-icon"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/opengraph-image.png",
+      "sizes": "1200x630",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "FLASTAL ホーム画面"
     }
   ]
 }

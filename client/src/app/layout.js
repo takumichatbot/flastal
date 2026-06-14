@@ -25,6 +25,15 @@ const notoSansJP = Noto_Sans_JP({
   display: 'swap',
 });
 
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: 'cover',
+  themeColor: '#ec4899',
+};
+
 export const metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://www.flastal.com'),
   title: {
@@ -50,9 +59,23 @@ export const metadata = {
     canonical: '/',
   },
 
-  // ★ ここを追加！ブラウザに「絶対にこのアイコンを読み込め」と強制します
   icons: {
     icon: '/favicon.ico',
+    apple: [
+      { url: '/apple-icon.png', sizes: '180x180', type: 'image/png' },
+    ],
+  },
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'FLASTAL',
+    startupImage: [
+      { url: '/apple-icon.png' },
+    ],
+  },
+  other: {
+    'mobile-web-app-capable': 'yes',
   },
 };
 
