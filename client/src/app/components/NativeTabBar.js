@@ -3,27 +3,26 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/app/contexts/AuthContext';
-import { Home, Heart, MessageCircle, Bell, Settings } from 'lucide-react';
+import { Home, Heart, MessageCircle, Bell, Settings, Compass } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePushNotifications } from '@/app/hooks/usePushNotifications';
 
 const TABS = [
-  { id: 'home',          label: 'ホーム',     icon: Home,     href: '/mypage' },
-  { id: 'projects',      label: '企画',       icon: Heart,    href: '/mypage?tab=projects' },
+  { id: 'home',          label: 'ホーム',   icon: Home,          href: '/mypage' },
+  { id: 'explore',       label: '探す',     icon: Compass,       href: '/projects' },
   { id: 'chat',          label: 'チャット', icon: MessageCircle, href: '/chat' },
-  { id: 'notifications', label: '通知',       icon: Bell,     href: '/mypage?tab=notifications' },
-  { id: 'settings',      label: '設定',       icon: Settings, href: '/mypage?tab=settings' },
+  { id: 'notifications', label: '通知',     icon: Bell,          href: '/mypage?tab=notifications' },
+  { id: 'settings',      label: '設定',     icon: Settings,      href: '/mypage?tab=settings' },
 ];
 
 function getActiveTab(pathname, tab) {
   if (pathname.startsWith('/chat')) return 'chat';
   if (pathname === '/mypage' || pathname.startsWith('/mypage')) {
-    if (tab === 'projects')      return 'projects';
     if (tab === 'notifications') return 'notifications';
     if (tab === 'settings')      return 'settings';
     return 'home';
   }
-  if (pathname.startsWith('/projects')) return 'projects';
+  if (pathname.startsWith('/projects') || pathname.startsWith('/events') || pathname.startsWith('/venues') || pathname.startsWith('/florists') || pathname.startsWith('/illustrators')) return 'explore';
   return null;
 }
 

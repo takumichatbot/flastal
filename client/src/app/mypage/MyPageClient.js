@@ -14,6 +14,7 @@ import {
   FileText, HelpCircle, Mail, ShieldCheck, Star,
   Pencil, MessageCircle, X, Lock, Send, Trash2,
   ExternalLink, TrendingUp,
+  Calendar, MapPin, Store, Palette,
 } from 'lucide-react';
 
 import UploadForm from '@/app/components/UploadForm';
@@ -451,6 +452,31 @@ function DashboardContent() {
                     </div>
                     <span className="text-[11px] font-black text-slate-700 leading-tight">ポイント<br />チャージ</span>
                   </Link>
+                </div>
+
+                {/* さがす */}
+                <div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">さがす</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    {[
+                      { href: '/events',      label: 'イベント情報',        sub: '開催情報をチェック',   Icon: Calendar, bg: 'bg-violet-50', color: 'text-violet-500' },
+                      { href: '/venues',      label: '会場を探す',          sub: 'フラスタ対応会場一覧', Icon: MapPin,   bg: 'bg-sky-50',    color: 'text-sky-500'    },
+                      { href: '/florists',    label: 'お花屋さん',          sub: '依頼できる花屋を探す', Icon: Store,    bg: 'bg-pink-50',   color: 'text-pink-500'   },
+                      { href: '/illustrators', label: 'イラストレーター',   sub: 'ボード絵師を探す',     Icon: Palette,  bg: 'bg-amber-50',  color: 'text-amber-500'  },
+                    ].map(({ href, label, sub, Icon, bg, color }) => (
+                      <Link key={href} href={href}
+                        className="bg-white rounded-2xl p-4 flex items-center gap-3 shadow-sm border border-slate-100 active:scale-95 transition-transform"
+                      >
+                        <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center shrink-0', bg)}>
+                          <Icon size={20} className={color} />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs font-black text-slate-700 leading-tight">{label}</p>
+                          <p className="text-[10px] text-slate-400 font-medium mt-0.5 leading-tight">{sub}</p>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
                 </div>
 
                 {/* 応援ランクカード */}
