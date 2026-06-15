@@ -2,58 +2,44 @@
 
 import { useState, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Upload, X, ImageIcon, Check, Loader2 } from 'lucide-react';
+import { X, ImagePlus, Loader2, Send, Globe, Lock } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { motion, AnimatePresence } from 'framer-motion';
+import Image from 'next/image';
+
 
 export default function UploadForm({ onUploadSuccess }) {
-  const { user, authenticatedFetch } = useAuth(); // authenticatedFetchを取り出す
+  const { user, authenticatedFetch } = useAuth();
+  const [step, setStep] = useState(1); // 1: pick image, 2: fill details
   const [file, setFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [eventName, setEventName] = useState('');
-  const [senderName, setSenderName] = useState('');
+  const [caption, setCaption] = useState('');
+  const [isPublic, setIsPublic] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef(null);
 
-  // ファイル選択時の処理
   const handleFileSelect = (selectedFile) => {
     if (!selectedFile) return;
-
-    // バリデーション: 画像のみ
-    if (!selectedFile.type.startsWith('image/')) {
-      toast.error('画像ファイルを選択してください');
-      return;
-    }
-
-    // バリデーション: サイズ (10MB制限)
-    if (selectedFile.size > 10 * 1024 * 1024) {
-      toast.error('ファイルサイズは10MB以下にしてください');
-      return;
-    }
-
+    if (!selectedFile.type.startsWith('image/')) return toast.error('画像ファイルを選択してください');
+    if (selectedFile.size > 10 * 1024 * 1024) return toast.error('ファイルサイズは10MB以下にしてください');
     setFile(selectedFile);
     setPreviewUrl(URL.createObjectURL(selectedFile));
+    setStep(2);
   };
 
-  const handleInputChange = (e) => {
-    const selectedFile = e.target.files?.[0];
-    handleFileSelect(selectedFile);
-  };
-
-  // ドラッグ＆ドロップ処理
-  const handleDragOver = (e) => { e.preventDefault(); setIsDragging(true); };
-  const handleDragLeave = () => setIsDragging(false);
   const handleDrop = (e) => {
     e.preventDefault();
-    setIsDragging(false);
-    const droppedFile = e.dataTransfer.files[0];
-    handleFileSelect(droppedFile);
+    handleFileSelect(e.dataTransfer.files[0]);
   };
 
-  // 画像リセット
-  const clearImage = () => {
+  const reset = () => {
     setFile(null);
     setPreviewUrl(null);
+    setEventName('');
+    setCaption('');
+    setIsPublic(true);
+    setStep(1);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -61,49 +47,32 @@ export default function UploadForm({ onUploadSuccess }) {
     e.preventDefault();
     if (!user) return toast.error('ログインが必要です');
     if (!file) return toast.error('画像を選択してください');
+    if (!eventName.trim()) return toast.error('イベント名を入力してください');
 
     setIsSubmitting(true);
-    const toastId = toast.loading('投稿を準備中...');
-
+    const toastId = toast.loading('投稿中...');
     try {
-      // 1. Presigned URL取得 (バックエンドAPIを直接叩く)
       const presignRes = await authenticatedFetch('/api/tools/s3-upload-url', {
         method: 'POST',
-        body: JSON.stringify({ fileName: file.name, fileType: file.type })
+        body: JSON.stringify({ fileName: file.name, fileType: file.type }),
       });
-      
       if (!presignRes.ok) throw new Error('署名取得失敗');
-      const { uploadUrl, fileUrl } = await presignRes.json(); 
+      const { uploadUrl, fileUrl } = await presignRes.json();
 
-      // 2. S3へアップロード (変更なし)
       await fetch(uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
 
-      // 3. DB保存 (バックエンドAPIを叩く)
       const saveRes = await authenticatedFetch('/api/posts', {
         method: 'POST',
-        body: JSON.stringify({
-           eventName, 
-           senderName, 
-           imageUrl: fileUrl, 
-           email: user.email 
-        })
+        body: JSON.stringify({ eventName: eventName.trim(), caption: caption.trim(), imageUrl: fileUrl, isPublic }),
       });
-
       if (!saveRes.ok) throw new Error('保存失敗');
 
-      toast.success('投稿が完了しました！', { id: toastId });
-      
-      // リセット
-      clearImage();
-      setEventName('');
-      setSenderName('');
-      
-      // 親コンポーネントに通知（一覧更新など）
+      toast.success('投稿しました！', { id: toastId });
+      reset();
       if (onUploadSuccess) onUploadSuccess();
-
-    } catch (error) {
-      console.error(error);
-      toast.error('エラーが発生しました。もう一度お試しください。', { id: toastId });
+    } catch (err) {
+      console.error(err);
+      toast.error('エラーが発生しました', { id: toastId });
     } finally {
       setIsSubmitting(false);
     }
@@ -111,110 +80,98 @@ export default function UploadForm({ onUploadSuccess }) {
 
   if (!user) {
     return (
-      <div className="bg-gray-50 p-6 rounded-xl border border-gray-200 text-center text-gray-500">
-        ログインするとフラスタ画像を投稿できます。
+      <div className="bg-slate-50 p-6 rounded-2xl text-center text-slate-400 font-bold text-sm">
+        ログインすると写真を投稿できます
       </div>
     );
   }
 
   return (
-    <div className="bg-white p-6 md:p-8 rounded-2xl shadow-lg border border-pink-100 max-w-lg mx-auto">
-      <h2 className="text-xl font-bold mb-6 text-gray-800 flex items-center gap-2">
-        <ImageIcon className="text-pink-500" /> フラスタ写真を投稿
-      </h2>
-      
-      <form onSubmit={handleSubmit} className="space-y-6">
-        
-        {/* 画像アップロードエリア */}
-        <div className="space-y-2">
-          <label className="block text-sm font-bold text-gray-700">お花の写真 <span className="text-red-500">*</span></label>
-          
-          {!previewUrl ? (
-            <div
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-              onClick={() => fileInputRef.current.click()}
-              className={`
-                border-2 border-dashed rounded-xl h-48 flex flex-col items-center justify-center cursor-pointer transition-all
-                ${isDragging ? 'border-pink-500 bg-pink-50' : 'border-gray-300 hover:border-pink-400 hover:bg-gray-50'}
-              `}
-            >
-              <div className="bg-white p-3 rounded-full shadow-sm mb-2 text-pink-500">
-                <Upload size={24} />
-              </div>
-              <p className="text-sm font-bold text-gray-600">クリック または ドラッグ＆ドロップ</p>
-              <p className="text-xs text-gray-400 mt-1">最大 10MB (JPG, PNG)</p>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleInputChange}
-                className="hidden"
-              />
+    <AnimatePresence mode="wait">
+      {step === 1 ? (
+        <motion.div
+          key="step1"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          transition={{ duration: 0.2 }}
+        >
+          <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => handleFileSelect(e.target.files?.[0])} />
+          <div
+            onClick={() => fileInputRef.current.click()}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={handleDrop}
+            className="border-2 border-dashed border-pink-200 rounded-3xl h-40 flex flex-col items-center justify-center cursor-pointer hover:border-pink-400 hover:bg-pink-50/50 transition-all active:scale-[0.98]"
+          >
+            <div className="w-12 h-12 bg-pink-50 rounded-2xl flex items-center justify-center mb-2">
+              <ImagePlus size={22} className="text-pink-400" />
             </div>
-          ) : (
-            <div className="relative rounded-xl overflow-hidden border border-gray-200 group">
-              {/* 画像プレビュー */}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={previewUrl} alt="Preview" className="w-full h-48 object-cover" />
-              
-              {/* 削除ボタン */}
-              <button
-                type="button"
-                onClick={clearImage}
-                className="absolute top-2 right-2 bg-black/60 text-white p-2 rounded-full hover:bg-red-500 transition-colors backdrop-blur-sm"
-              >
-                <X />
+            <p className="text-sm font-black text-slate-600">写真を選ぶ</p>
+            <p className="text-[11px] text-slate-400 mt-0.5">タップまたはドラッグ＆ドロップ</p>
+          </div>
+        </motion.div>
+      ) : (
+        <motion.form
+          key="step2"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          transition={{ duration: 0.2 }}
+          onSubmit={handleSubmit}
+          className="space-y-3"
+        >
+          {/* Preview + caption side by side on larger screens */}
+          <div className="flex gap-3">
+            <div className="relative w-28 h-28 shrink-0 rounded-2xl overflow-hidden bg-slate-100">
+              {previewUrl && <Image src={previewUrl} alt="preview" fill className="object-cover" />}
+              <button type="button" onClick={reset}
+                className="absolute top-1.5 right-1.5 w-6 h-6 bg-black/60 rounded-full flex items-center justify-center text-white backdrop-blur-sm">
+                <X size={12} />
               </button>
             </div>
-          )}
-        </div>
-
-        {/* 入力フィールド */}
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-bold text-gray-700 mb-1">イベント名 <span className="text-red-500">*</span></label>
-            <input
-              type="text"
-              value={eventName}
-              onChange={(e) => setEventName(e.target.value)}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-200 focus:border-pink-500 outline-none transition-all"
-              placeholder="例: Summer Live 2025 東京公演"
-              required
-            />
+            <div className="flex-1 space-y-2">
+              <div className="relative rounded-2xl border-2 border-transparent bg-slate-50 focus-within:border-pink-400 focus-within:bg-white transition-all">
+                <input
+                  type="text"
+                  value={eventName}
+                  onChange={(e) => setEventName(e.target.value)}
+                  required
+                  placeholder="イベント名 *"
+                  className="w-full px-3 py-2.5 bg-transparent outline-none text-[16px] font-bold text-slate-800 placeholder:text-slate-300 rounded-2xl"
+                />
+              </div>
+              <div className="relative rounded-2xl border-2 border-transparent bg-slate-50 focus-within:border-pink-400 focus-within:bg-white transition-all">
+                <textarea
+                  value={caption}
+                  onChange={(e) => setCaption(e.target.value)}
+                  placeholder="キャプション（任意）..."
+                  rows={2}
+                  className="w-full px-3 py-2.5 bg-transparent outline-none text-[16px] text-slate-700 placeholder:text-slate-300 rounded-2xl resize-none"
+                />
+              </div>
+            </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-bold text-gray-700 mb-1">贈り主名 (ボードの記載名)</label>
-            <input
-              type="text"
-              value={senderName}
-              onChange={(e) => setSenderName(e.target.value)}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-200 focus:border-pink-500 outline-none transition-all"
-              placeholder="例: ファン有志一同"
-            />
-          </div>
-        </div>
+          {/* Public toggle */}
+          <button type="button" onClick={() => setIsPublic(!isPublic)}
+            className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-black transition-all ${
+              isPublic ? 'bg-pink-50 text-pink-500' : 'bg-slate-100 text-slate-500'
+            }`}>
+            {isPublic ? <Globe size={14} /> : <Lock size={14} />}
+            {isPublic ? '全員に公開' : '自分のみ'}
+          </button>
 
-        {/* 送信ボタン */}
-        <button
-          type="submit"
-          disabled={isSubmitting || !file || !eventName}
-          className={`
-            w-full py-3.5 rounded-xl font-bold text-white flex items-center justify-center gap-2 shadow-lg transition-all
-            ${isSubmitting || !file || !eventName
-              ? 'bg-gray-400 cursor-not-allowed' 
-              : 'bg-gradient-to-r from-pink-500 to-rose-500 hover:shadow-pink-200 hover:-translate-y-0.5'}
-          `}
-        >
-          {isSubmitting ? (
-            <><Loader2 className="animate-spin" /> アップロード中...</>
-          ) : (
-            <><Check /> 投稿する</>
-          )}
-        </button>
-      </form>
-    </div>
+          <motion.button
+            whileTap={{ scale: 0.97 }}
+            type="submit"
+            disabled={isSubmitting || !eventName.trim()}
+            className="w-full py-3 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-2xl font-black text-sm shadow-md shadow-pink-200 flex items-center justify-center gap-2 disabled:opacity-50 transition-all"
+          >
+            {isSubmitting ? <Loader2 className="animate-spin" size={16} /> : <Send size={14} />}
+            {isSubmitting ? '投稿中...' : '投稿する'}
+          </motion.button>
+        </motion.form>
+      )}
+    </AnimatePresence>
   );
 }

@@ -12,7 +12,7 @@ import {
   Plus, Search, LogOut, Award,
   Loader2, Zap, ArrowRight, ChevronRight, Copy,
   FileText, HelpCircle, Mail, ShieldCheck, Star,
-  Pencil
+  Pencil, MessageCircle, X, Lock, Send, Trash2
 } from 'lucide-react';
 
 import UploadForm from '@/app/components/UploadForm';
@@ -135,6 +135,10 @@ function DashboardContent() {
   const [notifications, setNotifications] = useState([]);
   const [myPosts, setMyPosts] = useState([]);
   const [loadingData, setLoadingData] = useState(true);
+  const [selectedPost, setSelectedPost] = useState(null);
+  const [postComments, setPostComments] = useState([]);
+  const [commentText, setCommentText] = useState('');
+  const [sendingComment, setSendingComment] = useState(false);
 
   const fetchMyData = useCallback(async () => {
     if (!user?.id) return;
@@ -144,7 +148,7 @@ function DashboardContent() {
         authenticatedFetch(`${API_URL}/api/users/${user.id}/created-projects`),
         authenticatedFetch(`${API_URL}/api/users/${user.id}/pledged-projects`),
         authenticatedFetch(`${API_URL}/api/notifications`),
-        authenticatedFetch(`${API_URL}/api/users/${user.id}/posts`)
+        authenticatedFetch(`${API_URL}/api/posts/my`)
       ]);
       if (createdRes?.ok) setCreatedProjects(await createdRes.json());
       if (pledgedRes?.ok) setPledgedProjects(await pledgedRes.json());
@@ -461,31 +465,93 @@ function DashboardContent() {
 
             {/* ========== ALBUM ========== */}
             {activeTab === 'album' && (
-              <div className="space-y-5">
-                <h2 className="text-xl font-black text-slate-800">思い出アルバム</h2>
-                <div className="bg-white/80 backdrop-blur-md p-6 rounded-[2rem] border border-white shadow-sm">
-                  <div className="flex items-center gap-3 mb-5">
-                    <div className="w-10 h-10 bg-pink-50 text-pink-500 rounded-xl flex items-center justify-center shrink-0">
-                      <Camera size={20} />
-                    </div>
-                    <div>
-                      <p className="text-sm font-black text-slate-800">写真を投稿する</p>
-                      <p className="text-[10px] text-slate-400 font-bold">完成したフラスタの写真をシェアしよう</p>
-                    </div>
-                  </div>
-                  <UploadForm onUploadSuccess={fetchMyData} />
+              <div className="space-y-4">
+                {/* ヘッダー */}
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-black text-slate-800">思い出アルバム</h2>
+                  <Link href="/album"
+                    className="text-xs font-black text-pink-500 flex items-center gap-1 hover:text-pink-600 transition-colors">
+                    みんなの投稿 <ArrowRight size={13} />
+                  </Link>
                 </div>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                  {myPosts.length > 0 ? myPosts.map(post => (
-                    <div key={post.id} className="relative aspect-square rounded-[1.5rem] overflow-hidden group shadow-sm border border-slate-100 bg-slate-100">
-                      <Image src={post.imageUrl} alt="思い出写真" fill className="object-cover transition-transform duration-700 group-hover:scale-110" />
-                      <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 flex flex-col justify-end p-3">
-                        <p className="text-white font-bold text-[10px] leading-tight mb-0.5 line-clamp-2">{post.eventName}</p>
-                        <p className="text-white/60 text-[8px] font-black uppercase tracking-widest">{new Date(post.createdAt).toLocaleDateString()}</p>
+
+                {/* 投稿エリア */}
+                <div className="bg-white/90 backdrop-blur-md rounded-[2rem] border border-white shadow-sm overflow-hidden">
+                  {/* ストーリー風アップロード行 */}
+                  <div className="px-4 pt-4 pb-3 flex items-center gap-3 border-b border-slate-100">
+                    <div className="flex flex-col items-center gap-1.5 shrink-0">
+                      <div className="w-14 h-14 rounded-full border-2 border-dashed border-pink-300 flex items-center justify-center bg-pink-50 cursor-pointer active:scale-95 transition-transform"
+                        onClick={() => document.getElementById('album-upload-trigger')?.click()}>
+                        <Plus size={22} className="text-pink-400" />
                       </div>
+                      <span className="text-[10px] font-black text-slate-500">新しい投稿</span>
                     </div>
-                  )) : (
-                    <div className="col-span-full py-16 text-center flex flex-col items-center bg-white/50 rounded-[2rem] border border-white">
+                    {myPosts.slice(0, 5).map(p => (
+                      <div key={p.id}
+                        onClick={() => {
+                          setSelectedPost(p);
+                          setPostComments([]);
+                          fetch(`${API_URL}/api/posts/${p.id}/comments`)
+                            .then(r => r.json()).then(setPostComments);
+                        }}
+                        className="flex flex-col items-center gap-1.5 shrink-0 cursor-pointer">
+                        <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-pink-400 p-0.5 bg-gradient-to-tr from-pink-500 to-rose-400 active:scale-95 transition-transform">
+                          <div className="w-full h-full rounded-full overflow-hidden bg-white">
+                            <Image src={p.imageUrl} alt={p.eventName} width={56} height={56} className="w-full h-full object-cover" />
+                          </div>
+                        </div>
+                        <span className="text-[9px] font-bold text-slate-500 truncate max-w-[56px]">{p.eventName}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* 投稿フォーム */}
+                  <div id="album-upload-section" className="px-4 py-4">
+                    <UploadForm onUploadSuccess={fetchMyData} />
+                  </div>
+                </div>
+
+                {/* 投稿グリッド - Instagram風 3カラム */}
+                <div>
+                  <div className="flex items-center justify-between mb-2 px-0.5">
+                    <p className="text-xs font-black text-slate-500 uppercase tracking-widest">
+                      {myPosts.length}件の投稿
+                    </p>
+                  </div>
+                  {myPosts.length > 0 ? (
+                    <div className="grid grid-cols-3 gap-0.5">
+                      {myPosts.map(post => (
+                        <motion.div
+                          key={post.id}
+                          whileTap={{ scale: 0.96 }}
+                          onClick={() => {
+                            setSelectedPost(post);
+                            setPostComments([]);
+                            fetch(`${API_URL}/api/posts/${post.id}/comments`)
+                              .then(r => r.json()).then(setPostComments);
+                          }}
+                          className="relative aspect-square bg-slate-100 cursor-pointer overflow-hidden"
+                        >
+                          <Image src={post.imageUrl} alt={post.eventName} fill className="object-cover" />
+                          {/* like/comment overlay on hover */}
+                          <div className="absolute inset-0 bg-black/0 hover:bg-black/30 transition-all duration-200 flex items-center justify-center gap-4 opacity-0 hover:opacity-100">
+                            <span className="text-white font-black text-sm flex items-center gap-1">
+                              <Heart size={14} className="fill-white" /> {post._count?.likes ?? 0}
+                            </span>
+                            <span className="text-white font-black text-sm flex items-center gap-1">
+                              <MessageCircle size={14} className="fill-white" /> {post._count?.comments ?? 0}
+                            </span>
+                          </div>
+                          {!post.isPublic && (
+                            <div className="absolute top-1 right-1 w-5 h-5 bg-black/60 rounded-full flex items-center justify-center">
+                              <Lock size={10} className="text-white" />
+                            </div>
+                          )}
+                        </motion.div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="py-16 text-center flex flex-col items-center bg-white/50 rounded-[2rem] border border-white">
                       <div className="w-20 h-20 bg-pink-50 rounded-full flex items-center justify-center mb-4 border border-pink-100">
                         <Camera size={32} className="text-pink-300" />
                       </div>
@@ -496,6 +562,174 @@ function DashboardContent() {
                 </div>
               </div>
             )}
+
+            {/* ========== POST DETAIL MODAL ========== */}
+            <AnimatePresence>
+              {selectedPost && (
+                <>
+                  <motion.div
+                    initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                    className="fixed inset-0 bg-black/80 z-50"
+                    onClick={() => setSelectedPost(null)}
+                  />
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    transition={{ type: 'spring', damping: 30, stiffness: 400 }}
+                    className="fixed inset-x-0 bottom-0 md:inset-0 md:flex md:items-center md:justify-center z-50 pointer-events-none"
+                  >
+                    <div
+                      className="pointer-events-auto bg-white rounded-t-3xl md:rounded-3xl w-full md:max-w-sm max-h-[90dvh] flex flex-col overflow-hidden"
+                      style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+                    >
+                      {/* image */}
+                      <div className="relative aspect-square bg-slate-100 shrink-0">
+                        <Image src={selectedPost.imageUrl} alt={selectedPost.eventName} fill className="object-cover" />
+                        <button
+                          onClick={() => setSelectedPost(null)}
+                          className="absolute top-3 right-3 w-9 h-9 bg-black/50 backdrop-blur-md rounded-full flex items-center justify-center text-white"
+                        >
+                          <X size={18} />
+                        </button>
+                        {!selectedPost.isPublic && (
+                          <div className="absolute top-3 left-3 flex items-center gap-1 bg-black/50 backdrop-blur-md rounded-full px-2 py-1">
+                            <Lock size={10} className="text-white" />
+                            <span className="text-white text-[10px] font-black">自分のみ</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* actions */}
+                      <div className="px-4 pt-3 pb-2 shrink-0">
+                        <div className="flex items-center gap-4 mb-2">
+                          <button
+                            onClick={async () => {
+                              const prev = selectedPost;
+                              const next = {
+                                ...selectedPost,
+                                likedByMe: !selectedPost.likedByMe,
+                                _count: {
+                                  ...selectedPost._count,
+                                  likes: selectedPost.likedByMe
+                                    ? selectedPost._count.likes - 1
+                                    : selectedPost._count.likes + 1,
+                                },
+                              };
+                              setSelectedPost(next);
+                              setMyPosts(ps => ps.map(p => p.id === next.id ? next : p));
+                              try {
+                                const res = await authenticatedFetch(`/api/posts/${selectedPost.id}/like`, { method: 'POST' });
+                                if (!res.ok) throw new Error();
+                              } catch {
+                                setSelectedPost(prev);
+                                setMyPosts(ps => ps.map(p => p.id === prev.id ? prev : p));
+                              }
+                            }}
+                            className="transition-transform active:scale-90"
+                          >
+                            <Heart size={24} className={selectedPost.likedByMe ? 'fill-rose-500 text-rose-500' : 'text-slate-700'} />
+                          </button>
+                          <button className="transition-transform active:scale-90">
+                            <MessageCircle size={24} className="text-slate-700" />
+                          </button>
+                          <div className="flex-1" />
+                          <button
+                            onClick={async () => {
+                              if (!confirm('この投稿を削除しますか？')) return;
+                              const res = await authenticatedFetch(`/api/posts/${selectedPost.id}`, { method: 'DELETE' });
+                              if (res.ok) {
+                                toast.success('削除しました');
+                                setMyPosts(ps => ps.filter(p => p.id !== selectedPost.id));
+                                setSelectedPost(null);
+                              } else { toast.error('削除に失敗しました'); }
+                            }}
+                            className="text-slate-300 hover:text-rose-500 transition-colors"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </div>
+                        {(selectedPost._count?.likes ?? 0) > 0 && (
+                          <p className="text-sm font-black text-slate-800 mb-1">
+                            {selectedPost._count.likes.toLocaleString()}件のいいね
+                          </p>
+                        )}
+                        <p className="text-xs font-black text-slate-500 mb-0.5">{selectedPost.eventName}</p>
+                        {selectedPost.caption && (
+                          <p className="text-sm text-slate-700 leading-relaxed">{selectedPost.caption}</p>
+                        )}
+                      </div>
+
+                      {/* comments */}
+                      <div className="flex-1 overflow-y-auto px-4 py-2 space-y-3 border-t border-slate-100">
+                        {postComments.length === 0 ? (
+                          <p className="text-center text-slate-400 text-xs font-bold py-4">まだコメントはありません</p>
+                        ) : postComments.map(c => (
+                          <div key={c.id} className="flex gap-2 items-start">
+                            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-pink-400 to-rose-500 flex items-center justify-center shrink-0">
+                              <span className="text-white text-[10px] font-black">{c.user.handleName[0]}</span>
+                            </div>
+                            <div>
+                              <span className="text-xs font-black text-slate-700 mr-1">{c.user.handleName}</span>
+                              <span className="text-xs text-slate-600">{c.content}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* comment input */}
+                      <div className="px-4 py-3 border-t border-slate-100 flex gap-2 items-center shrink-0">
+                        <input
+                          type="text"
+                          value={commentText}
+                          onChange={e => setCommentText(e.target.value)}
+                          onKeyDown={async e => {
+                            if (e.key !== 'Enter' || !commentText.trim() || sendingComment) return;
+                            setSendingComment(true);
+                            try {
+                              const res = await authenticatedFetch(`/api/posts/${selectedPost.id}/comments`, {
+                                method: 'POST',
+                                body: JSON.stringify({ content: commentText.trim() }),
+                              });
+                              if (res.ok) {
+                                const comment = await res.json();
+                                setPostComments(prev => [...prev, comment]);
+                                setSelectedPost(p => ({ ...p, _count: { ...p._count, comments: (p._count?.comments ?? 0) + 1 } }));
+                                setCommentText('');
+                              }
+                            } finally { setSendingComment(false); }
+                          }}
+                          placeholder="コメントを追加..."
+                          className="flex-1 bg-slate-50 rounded-full px-4 py-2 text-[16px] outline-none font-medium text-slate-800 placeholder:text-slate-300 focus:bg-white focus:ring-2 focus:ring-pink-200 transition-all"
+                        />
+                        <button
+                          disabled={!commentText.trim() || sendingComment}
+                          onClick={async () => {
+                            if (!commentText.trim() || sendingComment) return;
+                            setSendingComment(true);
+                            try {
+                              const res = await authenticatedFetch(`/api/posts/${selectedPost.id}/comments`, {
+                                method: 'POST',
+                                body: JSON.stringify({ content: commentText.trim() }),
+                              });
+                              if (res.ok) {
+                                const comment = await res.json();
+                                setPostComments(prev => [...prev, comment]);
+                                setSelectedPost(p => ({ ...p, _count: { ...p._count, comments: (p._count?.comments ?? 0) + 1 } }));
+                                setCommentText('');
+                              }
+                            } finally { setSendingComment(false); }
+                          }}
+                          className="w-9 h-9 bg-pink-500 rounded-full flex items-center justify-center text-white disabled:opacity-40 active:scale-95 transition-all shrink-0"
+                        >
+                          <Send size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  </motion.div>
+                </>
+              )}
+            </AnimatePresence>
 
             {/* ========== NOTIFICATIONS ========== */}
             {activeTab === 'notifications' && (

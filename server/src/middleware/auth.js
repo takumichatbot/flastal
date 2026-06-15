@@ -74,3 +74,18 @@ export const requireAdmin = (req, res, next) => {
 };
 
 export const adminMiddleware = requireAdmin;
+
+// トークンがあればデコード、なくても通す（公開フィード用）
+export const optionalAuth = async (req, _res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (authHeader?.startsWith('Bearer ')) {
+      const token = authHeader.split(' ')[1].replace(/['"]+/g, '').trim();
+      if (token && token !== 'null' && token !== 'undefined') {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        req.user = { id: decoded.id || decoded.sub, email: decoded.email, role: (decoded.role || 'USER').toUpperCase() };
+      }
+    }
+  } catch { /* ignore */ }
+  next();
+};
