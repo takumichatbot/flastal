@@ -128,7 +128,18 @@ function DashboardContent() {
   const searchParams = useSearchParams();
 
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'home');
+  const [isNative, setIsNative] = useState(false);
   const [filterPill, setFilterPill] = useState('all');
+
+  // URLパラメータの変化に追従（グローバルタブバーからの遷移に対応）
+  useEffect(() => {
+    const tab = searchParams.get('tab') || 'home';
+    setActiveTab(tab);
+  }, [searchParams]);
+
+  useEffect(() => {
+    setIsNative(sessionStorage.getItem('nativeApp') === '1');
+  }, []);
 
   const [createdProjects, setCreatedProjects] = useState([]);
   const [pledgedProjects, setPledgedProjects] = useState([]);
@@ -903,8 +914,8 @@ function DashboardContent() {
         </AnimatePresence>
       </main>
 
-      {/* === モバイル ボトムナビ === */}
-      <nav
+      {/* === モバイル ボトムナビ（Webのみ・ネイティブはグローバルタブバーを使用） === */}
+      {!isNative && <nav
         className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-xl border-t border-slate-200 shadow-[0_-8px_24px_rgba(0,0,0,0.06)]"
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
@@ -941,7 +952,7 @@ function DashboardContent() {
             );
           })}
         </div>
-      </nav>
+      </nav>}
 
     </div>
   );

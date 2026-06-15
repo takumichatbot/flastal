@@ -11,6 +11,7 @@ import { Suspense } from 'react';
 // コンポーネントをインポート
 import Header from './components/Header';
 import LiveTicker from './components/LiveTicker';
+import NativeTabBar from './components/NativeTabBar';
 
 const inter = Inter({ 
   subsets: ['latin'], 
@@ -117,7 +118,8 @@ export default function RootLayout({ children }) {
           </Suspense>
           
           <Footer />
-          <Toaster position="top-center" /> 
+          <Suspense fallback={null}><NativeTabBar /></Suspense>
+          <Toaster position="top-center" />
           <PushNotificationManager />
         </AuthProvider>
       </body>
