@@ -14,7 +14,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 // ★ Heartアイコンを追加！
 import {
   Search, MapPin, Calendar, Loader2, Filter,
-  PlusCircle, Sparkles, Heart, ChevronLeft
+  PlusCircle, Sparkles, ChevronLeft
 } from 'lucide-react';
 
 const PREFECTURES = [
@@ -256,106 +256,85 @@ function ProjectsContent() {
         </Reveal>
 
         {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 md:gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-5">
              {[...Array(8)].map((_, i) => (
-                 <div key={i} className="bg-white/50 backdrop-blur-sm rounded-[2.5rem] h-[400px] shadow-sm border border-white animate-pulse overflow-hidden p-4">
-                     <div className="h-48 bg-slate-200/50 rounded-[2rem]"></div>
-                     <div className="p-4 mt-2 space-y-4">
-                         <div className="h-5 bg-slate-200/50 rounded-full w-3/4"></div>
-                         <div className="h-4 bg-slate-200/50 rounded-full w-1/2"></div>
-                         <div className="pt-4 mt-auto">
-                            <div className="h-3 bg-slate-200/50 rounded-full w-full"></div>
-                         </div>
+                 <div key={i} className="bg-white/50 backdrop-blur-sm rounded-[2rem] shadow-sm border border-white animate-pulse overflow-hidden p-3">
+                     <div className="aspect-video bg-slate-200/50 rounded-[1.5rem]"></div>
+                     <div className="p-2 mt-2 space-y-3">
+                         <div className="h-4 bg-slate-200/50 rounded-full w-3/4"></div>
+                         <div className="h-3 bg-slate-200/50 rounded-full w-1/2"></div>
+                         <div className="h-2 bg-slate-200/50 rounded-full w-full"></div>
                      </div>
                  </div>
              ))}
           </div>
         ) : projects.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 md:gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-5">
             <AnimatePresence>
               {projects.map((project, i) => {
                 const percent = Math.min(Math.round(((project.collectedAmount || 0) / (project.targetAmount || 1)) * 100), 100);
                 const isSuccess = percent >= 100;
-                
-                let badgeLabel = isSuccess ? 'SUCCESS!' : '募集中';
+
+                let badgeLabel = isSuccess ? 'SUCCESS' : '募集中';
                 let badgeClass = isSuccess ? 'bg-emerald-500/90 border-emerald-400' : 'bg-pink-500/90 border-pink-400';
 
                 return (
                   <Reveal key={project.id} delay={i * 0.05} className="h-full">
                     <div onClick={() => router.push(`/projects/${project.id}`)} className="group h-full block cursor-pointer">
-                      
-                      <GlassCard className="!p-4 sm:!p-5 h-full flex flex-col transition-all duration-500 overflow-hidden bg-white hover:-translate-y-2 hover:shadow-[0_16px_40px_rgba(244,114,182,0.15)] group-hover:border-pink-200">
-                        
-                        <div className="relative w-full aspect-[4/3] rounded-[2rem] overflow-hidden bg-slate-100 shrink-0">
+
+                      <GlassCard className="!p-3 h-full flex flex-col transition-all duration-500 overflow-hidden bg-white hover:-translate-y-1 hover:shadow-[0_12px_30px_rgba(244,114,182,0.15)] group-hover:border-pink-200">
+
+                        <div className="relative w-full aspect-video rounded-[1.5rem] overflow-hidden bg-slate-100 shrink-0">
                           {project.imageUrl ? (
-                            <Image 
-                              src={project.imageUrl} alt={project.title} fill 
-                              sizes="(max-width: 768px) 100vw, 33vw"
-                              className="object-cover group-hover:scale-110 transition-transform duration-700"
+                            <Image
+                              src={project.imageUrl} alt={project.title} fill
+                              sizes="(max-width: 768px) 50vw, 33vw"
+                              className="object-cover group-hover:scale-105 transition-transform duration-700"
                             />
                           ) : (
-                            <div className="absolute inset-0 bg-gradient-to-br from-pink-100 to-rose-100 flex items-center justify-center text-4xl">💐</div>
+                            <div className="absolute inset-0 bg-gradient-to-br from-pink-100 to-rose-100 flex items-center justify-center text-3xl">💐</div>
                           )}
-                          <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 via-transparent to-transparent" />
-                          <div className="absolute top-4 left-4">
-                              <span className={cn("px-3 py-1.5 rounded-full text-[10px] font-black shadow-md border backdrop-blur-md text-white uppercase tracking-widest", badgeClass)}>
+                          <div className="absolute inset-0 bg-gradient-to-t from-slate-900/50 via-transparent to-transparent" />
+                          <div className="absolute top-2 left-2">
+                              <span className={cn("px-2 py-1 rounded-full text-[9px] font-black shadow-md border backdrop-blur-md text-white uppercase tracking-wider", badgeClass)}>
                                   {badgeLabel}
                               </span>
                           </div>
                         </div>
 
-                        <div className="pt-5 flex flex-col flex-grow px-2">
-                          <h2 className="text-base font-bold transition-colors line-clamp-2 mb-4 leading-snug text-slate-800 group-hover:text-pink-500">
+                        <div className="pt-3 flex flex-col flex-grow px-1">
+                          <h2 className="text-sm font-bold transition-colors line-clamp-2 mb-2 leading-snug text-slate-800 group-hover:text-pink-500">
                               <JpText>{project.title}</JpText>
                           </h2>
-                          
-                          <div className="space-y-2 mb-4">
+
+                          <div className="space-y-1 mb-2">
                               {project.deliveryDateTime && (
-                                  <p className="text-[11px] font-bold text-slate-500 flex items-center">
-                                      <Calendar className="mr-1.5 shrink-0 text-pink-400" size={14}/> 
+                                  <p className="text-[10px] font-bold text-slate-500 flex items-center">
+                                      <Calendar className="mr-1 shrink-0 text-pink-400" size={11}/>
                                       {new Date(project.deliveryDateTime).toLocaleDateString()}
                                   </p>
                               )}
-                              <p className="text-[11px] font-bold text-slate-500 flex items-center truncate">
-                                  <MapPin className="mr-1.5 shrink-0 text-rose-400" size={14}/>
+                              <p className="text-[10px] font-bold text-slate-500 flex items-center truncate">
+                                  <MapPin className="mr-1 shrink-0 text-rose-400" size={11}/>
                                   <span className="truncate">{project.venue?.venueName || project.deliveryAddress || '場所未定'}</span>
                               </p>
                           </div>
 
-                          <div className="mt-auto pt-4 border-t border-slate-100/50">
-                              <div className="flex justify-between items-end mb-2">
-                                  <div>
-                                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Current</p>
-                                    <p className="text-base font-black leading-none text-slate-800">
-                                      ¥{(project.collectedAmount || 0).toLocaleString()}
-                                      <span className="text-[9px] text-slate-400 font-medium ml-1">/ ¥{(project.targetAmount || 0).toLocaleString()}</span>
-                                    </p>
-                                  </div>
-                                  <span className={cn("text-xl font-black font-mono leading-none", isSuccess ? "text-emerald-500" : "text-pink-500")}>
+                          <div className="mt-auto pt-2 border-t border-slate-100/50">
+                              <div className="flex justify-between items-center mb-1.5">
+                                  <p className="text-xs font-black leading-none text-slate-700">
+                                    ¥{(project.collectedAmount || 0).toLocaleString()}
+                                  </p>
+                                  <span className={cn("text-sm font-black font-mono leading-none", isSuccess ? "text-emerald-500" : "text-pink-500")}>
                                     {percent}%
                                   </span>
                               </div>
-                              <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden shadow-inner mb-3">
-                                  <motion.div 
+                              <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden shadow-inner">
+                                  <motion.div
                                       initial={{ width: 0 }} whileInView={{ width: `${percent}%` }} transition={{ duration: 1 }}
-                                      className={cn("h-full rounded-full", isSuccess ? "bg-emerald-400" : "bg-gradient-to-r from-pink-400 to-rose-400")} 
+                                      className={cn("h-full rounded-full", isSuccess ? "bg-emerald-400" : "bg-gradient-to-r from-pink-400 to-rose-400")}
                                   />
                               </div>
-
-                              {project.status === 'FUNDRAISING' && (
-                                  <div className="pt-3 border-t border-slate-100 border-dashed relative z-20">
-                                      <button
-                                          onClick={(e) => {
-                                              e.stopPropagation();
-                                              router.push(`/projects/${project.id}#pledge-section`);
-                                          }}
-                                          className="w-full py-2.5 bg-pink-50 hover:bg-pink-500 text-pink-600 hover:text-white rounded-xl text-xs font-black transition-colors flex items-center justify-center gap-1.5"
-                                      >
-                                          <Heart size={14} className="fill-current" />
-                                          支援する (1口 ¥{(project.minContributionAmount || 1000).toLocaleString()}〜)
-                                      </button>
-                                  </div>
-                              )}
                           </div>
                         </div>
                       </GlassCard>
