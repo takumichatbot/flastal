@@ -4,9 +4,16 @@
 import Link from 'next/link';
 import { ArrowUp } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useState, useEffect } from 'react';
 
 export default function Footer() {
-  
+  const [isNative, setIsNative] = useState(false);
+  useEffect(() => {
+    setIsNative(sessionStorage.getItem('nativeApp') === '1');
+  }, []);
+
+  if (isNative) return null;
+
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };

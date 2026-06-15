@@ -128,8 +128,13 @@ export default function Header() {
   const { user, logout, isLoading, authenticatedFetch } = useAuth();
   const [notifications, setNotifications] = useState([]);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); 
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isNative, setIsNative] = useState(false);
   const userMenuRef = useRef(null);
+
+  useEffect(() => {
+    setIsNative(sessionStorage.getItem('nativeApp') === '1');
+  }, []);
   
   const [hoveredNav, setHoveredNav] = useState(null);
   
@@ -312,6 +317,8 @@ export default function Header() {
   }, [user]);
 
   const pathname = usePathname();
+  if (isNative) return null;
+
   const AUTH_PAGES = ['/login', '/register', '/forgot-password', '/reset-password', '/verify'];
   if (AUTH_PAGES.some(p => pathname?.startsWith(p))) return null;
 
