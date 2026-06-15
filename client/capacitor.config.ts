@@ -25,11 +25,10 @@ const config: CapacitorConfig = {
   },
   plugins: {
     SplashScreen: {
-      launchShowDuration: 2500,
-      launchAutoHide: true,
-      backgroundColor: '#ffffff',
+      launchShowDuration: 0,
+      launchAutoHide: false,
+      backgroundColor: '#fce7f3',
       showSpinner: false,
-      iosSpinnerStyle: 'small',
     },
     StatusBar: {
       style: 'Default',

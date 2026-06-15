@@ -6,12 +6,16 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { jwtDecode } from 'jwt-decode';
 import { motion, AnimatePresence } from 'framer-motion';
+import { SplashScreen } from '@capacitor/splash-screen';
 
 export default function AppEntryPage() {
   const router = useRouter();
   const [phase, setPhase] = useState('logo'); // 'logo' | 'out'
 
   useEffect(() => {
+    // スプラッシュスクリーンを手動で非表示（アニメーションが見えるように）
+    SplashScreen.hide({ fadeOutDuration: 400 }).catch(() => {});
+
     sessionStorage.setItem('nativeApp', '1');
 
     let destination = '/login';
