@@ -10,7 +10,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Home, Heart, Bell, User, Camera, Settings,
   Plus, Search, LogOut, Award,
-  Loader2, Zap, ArrowRight, ChevronRight, Copy,
+  Loader2, Zap, ArrowRight, ChevronLeft, ChevronRight, Copy,
   FileText, HelpCircle, Mail, ShieldCheck, Star,
   Pencil, MessageCircle, X, Lock, Send, Trash2,
   ExternalLink, TrendingUp,
@@ -260,23 +260,38 @@ function DashboardContent() {
         style={{ paddingTop: 'env(safe-area-inset-top)' }}
       >
         <div className="flex items-center justify-between h-14 px-5 max-w-xl mx-auto">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-pink-500 to-rose-600 flex items-center justify-center shadow-sm">
-              <span className="text-white text-xs font-black">F</span>
-            </div>
-            <span className="font-black text-slate-800 text-base tracking-tight">FLASTAL</span>
-          </div>
-          <button
-            onClick={() => setActiveTab('notifications')}
-            className="relative p-2 rounded-xl active:bg-slate-100 transition-colors"
-          >
-            <Bell size={22} className={activeTab === 'notifications' ? 'text-pink-500' : 'text-slate-500'} />
-            {unreadCount > 0 && (
-              <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-rose-500 text-white text-[8px] font-black rounded-full flex items-center justify-center border-2 border-white">
-                {unreadCount > 9 ? '9+' : unreadCount}
-              </span>
-            )}
-          </button>
+          {activeTab === 'notifications' ? (
+            <>
+              <button
+                onClick={() => setActiveTab('home')}
+                className="p-2 -ml-1 rounded-xl active:bg-slate-100 transition-colors text-slate-600"
+              >
+                <ChevronLeft size={24} />
+              </button>
+              <span className="font-black text-slate-800 text-base">お知らせ</span>
+              <div className="w-9" />
+            </>
+          ) : (
+            <>
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-pink-500 to-rose-600 flex items-center justify-center shadow-sm">
+                  <span className="text-white text-xs font-black">F</span>
+                </div>
+                <span className="font-black text-slate-800 text-base tracking-tight">FLASTAL</span>
+              </div>
+              <button
+                onClick={() => setActiveTab('notifications')}
+                className="relative p-2 rounded-xl active:bg-slate-100 transition-colors"
+              >
+                <Bell size={22} className="text-slate-500" />
+                {unreadCount > 0 && (
+                  <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-rose-500 text-white text-[8px] font-black rounded-full flex items-center justify-center border-2 border-white">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
+              </button>
+            </>
+          )}
         </div>
       </header>
 
