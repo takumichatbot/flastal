@@ -18,7 +18,8 @@ export default function AppEntryPage() {
 
     sessionStorage.setItem('nativeApp', '1');
 
-    let destination = '/login';
+    const onboardingDone = localStorage.getItem('onboardingDone');
+    let destination = onboardingDone ? '/login' : '/onboarding';
     try {
       const raw = localStorage.getItem('authToken');
       const token = raw ? raw.replace(/['"]+/g, '').trim() : null;
