@@ -3,8 +3,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
+import Link from 'next/link';
 import { useAuth } from '@/app/contexts/AuthContext';
-import { Send, ChevronLeft, User } from 'lucide-react';
+import { Send, ChevronLeft, User, Loader2, ExternalLink } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 
@@ -23,10 +24,10 @@ function formatTime(dateString) {
 export default function ChatRoomPage() {
   const { roomId } = useParams();
   const router = useRouter();
-  const { user, token, isAuthenticated, loading: authLoading } = useAuth();
+  const { token, isAuthenticated, loading: authLoading } = useAuth();
 
   const [messages, setMessages] = useState([]);
-  const [recipient, setRecipient] = useState(null);
+  const [room, setRoom] = useState(null);
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
@@ -44,13 +45,13 @@ export default function ChatRoomPage() {
   const fetchData = useCallback(async () => {
     if (!token || !roomId) return;
     try {
-      const res = await fetch(`${API_URL}/api/chats/${roomId}`, {
+      const res = await fetch(`${API_URL}/api/project-details/chat/${roomId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error();
       const data = await res.json();
+      setRoom(data);
       setMessages(data.messages || []);
-      setRecipient(data.recipient || null);
     } catch {
       toast.error('メッセージの読み込みに失敗しました');
     } finally {
@@ -79,14 +80,14 @@ export default function ChatRoomPage() {
     const optimisticMsg = {
       id: `opt-${Date.now()}`,
       content: text,
-      senderId: user?.id,
+      senderType: 'USER',
       createdAt: new Date().toISOString(),
       _optimistic: true,
     };
     setMessages(prev => [...prev, optimisticMsg]);
 
     try {
-      const res = await fetch(`${API_URL}/api/chats/${roomId}/messages`, {
+      const res = await fetch(`${API_URL}/api/project-details/chat/${roomId}/messages`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -120,7 +121,11 @@ export default function ChatRoomPage() {
     setNewMessage(el.value);
   };
 
-  if (authLoading || (isLoading && !recipient)) {
+  const florist = room?.offer?.florist;
+  const project = room?.offer?.project;
+  const floristName = florist?.platformName || florist?.shopName || 'お花屋さん';
+
+  if (authLoading || (isLoading && !room)) {
     return (
       <div className="flex items-center justify-center bg-slate-50 font-sans" style={{ height: '100dvh' }}>
         <div className="w-8 h-8 border-2 border-pink-200 border-t-pink-500 rounded-full animate-spin" />
@@ -149,22 +154,28 @@ export default function ChatRoomPage() {
         </button>
 
         <div className="flex items-center gap-2.5 flex-1 min-w-0">
-          <div className="w-9 h-9 rounded-full bg-slate-100 overflow-hidden flex-shrink-0">
-            {recipient?.iconUrl ? (
-              <Image src={recipient.iconUrl} alt="" width={36} height={36} className="object-cover w-full h-full" />
+          <div className="w-9 h-9 rounded-xl bg-slate-100 overflow-hidden flex-shrink-0 border border-slate-100">
+            {florist?.iconUrl ? (
+              <Image src={florist.iconUrl} alt="" width={36} height={36} className="object-cover w-full h-full" />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-slate-300">
                 <User size={18} />
               </div>
             )}
           </div>
-          <div className="min-w-0">
-            <p className="font-black text-slate-800 text-sm truncate">{recipient?.name || '相手ユーザー'}</p>
-            <p className="text-[10px] text-slate-400 font-medium">
-              {recipient?.isOnline ? '● オンライン' : 'オフライン'}
-            </p>
+          <div className="min-w-0 flex-1">
+            <p className="font-black text-slate-800 text-sm truncate">{floristName}</p>
+            {project?.title && (
+              <p className="text-[10px] text-pink-500 font-bold truncate">📌 {project.title}</p>
+            )}
           </div>
         </div>
+
+        {project?.id && (
+          <Link href={`/projects/${project.id}`} className="w-9 h-9 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 active:bg-slate-200 transition-colors flex-shrink-0">
+            <ExternalLink size={16} />
+          </Link>
+        )}
       </div>
 
       {/* ── メッセージエリア ── */}
@@ -179,9 +190,9 @@ export default function ChatRoomPage() {
           </div>
         ) : (
           messages.map((msg, i) => {
-            const isMe = msg.senderId === user?.id;
+            const isMe = msg.senderType === 'USER';
             const prevMsg = messages[i - 1];
-            const showAvatar = !isMe && prevMsg?.senderId !== msg.senderId;
+            const showAvatar = !isMe && prevMsg?.senderType !== 'FLORIST';
 
             return (
               <motion.div
@@ -193,9 +204,9 @@ export default function ChatRoomPage() {
               >
                 {/* 相手アイコン */}
                 {!isMe && (
-                  <div className={`w-7 h-7 rounded-full bg-slate-100 overflow-hidden flex-shrink-0 mb-1 ${showAvatar ? 'opacity-100' : 'opacity-0'}`}>
-                    {recipient?.iconUrl ? (
-                      <Image src={recipient.iconUrl} alt="" width={28} height={28} className="object-cover w-full h-full" />
+                  <div className={`w-7 h-7 rounded-full bg-slate-100 overflow-hidden flex-shrink-0 mb-1 border border-slate-100 ${showAvatar ? 'opacity-100' : 'opacity-0'}`}>
+                    {florist?.iconUrl ? (
+                      <Image src={florist.iconUrl} alt="" width={28} height={28} className="object-cover w-full h-full" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-slate-300 text-xs">
                         <User size={14} />
@@ -257,7 +268,7 @@ export default function ChatRoomPage() {
                 className="w-11 h-11 bg-gradient-to-br from-pink-500 to-rose-500 text-white rounded-full flex items-center justify-center shadow-lg shadow-pink-200 flex-shrink-0 disabled:opacity-50 transition-opacity"
               >
                 {isSending ? (
-                  <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                  <Loader2 size={16} className="animate-spin" />
                 ) : (
                   <Send size={16} className="ml-0.5" />
                 )}

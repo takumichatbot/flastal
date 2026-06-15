@@ -326,7 +326,7 @@ export default function FloristDetailPage() {
 
   return (
     <>
-      <div className="min-h-screen bg-gradient-to-br from-pink-50/50 to-sky-50/50 font-sans relative overflow-hidden pb-24">
+      <div className="min-h-screen bg-gradient-to-br from-pink-50/50 to-sky-50/50 font-sans relative overflow-hidden pb-24 md:pb-24" style={{ paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))' }}>
         <FloatingParticles />
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-pink-200/30 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/3 pointer-events-none z-0" />
         
@@ -571,20 +571,23 @@ export default function FloristDetailPage() {
                 </AnimatePresence>
             </div>
 
-            <div className="md:hidden sticky bottom-6 z-30 mt-12">
-              {(!user || user.role === 'USER') && !isMyProfile ? ( 
-                <button onClick={() => setIsModalOpen(true)} className="w-full py-5 font-black text-white bg-gradient-to-r from-pink-500 to-rose-500 rounded-[2rem] shadow-2xl shadow-pink-200 active:scale-95 transition-all flex items-center justify-center gap-2 text-lg">
-                  <Zap size={20} /> 制作オファーを出す
-                </button>
-              ) : !user ? (
-                <div className="p-6 bg-white/90 backdrop-blur-xl border border-white rounded-[2rem] shadow-2xl text-center">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Login required for orders</p>
-                  <Link href="/login" className="block w-full py-4 bg-slate-900 text-white font-black rounded-xl">ログインして依頼する</Link>
-                </div>
-              ) : null}
-            </div>
         </div>
       </div>
+
+      {/* Mobile fixed bottom CTA */}
+      {(!user || user.role === 'USER') && !isMyProfile && (
+        <div
+          className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-xl border-t border-slate-100 px-4 pt-3"
+          style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}
+        >
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="w-full py-4 font-black text-white bg-gradient-to-r from-pink-500 to-rose-500 rounded-2xl shadow-lg shadow-pink-200 active:scale-[0.98] transition-transform flex items-center justify-center gap-2 text-base"
+          >
+            <Zap size={18} /> 制作オファーを出す
+          </button>
+        </div>
+      )}
 
       <AnimatePresence>
         {isImageModalOpen && <ImageLightbox url={modalImageSrc} onClose={() => setIsImageModalOpen(false)} />}

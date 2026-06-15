@@ -1,7 +1,5 @@
-// src/app/projects/create/page.js
 'use client';
 
-// Next.js 15 ビルドエラー回避用
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
 
@@ -13,51 +11,66 @@ import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import AiPlanGenerator from '@/app/components/AiPlanGenerator';
 
-// Lucide Icons
 import {
   Calendar, MapPin, X, Image as ImageIcon, Loader2, Plus,
   Award, Search, AlertTriangle, ZoomIn, Sparkles,
-  Wand2, Lock, Globe, ArrowRight, Paintbrush, FileText, Clock, UserPlus, ChevronLeft
+  Wand2, Lock, Globe, ArrowRight, Paintbrush, FileText,
+  Clock, UserPlus, ChevronLeft, ChevronRight, Check,
 } from 'lucide-react';
 import FloatingParticles from '@/app/components/FloatingParticles';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
-function cn(...classes) {
-  return classes.filter(Boolean).join(' ');
-}
+function cn(...classes) { return classes.filter(Boolean).join(' '); }
 
-// 日付関連フォーマット関数
 const formatDisplayDate = (dateString) => {
   if (!dateString) return '日付未定';
   return new Date(dateString).toLocaleString('ja-JP', {
-      year: 'numeric', month: 'long', day: 'numeric', weekday: 'short', hour: '2-digit', minute: '2-digit'
+    year: 'numeric', month: 'long', day: 'numeric', weekday: 'short',
+    hour: '2-digit', minute: '2-digit',
   });
 };
 
-// ===========================================
-// 🎨 UI COMPONENTS & ANIMATIONS
-// ===========================================
+const STEPS = [
+  { id: 1, label: 'イベント' },
+  { id: 2, label: '内容' },
+  { id: 3, label: '予算' },
+  { id: 4, label: '詳細' },
+  { id: 5, label: '確認' },
+];
 
+const STEP_TITLES = [
+  'イベントと公開設定',
+  '企画の内容を書こう',
+  '予算を決めよう',
+  'お届けとデザイン',
+  '確認して作成',
+];
+
+// ── Slide animation ──────────────────────────────────────────
+const slideVariants = {
+  initial: (d) => ({ x: d * 48, opacity: 0 }),
+  animate: { x: 0, opacity: 1, transition: { duration: 0.28, ease: 'easeOut' } },
+  exit:    (d) => ({ x: -d * 48, opacity: 0, transition: { duration: 0.2, ease: 'easeIn' } }),
+};
+
+// ── Shared UI primitives ──────────────────────────────────────
 const GlassCard = ({ children, className }) => (
-  <motion.div 
-    initial={{ opacity: 0, y: 20 }}
-    whileInView={{ opacity: 1, y: 0 }}
-    viewport={{ once: true, margin: "-50px" }}
-    transition={{ duration: 0.5, ease: "easeOut" }}
-    className={cn("bg-white/80 backdrop-blur-xl border border-white shadow-[0_8px_32px_rgba(0,0,0,0.04)] rounded-[2.5rem] p-6 md:p-10", className)}
-  >
+  <div className={cn(
+    'bg-white/80 backdrop-blur-xl border border-white/80 shadow-[0_4px_24px_rgba(0,0,0,0.05)] rounded-[2rem] p-6',
+    className,
+  )}>
     {children}
-  </motion.div>
+  </div>
 );
 
 const InputLabel = ({ icon: Icon, title, subtitle, required }) => (
-  <div className="flex items-end gap-2 mb-3 pl-2">
-    {Icon && <Icon className="text-pink-400 mb-0.5" size={18} />}
-    <label className="block text-sm md:text-base font-black text-slate-700 tracking-tight">
-      {title} {required && <span className="text-pink-500 ml-1">*</span>}
+  <div className="flex items-end gap-2 mb-3 pl-1">
+    {Icon && <Icon className="text-pink-400 mb-0.5 shrink-0" size={16} />}
+    <label className="block text-sm font-black text-slate-700 tracking-tight">
+      {title}{required && <span className="text-pink-500 ml-1">*</span>}
     </label>
-    {subtitle && <span className="text-[10px] text-slate-400 font-bold mb-0.5">{subtitle}</span>}
+    {subtitle && <span className="text-[10px] text-slate-400 font-bold mb-0.5 leading-none">{subtitle}</span>}
   </div>
 );
 
@@ -65,10 +78,10 @@ const GlassInput = (props) => (
   <input
     {...props}
     className={cn(
-      "w-full px-5 py-4 bg-white/60 backdrop-blur-sm border-2 border-slate-100 rounded-2xl",
-      "focus:outline-none focus:border-pink-300 focus:ring-4 focus:ring-pink-100/50",
-      "transition-all font-bold text-slate-800 placeholder:text-slate-300 text-[16px]",
-      props.className
+      'w-full px-4 py-3.5 bg-white/60 backdrop-blur-sm border-2 border-slate-100 rounded-2xl',
+      'focus:outline-none focus:border-pink-300 focus:ring-4 focus:ring-pink-100/50',
+      'transition-all font-bold text-slate-800 placeholder:text-slate-300 text-[16px]',
+      props.className,
     )}
   />
 );
@@ -77,112 +90,90 @@ const GlassTextarea = (props) => (
   <textarea
     {...props}
     className={cn(
-      "w-full px-5 py-4 bg-white/60 backdrop-blur-sm border-2 border-slate-100 rounded-2xl resize-none",
-      "focus:outline-none focus:border-pink-300 focus:ring-4 focus:ring-pink-100/50",
-      "transition-all font-bold text-slate-800 placeholder:text-slate-300 leading-relaxed text-[16px]",
-      props.className
+      'w-full px-4 py-3.5 bg-white/60 backdrop-blur-sm border-2 border-slate-100 rounded-2xl resize-none',
+      'focus:outline-none focus:border-pink-300 focus:ring-4 focus:ring-pink-100/50',
+      'transition-all font-bold text-slate-800 placeholder:text-slate-300 leading-relaxed text-[16px]',
+      props.className,
     )}
   />
 );
 
-// ===========================================
-// 🪄 MODALS
-// ===========================================
-
+// ── Modals ───────────────────────────────────────────────────
 function EventSelectionModal({ onClose, onSelect }) {
   const [events, setEvents] = useState([]);
-  const [filteredEvents, setFilteredEvents] = useState([]);
+  const [filtered, setFiltered] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [q, setQ] = useState('');
 
   useEffect(() => {
-    const fetchEvents = async () => {
-      try {
-        const res = await fetch(`${API_URL}/api/events/public`); 
-        if (res.ok) {
-          const data = await res.json();
-          setEvents(data);
-          setFilteredEvents(data);
-        }
-      } catch (e) {
-        console.error(e);
-        toast.error('イベント情報の取得に失敗しました');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchEvents();
+    fetch(`${API_URL}/api/events/public`)
+      .then(r => r.ok ? r.json() : [])
+      .then(d => { setEvents(d); setFiltered(d); })
+      .catch(() => toast.error('イベント情報の取得に失敗しました'))
+      .finally(() => setLoading(false));
   }, []);
 
   useEffect(() => {
-    const query = searchQuery.toLowerCase();
-    setFilteredEvents(
-      events.filter(e => 
-        e.title.toLowerCase().includes(query) || 
-        (e.venue?.venueName || '').toLowerCase().includes(query)
-      )
-    );
-  }, [searchQuery, events]);
+    const lq = q.toLowerCase();
+    setFiltered(events.filter(e =>
+      e.title.toLowerCase().includes(lq) ||
+      (e.venue?.venueName || '').toLowerCase().includes(lq),
+    ));
+  }, [q, events]);
 
   return (
-    <div className="fixed inset-0 bg-slate-900/60 flex justify-center items-center z-50 p-4 backdrop-blur-md">
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-[3rem] shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden border border-white">
-        <div className="p-6 md:p-8 border-b border-slate-100 flex justify-between items-center bg-gradient-to-r from-sky-50 to-white">
+    <div className="fixed inset-0 bg-slate-900/60 flex justify-center items-end sm:items-center z-50 backdrop-blur-md">
+      <motion.div
+        initial={{ y: '100%', opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        exit={{ y: '100%', opacity: 0 }}
+        transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+        className="bg-white rounded-t-[2.5rem] sm:rounded-[2.5rem] shadow-2xl w-full max-w-2xl max-h-[88vh] flex flex-col overflow-hidden"
+      >
+        <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-gradient-to-r from-sky-50 to-white">
           <div>
-            <span className="text-[10px] font-black text-sky-500 tracking-widest uppercase mb-1 block">Official Events</span>
-            <h3 className="text-2xl font-black text-slate-800 flex items-center gap-2">
-                <Calendar className="text-sky-500" size={24}/> 公式イベントを探す
+            <span className="text-[10px] font-black text-sky-500 tracking-widest uppercase block mb-0.5">Official Events</span>
+            <h3 className="text-xl font-black text-slate-800 flex items-center gap-2">
+              <Calendar className="text-sky-500" size={20} /> 公式イベントを探す
             </h3>
           </div>
-          <button onClick={onClose} className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all shadow-sm border border-slate-100">
-            <X size={20} />
+          <button onClick={onClose} className="w-9 h-9 bg-white rounded-full flex items-center justify-center text-slate-400 hover:text-slate-600 border border-slate-100 shadow-sm">
+            <X size={18} />
           </button>
         </div>
-
-        <div className="p-4 md:p-6 bg-white border-b border-slate-100">
-            <div className="relative">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                <input
-                    type="text"
-                    placeholder="イベント名や会場名で検索..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-4 focus:ring-sky-100 focus:border-sky-300 outline-none text-[16px] font-bold transition-all text-slate-700"
-                />
-            </div>
+        <div className="px-4 py-3 bg-white border-b border-slate-100">
+          <div className="relative">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+            <input type="text" placeholder="イベント名や会場名で検索..." value={q} onChange={e => setQ(e.target.value)}
+              className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-4 focus:ring-sky-100 focus:border-sky-300 outline-none text-[16px] font-bold transition-all text-slate-700" />
+          </div>
         </div>
-
-        <div className="p-4 md:p-6 overflow-y-auto flex-grow bg-slate-50/50 space-y-4">
+        <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50/50">
           {loading ? (
-            <div className="text-center py-20 text-slate-400 font-bold flex flex-col items-center gap-3">
-                <Loader2 className="animate-spin text-sky-500" size={32}/>
-                読み込み中...
+            <div className="flex flex-col items-center justify-center py-16 text-slate-400">
+              <Loader2 className="animate-spin text-sky-500 mb-2" size={28} />
+              <span className="text-sm font-bold">読み込み中...</span>
             </div>
-          ) : filteredEvents.length === 0 ? (
-            <div className="text-center py-20 text-slate-400">
-              <div className="text-4xl mb-4 opacity-50">😢</div>
-              <p className="font-bold">該当するイベントが見つかりません。</p>
+          ) : filtered.length === 0 ? (
+            <div className="text-center py-16 text-slate-400">
+              <div className="text-4xl mb-3 opacity-40">😢</div>
+              <p className="font-bold text-sm">該当するイベントが見つかりません</p>
             </div>
-          ) : (
-            filteredEvents.map(event => (
-              <button
-                key={event.id}
-                onClick={() => { onSelect(event); onClose(); }}
-                className="w-full text-left p-6 bg-white border border-slate-100 rounded-[2rem] hover:border-sky-300 hover:shadow-[0_8px_30px_rgba(56,189,248,0.15)] transition-all group relative overflow-hidden"
-              >
-                <div className="flex justify-between items-start mb-3 relative z-10">
-                  <span className="bg-sky-50 text-sky-600 text-[10px] px-3 py-1 rounded-full font-black border border-sky-100 uppercase tracking-widest">
-                    {event.organizer?.name || 'Official'}
-                  </span>
-                </div>
-                <h4 className="text-lg font-black text-slate-800 group-hover:text-sky-600 mb-4 relative z-10 line-clamp-2 leading-tight">{event.title}</h4>
-                <div className="text-xs font-bold text-slate-500 space-y-2 relative z-10 bg-slate-50 p-3 rounded-xl">
-                  <div className="flex items-center"><Calendar className="mr-2 text-sky-400 shrink-0" size={14}/> {formatDisplayDate(event.eventDate)}</div>
-                  <div className="flex items-center"><MapPin className="mr-2 text-sky-400 shrink-0" size={14}/> {event.venue ? event.venue.venueName : '会場未定'}</div>
-                </div>
-              </button>
-            ))
-          )}
+          ) : filtered.map(event => (
+            <button key={event.id} onClick={() => { onSelect(event); onClose(); }}
+              className="w-full text-left p-4 bg-white border border-slate-100 rounded-[1.5rem] hover:border-sky-300 hover:shadow-[0_4px_20px_rgba(56,189,248,0.15)] transition-all group">
+              <div className="flex justify-between items-start mb-2">
+                <span className="bg-sky-50 text-sky-600 text-[10px] px-2.5 py-0.5 rounded-full font-black border border-sky-100">
+                  {event.organizer?.name || 'Official'}
+                </span>
+              </div>
+              <h4 className="text-base font-black text-slate-800 group-hover:text-sky-600 mb-3 line-clamp-2 leading-tight">{event.title}</h4>
+              <div className="text-xs font-bold text-slate-500 space-y-1.5 bg-slate-50 p-2.5 rounded-xl">
+                <div className="flex items-center gap-1.5"><Calendar className="text-sky-400 shrink-0" size={12} />{formatDisplayDate(event.eventDate)}</div>
+                <div className="flex items-center gap-1.5"><MapPin className="text-sky-400 shrink-0" size={12} />{event.venue?.venueName || '会場未定'}</div>
+              </div>
+            </button>
+          ))}
         </div>
       </motion.div>
     </div>
@@ -191,95 +182,73 @@ function EventSelectionModal({ onClose, onSelect }) {
 
 function VenueSelectionModal({ onClose, onSelect }) {
   const [venues, setVenues] = useState([]);
-  const [filteredVenues, setFilteredVenues] = useState([]);
+  const [filtered, setFiltered] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [q, setQ] = useState('');
 
   useEffect(() => {
-    const fetchVenues = async () => {
-      try {
-        const res = await fetch(`${API_URL}/api/venues`);
-        if (res.ok) {
-          const data = await res.json();
-          setVenues(data);
-          setFilteredVenues(data);
-        }
-      } catch (e) {
-        toast.error('会場リストの読み込みに失敗しました');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchVenues();
+    fetch(`${API_URL}/api/venues`)
+      .then(r => r.ok ? r.json() : [])
+      .then(d => { setVenues(d); setFiltered(d); })
+      .catch(() => toast.error('会場リストの読み込みに失敗しました'))
+      .finally(() => setLoading(false));
   }, []);
 
   useEffect(() => {
-    const query = searchQuery.toLowerCase();
-    setFilteredVenues(
-      venues.filter(v => 
-        v.venueName.toLowerCase().includes(query) || 
-        (v.address || '').toLowerCase().includes(query)
-      )
-    );
-  }, [searchQuery, venues]);
+    const lq = q.toLowerCase();
+    setFiltered(venues.filter(v =>
+      v.venueName.toLowerCase().includes(lq) || (v.address || '').toLowerCase().includes(lq),
+    ));
+  }, [q, venues]);
 
   return (
-    <div className="fixed inset-0 bg-slate-900/60 flex justify-center items-center z-50 p-4 backdrop-blur-md animate-fadeIn">
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-[3rem] shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden border border-white">
-        
-        <div className="p-6 md:p-8 border-b border-emerald-100 flex justify-between items-center bg-gradient-to-r from-emerald-50 to-white">
+    <div className="fixed inset-0 bg-slate-900/60 flex justify-center items-end sm:items-center z-50 backdrop-blur-md">
+      <motion.div
+        initial={{ y: '100%', opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        exit={{ y: '100%', opacity: 0 }}
+        transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+        className="bg-white rounded-t-[2.5rem] sm:rounded-[2.5rem] shadow-2xl w-full max-w-2xl max-h-[88vh] flex flex-col overflow-hidden"
+      >
+        <div className="p-5 border-b border-emerald-100 flex justify-between items-center bg-gradient-to-r from-emerald-50 to-white">
           <div>
-            <span className="text-[10px] font-black text-emerald-500 tracking-widest uppercase mb-1 block">Venue Select</span>
-            <h3 className="text-2xl font-black text-slate-800 flex items-center gap-2">
-              <MapPin className="text-emerald-500" size={24}/> 会場を選択
+            <span className="text-[10px] font-black text-emerald-500 tracking-widest uppercase block mb-0.5">Venue Select</span>
+            <h3 className="text-xl font-black text-slate-800 flex items-center gap-2">
+              <MapPin className="text-emerald-500" size={20} /> 会場を選択
             </h3>
           </div>
-          <button onClick={onClose} className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all shadow-sm border border-emerald-50">
-            <X size={20} />
+          <button onClick={onClose} className="w-9 h-9 bg-white rounded-full flex items-center justify-center text-slate-400 hover:text-red-500 border border-emerald-50 shadow-sm">
+            <X size={18} />
           </button>
         </div>
-
-        <div className="p-4 md:p-6 bg-white border-b border-slate-100">
-            <div className="relative">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                <input
-                    type="text"
-                    placeholder="会場名や住所で検索..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-4 focus:ring-emerald-100 focus:border-emerald-300 outline-none text-[16px] font-bold transition-all text-slate-700"
-                />
-            </div>
+        <div className="px-4 py-3 bg-white border-b border-slate-100">
+          <div className="relative">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+            <input type="text" placeholder="会場名や住所で検索..." value={q} onChange={e => setQ(e.target.value)}
+              className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-4 focus:ring-emerald-100 focus:border-emerald-300 outline-none text-[16px] font-bold transition-all text-slate-700" />
+          </div>
         </div>
-
-        <div className="p-4 md:p-6 overflow-y-auto flex-grow bg-slate-50/50 space-y-4">
+        <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50/50">
           {loading ? (
-            <div className="text-center py-20 text-slate-400 font-bold flex flex-col items-center gap-3">
-              <Loader2 className="animate-spin text-emerald-500" size={32}/>
-              読み込み中...
+            <div className="flex flex-col items-center justify-center py-16 text-slate-400">
+              <Loader2 className="animate-spin text-emerald-500 mb-2" size={28} />
+              <span className="text-sm font-bold">読み込み中...</span>
             </div>
-          ) : filteredVenues.length === 0 ? (
-            <div className="text-center py-20 text-slate-400">
-              <div className="text-4xl mb-4 opacity-50">🏢</div>
-              <p className="font-bold">該当する会場が見つかりません。</p>
+          ) : filtered.length === 0 ? (
+            <div className="text-center py-16 text-slate-400">
+              <div className="text-4xl mb-3 opacity-40">🏢</div>
+              <p className="font-bold text-sm">該当する会場が見つかりません</p>
             </div>
-          ) : (
-            filteredVenues.map(venue => (
-                <button
-                  key={venue.id}
-                  onClick={() => { onSelect(venue); onClose(); }}
-                  className="w-full text-left p-6 bg-white border border-slate-100 rounded-[2rem] hover:border-emerald-300 hover:shadow-[0_8px_30px_rgba(16,185,129,0.15)] transition-all group relative overflow-hidden"
-                >
-                  <div className="font-black text-slate-800 group-hover:text-emerald-600 text-lg mb-3 relative z-10 transition-colors">
-                    {venue.venueName}
-                  </div>
-                  <div className="text-xs font-bold text-slate-500 flex items-center bg-slate-50 p-2.5 rounded-xl relative z-10">
-                    <MapPin className="mr-2 text-emerald-400 shrink-0" size={16}/> 
-                    <span className="truncate">{venue.address || '住所未登録'}</span>
-                  </div>
-                </button>
-            ))
-          )}
+          ) : filtered.map(venue => (
+            <button key={venue.id} onClick={() => { onSelect(venue); onClose(); }}
+              className="w-full text-left p-4 bg-white border border-slate-100 rounded-[1.5rem] hover:border-emerald-300 hover:shadow-[0_4px_20px_rgba(16,185,129,0.15)] transition-all group">
+              <div className="font-black text-slate-800 group-hover:text-emerald-600 text-base mb-2 transition-colors">{venue.venueName}</div>
+              <div className="text-xs font-bold text-slate-500 flex items-center gap-1.5 bg-slate-50 p-2 rounded-xl">
+                <MapPin className="text-emerald-400 shrink-0" size={12} />
+                <span className="truncate">{venue.address || '住所未登録'}</span>
+              </div>
+            </button>
+          ))}
         </div>
       </motion.div>
     </div>
@@ -288,36 +257,61 @@ function VenueSelectionModal({ onClose, onSelect }) {
 
 function ImageLightbox({ url, onClose }) {
   return (
-    <div className="fixed inset-0 bg-slate-900/90 flex justify-center items-center z-[100] p-4 backdrop-blur-sm" onClick={onClose}>
-      <button onClick={onClose} className="absolute top-6 right-6 w-12 h-12 bg-white/10 rounded-full flex items-center justify-center text-white hover:bg-white/20 transition-colors z-[110] backdrop-blur-md border border-white/20">
-        <X size={24} />
+    <div className="fixed inset-0 bg-slate-900/90 flex items-center justify-center z-[100] p-4 backdrop-blur-sm" onClick={onClose}>
+      <button onClick={onClose} className="absolute top-5 right-5 w-11 h-11 bg-white/10 rounded-full flex items-center justify-center text-white hover:bg-white/20 transition-colors z-[110] border border-white/20">
+        <X size={22} />
       </button>
-      <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="relative w-full h-full flex items-center justify-center pointer-events-none">
-        <img src={url} alt="Enlarged design" className="max-w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl" />
-      </motion.div>
+      <motion.img
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        src={url} alt="" onClick={e => e.stopPropagation()}
+        className="max-w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl pointer-events-none"
+      />
     </div>
   );
 }
 
-// ===========================================
-// 🎨 MAIN FORM COMPONENT
-// ===========================================
+// ── Step Indicator ────────────────────────────────────────────
+function StepIndicator({ current }) {
+  return (
+    <div className="flex items-center justify-center gap-0 py-2">
+      {STEPS.map((s, i) => (
+        <div key={s.id} className="flex items-center">
+          <div className={cn(
+            'rounded-full transition-all duration-300 ease-out',
+            s.id === current
+              ? 'w-8 h-2.5 bg-gradient-to-r from-pink-500 to-rose-500 shadow-sm shadow-pink-300'
+              : s.id < current
+              ? 'w-2.5 h-2.5 bg-pink-300'
+              : 'w-2.5 h-2.5 bg-slate-200',
+          )} />
+          {i < STEPS.length - 1 && (
+            <div className={cn('h-0.5 w-4 mx-1 rounded transition-colors duration-300', s.id < current ? 'bg-pink-300' : 'bg-slate-100')} />
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
 
+// ── Main Form ─────────────────────────────────────────────────
 function CreateProjectForm() {
   const router = useRouter();
-  const searchParams = useSearchParams(); 
-  
+  const searchParams = useSearchParams();
   const eventIdFromUrl = searchParams.get('eventId');
   const venueIdFromUrl = searchParams.get('venueId');
 
   const { user, authenticatedFetch, loading: authLoading } = useAuth();
+
+  const [step, setStep] = useState(1);
+  const [dir, setDir] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [isDesignUploading, setIsDesignUploading] = useState(false);
-  
+
   const [isVenueModalOpen, setIsVenueModalOpen] = useState(false);
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
-  const [isAiPlanModalOpen, setIsAiPlanModalOpen] = useState(false); 
+  const [isAiPlanModalOpen, setIsAiPlanModalOpen] = useState(false);
   const [previewImageUrl, setPreviewImageUrl] = useState(null);
 
   const [selectedVenue, setSelectedVenue] = useState(null);
@@ -326,25 +320,20 @@ function CreateProjectForm() {
 
   const [deliveryDateObj, setDeliveryDateObj] = useState('');
   const [deliveryTimeText, setDeliveryTimeText] = useState('午前中');
-
-  // クリエイター募集設定用のステート
   const [needsIllustrator, setNeedsIllustrator] = useState(false);
-
-  // ★ 予算別カタログ用のステート
   const [budgetRefs, setBudgetRefs] = useState([]);
   const [isLoadingRefs, setIsLoadingRefs] = useState(true);
 
-  // ★ 修正: formDataにお急ぎ便フラグ(isExpress)を追加
   const [formData, setFormData] = useState({
     title: '',
     description: '',
     targetAmount: '',
-    minContributionAmount: '1000', 
-    deliveryAddress: '', 
+    minContributionAmount: '1000',
+    deliveryAddress: '',
     venueId: '',
     eventId: '',
     imageUrl: '',
-    designImageUrls: [], 
+    designImageUrls: [],
     designDetails: '',
     size: '',
     flowerTypes: '',
@@ -352,238 +341,221 @@ function CreateProjectForm() {
     password: '',
     illustratorBudget: '',
     illustratorRequirements: '',
-    isExpress: false // ★ 新規追加
+    isExpress: false,
   });
 
-  // ★ カタログデータの取得
   useEffect(() => {
-    const fetchBudgetRefs = async () => {
-      try {
-        const res = await fetch(`${API_URL}/api/tools/budget-references`);
-        if (res.ok) {
-          const data = await res.json();
-          setBudgetRefs(data);
-        }
-      } catch (error) {
-        console.error('カタログ取得エラー', error);
-      } finally {
-        setIsLoadingRefs(false);
-      }
-    };
-    fetchBudgetRefs();
+    fetch(`${API_URL}/api/tools/budget-references`)
+      .then(r => r.ok ? r.json() : [])
+      .then(setBudgetRefs)
+      .catch(() => {})
+      .finally(() => setIsLoadingRefs(false));
   }, []);
 
-  // 日付をもとに Rush Fee を計算
-  const calculateRushFee = () => {
+  const rushFeeAlert = (() => {
     if (!deliveryDateObj) return null;
-    
-    const now = new Date();
-    const target = new Date(`${deliveryDateObj}T12:00:00+09:00`);
-    const diffTime = target.getTime() - now.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-    if (diffDays <= 1) return { rate: '30%', days: '前日・当日', msg: '在庫対応か無理な時間調整を伴う「超特急」対応となります。' };
-    if (diffDays <= 3) return { rate: '20%', days: '2〜3日前', msg: '市場外での花材の急ぎ確保が必要になる時期です。' };
-    if (diffDays <= 7) return { rate: '10%', days: '4〜7日前', msg: '花材の予約がギリギリ間に合う時期です。スケジュール調整代がかかります。' };
-    
-    return null; 
-  };
-
-  const rushFeeAlert = calculateRushFee();
+    const diff = Math.ceil((new Date(`${deliveryDateObj}T12:00:00+09:00`) - Date.now()) / 86400000);
+    if (diff <= 1) return { rate: '30%', label: '超特急', days: '前日・当日', msg: '在庫対応か無理な時間調整を伴います。' };
+    if (diff <= 3) return { rate: '20%', label: '特急', days: '2〜3日前', msg: '市場外での花材の急ぎ確保が必要になる時期です。' };
+    if (diff <= 7) return { rate: '10%', label: '急ぎ', days: '4〜7日前', msg: '花材の予約がギリギリ間に合う時期です。' };
+    return null;
+  })();
 
   const uploadImageToS3 = async (file) => {
-    try {
-        const res = await authenticatedFetch('/api/tools/s3-upload-url', {
-            method: 'POST',
-            body: JSON.stringify({ fileName: file.name, fileType: file.type })
-        });
-        if (!res.ok) throw new Error('署名付きURLの取得に失敗しました');
-        const { uploadUrl, fileUrl } = await res.json();
-
-        return new Promise((resolve, reject) => {
-            const xhr = new XMLHttpRequest();
-            xhr.open('PUT', uploadUrl);
-            xhr.setRequestHeader('Content-Type', file.type);
-            xhr.onload = () => {
-                if (xhr.status === 200) resolve(fileUrl);
-                else reject(new Error('S3へのアップロードに失敗しました'));
-            };
-            xhr.onerror = () => reject(new Error('ネットワークエラーが発生しました'));
-            xhr.send(file);
-        });
-    } catch (error) {
-        throw error;
-    }
+    const res = await authenticatedFetch('/api/tools/s3-upload-url', {
+      method: 'POST',
+      body: JSON.stringify({ fileName: file.name, fileType: file.type }),
+    });
+    if (!res.ok) throw new Error('署名付きURLの取得に失敗しました');
+    const { uploadUrl, fileUrl } = await res.json();
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('PUT', uploadUrl);
+      xhr.setRequestHeader('Content-Type', file.type);
+      xhr.onload = () => xhr.status === 200 ? resolve(fileUrl) : reject(new Error('S3アップロード失敗'));
+      xhr.onerror = () => reject(new Error('ネットワークエラー'));
+      xhr.send(file);
+    });
   };
 
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
     setIsUploading(true);
-    const toastId = toast.loading('メイン画像をアップロード中...');
+    const tid = toast.loading('メイン画像をアップロード中...');
     try {
       const url = await uploadImageToS3(file);
-      setFormData(prev => ({ ...prev, imageUrl: url }));
-      toast.success('画像をアップロードしました！', { id: toastId });
-    } catch (error) {
-      toast.error('アップロードに失敗しました。', { id: toastId });
-    } finally {
-      setIsUploading(false);
-    }
+      setFormData(p => ({ ...p, imageUrl: url }));
+      toast.success('画像をアップロードしました！', { id: tid });
+    } catch { toast.error('アップロードに失敗しました', { id: tid }); }
+    finally { setIsUploading(false); }
   };
 
   const handleDesignImagesUpload = async (e) => {
     const files = Array.from(e.target.files);
-    if (files.length === 0) return;
+    if (!files.length) return;
     setIsDesignUploading(true);
-    const toastId = toast.loading(`${files.length}枚の画像をアップロード中...`);
-    const uploadedUrls = [];
+    const tid = toast.loading(`${files.length}枚アップロード中...`);
     try {
-        for (const file of files) {
-            const url = await uploadImageToS3(file);
-            uploadedUrls.push(url);
-        }
-        setFormData(prev => ({ ...prev, designImageUrls: [...prev.designImageUrls, ...uploadedUrls] }));
-        toast.success('デザイン画像をアップロードしました！', { id: toastId });
-    } catch (error) {
-        toast.error('一部の画像のアップロードに失敗しました', { id: toastId });
-    } finally {
-        setIsDesignUploading(false);
-        e.target.value = '';
-    }
+      const urls = await Promise.all(files.map(f => uploadImageToS3(f)));
+      setFormData(p => ({ ...p, designImageUrls: [...p.designImageUrls, ...urls] }));
+      toast.success('デザイン画像をアップロードしました！', { id: tid });
+    } catch { toast.error('一部のアップロードに失敗しました', { id: tid }); }
+    finally { setIsDesignUploading(false); e.target.value = ''; }
   };
 
   const fetchEventDetails = useCallback(async (id) => {
     if (!id) { setEventLoading(false); return; }
     try {
-        const res = await fetch(`${API_URL}/api/events/${id}`);
-        if (res.ok) {
-            const data = await res.json();
-            setSelectedEvent(data);
-            
-            if (data.eventDate) {
-              const d = new Date(data.eventDate);
-              const datePart = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-              setDeliveryDateObj(datePart);
-            }
-
-            setFormData(prev => ({
-                ...prev,
-                title: data.title ? `【企画】${data.title} フラスタ企画` : prev.title, 
-                eventId: data.id,
-                ...(data.venue ? { venueId: data.venue.id, deliveryAddress: data.venue.address || data.venue.venueName } : {})
-            }));
-            if (data.venue) setSelectedVenue(data.venue);
-        }
-    } catch (error) { console.error(error); } finally { setEventLoading(false); }
+      const res = await fetch(`${API_URL}/api/events/${id}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setSelectedEvent(data);
+      if (data.eventDate) {
+        const d = new Date(data.eventDate);
+        setDeliveryDateObj(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`);
+      }
+      setFormData(prev => ({
+        ...prev,
+        title: data.title ? `【企画】${data.title} フラスタ企画` : prev.title,
+        eventId: data.id,
+        ...(data.venue ? { venueId: data.venue.id, deliveryAddress: data.venue.address || data.venue.venueName } : {}),
+      }));
+      if (data.venue) setSelectedVenue(data.venue);
+    } catch { /* ignore */ }
+    finally { setEventLoading(false); }
   }, []);
+
+  const handleVenueSelect = (venue) => {
+    if (venue) {
+      setSelectedVenue(venue);
+      setFormData(p => ({ ...p, deliveryAddress: venue.address || venue.venueName, venueId: venue.id }));
+    } else {
+      setSelectedVenue(null);
+      setFormData(p => ({ ...p, deliveryAddress: '', venueId: '' }));
+    }
+  };
 
   useEffect(() => {
     if (authLoading) return;
     if (!user) { router.push('/login'); return; }
-    if (user.role !== 'USER' && user.role !== 'ORGANIZER' && user.role !== 'ADMIN') {
-        toast.error('企画作成は一般ユーザー、主催者のみ可能です。');
-        router.push('/');
-        return;
+    if (!['USER', 'ORGANIZER', 'ADMIN'].includes(user.role)) {
+      toast.error('企画作成は一般ユーザー・主催者のみ可能です。');
+      router.push('/');
+      return;
     }
-    if (eventIdFromUrl) { fetchEventDetails(eventIdFromUrl); } 
+    if (eventIdFromUrl) fetchEventDetails(eventIdFromUrl);
     else if (venueIdFromUrl) {
-        fetch(`${API_URL}/api/venues/${venueIdFromUrl}`)
-            .then(res => res.json())
-            .then(v => {
-                if(v) handleVenueSelect(v);
-                setEventLoading(false);
-            })
-            .catch(() => setEventLoading(false));
+      fetch(`${API_URL}/api/venues/${venueIdFromUrl}`)
+        .then(r => r.json())
+        .then(v => { if (v) handleVenueSelect(v); })
+        .catch(() => {})
+        .finally(() => setEventLoading(false));
     } else {
-        setEventLoading(false);
+      setEventLoading(false);
     }
   }, [user, authLoading, router, eventIdFromUrl, venueIdFromUrl, fetchEventDetails]);
-  
+
   const handleEventSelect = (event) => {
     if (!event) return;
     setSelectedEvent(event);
-    
     if (event.eventDate) {
       const d = new Date(event.eventDate);
-      const datePart = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-      setDeliveryDateObj(datePart);
+      setDeliveryDateObj(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`);
     }
-
-    setFormData(prev => ({
-        ...prev,
-        title: `【企画】${event.title} フラスタ企画`, 
-        eventId: event.id,
-        ...(event.venue ? { venueId: event.venue.id, deliveryAddress: event.venue.address || event.venue.venueName } : {})
+    setFormData(p => ({
+      ...p,
+      title: `【企画】${event.title} フラスタ企画`,
+      eventId: event.id,
+      ...(event.venue ? { venueId: event.venue.id, deliveryAddress: event.venue.address || event.venue.venueName } : {}),
     }));
     if (event.venue) setSelectedVenue(event.venue);
     toast.success('イベント情報をセットしました！');
   };
 
-  const handleVenueSelect = (venue) => {
-      if (venue) {
-          setSelectedVenue(venue);
-          setFormData(prev => ({ ...prev, deliveryAddress: venue.address || venue.venueName, venueId: venue.id }));
-      } else {
-          setSelectedVenue(null);
-          setFormData(prev => ({ ...prev, deliveryAddress: '', venueId: '' }));
-      }
-  };
-
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData(p => ({ ...p, [name]: value }));
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (isSubmitting) return;
+  const validateStep = (s) => {
+    switch (s) {
+      case 1:
+        if (formData.projectType === 'PRIVATE' && !formData.password.trim())
+          return '合言葉（パスワード）を入力してください';
+        return null;
+      case 2:
+        if (!formData.title.trim()) return '企画タイトルを入力してください';
+        if (!formData.description.trim()) return '企画の説明を入力してください';
+        return null;
+      case 3: {
+        const amount = parseInt(formData.targetAmount, 10);
+        if (isNaN(amount) || amount < 1000) return '目標金額は1,000円以上で設定してください';
+        return null;
+      }
+      case 4:
+        if (!selectedVenue && !formData.deliveryAddress.trim()) return 'お届け先を入力してください';
+        if (!deliveryDateObj) return '納品希望日を選択してください';
+        if (needsIllustrator && !formData.illustratorBudget) return 'クリエイターへの依頼予算を入力してください';
+        if (needsIllustrator && !formData.illustratorRequirements.trim()) return '求めるイラストの条件を入力してください';
+        return null;
+      default:
+        return null;
+    }
+  };
 
+  const goNext = () => {
+    const err = validateStep(step);
+    if (err) { toast.error(err); return; }
+    setDir(1);
+    setStep(s => s + 1);
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  };
+
+  const goPrev = () => {
+    setDir(-1);
+    setStep(s => s - 1);
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  };
+
+  const handleSubmit = async () => {
+    if (isSubmitting) return;
     let deliveryDateTimeISO;
     try {
-        if (!deliveryDateObj) throw new Error("納品希望日を選択してください");
-        
-        const dateObj = new Date(`${deliveryDateObj}T12:00:00+09:00`); 
-        if (isNaN(dateObj.getTime())) throw new Error("日時の形式が正しくありません");
-        
-        deliveryDateTimeISO = dateObj.toISOString();
+      if (!deliveryDateObj) throw new Error('納品希望日を選択してください');
+      const dateObj = new Date(`${deliveryDateObj}T12:00:00+09:00`);
+      if (isNaN(dateObj.getTime())) throw new Error('日時の形式が正しくありません');
+      deliveryDateTimeISO = dateObj.toISOString();
     } catch (err) {
-        return toast.error(err.message);
-    }
-
-    const amount = parseInt(formData.targetAmount, 10);
-    if (isNaN(amount) || amount < 1000) {
-        return toast.error('目標金額は1,000pt以上で設定してください');
+      toast.error(err.message);
+      return;
     }
 
     setIsSubmitting(true);
-    const toastId = toast.loading('企画を保存中...');
-
+    const tid = toast.loading('企画を保存中...');
     try {
+      const amount = parseInt(formData.targetAmount, 10);
       const payload = {
-        title: formData.title || "",
-        description: formData.description || "",
+        title: formData.title || '',
+        description: formData.description || '',
         targetAmount: amount,
-        minContributionAmount: parseInt(formData.minContributionAmount, 10) || 1000, 
-        deliveryAddress: `${formData.deliveryAddress || (selectedVenue?.address || "")} 【希望時間帯: ${deliveryTimeText || '指定なし'}】`,
+        minContributionAmount: parseInt(formData.minContributionAmount, 10) || 1000,
+        deliveryAddress: `${formData.deliveryAddress || selectedVenue?.address || ''} 【希望時間帯: ${deliveryTimeText || '指定なし'}】`,
         deliveryDateTime: deliveryDateTimeISO,
-        imageUrl: formData.imageUrl || "",
+        imageUrl: formData.imageUrl || '',
         designImageUrls: formData.designImageUrls || [],
-        designDetails: formData.designDetails || "",
-        size: formData.size || "",
-        flowerTypes: formData.flowerTypes || "",
-        projectType: formData.projectType || "PUBLIC",
+        designDetails: formData.designDetails || '',
+        size: formData.size || '',
+        flowerTypes: formData.flowerTypes || '',
+        projectType: formData.projectType || 'PUBLIC',
         password: formData.password || null,
         venueId: selectedVenue?.id || null,
         eventId: selectedEvent?.id || null,
-        visibility: "PUBLIC",
-        
-        needsIllustrator: needsIllustrator,
+        visibility: 'PUBLIC',
+        needsIllustrator,
         illustratorBudget: needsIllustrator ? parseInt(formData.illustratorBudget, 10) : null,
         illustratorRequirements: needsIllustrator ? formData.illustratorRequirements : null,
-        
-        // ★ 修正: お急ぎ便フラグを送信
-        isExpress: formData.isExpress
+        isExpress: formData.isExpress,
       };
 
       const res = await authenticatedFetch(`${API_URL}/api/projects`, {
@@ -592,407 +564,614 @@ function CreateProjectForm() {
       });
 
       if (!res.ok) {
-          const errorData = await res.json().catch(() => ({}));
-          throw new Error(errorData.message || '作成に失敗しました。');
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || '作成に失敗しました。');
       }
 
-      toast.success('企画を作成しました！', { id: toastId });
+      toast.success('企画を作成しました！', { id: tid });
       setTimeout(() => { window.location.href = '/mypage'; }, 1000);
-
-    } catch (error) { 
-        setIsSubmitting(false);
-        toast.error(error.message, { id: toastId }); 
+    } catch (error) {
+      setIsSubmitting(false);
+      toast.error(error.message, { id: tid });
     }
   };
 
   if (authLoading || !user || eventLoading) {
-    return <div className="min-h-screen flex items-center justify-center bg-pink-50/50"><Loader2 className="animate-spin text-pink-500 w-12 h-12" /></div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-pink-50/50">
+        <Loader2 className="animate-spin text-pink-500 w-12 h-12" />
+      </div>
+    );
   }
 
-  return (
-    <div className="bg-gradient-to-br from-pink-50 to-sky-50 min-h-screen py-16 font-sans text-slate-800 relative overflow-hidden">
-      <FloatingParticles />
-      <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-pink-200/40 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/3 pointer-events-none" />
-      <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-sky-200/30 rounded-full blur-[100px] translate-y-1/3 -translate-x-1/3 pointer-events-none" />
+  // ── Step content renderers ─────────────────────────────────
+  const renderStep = () => {
+    switch (step) {
 
-      {/* 戻るボタン */}
-      <button
-        type="button"
-        onClick={() => router.back()}
-        className="fixed top-0 left-0 z-40 m-4 w-10 h-10 bg-white/80 hover:bg-white backdrop-blur-md rounded-full flex items-center justify-center text-slate-500 border border-slate-200 shadow-sm transition-colors active:scale-95"
-        style={{ marginTop: 'calc(1rem + env(safe-area-inset-top))' }}
-        aria-label="戻る"
-      >
-        <ChevronLeft size={20} />
-      </button>
-
-      <div className="max-w-4xl mx-auto px-4 md:px-6 relative z-10">
-
-        <div className="text-center mb-12">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-white rounded-3xl shadow-lg border border-pink-100 mb-6 text-pink-500 rotate-3">
-            <Sparkles size={32} className="animate-pulse" />
+      // STEP 1: イベントと公開設定
+      case 1: return (
+        <div className="space-y-5">
+          <div className="text-center pt-2 pb-2">
+            <div className="inline-flex items-center justify-center w-14 h-14 bg-white rounded-[1.5rem] shadow-lg border border-pink-100 mb-4 text-pink-500">
+              <Sparkles size={28} className="animate-pulse" />
+            </div>
+            <h2 className="text-2xl font-black text-slate-800 tracking-tight mb-1">推しへの想いを形にしよう</h2>
+            <p className="text-sm font-bold text-slate-400">素敵なフラスタ企画を立ち上げましょう🌸</p>
           </div>
-          <h1 className="text-3xl md:text-5xl font-black text-slate-800 tracking-tighter mb-4">推しへの想いを形にしよう</h1>
-          <p className="text-slate-500 font-bold text-sm md:text-base">素敵なフラスタ企画を立ち上げて、仲間を集めましょう🌸</p>
-        </div>
 
-        <form onSubmit={handleSubmit} className="space-y-8 md:space-y-12">
-          
-          {/* --- EVENT BANNER --- */}
-          <GlassCard className="!p-8 overflow-hidden relative border-2 border-indigo-100 bg-gradient-to-br from-white/90 to-indigo-50/80">
+          <GlassCard className="border-2 border-indigo-100 bg-gradient-to-br from-white/90 to-indigo-50/80">
             {!selectedEvent ? (
-              <button type="button" onClick={() => setIsEventModalOpen(true)} className="w-full flex flex-col md:flex-row items-center justify-between gap-6 group text-left">
-                  <div className="flex items-center gap-6">
-                    <div className="w-16 h-16 bg-indigo-100 text-indigo-500 rounded-2xl flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform shrink-0"><Calendar size={28} /></div>
-                    <div>
-                        <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1 flex items-center gap-1"><Sparkles size={12}/> Recommended</p>
-                        <p className="font-black text-xl md:text-2xl text-slate-800 group-hover:text-indigo-600 transition-colors">公式イベントを選択する</p>
-                        <p className="text-xs font-bold text-slate-500 mt-1">会場や日時が自動で入力されてとっても便利です✨</p>
-                    </div>
-                  </div>
-                  <div className="w-12 h-12 bg-white rounded-full shadow-sm flex items-center justify-center text-indigo-300 group-hover:bg-indigo-500 group-hover:text-white transition-all border border-indigo-50 shrink-0"><ArrowRight size={20} /></div>
+              <button type="button" onClick={() => setIsEventModalOpen(true)}
+                className="w-full flex items-center gap-4 group text-left">
+                <div className="w-14 h-14 bg-indigo-100 text-indigo-500 rounded-2xl flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform shrink-0">
+                  <Calendar size={24} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-0.5 flex items-center gap-1">
+                    <Sparkles size={10} /> Recommended
+                  </p>
+                  <p className="font-black text-lg text-slate-800 group-hover:text-indigo-600 transition-colors">公式イベントを選択する</p>
+                  <p className="text-xs font-bold text-slate-400 mt-0.5">会場・日時が自動で入力されます✨</p>
+                </div>
+                <div className="w-10 h-10 bg-white rounded-full shadow-sm flex items-center justify-center text-indigo-300 group-hover:bg-indigo-500 group-hover:text-white transition-all border border-indigo-50 shrink-0">
+                  <ArrowRight size={18} />
+                </div>
               </button>
             ) : (
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                <div>
-                  <span className="bg-indigo-500 text-white text-[10px] px-3 py-1 rounded-full font-black tracking-widest uppercase mb-3 inline-block shadow-md">Official Event</span>
-                  <h3 className="font-black text-slate-800 text-xl md:text-2xl mb-3 flex items-center gap-2"><Calendar className="text-indigo-500"/> {selectedEvent.title}</h3>
-                  <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-slate-600">
-                      <span className="bg-white px-3 py-1.5 rounded-lg border border-slate-100 shadow-sm flex items-center gap-1"><Clock size={12} className="text-indigo-400"/>{formatDisplayDate(selectedEvent.eventDate)}</span>
-                      <span className="bg-white px-3 py-1.5 rounded-lg border border-slate-100 shadow-sm flex items-center gap-1"><MapPin size={12} className="text-indigo-400"/>{selectedEvent.venue?.venueName || '会場未定'}</span>
-                  </div>
+              <div className="space-y-3">
+                <span className="bg-indigo-500 text-white text-[10px] px-3 py-1 rounded-full font-black tracking-widest uppercase inline-block shadow-sm">Official Event</span>
+                <h3 className="font-black text-slate-800 text-lg flex items-center gap-2">
+                  <Calendar className="text-indigo-500 shrink-0" size={18} /> {selectedEvent.title}
+                </h3>
+                <div className="flex flex-wrap gap-2 text-xs font-bold text-slate-600">
+                  <span className="bg-white px-3 py-1.5 rounded-xl border border-slate-100 shadow-sm flex items-center gap-1.5">
+                    <Clock size={11} className="text-indigo-400" />{formatDisplayDate(selectedEvent.eventDate)}
+                  </span>
+                  <span className="bg-white px-3 py-1.5 rounded-xl border border-slate-100 shadow-sm flex items-center gap-1.5">
+                    <MapPin size={11} className="text-indigo-400" />{selectedEvent.venue?.venueName || '会場未定'}
+                  </span>
                 </div>
-                <button type="button" onClick={() => { setSelectedEvent(null); setSelectedVenue(null); setFormData(p => ({ ...p, eventId: '', title: '', venueId: '', deliveryAddress: '' })); setDeliveryDateObj(''); }} className="px-4 py-2 bg-white text-xs font-bold text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full border border-slate-200 transition-all shadow-sm">
-                  イベント選択を解除
+                <button type="button"
+                  onClick={() => { setSelectedEvent(null); setSelectedVenue(null); setFormData(p => ({ ...p, eventId: '', title: '', venueId: '', deliveryAddress: '' })); setDeliveryDateObj(''); }}
+                  className="text-xs font-bold text-slate-400 hover:text-red-500 bg-white border border-slate-100 px-3 py-1.5 rounded-full transition-colors">
+                  選択を解除
                 </button>
               </div>
             )}
           </GlassCard>
 
-          {/* --- BLOCK 1: 公開設定 --- */}
           <GlassCard>
-            <InputLabel icon={Globe} title="公開設定" subtitle="企画への参加条件を選びましょう" required />
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6">
-                {[
-                    { id: 'PUBLIC', icon: '🌍', title: 'みんなで', desc: '全体に公開', color: 'sky' },
-                    { id: 'PRIVATE', icon: '🔒', title: '仲間と', desc: '合言葉で限定', color: 'purple' },
-                    { id: 'SOLO', icon: '👤', title: 'ひとりで', desc: '自分専用依頼', color: 'emerald' },
-                ].map((type) => (
-                    <button key={type.id} type="button" onClick={() => setFormData(p => ({...p, projectType: type.id}))} 
-                        className={cn(
-                          "p-6 rounded-[2rem] border-2 text-center transition-all flex flex-col items-center justify-center",
-                          formData.projectType === type.id ? `border-${type.color}-400 bg-white shadow-lg scale-105 ring-4 ring-${type.color}-100` : 'border-white bg-white/40 hover:bg-white/80 hover:border-slate-200'
-                        )}>
-                        <div className="text-4xl mb-3 drop-shadow-sm">{type.icon}</div>
-                        <div className={cn("font-black text-sm mb-1", formData.projectType === type.id ? `text-${type.color}-600` : "text-slate-600")}>{type.title}</div>
-                        <div className="text-[10px] text-slate-400 font-bold">{type.desc}</div>
-                    </button>
-                ))}
+            <InputLabel icon={Globe} title="公開設定" subtitle="参加条件を選びましょう" required />
+            <div className="grid grid-cols-3 gap-3 mt-4">
+              {[
+                { id: 'PUBLIC',  emoji: '🌍', title: 'みんなで', desc: '全体公開',   color: 'sky' },
+                { id: 'PRIVATE', emoji: '🔒', title: '仲間と',   desc: '合言葉限定', color: 'purple' },
+                { id: 'SOLO',    emoji: '👤', title: 'ひとりで', desc: '自分専用',   color: 'emerald' },
+              ].map((type) => (
+                <button key={type.id} type="button"
+                  onClick={() => setFormData(p => ({ ...p, projectType: type.id }))}
+                  className={cn(
+                    'py-4 px-2 rounded-[1.5rem] border-2 text-center transition-all flex flex-col items-center',
+                    formData.projectType === type.id
+                      ? `border-${type.color}-400 bg-white shadow-md ring-4 ring-${type.color}-100 scale-[1.03]`
+                      : 'border-white/80 bg-white/40 hover:bg-white/70',
+                  )}>
+                  <div className="text-3xl mb-2">{type.emoji}</div>
+                  <div className={cn('font-black text-xs mb-0.5', formData.projectType === type.id ? `text-${type.color}-600` : 'text-slate-600')}>
+                    {type.title}
+                  </div>
+                  <div className="text-[10px] text-slate-400 font-bold">{type.desc}</div>
+                </button>
+              ))}
             </div>
             <AnimatePresence>
               {formData.projectType === 'PRIVATE' && (
-                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="mt-6 bg-purple-50/50 p-6 rounded-[2rem] border border-purple-100 overflow-hidden">
-                      <InputLabel icon={Lock} title="合言葉（パスワード）" subtitle="参加者にこの合言葉を教えてあげてください" required />
-                      <GlassInput type="text" name="password" value={formData.password} onChange={handleChange} placeholder="例: oshi2026" className="!bg-white font-mono tracking-widest text-lg"/>
-                  </motion.div>
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
+                  className="mt-4 overflow-hidden">
+                  <div className="bg-purple-50/60 p-4 rounded-[1.5rem] border border-purple-100">
+                    <InputLabel icon={Lock} title="合言葉（パスワード）" subtitle="参加者に教える合言葉" required />
+                    <GlassInput type="text" name="password" value={formData.password} onChange={handleChange}
+                      placeholder="例: oshi2026" className="!bg-white font-mono tracking-widest" />
+                  </div>
+                </motion.div>
               )}
             </AnimatePresence>
           </GlassCard>
+        </div>
+      );
 
-          {/* --- BLOCK 2: 企画の想い --- */}
+      // STEP 2: タイトル・説明
+      case 2: return (
+        <div className="space-y-5">
           <GlassCard>
-            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6 border-b border-slate-100/50 pb-6">
-              <InputLabel icon={FileText} title="企画の想い" subtitle="どんなお祝いにしたいか、熱い想いを書きましょう！" />
-              <button type="button" onClick={() => setIsAiPlanModalOpen(true)} className="flex items-center justify-center gap-2 text-xs bg-gradient-to-r from-pink-50 to-purple-50 text-purple-600 border border-purple-200 px-5 py-2.5 rounded-full font-black shadow-sm hover:shadow-md hover:scale-105 transition-all">
-                <Wand2 size={14} /> <span>AIにおまかせ文章作成</span>
+            <div className="flex items-center justify-between mb-3">
+              <InputLabel icon={FileText} title="企画タイトル" required />
+              <button type="button" onClick={() => setIsAiPlanModalOpen(true)}
+                className="flex items-center gap-1.5 text-xs bg-gradient-to-r from-pink-50 to-purple-50 text-purple-600 border border-purple-200 px-3 py-2 rounded-full font-black shadow-sm hover:shadow-md hover:scale-105 transition-all shrink-0">
+                <Wand2 size={12} /> AIで作成
               </button>
             </div>
-            
-            <div className="space-y-6">
-              <div>
-                  <InputLabel title="企画タイトル" required />
-                  <GlassInput type="text" name="title" required value={formData.title} onChange={handleChange} placeholder="例：○○さん出演祝いフラスタ企画"/>
-              </div>
-              <div>
-                  <InputLabel title="企画の詳しい説明" required />
-                  <GlassTextarea name="description" required value={formData.description} onChange={handleChange} rows="6" placeholder="趣旨や想いを熱く語ってください！参加者の心を動かします✨" />
+            <GlassInput
+              type="text" name="title" required
+              value={formData.title} onChange={handleChange}
+              placeholder="例：○○さん出演祝いフラスタ企画"
+            />
+          </GlassCard>
+
+          <GlassCard>
+            <InputLabel icon={FileText} title="企画の説明" subtitle="熱い想いを語りましょう！" required />
+            <GlassTextarea
+              name="description" required rows={8}
+              value={formData.description} onChange={handleChange}
+              placeholder="趣旨や想いを熱く語ってください！参加者の心を動かします✨"
+            />
+            <p className="text-[10px] text-slate-400 font-bold mt-2 ml-1">
+              ※具体的なメッセージほど参加者が集まりやすくなります
+            </p>
+          </GlassCard>
+        </div>
+      );
+
+      // STEP 3: 予算
+      case 3: return (
+        <div className="space-y-5">
+          <GlassCard className="border-2 border-pink-100 bg-gradient-to-b from-white/90 to-pink-50/40">
+            <InputLabel icon={Award} title="目標金額" subtitle="お花の総予算を決めましょう" required />
+            <div className="mt-3 flex items-center justify-center bg-white/80 p-6 rounded-[2rem] border border-pink-100 shadow-inner">
+              <span className="text-2xl text-pink-400 font-black mr-3">¥</span>
+              <input type="number" name="targetAmount" required
+                value={formData.targetAmount} onChange={handleChange}
+                className="text-5xl md:text-6xl font-black text-slate-800 bg-transparent border-none focus:ring-0 w-full max-w-[260px] text-center placeholder:text-slate-200 outline-none"
+                placeholder="30000" />
+            </div>
+            <div className="mt-5 pt-4 border-t border-pink-100/60">
+              <InputLabel title="一口あたりの最低参加額" subtitle="参加者が支援する最低金額" required />
+              <div className="flex items-center gap-2 max-w-xs">
+                <span className="text-lg text-pink-400 font-black">¥</span>
+                <GlassInput type="number" name="minContributionAmount" min="100" step="100" required
+                  value={formData.minContributionAmount} onChange={handleChange}
+                  className="text-lg text-center" />
+                <span className="font-bold text-slate-400 shrink-0">から</span>
               </div>
             </div>
           </GlassCard>
 
-          {/* --- BLOCK 2.5: 予算とボリュームの目安 (カタログ) --- */}
           <GlassCard>
-            <InputLabel icon={ImageIcon} title="予算とボリュームの目安" subtitle="過去の実績を参考に、作りたいフラスタの規模をイメージしましょう" />
-            
+            <InputLabel icon={ImageIcon} title="予算・ボリューム目安" subtitle="過去実績でイメージを掴もう" />
             {isLoadingRefs ? (
-                <div className="flex justify-center items-center py-12">
-                    <Loader2 className="animate-spin text-pink-400" size={32}/>
-                </div>
+              <div className="flex justify-center py-10"><Loader2 className="animate-spin text-pink-400" size={28} /></div>
             ) : budgetRefs.length === 0 ? (
-                <div className="text-center py-8 text-slate-400 font-bold bg-slate-50 rounded-2xl border border-slate-100 mt-4">
-                    現在登録されているカタログはありません
-                </div>
+              <div className="text-center py-8 text-slate-400 font-bold text-sm bg-slate-50 rounded-2xl border border-slate-100 mt-3">
+                現在登録されているカタログはありません
+              </div>
             ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mt-6">
-                    {budgetRefs.map(ref => (
-                        <div key={ref.id} className="border-2 border-slate-100 rounded-[2rem] overflow-hidden bg-white hover:border-pink-300 hover:shadow-xl hover:-translate-y-1 transition-all group">
-                            <div className="relative h-40 w-full bg-slate-100 overflow-hidden">
-                                <img src={ref.imageUrl} alt={ref.label} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                            </div>
-                            <div className="p-4 text-center bg-white relative z-10">
-                                <h4 className="font-black text-slate-800 mb-1">{ref.label}</h4>
-                                <p className="text-[10px] sm:text-xs text-slate-500 font-bold leading-relaxed">{ref.description}</p>
-                            </div>
-                        </div>
-                    ))}
-                </div>
+              <div className="mt-3 flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 snap-x snap-mandatory">
+                {budgetRefs.map(ref => (
+                  <div key={ref.id} className="snap-start shrink-0 w-44 border-2 border-slate-100 rounded-[1.5rem] overflow-hidden bg-white hover:border-pink-300 transition-all">
+                    <div className="relative h-28 w-full bg-slate-100 overflow-hidden">
+                      <img src={ref.imageUrl} alt={ref.label} className="w-full h-full object-cover" />
+                    </div>
+                    <div className="p-3 text-center">
+                      <h4 className="font-black text-slate-800 text-sm mb-1">{ref.label}</h4>
+                      <p className="text-[10px] text-slate-500 font-bold leading-relaxed line-clamp-2">{ref.description}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
             )}
-            <p className="text-[10px] text-slate-400 font-bold mt-4 text-center">※上記はあくまで目安です。実際はお花屋さんとの相談で柔軟に調整できます。</p>
+            <p className="text-[10px] text-slate-400 font-bold mt-3 text-center">※あくまで目安です。お花屋さんとの相談で調整できます。</p>
           </GlassCard>
+        </div>
+      );
 
-          {/* --- BLOCK 3: 目標金額と最低参加額 --- */}
-          <GlassCard className="border-4 border-pink-100 bg-gradient-to-b from-white/90 to-pink-50/30">
-            <InputLabel icon={Award} title="目標金額" subtitle="お花の制作や装飾品にかかる総予算を決めましょう" required />
-            <div className="mt-4 flex items-center justify-center bg-white/80 p-8 rounded-[2.5rem] border border-pink-100 shadow-inner">
-                <span className="text-3xl text-pink-400 font-black mr-4">¥</span>
-                <input type="number" name="targetAmount" required value={formData.targetAmount} onChange={handleChange}
-                  className="text-5xl md:text-7xl font-black text-slate-800 bg-transparent border-none focus:ring-0 w-full max-w-[300px] text-center placeholder:text-slate-200 outline-none"
-                  placeholder="30000" />
-            </div>
-
-            <div className="mt-8 border-t border-pink-100/50 pt-6">
-                <InputLabel title="一口あたりの最低参加額（最低支援額）" subtitle="参加者が支援する際の最低金額を設定します" required />
-                <div className="flex items-center gap-2 max-w-xs">
-                    <span className="text-xl text-pink-400 font-black">¥</span>
-                    <GlassInput 
-                        type="number" 
-                        name="minContributionAmount" 
-                        min="100" 
-                        step="100"
-                        required 
-                        value={formData.minContributionAmount} 
-                        onChange={handleChange} 
-                        className="text-xl text-center" 
-                    />
-                    <span className="font-bold text-slate-400">から</span>
-                </div>
-            </div>
-          </GlassCard>
-
-          {/* --- BLOCK 4: お届け先と日時 --- */}
+      // STEP 4: お届けとデザイン
+      case 4: return (
+        <div className="space-y-5">
           <GlassCard>
-             <div className="flex justify-between items-center mb-6">
-                <InputLabel icon={MapPin} title="お届け先" required />
-                <button type="button" onClick={() => setIsVenueModalOpen(true)} className="text-xs bg-emerald-50 text-emerald-600 px-4 py-2 rounded-full font-bold border border-emerald-200 hover:bg-emerald-100 transition-colors flex items-center gap-1"><Search size={12}/> 会場を検索</button>
-             </div>
-             {selectedVenue ? (
-                 <div className="mb-8">
-                     <div className="p-6 bg-emerald-50 border border-emerald-200 rounded-[2rem] flex justify-between items-center shadow-sm">
-                         <div>
-                             <p className="font-black text-emerald-900 text-xl mb-1">{selectedVenue.venueName}</p>
-                             <p className="text-xs font-bold text-emerald-700 opacity-80">{selectedVenue.address}</p>
-                         </div>
-                         <button type="button" onClick={() => handleVenueSelect(null)} className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-emerald-400 hover:text-red-500 transition-colors shadow-sm"><X size={18}/></button>
-                     </div>
-                 </div>
-             ) : (
-                 <GlassInput type="text" name="deliveryAddress" required value={formData.deliveryAddress} onChange={handleChange} className="mb-8" placeholder="例：東京都渋谷区○○..." />
-             )}
-             
-             <div>
-                <InputLabel icon={Clock} title="納品希望日・時間帯" required />
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="relative">
-                        <GlassInput type="date" required value={deliveryDateObj} onChange={(e) => setDeliveryDateObj(e.target.value)} />
-                    </div>
-                    <div className="relative">
-                        <GlassInput type="text" required list="time-slots" value={deliveryTimeText} onChange={(e) => setDeliveryTimeText(e.target.value)} placeholder="例: 午前中、13:00〜15:00" />
-                        <datalist id="time-slots">
-                            <option value="午前中" />
-                            <option value="12:00〜14:00" />
-                            <option value="14:00〜16:00" />
-                            <option value="16:00〜18:00" />
-                            <option value="時間指定なし" />
-                        </datalist>
-                    </div>
+            <div className="flex items-center justify-between mb-3">
+              <InputLabel icon={MapPin} title="お届け先" required />
+              <button type="button" onClick={() => setIsVenueModalOpen(true)}
+                className="text-xs bg-emerald-50 text-emerald-600 px-3 py-2 rounded-full font-bold border border-emerald-200 hover:bg-emerald-100 transition-colors flex items-center gap-1 shrink-0">
+                <Search size={11} /> 会場を検索
+              </button>
+            </div>
+            {selectedVenue ? (
+              <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-[1.5rem] flex justify-between items-center">
+                <div>
+                  <p className="font-black text-emerald-900 text-base">{selectedVenue.venueName}</p>
+                  <p className="text-xs font-bold text-emerald-700 opacity-80 mt-0.5">{selectedVenue.address}</p>
                 </div>
-                
-                <p className="text-[10px] text-slate-400 font-bold mt-2 ml-2">※お花屋さんが動きやすいよう、アバウトな時間帯指定をお願いしています。</p>
-                
-                <AnimatePresence>
-                  {rushFeeAlert && (
-                    <motion.div initial={{ opacity: 0, y: -10, height: 0 }} animate={{ opacity: 1, y: 0, height: 'auto' }} exit={{ opacity: 0, y: -10, height: 0 }} className="mt-4 p-4 md:p-5 bg-rose-50 border border-rose-200 rounded-2xl flex items-start gap-3 overflow-hidden shadow-sm">
-                      <AlertTriangle className="text-rose-500 shrink-0 mt-0.5" size={20} />
-                      <div>
-                        <p className="text-sm font-black text-rose-700">⚠️ お急ぎ対応料金（目安: {rushFeeAlert.rate}加算）</p>
-                        <p className="text-xs text-rose-600/80 font-bold mt-1.5 leading-relaxed">納品まで残り日数が短いため（{rushFeeAlert.days}）、お花屋さんからの見積もりに特急料金が自動加算されます。<br/><span className="opacity-80 block mt-1">理由: {rushFeeAlert.msg}</span></p>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-
-                {/* ★ 追加: 募集締切とお急ぎ便の設定 */}
-                <div className="bg-sky-50 border border-sky-100 rounded-2xl p-5 md:p-6 my-6">
-                    <h3 className="font-black text-sky-800 text-sm mb-3 flex items-center gap-2">
-                        <Clock size={16}/> 募集締切について（自動設定）
-                    </h3>
-                    <p className="text-xs text-sky-700 leading-relaxed mb-4">
-                        お花屋さんへの発注と制作期間を確保するため、募集の締切日は原則として<br className="hidden md:block"/>
-                        <strong className="text-rose-500 font-black border-b-2 border-rose-200">「納品希望日の7日前の深夜0時」</strong> にシステムで自動設定されます。<br/>
-                        ※目標金額に到達した場合は、その時点で即時締め切り（発注確定）となります。
-                    </p>
-                    
-                    <label className="flex items-start gap-3 p-4 bg-white rounded-xl border border-sky-100 cursor-pointer hover:border-sky-300 transition-colors shadow-sm">
-                        <input 
-                            type="checkbox" 
-                            checked={formData.isExpress}
-                            onChange={(e) => setFormData(prev => ({ ...prev, isExpress: e.target.checked }))}
-                            className="w-5 h-5 text-sky-500 rounded border-gray-300 focus:ring-sky-500 mt-0.5 cursor-pointer"
-                        />
-                        <div>
-                            <p className="text-sm font-black text-slate-800">お急ぎ便を利用する（締切を納品日の3日前にする）</p>
-                            <p className="text-[10px] text-slate-500 mt-1 font-bold">
-                                ※ギリギリまで募集期間を延ばせますが、対応できるお花屋さんが限られる場合があります。
-                            </p>
-                        </div>
-                    </label>
-                </div>
-             </div>
+                <button type="button" onClick={() => handleVenueSelect(null)}
+                  className="w-9 h-9 bg-white rounded-full flex items-center justify-center text-emerald-400 hover:text-red-500 transition-colors shadow-sm shrink-0">
+                  <X size={16} />
+                </button>
+              </div>
+            ) : (
+              <GlassInput type="text" name="deliveryAddress" required value={formData.deliveryAddress}
+                onChange={handleChange} placeholder="例：東京都渋谷区○○..." />
+            )}
           </GlassCard>
 
-          {/* --- BLOCK 5: デザイン --- */}
           <GlassCard>
-            <InputLabel icon={Paintbrush} title="デザインと装飾" subtitle="どんなお花にするか、イメージを伝えましょう！" />
-            
-            <div className="mt-8 space-y-10">
+            <InputLabel icon={Clock} title="納品希望日・時間帯" required />
+            <div className="grid grid-cols-2 gap-3 mt-2">
+              <GlassInput type="date" required value={deliveryDateObj} onChange={e => setDeliveryDateObj(e.target.value)} />
               <div>
-                <label className="block text-sm font-black text-slate-700 mb-3">メイン画像 <span className="text-[10px] text-slate-400 font-bold ml-2">(企画一覧のサムネイルになります)</span></label>
-                <div className="border-2 border-dashed border-pink-200 bg-pink-50/50 rounded-[2.5rem] p-8 text-center hover:bg-pink-50 cursor-pointer relative overflow-hidden group transition-all">
-                    <input type="file" accept="image/*" onChange={handleImageUpload} disabled={isUploading} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"/>
-                    {formData.imageUrl ? (
-                        <div className="relative w-full max-w-sm mx-auto aspect-video rounded-2xl overflow-hidden shadow-lg">
-                          <Image src={formData.imageUrl} alt="メイン画像" fill className="object-cover" />
-                        </div>
-                    ) : (
-                        <div className="py-12">
-                            <div className="w-20 h-20 bg-white rounded-[1.5rem] flex items-center justify-center mx-auto mb-4 text-pink-300 group-hover:text-pink-500 group-hover:scale-110 transition-all shadow-sm">
-                                {isUploading ? <Loader2 className="animate-spin" size={32}/> : <ImageIcon size={32}/>}
-                            </div>
-                            <p className="text-sm font-black text-slate-500">クリックして画像をアップロード</p>
-                        </div>
-                    )}
-                </div>
-              </div>
-
-              <div className="bg-slate-50/50 p-6 rounded-[2.5rem] border border-slate-100">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
-                      <label className="block text-sm font-black text-slate-700">参考画像・ラフ画 <span className="text-[10px] text-slate-400 font-bold ml-2">(複数枚OK)</span></label>
-                  </div>
-                  <div className="flex flex-wrap gap-4">
-                      {formData.designImageUrls.map((url, index) => (
-                          <div key={index} className="relative w-28 h-28 group">
-                              <img src={url} alt={`デザイン ${index}`} className="w-full h-full object-cover rounded-2xl border-2 border-white shadow-md cursor-zoom-in" onClick={() => setPreviewImageUrl(url)} />
-                              <div className="absolute inset-0 bg-slate-900/20 opacity-0 group-hover:opacity-100 flex items-center justify-center rounded-2xl pointer-events-none transition-opacity">
-                                <ZoomIn className="text-white" size={24} />
-                              </div>
-                              <button type="button" onClick={() => setFormData(p => ({...p, designImageUrls: p.designImageUrls.filter((_, i) => i !== index)}))} className="absolute -top-3 -right-3 bg-white text-slate-400 hover:text-red-500 rounded-full w-8 h-8 flex items-center justify-center shadow-lg transform scale-0 group-hover:scale-100 transition-all z-10 border border-slate-100"><X size={16}/></button>
-                          </div>
-                      ))}
-                      <label className="w-28 h-28 border-2 border-dashed border-slate-300 bg-white rounded-2xl flex flex-col items-center justify-center cursor-pointer hover:border-sky-400 hover:bg-sky-50 transition-all text-slate-400 group shadow-sm">
-                          {isDesignUploading ? <Loader2 className="animate-spin text-sky-500 mb-2" size={24}/> : <Plus className="text-slate-300 group-hover:text-sky-500 mb-2" size={28} />}
-                          <span className="text-[10px] font-black group-hover:text-sky-600">画像を追加</span>
-                          <input type="file" multiple accept="image/*" onChange={handleDesignImagesUpload} disabled={isDesignUploading} className="hidden" />
-                      </label>
-                  </div>
-              </div>
-
-              <div className="space-y-6">
-                <div>
-                    <label className="block text-sm font-black text-slate-700 mb-2">デザインの雰囲気</label>
-                    <GlassTextarea name="designDetails" value={formData.designDetails} onChange={handleChange} rows="3" placeholder="例：青色をベースに、リボンと星を散りばめてクールで可愛い感じにしてください！"></GlassTextarea>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    <div>
-                        <label className="block text-sm font-black text-slate-700 mb-2">希望サイズ</label>
-                        <GlassInput type="text" name="size" value={formData.size} onChange={handleChange} placeholder="例：高さ180cm程度"/>
-                    </div>
-                    <div>
-                        <label className="block text-sm font-black text-slate-700 mb-2">使いたいお花</label>
-                        <GlassInput type="text" name="flowerTypes" value={formData.flowerTypes} onChange={handleChange} placeholder="例：青いバラ、かすみ草、ユリ"/>
-                    </div>
-                </div>
+                <GlassInput type="text" list="time-slots" required value={deliveryTimeText}
+                  onChange={e => setDeliveryTimeText(e.target.value)} placeholder="例: 午前中" />
+                <datalist id="time-slots">
+                  <option value="午前中" /><option value="12:00〜14:00" />
+                  <option value="14:00〜16:00" /><option value="16:00〜18:00" />
+                  <option value="時間指定なし" />
+                </datalist>
               </div>
             </div>
-          </GlassCard>
-
-          {/* --- BLOCK 6: クリエイター募集設定 --- */}
-          <GlassCard className="border-4 border-amber-100 bg-gradient-to-br from-white/90 to-amber-50/50">
-            <div className="flex items-start justify-between gap-4">
-                <div>
-                    <InputLabel icon={UserPlus} title="イラストレーター（絵師）を公募する" subtitle="フラスタに飾るイラストパネルの制作をクリエイターに依頼できます。" />
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer shrink-0 mt-1">
-                    <input type="checkbox" checked={needsIllustrator} onChange={(e) => setNeedsIllustrator(e.target.checked)} className="sr-only peer" />
-                    <div className="w-14 h-7 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-amber-400 shadow-inner"></div>
-                </label>
-            </div>
+            <p className="text-[10px] text-slate-400 font-bold mt-2 ml-1">※お花屋さんが動きやすいよう、大まかな時間帯でOKです</p>
 
             <AnimatePresence>
-                {needsIllustrator && (
-                    <motion.div 
-                        initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
-                        className="mt-6 pt-6 border-t border-amber-200/50 space-y-6"
-                    >
-                        <div>
-                            <label className="block text-sm font-black text-slate-700 mb-2">クリエイターへの依頼予算 (目安)</label>
-                            <div className="relative max-w-xs">
-                                <GlassInput type="number" name="illustratorBudget" min="1000" required={needsIllustrator} value={formData.illustratorBudget} onChange={handleChange} placeholder="例: 10000" />
-                                <span className="absolute right-4 top-1/2 -translate-y-1/2 font-black text-slate-400">pt</span>
-                            </div>
-                            <p className="text-[10px] font-bold text-slate-500 mt-1.5 ml-1">※この予算は目標金額に含まれます。後で変更可能です。</p>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-black text-slate-700 mb-2">求めるイラストの条件・テイスト</label>
-                            <GlassTextarea 
-                                name="illustratorRequirements" required={needsIllustrator} value={formData.illustratorRequirements} onChange={handleChange} rows="4" 
-                                placeholder="例: A3サイズの等身大パネル用のイラストを描いてくれる方を探しています！ポップで可愛いアイドル風の絵柄が得意な方、ぜひお願いします！"
-                            />
-                            <p className="text-[10px] font-bold text-slate-500 mt-1.5 ml-1">※この内容はクリエイター向けの公募掲示板に掲載されます。</p>
-                        </div>
-                    </motion.div>
+              {rushFeeAlert && (
+                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
+                  className="mt-3 p-4 bg-rose-50 border border-rose-200 rounded-2xl flex items-start gap-3 overflow-hidden">
+                  <AlertTriangle className="text-rose-500 shrink-0 mt-0.5" size={18} />
+                  <div>
+                    <p className="text-sm font-black text-rose-700">⚠️ {rushFeeAlert.label}料金（目安: +{rushFeeAlert.rate}）</p>
+                    <p className="text-xs text-rose-600/80 font-bold mt-1 leading-relaxed">
+                      {rushFeeAlert.days}のお届けのため、特急料金が加算される場合があります。<br />
+                      <span className="opacity-75">{rushFeeAlert.msg}</span>
+                    </p>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            <div className="mt-4 bg-sky-50 border border-sky-100 rounded-2xl p-4">
+              <p className="text-xs font-black text-sky-800 mb-2 flex items-center gap-1.5">
+                <Clock size={13} /> 募集締切は自動設定されます
+              </p>
+              <p className="text-[11px] text-sky-700 leading-relaxed mb-3">
+                原則として <strong className="text-rose-500">「納品希望日の7日前の深夜0時」</strong> に自動設定。目標達成時は即時締め切り。
+              </p>
+              <label className="flex items-start gap-3 p-3 bg-white rounded-xl border border-sky-100 cursor-pointer hover:border-sky-300 transition-colors">
+                <input type="checkbox" checked={formData.isExpress}
+                  onChange={e => setFormData(p => ({ ...p, isExpress: e.target.checked }))}
+                  className="w-5 h-5 text-sky-500 rounded border-gray-300 focus:ring-sky-500 mt-0.5 cursor-pointer shrink-0" />
+                <div>
+                  <p className="text-sm font-black text-slate-800">お急ぎ便（締切を3日前に短縮）</p>
+                  <p className="text-[10px] text-slate-500 mt-0.5 font-bold">対応できるお花屋さんが限られる場合があります</p>
+                </div>
+              </label>
+            </div>
+          </GlassCard>
+
+          <GlassCard>
+            <InputLabel icon={Paintbrush} title="デザインと装飾" subtitle="イメージを伝えましょう！" />
+
+            <div className="mt-4">
+              <label className="block text-xs font-black text-slate-600 mb-2">
+                メイン画像 <span className="text-slate-400 font-bold">（企画一覧のサムネイル）</span>
+              </label>
+              <div className="border-2 border-dashed border-pink-200 bg-pink-50/50 rounded-[1.5rem] p-5 text-center cursor-pointer relative hover:bg-pink-50 transition-all group">
+                <input type="file" accept="image/*" onChange={handleImageUpload} disabled={isUploading}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+                {formData.imageUrl ? (
+                  <div className="relative w-full max-w-xs mx-auto aspect-video rounded-2xl overflow-hidden shadow-md">
+                    <Image src={formData.imageUrl} alt="" fill className="object-cover" />
+                  </div>
+                ) : (
+                  <div className="py-6">
+                    <div className="w-14 h-14 bg-white rounded-[1rem] flex items-center justify-center mx-auto mb-3 text-pink-300 group-hover:text-pink-500 group-hover:scale-110 transition-all shadow-sm">
+                      {isUploading ? <Loader2 className="animate-spin" size={26} /> : <ImageIcon size={26} />}
+                    </div>
+                    <p className="text-sm font-black text-slate-500">タップして画像をアップロード</p>
+                  </div>
                 )}
+              </div>
+            </div>
+
+            <div className="mt-5">
+              <label className="block text-xs font-black text-slate-600 mb-3">
+                参考画像・ラフ画 <span className="text-slate-400 font-bold">（複数枚OK）</span>
+              </label>
+              <div className="flex flex-wrap gap-3">
+                {formData.designImageUrls.map((url, idx) => (
+                  <div key={idx} className="relative w-24 h-24 group">
+                    <img src={url} alt="" className="w-full h-full object-cover rounded-[1rem] border-2 border-white shadow-md cursor-zoom-in" onClick={() => setPreviewImageUrl(url)} />
+                    <div className="absolute inset-0 bg-slate-900/20 opacity-0 group-hover:opacity-100 flex items-center justify-center rounded-[1rem] pointer-events-none transition-opacity">
+                      <ZoomIn className="text-white" size={20} />
+                    </div>
+                    <button type="button"
+                      onClick={() => setFormData(p => ({ ...p, designImageUrls: p.designImageUrls.filter((_, i) => i !== idx) }))}
+                      className="absolute -top-2 -right-2 bg-white text-slate-400 hover:text-red-500 rounded-full w-7 h-7 flex items-center justify-center shadow-md scale-0 group-hover:scale-100 transition-all z-10 border border-slate-100">
+                      <X size={14} />
+                    </button>
+                  </div>
+                ))}
+                <label className="w-24 h-24 border-2 border-dashed border-slate-200 bg-white rounded-[1rem] flex flex-col items-center justify-center cursor-pointer hover:border-sky-400 hover:bg-sky-50 transition-all text-slate-400 group shadow-sm">
+                  {isDesignUploading ? <Loader2 className="animate-spin text-sky-500 mb-1" size={20} /> : <Plus className="text-slate-300 group-hover:text-sky-500 mb-1" size={24} />}
+                  <span className="text-[10px] font-black group-hover:text-sky-600">追加</span>
+                  <input type="file" multiple accept="image/*" onChange={handleDesignImagesUpload} disabled={isDesignUploading} className="hidden" />
+                </label>
+              </div>
+            </div>
+
+            <div className="mt-5 space-y-4">
+              <div>
+                <label className="block text-xs font-black text-slate-600 mb-2">デザインの雰囲気</label>
+                <GlassTextarea name="designDetails" value={formData.designDetails} onChange={handleChange} rows={3}
+                  placeholder="例：青色ベースにリボンと星を散りばめてクールで可愛い感じで！" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-black text-slate-600 mb-2">希望サイズ</label>
+                  <GlassInput type="text" name="size" value={formData.size} onChange={handleChange} placeholder="例：高さ180cm" />
+                </div>
+                <div>
+                  <label className="block text-xs font-black text-slate-600 mb-2">使いたいお花</label>
+                  <GlassInput type="text" name="flowerTypes" value={formData.flowerTypes} onChange={handleChange} placeholder="例：青いバラ" />
+                </div>
+              </div>
+            </div>
+          </GlassCard>
+
+          <GlassCard className="border-2 border-amber-100 bg-gradient-to-br from-white/90 to-amber-50/40">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1">
+                <InputLabel icon={UserPlus} title="イラストレーターを公募する" subtitle="パネルイラストを外部クリエイターに依頼できます" />
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer shrink-0 mt-1">
+                <input type="checkbox" checked={needsIllustrator} onChange={e => setNeedsIllustrator(e.target.checked)} className="sr-only peer" />
+                <div className="w-12 h-6 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-400 shadow-inner" />
+              </label>
+            </div>
+            <AnimatePresence>
+              {needsIllustrator && (
+                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
+                  className="mt-4 pt-4 border-t border-amber-200/50 space-y-4 overflow-hidden">
+                  <div>
+                    <label className="block text-xs font-black text-slate-700 mb-2">依頼予算（目安）</label>
+                    <div className="relative max-w-xs">
+                      <GlassInput type="number" name="illustratorBudget" min="1000" required={needsIllustrator}
+                        value={formData.illustratorBudget} onChange={handleChange} placeholder="例: 10000" />
+                      <span className="absolute right-4 top-1/2 -translate-y-1/2 font-black text-slate-400 text-sm">pt</span>
+                    </div>
+                    <p className="text-[10px] font-bold text-slate-500 mt-1 ml-1">※この予算は目標金額に含まれます</p>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-black text-slate-700 mb-2">求めるイラストの条件・テイスト</label>
+                    <GlassTextarea name="illustratorRequirements" required={needsIllustrator}
+                      value={formData.illustratorRequirements} onChange={handleChange} rows={4}
+                      placeholder="例: A3サイズのパネル用イラスト。ポップで可愛いアイドル風の絵柄が得意な方大歓迎！" />
+                    <p className="text-[10px] font-bold text-slate-500 mt-1 ml-1">※クリエイター向け公募掲示板に掲載されます</p>
+                  </div>
+                </motion.div>
+              )}
             </AnimatePresence>
           </GlassCard>
-          
-          {/* --- SUBMIT --- */}
-          <div className="pt-8 pb-12">
-            <motion.button 
-              whileHover={{ scale: 1.02, boxShadow: "0 20px 40px rgba(56,189,248,0.4)" }} 
-              whileTap={{ scale: 0.98 }}
-              type="submit" 
-              disabled={isSubmitting || isUploading || isDesignUploading} 
-              className={cn(
-                "w-full px-8 py-6 font-black text-white bg-gradient-to-r from-sky-400 to-indigo-500 rounded-[2.5rem] shadow-2xl text-xl md:text-2xl flex items-center justify-center gap-3 transition-all",
-                (isSubmitting || isUploading || isDesignUploading) && "opacity-50 cursor-not-allowed"
-              )}
-            >
-              {isSubmitting ? <><Loader2 className="animate-spin" size={28}/> 魔法をかけています...</> : <><Sparkles size={28} /> 企画を作成する！</>}
-            </motion.button>
-            <p className="text-center text-xs font-bold text-slate-400 mt-6">作成後、運営チームによる簡単な審査が行われます。</p>
+        </div>
+      );
+
+      // STEP 5: 確認
+      case 5: return (
+        <div className="space-y-5">
+          <div className="text-center pt-2">
+            <div className="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-br from-pink-400 to-rose-500 rounded-[1.5rem] shadow-lg mb-3 text-white">
+              <Check size={28} />
+            </div>
+            <h2 className="text-xl font-black text-slate-800 mb-1">内容を確認してください</h2>
+            <p className="text-xs font-bold text-slate-400">問題なければ「企画を作成する」を押してください</p>
           </div>
-        </form>
+
+          <GlassCard className="divide-y divide-slate-50 !p-0 overflow-hidden">
+            <div className="px-5 py-4">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-wide mb-2">公開設定</p>
+              <div className="flex flex-wrap gap-2">
+                <span className={cn(
+                  'text-xs font-black px-3 py-1 rounded-full',
+                  formData.projectType === 'PUBLIC'  ? 'bg-sky-100 text-sky-700' :
+                  formData.projectType === 'PRIVATE' ? 'bg-purple-100 text-purple-700' :
+                                                       'bg-emerald-100 text-emerald-700',
+                )}>
+                  {formData.projectType === 'PUBLIC' ? '🌍 みんなで' : formData.projectType === 'PRIVATE' ? '🔒 仲間と' : '👤 ひとりで'}
+                </span>
+                {selectedEvent && (
+                  <span className="text-xs font-black px-3 py-1 rounded-full bg-indigo-100 text-indigo-700 flex items-center gap-1">
+                    <Calendar size={11} /> {selectedEvent.title}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div className="px-5 py-4">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-wide mb-1">企画タイトル</p>
+              <p className="font-black text-slate-800 text-base leading-tight">{formData.title || '（未入力）'}</p>
+              <p className="text-xs font-bold text-slate-500 mt-2 line-clamp-2 leading-relaxed">{formData.description}</p>
+            </div>
+
+            <div className="px-5 py-4 flex items-center justify-between">
+              <div>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-wide mb-1">目標金額</p>
+                <p className="font-black text-slate-800 text-2xl">
+                  ¥{parseInt(formData.targetAmount || 0).toLocaleString()}
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-wide mb-1">最低参加額</p>
+                <p className="font-black text-slate-600 text-lg">¥{parseInt(formData.minContributionAmount || 1000).toLocaleString()}〜</p>
+              </div>
+            </div>
+
+            <div className="px-5 py-4">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-wide mb-1">お届け先 &amp; 日時</p>
+              <p className="font-bold text-slate-700 text-sm">
+                {selectedVenue?.venueName || formData.deliveryAddress || '（未設定）'}
+              </p>
+              {deliveryDateObj && (
+                <p className="text-xs font-bold text-slate-500 mt-1 flex items-center gap-1">
+                  <Clock size={11} className="text-indigo-400" />
+                  {new Date(`${deliveryDateObj}T12:00:00+09:00`).toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' })} / {deliveryTimeText}
+                </p>
+              )}
+              {rushFeeAlert && (
+                <span className="inline-flex items-center gap-1 mt-1.5 text-[10px] font-black text-rose-600 bg-rose-50 border border-rose-100 px-2 py-0.5 rounded-full">
+                  <AlertTriangle size={10} /> {rushFeeAlert.label}料金 +{rushFeeAlert.rate}
+                </span>
+              )}
+            </div>
+
+            <div className="px-5 py-4">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-wide mb-2">デザイン</p>
+              <div className="flex items-center gap-2 flex-wrap">
+                {formData.imageUrl ? (
+                  <div className="relative w-16 h-16 rounded-xl overflow-hidden border-2 border-white shadow-md">
+                    <Image src={formData.imageUrl} alt="" fill className="object-cover" />
+                  </div>
+                ) : (
+                  <div className="w-16 h-16 rounded-xl bg-slate-100 flex items-center justify-center text-slate-300 border border-slate-100">
+                    <ImageIcon size={20} />
+                  </div>
+                )}
+                {formData.designImageUrls.slice(0, 3).map((url, i) => (
+                  <div key={i} className="relative w-16 h-16 rounded-xl overflow-hidden border-2 border-white shadow-md">
+                    <Image src={url} alt="" fill className="object-cover" />
+                  </div>
+                ))}
+                {formData.designImageUrls.length > 3 && (
+                  <div className="w-16 h-16 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500 font-black text-sm border border-slate-100">
+                    +{formData.designImageUrls.length - 3}
+                  </div>
+                )}
+              </div>
+              {formData.designDetails && (
+                <p className="text-xs font-bold text-slate-500 mt-2 line-clamp-2">{formData.designDetails}</p>
+              )}
+            </div>
+
+            {needsIllustrator && (
+              <div className="px-5 py-4">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-[10px] font-black text-amber-600 bg-amber-50 border border-amber-100 px-2.5 py-1 rounded-full flex items-center gap-1">
+                    <UserPlus size={11} /> イラストレーター公募あり
+                  </span>
+                  {formData.illustratorBudget && (
+                    <span className="text-[10px] font-black text-slate-600">¥{parseInt(formData.illustratorBudget).toLocaleString()}予算</span>
+                  )}
+                </div>
+              </div>
+            )}
+          </GlassCard>
+
+          <div className="bg-sky-50 border border-sky-100 rounded-[1.5rem] p-4 flex items-start gap-3">
+            <Sparkles className="text-sky-400 shrink-0 mt-0.5" size={16} />
+            <p className="text-xs font-bold text-sky-700 leading-relaxed">
+              作成後、運営チームによる簡単な審査が行われます。審査通過後に企画が公開されます。
+            </p>
+          </div>
+        </div>
+      );
+    }
+  };
+
+  // ── Render ───────────────────────────────────────────────
+  return (
+    <div className="bg-gradient-to-br from-pink-50 to-sky-50 min-h-screen font-sans relative overflow-x-hidden">
+      <FloatingParticles />
+      <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-pink-200/30 rounded-full blur-[80px] -translate-y-1/3 translate-x-1/3 pointer-events-none" />
+      <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-sky-200/20 rounded-full blur-[80px] translate-y-1/3 -translate-x-1/3 pointer-events-none" />
+
+      {/* Fixed Header */}
+      <div
+        className="fixed top-0 left-0 right-0 z-30 bg-white/90 backdrop-blur-xl border-b border-slate-100 shadow-sm"
+        style={{ paddingTop: 'env(safe-area-inset-top)' }}
+      >
+        <div className="max-w-2xl mx-auto px-4 h-14 flex items-center gap-3">
+          <button
+            type="button"
+            onClick={step === 1 ? () => router.back() : goPrev}
+            className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 active:bg-slate-200 transition-colors shrink-0"
+          >
+            <ChevronLeft size={20} />
+          </button>
+          <div className="flex-1 text-center">
+            <p className="text-[10px] font-black text-pink-400 tracking-widest uppercase">STEP {step} / {STEPS.length}</p>
+            <p className="text-sm font-black text-slate-800 leading-tight">{STEP_TITLES[step - 1]}</p>
+          </div>
+          <div className="w-9" />
+        </div>
+        <div className="pb-2.5">
+          <StepIndicator current={step} />
+        </div>
       </div>
 
+      {/* Scrollable Step Content */}
+      <div
+        className="relative z-10 max-w-2xl mx-auto px-4"
+        style={{
+          paddingTop: 'calc(7rem + env(safe-area-inset-top))',
+          paddingBottom: 'calc(6rem + env(safe-area-inset-bottom))',
+        }}
+      >
+        <AnimatePresence mode="wait" custom={dir}>
+          <motion.div
+            key={step}
+            custom={dir}
+            variants={slideVariants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+          >
+            {renderStep()}
+          </motion.div>
+        </AnimatePresence>
+      </div>
+
+      {/* Fixed Footer Navigation */}
+      <div
+        className="fixed bottom-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-xl border-t border-slate-100"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      >
+        <div className="max-w-2xl mx-auto px-4 py-3 flex items-center gap-3">
+          {step > 1 && (
+            <button
+              type="button"
+              onClick={goPrev}
+              className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-500 active:bg-slate-200 transition-colors shrink-0"
+            >
+              <ChevronLeft size={20} />
+            </button>
+          )}
+          <motion.button
+            type="button"
+            onClick={step < STEPS.length ? goNext : handleSubmit}
+            disabled={isSubmitting || isUploading || isDesignUploading}
+            whileTap={{ scale: 0.97 }}
+            className={cn(
+              'flex-1 h-12 rounded-2xl font-black text-white flex items-center justify-center gap-2 text-sm transition-all',
+              'bg-gradient-to-r from-pink-500 to-rose-500 shadow-lg shadow-pink-200',
+              (isSubmitting || isUploading || isDesignUploading) && 'opacity-60 cursor-not-allowed',
+            )}
+          >
+            {step < STEPS.length ? (
+              <><span>{step === 4 ? '確認へ進む' : '次へ'}</span><ChevronRight size={18} /></>
+            ) : isSubmitting ? (
+              <><Loader2 className="animate-spin" size={18} /><span>作成中...</span></>
+            ) : (
+              <><Sparkles size={18} /><span>企画を作成する！</span></>
+            )}
+          </motion.button>
+        </div>
+      </div>
+
+      {/* Modals */}
       <AnimatePresence>
         {isVenueModalOpen && <VenueSelectionModal onClose={() => setIsVenueModalOpen(false)} onSelect={handleVenueSelect} />}
         {isEventModalOpen && <EventSelectionModal onClose={() => setIsEventModalOpen(false)} onSelect={handleEventSelect} />}
         {previewImageUrl && <ImageLightbox url={previewImageUrl} onClose={() => setPreviewImageUrl(null)} />}
         {isAiPlanModalOpen && (
-          <AiPlanGenerator 
+          <AiPlanGenerator
             onClose={() => setIsAiPlanModalOpen(false)}
             onGenerated={(title, description) => {
-              setFormData(prev => ({ ...prev, title, description }));
+              setFormData(p => ({ ...p, title, description }));
               toast.success('AIが文章を作成しました！');
             }}
           />
@@ -1004,7 +1183,11 @@ function CreateProjectForm() {
 
 export default function CreateProjectPage() {
   return (
-    <Suspense fallback={<div className="flex items-center justify-center min-h-screen bg-pink-50/50"><Loader2 className="animate-spin text-pink-500 w-12 h-12" /></div>}>
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-pink-50/50">
+        <Loader2 className="animate-spin text-pink-500 w-12 h-12" />
+      </div>
+    }>
       <CreateProjectForm />
     </Suspense>
   );

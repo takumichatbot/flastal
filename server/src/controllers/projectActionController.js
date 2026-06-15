@@ -506,3 +506,45 @@ export const getDigitalFlowers = async (req, res) => {
         res.status(500).json({ message: '取得に失敗しました' });
     }
 };
+
+export const getMyChats = async (req, res) => {
+    const userId = req.user.id;
+    try {
+        const rooms = await prisma.chatRoom.findMany({
+            where: { offer: { project: { plannerId: userId } } },
+            include: {
+                messages: { orderBy: { createdAt: 'desc' }, take: 1 },
+                offer: {
+                    include: {
+                        project: { select: { id: true, title: true, imageUrl: true } },
+                        florist: { select: { id: true, platformName: true, shopName: true, iconUrl: true } }
+                    }
+                }
+            },
+            orderBy: { createdAt: 'desc' }
+        });
+        res.json(rooms);
+    } catch (e) {
+        res.status(500).json({ message: '取得失敗' });
+    }
+};
+
+export const sendUserChatMessage = async (req, res) => {
+    const { roomId } = req.params;
+    const { content } = req.body;
+    const userId = req.user.id;
+    try {
+        const room = await prisma.chatRoom.findUnique({
+            where: { id: roomId },
+            include: { offer: { include: { project: true } } }
+        });
+        if (!room) return res.status(404).json({ message: 'ルームが見つかりません' });
+        if (room.offer.project.plannerId !== userId) return res.status(403).json({ message: '権限がありません' });
+        const message = await prisma.chatMessage.create({
+            data: { content, senderType: 'USER', chatRoomId: roomId, userId }
+        });
+        res.status(201).json(message);
+    } catch (e) {
+        res.status(500).json({ message: '送信失敗' });
+    }
+};

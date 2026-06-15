@@ -35,6 +35,10 @@ router.post('/reviews/:reviewId/like', actionController.toggleReviewLike);
 
 // チャットルーム情報 (個別チャット用)
 router.get('/chat/:roomId', actionController.getChatRoomInfo);
+router.post('/chat/:roomId/messages', authenticateToken, actionController.sendUserChatMessage);
+
+// 自分のチャット一覧
+router.get('/my-chats', authenticateToken, actionController.getMyChats);
 
 // 企画通報
 router.post('/reports/project', actionController.reportProject); // ※URLは /api/reports/project になるように app.js で調整が必要かも
