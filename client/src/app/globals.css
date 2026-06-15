@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+/* ネイティブアプリモード: ヘッダー・フッター等を即時非表示 (useEffect より前に適用) */
+html.native-app .web-only {
+  display: none !important;
+}
+
 :root {
   --background: #ffffff;
   --foreground: #171717;

@@ -84,18 +84,25 @@ export default function RootLayout({ children }) {
   return (
     <html lang="ja" className={`${inter.variable} ${notoSansJP.variable}`}>
       <head>
-        {/* Capacitor ネイティブ起動時: React レンダー前にリダイレクト */}
+        {/* ネイティブアプリ判定: React 描画前にクラスを付与してフラッシュを防ぐ */}
         <script dangerouslySetInnerHTML={{ __html: `
           (function() {
-            if (window.location.pathname !== '/') return;
-            var cap = window.Capacitor;
-            if (!cap || !cap.isNativePlatform || !cap.isNativePlatform()) return;
             try {
-              var raw = localStorage.getItem('authToken');
-              var token = raw ? raw.replace(/['"]+/g, '').trim() : '';
-              window.location.replace(token ? '/mypage' : '/login');
-            } catch(e) {
-              window.location.replace('/login');
+              if (sessionStorage.getItem('nativeApp') === '1' ||
+                  (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform())) {
+                document.documentElement.classList.add('native-app');
+              }
+            } catch(e) {}
+            // Capacitor ネイティブ起動時: / からのリダイレクト
+            if (window.location.pathname === '/') {
+              var cap = window.Capacitor;
+              if (cap && cap.isNativePlatform && cap.isNativePlatform()) {
+                try {
+                  var raw = localStorage.getItem('authToken');
+                  var token = raw ? raw.replace(/['"]+/g, '').trim() : '';
+                  window.location.replace(token ? '/mypage' : '/login');
+                } catch(e) { window.location.replace('/login'); }
+              }
             }
           })();
         `}} />
@@ -103,21 +110,20 @@ export default function RootLayout({ children }) {
       <body className="font-sans antialiased text-slate-900 bg-white min-h-screen flex flex-col m-0 p-0 overflow-x-hidden">
         <ThemeController />
         <AuthProvider>
-          {/* ヘッダー部分は変更なし */}
-          <header className="w-full flex flex-col m-0 p-0 border-none bg-white relative z-[100] isolate">
+          <header className="web-only w-full flex flex-col m-0 p-0 border-none bg-white relative z-[100] isolate">
             <Header />
             <LiveTicker />
             <div className="absolute bottom-0 left-0 w-full h-[1px] bg-white translate-y-[0.5px] z-[101]" aria-hidden="true" />
           </header>
-          
+
           <Suspense fallback={null}>
             <main className="flex-grow w-full m-0 p-0 relative">
               {children}
             </main>
-            <FloatingMenu />
+            <div className="web-only"><FloatingMenu /></div>
           </Suspense>
-          
-          <Footer />
+
+          <div className="web-only"><Footer /></div>
           <Suspense fallback={null}><NativeTabBar /></Suspense>
           <Toaster position="top-center" />
           <PushNotificationManager />

@@ -17,11 +17,6 @@ export default function LiveTicker() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
   const [isHidden, setIsHidden] = useState(false);
-  const [isNative, setIsNative] = useState(false);
-
-  useEffect(() => {
-    setIsNative(sessionStorage.getItem('nativeApp') === '1');
-  }, []);
 
   const { scrollY } = useScroll();
   useMotionValueEvent(scrollY, "change", (latest) => {
@@ -78,8 +73,6 @@ export default function LiveTicker() {
   };
 
   const style = getLogStyle(currentLog?.type);
-
-  if (isNative) return null;
 
   return (
     // ★ 変更点: fixed top-0 left-0 right-0 z-[110] を追加し、一番上に固定
