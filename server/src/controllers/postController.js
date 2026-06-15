@@ -12,19 +12,35 @@ const postSelect = {
   _count: { select: { likes: true, comments: true } },
 };
 
-// 公開フィード（全ユーザー向け）
+// 公開フィード（全ユーザー向け・検索・並び替え対応）
 export const getPublicFeed = async (req, res) => {
   try {
     const page = Math.max(1, parseInt(req.query.page) || 1);
     const limit = Math.min(20, parseInt(req.query.limit) || 12);
     const skip = (page - 1) * limit;
-
+    const search = req.query.search?.trim() || '';
+    const sort = req.query.sort || 'new'; // 'new' | 'popular'
     const userId = req.user?.id ?? null;
+
+    const where = {
+      isPublic: true,
+      ...(search ? {
+        OR: [
+          { eventName: { contains: search, mode: 'insensitive' } },
+          { caption: { contains: search, mode: 'insensitive' } },
+          { user: { handleName: { contains: search, mode: 'insensitive' } } },
+        ],
+      } : {}),
+    };
+
+    const orderBy = sort === 'popular'
+      ? [{ likes: { _count: 'desc' } }, { createdAt: 'desc' }]
+      : { createdAt: 'desc' };
 
     const [posts, total] = await Promise.all([
       prisma.post.findMany({
-        where: { isPublic: true },
-        orderBy: { createdAt: 'desc' },
+        where,
+        orderBy,
         skip,
         take: limit,
         select: {
@@ -32,7 +48,7 @@ export const getPublicFeed = async (req, res) => {
           likes: userId ? { where: { userId }, select: { id: true } } : false,
         },
       }),
-      prisma.post.count({ where: { isPublic: true } }),
+      prisma.post.count({ where }),
     ]);
 
     const enriched = posts.map(({ likes, ...p }) => ({
