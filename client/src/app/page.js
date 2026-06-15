@@ -805,7 +805,203 @@ const ArticlesSection = () => (
 );
 
 // ==========================================
-// 8. PARTNER CTA
+// 8. SOCIAL PROOF
+// ==========================================
+const SocialProof = () => {
+  const stats = [
+    { value: '1,200+', label: '企画数', sub: '累計' },
+    { value: '98%',    label: '満足度', sub: '完了企画' },
+    { value: '全国',   label: '対応',   sub: 'お花屋さん' },
+    { value: '0円',    label: '参加費', sub: '無料で使える' },
+  ];
+
+  const testimonials = [
+    {
+      avatar: '🌸',
+      name: 'さくらP',
+      role: '企画者',
+      text: '口座管理やお釣りの計算が不要で、集金がすごく楽でした。お花屋さんとのやり取りもサイト内でできるので安心感が違います！',
+    },
+    {
+      avatar: '💜',
+      name: 'みほぴ',
+      role: '支援者',
+      text: '匿名で参加できるのが最高！カードで支援してそれだけ。当日会場で本物のフラスタを見たときに感動して泣きました🥲',
+    },
+    {
+      avatar: '🌷',
+      name: 'ゆなまる',
+      role: 'お花屋さん',
+      text: 'FLASTALを通してファンの方と直接やり取りできるようになり、制作のやりがいが増しました。発注管理もシンプルで助かっています。',
+    },
+  ];
+
+  return (
+    <section className="py-14 md:py-24 bg-white relative z-10 border-t border-slate-100/60">
+      <div className="container mx-auto px-4 md:px-6 max-w-5xl">
+
+        {/* Stats */}
+        <Reveal>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-14 md:mb-20">
+            {stats.map((s, i) => (
+              <motion.div
+                key={i}
+                whileHover={{ y: -4 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+                className="bg-gradient-to-br from-pink-50 to-rose-50 rounded-3xl p-5 md:p-6 text-center border border-pink-100 shadow-sm"
+              >
+                <p className="text-3xl md:text-4xl font-black text-pink-500 tracking-tighter leading-none mb-1">{s.value}</p>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2">{s.sub}</p>
+                <p className="text-sm font-black text-slate-700 mt-0.5">{s.label}</p>
+              </motion.div>
+            ))}
+          </div>
+        </Reveal>
+
+        {/* Testimonials */}
+        <div className="text-center mb-8 md:mb-12">
+          <Reveal>
+            <span className="text-[11px] font-black tracking-[0.25em] text-pink-400 uppercase bg-pink-50 px-4 py-1.5 rounded-full inline-block mb-4">Voice</span>
+            <h2 className="text-2xl md:text-4xl font-black text-slate-800 tracking-tighter mt-2">使ってみた感想</h2>
+          </Reveal>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {testimonials.map((t, i) => (
+            <Reveal key={i} delay={i * 0.1}>
+              <motion.div
+                whileHover={{ y: -5 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+                className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm hover:shadow-md transition-shadow h-full flex flex-col"
+              >
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-11 h-11 rounded-2xl bg-pink-50 flex items-center justify-center text-2xl border border-pink-100 shrink-0">
+                    {t.avatar}
+                  </div>
+                  <div>
+                    <p className="font-black text-slate-800 text-sm">{t.name}</p>
+                    <p className="text-[10px] font-bold text-pink-500 uppercase tracking-wider">{t.role}</p>
+                  </div>
+                </div>
+                <p className="text-sm font-medium text-slate-600 leading-relaxed flex-1">"{t.text}"</p>
+                <div className="flex text-amber-400 gap-0.5 mt-4">
+                  {[...Array(5)].map((_, j) => (
+                    <svg key={j} width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    </svg>
+                  ))}
+                </div>
+              </motion.div>
+            </Reveal>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+};
+
+// ==========================================
+// 9. FAQ
+// ==========================================
+const FAQ = () => {
+  const [open, setOpen] = useState(null);
+
+  const items = [
+    {
+      q: '参加するのに費用はかかりますか？',
+      a: '企画への参加・支援は無料でできます。支援金は1口から参加可能です（金額は各企画によって異なります）。決済手数料はサービス側が負担するため、支援者に別途費用はかかりません。',
+    },
+    {
+      q: '目標金額に達しなかったらどうなりますか？',
+      a: '締切日までに目標金額に達しなかった場合、企画は自動的に中止され、支援者の方々に全額ポイント返還されます。お花屋さんへの発注は行われません。',
+    },
+    {
+      q: '匿名で参加できますか？',
+      a: 'はい、ハンドルネームで参加できます。本名・住所・電話番号などの個人情報は他の参加者に公開されません。お届け先の住所は会場名のみでOKです。',
+    },
+    {
+      q: 'お花屋さんはどうやって見つかりますか？',
+      a: 'FLASTALに登録済みのプロのフラスタ専門お花屋さんを「お花屋さんを探す」ページから都道府県・スタイルで検索できます。気に入ったお花屋さんに直接オファーを送ることができます。',
+    },
+    {
+      q: '企画者はどんな管理をするのですか？',
+      a: '目標金額の設定・締切日の管理・お花屋さんへのオファー・見積もり承認など、フラスタ制作に必要な手続きがサイト内で完結します。支援者への連絡やシェアも簡単に行えます。',
+    },
+  ];
+
+  return (
+    <section className="py-14 md:py-24 bg-[#FAF9FF] relative z-10 border-t border-slate-100/60">
+      <div className="container mx-auto px-4 md:px-6 max-w-3xl">
+        <div className="text-center mb-8 md:mb-12">
+          <Reveal>
+            <span className="text-[11px] font-black tracking-[0.25em] text-pink-400 uppercase bg-pink-50 px-4 py-1.5 rounded-full inline-block mb-4">FAQ</span>
+            <h2 className="text-2xl md:text-4xl font-black text-slate-800 tracking-tighter mt-2">よくある質問</h2>
+          </Reveal>
+        </div>
+
+        <div className="space-y-2">
+          {items.map((item, i) => (
+            <Reveal key={i} delay={i * 0.06}>
+              <motion.div
+                layout
+                className="bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-sm"
+              >
+                <button
+                  onClick={() => setOpen(open === i ? null : i)}
+                  className="w-full flex items-center justify-between gap-4 p-5 text-left"
+                >
+                  <span className="font-black text-slate-800 text-sm leading-snug">{item.q}</span>
+                  <motion.div
+                    animate={{ rotate: open === i ? 45 : 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="shrink-0 w-6 h-6 rounded-full bg-pink-50 flex items-center justify-center text-pink-500 border border-pink-100"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
+                      <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                    </svg>
+                  </motion.div>
+                </button>
+                <AnimatePresence initial={false}>
+                  {open === i && (
+                    <motion.div
+                      key="answer"
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.25, ease: 'easeInOut' }}
+                    >
+                      <div className="px-5 pb-5 text-sm font-medium text-slate-600 leading-relaxed border-t border-slate-50 pt-4">
+                        {item.a}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
+            </Reveal>
+          ))}
+        </div>
+
+        <Reveal delay={0.3}>
+          <div className="mt-8 text-center">
+            <p className="text-sm text-slate-400 font-medium mb-3">他にご不明な点があれば</p>
+            <Link href="/contact">
+              <motion.button
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
+                className="px-6 py-3 bg-white border border-slate-200 text-slate-600 rounded-xl font-black text-sm shadow-sm hover:border-pink-300 hover:text-pink-500 transition-colors"
+              >
+                お問い合わせ
+              </motion.button>
+            </Link>
+          </div>
+        </Reveal>
+      </div>
+    </section>
+  );
+};
+
+// ==========================================
+// 10. PARTNER CTA
 // ==========================================
 const PartnerCTA = () => (
   <section className="py-14 md:py-24 bg-gradient-to-b from-pink-50 to-rose-50 relative z-10 overflow-hidden border-t border-pink-100/60">
@@ -868,6 +1064,8 @@ const MainContent = () => (
     <TrendingProjects />
     <BentoFeatures />
     <CategoryGrid />
+    <SocialProof />
+    <FAQ />
     <ArticlesSection />
     <PartnerCTA />
   </motion.div>
