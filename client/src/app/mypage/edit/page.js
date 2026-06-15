@@ -21,7 +21,7 @@ export default function FanProfileEditPage() {
 
   useEffect(() => {
     if (authLoading) return;
-    if (!user || user.role !== 'USER') {
+    if (!user) {
       router.push('/login');
       return;
     }
