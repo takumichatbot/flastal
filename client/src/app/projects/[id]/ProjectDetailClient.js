@@ -966,7 +966,17 @@ export default function ProjectDetailClient() {
 
   return (
     <div className="min-h-screen bg-slate-50/50 pb-32 md:pb-24 font-sans text-slate-800 relative">
-      
+
+      {/* 戻るボタン（ヒーロー画像上に浮かぶ） */}
+      <button
+        onClick={() => router.back()}
+        className="fixed top-0 left-0 z-40 m-4 w-10 h-10 bg-slate-900/50 hover:bg-slate-900/70 backdrop-blur-md rounded-full flex items-center justify-center text-white border border-white/20 transition-colors active:scale-95"
+        style={{ marginTop: 'calc(1rem + env(safe-area-inset-top))' }}
+        aria-label="戻る"
+      >
+        <ChevronLeft size={20} />
+      </button>
+
       {/* --- HERO IMAGE --- */}
       <div className="w-full max-w-6xl mx-auto md:px-4 lg:px-8 md:mt-6 mb-4 md:mb-8">
         {project.status !== 'COMPLETED' ? (

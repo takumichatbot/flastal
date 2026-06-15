@@ -13,7 +13,7 @@ import ShareButtons from '@/app/components/ShareButtons';
 import {
     Camera, Award, Clock,
     User, Heart, Star, X, Shield, Zap, AlertCircle, ArrowLeft, Briefcase,
-    Store, Truck, Loader2, CheckCircle2
+    Store, Truck, Loader2, CheckCircle2, MapPin
 } from 'lucide-react';
 
 import FloristDeliveryInfo from '@/app/components/FloristDeliveryInfo';
@@ -331,41 +331,66 @@ export default function FloristDetailPage() {
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-pink-200/30 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/3 pointer-events-none z-0" />
         
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 md:py-12 relative z-10">
-            
-            <div className="mb-6">
-                <Link href={user?.role === 'FLORIST' ? "/florists/dashboard" : "/florists"} className="inline-flex items-center gap-2 px-5 py-2.5 bg-white/60 backdrop-blur-sm rounded-full text-sm font-black text-slate-500 hover:text-pink-500 hover:bg-white shadow-sm border border-white transition-all">
-                    <ArrowLeft size={16}/> 戻る
-                </Link>
-            </div>
 
+            {/* Floating back button — fixed top-left with safe area inset */}
+            <button
+              onClick={() => router.back()}
+              className="fixed top-0 left-4 z-50 w-10 h-10 bg-white/80 backdrop-blur-md rounded-full border border-slate-200 shadow-sm flex items-center justify-center text-slate-500 hover:text-pink-500 hover:border-pink-200 transition-all"
+              style={{ marginTop: 'calc(1rem + env(safe-area-inset-top))' }}
+              aria-label="戻る"
+            >
+              <ArrowLeft size={18} />
+            </button>
+
+            {/* Hero card — pink/rose gradient */}
             <GlassCard className="!p-0 overflow-hidden mb-8 relative">
-              <div className="h-4 w-full bg-gradient-to-r from-pink-400 via-purple-400 to-sky-400"></div>
+              {/* Gradient hero banner */}
+              <div className="relative h-44 md:h-56 bg-gradient-to-r from-pink-500 to-rose-500 overflow-hidden">
+                {/* Decorative blobs */}
+                <div className="absolute -top-10 -right-10 w-48 h-48 bg-white/10 rounded-full blur-2xl pointer-events-none" />
+                <div className="absolute bottom-0 left-0 w-64 h-32 bg-rose-600/20 rounded-full blur-3xl pointer-events-none" />
 
-              <header className="p-8 md:p-12 flex flex-col md:flex-row items-center md:items-end gap-8 text-center md:text-left relative">
-                  <div className="relative w-32 h-32 md:w-40 md:h-40 shrink-0 rounded-[2.5rem] overflow-hidden border-4 border-white shadow-xl bg-white md:rotate-3 z-10">
+                {/* Badges overlaid on the hero */}
+                <div className="absolute top-4 right-4 flex flex-col gap-2 z-10">
+                  <span className="px-3 py-1.5 bg-white/20 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-widest rounded-full flex items-center gap-1.5 border border-white/30 shadow-sm">
+                    <Shield size={11}/> Verified Partner
+                  </span>
+                  {florist.acceptsRushOrders && (
+                    <span className="px-3 py-1.5 bg-amber-400/90 backdrop-blur-md text-white text-[10px] font-black rounded-full flex items-center gap-1.5 shadow-sm border border-amber-300/50">
+                      <Zap size={11} className="fill-white"/> お急ぎOK
+                    </span>
+                  )}
+                </div>
+
+                {/* Location badge — bottom-left of hero */}
+                {florist.address && (
+                  <div className="absolute bottom-4 left-4 flex items-center gap-1.5 px-3 py-1.5 bg-white/20 backdrop-blur-md text-white text-xs font-black rounded-full border border-white/30 shadow-sm">
+                    <MapPin size={12}/> {florist.baseDeliveryArea || extractPrefecture(florist.address)}
+                  </div>
+                )}
+              </div>
+
+              <header className="px-8 md:px-12 pb-8 md:pb-10 flex flex-col md:flex-row items-center md:items-end gap-6 text-center md:text-left relative">
+                  {/* Florist icon — overlapping the hero */}
+                  <div className="relative w-28 h-28 md:w-36 md:h-36 shrink-0 rounded-[2rem] overflow-hidden border-4 border-white shadow-xl bg-white -mt-14 md:-mt-16 md:rotate-3 z-10">
                       {florist.iconUrl ? (
                           <Image src={florist.iconUrl} alt="アイコン" fill style={{objectFit: 'cover'}} />
                       ) : (
                           <div className="w-full h-full bg-slate-50 flex items-center justify-center text-slate-300"><User size={48} /></div>
                       )}
                   </div>
-                  
-                  <div className="flex-1 min-w-0 z-10">
-                      <div className="flex items-center justify-center md:justify-start gap-2 mb-3">
-                          <span className="px-3 py-1.5 bg-pink-50 border border-pink-100 text-pink-600 text-[10px] font-black uppercase tracking-widest rounded-full flex items-center gap-1.5 shadow-sm">
-                              <Shield size={12}/> Verified Partner
-                          </span>
-                      </div>
+
+                  <div className="flex-1 min-w-0 z-10 pt-2 md:pt-4">
                       <h1 className="text-3xl md:text-5xl font-black text-slate-800 break-words tracking-tighter leading-tight"><JpText>{florist.platformName || florist.shopName}</JpText></h1>
-                      <p className="text-xs md:text-sm text-slate-400 font-bold mt-2 uppercase tracking-widest">Professional Florist</p>
-                      
-                      <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 mt-6">
+                      <p className="text-xs md:text-sm text-slate-400 font-bold mt-1.5 uppercase tracking-widest">Professional Florist</p>
+
+                      <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 mt-5">
                           <div className="flex items-center px-4 py-2 bg-yellow-50 text-yellow-700 rounded-[1rem] border border-yellow-100 shadow-sm">
-                            <Star className="mr-2 fill-yellow-400 text-yellow-400" size={18}/> 
+                            <Star className="mr-2 fill-yellow-400 text-yellow-400" size={18}/>
                             <span className="font-black text-lg">{averageRating.toFixed(1)}</span>
                             <span className="text-[10px] ml-2 font-bold opacity-60">({reviews.length} reviews)</span>
                           </div>
-                           
+
                           {isMyProfile && (
                              <Link href="/florists/dashboard" className="text-sm px-6 py-3 bg-slate-900 text-white rounded-full font-black hover:bg-slate-800 transition-all shadow-md flex items-center gap-2">
                                 <Briefcase size={16}/> ダッシュボード

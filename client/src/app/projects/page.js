@@ -14,7 +14,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 // ★ Heartアイコンを追加！
 import {
   Search, MapPin, Calendar, Loader2, Filter,
-  PlusCircle, Sparkles, Heart
+  PlusCircle, Sparkles, Heart, ChevronLeft
 } from 'lucide-react';
 
 const PREFECTURES = [
@@ -167,6 +167,16 @@ function ProjectsContent() {
     <div className="bg-gradient-to-br from-pink-50/80 to-rose-50/80 min-h-screen font-sans text-slate-800 relative overflow-hidden pb-24">
       <FloatingParticles />
 
+      {/* 戻るボタン */}
+      <button
+        onClick={() => router.back()}
+        className="fixed top-0 left-0 z-40 m-4 w-10 h-10 bg-white/80 hover:bg-white backdrop-blur-md rounded-full flex items-center justify-center text-slate-500 border border-slate-200 shadow-sm transition-colors active:scale-95"
+        style={{ marginTop: 'calc(1rem + env(safe-area-inset-top))' }}
+        aria-label="戻る"
+      >
+        <ChevronLeft size={20} />
+      </button>
+
       <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-pink-200/40 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/3 pointer-events-none" />
       <div className="absolute top-40 left-0 w-[400px] h-[400px] bg-rose-100/30 rounded-full blur-[100px] -translate-x-1/2 pointer-events-none" />
 
@@ -206,7 +216,7 @@ function ProjectsContent() {
                     value={keyword}
                     onChange={(e) => setKeyword(e.target.value)}
                     placeholder="企画名、グループ名、イベント名..."
-                    className="w-full pl-12 pr-4 py-4 bg-white/60 backdrop-blur-sm border-2 border-slate-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-pink-100 focus:border-pink-300 outline-none transition-all font-bold text-slate-700 placeholder:text-slate-300"
+                    className="w-full pl-12 pr-4 py-4 bg-white/60 backdrop-blur-sm border-2 border-slate-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-pink-100 focus:border-pink-300 outline-none transition-all font-bold text-slate-700 placeholder:text-slate-300 text-[16px]"
                   />
                 </div>
               </div>
@@ -218,7 +228,7 @@ function ProjectsContent() {
                   <select
                     value={prefecture}
                     onChange={(e) => setPrefecture(e.target.value)}
-                    className="w-full pl-12 pr-10 py-4 bg-white/60 backdrop-blur-sm border-2 border-slate-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-pink-100 focus:border-pink-300 outline-none appearance-none cursor-pointer transition-all font-bold text-slate-700"
+                    className="w-full pl-12 pr-10 py-4 bg-white/60 backdrop-blur-sm border-2 border-slate-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-pink-100 focus:border-pink-300 outline-none appearance-none cursor-pointer transition-all font-bold text-slate-700 text-[16px]"
                   >
                     <option value="">すべての都道府県</option>
                     {PREFECTURES.map(pref => (

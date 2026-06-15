@@ -5,6 +5,7 @@ export const fetchCache = 'force-no-store';
 
 import { useState, useEffect, Suspense, useCallback } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
+import { ArrowLeft } from 'lucide-react';
 import { useAuth } from '@/app/contexts/AuthContext'; 
 import Link from 'next/link';
 import toast from 'react-hot-toast';
@@ -124,8 +125,18 @@ function VenuesContent() {
       <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-sky-200/30 rounded-full blur-[100px] -translate-y-1/2 -translate-x-1/3 pointer-events-none z-0" />
       <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-indigo-200/20 rounded-full blur-[100px] translate-y-1/3 translate-x-1/3 pointer-events-none z-0" />
 
+      {/* フローティング戻るボタン */}
+      <button
+        onClick={() => router.back()}
+        className="fixed left-4 z-40 w-10 h-10 bg-white/80 backdrop-blur-md rounded-full flex items-center justify-center shadow-lg border border-slate-100 active:scale-90 transition-transform"
+        style={{ top: 'calc(1rem + env(safe-area-inset-top))' }}
+        aria-label="戻る"
+      >
+        <ArrowLeft size={18} className="text-slate-700" />
+      </button>
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-        
+
         {/* ヘッダーセクション */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col md:flex-row justify-between items-center md:items-end mb-10 gap-6 text-center md:text-left">
           <div>
@@ -150,7 +161,7 @@ function VenuesContent() {
                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 pl-2">Keyword</label>
                 <div className="relative">
                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18}/>
-                  <input type="text" value={keyword} onChange={(e) => setKeyword(e.target.value)} placeholder="会場名、建物名など..." className="w-full pl-12 pr-4 py-4 bg-white/60 backdrop-blur-sm border-2 border-slate-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-sky-100 focus:border-sky-300 outline-none transition-all font-bold text-slate-700" />
+                  <input type="text" value={keyword} onChange={(e) => setKeyword(e.target.value)} placeholder="会場名、建物名など..." className="w-full pl-12 pr-4 py-4 bg-white/60 backdrop-blur-sm border-2 border-slate-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-sky-100 focus:border-sky-300 outline-none transition-all font-bold text-slate-700 text-[16px]" />
                 </div>
               </div>
               
@@ -158,7 +169,7 @@ function VenuesContent() {
                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 pl-2">Area</label>
                 <div className="relative">
                   <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18}/>
-                  <select value={prefecture} onChange={(e) => setPrefecture(e.target.value)} className="w-full pl-12 pr-10 py-4 bg-white/60 backdrop-blur-sm border-2 border-slate-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-sky-100 focus:border-sky-300 outline-none appearance-none cursor-pointer transition-all font-bold text-slate-700">
+                  <select value={prefecture} onChange={(e) => setPrefecture(e.target.value)} className="w-full pl-12 pr-10 py-4 bg-white/60 backdrop-blur-sm border-2 border-slate-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-sky-100 focus:border-sky-300 outline-none appearance-none cursor-pointer transition-all font-bold text-slate-700 text-[16px]">
                     <option value="">すべてのエリア</option>
                     {PREFECTURES.map(pref => <option key={pref} value={pref}>{pref}</option>)}
                   </select>
@@ -192,8 +203,20 @@ function VenuesContent() {
                   <Link href={`/venues/${venue.id}`} className="group h-full block">
                     <GlassCard className="!p-4 sm:!p-5 flex flex-col h-full hover:-translate-y-2 hover:shadow-[0_16px_40px_rgba(56,189,248,0.15)] hover:border-sky-200 transition-all duration-500 bg-white">
                       
-                      <div className="relative h-40 bg-gradient-to-br from-slate-100 to-sky-50 rounded-[2rem] flex items-center justify-center overflow-hidden shrink-0">
-                        <span className="text-6xl drop-shadow-sm group-hover:scale-110 transition-transform duration-500">🏛️</span>
+                      <div className="relative h-40 rounded-[2rem] overflow-hidden shrink-0 bg-gradient-to-br from-indigo-400 via-sky-400 to-cyan-300">
+                        <div className="absolute inset-0 flex items-center justify-center opacity-20">
+                          <Building2 size={72} className="text-white" />
+                        </div>
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
+                        {/* 都道府県バッジ */}
+                        {venue.address && (
+                          <div className="absolute bottom-3 left-3">
+                            <span className="bg-white/90 backdrop-blur-md text-indigo-700 text-[10px] font-black px-2.5 py-1 rounded-full shadow-sm flex items-center gap-1">
+                              <MapPin size={9} />
+                              {PREFECTURES.find(p => venue.address.includes(p)) || venue.address.split('').slice(0, 3).join('')}
+                            </span>
+                          </div>
+                        )}
                         <div className="absolute top-3 right-3 flex flex-col gap-2 z-10">
                             {venue.isOfficial ? (
                                 <span className="bg-sky-500 text-white text-[10px] font-black px-3 py-1 rounded-full shadow-sm flex items-center gap-1 uppercase tracking-widest">

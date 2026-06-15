@@ -14,10 +14,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import AiPlanGenerator from '@/app/components/AiPlanGenerator';
 
 // Lucide Icons
-import { 
-  Calendar, MapPin, X, Image as ImageIcon, Loader2, Plus, 
-  Award, Search, AlertTriangle, ZoomIn, Sparkles, 
-  Wand2, Lock, Globe, ArrowRight, Paintbrush, FileText, Clock, UserPlus
+import {
+  Calendar, MapPin, X, Image as ImageIcon, Loader2, Plus,
+  Award, Search, AlertTriangle, ZoomIn, Sparkles,
+  Wand2, Lock, Globe, ArrowRight, Paintbrush, FileText, Clock, UserPlus, ChevronLeft
 } from 'lucide-react';
 import FloatingParticles from '@/app/components/FloatingParticles';
 
@@ -62,24 +62,24 @@ const InputLabel = ({ icon: Icon, title, subtitle, required }) => (
 );
 
 const GlassInput = (props) => (
-  <input 
+  <input
     {...props}
     className={cn(
       "w-full px-5 py-4 bg-white/60 backdrop-blur-sm border-2 border-slate-100 rounded-2xl",
       "focus:outline-none focus:border-pink-300 focus:ring-4 focus:ring-pink-100/50",
-      "transition-all font-bold text-slate-800 placeholder:text-slate-300",
+      "transition-all font-bold text-slate-800 placeholder:text-slate-300 text-[16px]",
       props.className
     )}
   />
 );
 
 const GlassTextarea = (props) => (
-  <textarea 
+  <textarea
     {...props}
     className={cn(
       "w-full px-5 py-4 bg-white/60 backdrop-blur-sm border-2 border-slate-100 rounded-2xl resize-none",
       "focus:outline-none focus:border-pink-300 focus:ring-4 focus:ring-pink-100/50",
-      "transition-all font-bold text-slate-800 placeholder:text-slate-300 leading-relaxed",
+      "transition-all font-bold text-slate-800 placeholder:text-slate-300 leading-relaxed text-[16px]",
       props.className
     )}
   />
@@ -142,12 +142,12 @@ function EventSelectionModal({ onClose, onSelect }) {
         <div className="p-4 md:p-6 bg-white border-b border-slate-100">
             <div className="relative">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                <input 
-                    type="text" 
+                <input
+                    type="text"
                     placeholder="イベント名や会場名で検索..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-4 focus:ring-sky-100 focus:border-sky-300 outline-none text-sm font-bold transition-all text-slate-700"
+                    className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-4 focus:ring-sky-100 focus:border-sky-300 outline-none text-[16px] font-bold transition-all text-slate-700"
                 />
             </div>
         </div>
@@ -242,12 +242,12 @@ function VenueSelectionModal({ onClose, onSelect }) {
         <div className="p-4 md:p-6 bg-white border-b border-slate-100">
             <div className="relative">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                <input 
-                    type="text" 
+                <input
+                    type="text"
                     placeholder="会場名や住所で検索..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-4 focus:ring-emerald-100 focus:border-emerald-300 outline-none text-sm font-bold transition-all text-slate-700"
+                    className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-4 focus:ring-emerald-100 focus:border-emerald-300 outline-none text-[16px] font-bold transition-all text-slate-700"
                 />
             </div>
         </div>
@@ -615,8 +615,19 @@ function CreateProjectForm() {
       <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-pink-200/40 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/3 pointer-events-none" />
       <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-sky-200/30 rounded-full blur-[100px] translate-y-1/3 -translate-x-1/3 pointer-events-none" />
 
+      {/* 戻るボタン */}
+      <button
+        type="button"
+        onClick={() => router.back()}
+        className="fixed top-0 left-0 z-40 m-4 w-10 h-10 bg-white/80 hover:bg-white backdrop-blur-md rounded-full flex items-center justify-center text-slate-500 border border-slate-200 shadow-sm transition-colors active:scale-95"
+        style={{ marginTop: 'calc(1rem + env(safe-area-inset-top))' }}
+        aria-label="戻る"
+      >
+        <ChevronLeft size={20} />
+      </button>
+
       <div className="max-w-4xl mx-auto px-4 md:px-6 relative z-10">
-        
+
         <div className="text-center mb-12">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-white rounded-3xl shadow-lg border border-pink-100 mb-6 text-pink-500 rotate-3">
             <Sparkles size={32} className="animate-pulse" />
@@ -744,8 +755,8 @@ function CreateProjectForm() {
             <InputLabel icon={Award} title="目標金額" subtitle="お花の制作や装飾品にかかる総予算を決めましょう" required />
             <div className="mt-4 flex items-center justify-center bg-white/80 p-8 rounded-[2.5rem] border border-pink-100 shadow-inner">
                 <span className="text-3xl text-pink-400 font-black mr-4">¥</span>
-                <input type="number" name="targetAmount" required value={formData.targetAmount} onChange={handleChange} 
-                  className="text-5xl md:text-7xl font-black text-slate-800 bg-transparent border-none focus:ring-0 w-full max-w-[300px] text-center placeholder:text-slate-200 outline-none" 
+                <input type="number" name="targetAmount" required value={formData.targetAmount} onChange={handleChange}
+                  className="text-5xl md:text-7xl font-black text-slate-800 bg-transparent border-none focus:ring-0 w-full max-w-[300px] text-center placeholder:text-slate-200 outline-none"
                   placeholder="30000" />
             </div>
 

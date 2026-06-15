@@ -2,12 +2,13 @@
 
 import { useState, useEffect, useCallback, Suspense, useRef } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/app/contexts/AuthContext';
 import {
   Calendar, MapPin, Search, AlertTriangle, CheckCircle2,
   Plus, Cpu, ExternalLink, X, Filter, Heart, Loader2,
   Pencil, Trash2, User, Info, Star, ImageIcon, Upload, Globe,
-  ArrowRight, Megaphone, Shield
+  ArrowRight, Megaphone, Shield, ArrowLeft
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -28,6 +29,7 @@ function cn(...classes) {
 }
 
 function EventListContent() {
+  const router = useRouter();
   const { user, isAuthenticated, authenticatedFetch } = useAuth();
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -132,8 +134,18 @@ function EventListContent() {
 
   return (
     <div className="bg-slate-50 min-h-screen py-10 font-sans text-gray-800">
+      {/* フローティング戻るボタン */}
+      <button
+        onClick={() => router.back()}
+        className="fixed left-4 z-40 w-10 h-10 bg-white/80 backdrop-blur-md rounded-full flex items-center justify-center shadow-lg border border-slate-100 active:scale-90 transition-transform"
+        style={{ top: 'calc(1rem + env(safe-area-inset-top))' }}
+        aria-label="戻る"
+      >
+        <ArrowLeft size={18} className="text-slate-700" />
+      </button>
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        
+
         <div className="flex flex-col md:flex-row justify-between items-center mb-10 gap-6">
           <div className="flex items-center gap-4">
               <div className="bg-pink-500 p-3 rounded-2xl text-white shadow-lg shadow-pink-100">
@@ -192,7 +204,7 @@ function EventListContent() {
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="イベント名、アーティスト名、会場名..."
-                  className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-transparent rounded-2xl focus:bg-white focus:ring-2 focus:ring-pink-500 outline-none transition-all font-medium"
+                  className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-transparent rounded-2xl focus:bg-white focus:ring-2 focus:ring-pink-500 outline-none transition-all font-medium text-[16px]"
                 />
               </div>
             </div>
@@ -204,7 +216,7 @@ function EventListContent() {
                 <select
                   value={selectedGenre}
                   onChange={(e) => setSelectedGenre(e.target.value)}
-                  className="w-full pl-11 pr-8 py-3.5 bg-slate-50 border border-transparent rounded-2xl focus:bg-white focus:ring-2 focus:ring-pink-500 outline-none appearance-none cursor-pointer transition-all font-bold text-gray-700"
+                  className="w-full pl-11 pr-8 py-3.5 bg-slate-50 border border-transparent rounded-2xl focus:bg-white focus:ring-2 focus:ring-pink-500 outline-none appearance-none cursor-pointer transition-all font-bold text-gray-700 text-[16px]"
                 >
                   {GENRES.map(g => <option key={g.id} value={g.id}>{g.label}</option>)}
                 </select>
@@ -215,7 +227,7 @@ function EventListContent() {
               <select 
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
-                className="w-full py-3.5 px-4 bg-slate-800 text-white font-bold rounded-2xl outline-none cursor-pointer hover:bg-gray-900 transition-all shadow-md text-sm"
+                className="w-full py-3.5 px-4 bg-slate-800 text-white font-bold rounded-2xl outline-none cursor-pointer hover:bg-gray-900 transition-all shadow-md text-[16px]"
               >
                 <option value="date">開催日順</option>
                 <option value="newest">新着順</option>
@@ -510,7 +522,7 @@ function AiAddModal({ onClose, onAdded }) {
               </p>
             </div>
             <textarea 
-                className="w-full p-4 border border-slate-100 rounded-2xl bg-slate-50 h-40 text-sm focus:bg-white focus:ring-2 focus:ring-pink-500 outline-none transition-all resize-none shadow-inner" 
+                className="w-full p-4 border border-slate-100 rounded-2xl bg-slate-50 h-40 text-[16px] focus:bg-white focus:ring-2 focus:ring-pink-500 outline-none transition-all resize-none shadow-inner" 
                 placeholder="ここに告知テキストをペーストしてください..." 
                 value={text} 
                 onChange={(e) => setText(e.target.value)} 
@@ -518,7 +530,7 @@ function AiAddModal({ onClose, onAdded }) {
             <div>
               <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">情報元のURL (任意)</label>
               <input 
-                  className="w-full p-4 border border-slate-100 rounded-xl bg-slate-50 text-sm focus:bg-white outline-none shadow-inner" 
+                  className="w-full p-4 border border-slate-100 rounded-xl bg-slate-50 text-[16px] focus:bg-white outline-none shadow-inner" 
                   placeholder="https://..." 
                   value={url} 
                   onChange={(e) => setUrl(e.target.value)} 
@@ -645,7 +657,7 @@ function ManualAddModal({ onClose, onAdded, editData = null }) {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">イベント名</label>
-            <input required className="w-full p-4 border border-slate-100 bg-slate-50 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-pink-500 transition-all text-sm" placeholder="イベント名を入力" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} />
+            <input required className="w-full p-4 border border-slate-100 bg-slate-50 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-pink-500 transition-all text-[16px]" placeholder="イベント名を入力" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} />
           </div>
 
           {/* ★ 変更: カスタムドロップダウンによる会場選択 */}
@@ -669,7 +681,7 @@ function ManualAddModal({ onClose, onAdded, editData = null }) {
                     <input 
                       type="text" 
                       placeholder="会場名で検索..." 
-                      className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium outline-none focus:bg-white focus:border-pink-400 focus:ring-2 focus:ring-pink-100 transition-all"
+                      className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-[16px] font-medium outline-none focus:bg-white focus:border-pink-400 focus:ring-2 focus:ring-pink-100 transition-all"
                       value={venueSearch}
                       onChange={e => setVenueSearch(e.target.value)}
                       onClick={e => e.stopPropagation()} 
@@ -704,11 +716,11 @@ function ManualAddModal({ onClose, onAdded, editData = null }) {
           <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">開催日時</label>
-                <input required type="datetime-local" className="w-full p-3 border border-slate-100 bg-slate-50 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-pink-500 transition-all text-xs font-medium" value={formData.eventDate} onChange={e => setFormData({...formData, eventDate: e.target.value})} />
+                <input required type="datetime-local" className="w-full p-3 border border-slate-100 bg-slate-50 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-pink-500 transition-all text-[16px] font-medium" value={formData.eventDate} onChange={e => setFormData({...formData, eventDate: e.target.value})} />
               </div>
               <div>
                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">ジャンル</label>
-                <select className="w-full p-3 border border-slate-100 bg-slate-50 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-pink-500 transition-all text-xs font-bold text-slate-700 cursor-pointer" value={formData.genre} onChange={e => setFormData({...formData, genre: e.target.value})}>
+                <select className="w-full p-3 border border-slate-100 bg-slate-50 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-pink-500 transition-all text-[16px] font-bold text-slate-700 cursor-pointer" value={formData.genre} onChange={e => setFormData({...formData, genre: e.target.value})}>
                   {GENRES.filter(g => g.id !== 'ALL').map(g => <option key={g.id} value={g.id}>{g.label}</option>)}
                 </select>
               </div>
@@ -718,12 +730,12 @@ function ManualAddModal({ onClose, onAdded, editData = null }) {
 
           <div>
             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">公式サイトURL (任意)</label>
-            <input className="w-full p-4 border border-slate-100 bg-slate-50 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-pink-500 transition-all text-sm" placeholder="https://..." value={formData.sourceUrl} onChange={e => setFormData({...formData, sourceUrl: e.target.value})} />
+            <input className="w-full p-4 border border-slate-100 bg-slate-50 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-pink-500 transition-all text-[16px]" placeholder="https://..." value={formData.sourceUrl} onChange={e => setFormData({...formData, sourceUrl: e.target.value})} />
           </div>
 
           <div>
             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">イベント詳細・説明</label>
-            <textarea className="w-full p-4 border border-slate-100 bg-slate-50 rounded-xl outline-none h-24 resize-none focus:bg-white focus:ring-2 focus:ring-pink-500 transition-all text-sm" placeholder="詳細を入力してください" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} />
+            <textarea className="w-full p-4 border border-slate-100 bg-slate-50 rounded-xl outline-none h-24 resize-none focus:bg-white focus:ring-2 focus:ring-pink-500 transition-all text-[16px]" placeholder="詳細を入力してください" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} />
           </div>
 
           <button type="submit" disabled={isSubmitting || isUploading} className="w-full mt-6 py-4 bg-pink-500 text-white font-black rounded-2xl shadow-xl shadow-pink-100 active:scale-95 transition-all">

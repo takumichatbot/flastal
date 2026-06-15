@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import Image from 'next/image';
 import { useAuth } from '@/app/contexts/AuthContext';
 import { useForm } from 'react-hook-form';
@@ -205,9 +204,14 @@ export default function FloristProfileEditPage() {
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center justify-between mb-6 sticky top-0 z-20 bg-gray-50/90 backdrop-blur-sm py-4">
             <div className="flex items-center gap-4">
-                <Link href="/florists/dashboard" className="p-2 bg-white rounded-full text-gray-500 hover:text-pink-600 shadow-sm border border-gray-200 transition-colors">
-                    <ArrowLeft size={20}/>
-                </Link>
+                <button
+                    type="button"
+                    onClick={() => router.back()}
+                    className="w-10 h-10 bg-white/80 backdrop-blur-md rounded-full border border-slate-200 shadow-sm flex items-center justify-center text-slate-500 hover:text-pink-500 hover:border-pink-200 transition-all"
+                    aria-label="戻る"
+                >
+                    <ArrowLeft size={18}/>
+                </button>
                 <h1 className="text-2xl font-bold text-gray-800">プロフィール編集</h1>
             </div>
             <button 
@@ -255,10 +259,10 @@ export default function FloristProfileEditPage() {
                                 <label className="block text-sm font-bold text-gray-700 mb-1">
                                     活動名 (ユーザーに公開) <span className="text-red-500">*</span>
                                 </label>
-                                <input 
-                                    type="text" 
-                                    {...register('platformName', { required: '活動名は必須です' })} 
-                                    className={`w-full p-3 bg-gray-50 border rounded-xl focus:bg-white focus:border-pink-500 focus:ring-2 focus:ring-pink-100 outline-none transition-all ${errors.platformName ? 'border-red-500' : 'border-gray-200'}`}
+                                <input
+                                    type="text"
+                                    {...register('platformName', { required: '活動名は必須です' })}
+                                    className={`w-full p-3 bg-gray-50 border rounded-xl focus:bg-white focus:border-pink-500 focus:ring-2 focus:ring-pink-100 outline-none transition-all text-[16px] ${errors.platformName ? 'border-red-500' : 'border-gray-200'}`}
                                     placeholder="例: フラワーショップ FLOWER"
                                 />
                                 {errors.platformName && <p className="text-red-500 text-xs mt-1">{errors.platformName.message}</p>}
@@ -267,22 +271,22 @@ export default function FloristProfileEditPage() {
                                 <label className="block text-sm font-bold text-gray-700 mb-1">
                                     店舗名 (正式名称・非公開)
                                 </label>
-                                <input 
-                                    type="text" 
-                                    {...register('shopName')} 
-                                    className="w-full p-3 bg-gray-100 border border-gray-200 rounded-xl text-gray-600 cursor-not-allowed" 
-                                    readOnly 
+                                <input
+                                    type="text"
+                                    {...register('shopName')}
+                                    className="w-full p-3 bg-gray-100 border border-gray-200 rounded-xl text-gray-600 cursor-not-allowed text-[16px]"
+                                    readOnly
                                 />
                                 <p className="text-xs text-gray-400 mt-1">※ 正式名称の変更は運営への申請が必要です</p>
                             </div>
                              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
                                     <label className="block text-sm font-bold text-gray-700 mb-1">担当者名</label>
-                                    <input type="text" {...register('contactName')} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-pink-500 outline-none transition-all" />
+                                    <input type="text" {...register('contactName')} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-pink-500 outline-none transition-all text-[16px]" />
                                 </div>
                                 <div>
                                     <label className="block text-sm font-bold text-gray-700 mb-1"><Phone className="inline mr-1"/> 電話番号</label>
-                                    <input type="tel" {...register('phoneNumber')} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-pink-500 outline-none transition-all" />
+                                    <input type="tel" {...register('phoneNumber')} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-pink-500 outline-none transition-all text-[16px]" />
                                 </div>
                             </div>
                         </div>
@@ -299,11 +303,11 @@ export default function FloristProfileEditPage() {
                 <div className="p-6 md:p-8 space-y-6">
                     <div>
                        <label className="block text-sm font-bold text-gray-700 mb-1">住所</label>
-                       <input type="text" {...register('address')} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-pink-500 outline-none transition-all" placeholder="〒000-0000 東京都..." />
+                       <input type="text" {...register('address')} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-pink-500 outline-none transition-all text-[16px]" placeholder="〒000-0000 東京都..." />
                     </div>
                     <div>
                        <label className="block text-sm font-bold text-gray-700 mb-1"><Globe className="inline mr-1"/> ウェブサイト / SNS</label>
-                       <input type="url" {...register('website')} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-pink-500 outline-none transition-all" placeholder="https://instagram.com/..." />
+                       <input type="url" {...register('website')} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-pink-500 outline-none transition-all text-[16px]" placeholder="https://instagram.com/..." />
                     </div>
                 </div>
             </section>
@@ -385,10 +389,10 @@ export default function FloristProfileEditPage() {
                     </div>
                     <div>
                          <label className="block text-sm font-bold text-gray-700 mb-2">自己紹介</label>
-                         <textarea 
-                            {...register('portfolio')} 
-                            rows="6" 
-                            className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white outline-none" 
+                         <textarea
+                            {...register('portfolio')}
+                            rows="6"
+                            className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white outline-none text-[16px]"
                             placeholder="こだわりの内容を自由に記載してください。"
                          ></textarea>
                     </div>

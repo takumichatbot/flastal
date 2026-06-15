@@ -314,6 +314,15 @@ function FloristsListContent() {
 
   return (
     <main className="bg-gradient-to-br from-pink-50/80 to-sky-50/80 min-h-screen py-10 md:py-16 font-sans text-slate-800 relative overflow-hidden pb-24">
+      {/* Fixed back button — top-left with safe area */}
+      <button
+        onClick={() => router.back()}
+        className="fixed top-0 left-4 z-50 w-10 h-10 bg-white/80 backdrop-blur-md rounded-full border border-slate-200 shadow-sm flex items-center justify-center text-slate-500 hover:text-pink-500 hover:border-pink-200 transition-all"
+        style={{ marginTop: 'calc(1rem + env(safe-area-inset-top))' }}
+        aria-label="戻る"
+      >
+        <ArrowLeft size={18} />
+      </button>
       <FloatingParticles />
       <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-pink-200/40 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/3 pointer-events-none" />
       <div className="absolute top-40 left-0 w-[400px] h-[400px] bg-sky-200/30 rounded-full blur-[100px] -translate-x-1/2 pointer-events-none" />
@@ -372,7 +381,7 @@ function FloristsListContent() {
                       <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 pl-2">Keyword</label>
                       <div className="relative">
                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18}/>
-                        <input type="text" name="keyword" value={filters.keyword} onChange={handleFilterChange} placeholder="キーワード（店名、装飾など）" className="w-full pl-12 pr-4 py-4 bg-white/60 backdrop-blur-sm border-2 border-slate-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-pink-100 focus:border-pink-300 outline-none transition-all font-bold text-slate-700" />
+                        <input type="text" name="keyword" value={filters.keyword} onChange={handleFilterChange} placeholder="キーワード（店名、装飾など）" className="w-full pl-12 pr-4 py-4 bg-white/60 backdrop-blur-sm border-2 border-slate-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-pink-100 focus:border-pink-300 outline-none transition-all font-bold text-slate-700 text-[16px]" />
                       </div>
                   </div>
                   <div className="md:col-span-3 relative">
@@ -380,7 +389,7 @@ function FloristsListContent() {
                       <div className="relative">
                         <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18}/>
                         {/* ★ 配送エリアでの検索だと分かるようにプレースホルダーを変更 */}
-                        <select name="prefecture" value={filters.prefecture} onChange={handleFilterChange} className="w-full pl-12 pr-10 py-4 bg-white/60 backdrop-blur-sm border-2 border-slate-100 rounded-2xl outline-none appearance-none cursor-pointer font-bold text-slate-700 focus:bg-white focus:ring-4 focus:ring-pink-100 focus:border-pink-300 transition-all">
+                        <select name="prefecture" value={filters.prefecture} onChange={handleFilterChange} className="w-full pl-12 pr-10 py-4 bg-white/60 backdrop-blur-sm border-2 border-slate-100 rounded-2xl outline-none appearance-none cursor-pointer font-bold text-slate-700 focus:bg-white focus:ring-4 focus:ring-pink-100 focus:border-pink-300 transition-all text-[16px]">
                             <option value="">すべてのエリア</option>
                             {prefectures.map(pref => <option key={pref} value={pref}>{pref}</option>)}
                         </select>
