@@ -2,7 +2,7 @@ import prisma from '../config/prisma.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
-import { sendDynamicEmail, sendEmail } from '../utils/email.js';
+import { sendDynamicEmail } from '../utils/email.js';
 
 // ==========================================
 // ★★★ 共通ヘルパー: トークン発行 ★★★
@@ -350,7 +350,7 @@ export const forgotPassword = async (req, res) => {
         if (user) {
             const token = jwt.sign({ id: user.id, type: userType }, process.env.JWT_SECRET, { expiresIn: '1h' });
             const resetLink = `${process.env.FRONTEND_URL}/reset-password/${token}`;
-            await sendEmail(email, 'パスワード再設定', `<p>パスワード再設定の依頼を受け付けました。</p><a href="${resetLink}">こちらをクリックして再設定してください。</a>`);
+            await sendDynamicEmail(email, 'PASSWORD_RESET', { userName: user.handleName || user.platformName || 'お客様', resetLink });
         }
         res.status(200).json({ message: 'ご入力いただいたアドレスが登録されている場合、再設定メールを送信しました。' });
     } catch (error) { 

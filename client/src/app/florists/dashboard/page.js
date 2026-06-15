@@ -340,14 +340,17 @@ function DashboardContent() {
   );
 
   return (
-    <div className="min-h-screen bg-slate-50/50 font-sans pb-24 relative overflow-hidden">
+    <div className="min-h-screen bg-slate-50/50 font-sans relative overflow-hidden" style={{ paddingBottom: 'calc(6rem + env(safe-area-inset-bottom))' }}>
       {/* 背景の装飾 */}
       <div className="absolute top-0 right-0 w-[50vw] h-[50vw] bg-pink-100/40 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/3 pointer-events-none z-0" />
       <div className="absolute bottom-0 left-0 w-[50vw] h-[50vw] bg-sky-100/30 rounded-full blur-[120px] translate-y-1/3 -translate-x-1/3 pointer-events-none z-0" />
 
       {/* Header */}
-      <header className="bg-white/80 backdrop-blur-xl border-b border-white sticky top-0 z-40 shadow-[0_4px_20px_rgba(0,0,0,0.02)]">
-        <div className="max-w-7xl mx-auto py-5 px-6 lg:px-8 flex justify-between items-center">
+      <header
+        className="bg-white/90 backdrop-blur-xl border-b border-slate-100 sticky top-0 z-40 shadow-sm"
+        style={{ paddingTop: 'env(safe-area-inset-top)' }}
+      >
+        <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8 flex justify-between items-center h-14">
           <div>
             <p className="text-[9px] md:text-[10px] font-black text-pink-500 uppercase tracking-[0.2em] mb-0.5">Professional Menu</p>
             <h1 className="text-lg md:text-2xl font-black text-slate-800 flex items-center gap-2 tracking-tighter"><Briefcase className="text-slate-400 hidden sm:block" size={20}/> お花屋さんダッシュボード</h1>

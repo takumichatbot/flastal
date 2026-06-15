@@ -1,6 +1,6 @@
 import prisma from '../config/prisma.js';
 import stripe from '../config/stripe.js';
-import { sendEmail } from '../utils/email.js';
+import { sendDynamicEmail } from '../utils/email.js';
 import { getIO } from '../config/socket.js';
 
 const LEVEL_CONFIG = { 'Bronze': 10000, 'Silver': 50000, 'Gold': 100000 };
@@ -185,7 +185,7 @@ export const createPledge = async (req, res) => {
 
             if (updatedProject.collectedAmount >= updatedProject.targetAmount && project.status !== 'SUCCESSFUL') {
                 await tx.project.update({ where: { id: projectId }, data: { status: 'SUCCESSFUL' } });
-                sendEmail(project.planner.email, '目標達成おめでとうございます', `<p>企画「${project.title}」が目標を達成しました！</p>`);
+                sendDynamicEmail(project.planner.email, 'PROJECT_FUNDED', { plannerName: project.planner.handleName || 'さん', projectTitle: project.title, collectedAmount: updatedProject.collectedAmount.toLocaleString(), projectId });
             }
 
             await checkUserLevelAndBadges(tx, userId);
@@ -209,7 +209,7 @@ export const createPledge = async (req, res) => {
             }
         }
 
-        sendEmail(req.user.email, '支援完了のお知らせ', `<p>${pledgeAmount}ptの支援を完了しました。</p>`);
+        sendDynamicEmail(req.user.email, 'PLEDGE_COMPLETED', { userName: req.user.handleName || 'さん', projectTitle: result.project.title, amount: pledgeAmount.toLocaleString(), projectId });
         res.status(201).json(result.newPledge); 
     } catch (error) {
         res.status(400).json({ message: error.message || '支援処理に失敗しました' });
@@ -248,7 +248,7 @@ export const createGuestPledgeDirect = async (req, res) => {
                 data: { recipientId: project.plannerId, type: 'NEW_PLEDGE', message: `ゲストの${guestName}様から支援がありました`, projectId, linkUrl: `/projects/${projectId}` }
             });
 
-            sendEmail(guestEmail, '【FLASTAL】支援完了のお知らせ', `<p>${project.title}への支援を承りました。</p>`);
+            sendDynamicEmail(guestEmail, 'PLEDGE_COMPLETED', { userName: guestName, projectTitle: project.title, amount: pledgeAmount.toLocaleString(), projectId });
             return { newPledge, project: updatedProject };
         });
 

@@ -1,6 +1,6 @@
 import prisma from '../config/prisma.js';
 import stripe from '../config/stripe.js';
-import { sendEmail, sendDynamicEmail } from '../utils/email.js';
+import { sendDynamicEmail } from '../utils/email.js';
 import { createNotification } from '../utils/notification.js';
 import { getIO } from '../config/socket.js';
 
@@ -297,8 +297,7 @@ export const createProject = async (req, res) => {
             data: projectData,
         });
 
-        await sendEmail(req.user.email, '【FLASTAL】企画申請を受け付けました',
-            `<p>${req.user.handleName} 様</p><p>企画「${title}」の申請を受け付けました。審査完了までお待ちください。</p>`);
+        sendDynamicEmail(req.user.email, 'PROJECT_SUBMITTED', { plannerName: req.user.handleName || 'さん', projectTitle: title, projectId: newProject.id });
 
         res.status(201).json({ project: newProject, message: '企画の作成申請が完了しました。' });
     } catch (error) {
@@ -545,8 +544,8 @@ export const completeProject = async (req, res) => {
 
         const pledges = await prisma.pledge.findMany({ where: { projectId }, distinct: ['userId'], include: { user: true } });
         for (const pledge of pledges) {
-            if (pledge.user) {
-                sendEmail(pledge.user.email, '【FLASTAL】企画完了のご報告', `<p>企画「${project.title}」が完了しました！</p>`);
+            if (pledge.user?.email) {
+                sendDynamicEmail(pledge.user.email, 'PROJECT_COMPLETED', { userName: pledge.user.handleName || 'さん', projectTitle: project.title, projectId });
             }
         }
 
