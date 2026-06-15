@@ -88,8 +88,11 @@ export default function RootLayout({ children }) {
         <script dangerouslySetInnerHTML={{ __html: `
           (function() {
             try {
-              if (sessionStorage.getItem('nativeApp') === '1' ||
-                  (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform())) {
+              var isNative =
+                window.location.pathname.startsWith('/app') ||
+                sessionStorage.getItem('nativeApp') === '1' ||
+                (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+              if (isNative) {
                 document.documentElement.classList.add('native-app');
               }
             } catch(e) {}
