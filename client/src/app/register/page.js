@@ -53,7 +53,7 @@ export default function RegisterPage() {
   // ------------------------------------------
   if (isSubmitted) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-pink-50 to-sky-50 flex items-center justify-center p-4 relative overflow-hidden font-sans">
+      <div className="min-h-screen bg-gradient-to-br from-pink-50 to-rose-50 flex items-center justify-center p-4 relative overflow-hidden font-sans">
         <FloatingParticles />
         <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-pink-200/40 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/3 pointer-events-none z-0" />
         <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-rose-100/30 rounded-full blur-[100px] translate-y-1/3 -translate-x-1/3 pointer-events-none z-0" />
@@ -102,9 +102,9 @@ export default function RegisterPage() {
   // 🌸 新規登録フォーム画面
   // ------------------------------------------
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 to-sky-50 flex items-center justify-center p-4 relative overflow-hidden font-sans">
+    <div className="min-h-screen bg-gradient-to-br from-pink-50 to-rose-50 flex items-center justify-center p-4 relative overflow-hidden font-sans">
       <FloatingParticles />
-      
+
       {/* 背景のぼんやりした光 */}
       <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-pink-200/40 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/3 pointer-events-none z-0" />
       <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-rose-100/30 rounded-full blur-[100px] translate-y-1/3 -translate-x-1/3 pointer-events-none z-0" />

@@ -1,13 +1,13 @@
 "use client";
-import { FiPackage, FiTruck, FiMapPin, FiCheckCircle, FiClock, FiTool } from 'react-icons/fi';
+import { Package, Truck, MapPin, CheckCircle2, Clock, Wrench } from 'lucide-react';
 
 export default function DeliveryTracker({ status }) {
   // ステータス定義 (DBの値に合わせて調整してください)
   const steps = [
-    { id: 'ACCEPTED', label: '受注', icon: <FiPackage /> },
-    { id: 'PROCESSING', label: '制作中', icon: <FiTool /> },
-    { id: 'DELIVERING', label: '配送中', icon: <FiTruck /> },
-    { id: 'DELIVERED', label: '設置完了', icon: <FiMapPin /> },
+    { id: 'ACCEPTED', label: '受注', icon: <Package /> },
+    { id: 'PROCESSING', label: '制作中', icon: <Wrench /> },
+    { id: 'DELIVERING', label: '配送中', icon: <Truck /> },
+    { id: 'DELIVERED', label: '設置完了', icon: <MapPin /> },
   ];
 
   // 現在のステータスが配列の何番目かを取得
@@ -34,7 +34,7 @@ export default function DeliveryTracker({ status }) {
     <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-slate-100 mb-8 overflow-hidden relative">
       {/* 背景装飾 */}
       <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none text-slate-400">
-          <FiTruck size={100} />
+          <Truck size={100} />
       </div>
 
       <h3 className="text-sm font-bold text-slate-500 mb-8 flex items-center gap-2">
@@ -58,7 +58,7 @@ export default function DeliveryTracker({ status }) {
           style={{ left: `${progressPercent}%` }}
         >
           <div className="absolute -translate-x-1/2 -translate-y-1/2 bg-white p-2 rounded-full shadow-lg border-2 border-emerald-500 text-emerald-600 text-xl transform transition-transform duration-500 hover:scale-110">
-            {activeIndex >= steps.length - 1 ? <FiCheckCircle /> : <FiTruck className={status === 'DELIVERING' ? 'animate-bounce-right' : ''} />}
+            {activeIndex >= steps.length - 1 ? <CheckCircle2 /> : <Truck className={status === 'DELIVERING' ? 'animate-bounce-right' : ''} />}
           </div>
           
           {/* 吹き出し (現在地ラベル) */}

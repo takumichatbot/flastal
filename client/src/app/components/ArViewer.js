@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { FiBox, FiMaximize, FiRotateCw, FiAlertCircle } from 'react-icons/fi';
+import { Box, Maximize, RotateCw, AlertCircle } from 'lucide-react';
 
 export default function ArViewer({ src, iosSrc, alt, poster }) {
   const modelViewerRef = useRef(null);
@@ -64,7 +64,7 @@ export default function ArViewer({ src, iosSrc, alt, poster }) {
   if (error) {
     return (
       <div className="w-full h-96 bg-gray-50 rounded-2xl flex flex-col items-center justify-center text-gray-400 border-2 border-dashed border-gray-200">
-        <FiAlertCircle size={32} className="mb-2 text-red-400"/>
+        <AlertCircle size={32} className="mb-2 text-red-400"/>
         <p className="text-sm font-bold">{error}</p>
       </div>
     );
@@ -97,7 +97,7 @@ export default function ArViewer({ src, iosSrc, alt, poster }) {
       >
         {/* --- Slot: AR起動ボタン --- */}
         <button slot="ar-button" className="absolute bottom-4 right-4 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-full shadow-lg flex items-center gap-2 hover:scale-105 transition-transform active:scale-95 z-50 border border-white/20 backdrop-blur-sm">
-          <FiBox className="text-xl" />
+          <Box className="text-xl" />
           <span>ARで部屋に置く</span>
         </button>
 
@@ -122,10 +122,10 @@ export default function ArViewer({ src, iosSrc, alt, poster }) {
         {isLoaded && (
             <div className="absolute top-4 right-4 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
                 <div className="bg-white/80 p-2 rounded-full shadow text-gray-600 backdrop-blur text-xs font-bold flex items-center gap-1" title="回転可能">
-                    <FiRotateCw /> <span className="hidden sm:inline">Rotate</span>
+                    <RotateCw /> <span className="hidden sm:inline">Rotate</span>
                 </div>
                 <div className="bg-white/80 p-2 rounded-full shadow text-gray-600 backdrop-blur text-xs font-bold flex items-center gap-1" title="拡大縮小可能">
-                    <FiMaximize /> <span className="hidden sm:inline">Zoom</span>
+                    <Maximize /> <span className="hidden sm:inline">Zoom</span>
                 </div>
             </div>
         )}

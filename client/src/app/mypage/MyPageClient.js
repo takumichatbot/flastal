@@ -6,13 +6,13 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import Image from 'next/image';
-import { 
-  FiHome, FiHeart, FiBell, FiUser, 
-  FiPlus, FiSearch, FiCamera, FiSettings, 
-  FiCheckCircle, FiLogOut, FiAward, FiStar
-} from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2, Zap, ArrowRight } from 'lucide-react';
+import {
+  Home, Heart, Bell, User,
+  Plus, Search, Camera, Settings,
+  CheckCircle2, LogOut, Award, Star,
+  Loader2, Zap, ArrowRight
+} from 'lucide-react';
 
 import UploadForm from '@/app/components/UploadForm'; 
 import SupportLevelBadge from '@/app/components/SupportLevelBadge'; 
@@ -47,7 +47,7 @@ function ProjectCard({ project, roleType }) {
           {project.imageUrl ? (
             <Image src={project.imageUrl} alt={project.title || "企画画像"} fill className="object-cover group-hover:scale-105 transition-transform duration-700" />
           ) : (
-            <div className="absolute inset-0 bg-gradient-to-br from-pink-100 to-sky-100 flex items-center justify-center text-4xl">💐</div>
+            <div className="absolute inset-0 bg-gradient-to-br from-pink-100 to-rose-100 flex items-center justify-center text-4xl">💐</div>
           )}
           <div className="absolute inset-x-0 top-0 h-1/3 bg-gradient-to-b from-slate-900/50 to-transparent" />
           <div className="absolute top-2 left-2 flex flex-col gap-1">
@@ -57,7 +57,7 @@ function ProjectCard({ project, roleType }) {
             <span className={cn("px-2 py-1 rounded-md text-[9px] font-black shadow-sm flex items-center gap-1 backdrop-blur-md border", 
               isOrganizer ? "bg-slate-900/80 text-white border-slate-700" : "bg-white/90 text-pink-500 border-pink-100"
             )}>
-              {isOrganizer ? <FiStar size={10} className="fill-yellow-400 text-yellow-400"/> : <FiHeart size={10} className="fill-pink-500 text-pink-500"/>}
+              {isOrganizer ? <Star size={10} className="fill-yellow-400 text-yellow-400"/> : <Heart size={10} className="fill-pink-500 text-pink-500"/>}
               {isOrganizer ? '主催' : '参加'}
             </span>
           </div>
@@ -95,7 +95,7 @@ function ProjectCard({ project, roleType }) {
                         }}
                         className="w-full py-2.5 bg-pink-50 hover:bg-pink-500 text-pink-600 hover:text-white rounded-xl text-xs font-black transition-colors flex items-center justify-center gap-1.5"
                     >
-                        <FiHeart size={12} className="fill-current" />
+                        <Heart size={12} className="fill-current" />
                         支援する (1口 ¥{(project.minContributionAmount || 1000).toLocaleString()}〜)
                     </button>
                 </div>
@@ -170,18 +170,18 @@ function DashboardContent() {
   if (authLoading || !user) return <div className="min-h-screen flex items-center justify-center bg-[#FAFAFC]"><Loader2 className="w-10 h-10 text-pink-500 animate-spin" /></div>;
 
   const BOTTOM_NAVS = [
-    { id: 'home', label: 'ホーム', icon: FiHome },
-    { id: 'projects', label: 'マイ企画', icon: FiHeart },
-    { id: 'album', label: 'アルバム', icon: FiCamera },
-    { id: 'notifications', label: '通知', icon: FiBell, badge: unreadCount > 0 ? unreadCount : null },
-    { id: 'settings', label: 'マイページ', icon: FiUser }
+    { id: 'home', label: 'ホーム', icon: Home },
+    { id: 'projects', label: 'マイ企画', icon: Heart },
+    { id: 'album', label: 'アルバム', icon: Camera },
+    { id: 'notifications', label: '通知', icon: Bell, badge: unreadCount > 0 ? unreadCount : null },
+    { id: 'settings', label: 'マイページ', icon: User }
   ];
 
   return (
     <div className="min-h-[100dvh] bg-[#FAFAFC] font-sans pb-[90px] lg:pb-12 pt-6 relative overflow-x-hidden selection:bg-pink-500 selection:text-white">
       {/* 背景の装飾 */}
       <div className="fixed top-0 right-0 w-[500px] h-[500px] bg-pink-200/40 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/3 pointer-events-none z-0" />
-      <div className="fixed top-40 left-0 w-[400px] h-[400px] bg-sky-200/30 rounded-full blur-[100px] -translate-x-1/2 pointer-events-none z-0" />
+      <div className="fixed top-40 left-0 w-[400px] h-[400px] bg-rose-100/30 rounded-full blur-[100px] -translate-x-1/2 pointer-events-none z-0" />
 
       <main className="max-w-xl lg:max-w-6xl mx-auto px-4 relative z-10 w-full pt-4">
         
@@ -189,7 +189,7 @@ function DashboardContent() {
         <div className="hidden lg:flex justify-between items-end mb-8">
             <div className="flex items-center gap-5">
               <div className="relative w-20 h-20 rounded-[2rem] overflow-hidden shadow-xl border-4 border-white bg-white shrink-0 group cursor-pointer" onClick={() => setActiveTab('settings')}>
-                {user.iconUrl ? <Image src={user.iconUrl} alt="Icon" fill className="object-cover group-hover:scale-110 transition-transform" /> : <div className="w-full h-full flex items-center justify-center text-slate-300"><FiUser size={32}/></div>}
+                {user.iconUrl ? <Image src={user.iconUrl} alt="Icon" fill className="object-cover group-hover:scale-110 transition-transform" /> : <div className="w-full h-full flex items-center justify-center text-slate-300"><User size={32}/></div>}
               </div>
               <div>
                 <p className="text-[10px] font-black text-pink-500 tracking-[0.2em] uppercase mb-1">Welcome back</p>
@@ -274,7 +274,7 @@ function DashboardContent() {
                           <p className="text-[10px] lg:text-xs font-bold opacity-90">推しへの想いを形にしよう🌸</p>
                         </div>
                         <Link href="/projects/create" className="relative z-10 w-10 h-10 lg:w-14 lg:h-14 bg-white text-pink-500 rounded-full flex items-center justify-center shadow-md group-hover:scale-110 transition-transform active:scale-95">
-                          <FiPlus className="w-5 h-5 lg:w-6 lg:h-6" />
+                          <Plus className="w-5 h-5 lg:w-6 lg:h-6" />
                         </Link>
                       </div>
                     )}
@@ -289,7 +289,7 @@ function DashboardContent() {
                         <h3 className="text-lg font-black text-slate-800 mb-2">企画がありません</h3>
                         <p className="text-xs font-bold text-slate-500 mb-6">参加中のフラスタ企画を探してみましょう！</p>
                         <Link href="/projects" className="px-8 py-3.5 bg-slate-900 text-white rounded-full font-black text-sm shadow-md flex items-center gap-2">
-                          <FiSearch size={16}/> 企画を探す
+                          <Search size={16}/> 企画を探す
                         </Link>
                       </div>
                     )}
@@ -303,7 +303,7 @@ function DashboardContent() {
                   <div className="space-y-6">
                     <div className="bg-white/80 backdrop-blur-md p-6 lg:p-8 rounded-[2rem] border border-white shadow-sm">
                       <div className="flex items-center gap-3 mb-6">
-                        <div className="w-10 h-10 bg-sky-50 text-sky-500 rounded-xl flex items-center justify-center"><FiCamera size={20}/></div>
+                        <div className="w-10 h-10 bg-pink-50 text-pink-500 rounded-xl flex items-center justify-center"><Camera size={20}/></div>
                         <div>
                           <h2 className="text-lg lg:text-xl font-black text-slate-800 leading-tight">思い出アルバム</h2>
                           <p className="text-[10px] lg:text-xs text-slate-500 font-bold">完成写真や思い出を保存できます</p>
@@ -323,8 +323,8 @@ function DashboardContent() {
                         </div>
                       )) : (
                         <div className="col-span-full py-16 text-center flex flex-col items-center bg-white/50 backdrop-blur-sm rounded-[2rem] border border-white">
-                          <div className="w-20 h-20 bg-sky-50 rounded-full flex items-center justify-center mb-4 shadow-sm border border-sky-100">
-                            <FiCamera size={32} className="text-sky-300" />
+                          <div className="w-20 h-20 bg-pink-50 rounded-full flex items-center justify-center mb-4 shadow-sm border border-pink-100">
+                            <Camera size={32} className="text-pink-300" />
                           </div>
                           <h3 className="text-base font-black text-slate-700 mb-1">思い出写真がありません</h3>
                           <p className="text-xs font-bold text-slate-400 mb-0">完成したフラスタの写真を投稿してみましょう📸</p>
@@ -349,7 +349,7 @@ function DashboardContent() {
                           }}
                           className={cn(
                             "p-5 lg:p-6 flex gap-4 cursor-pointer transition-all hover:bg-slate-50/50 border-b border-slate-100/50 last:border-0",
-                            n.isRead ? 'opacity-60' : 'bg-sky-50/30'
+                            n.isRead ? 'opacity-60' : 'bg-pink-50/20'
                           )}
                         >
                           <div className={cn("w-2 h-2 rounded-full mt-1.5 shrink-0 shadow-sm", n.isRead ? 'bg-slate-200' : 'bg-pink-500 animate-pulse shadow-pink-200')} />
@@ -360,7 +360,7 @@ function DashboardContent() {
                         </div>
                       )) : (
                         <div className="p-16 text-center flex flex-col items-center">
-                          <FiBell size={32} className="text-slate-200 mb-3" />
+                          <Bell size={32} className="text-slate-200 mb-3" />
                           <p className="text-slate-400 font-bold text-sm">新しいお知らせはありません</p>
                         </div>
                       )}
@@ -375,18 +375,18 @@ function DashboardContent() {
                   <div className="space-y-6 max-w-2xl mx-auto">
                     <div className="bg-white/80 backdrop-blur-md rounded-[2.5rem] p-6 lg:p-10 border border-white shadow-sm flex flex-col items-center text-center">
                       <div className="relative w-24 h-24 lg:w-32 lg:h-32 rounded-full overflow-hidden border-4 border-white shadow-lg mb-4 bg-slate-100 lg:hidden">
-                        {user.iconUrl ? <Image src={user.iconUrl} alt="アイコン" fill className="object-cover" /> : <FiUser size={40} className="m-auto mt-6 text-slate-300"/>}
+                        {user.iconUrl ? <Image src={user.iconUrl} alt="アイコン" fill className="object-cover" /> : <User size={40} className="m-auto mt-6 text-slate-300"/>}
                       </div>
                       <h3 className="text-xl lg:text-2xl font-black text-slate-800 tracking-tight mb-1 lg:hidden">{user.handleName}</h3>
                       <p className="text-slate-400 text-[10px] lg:text-xs font-bold font-mono mb-4 lg:hidden">{user.email}</p>
                       
                       <div className="flex flex-wrap gap-2 justify-center mb-6 w-full lg:w-auto">
-                        <button onClick={() => router.push('/mypage/edit')} className="w-full lg:w-auto px-8 py-3.5 bg-pink-500 text-white text-sm font-black rounded-full hover:bg-pink-600 transition-colors flex items-center justify-center gap-2 shadow-md shadow-pink-200"><FiSettings size={16}/> プロフィールを編集する</button>
+                        <button onClick={() => router.push('/mypage/edit')} className="w-full lg:w-auto px-8 py-3.5 bg-pink-500 text-white text-sm font-black rounded-full hover:bg-pink-600 transition-colors flex items-center justify-center gap-2 shadow-md shadow-pink-200"><Settings size={16}/> プロフィールを編集する</button>
                       </div>
 
                       <div className="w-full bg-slate-50 p-5 rounded-[1.5rem] border border-slate-100 flex justify-between items-center mb-4">
                          <div className="text-left">
-                           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1"><FiAward /> 応援ランク</p>
+                           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1"><Award /> 応援ランク</p>
                            <p className="text-sm font-black text-slate-800">{user.supportLevel || 'BRONZE'}</p>
                          </div>
                          <SupportLevelBadge level={user.supportLevel} />
@@ -397,12 +397,12 @@ function DashboardContent() {
                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">招待コード</p>
                            <p className="text-sm lg:text-lg font-black text-slate-800 tracking-widest font-mono group-hover:text-pink-500 transition-colors">{user.referralCode || '----'}</p>
                          </div>
-                         <button onClick={() => {navigator.clipboard.writeText(user.referralCode); toast.success('コピーしました')}} className="p-3 bg-white rounded-xl shadow-sm text-slate-400 hover:text-pink-500 transition-all active:scale-95"><FiCheckCircle size={20}/></button>
+                         <button onClick={() => {navigator.clipboard.writeText(user.referralCode); toast.success('コピーしました')}} className="p-3 bg-white rounded-xl shadow-sm text-slate-400 hover:text-pink-500 transition-all active:scale-95"><CheckCircle2 size={20}/></button>
                       </div>
                     </div>
                     
                     <button onClick={() => { logout(); router.push('/login'); }} className="w-full py-4 lg:py-5 bg-white border border-rose-100 text-rose-500 text-sm font-black rounded-[1.5rem] hover:bg-rose-50 transition-colors flex items-center justify-center gap-2 shadow-sm">
-                      <FiLogOut size={18}/> ログアウト
+                      <LogOut size={18}/> ログアウト
                     </button>
                   </div>
                 )}

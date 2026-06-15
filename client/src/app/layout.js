@@ -31,6 +31,7 @@ export const viewport = {
   maximumScale: 1,
   userScalable: false,
   themeColor: '#ec4899',
+  viewportFit: 'cover',
 };
 
 export const metadata = {
@@ -81,6 +82,23 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="ja" className={`${inter.variable} ${notoSansJP.variable}`}>
+      <head>
+        {/* Capacitor ネイティブ起動時: React レンダー前にリダイレクト */}
+        <script dangerouslySetInnerHTML={{ __html: `
+          (function() {
+            if (window.location.pathname !== '/') return;
+            var cap = window.Capacitor;
+            if (!cap || !cap.isNativePlatform || !cap.isNativePlatform()) return;
+            try {
+              var raw = localStorage.getItem('authToken');
+              var token = raw ? raw.replace(/['"]+/g, '').trim() : '';
+              window.location.replace(token ? '/mypage' : '/login');
+            } catch(e) {
+              window.location.replace('/login');
+            }
+          })();
+        `}} />
+      </head>
       <body className="font-sans antialiased text-slate-900 bg-white min-h-screen flex flex-col m-0 p-0 overflow-x-hidden">
         <ThemeController />
         <AuthProvider>

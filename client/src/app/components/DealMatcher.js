@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from 'react';
-import { FiGift, FiArrowRight, FiX, FiTag } from 'react-icons/fi';
+import { Gift, ArrowRight, X, Tag } from 'lucide-react';
 import Link from 'next/link';
 
 export default function DealMatcher({ keywords }) {
@@ -42,14 +42,14 @@ export default function DealMatcher({ keywords }) {
       
       {/* 背景装飾 */}
       <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none text-rose-500">
-          <FiGift size={80} />
+          <Gift size={80} />
       </div>
 
       {/* ヘッダー */}
       <div className="flex justify-between items-start mb-4 relative z-10">
         <div className="flex items-center gap-2">
             <span className="bg-rose-500 text-white p-1.5 rounded-lg shadow-sm">
-                <FiTag className="text-lg" />
+                <Tag className="text-lg" />
             </span>
             <div>
                 <h4 className="font-bold text-rose-800 text-sm md:text-base">
@@ -64,7 +64,7 @@ export default function DealMatcher({ keywords }) {
             onClick={() => setIsVisible(false)}
             className="text-rose-400 hover:text-rose-600 hover:bg-rose-100 rounded-full p-1 transition-colors"
         >
-            <FiX size={18} />
+            <X size={18} />
         </button>
       </div>
       
@@ -91,7 +91,7 @@ export default function DealMatcher({ keywords }) {
                   target="_blank"
                   className="w-full sm:w-auto text-center text-xs bg-gray-900 text-white px-4 py-2 rounded-lg font-bold hover:bg-rose-600 transition-colors flex items-center justify-center gap-1 group-hover:scale-105 transform duration-200"
                 >
-                  詳細を見る <FiArrowRight />
+                  詳細を見る <ArrowRight />
                 </Link>
             </div>
           </div>

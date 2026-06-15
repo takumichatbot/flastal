@@ -3,10 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
 import Markdown from 'react-markdown';
-import { 
-  FiGlobe, FiLoader, FiUser, FiSend, FiImage, FiSmile, 
-  FiAlertTriangle, FiX, FiFileText, FiCpu, FiRefreshCw, FiCopy, FiMessageSquare 
-} from 'react-icons/fi';
+import { Globe, Loader2, User, Send, ImageIcon, Smile, AlertTriangle, X, FileText, Cpu, RefreshCw, Copy, MessageSquare } from 'lucide-react';
 
 import PollCreationModal from './PollCreationModal';
 
@@ -60,11 +57,11 @@ const ChatReportModal = ({ messageId, onClose }) => {
         <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm transition-opacity">
             <div className="bg-white rounded-[2rem] p-6 w-full max-w-sm shadow-2xl relative">
                 <button onClick={onClose} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 bg-slate-100 p-2 rounded-full transition-colors">
-                    <FiX size={16} />
+                    <X size={16} />
                 </button>
                 
                 <div className="w-12 h-12 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mb-4">
-                    <FiAlertTriangle size={24}/>
+                    <AlertTriangle size={24}/>
                 </div>
                 <h3 className="font-black text-slate-800 text-lg mb-2">発言を通報する</h3>
                 <p className="text-xs text-slate-500 mb-6 font-medium leading-relaxed">
@@ -89,7 +86,7 @@ const ChatReportModal = ({ messageId, onClose }) => {
                             disabled={isSubmitting}
                             className="px-6 py-3 bg-rose-500 text-white text-sm font-black rounded-xl hover:bg-rose-600 disabled:opacity-50 shadow-md shadow-rose-200 transition-all flex items-center gap-2"
                         >
-                            {isSubmitting ? <FiLoader className="animate-spin"/> : null}
+                            {isSubmitting ? <Loader2 className="animate-spin"/> : null}
                             通報する
                         </button>
                     </div>
@@ -122,10 +119,10 @@ const ReactionPicker = ({ onSelect, isEnabled }) => {
                 type="button" 
                 onClick={() => setIsOpen(!isOpen)} 
                 disabled={!isEnabled}
-                className={`ml-2 text-slate-400 transition-all p-1.5 rounded-full ${isEnabled ? 'hover:bg-slate-100 hover:text-slate-700' : 'cursor-not-allowed opacity-50'}`}
+                className={`ml-2 text-slate-400 transition-all p-2 rounded-full ${isEnabled ? 'hover:bg-slate-100 hover:text-slate-700' : 'cursor-not-allowed opacity-50'}`}
                 title="リアクションを追加"
             >
-                <FiSmile size={18} />
+                <Smile size={18} />
             </button>
             
             {isOpen && (
@@ -227,7 +224,7 @@ const ChatMessage = ({ msg, user, isPlanner, isPledger, onReaction, onReport, te
                     <img src={iconUrl} alt={senderName} className="h-9 w-9 rounded-full object-cover shadow-sm border border-slate-100" />
                 ) : (
                     <div className="h-9 w-9 rounded-full bg-gradient-to-br from-indigo-100 to-sky-100 text-indigo-500 flex items-center justify-center font-bold shadow-sm">
-                        <FiUser size={16}/>
+                        <User size={16}/>
                     </div>
                 )}
             </div>
@@ -270,7 +267,7 @@ const ChatMessage = ({ msg, user, isPlanner, isPledger, onReaction, onReport, te
                         {/* 翻訳結果 */}
                         {translatedText && (
                             <div className={`mt-2 pt-2 border-t text-[11px] font-bold flex items-start gap-1.5 ${isOwn ? 'border-white/30 text-pink-50' : 'border-slate-100 text-slate-500'}`}>
-                                <FiGlobe className="mt-0.5 shrink-0"/>
+                                <Globe className="mt-0.5 shrink-0"/>
                                 <span>{translatedText}</span>
                             </div>
                         )}
@@ -288,7 +285,7 @@ const ChatMessage = ({ msg, user, isPlanner, isPledger, onReaction, onReport, te
                         
                         {!isOwn && (msg.messageType === 'TEXT' || msg.templateId) && (
                             <button onClick={handleTranslate} disabled={isTranslating} className="text-slate-400 hover:text-indigo-500 p-1.5 transition-colors" title="翻訳する">
-                                {isTranslating ? <FiLoader className="animate-spin"/> : <FiGlobe/>}
+                                {isTranslating ? <Loader2 className="animate-spin"/> : <Globe/>}
                             </button>
                         )}
 
@@ -296,7 +293,7 @@ const ChatMessage = ({ msg, user, isPlanner, isPledger, onReaction, onReport, te
 
                         {!isOwn && (
                             <button onClick={() => onReport(msg.id)} className="text-slate-400 hover:text-rose-500 p-1.5 transition-colors" title="通報する">
-                                <FiAlertTriangle size={16} />
+                                <AlertTriangle size={16} />
                             </button>
                         )}
                     </div>
@@ -508,7 +505,7 @@ export default function GroupChat({ project, user, isPlanner, isPledger, isFlori
         <div className="p-4 border-b border-slate-200/60 bg-white/80 backdrop-blur-md flex justify-between items-center z-10 sticky top-0 shadow-sm">
             <div>
                 <h3 className="font-black text-slate-800 flex items-center gap-2 text-sm md:text-base">
-                    <FiSmile className="text-pink-500" size={18} /> 参加者グループチャット
+                    <Smile className="text-pink-500" size={18} /> 参加者グループチャット
                 </h3>
                 <p className="text-[10px] text-slate-500 font-bold tracking-wide mt-0.5">企画者・支援者・お花屋さんが参加中</p>
             </div>
@@ -518,7 +515,7 @@ export default function GroupChat({ project, user, isPlanner, isPledger, isFlori
                     disabled={isSummarizing}
                     className="text-[10px] md:text-xs bg-indigo-50 text-indigo-600 px-4 py-2 rounded-full hover:bg-indigo-100 transition-colors flex items-center font-black border border-indigo-200 active:scale-95 disabled:opacity-50"
                 >
-                    {isSummarizing ? <FiRefreshCw className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <FiCpu className="w-3.5 h-3.5 mr-1.5" />}
+                    {isSummarizing ? <RefreshCw className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Cpu className="w-3.5 h-3.5 mr-1.5" />}
                     AIで要約
                 </button>
             )}
@@ -532,7 +529,7 @@ export default function GroupChat({ project, user, isPlanner, isPledger, isFlori
               <div className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 p-5 rounded-2xl mb-6 shadow-sm relative">
                   <div className="flex justify-between items-start mb-3 border-b border-amber-200/50 pb-2">
                       <h3 className="font-black text-amber-800 flex items-center text-xs">
-                          <FiFileText className="mr-1.5 text-amber-500"/> AI 決定事項まとめ
+                          <FileText className="mr-1.5 text-amber-500"/> AI 決定事項まとめ
                       </h3>
                       <button onClick={() => { navigator.clipboard.writeText(summary); toast.success('コピーしました'); }} className="text-[10px] text-amber-700 hover:text-amber-900 bg-white/50 px-2.5 py-1 rounded-md font-bold transition-colors">
                           コピー
@@ -560,7 +557,7 @@ export default function GroupChat({ project, user, isPlanner, isPledger, isFlori
             ))
           ) : (
             <div className="h-full flex flex-col items-center justify-center text-slate-400">
-                <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4"><FiMessageSquare size={24} className="text-slate-300"/></div>
+                <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4"><MessageSquare size={24} className="text-slate-300"/></div>
                 <p className="text-sm font-bold text-center leading-relaxed">
                     まだメッセージはありません。<br/>
                     {isFlorist ? 'お花屋さんとして挨拶してみましょう！🌸' : '挨拶して企画を盛り上げましょう！'}
@@ -587,7 +584,7 @@ export default function GroupChat({ project, user, isPlanner, isPledger, isFlori
                         }
                     }} 
                     disabled={!hasPermission} 
-                    className="whitespace-nowrap px-4 py-1.5 text-[11px] font-black bg-slate-50 border border-slate-200 text-slate-600 rounded-full hover:bg-sky-50 hover:text-sky-600 hover:border-sky-200 transition-colors disabled:opacity-50"
+                    className="whitespace-nowrap px-4 py-2.5 text-xs font-black bg-slate-50 border border-slate-200 text-slate-600 rounded-full hover:bg-sky-50 hover:text-sky-600 hover:border-sky-200 transition-colors disabled:opacity-50"
                   >
                     {template.text}
                   </button>
@@ -602,7 +599,7 @@ export default function GroupChat({ project, user, isPlanner, isPledger, isFlori
                 disabled={isUploading || !hasPermission}
                 className="p-3 bg-white text-slate-500 hover:text-pink-500 rounded-full shadow-sm hover:shadow transition-all flex-shrink-0 disabled:opacity-50"
               >
-                <FiImage size={20} />
+                <ImageIcon size={20} />
               </button>
               <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" disabled={isUploading || !hasPermission} />
              
@@ -633,7 +630,7 @@ export default function GroupChat({ project, user, isPlanner, isPledger, isFlori
                    : 'bg-gradient-to-r from-pink-500 to-rose-500 hover:scale-105 active:scale-95'
                }`}
              >
-               <FiSend size={18} className="ml-0.5" />
+               <Send size={18} className="ml-0.5" />
              </button>
           </div>
 

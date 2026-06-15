@@ -5,11 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/app/contexts/AuthContext'; 
 import toast from 'react-hot-toast';
-import { 
-    FiAlertTriangle, FiCheckCircle, FiExternalLink, FiSlash, 
-    FiMessageSquare, FiCalendar, FiFlag, FiXCircle, 
-    FiEye, FiChevronLeft, FiRefreshCw, FiUser 
-} from 'react-icons/fi';
+import { AlertTriangle, CheckCircle2, ExternalLink, Slash, MessageSquare, Calendar, Flag, XCircle, Eye, ChevronLeft, RefreshCw, User } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -38,7 +34,7 @@ function ReportDetailModal({ report, type, onClose, onAction }) {
                     <p className="text-sm text-gray-600 mt-1 line-clamp-3">{report.project?.description}</p>
                     {report.project?.id && (
                         <Link href={`/projects/${report.project.id}`} target="_blank" className="text-indigo-600 text-xs flex items-center mt-2 hover:underline">
-                            <FiExternalLink className="mr-1"/> 実際のページを確認
+                            <ExternalLink className="mr-1"/> 実際のページを確認
                         </Link>
                     )}
                 </div>
@@ -51,7 +47,7 @@ function ReportDetailModal({ report, type, onClose, onAction }) {
                     <h3 className="font-bold text-gray-800">{report.event?.title}</h3>
                     {report.event?.id && (
                         <Link href={`/events/${report.event.id}`} target="_blank" className="text-indigo-600 text-xs flex items-center mt-2 hover:underline">
-                            <FiExternalLink className="mr-1"/> 実際のページを確認
+                            <ExternalLink className="mr-1"/> 実際のページを確認
                         </Link>
                     )}
                 </div>
@@ -64,9 +60,9 @@ function ReportDetailModal({ report, type, onClose, onAction }) {
             <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
                 <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
                     <h3 className="font-bold text-gray-800 flex items-center gap-2">
-                        <FiAlertTriangle className="text-red-500"/> 通報詳細確認
+                        <AlertTriangle className="text-red-500"/> 通報詳細確認
                     </h3>
-                    <button onClick={onClose} className="p-1 hover:bg-gray-200 rounded-full"><FiXCircle size={20} className="text-gray-400"/></button>
+                    <button onClick={onClose} className="p-1 hover:bg-gray-200 rounded-full"><XCircle size={20} className="text-gray-400"/></button>
                 </div>
                 
                 <div className="p-6 overflow-y-auto">
@@ -81,7 +77,7 @@ function ReportDetailModal({ report, type, onClose, onAction }) {
 
                     <div className="flex items-center gap-2 mb-6 pb-6 border-b border-gray-100">
                         <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
-                            <FiUser className="text-gray-500"/>
+                            <User className="text-gray-500"/>
                         </div>
                         <div>
                             <p className="text-xs text-gray-500">通報者</p>
@@ -97,7 +93,7 @@ function ReportDetailModal({ report, type, onClose, onAction }) {
                         問題なし (却下)
                     </button>
                     <button onClick={() => onAction(report, 'BAN')} className="flex-1 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 font-bold text-sm shadow-md flex items-center justify-center gap-2">
-                        <FiSlash /> 処罰・削除する
+                        <Slash /> 処罰・削除する
                     </button>
                 </div>
             </div>
@@ -208,7 +204,7 @@ function AdminReportsInner() {
     }
   };
 
-  if (authLoading || loading) return <div className="min-h-screen flex items-center justify-center"><FiRefreshCw className="animate-spin text-3xl text-gray-400"/></div>;
+  if (authLoading || loading) return <div className="min-h-screen flex items-center justify-center"><RefreshCw className="animate-spin text-3xl text-gray-400"/></div>;
 
   const currentList = reports[activeTab] || [];
 
@@ -218,22 +214,22 @@ function AdminReportsInner() {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
             <div>
                 <Link href="/admin" className="text-sm text-gray-500 hover:text-indigo-600 flex items-center mb-1 transition-colors">
-                    <FiChevronLeft size={16}/> ダッシュボードに戻る
+                    <ChevronLeft size={16}/> ダッシュボードに戻る
                 </Link>
                 <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                    <FiFlag className="text-red-500"/> 通報・違反報告管理
+                    <Flag className="text-red-500"/> 通報・違反報告管理
                 </h1>
             </div>
             <button onClick={fetchData} className="p-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-600 transition-colors shadow-sm" title="更新">
-                <FiRefreshCw />
+                <RefreshCw />
             </button>
         </div>
 
         <div className="flex gap-2 mb-0 border-b border-gray-200">
           {[
-            { id: 'event', label: 'イベント', icon: <FiCalendar/>, count: reports.event.length },
-            { id: 'chat', label: 'チャット', icon: <FiMessageSquare/>, count: reports.chat.length },
-            { id: 'project', label: '企画', icon: <FiAlertTriangle/>, count: reports.project.length },
+            { id: 'event', label: 'イベント', icon: <Calendar/>, count: reports.event.length },
+            { id: 'chat', label: 'チャット', icon: <MessageSquare/>, count: reports.chat.length },
+            { id: 'project', label: '企画', icon: <AlertTriangle/>, count: reports.project.length },
           ].map(tab => (
             <button 
                 key={tab.id}
@@ -250,7 +246,7 @@ function AdminReportsInner() {
         <div className="bg-white rounded-b-xl rounded-tr-xl shadow-sm border border-gray-200 p-0 overflow-hidden min-h-[400px]">
             {currentList.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-20 text-gray-400">
-                    <FiCheckCircle className="text-4xl text-green-100 mb-3" />
+                    <CheckCircle2 className="text-4xl text-green-100 mb-3" />
                     <p className="font-medium">現在、未処理の通報はありません</p>
                 </div>
             ) : (
@@ -281,7 +277,7 @@ function AdminReportsInner() {
                                             <div className="text-xs text-gray-500 truncate mt-0.5">ID: {report.id.substring(0,8)}...</div>
                                         </td>
                                         <td className="px-6 py-4 text-center">
-                                            <button onClick={() => setSelectedReport(report)} className="inline-flex items-center gap-1 px-3 py-1.5 bg-white border border-gray-300 rounded-lg text-gray-700 hover:text-indigo-600 transition-all text-xs font-bold"><FiEye /> 詳細・対応</button>
+                                            <button onClick={() => setSelectedReport(report)} className="inline-flex items-center gap-1 px-3 py-1.5 bg-white border border-gray-300 rounded-lg text-gray-700 hover:text-indigo-600 transition-all text-xs font-bold"><Eye /> 詳細・対応</button>
                                         </td>
                                     </tr>
                                 );
@@ -303,7 +299,7 @@ export default function AdminReportsPage() {
   return (
     <Suspense fallback={
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <FiRefreshCw className="animate-spin text-3xl text-indigo-500" />
+        <RefreshCw className="animate-spin text-3xl text-indigo-500" />
       </div>
     }>
       <AdminReportsInner />

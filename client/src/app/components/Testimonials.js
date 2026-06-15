@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { FiMessageCircle, FiStar, FiUser, FiArrowRight } from 'react-icons/fi';
+import { Star, User, ArrowRight } from 'lucide-react';
 import { FaQuoteLeft } from 'react-icons/fa'; // 引用符用
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
@@ -11,7 +11,7 @@ const StarRating = ({ rating }) => {
   return (
     <div className="flex gap-1 text-yellow-400 mb-3">
       {[...Array(5)].map((_, i) => (
-        <FiStar 
+        <Star 
           key={i} 
           className={i < rating ? "fill-current" : "text-gray-200 fill-gray-200"} 
         />
@@ -130,7 +130,7 @@ export default function Testimonials() {
                             <img src={review.user.iconUrl} alt="" className="w-10 h-10 rounded-full object-cover border border-slate-200" />
                         ) : (
                             <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
-                                <FiUser />
+                                <User />
                             </div>
                         )}
                         <div>
@@ -141,10 +141,10 @@ export default function Testimonials() {
 
                     <Link 
                         href={`/projects/${review.project.id}`}
-                        className="inline-flex items-center text-xs font-bold text-sky-500 hover:text-sky-600 hover:underline transition-colors group/link"
+                        className="inline-flex items-center text-xs font-bold text-pink-500 hover:text-pink-600 hover:underline transition-colors group/link"
                     >
                         企画: {review.project.title}
-                        <FiArrowRight className="ml-1 transition-transform group-hover/link:translate-x-1" />
+                        <ArrowRight className="ml-1 transition-transform group-hover/link:translate-x-1" />
                     </Link>
                 </div>
               </div>

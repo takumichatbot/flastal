@@ -212,7 +212,7 @@ export default function EditProjectPage() {
   }
 
   return (
-    <div className="bg-gradient-to-br from-pink-50 to-sky-50 min-h-screen font-sans text-slate-800 relative overflow-hidden">
+    <div className="bg-gradient-to-br from-pink-50 to-rose-50 min-h-screen font-sans text-slate-800 relative overflow-hidden">
       <FloatingParticles />
       <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-pink-200/40 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/3 pointer-events-none" />
 
@@ -281,7 +281,7 @@ export default function EditProjectPage() {
           {/* メイン画像 */}
           <GlassCard>
             <div className="flex items-center gap-2 mb-6">
-                <ImageIcon className="text-sky-500" size={20}/>
+                <ImageIcon className="text-pink-500" size={20}/>
                 <h2 className="text-xl font-black text-slate-800">メイン画像</h2>
             </div>
             <div className="space-y-4">
@@ -337,7 +337,7 @@ export default function EditProjectPage() {
                 whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
                 type="submit" 
                 disabled={isSubmitting || isUploading} 
-                className="w-full py-4 font-black text-white bg-gradient-to-r from-sky-400 to-indigo-500 rounded-full disabled:opacity-50 transition-all shadow-xl flex items-center justify-center gap-2"
+                className="w-full py-4 font-black text-white bg-gradient-to-r from-pink-500 to-rose-500 rounded-full disabled:opacity-50 transition-all shadow-xl flex items-center justify-center gap-2"
             >
               {isSubmitting ? <><Loader2 className="animate-spin" size={20}/> 保存中...</> : <><Sparkles size={20}/> 変更内容を保存する</>}
             </motion.button>

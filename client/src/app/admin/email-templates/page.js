@@ -4,10 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import { useState, useEffect, useCallback, Suspense } from 'react';
 import toast from 'react-hot-toast';
-import { 
-  FiMail, FiEdit, FiSave, FiArrowLeft, FiRefreshCw, 
-  FiInfo, FiTag, FiFileText, FiLoader, FiEdit3, FiPlus 
-} from 'react-icons/fi';
+import { Mail, Pencil, Save, ArrowLeft, RefreshCw, Info, Tag, FileText, Loader2, Plus } from 'lucide-react';
 import { useAuth } from '@/app/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -109,7 +106,7 @@ function EmailTemplateContent() {
         }
     };
 
-    if (loading) return <div className="min-h-screen flex items-center justify-center"><FiLoader className="animate-spin text-3xl text-indigo-500"/></div>;
+    if (loading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin text-3xl text-indigo-500"/></div>;
 
     return (
         <div className="min-h-screen bg-gray-50 p-4 sm:p-8 font-sans text-gray-800">
@@ -117,11 +114,11 @@ function EmailTemplateContent() {
                 <div className="flex items-center justify-between mb-8">
                     <div className="flex items-center gap-4">
                         <Link href="/admin/settings" className="p-2 bg-white border border-gray-200 rounded-full hover:bg-gray-100 text-gray-500 shadow-sm transition-all">
-                            <FiArrowLeft size={20} />
+                            <ArrowLeft size={20} />
                         </Link>
                         <div>
                             <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                                <FiMail className="text-indigo-600"/> メールテンプレート管理
+                                <Mail className="text-indigo-600"/> メールテンプレート管理
                             </h1>
                             <p className="text-sm text-gray-500 mt-1">システムから自動送信されるメールの文面を作成・カスタマイズします。</p>
                         </div>
@@ -135,7 +132,7 @@ function EmailTemplateContent() {
                             onClick={() => setSelectedTemplate({ ...INITIAL_TEMPLATE })}
                             className="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl shadow-md hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2 active:scale-95"
                         >
-                            <FiPlus /> 新しいテンプレートを作成
+                            <Plus /> 新しいテンプレートを作成
                         </button>
 
                         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
@@ -161,7 +158,7 @@ function EmailTemplateContent() {
                                                 )}
                                             </div>
                                         </div>
-                                        <FiEdit className={`opacity-0 group-hover:opacity-100 transition-opacity ${selectedTemplate?.id === temp.id ? 'text-indigo-500' : 'text-gray-300'}`} />
+                                        <Pencil className={`opacity-0 group-hover:opacity-100 transition-opacity ${selectedTemplate?.id === temp.id ? 'text-indigo-500' : 'text-gray-300'}`} />
                                     </button>
                                 ))}
                                 {templates.length === 0 && (
@@ -179,7 +176,7 @@ function EmailTemplateContent() {
                             <form onSubmit={handleSave} className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden animate-fadeIn">
                                 <div className="bg-gray-900 text-white px-6 py-4 flex justify-between items-center">
                                     <div className="flex items-center gap-2">
-                                        <FiEdit3 className="text-indigo-400" />
+                                        <Pencil className="text-indigo-400" />
                                         <span className="font-bold">
                                             {selectedTemplate.id === 'new' ? '新規テンプレート作成' : `${selectedTemplate.name} の編集`}
                                         </span>
@@ -241,7 +238,7 @@ function EmailTemplateContent() {
 
                                     <div>
                                         <label className="flex items-center gap-2 text-sm font-bold text-gray-700 mb-2">
-                                            <FiTag className="text-gray-400"/> メールの件名 <span className="text-red-500">*</span>
+                                            <Tag className="text-gray-400"/> メールの件名 <span className="text-red-500">*</span>
                                         </label>
                                         <input 
                                             type="text" 
@@ -255,7 +252,7 @@ function EmailTemplateContent() {
 
                                     <div>
                                         <label className="flex items-center justify-between text-sm font-bold text-gray-700 mb-2">
-                                            <span className="flex items-center gap-2"><FiFileText className="text-gray-400"/> メールの本文 (HTML可) <span className="text-red-500">*</span></span>
+                                            <span className="flex items-center gap-2"><FileText className="text-gray-400"/> メールの本文 (HTML可) <span className="text-red-500">*</span></span>
                                         </label>
                                         <textarea 
                                             rows="12"
@@ -268,7 +265,7 @@ function EmailTemplateContent() {
                                     </div>
 
                                     <div className="bg-amber-50 border border-amber-100 rounded-lg p-4 flex gap-3 shadow-inner">
-                                        <FiInfo className="text-amber-500 mt-1 shrink-0" size={18} />
+                                        <Info className="text-amber-500 mt-1 shrink-0" size={18} />
                                         <div className="text-xs text-amber-800 leading-relaxed font-medium">
                                             <p className="font-bold mb-1">💡 利用可能な変数の例：</p>
                                             <ul className="list-disc list-inside ml-2 space-y-0.5">
@@ -309,14 +306,14 @@ function EmailTemplateContent() {
                                         disabled={isSaving}
                                         className="flex items-center gap-2 px-8 py-3 bg-indigo-600 text-white font-black rounded-xl hover:bg-indigo-700 shadow-md hover:shadow-lg transition-all active:scale-95 disabled:opacity-50 text-sm"
                                     >
-                                        {isSaving ? <FiRefreshCw className="animate-spin" size={16}/> : <FiSave size={16}/>} 
+                                        {isSaving ? <RefreshCw className="animate-spin" size={16}/> : <Save size={16}/>} 
                                         {selectedTemplate.id === 'new' ? '新規作成' : '上書き保存'}
                                     </button>
                                 </div>
                             </form>
                         ) : (
                             <div className="bg-white rounded-2xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center py-40 text-gray-400">
-                                <FiMail size={48} className="mb-4 opacity-20" />
+                                <Mail size={48} className="mb-4 opacity-20" />
                                 <p className="font-bold text-gray-500">左のリストからテンプレートを選択するか、</p>
                                 <p className="font-medium text-sm mt-1">「新しいテンプレートを作成」ボタンを押してください。</p>
                             </div>
@@ -330,7 +327,7 @@ function EmailTemplateContent() {
 
 export default function EmailTemplatePage() {
     return (
-        <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><FiLoader className="animate-spin text-indigo-500 text-3xl"/></div>}>
+        <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin text-indigo-500 text-3xl"/></div>}>
             <EmailTemplateContent />
         </Suspense>
     );

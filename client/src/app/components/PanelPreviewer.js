@@ -1,6 +1,6 @@
 "use client";
 import { useState, useRef } from 'react';
-import { FiUpload, FiAlertTriangle, FiImage, FiTrash2 } from 'react-icons/fi';
+import { Upload, AlertTriangle, ImageIcon, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 // 形状定義
@@ -82,7 +82,7 @@ export default function PanelPreviewer({ onImageSelected }) {
       {/* ヘッダー */}
       <div className="bg-gray-50 px-4 md:px-6 py-4 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
         <h3 className="font-bold text-gray-800 flex items-center text-sm md:text-base">
-          <FiImage className="mr-2 text-indigo-500"/> パネル・シミュレーター
+          <ImageIcon className="mr-2 text-indigo-500"/> パネル・シミュレーター
         </h3>
         {previewUrl && (
             <span className={`text-[10px] md:text-xs font-bold px-3 py-1 rounded-full border ${
@@ -108,7 +108,7 @@ export default function PanelPreviewer({ onImageSelected }) {
             }`}
           >
             <div className={`p-3 md:p-4 rounded-full mb-3 transition-colors ${isDragging ? 'bg-indigo-200 text-indigo-600' : 'bg-gray-100 text-gray-400 group-hover:bg-indigo-100 group-hover:text-indigo-500'}`}>
-                <FiUpload className="text-2xl md:text-3xl"/>
+                <Upload className="text-2xl md:text-3xl"/>
             </div>
             <p className="text-gray-600 font-bold text-sm md:text-lg">画像をドロップ または 選択</p>
             <p className="text-[10px] md:text-xs text-gray-400 mt-2 text-center px-4">対応形式: JPG, PNG (推奨: 長辺2500px以上)</p>
@@ -208,7 +208,7 @@ export default function PanelPreviewer({ onImageSelected }) {
                     {/* アラート */}
                     {qualityStatus.status !== 'good' && (
                         <div className="mt-4 text-[10px] md:text-xs leading-relaxed bg-yellow-50 text-yellow-800 p-3 rounded-lg border border-yellow-200 flex items-start gap-2 shadow-sm">
-                            <FiAlertTriangle className="shrink-0 mt-0.5 text-yellow-600" size={14}/>
+                            <AlertTriangle className="shrink-0 mt-0.5 text-yellow-600" size={14}/>
                             <span>解像度が低いため、印刷時にぼやける可能性があります。より大きな画像の使用を推奨します。</span>
                         </div>
                     )}
@@ -218,7 +218,7 @@ export default function PanelPreviewer({ onImageSelected }) {
                     onClick={clearImage} 
                     className="w-full py-3.5 border border-red-200 text-red-500 bg-white rounded-xl text-xs md:text-sm font-black hover:bg-red-50 hover:border-red-300 transition-colors flex items-center justify-center gap-2 shadow-sm"
                 >
-                    <FiTrash2 size={16}/> 別の画像を選び直す
+                    <Trash2 size={16}/> 別の画像を選び直す
                 </button>
             </div>
           </div>

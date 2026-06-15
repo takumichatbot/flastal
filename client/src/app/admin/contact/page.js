@@ -3,10 +3,7 @@
 import { useState, useEffect, useRef, Suspense } from 'react';
 import { useAuth } from '@/app/contexts/AuthContext';
 import toast from 'react-hot-toast';
-import { 
-    FiSend, FiPaperclip, FiUser, FiImage, FiSearch, 
-    FiX, FiMessageSquare, FiAlertCircle, FiCheck, FiArrowLeft
-} from 'react-icons/fi';
+import { Send, Paperclip, User, ImageIcon, Search, X, MessageSquare, AlertCircle, Check, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 
@@ -123,19 +120,19 @@ function AdminContactInner() {
                 <div className="flex justify-between items-center mb-6">
                     <div>
                         <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-                            <FiMessageSquare className="text-indigo-600"/> 個別連絡・通知
+                            <MessageSquare className="text-indigo-600"/> 個別連絡・通知
                         </h1>
                         <p className="text-sm text-slate-500 mt-1">特定のユーザーに対して、システム通知またはチャットメッセージを送信します。</p>
                     </div>
                     <Link href="/admin" className="flex items-center text-slate-500 hover:text-indigo-600 transition-colors">
-                        <FiArrowLeft className="mr-1"/> ダッシュボードへ戻る
+                        <ArrowLeft className="mr-1"/> ダッシュボードへ戻る
                     </Link>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <div className="lg:col-span-1 space-y-4">
                         <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
-                            <h2 className="font-bold text-slate-700 mb-4 flex items-center"><FiSearch className="mr-2"/> 宛先を検索</h2>
+                            <h2 className="font-bold text-slate-700 mb-4 flex items-center"><Search className="mr-2"/> 宛先を検索</h2>
                             <div className="relative">
                                 <input 
                                     type="text" 
@@ -145,9 +142,9 @@ function AdminContactInner() {
                                     placeholder="名前、メールアドレス..."
                                     disabled={!!targetUser}
                                 />
-                                <FiSearch className="absolute left-3 top-3.5 text-slate-400" />
+                                <Search className="absolute left-3 top-3.5 text-slate-400" />
                                 {targetUser && (
-                                    <button onClick={() => { setTargetUser(null); setSearchTerm(''); setSearchResults([]); }} className="absolute right-3 top-3 text-slate-400 hover:text-red-500"><FiX /></button>
+                                    <button onClick={() => { setTargetUser(null); setSearchTerm(''); setSearchResults([]); }} className="absolute right-3 top-3 text-slate-400 hover:text-red-500"><X /></button>
                                 )}
                             </div>
                             {!targetUser && searchTerm.length >= 2 && (
@@ -156,7 +153,7 @@ function AdminContactInner() {
                                         searchResults.map(user => (
                                             <button key={user.id} onClick={() => { setTargetUser(user); setSearchTerm(user.email); }} className="w-full text-left p-3 hover:bg-indigo-50 border-b border-slate-100 last:border-0 flex items-center gap-3 transition-colors">
                                                 <div className="w-8 h-8 bg-slate-200 rounded-full flex items-center justify-center flex-shrink-0 text-slate-500">
-                                                    {user.iconUrl ? <img src={user.iconUrl} alt="" className="w-full h-full rounded-full object-cover"/> : <FiUser />}
+                                                    {user.iconUrl ? <img src={user.iconUrl} alt="" className="w-full h-full rounded-full object-cover"/> : <User />}
                                                 </div>
                                                 <div className="overflow-hidden">
                                                     <p className="text-sm font-bold text-slate-800 truncate">{user.name || 'No Name'}</p>
@@ -171,7 +168,7 @@ function AdminContactInner() {
                                 <div className="mt-4 p-4 bg-indigo-50 border border-indigo-100 rounded-lg animate-fadeIn">
                                     <div className="flex items-center gap-3 mb-2">
                                         <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-indigo-500 shadow-sm">
-                                            {targetUser.iconUrl ? <img src={targetUser.iconUrl} className="w-full h-full rounded-full object-cover"/> : <FiUser size={20} />}
+                                            {targetUser.iconUrl ? <img src={targetUser.iconUrl} className="w-full h-full rounded-full object-cover"/> : <User size={20} />}
                                         </div>
                                         <div>
                                             <p className="font-bold text-indigo-900 text-sm">{targetUser.name}</p>
@@ -202,21 +199,21 @@ function AdminContactInner() {
                                 <div>
                                     <label className="block font-bold text-slate-700 mb-2 text-sm">添付ファイル (任意)</label>
                                     <div className="flex items-start gap-4">
-                                        <button type="button" onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 text-slate-600 transition-colors shadow-sm"><FiPaperclip /> ファイルを選択</button>
+                                        <button type="button" onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 text-slate-600 transition-colors shadow-sm"><Paperclip /> ファイルを選択</button>
                                         <input type="file" ref={fileInputRef} onChange={handleFileSelect} className="hidden" accept="image/png, image/jpeg, image/jpg, application/pdf"/>
                                         {selectedFile && (
                                             <div className="relative group">
                                                 {previewUrl ? (
                                                     <div className="w-16 h-16 rounded-lg overflow-hidden border border-slate-200 relative"><Image src={previewUrl} alt="Preview" fill className="object-cover" /></div>
-                                                ) : <div className="flex items-center gap-2 text-sm text-slate-600 bg-slate-100 px-3 py-2 rounded"><FiImage /> {selectedFile.name}</div>}
-                                                <button type="button" onClick={clearFile} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow-md hover:bg-red-600"><FiX size={12} /></button>
+                                                ) : <div className="flex items-center gap-2 text-sm text-slate-600 bg-slate-100 px-3 py-2 rounded"><ImageIcon /> {selectedFile.name}</div>}
+                                                <button type="button" onClick={clearFile} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow-md hover:bg-red-600"><X size={12} /></button>
                                             </div>
                                         )}
                                     </div>
                                 </div>
                                 <div className="pt-6 border-t border-slate-100 flex items-center justify-between">
-                                    <div className="text-xs text-slate-500"><FiAlertCircle className="inline mr-1" />送信内容は履歴に保存されます</div>
-                                    <button type="submit" disabled={sending || !targetUser} className={`px-8 py-3 rounded-lg font-bold flex items-center gap-2 shadow-lg transition-all ${sending || !targetUser ? 'bg-slate-300 text-slate-500 cursor-not-allowed' : 'bg-indigo-600 text-white hover:bg-indigo-700'}`}>{sending ? '送信中...' : <><FiSend /> 送信する</>}</button>
+                                    <div className="text-xs text-slate-500"><AlertCircle className="inline mr-1" />送信内容は履歴に保存されます</div>
+                                    <button type="submit" disabled={sending || !targetUser} className={`px-8 py-3 rounded-lg font-bold flex items-center gap-2 shadow-lg transition-all ${sending || !targetUser ? 'bg-slate-300 text-slate-500 cursor-not-allowed' : 'bg-indigo-600 text-white hover:bg-indigo-700'}`}>{sending ? '送信中...' : <><Send /> 送信する</>}</button>
                                 </div>
                             </form>
                         </div>

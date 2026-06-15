@@ -4,10 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
-import { 
-  FiEye, FiEyeOff, FiLock, FiCheckCircle, FiAlertCircle, 
-  FiKey, FiArrowRight, FiLoader 
-} from 'react-icons/fi';
+import { Eye, EyeOff, Lock, CheckCircle2, AlertCircle, KeyRound, ArrowRight, Loader2 } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -102,7 +99,7 @@ export default function ResetPasswordPage() {
         {isSuccess ? (
           <div className="p-10 text-center animate-fadeIn">
             <div className="w-20 h-20 bg-green-100 text-green-500 rounded-full flex items-center justify-center mx-auto mb-6">
-              <FiCheckCircle size={40} />
+              <CheckCircle2 size={40} />
             </div>
             <h2 className="text-2xl font-bold text-gray-800 mb-2">設定完了</h2>
             <p className="text-gray-500 mb-8 leading-relaxed">
@@ -110,15 +107,15 @@ export default function ResetPasswordPage() {
               新しいパスワードでログインしてください。
             </p>
             <Link href="/login" className="block w-full py-3.5 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 transition-colors shadow-md hover:shadow-lg flex items-center justify-center gap-2">
-              ログインページへ <FiArrowRight />
+              ログインページへ <ArrowRight />
             </Link>
           </div>
         ) : (
           /* --- 入力フォーム --- */
           <div className="p-8 md:p-10">
             <div className="text-center mb-8">
-              <div className="w-14 h-14 bg-sky-100 text-sky-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                <FiKey size={24} />
+              <div className="w-14 h-14 bg-pink-100 text-pink-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <KeyRound size={24} />
               </div>
               <h1 className="text-2xl font-bold text-gray-800">新しいパスワードの設定</h1>
               <p className="text-sm text-gray-500 mt-2">
@@ -133,13 +130,13 @@ export default function ResetPasswordPage() {
                 <label className="block text-sm font-bold text-gray-700 mb-1">新しいパスワード</label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
-                    <FiLock />
+                    <Lock />
                   </div>
                   <input
                     type={showPassword ? 'text' : 'password'}
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
-                    className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-sky-500 focus:border-transparent outline-none transition-all"
+                    className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-transparent outline-none transition-all"
                     placeholder="6文字以上"
                     required
                   />
@@ -148,7 +145,7 @@ export default function ResetPasswordPage() {
                     onClick={() => setShowPassword(!showPassword)} 
                     className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
                   >
-                    {showPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
                 </div>
 
@@ -175,7 +172,7 @@ export default function ResetPasswordPage() {
                 <label className="block text-sm font-bold text-gray-700 mb-1">新しいパスワード (確認)</label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
-                    <FiCheckCircle />
+                    <CheckCircle2 />
                   </div>
                   <input
                     type="password"
@@ -184,7 +181,7 @@ export default function ResetPasswordPage() {
                     className={`w-full pl-10 pr-3 py-3 border rounded-xl focus:ring-2 outline-none transition-all ${
                         confirmPassword && newPassword !== confirmPassword 
                         ? 'border-red-300 focus:ring-red-200 bg-red-50' 
-                        : 'border-gray-300 focus:ring-sky-500'
+                        : 'border-gray-300 focus:ring-pink-500'
                     }`}
                     placeholder="もう一度入力してください"
                     required
@@ -193,7 +190,7 @@ export default function ResetPasswordPage() {
                 {/* 不一致エラー表示 */}
                 {confirmPassword && newPassword !== confirmPassword && (
                     <p className="text-xs text-red-500 mt-1 font-bold flex items-center">
-                        <FiAlertCircle className="mr-1"/> パスワードが一致しません
+                        <AlertCircle className="mr-1"/> パスワードが一致しません
                     </p>
                 )}
               </div>
@@ -201,7 +198,7 @@ export default function ResetPasswordPage() {
               {/* APIエラーメッセージ */}
               {errorMsg && (
                 <div className="bg-red-50 text-red-600 text-sm p-3 rounded-lg flex items-center gap-2 border border-red-100">
-                  <FiAlertCircle className="shrink-0"/>
+                  <AlertCircle className="shrink-0"/>
                   {errorMsg}
                 </div>
               )}
@@ -209,14 +206,14 @@ export default function ResetPasswordPage() {
               <button 
                 type="submit" 
                 disabled={isSubmitting || (confirmPassword && newPassword !== confirmPassword)}
-                className="w-full py-3.5 bg-sky-500 text-white font-bold rounded-xl hover:bg-sky-600 transition-all shadow-md hover:shadow-lg disabled:bg-gray-300 disabled:shadow-none disabled:cursor-not-allowed flex items-center justify-center transform active:scale-[0.98]"
+                className="w-full py-3.5 bg-pink-500 text-white font-bold rounded-xl hover:bg-pink-600 transition-all shadow-md hover:shadow-lg disabled:bg-gray-300 disabled:shadow-none disabled:cursor-not-allowed flex items-center justify-center transform active:scale-[0.98]"
               >
-                {isSubmitting ? <><FiLoader className="animate-spin mr-2"/> 更新中...</> : 'パスワードを変更する'}
+                {isSubmitting ? <><Loader2 className="animate-spin mr-2"/> 更新中...</> : 'パスワードを変更する'}
               </button>
             </form>
 
             <div className="text-center mt-8 pt-6 border-t border-gray-100">
-              <Link href="/login" className="text-sm font-bold text-gray-500 hover:text-sky-600 transition-colors">
+              <Link href="/login" className="text-sm font-bold text-gray-500 hover:text-pink-600 transition-colors">
                 キャンセルしてログインへ
               </Link>
             </div>

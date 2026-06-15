@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
-import { FiStar, FiX, FiMessageSquare, FiUser, FiCheck } from 'react-icons/fi';
+import { Star, X, MessageSquare, User, Check } from 'lucide-react';
 import { FaStar } from 'react-icons/fa'; // 塗りつぶしの星用
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
@@ -116,7 +116,7 @@ export default function ReviewModal({ project, user, onClose, onReviewSubmitted 
         <div className="bg-gradient-to-r from-pink-500 to-rose-500 p-6 text-white flex justify-between items-start">
             <div>
                 <h2 className="text-xl font-bold flex items-center gap-2">
-                    <FiMessageSquare /> レビューを書く
+                    <MessageSquare /> レビューを書く
                 </h2>
                 <p className="text-pink-100 text-sm mt-1">企画「{project?.title}」の感想を教えてください</p>
             </div>
@@ -124,7 +124,7 @@ export default function ReviewModal({ project, user, onClose, onReviewSubmitted 
                 onClick={onClose}
                 className="bg-white/20 hover:bg-white/30 text-white rounded-full p-2 transition-colors"
             >
-                <FiX size={20}/>
+                <X size={20}/>
             </button>
         </div>
 
@@ -133,7 +133,7 @@ export default function ReviewModal({ project, user, onClose, onReviewSubmitted 
             {/* 1. レビュー対象 */}
             <div className="flex items-center gap-3 mb-6 bg-gray-50 p-3 rounded-lg border border-gray-100">
                 <div className="w-10 h-10 rounded-full bg-pink-100 flex items-center justify-center text-pink-500 text-lg">
-                    {florist.iconUrl ? <img src={florist.iconUrl} className="w-full h-full rounded-full object-cover"/> : <FiUser />}
+                    {florist.iconUrl ? <img src={florist.iconUrl} className="w-full h-full rounded-full object-cover"/> : <User />}
                 </div>
                 <div>
                     <p className="text-xs text-gray-500 font-bold">担当フローリスト</p>
@@ -158,7 +158,7 @@ export default function ReviewModal({ project, user, onClose, onReviewSubmitted 
                         {(hoverRating || rating) >= star ? (
                             <FaStar className="text-yellow-400 drop-shadow-sm" />
                         ) : (
-                            <FiStar className="text-gray-300" />
+                            <Star className="text-gray-300" />
                         )}
                     </button>
                     ))}
@@ -213,7 +213,7 @@ export default function ReviewModal({ project, user, onClose, onReviewSubmitted 
                     {isSubmitting ? (
                         <>送信中...</>
                     ) : (
-                        <><FiCheck /> 投稿する</>
+                        <><Check /> 投稿する</>
                     )}
                 </button>
             </div>

@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from 'react';
-import { FiCpu, FiLoader, FiCheck, FiX, FiStar, FiEdit3, FiZap } from 'react-icons/fi';
+import { Cpu, Loader2, Check, X, Star, Pencil, Zap } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 // 雰囲気の選択肢定義
@@ -94,7 +94,7 @@ export default function AiPlanGenerator({ onGenerated, onClose }) {
         <div className="bg-gradient-to-r from-violet-600 to-indigo-600 p-6 flex justify-between items-center text-white">
             <div>
                 <h3 className="text-xl font-bold flex items-center gap-2">
-                  <FiZap className="text-yellow-300" /> AI アシスタント
+                  <Zap className="text-yellow-300" /> AI アシスタント
                 </h3>
                 <p className="text-xs text-indigo-100 mt-1 opacity-90">
                     キーワードから、人を惹きつける企画文を自動生成します。
@@ -105,7 +105,7 @@ export default function AiPlanGenerator({ onGenerated, onClose }) {
                 disabled={loading}
                 className="bg-white/10 hover:bg-white/20 p-2 rounded-full transition-colors disabled:opacity-0"
             >
-                <FiX size={20} />
+                <X size={20} />
             </button>
         </div>
 
@@ -153,7 +153,7 @@ export default function AiPlanGenerator({ onGenerated, onClose }) {
                         <div className="text-sm font-bold">{t.label}</div>
                         <div className="text-[10px] opacity-70">{t.desc}</div>
                         {formData.tone === t.id && (
-                            <div className="absolute top-2 right-2 text-violet-500"><FiCheck /></div>
+                            <div className="absolute top-2 right-2 text-violet-500"><Check /></div>
                         )}
                     </button>
                 ))}
@@ -170,7 +170,7 @@ export default function AiPlanGenerator({ onGenerated, onClose }) {
                 className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-violet-500 outline-none h-24 text-sm resize-none placeholder-gray-400"
                 onChange={handleChange}
                 />
-                <FiEdit3 className="absolute bottom-3 right-3 text-gray-400 pointer-events-none"/>
+                <Pencil className="absolute bottom-3 right-3 text-gray-400 pointer-events-none"/>
             </div>
           </div>
 
@@ -182,7 +182,7 @@ export default function AiPlanGenerator({ onGenerated, onClose }) {
             {loading ? (
                 <div className="flex flex-col items-center">
                     <div className="flex items-center gap-2 mb-1">
-                        <FiLoader className="animate-spin text-xl" />
+                        <Loader2 className="animate-spin text-xl" />
                         <span>生成中...</span>
                     </div>
                     <span className="text-[10px] font-normal opacity-90 animate-pulse">
@@ -191,7 +191,7 @@ export default function AiPlanGenerator({ onGenerated, onClose }) {
                 </div>
             ) : (
                 <>
-                    <FiCpu className="text-xl group-hover:rotate-12 transition-transform" /> 
+                    <Cpu className="text-xl group-hover:rotate-12 transition-transform" /> 
                     AIに文章を考えてもらう
                 </>
             )}

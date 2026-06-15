@@ -1,11 +1,4 @@
-import { 
-  FiCheckCircle, 
-  FiXCircle, 
-  FiTruck, 
-  FiInfo, 
-  FiAlertTriangle,
-  FiMapPin
-} from 'react-icons/fi';
+import { CheckCircle2, XCircle, Truck, Info, AlertTriangle, MapPin } from 'lucide-react';
 
 export default function VenueRegulationCard({ venue }) {
   if (!venue) return null;
@@ -14,12 +7,12 @@ export default function VenueRegulationCard({ venue }) {
   const StatusBadge = ({ isAllowed, label }) => {
     return isAllowed ? (
       <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 border border-green-200">
-        <FiCheckCircle />
+        <CheckCircle2 />
         {label || '受入可'}
       </span>
     ) : (
       <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-red-100 text-red-700 border border-red-200">
-        <FiXCircle />
+        <XCircle />
         {label || '受入不可'}
       </span>
     );
@@ -33,7 +26,7 @@ export default function VenueRegulationCard({ venue }) {
           🏢 会場レギュレーション
         </h3>
         <div className="flex items-center text-sm text-slate-600 bg-white px-3 py-1 rounded border border-slate-200 shadow-sm">
-          <FiMapPin className="mr-1.5 text-slate-400" />
+          <MapPin className="mr-1.5 text-slate-400" />
           <span className="font-medium truncate max-w-[200px] sm:max-w-none">
             {venue.venueName}
           </span>
@@ -62,9 +55,9 @@ export default function VenueRegulationCard({ venue }) {
               {venue.isStandAllowed && (
                 <div className={`mt-4 rounded-lg p-3 text-sm flex items-start gap-3 ${venue.retrievalRequired ? 'bg-amber-50 border border-amber-200 text-amber-900' : 'bg-slate-50 border border-slate-100 text-slate-600'}`}>
                   {venue.retrievalRequired ? (
-                    <FiAlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                    <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
                   ) : (
-                    <FiTruck className="w-5 h-5 text-slate-400 shrink-0 mt-0.5" />
+                    <Truck className="w-5 h-5 text-slate-400 shrink-0 mt-0.5" />
                   )}
                   <div>
                     <span className={`block font-bold mb-0.5 ${venue.retrievalRequired ? 'text-amber-700' : 'text-slate-700'}`}>
@@ -104,7 +97,7 @@ export default function VenueRegulationCard({ venue }) {
           <div className="mt-6 pt-5 border-t border-slate-100">
             <div className="flex items-start gap-3">
               <div className="bg-slate-100 p-2 rounded-full shrink-0">
-                <FiInfo className="w-5 h-5 text-slate-500" />
+                <Info className="w-5 h-5 text-slate-500" />
               </div>
               <div>
                 <h5 className="text-sm font-bold text-slate-800 mb-1">搬入・アクセス備考</h5>

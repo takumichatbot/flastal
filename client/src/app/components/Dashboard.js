@@ -3,10 +3,7 @@ import { useAuth } from '@/app/contexts/AuthContext';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
-import { 
-  FiPlus, FiSearch, FiCreditCard, FiAward, FiHeart, 
-  FiClock, FiChevronRight, FiUser 
-} from 'react-icons/fi';
+import { Plus, Search, CreditCard, Award, Heart, Clock, ChevronRight, User } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -59,19 +56,19 @@ export default function Dashboard() {
   // タイムラインアイテム
   const TimelineItem = ({ href, title, date, type }) => (
     <Link href={href} className="group flex items-start gap-4 p-4 rounded-xl hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100">
-      <div className={`p-2 rounded-full shrink-0 ${type === 'created' ? 'bg-indigo-100 text-indigo-600' : 'bg-pink-100 text-pink-600'}`}>
-        {type === 'created' ? <FiAward /> : <FiHeart />}
+      <div className={`p-2 rounded-full shrink-0 ${type === 'created' ? 'bg-pink-100 text-pink-600' : 'bg-rose-100 text-rose-600'}`}>
+        {type === 'created' ? <Award /> : <Heart />}
       </div>
       <div className="flex-grow min-w-0">
-        <p className="text-sm font-bold text-gray-800 truncate group-hover:text-indigo-600 transition-colors">
+        <p className="text-sm font-bold text-gray-800 truncate group-hover:text-pink-600 transition-colors">
             {title}
         </p>
         <p className="text-xs text-gray-400 mt-1 flex items-center">
-            <FiClock className="mr-1" size={10} />
+            <Clock className="mr-1" size={10} />
             {new Date(date).toLocaleDateString()} に{type === 'created' ? '作成' : '支援'}
         </p>
       </div>
-      <FiChevronRight className="text-gray-300 group-hover:text-indigo-400 self-center" />
+      <ChevronRight className="text-gray-300 group-hover:text-pink-400 self-center" />
     </Link>
   );
 
@@ -94,7 +91,7 @@ export default function Dashboard() {
             <div className="flex gap-4">
                 <div className="bg-white px-6 py-3 rounded-2xl shadow-sm border border-slate-100 text-center">
                     <p className="text-xs text-gray-400 font-bold uppercase">Created</p>
-                    <p className="text-xl font-black text-indigo-600">{totalCreated}</p>
+                    <p className="text-xl font-black text-pink-600">{totalCreated}</p>
                 </div>
                 <div className="bg-white px-6 py-3 rounded-2xl shadow-sm border border-slate-100 text-center">
                     <p className="text-xs text-gray-400 font-bold uppercase">Backed</p>
@@ -110,16 +107,16 @@ export default function Dashboard() {
             
             {/* クイックアクション (スマホ向けに上部配置も考慮) */}
             <div className="grid grid-cols-2 gap-4">
-                <Link href="/projects/create" className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white p-6 rounded-2xl shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all group">
+                <Link href="/projects/create" className="bg-gradient-to-br from-pink-500 to-rose-600 text-white p-6 rounded-2xl shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all group">
                     <div className="bg-white/20 w-10 h-10 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                        <FiPlus size={24} />
+                        <Plus size={24} />
                     </div>
                     <h3 className="font-bold text-lg">企画を立てる</h3>
-                    <p className="text-xs text-indigo-100 mt-1">新しいフラスタ企画を作成</p>
+                    <p className="text-xs text-pink-100 mt-1">新しいフラスタ企画を作成</p>
                 </Link>
                 <Link href="/projects" className="bg-white border border-slate-200 text-gray-800 p-6 rounded-2xl shadow-sm hover:shadow-md hover:-translate-y-1 transition-all group">
                     <div className="bg-slate-100 w-10 h-10 rounded-full flex items-center justify-center mb-4 text-slate-600 group-hover:scale-110 transition-transform">
-                        <FiSearch size={24} />
+                        <Search size={24} />
                     </div>
                     <h3 className="font-bold text-lg">企画を探す</h3>
                     <p className="text-xs text-gray-400 mt-1">現在募集中の企画をチェック</p>
@@ -130,9 +127,9 @@ export default function Dashboard() {
             <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-6 md:p-8">
                 <div className="flex justify-between items-center mb-6">
                     <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                        <FiClock className="text-indigo-500"/> 最近のアクティビティ
+                        <Clock className="text-pink-500"/> 最近のアクティビティ
                     </h2>
-                    <Link href="/mypage" className="text-xs font-bold text-indigo-500 hover:text-indigo-700">すべて見る</Link>
+                    <Link href="/mypage" className="text-xs font-bold text-pink-500 hover:text-pink-700 hover:underline">すべて見る</Link>
                 </div>
 
                 {loading ? (
@@ -168,7 +165,7 @@ export default function Dashboard() {
             {/* ポイントカード */}
             <div className="bg-gradient-to-br from-gray-900 to-slate-800 text-white rounded-3xl p-6 shadow-xl relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-4 opacity-10">
-                    <FiCreditCard size={120} />
+                    <CreditCard size={120} />
                 </div>
                 <div className="relative z-10">
                     <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Current Balance</p>
@@ -189,7 +186,7 @@ export default function Dashboard() {
                         /* eslint-disable-next-line @next/next/no-img-element */
                         <img src={user.iconUrl} alt="" className="w-full h-full object-cover" />
                     ) : (
-                        <FiUser size={40} />
+                        <User size={40} />
                     )}
                 </div>
                 <h3 className="font-bold text-gray-800 text-lg">{user.handleName}</h3>

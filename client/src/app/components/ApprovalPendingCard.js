@@ -1,6 +1,6 @@
 'use client';
 
-import { FiClock, FiMail, FiAward, FiUser, FiXCircle, FiMapPin, FiCalendar, FiLogOut, FiHelpCircle, FiCheckCircle } from 'react-icons/fi';
+import { Clock, Mail, Award, User, XCircle, MapPin, Calendar, LogOut, HelpCircle } from 'lucide-react';
 import { useAuth } from '@/app/contexts/AuthContext';
 
 export default function ApprovalPendingCard() {
@@ -13,7 +13,7 @@ export default function ApprovalPendingCard() {
             description: 'あなたの素敵なアレンジメントを届けるために、ポートフォリオや資格情報を確認させていただいています。',
             benefitTitle: '承認されると...',
             benefit: '全国のファンからの制作オファーを受けたり、自慢の制作事例をポートフォリオとして公開できるようになります。',
-            icon: <FiAward size={24} />,
+            icon: <Award size={24} />,
             colorClass: 'bg-pink-50 text-pink-700 border-pink-200',
             iconBg: 'bg-white text-pink-500'
         },
@@ -22,7 +22,7 @@ export default function ApprovalPendingCard() {
             description: '安全なイベント運営のために、ご登録いただいた会場設備や搬入レギュレーションを確認中です。',
             benefitTitle: '承認されると...',
             benefit: '公式レギュレーションの掲載・編集や、開催イベント情報の紐付け管理が可能になり、搬入トラブルを未然に防げます。',
-            icon: <FiMapPin size={24} />,
+            icon: <MapPin size={24} />,
             colorClass: 'bg-blue-50 text-blue-700 border-blue-200',
             iconBg: 'bg-white text-blue-500'
         },
@@ -31,16 +31,16 @@ export default function ApprovalPendingCard() {
             description: '信頼できるイベント情報を提供するため、主催者情報を確認させていただいています。',
             benefitTitle: '承認されると...',
             benefit: '公式イベントページの作成や、フラスタの受入可否（OK/NG）を一括設定し、ファンへの周知を自動化できます。',
-            icon: <FiCalendar size={24} />,
-            colorClass: 'bg-purple-50 text-purple-700 border-purple-200',
-            iconBg: 'bg-white text-purple-500'
+            icon: <Calendar size={24} />,
+            colorClass: 'bg-amber-50 text-amber-700 border-amber-200',
+            iconBg: 'bg-white text-amber-500'
         },
         'default': {
             label: 'アカウント',
             description: 'アカウント情報を確認中です。',
             benefitTitle: '承認されると...',
             benefit: 'すべての機能がご利用いただけるようになります。',
-            icon: <FiUser size={24} />,
+            icon: <User size={24} />,
             colorClass: 'bg-gray-50 text-gray-700 border-gray-200',
             iconBg: 'bg-white text-gray-500'
         }
@@ -56,14 +56,14 @@ export default function ApprovalPendingCard() {
         subText: 'text-red-700',
         border: 'border-red-100',
         iconColor: 'text-red-500',
-        mainIcon: <FiXCircle className="w-16 h-16 text-red-500" />
+        mainIcon: <XCircle className="w-16 h-16 text-red-500" />
     } : {
         bg: 'bg-yellow-50',
         text: 'text-yellow-900',
         subText: 'text-yellow-700',
         border: 'border-yellow-100',
         iconColor: 'text-yellow-500',
-        mainIcon: <FiClock className="w-16 h-16 text-yellow-500" />
+        mainIcon: <Clock className="w-16 h-16 text-yellow-500" />
     };
 
     return (
@@ -110,7 +110,7 @@ export default function ApprovalPendingCard() {
                         
                         {isRejected && (
                             <div className="p-4 bg-red-50 rounded-xl text-sm text-red-700 text-left border border-red-100">
-                                <p className="font-bold mb-1 flex items-center"><FiMail className="mr-2"/> 結果通知メールをご確認ください</p>
+                                <p className="font-bold mb-1 flex items-center"><Mail className="mr-2"/> 結果通知メールをご確認ください</p>
                                 詳細な理由につきましては、ご登録のメールアドレスにお送りした通知をご確認ください。ご不明な点はサポートまでお問い合わせください。
                             </div>
                         )}
@@ -139,14 +139,14 @@ export default function ApprovalPendingCard() {
                             onClick={logout}
                             className="flex items-center px-6 py-3 bg-gray-100 text-gray-600 font-bold rounded-xl hover:bg-gray-200 transition-colors w-full sm:w-auto justify-center"
                         >
-                            <FiLogOut className="mr-2"/> ログアウト
+                            <LogOut className="mr-2"/> ログアウト
                         </button>
                         
                         <a 
                             href="mailto:support@flastal.jp" 
-                            className="flex items-center px-6 py-3 text-sky-600 font-bold hover:bg-sky-50 rounded-xl transition-colors w-full sm:w-auto justify-center"
+                            className="flex items-center px-6 py-3 text-slate-600 font-bold hover:bg-slate-50 border border-slate-200 rounded-xl transition-colors w-full sm:w-auto justify-center"
                         >
-                            <FiHelpCircle className="mr-2"/> お問い合わせ
+                            <HelpCircle className="mr-2"/> お問い合わせ
                         </a>
                     </div>
                 </div>

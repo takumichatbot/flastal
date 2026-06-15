@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { FiClock, FiMapPin, FiMessageSquare, FiUser, FiHeart, FiPlus, FiLock, FiTruck, FiAlertCircle } from 'react-icons/fi';
+import { Clock, MapPin, MessageSquare, User, Heart, Plus, Lock, Truck, AlertCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import VenueLogisticsPostModal from './VenueLogisticsPostModal';
@@ -114,7 +114,7 @@ export default function VenueLogisticsWiki({ venueId, venueName, isFloristView =
             <div className="relative bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 <div className="p-6 filter blur-sm select-none opacity-50">
                     <h3 className="text-xl font-bold flex items-center gap-2 text-gray-800">
-                        <FiTruck /> {venueName} 搬入情報Wiki
+                        <Truck /> {venueName} 搬入情報Wiki
                     </h3>
                     <div className="mt-4 space-y-4">
                          {/* ダミーコンテンツ */}
@@ -126,7 +126,7 @@ export default function VenueLogisticsWiki({ venueId, venueName, isFloristView =
                 {/* ロックオーバーレイ */}
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/60 z-10 p-6 text-center">
                     <div className="bg-rose-100 text-rose-600 p-4 rounded-full mb-3">
-                        <FiLock size={24} />
+                        <Lock size={24} />
                     </div>
                     <h4 className="font-bold text-gray-800 mb-1">お花屋さん専用コンテンツ</h4>
                     <p className="text-sm text-gray-600 mb-4 max-w-sm">
@@ -155,10 +155,10 @@ export default function VenueLogisticsWiki({ venueId, venueName, isFloristView =
                 <div className="bg-gradient-to-r from-slate-800 to-slate-700 p-5 text-white flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div>
                         <h3 className="text-lg font-bold flex items-center gap-2">
-                            <FiTruck className="text-rose-400"/> 搬入・現場Wiki 
+                            <Truck className="text-rose-400"/> 搬入・現場Wiki 
                         </h3>
                         <p className="text-slate-300 text-xs mt-1 flex items-center gap-1">
-                            <FiMapPin size={10} /> {venueName}
+                            <MapPin size={10} /> {venueName}
                         </p>
                     </div>
                     {isFloristView && (
@@ -166,7 +166,7 @@ export default function VenueLogisticsWiki({ venueId, venueName, isFloristView =
                             onClick={() => setShowPostModal(true)}
                             className="text-xs bg-rose-500 hover:bg-rose-600 text-white px-4 py-2.5 rounded-full font-bold shadow-lg transition-all flex items-center gap-2 hover:-translate-y-0.5"
                         >
-                            <FiPlus size={14} /> 情報を共有する
+                            <Plus size={14} /> 情報を共有する
                         </button>
                     )}
                 </div>
@@ -183,7 +183,7 @@ export default function VenueLogisticsWiki({ venueId, venueName, isFloristView =
                                             {log.title}
                                         </h4>
                                         <span className="text-[10px] text-gray-400 bg-gray-100 px-2 py-1 rounded-full flex items-center gap-1 shrink-0">
-                                            <FiClock size={10}/> {new Date(log.createdAt).toLocaleDateString()}
+                                            <Clock size={10}/> {new Date(log.createdAt).toLocaleDateString()}
                                         </span>
                                     </div>
 
@@ -211,7 +211,7 @@ export default function VenueLogisticsWiki({ venueId, venueName, isFloristView =
                                     <div className="flex justify-between items-center pt-3 border-t border-slate-100">
                                         <div className="flex items-center gap-2 text-xs text-gray-500">
                                             <div className="w-6 h-6 bg-gray-100 rounded-full flex items-center justify-center">
-                                                <FiUser />
+                                                <User />
                                             </div>
                                             <span className="font-medium truncate max-w-[120px]">
                                                 {log.contributor?.storeName || log.contributor?.handleName || '匿名フローリスト'}
@@ -220,13 +220,13 @@ export default function VenueLogisticsWiki({ venueId, venueName, isFloristView =
 
                                         <button 
                                             onClick={() => handleHelpful(log.id)}
-                                            className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full transition-all ${
+                                            className={`flex items-center gap-1.5 text-xs font-bold px-3 py-3 rounded-full transition-all ${
                                                 log.isHelpful 
                                                 ? 'bg-rose-100 text-rose-600' 
                                                 : 'bg-slate-100 text-slate-500 hover:bg-rose-50 hover:text-rose-500'
                                             }`}
                                         >
-                                            <FiHeart className={log.isHelpful ? 'fill-rose-600' : ''} />
+                                            <Heart className={log.isHelpful ? 'fill-rose-600' : ''} />
                                             参考になった ({log.helpfulCount || 0})
                                         </button>
                                     </div>
@@ -236,7 +236,7 @@ export default function VenueLogisticsWiki({ venueId, venueName, isFloristView =
                     ) : (
                         <div className="flex flex-col items-center justify-center py-10 text-center border-2 border-dashed border-slate-200 rounded-xl bg-white/50">
                             <div className="bg-slate-100 p-3 rounded-full mb-3 text-slate-400">
-                                <FiMessageSquare size={24} />
+                                <MessageSquare size={24} />
                             </div>
                             <p className="text-slate-500 font-bold text-sm">まだ情報が共有されていません</p>
                             <p className="text-xs text-slate-400 mt-1 max-w-xs">
@@ -248,7 +248,7 @@ export default function VenueLogisticsWiki({ venueId, venueName, isFloristView =
                                     onClick={() => setShowPostModal(true)}
                                     className="mt-4 text-xs text-rose-600 font-bold hover:underline flex items-center gap-1"
                                 >
-                                    <FiPlus /> 最初の事例を投稿する
+                                    <Plus /> 最初の事例を投稿する
                                 </button>
                             )}
                         </div>
@@ -256,7 +256,7 @@ export default function VenueLogisticsWiki({ venueId, venueName, isFloristView =
                 </div>
                 
                 <div className="px-5 py-3 bg-slate-100 text-[10px] text-slate-400 text-center flex items-center justify-center gap-1">
-                    <FiAlertCircle /> 投稿内容は個人の経験に基づくものであり、現在の会場規則と異なる場合があります。
+                    <AlertCircle /> 投稿内容は個人の経験に基づくものであり、現在の会場規則と異なる場合があります。
                 </div>
             </div>
             

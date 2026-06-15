@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { FiX, FiDownload, FiExternalLink } from 'react-icons/fi';
+import { X, ExternalLink } from 'lucide-react';
 
 export default function ImageModal({ src, alt, onClose }) {
   const [isLoaded, setIsLoaded] = useState(false);
@@ -46,7 +46,7 @@ export default function ImageModal({ src, alt, onClose }) {
           className="p-2 text-white/70 hover:text-white bg-white/10 hover:bg-white/20 rounded-full transition-colors backdrop-blur-md"
           title="新しいタブで開く"
         >
-          <FiExternalLink size={20} />
+          <ExternalLink size={20} />
         </button>
 
         {/* 閉じるボタン */}
@@ -55,7 +55,7 @@ export default function ImageModal({ src, alt, onClose }) {
           className="p-2 text-white hover:text-pink-400 bg-white/10 hover:bg-white/20 rounded-full transition-colors backdrop-blur-md"
           title="閉じる (Esc)"
         >
-          <FiX size={24} />
+          <X size={24} />
         </button>
       </div>
 

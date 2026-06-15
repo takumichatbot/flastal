@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
-import { FiTag, FiPlus, FiTrash2, FiLoader, FiPercent, FiMessageSquare, FiInfo, FiCheck } from 'react-icons/fi';
+import { Tag, Plus, Trash2, Loader2, Percent, MessageSquare, Info, Check } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -109,7 +109,7 @@ export default function FloristDealManager() {
       {/* ヘッダー */}
       <div className="bg-gradient-to-r from-rose-50 to-pink-50 p-6 border-b border-red-100">
         <h3 className="font-bold text-lg text-rose-700 mb-2 flex items-center gap-2">
-          <FiTag className="text-xl" /> 在庫ロスゼロ・キャンペーン
+          <Tag className="text-xl" /> 在庫ロスゼロ・キャンペーン
         </h3>
         <p className="text-xs text-rose-600 leading-relaxed">
           余剰在庫や得意な花材を登録しておくと、条件が合う企画者にあなたのショップが優先的に推薦されます。<br/>
@@ -121,7 +121,7 @@ export default function FloristDealManager() {
         {/* 登録フォーム */}
         <form onSubmit={handleSubmit} className="bg-gray-50 p-5 rounded-xl border border-gray-200 mb-8">
           <h4 className="text-sm font-bold text-gray-700 mb-4 flex items-center">
-              <FiPlus className="mr-1"/> 新規キャンペーン登録
+              <Plus className="mr-1"/> 新規キャンペーン登録
           </h4>
           
           <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-4">
@@ -146,7 +146,7 @@ export default function FloristDealManager() {
             <div className="md:col-span-4">
               <label className="text-xs font-bold text-gray-500 block mb-1">割引率 (%) <span className="text-red-500">*</span></label>
               <div className="relative">
-                  <FiPercent className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"/>
+                  <Percent className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"/>
                   <input 
                     type="number" min="5" max="90"
                     value={formData.discount}
@@ -159,7 +159,7 @@ export default function FloristDealManager() {
             <div className="md:col-span-12">
               <label className="text-xs font-bold text-gray-500 block mb-1">アピール文 <span className="text-red-500">*</span></label>
               <div className="relative">
-                  <FiMessageSquare className="absolute left-3 top-3 text-gray-400"/>
+                  <MessageSquare className="absolute left-3 top-3 text-gray-400"/>
                   <textarea
                     placeholder="例: 結婚式のキャンセル分が発生したため、高品質なバラを特別価格で提供できます！" 
                     value={formData.message}
@@ -177,7 +177,7 @@ export default function FloristDealManager() {
                 disabled={isSubmitting}
                 className="bg-rose-500 text-white px-6 py-2.5 rounded-lg font-bold hover:bg-rose-600 transition-colors shadow-sm disabled:bg-gray-400 flex items-center gap-2"
             >
-              {isSubmitting ? <FiLoader className="animate-spin"/> : <FiCheck />} 登録する
+              {isSubmitting ? <Loader2 className="animate-spin"/> : <Check />} 登録する
             </button>
           </div>
         </form>
@@ -216,7 +216,7 @@ export default function FloristDealManager() {
                             className="mt-2 sm:mt-0 text-gray-300 hover:text-red-500 hover:bg-red-50 p-2 rounded-full transition-colors self-end sm:self-center"
                             title="削除する"
                         >
-                            <FiTrash2 size={18} />
+                            <Trash2 size={18} />
                         </button>
                     </div>
                     ))}

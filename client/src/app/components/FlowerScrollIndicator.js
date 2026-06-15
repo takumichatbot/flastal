@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from 'react';
-import { FiArrowUp } from 'react-icons/fi';
+import { ArrowUp } from 'lucide-react';
 
 export default function FlowerScrollIndicator({ collected, target }) {
   const [scrollProgress, setScrollProgress] = useState(0);
@@ -83,7 +83,7 @@ export default function FlowerScrollIndicator({ collected, target }) {
 
               {/* ホバー時：トップへ戻るアイコン */}
               <span className="absolute opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-green-500 text-white rounded-full p-2 shadow-lg">
-                  <FiArrowUp size={20} />
+                  <ArrowUp size={20} />
               </span>
               
               {/* 吹き出し (常に進捗を表示) */}

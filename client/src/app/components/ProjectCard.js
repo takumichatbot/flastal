@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import ImageModal from './ImageModal';
 import ImageWithFallback from './ImageWithFallback'; // ★追加: 作成したコンポーネントをインポート
-import { FiUser, FiMapPin, FiClock, FiZoomIn } from 'react-icons/fi';
+import { MapPin, Clock, ZoomIn } from 'lucide-react';
 
 export default function ProjectCard({ project }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -72,7 +72,7 @@ export default function ProjectCard({ project }) {
                 title="画像を拡大"
               >
                 <div className="bg-white/20 backdrop-blur-md p-3 rounded-full text-white transform transition-transform group-hover/btn:scale-110">
-                    <FiZoomIn size={24} />
+                    <ZoomIn size={24} />
                 </div>
               </button>
             )}
@@ -88,12 +88,12 @@ export default function ProjectCard({ project }) {
             
              <div className="flex flex-col gap-1 mb-4 text-xs text-slate-500">
                 <div className="flex items-center gap-1.5 truncate">
-                    <FiMapPin className="shrink-0 text-slate-400"/>
+                    <MapPin className="shrink-0 text-slate-400"/>
                     <span className="truncate">{project.deliveryAddress || '場所未定'}</span>
                 </div>
                 {project.deliveryDateTime && (
                     <div className="flex items-center gap-1.5 truncate">
-                        <FiClock className="shrink-0 text-slate-400"/>
+                        <Clock className="shrink-0 text-slate-400"/>
                         <span>{new Date(project.deliveryDateTime).toLocaleDateString()} お届け</span>
                     </div>
                 )}

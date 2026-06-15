@@ -7,7 +7,7 @@ const config: CapacitorConfig = {
   webDir: 'out',
   server: {
     // 本番サーバーのURLを読み込む（サーバーサイドレンダリング維持）
-    url: 'https://www.flastal.com',
+    url: 'https://www.flastal.com/app',
     cleartext: false,
     allowNavigation: [
       'flastal.com',

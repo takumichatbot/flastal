@@ -2,7 +2,7 @@
 
 import { useState, useRef } from 'react';
 import toast from 'react-hot-toast';
-import { FiUpload, FiCheckCircle, FiAlertCircle, FiX, FiImage, FiInfo, FiDollarSign } from 'react-icons/fi';
+import { Upload, CheckCircle2, AlertCircle, X, ImageIcon, Info, DollarSign } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -112,14 +112,14 @@ export default function CompletionReportModal({ project, user, onClose, onReport
         <div className="bg-gradient-to-r from-green-500 to-emerald-600 p-6 text-white flex justify-between items-start">
             <div>
                 <h2 className="text-xl font-bold flex items-center gap-2">
-                    <FiCheckCircle className="text-2xl"/> 企画完了報告
+                    <CheckCircle2 className="text-2xl"/> 企画完了報告
                 </h2>
                 <p className="text-sm text-green-100 mt-1">
                     完成写真とメッセージを投稿して、企画を締めくくりましょう。
                 </p>
             </div>
             <button onClick={onClose} className="text-white/80 hover:text-white p-1 rounded-full hover:bg-white/20 transition-colors">
-                <FiX size={24}/>
+                <X size={24}/>
             </button>
         </div>
 
@@ -128,7 +128,7 @@ export default function CompletionReportModal({ project, user, onClose, onReport
             {/* 1. 写真アップロード */}
             <div>
               <label className="block text-sm font-bold text-gray-700 mb-2 flex items-center gap-2">
-                  <FiImage className="text-emerald-500"/> 完成写真 <span className="text-red-500 text-xs">*必須</span>
+                  <ImageIcon className="text-emerald-500"/> 完成写真 <span className="text-red-500 text-xs">*必須</span>
               </label>
               
               <div className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-xl p-4 transition-colors hover:bg-gray-100">
@@ -152,7 +152,7 @@ export default function CompletionReportModal({ project, user, onClose, onReport
                 
                 <div className="text-center py-4 cursor-pointer" onClick={() => fileInputRef.current.click()}>
                     <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center mx-auto mb-2 text-gray-400 shadow-sm border border-gray-200">
-                        {isUploading ? <div className="animate-spin rounded-full h-6 w-6 border-2 border-emerald-500 border-t-transparent"></div> : <FiUpload size={24}/>}
+                        {isUploading ? <div className="animate-spin rounded-full h-6 w-6 border-2 border-emerald-500 border-t-transparent"></div> : <Upload size={24}/>}
                     </div>
                     <p className="text-sm font-bold text-gray-600">
                         {isUploading ? 'アップロード中...' : '写真を選択またはドロップ'}
@@ -180,7 +180,7 @@ export default function CompletionReportModal({ project, user, onClose, onReport
             {/* 3. 収支報告 */}
             <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
                 <div className="bg-gray-50 px-4 py-3 border-b border-gray-200 flex items-center gap-2">
-                    <FiDollarSign className="text-gray-500"/>
+                    <DollarSign className="text-gray-500"/>
                     <h3 className="text-sm font-bold text-gray-700">最終収支確認</h3>
                 </div>
                 <div className="p-4 text-sm space-y-2">
@@ -206,7 +206,7 @@ export default function CompletionReportModal({ project, user, onClose, onReport
             {finalBalance > 0 && (
                 <div className="bg-blue-50 p-5 rounded-xl border border-blue-200 animate-fadeIn">
                     <div className="flex items-start gap-2 mb-2 text-blue-800">
-                        <FiInfo className="mt-0.5 shrink-0"/>
+                        <Info className="mt-0.5 shrink-0"/>
                         <span className="text-sm font-bold">余剰金が発生しています</span>
                     </div>
                     <p className="text-xs text-blue-700 mb-4">

@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from 'react';
-import { FiGift, FiX, FiSend, FiMessageSquare } from 'react-icons/fi';
+import { Gift, X, Send, MessageSquare } from 'lucide-react';
 import { io } from 'socket.io-client';
 import toast from 'react-hot-toast';
 
@@ -132,7 +132,7 @@ export default function VirtualStage({ projectId }) {
           onClick={() => setShowModal(true)}
           className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-400 hover:to-purple-500 text-white font-bold py-2.5 px-6 rounded-full shadow-[0_0_15px_rgba(236,72,153,0.5)] transform hover:scale-105 transition-all flex items-center text-sm"
         >
-          <FiGift className="mr-2 text-lg"/> フラスタを贈る
+          <Gift className="mr-2 text-lg"/> フラスタを贈る
         </button>
       </div>
 
@@ -143,7 +143,7 @@ export default function VirtualStage({ projectId }) {
       >
         {flowers.length === 0 ? (
           <div className="w-full flex flex-col items-center justify-center text-slate-500 py-10 opacity-70">
-            <FiGift className="text-4xl mb-2" />
+            <Gift className="text-4xl mb-2" />
             <p className="text-sm">まだお花はありません。<br/>一番乗りで飾りませんか？</p>
           </div>
         ) : (
@@ -162,10 +162,10 @@ export default function VirtualStage({ projectId }) {
             {/* モーダルヘッダー */}
             <div className="bg-gradient-to-r from-slate-800 to-slate-900 p-4 flex justify-between items-center text-white">
               <h3 className="font-bold flex items-center gap-2">
-                <FiGift className="text-pink-400"/> フラスタを作成
+                <Gift className="text-pink-400"/> フラスタを作成
               </h3>
               <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-white transition-colors">
-                <FiX size={24}/>
+                <X size={24}/>
               </button>
             </div>
             
@@ -215,7 +215,7 @@ export default function VirtualStage({ projectId }) {
 
               {/* アクションボタン */}
               <button type="submit" className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-400 hover:to-purple-500 text-white font-bold py-3 rounded-xl shadow-lg shadow-pink-500/20 active:scale-95 transition-all flex items-center justify-center gap-2">
-                <FiSend /> ステージに飾る
+                <Send /> ステージに飾る
               </button>
             </form>
           </div>

@@ -127,11 +127,11 @@ const ButterflyParticle = ({ delay = 0, x = "0%", y = "0%", scale = 1, color = "
 // ==========================================
 const BACKGROUND_BUTTERFLIES = [
   { x: "8%",  y: "12%", delay: 0,   scale: 0.7,  color: "text-pink-200"  },
-  { x: "22%", y: "58%", delay: 1.5, scale: 0.5,  color: "text-sky-200"   },
+  { x: "22%", y: "58%", delay: 1.5, scale: 0.5,  color: "text-rose-200"   },
   { x: "55%", y: "22%", delay: 2.8, scale: 0.9,  color: "text-amber-200" },
   { x: "71%", y: "68%", delay: 0.7, scale: 0.6,  color: "text-rose-200"  },
   { x: "86%", y: "38%", delay: 2.0, scale: 0.8,  color: "text-pink-200"  },
-  { x: "40%", y: "82%", delay: 4.0, scale: 0.5,  color: "text-sky-200"   },
+  { x: "40%", y: "82%", delay: 4.0, scale: 0.5,  color: "text-rose-200"   },
 ];
 
 const CATEGORIES = [
@@ -284,7 +284,7 @@ const Hero = () => {
                   transition={{ duration: 0.8, delay: 0.3, type: "spring", bounce: 0.4 }}
                   className="w-28 h-32 bg-white p-2 pb-6 rounded-xl shadow-xl border border-slate-100 shrink-0"
                 >
-                  <div className="w-full h-full bg-sky-50 rounded-lg flex items-center justify-center border border-sky-100">
+                  <div className="w-full h-full bg-rose-50 rounded-lg flex items-center justify-center border border-rose-100">
                     <span className="text-4xl">💐</span>
                   </div>
                   <p className="font-calligraphy text-center mt-2 text-slate-400 text-[10px]">Anniversary</p>
@@ -366,7 +366,7 @@ const Hero = () => {
               className="absolute top-[8%] left-[2%] w-48 h-56 bg-white p-3 pb-8 rounded-2xl shadow-xl border border-slate-100 z-10 cursor-pointer"
               whileHover={{ scale: 1.05, rotate: 0, zIndex: 30 }}
             >
-              <div className="w-full h-full bg-sky-50 rounded-xl flex items-center justify-center border border-sky-100">
+              <div className="w-full h-full bg-rose-50 rounded-xl flex items-center justify-center border border-rose-100">
                 <span className="text-5xl drop-shadow-md">💐</span>
               </div>
               <p className="font-calligraphy text-center mt-2.5 text-slate-400 text-xs">Happy Anniversary!</p>
@@ -439,7 +439,7 @@ const HowItWorks = () => {
   const steps = [
     { num: "01", title: "企画ページをつくる", desc: "イベントの日程や会場、贈りたいお花のイメージを入力してページを公開します。", icon: PenTool, color: "text-amber-500", bg: "bg-amber-50", iconBg: "bg-amber-500" },
     { num: "02", title: "SNSでシェアして集金", desc: "みんなでお金を出し合います。クレジットカード対応で、面倒な口座管理は不要です。", icon: Heart, color: "text-pink-500", bg: "bg-pink-50", iconBg: "bg-pink-500" },
-    { num: "03", title: "お花屋さんがお届け", desc: "目標達成後、提携のプロのお花屋さんが制作し、直接会場へお届けします。", icon: Gift, color: "text-sky-500", bg: "bg-sky-50", iconBg: "bg-sky-500" },
+    { num: "03", title: "お花屋さんがお届け", desc: "目標達成後、提携のプロのお花屋さんが制作し、直接会場へお届けします。", icon: Gift, color: "text-rose-500", bg: "bg-rose-50", iconBg: "bg-rose-500" },
   ];
 
   return (
@@ -669,11 +669,11 @@ const BentoFeatures = () => {
       desc: "お花送付のルールを会場と連携。「サイズオーバーで置けなかった」という悲劇を防ぎます。",
       span: "col-span-1 md:col-span-2",
       icon: Building,
-      gradient: "from-sky-50 to-blue-50",
-      border: "border-sky-100",
-      iconColor: "text-sky-500",
-      iconBg: "bg-sky-100",
-      textColor: "text-sky-700",
+      gradient: "from-slate-50 to-gray-50",
+      border: "border-slate-100",
+      iconColor: "text-slate-500",
+      iconBg: "bg-slate-100",
+      textColor: "text-slate-600",
     }
   ];
 

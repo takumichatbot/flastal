@@ -467,7 +467,7 @@ export default function EventDetailPage() {
       </div>
 
       {/* スマホ: 受付OK時のみ追従FAB */}
-      <div className="md:hidden fixed bottom-6 right-6 z-30">
+      <div className="md:hidden fixed bottom-[calc(1.5rem+env(safe-area-inset-bottom,0px))] right-6 z-30">
         {event.isStandAllowed && (
           <Link
             href={`/projects/create?eventId=${event.id}`}

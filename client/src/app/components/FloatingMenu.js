@@ -36,7 +36,7 @@ export default function FloatingMenu() {
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.95 }}
           onClick={scrollToTop}
-          className="fixed bottom-24 right-4 z-[90] w-11 h-11 bg-white border border-slate-200 text-slate-500 rounded-full shadow-lg flex items-center justify-center hover:border-pink-300 hover:text-pink-500 hover:shadow-pink-100 transition-colors"
+          className="fixed bottom-[calc(6.5rem+env(safe-area-inset-bottom,0px))] right-4 z-[90] w-11 h-11 bg-white border border-slate-200 text-slate-500 rounded-full shadow-lg flex items-center justify-center hover:border-pink-300 hover:text-pink-500 hover:shadow-pink-100 transition-colors"
           aria-label="トップへ戻る"
         >
           <ArrowUp size={18} strokeWidth={2.5} />

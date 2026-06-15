@@ -1,5 +1,5 @@
 import React from 'react';
-import { FiAward, FiStar, FiInfo } from 'react-icons/fi';
+import { Star } from 'lucide-react';
 import { FaCrown, FaMedal } from 'react-icons/fa'; // 存在感のあるアイコンを使用
 
 // ランクごとのスタイル設定
@@ -33,10 +33,10 @@ const RANK_CONFIG = {
   },
   'Fan': {
     label: 'Fan',
-    icon: <FiStar />,
+    icon: <Star />,
     // シンプルなファンバッジ
-    className: 'bg-indigo-50 text-indigo-600 border-indigo-100',
-    iconColor: 'text-indigo-400',
+    className: 'bg-pink-50 text-pink-600 border-pink-100',
+    iconColor: 'text-pink-400',
     description: '推しを応援する素敵なファン',
     shimmer: false,
   },

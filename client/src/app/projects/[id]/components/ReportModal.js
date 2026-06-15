@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { FiAlertTriangle, FiX, FiInfo, FiLoader, FiChevronDown } from 'react-icons/fi';
+import { AlertTriangle, X, Info, Loader2, ChevronDown } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
@@ -78,20 +78,20 @@ export default function ReportModal({ projectId, user, onClose }) {
         {/* ヘッダー */}
         <div className="bg-red-50 px-6 py-4 border-b border-red-100 flex justify-between items-center">
           <h3 className="text-lg font-bold text-red-600 flex items-center gap-2">
-            <FiAlertTriangle className="text-xl"/> 企画を通報する
+            <AlertTriangle className="text-xl"/> 企画を通報する
           </h3>
           <button 
             onClick={onClose} 
             className="text-red-300 hover:text-red-500 bg-white hover:bg-red-100 p-1.5 rounded-full transition-colors shadow-sm"
           >
-            <FiX size={20} />
+            <X size={20} />
           </button>
         </div>
 
         {/* フォーム */}
         <div className="p-6">
           <div className="bg-gray-50 p-3 rounded-lg text-xs text-gray-500 mb-6 flex items-start gap-2 border border-gray-100">
-             <FiInfo className="text-blue-400 shrink-0 mt-0.5 text-sm"/>
+             <Info className="text-blue-400 shrink-0 mt-0.5 text-sm"/>
              <div>
                 <p className="font-bold text-gray-600 mb-1">匿名で報告されます</p>
                 あなたのユーザー名や個人情報が、企画者に開示されることはありません。
@@ -109,7 +109,7 @@ export default function ReportModal({ projectId, user, onClose }) {
                   >
                     {REASONS.map(r => <option key={r} value={r}>{r}</option>)}
                   </select>
-                  <FiChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"/>
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"/>
               </div>
             </div>
 
@@ -137,7 +137,7 @@ export default function ReportModal({ projectId, user, onClose }) {
                 disabled={isSubmitting}
                 className="px-6 py-2.5 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition-all shadow-md hover:shadow-lg disabled:bg-gray-300 disabled:shadow-none flex items-center text-sm"
               >
-                {isSubmitting ? <><FiLoader className="animate-spin mr-2"/> 送信中...</> : '通報する'}
+                {isSubmitting ? <><Loader2 className="animate-spin mr-2"/> 送信中...</> : '通報する'}
               </button>
             </div>
           </form>

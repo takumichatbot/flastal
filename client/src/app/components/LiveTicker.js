@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { io } from 'socket.io-client';
-import { FiActivity, FiGift, FiTruck, FiCheckCircle, FiTrendingUp, FiInfo } from 'react-icons/fi';
+import { Activity, Gift, Truck, CheckCircle2, TrendingUp, Info } from 'lucide-react';
 import { useScroll, useMotionValueEvent } from 'framer-motion';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
@@ -63,12 +63,12 @@ export default function LiveTicker() {
 
   const getLogStyle = (type) => {
     switch(type) {
-      case 'pledge': return { icon: <FiGift />, color: 'text-pink-400', label: '支援' };
-      case 'goal': return { icon: <FiTrendingUp />, color: 'text-orange-400', label: '達成' };
-      case 'production': return { icon: <FiCheckCircle />, color: 'text-green-400', label: '進捗' };
-      case 'delivery': return { icon: <FiTruck />, color: 'text-sky-400', label: '納品' };
-      case 'new': return { icon: <FiActivity />, color: 'text-yellow-400', label: '新着' };
-      default: return { icon: <FiInfo />, color: 'text-gray-400', label: '情報' };
+      case 'pledge': return { icon: <Gift />, color: 'text-pink-400', label: '支援' };
+      case 'goal': return { icon: <TrendingUp />, color: 'text-orange-400', label: '達成' };
+      case 'production': return { icon: <CheckCircle2 />, color: 'text-green-400', label: '進捗' };
+      case 'delivery': return { icon: <Truck />, color: 'text-sky-400', label: '納品' };
+      case 'new': return { icon: <Activity />, color: 'text-yellow-400', label: '新着' };
+      default: return { icon: <Info />, color: 'text-gray-400', label: '情報' };
     }
   };
 
@@ -106,7 +106,7 @@ export default function LiveTicker() {
 
         <div className="hidden md:flex shrink-0 ml-4 border-l border-slate-700 pl-4 h-4 items-center">
             <Link href="/projects" className="text-[10px] text-slate-400 hover:text-white transition-colors flex items-center gap-1">
-                View All <FiTrendingUp />
+                View All <TrendingUp />
             </Link>
         </div>
 

@@ -164,11 +164,11 @@ function ProjectsContent() {
   };
 
   return (
-    <div className="bg-gradient-to-br from-pink-50/80 to-sky-50/80 min-h-screen font-sans text-slate-800 relative overflow-hidden pb-24">
+    <div className="bg-gradient-to-br from-pink-50/80 to-rose-50/80 min-h-screen font-sans text-slate-800 relative overflow-hidden pb-24">
       <FloatingParticles />
-      
+
       <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-pink-200/40 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/3 pointer-events-none" />
-      <div className="absolute top-40 left-0 w-[400px] h-[400px] bg-sky-200/30 rounded-full blur-[100px] -translate-x-1/2 pointer-events-none" />
+      <div className="absolute top-40 left-0 w-[400px] h-[400px] bg-rose-100/30 rounded-full blur-[100px] -translate-x-1/2 pointer-events-none" />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-16 relative z-10">
         
@@ -284,7 +284,7 @@ function ProjectsContent() {
                               className="object-cover group-hover:scale-110 transition-transform duration-700"
                             />
                           ) : (
-                            <div className="absolute inset-0 bg-gradient-to-br from-pink-100 to-sky-100 flex items-center justify-center text-4xl">💐</div>
+                            <div className="absolute inset-0 bg-gradient-to-br from-pink-100 to-rose-100 flex items-center justify-center text-4xl">💐</div>
                           )}
                           <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 via-transparent to-transparent" />
                           <div className="absolute top-4 left-4">
@@ -307,7 +307,7 @@ function ProjectsContent() {
                                   </p>
                               )}
                               <p className="text-[11px] font-bold text-slate-500 flex items-center truncate">
-                                  <MapPin className="mr-1.5 shrink-0 text-sky-400" size={14}/> 
+                                  <MapPin className="mr-1.5 shrink-0 text-rose-400" size={14}/>
                                   <span className="truncate">{project.venue?.venueName || project.deliveryAddress || '場所未定'}</span>
                               </p>
                           </div>

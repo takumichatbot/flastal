@@ -1,6 +1,6 @@
 "use client";
 import Link from 'next/link';
-import { FiTrendingUp, FiGift, FiStar, FiArrowRight, FiCheckCircle, FiAlertCircle } from 'react-icons/fi';
+import { TrendingUp, Gift, Star, ArrowRight, CheckCircle2 } from 'lucide-react';
 
 export default function UpsellAlert({ target, collected, projectId }) {
   const remaining = Math.max(0, target - collected);
@@ -12,7 +12,7 @@ export default function UpsellAlert({ target, collected, projectId }) {
 
   let config = {
     theme: "blue",
-    icon: <FiTrendingUp />,
+    icon: <TrendingUp />,
     title: "",
     description: "",
     buttonText: "支援して応援する",
@@ -24,7 +24,7 @@ export default function UpsellAlert({ target, collected, projectId }) {
     // ★ 達成済み (ネクストゴール誘導)
     config = {
       theme: "green",
-      icon: <FiCheckCircle className="text-2xl" />,
+      icon: <CheckCircle2 className="text-2xl" />,
       title: "🎉 目標達成おめでとうございます！",
       description: "さらなる高みへ！集まったポイントは全て企画のグレードアップに使用されます。",
       buttonText: "さらに盛り上げる",
@@ -35,7 +35,7 @@ export default function UpsellAlert({ target, collected, projectId }) {
     // ★ 超目前 (緊急度MAX)
     config = {
       theme: "rose",
-      icon: <FiStar className="text-2xl animate-spin-slow" />, // ゆっくり回転
+      icon: <Star className="text-2xl animate-spin-slow" />, // ゆっくり回転
       title: `🔥 あと ${remaining.toLocaleString()} ptで達成です！`,
       description: "あなたが最後のピースを埋めて、企画を成立させませんか？",
       buttonText: "今すぐ達成させる！",
@@ -46,7 +46,7 @@ export default function UpsellAlert({ target, collected, projectId }) {
     // ★ もう一息
     config = {
       theme: "orange",
-      icon: <FiGift className="text-2xl" />,
+      icon: <Gift className="text-2xl" />,
       title: `あと ${remaining.toLocaleString()} ptで目標達成！`,
       description: "お花を確実に届けるために、あなたのお力添えが必要です。",
       buttonText: "支援する",
@@ -57,7 +57,7 @@ export default function UpsellAlert({ target, collected, projectId }) {
     // ★ 折り返し地点
     config = {
       theme: "indigo",
-      icon: <FiTrendingUp className="text-2xl" />,
+      icon: <TrendingUp className="text-2xl" />,
       title: "現在、目標の50%を突破しました！",
       description: `達成まであと ${remaining.toLocaleString()} pt。一緒にゴールを目指しましょう！`,
       buttonText: "支援に参加する",
@@ -75,14 +75,14 @@ export default function UpsellAlert({ target, collected, projectId }) {
     green: "bg-gradient-to-r from-emerald-50 to-green-50 border-emerald-200 text-emerald-900",
     rose:  "bg-gradient-to-r from-rose-50 to-pink-50 border-rose-200 text-rose-900",
     orange: "bg-gradient-to-r from-orange-50 to-amber-50 border-orange-200 text-orange-900",
-    indigo: "bg-gradient-to-r from-indigo-50 to-blue-50 border-indigo-200 text-indigo-900",
+    indigo: "bg-gradient-to-r from-pink-50 to-rose-50 border-pink-200 text-pink-900",
   };
   
   const buttonStyles = {
     green: "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200",
     rose:  "bg-rose-600 hover:bg-rose-700 shadow-rose-200",
     orange: "bg-orange-500 hover:bg-orange-600 shadow-orange-200",
-    indigo: "bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200",
+    indigo: "bg-pink-500 hover:bg-pink-600 shadow-pink-200",
   };
 
   return (
@@ -119,7 +119,7 @@ export default function UpsellAlert({ target, collected, projectId }) {
               ${buttonStyles[config.theme]}
             `}
           >
-            {config.buttonText} <FiArrowRight />
+            {config.buttonText} <ArrowRight />
           </Link>
         )}
 

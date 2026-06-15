@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { FiHeart, FiZoomIn, FiImage, FiUser, FiTrash2 } from 'react-icons/fi';
+import { Heart, ZoomIn, ImageIcon, User, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import ImageModal from './ImageModal'; 
 
@@ -86,7 +86,7 @@ export default function MoodboardDisplay({ projectId }) {
     return (
         <div className="mt-8">
             <h2 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-                <FiImage /> アイデアボード
+                <ImageIcon /> アイデアボード
             </h2>
             <div className="columns-2 md:columns-3 lg:columns-4 gap-4 space-y-4">
                 {[...Array(6)].map((_, i) => (
@@ -106,7 +106,7 @@ export default function MoodboardDisplay({ projectId }) {
       <div className="flex items-end justify-between mb-6 border-b border-gray-100 pb-4">
         <div>
             <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                <FiImage className="text-indigo-500" /> アイデアボード
+                <ImageIcon className="text-pink-500" /> アイデアボード
             </h2>
             <p className="text-xs text-gray-500 mt-1">
                 参加者が持ち寄ったイメージ画像 ({items.length}件)
@@ -117,7 +117,7 @@ export default function MoodboardDisplay({ projectId }) {
       {items.length === 0 ? (
         <div className="text-center py-16 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 text-slate-400">
           <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-3 shadow-sm">
-            <FiImage size={24} />
+            <ImageIcon size={24} />
           </div>
           <p className="font-bold">まだアイデアがありません</p>
           <p className="text-xs mt-1">最初の1枚を投稿して企画を盛り上げましょう！</p>
@@ -137,7 +137,7 @@ export default function MoodboardDisplay({ projectId }) {
                     onClick={() => handleDelete(item.id)}
                     className="absolute top-2 right-2 bg-white/90 text-slate-400 hover:text-red-500 p-1.5 rounded-full shadow-sm opacity-0 group-hover:opacity-100 transition-all z-10 hover:rotate-90"
                   >
-                    <FiTrash2 size={14} />
+                    <Trash2 size={14} />
                   </button>
                 )}
 
@@ -153,7 +153,7 @@ export default function MoodboardDisplay({ projectId }) {
                     loading="lazy"
                   />
                   <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <FiZoomIn className="text-white text-2xl drop-shadow-md" />
+                    <ZoomIn className="text-white text-2xl drop-shadow-md" />
                   </div>
                 </div>
 
@@ -170,7 +170,7 @@ export default function MoodboardDisplay({ projectId }) {
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={item.userIcon} alt="" className="w-5 h-5 rounded-full object-cover border border-slate-100 shrink-0"/>
                       ) : (
-                        <div className="w-5 h-5 rounded-full bg-slate-200 flex items-center justify-center text-slate-400 shrink-0"><FiUser size={10}/></div>
+                        <div className="w-5 h-5 rounded-full bg-slate-200 flex items-center justify-center text-slate-400 shrink-0"><User size={10}/></div>
                       )}
                       <span className="text-[10px] text-slate-500 truncate max-w-[80px]">{item.userName || 'Guest'}</span>
                     </div>
@@ -186,7 +186,7 @@ export default function MoodboardDisplay({ projectId }) {
                           : 'bg-slate-50 text-slate-400 hover:bg-pink-50 hover:text-pink-400'
                       }`}
                     >
-                      <FiHeart className={isLiked ? 'fill-pink-500' : ''} />
+                      <Heart className={isLiked ? 'fill-pink-500' : ''} />
                       <span>{item.likes > 0 ? item.likes : ''}</span>
                     </button>
                   </div>

@@ -2,10 +2,7 @@
 export const dynamic = 'force-dynamic';
 import { useState, useEffect, useCallback, Suspense } from 'react';
 import toast from 'react-hot-toast';
-import { 
-  FiSave, FiSettings, FiMail, FiPercent, FiRefreshCw, 
-  FiArrowLeft, FiAlertTriangle, FiLoader, FiEdit3
-} from 'react-icons/fi';
+import { Save, Settings, Mail, Percent, RefreshCw, ArrowLeft, AlertTriangle, Loader2, Pencil } from 'lucide-react';
 import { useAuth } from '@/app/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -24,7 +21,7 @@ const EmailTemplateManager = () => {
     return (
         <div className="bg-white p-8 rounded-b-xl shadow-sm border border-gray-200 border-t-0 text-center py-20 animate-fadeIn">
             <div className="bg-indigo-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
-                <FiMail className="text-4xl text-indigo-500" />
+                <Mail className="text-4xl text-indigo-500" />
             </div>
             <h3 className="text-xl font-bold text-gray-800 mb-2">メールテンプレート管理機能</h3>
             <p className="text-gray-500 mb-8 max-w-sm mx-auto">
@@ -35,7 +32,7 @@ const EmailTemplateManager = () => {
                 onClick={() => router.push('/admin/email-templates')}
                 className="inline-flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-md hover:shadow-lg active:scale-95"
             >
-                <FiEdit3 /> テンプレートエディタを開く
+                <Pencil /> テンプレートエディタを開く
             </button>
         </div>
     );
@@ -121,7 +118,7 @@ function AdminSettingsInner() {
     if (authLoading) {
         return (
             <div className="min-h-screen flex items-center justify-center">
-                <FiRefreshCw className="animate-spin text-3xl text-gray-400"/>
+                <RefreshCw className="animate-spin text-3xl text-gray-400"/>
             </div>
         );
     }
@@ -131,11 +128,11 @@ function AdminSettingsInner() {
             <div className="max-w-5xl mx-auto">
                 <div className="flex items-center gap-4 mb-8">
                     <Link href="/admin" className="p-2 bg-white border border-gray-200 rounded-full hover:bg-gray-100 text-gray-500 shadow-sm">
-                        <FiArrowLeft size={20} />
+                        <ArrowLeft size={20} />
                     </Link>
                     <div>
                         <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                            <FiSettings className="text-gray-600"/> システム設定
+                            <Settings className="text-gray-600"/> システム設定
                         </h1>
                         <p className="text-sm text-gray-500 mt-1">手数料率やメールの管理を行います。</p>
                     </div>
@@ -143,10 +140,10 @@ function AdminSettingsInner() {
 
                 <div className="flex gap-2 mb-0 overflow-x-auto">
                     <button onClick={() => setActiveTab('general')} className={`flex items-center gap-2 px-6 py-3 font-bold text-sm rounded-t-xl border-b-0 relative top-[1px] z-10 transition-all ${activeTab === 'general' ? 'bg-white text-pink-600 border border-gray-200 shadow-sm' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
-                        <FiPercent /> 手数料・基本設定
+                        <Percent /> 手数料・基本設定
                     </button>
                     <button onClick={() => setActiveTab('email')} className={`flex items-center gap-2 px-6 py-3 font-bold text-sm rounded-t-xl border-b-0 relative top-[1px] z-10 transition-all ${activeTab === 'email' ? 'bg-white text-indigo-600 border border-gray-200 shadow-sm' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
-                        <FiMail /> メールテンプレート
+                        <Mail /> メールテンプレート
                     </button>
                 </div>
 
@@ -172,7 +169,7 @@ function AdminSettingsInner() {
                                     </div>
                                 </div>
                                 <button type="submit" className="mt-8 flex items-center gap-2 px-8 py-3 bg-gray-900 text-white font-bold rounded-xl hover:bg-black transition-colors">
-                                    {savingGeneral ? <FiRefreshCw className="animate-spin"/> : <FiSave />} 保存する
+                                    {savingGeneral ? <RefreshCw className="animate-spin"/> : <Save />} 保存する
                                 </button>
                             </form>
                         )}
@@ -188,7 +185,7 @@ export default function AdminSettingsPage() {
     return (
         <Suspense fallback={
             <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-                <FiLoader className="animate-spin text-indigo-500 text-3xl" />
+                <Loader2 className="animate-spin text-indigo-500 text-3xl" />
             </div>
         }>
             <AdminSettingsInner />

@@ -3,7 +3,7 @@
 import { useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { FiLogOut, FiCamera, FiUser } from 'react-icons/fi';
+import { LogOut, Camera, User } from 'lucide-react';
 
 /**
  * ダッシュボードのメインレイアウト
@@ -51,11 +51,11 @@ export function DashboardSidebar({
                     <Image src={user.iconUrl} alt="icon" fill className="object-cover" />
                   ) : (
                     <div className="w-full h-full bg-slate-50 flex items-center justify-center text-slate-200">
-                      <FiUser size={40}/>
+                      <User size={40}/>
                     </div>
                   )}
                   <Link href={editProfileHref} className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    <FiCamera className="text-white" size={24} />
+                    <Camera className="text-white" size={24} />
                   </Link>
                 </div>
                 <h2 className="font-black text-slate-900 text-lg tracking-tighter text-center px-4">{user?.handleName || user?.platformName || 'ユーザー'}</h2>
@@ -82,7 +82,7 @@ export function DashboardSidebar({
                 onClick={onLogout} 
                 className="w-full flex items-center justify-center gap-2 px-6 py-4 text-sm font-bold text-red-500 hover:bg-red-50 rounded-xl transition-all"
                 >
-                <FiLogOut size={18} /><span>ログアウト</span>
+                <LogOut size={18} /><span>ログアウト</span>
                 </button>
             </div>
           )}

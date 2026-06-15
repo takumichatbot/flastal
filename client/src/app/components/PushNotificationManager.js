@@ -130,7 +130,7 @@ export default function PushNotificationManager() {
       {isVisible && (
         <motion.div 
           initial={{ opacity: 0, y: 20, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 20, scale: 0.95 }} transition={{ duration: 0.3 }}
-          className="fixed bottom-24 left-4 right-4 md:left-auto md:right-8 md:w-[340px] z-[90]"
+          className="fixed bottom-[calc(6rem+env(safe-area-inset-bottom,0px))] left-4 right-4 md:left-auto md:right-8 md:w-[340px] z-[90]"
         >
           <div className="bg-slate-900/95 backdrop-blur-xl text-white p-5 md:p-6 rounded-[2rem] shadow-[0_20px_40px_rgba(0,0,0,0.2)] border border-slate-700 relative overflow-hidden">
             <button onClick={() => setIsVisible(false)} className="absolute top-4 right-4 text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 p-1.5 rounded-full transition-colors"><X size={16} /></button>

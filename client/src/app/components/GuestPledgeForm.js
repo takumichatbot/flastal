@@ -1,7 +1,7 @@
 "use client";
 import { useState } from 'react';
 import toast from 'react-hot-toast';
-import { FiUser, FiMail, FiMessageSquare, FiCreditCard, FiCheck, FiInfo, FiLock, FiLoader } from 'react-icons/fi';
+import { User, Mail, MessageSquare, CreditCard, Check, Info, Lock, Loader2 } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -78,7 +78,7 @@ export default function GuestPledgeForm({ projectId, projectTitle, onCancel, onS
       {/* 案内メッセージ */}
       <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 p-4 rounded-xl mb-6 flex items-start gap-3">
         <div className="bg-amber-100 p-2 rounded-full text-amber-600 shrink-0">
-            <FiInfo size={20} />
+            <Info size={20} />
         </div>
         <div className="text-sm text-amber-900">
           <p className="font-bold mb-1">ゲスト支援モード</p>
@@ -101,7 +101,7 @@ export default function GuestPledgeForm({ projectId, projectTitle, onCancel, onS
                     key={amount}
                     type="button"
                     onClick={() => handleAmountPreset(amount)}
-                    className={`px-3 py-1.5 text-xs font-bold rounded-full border transition-all ${
+                    className={`px-4 py-2.5 text-xs font-bold rounded-full border transition-all ${
                         formData.amount === amount 
                         ? 'bg-pink-500 border-pink-500 text-white shadow-md' 
                         : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
@@ -134,7 +134,7 @@ export default function GuestPledgeForm({ projectId, projectTitle, onCancel, onS
             <div>
             <label className="block text-xs font-bold text-gray-500 mb-1 ml-1">お名前 (ニックネーム可) <span className="text-red-500">*</span></label>
             <div className="relative">
-                <FiUser className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                 <input
                 type="text"
                 name="guestName"
@@ -150,7 +150,7 @@ export default function GuestPledgeForm({ projectId, projectTitle, onCancel, onS
             <div>
             <label className="block text-xs font-bold text-gray-500 mb-1 ml-1">メールアドレス <span className="text-red-500">*</span></label>
             <div className="relative">
-                <FiMail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                 <input
                 type="email"
                 name="guestEmail"
@@ -169,7 +169,7 @@ export default function GuestPledgeForm({ projectId, projectTitle, onCancel, onS
         <div>
           <label className="block text-xs font-bold text-gray-500 mb-1 ml-1">応援コメント (任意)</label>
           <div className="relative">
-            <FiMessageSquare className="absolute left-3 top-3 text-gray-400" />
+            <MessageSquare className="absolute left-3 top-3 text-gray-400" />
             <textarea
               name="comment"
               rows="3"
@@ -211,15 +211,15 @@ export default function GuestPledgeForm({ projectId, projectTitle, onCancel, onS
             className="flex-[2] py-3.5 bg-gradient-to-r from-pink-500 to-rose-600 text-white rounded-xl font-bold shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2"
           >
             {loading ? (
-                <><FiLoader className="animate-spin" /> 準備中...</>
+                <><Loader2 className="animate-spin" /> 準備中...</>
             ) : (
-                <><FiCreditCard /> 支払いに進む</>
+                <><CreditCard /> 支払いに進む</>
             )}
           </button>
         </div>
         
         <p className="text-center text-xs text-gray-400 flex items-center justify-center gap-1">
-            <FiLock /> SSL暗号化通信により情報は安全に送信されます
+            <Lock /> SSL暗号化通信により情報は安全に送信されます
         </p>
 
       </form>

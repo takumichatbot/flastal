@@ -2,7 +2,7 @@
 
 import { useState, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { FiUpload, FiX, FiImage, FiCheck, FiLoader } from 'react-icons/fi';
+import { Upload, X, ImageIcon, Check, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function UploadForm({ onUploadSuccess }) {
@@ -120,7 +120,7 @@ export default function UploadForm({ onUploadSuccess }) {
   return (
     <div className="bg-white p-6 md:p-8 rounded-2xl shadow-lg border border-pink-100 max-w-lg mx-auto">
       <h2 className="text-xl font-bold mb-6 text-gray-800 flex items-center gap-2">
-        <FiImage className="text-pink-500" /> フラスタ写真を投稿
+        <ImageIcon className="text-pink-500" /> フラスタ写真を投稿
       </h2>
       
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -141,7 +141,7 @@ export default function UploadForm({ onUploadSuccess }) {
               `}
             >
               <div className="bg-white p-3 rounded-full shadow-sm mb-2 text-pink-500">
-                <FiUpload size={24} />
+                <Upload size={24} />
               </div>
               <p className="text-sm font-bold text-gray-600">クリック または ドラッグ＆ドロップ</p>
               <p className="text-xs text-gray-400 mt-1">最大 10MB (JPG, PNG)</p>
@@ -165,7 +165,7 @@ export default function UploadForm({ onUploadSuccess }) {
                 onClick={clearImage}
                 className="absolute top-2 right-2 bg-black/60 text-white p-2 rounded-full hover:bg-red-500 transition-colors backdrop-blur-sm"
               >
-                <FiX />
+                <X />
               </button>
             </div>
           )}
@@ -209,9 +209,9 @@ export default function UploadForm({ onUploadSuccess }) {
           `}
         >
           {isSubmitting ? (
-            <><FiLoader className="animate-spin" /> アップロード中...</>
+            <><Loader2 className="animate-spin" /> アップロード中...</>
           ) : (
-            <><FiCheck /> 投稿する</>
+            <><Check /> 投稿する</>
           )}
         </button>
       </form>

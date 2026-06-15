@@ -3,7 +3,7 @@
 
 import { useState, useRef } from 'react';
 import toast from 'react-hot-toast';
-import { FiX, FiSend, FiUpload, FiMapPin, FiTag, FiImage, FiLoader, FiTrash2 } from 'react-icons/fi';
+import { X, Send, Upload, MapPin, Tag, ImageIcon, Loader2, Trash2 } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -131,7 +131,7 @@ export default function VenueLogisticsPostModal({ venueId, venueName, onClose, o
                 <div className="bg-gradient-to-r from-pink-600 to-rose-600 p-5 text-white flex justify-between items-start shrink-0">
                     <div>
                         <h3 className="font-bold text-lg flex items-center gap-2">
-                            <FiMapPin /> 現場情報を共有
+                            <MapPin /> 現場情報を共有
                         </h3>
                         <p className="text-pink-100 text-xs mt-1 font-medium">
                             {venueName}
@@ -142,7 +142,7 @@ export default function VenueLogisticsPostModal({ venueId, venueName, onClose, o
                         disabled={isSubmitting}
                         className="text-white/80 hover:text-white bg-white/10 hover:bg-white/20 rounded-full p-2 transition-colors"
                     >
-                        <FiX size={20}/>
+                        <X size={20}/>
                     </button>
                 </div>
 
@@ -181,7 +181,7 @@ export default function VenueLogisticsPostModal({ venueId, venueName, onClose, o
                                         disabled={isSubmitting}
                                         className="text-[10px] bg-slate-50 border border-slate-200 text-slate-600 px-2 py-1 rounded-md hover:bg-pink-50 hover:text-pink-600 hover:border-pink-200 transition-colors flex items-center gap-1"
                                     >
-                                        <FiTag className="text-[9px]" /> {tag}
+                                        <Tag className="text-[9px]" /> {tag}
                                     </button>
                                 ))}
                             </div>
@@ -214,7 +214,7 @@ export default function VenueLogisticsPostModal({ venueId, venueName, onClose, o
                                             disabled={isSubmitting}
                                             className="absolute top-1 right-1 bg-black/60 text-white rounded-full p-1.5 hover:bg-red-500 transition-colors backdrop-blur-sm"
                                         >
-                                            <FiTrash2 size={12}/>
+                                            <Trash2 size={12}/>
                                         </button>
                                     </div>
                                 ))}
@@ -226,7 +226,7 @@ export default function VenueLogisticsPostModal({ venueId, venueName, onClose, o
                                         disabled={isSubmitting}
                                         className="aspect-square rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 hover:bg-pink-50 hover:border-pink-300 text-gray-400 hover:text-pink-500 flex flex-col items-center justify-center transition-all gap-1"
                                     >
-                                        <FiImage size={24} />
+                                        <ImageIcon size={24} />
                                         <span className="text-[10px] font-bold">追加する</span>
                                     </button>
                                 )}
@@ -252,9 +252,9 @@ export default function VenueLogisticsPostModal({ venueId, venueName, onClose, o
                         className="px-8 py-3 bg-gradient-to-r from-pink-600 to-rose-600 text-white font-bold rounded-xl shadow-md hover:shadow-lg hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none transition-all flex items-center gap-2"
                     >
                         {isSubmitting ? (
-                            <><FiLoader className="animate-spin"/> 送信中...</>
+                            <><Loader2 className="animate-spin"/> 送信中...</>
                         ) : (
-                            <><FiSend /> 共有する</>
+                            <><Send /> 共有する</>
                         )}
                     </button>
                 </div>

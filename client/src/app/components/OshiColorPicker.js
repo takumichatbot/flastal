@@ -1,9 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from 'react';
-import { FiCheck, FiRefreshCw } from 'react-icons/fi';
-import { IoColorPaletteOutline } from 'react-icons/io5';
+import { Check, RefreshCw, Palette } from 'lucide-react';
 import { useAuth } from '@/app/contexts/AuthContext';
-import toast from 'react-hot-toast';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -97,7 +95,7 @@ export default function OshiColorPicker() {
         title="推し色テーマ変更"
       >
         <div className="relative">
-            <IoColorPaletteOutline className="text-lg text-slate-500 group-hover:text-slate-700 transition-colors" />
+            <Palette className="text-lg text-slate-500 group-hover:text-slate-700 transition-colors" />
             <span 
                 className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full border border-white" 
                 style={{ backgroundColor: OSHI_COLORS.find(c => c.id === activeColorId)?.hex || '#0ea5e9' }}
@@ -111,7 +109,7 @@ export default function OshiColorPicker() {
           <div className="flex justify-between items-center mb-4">
             <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Select Oshi Color</h4>
             <button onClick={handleReset} className="text-slate-400 hover:text-slate-600 transition-colors" title="リセット">
-                <FiRefreshCw size={12} />
+                <RefreshCw size={12} />
             </button>
           </div>
           <div className="grid grid-cols-5 gap-3">
@@ -122,13 +120,13 @@ export default function OshiColorPicker() {
                 className={`
                     relative w-full aspect-square rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110
                     ${c.border ? 'border border-slate-200' : ''}
-                    ${activeColorId === c.id ? 'ring-2 ring-offset-2 ring-indigo-500 scale-110' : ''}
+                    ${activeColorId === c.id ? 'ring-2 ring-offset-2 ring-pink-500 scale-110' : ''}
                 `}
                 style={{ backgroundColor: c.hex }}
                 title={c.name}
               >
                 {activeColorId === c.id && (
-                  <FiCheck className={`text-lg drop-shadow-sm ${c.isLight ? 'text-slate-800' : 'text-white'}`} />
+                  <Check className={`text-lg drop-shadow-sm ${c.isLight ? 'text-slate-800' : 'text-white'}`} />
                 )}
               </button>
             ))}

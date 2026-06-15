@@ -5,10 +5,7 @@ import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/app/contexts/AuthContext';
-import { 
-    FiEdit, FiTrash2, FiPlus, FiCheck, FiX, 
-    FiMapPin, FiSearch, FiInfo, FiArrowLeft, FiClock, FiCheckCircle, FiLoader, FiAlertTriangle, FiRefreshCw, FiSlash
-} from 'react-icons/fi';
+import { Pencil, Trash2, Plus, Check, X, MapPin, Search, Info, ArrowLeft, Clock, CheckCircle2, Loader2, AlertTriangle, RefreshCw, Slash } from 'lucide-react';
 
 const API_BASE_URL = 'https://flastal-backend.onrender.com/api';
 
@@ -64,7 +61,7 @@ function VenueModal({ isOpen, onClose, onSubmit, initialData }) {
             <h2 className="text-2xl font-black text-slate-800 italic">
                 {initialData ? '会場情報を編集' : '新規会場を登録'}
             </h2>
-            <button onClick={onClose} className="p-3 hover:bg-white rounded-full text-slate-400 shadow-sm"><FiX size={24} /></button>
+            <button onClick={onClose} className="p-3 hover:bg-white rounded-full text-slate-400 shadow-sm"><X size={24} /></button>
         </div>
         <div className="flex-1 overflow-y-auto p-10 space-y-10 text-slate-800">
             <form id="venueForm" onSubmit={handleSubmit} className="space-y-10">
@@ -245,7 +242,7 @@ export default function AdminVenuesPage() {
     ).sort((a, b) => (a.isOfficial === b.isOfficial) ? 0 : a.isOfficial ? 1 : -1);
   }, [venues, searchTerm]);
 
-  if (authLoading) return <div className="min-h-screen bg-white flex items-center justify-center font-sans"><FiLoader className="animate-spin text-pink-500 size-10" /></div>;
+  if (authLoading) return <div className="min-h-screen bg-white flex items-center justify-center font-sans"><Loader2 className="animate-spin text-pink-500 size-10" /></div>;
 
   return (
     <div className="min-h-screen bg-[#fafafa] p-6 sm:p-12 font-sans text-slate-800 pt-28">
@@ -253,17 +250,17 @@ export default function AdminVenuesPage() {
         <div className="flex flex-col md:flex-row justify-between items-end mb-12 gap-8 px-2 text-slate-800">
             <div className="space-y-4">
                 <Link href="/admin" className="inline-flex items-center text-[10px] font-black text-slate-300 hover:text-pink-500 transition-colors uppercase tracking-[0.3em]">
-                    <FiArrowLeft className="mr-2"/> ダッシュボードに戻る
+                    <ArrowLeft className="mr-2"/> ダッシュボードに戻る
                 </Link>
                 <h1 className="text-5xl md:text-6xl font-black text-slate-900 tracking-tighter italic">会場管理</h1>
                 <p className="text-slate-400 font-bold text-sm tracking-[0.2em] uppercase">承認済みおよび未承認の会場リスト</p>
             </div>
             <div className="flex gap-4">
                 <button onClick={fetchVenues} className="p-5 bg-white border border-slate-100 rounded-2xl hover:bg-slate-50 shadow-sm text-slate-400 transition-all">
-                    <FiRefreshCw className={loadingData ? 'animate-spin' : ''} />
+                    <RefreshCw className={loadingData ? 'animate-spin' : ''} />
                 </button>
                 <button onClick={() => { setEditingVenue(null); setIsModalOpen(true); }} className="flex items-center gap-3 bg-slate-900 text-white px-10 py-5 rounded-[2rem] hover:bg-pink-600 shadow-2xl transition-all font-black active:scale-95 group text-sm uppercase">
-                  <FiPlus size={20} className="group-hover:rotate-90 transition-transform" /><span>会場を追加</span>
+                  <Plus size={20} className="group-hover:rotate-90 transition-transform" /><span>会場を追加</span>
                 </button>
             </div>
         </div>
@@ -271,7 +268,7 @@ export default function AdminVenuesPage() {
         {errorInfo && (
             <div className="mb-12 bg-rose-50 border-2 border-rose-100 p-10 rounded-[3rem] flex flex-col md:flex-row items-center justify-between gap-8 text-slate-800 shadow-lg">
                 <div className="flex items-center gap-6">
-                    <div className="bg-rose-500 text-white p-4 rounded-[1.5rem] shadow-xl"><FiAlertTriangle size={32} /></div>
+                    <div className="bg-rose-500 text-white p-4 rounded-[1.5rem] shadow-xl"><AlertTriangle size={32} /></div>
                     <div>
                         <p className="font-black text-rose-900 text-xl tracking-tight">管理権限に問題があります</p>
                         <p className="text-rose-700/60 text-sm font-bold mt-1 uppercase tracking-widest">{errorInfo}</p>
@@ -283,7 +280,7 @@ export default function AdminVenuesPage() {
 
         <div className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-100 mb-12 flex flex-col md:flex-row items-center gap-8">
             <div className="relative flex-1 w-full group">
-                <FiSearch className="absolute left-8 top-1/2 -translate-y-1/2 text-slate-300 size-6 transition-colors group-focus-within:text-pink-500" />
+                <Search className="absolute left-8 top-1/2 -translate-y-1/2 text-slate-300 size-6 transition-colors group-focus-within:text-pink-500" />
                 <input 
                     type="text" 
                     placeholder="名前や住所でフィルタリング..." 
@@ -300,7 +297,7 @@ export default function AdminVenuesPage() {
         <div className="space-y-6">
           {loadingData && venues.length === 0 ? (
             <div className="py-40 flex flex-col items-center justify-center text-slate-200 gap-8">
-                <FiLoader className="animate-spin size-16 text-pink-500" />
+                <Loader2 className="animate-spin size-16 text-pink-500" />
                 <p className="text-[10px] font-black tracking-[0.5em] uppercase">サーバーと同期中...</p>
             </div>
           ) : filteredVenues.length === 0 && !errorInfo ? (
@@ -312,11 +309,11 @@ export default function AdminVenuesPage() {
                         <div className="flex flex-wrap items-center gap-4 mb-4">
                             <h3 className="font-black text-slate-800 text-2xl tracking-tighter uppercase">{venue.venueName}</h3>
                             {!venue.isOfficial && (
-                                <span className="bg-pink-500 text-white px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-2 animate-pulse shadow-lg shadow-pink-100"><FiClock /> 承認待ち</span>
+                                <span className="bg-pink-500 text-white px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-2 animate-pulse shadow-lg shadow-pink-100"><Clock /> 承認待ち</span>
                             )}
                         </div>
                         <p className="text-base font-bold text-slate-400 italic flex items-center gap-2">
-                            <FiMapPin className="text-pink-500/40" size={18}/> {venue.address || '住所未登録'}
+                            <MapPin className="text-pink-500/40" size={18}/> {venue.address || '住所未登録'}
                         </p>
                     </div>
 
@@ -324,19 +321,19 @@ export default function AdminVenuesPage() {
                         {!venue.isOfficial ? (
                             <>
                                 <button onClick={() => handleApprove(venue.id)} className="flex items-center gap-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white px-10 py-5 rounded-[1.5rem] hover:shadow-2xl hover:scale-[1.02] transition-all font-black text-xs uppercase active:scale-95 shadow-lg shadow-green-100">
-                                    <FiCheckCircle size={20} /><span>承認する</span>
+                                    <CheckCircle2 size={20} /><span>承認する</span>
                                 </button>
                                 <button onClick={() => handleReject(venue.id, venue.venueName)} className="flex items-center gap-3 bg-white border-2 border-rose-100 text-rose-500 px-10 py-5 rounded-[1.5rem] hover:bg-rose-500 hover:text-white transition-all font-black text-xs uppercase active:scale-95 shadow-sm">
-                                    <FiSlash size={20} /><span>否認</span>
+                                    <Slash size={20} /><span>否認</span>
                                 </button>
                             </>
                         ) : (
                             <button onClick={() => handleReject(venue.id, venue.venueName)} className="p-5 bg-slate-100 text-slate-300 rounded-[1.5rem] hover:bg-rose-500 hover:text-white transition-all shadow-sm group-hover:text-slate-400">
-                                <FiTrash2 size={22} />
+                                <Trash2 size={22} />
                             </button>
                         )}
                         <button onClick={() => { setEditingVenue(venue); setIsModalOpen(true); }} className="p-5 bg-slate-900 text-white rounded-[1.5rem] hover:bg-pink-600 transition-all shadow-xl active:scale-95">
-                            <FiEdit size={22} />
+                            <Pencil size={22} />
                         </button>
                     </div>
                 </div>

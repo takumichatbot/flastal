@@ -1,17 +1,17 @@
 "use client";
 import { useState } from 'react';
 import toast from 'react-hot-toast';
-import { FiTool, FiTruck, FiMapPin, FiCheck, FiAlertCircle } from 'react-icons/fi';
+import { Wrench, Truck, MapPin, Check, AlertCircle } from 'lucide-react';
 
 export default function FloristDeliveryControl({ projectId, currentStatus, onStatusChange }) {
   const [loading, setLoading] = useState(false);
 
   // ステータス定義
   const STATUS_STEPS = [
-    { key: 'PROCESSING', label: '制作開始', icon: <FiTool />, message: 'ステータスを「制作中」に更新しますか？' },
-    { key: 'DELIVERING', label: '配送出発', icon: <FiTruck />, message: 'ステータスを「配送中」に更新しますか？' },
-    { key: 'DELIVERED', label: '設置完了', icon: <FiMapPin />, message: 'ステータスを「設置完了」に更新しますか？\n（完了後、必ず「前日写真」をアップロードしてください）' },
-    { key: 'COMPLETED', label: '納品完了', icon: <FiCheck />, message: '全ての工程を完了としますか？' },
+    { key: 'PROCESSING', label: '制作開始', icon: <Wrench />, message: 'ステータスを「制作中」に更新しますか？' },
+    { key: 'DELIVERING', label: '配送出発', icon: <Truck />, message: 'ステータスを「配送中」に更新しますか？' },
+    { key: 'DELIVERED', label: '設置完了', icon: <MapPin />, message: 'ステータスを「設置完了」に更新しますか？\n（完了後、必ず「前日写真」をアップロードしてください）' },
+    { key: 'COMPLETED', label: '納品完了', icon: <Check />, message: '全ての工程を完了としますか？' },
   ];
 
   // 現在のステータスのインデックスを取得 (未定義の場合は-1)
@@ -82,7 +82,7 @@ export default function FloristDeliveryControl({ projectId, currentStatus, onSta
         </div>
         
         <div className="mt-4 flex items-start gap-2 bg-gray-50 p-3 rounded text-xs text-gray-500 border border-gray-100">
-            <FiAlertCircle className="shrink-0 mt-0.5 text-indigo-400" />
+            <AlertCircle className="shrink-0 mt-0.5 text-indigo-400" />
             <p>ボタンを押すと支援者に通知が飛びます。実際の作業進捗に合わせてこまめに更新しましょう。</p>
         </div>
       </div>

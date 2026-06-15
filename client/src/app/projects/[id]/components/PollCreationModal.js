@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useAuth } from '@/app/contexts/AuthContext';
 import toast from 'react-hot-toast';
-import { FiX, FiPlus, FiTrash2, FiBarChart2, FiHelpCircle, FiLoader } from 'react-icons/fi';
+import { X, Plus, Trash2, BarChart2, HelpCircle, Loader2 } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -98,10 +98,10 @@ export default function PollCreationModal({ projectId, onClose, onPollCreated })
         {/* ヘッダー */}
         <div className="bg-purple-50 p-5 border-b border-purple-100 flex justify-between items-center">
             <h2 className="text-lg font-bold text-purple-900 flex items-center gap-2">
-                <FiBarChart2 className="text-xl"/> アンケートを作成
+                <BarChart2 className="text-xl"/> アンケートを作成
             </h2>
             <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-white transition-colors">
-                <FiX size={24}/>
+                <X size={24}/>
             </button>
         </div>
 
@@ -112,7 +112,7 @@ export default function PollCreationModal({ projectId, onClose, onPollCreated })
             {/* 質問 */}
             <div>
               <label className="block text-sm font-bold text-gray-700 mb-2 flex items-center gap-1">
-                  <FiHelpCircle className="text-purple-500"/> 質問内容 <span className="text-red-500">*</span>
+                  <HelpCircle className="text-purple-500"/> 質問内容 <span className="text-red-500">*</span>
               </label>
               <input 
                 type="text" 
@@ -148,7 +148,7 @@ export default function PollCreationModal({ projectId, onClose, onPollCreated })
                             className="text-gray-400 hover:text-red-500 p-2 rounded-full hover:bg-red-50 transition-colors"
                             title="削除"
                           >
-                              <FiTrash2 />
+                              <Trash2 />
                           </button>
                       )}
                   </div>
@@ -161,7 +161,7 @@ export default function PollCreationModal({ projectId, onClose, onPollCreated })
                     onClick={addOption} 
                     className="mt-3 text-sm font-bold text-purple-600 hover:text-purple-700 hover:bg-purple-50 px-4 py-2 rounded-lg transition-colors flex items-center gap-1"
                   >
-                    <FiPlus /> 選択肢を追加
+                    <Plus /> 選択肢を追加
                   </button>
               )}
             </div>
@@ -182,7 +182,7 @@ export default function PollCreationModal({ projectId, onClose, onPollCreated })
                 disabled={isSubmitting} 
                 className="px-6 py-2.5 bg-purple-600 text-white font-bold rounded-xl hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed shadow-md transition-all flex items-center gap-2"
             >
-                {isSubmitting ? <><FiLoader className="animate-spin"/> 作成中...</> : 'アンケートを作成'}
+                {isSubmitting ? <><Loader2 className="animate-spin"/> 作成中...</> : 'アンケートを作成'}
             </button>
         </div>
 

@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from 'react';
-import { FiCheck, FiStar, FiLock, FiCopy, FiInfo, FiSmartphone } from 'react-icons/fi';
+import { Check, Star, Lock, Copy, Info, Smartphone } from 'lucide-react';
 import toast from 'react-hot-toast';
 import confetti from 'canvas-confetti';
 
@@ -101,7 +101,7 @@ export default function OfficialBadge({ projectId, isPlanner }) {
             {/* バッジ本体 */}
             <div className="relative flex items-center gap-2 bg-gradient-to-b from-amber-100 to-amber-200 border border-amber-300 text-amber-900 px-5 py-2 rounded-full shadow-lg">
                 <div className="bg-gradient-to-br from-yellow-400 to-amber-600 text-white rounded-full p-1 shadow-inner">
-                    <FiCheck strokeWidth={4} size={14} />
+                    <Check strokeWidth={4} size={14} />
                 </div>
                 <div>
                     <p className="text-[10px] font-bold text-amber-700 leading-none tracking-wider uppercase mb-0.5">OFFICIAL CHECKED</p>
@@ -130,15 +130,15 @@ export default function OfficialBadge({ projectId, isPlanner }) {
         {!showSecretMenu ? (
           <button 
             onClick={() => setShowSecretMenu(true)}
-            className="text-xs font-bold text-gray-400 hover:text-indigo-600 flex items-center gap-1 transition-colors"
+            className="text-xs font-bold text-gray-400 hover:text-slate-600 flex items-center gap-1 transition-colors"
           >
-            <FiLock /> 演者様への共有設定を開く
+            <Lock /> 演者様への共有設定を開く
           </button>
         ) : (
           <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 animate-fadeIn">
             <div className="flex justify-between items-start mb-3">
                 <h4 className="font-bold text-slate-700 text-sm flex items-center gap-2">
-                    <span className="bg-indigo-600 text-white p-1 rounded"><FiStar /></span>
+                    <span className="bg-slate-700 text-white p-1 rounded"><Star /></span>
                     演者様に見てもらうために
                 </h4>
                 <button onClick={() => setShowSecretMenu(false)} className="text-xs text-slate-400 hover:text-slate-600">閉じる</button>
@@ -159,19 +159,19 @@ export default function OfficialBadge({ projectId, isPlanner }) {
                     onClick={copySecretLink}
                     className="bg-white border border-slate-300 text-slate-600 px-3 py-2 rounded hover:bg-slate-50 text-xs font-bold flex items-center gap-1"
                 >
-                    <FiCopy /> コピー
+                    <Copy /> コピー
                 </button>
             </div>
 
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
                 <p className="text-[10px] text-yellow-800 font-bold mb-2 flex items-center gap-1">
-                    <FiInfo /> 動作確認（デバッグ用）
+                    <Info /> 動作確認（デバッグ用）
                 </p>
                 <button 
                     onClick={handleSimulateOfficial}
                     className="w-full bg-gradient-to-r from-slate-700 to-slate-800 text-white py-2.5 rounded-lg font-bold text-xs hover:shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2"
                 >
-                    <FiSmartphone /> テスト: 演者としてページを見てボタンを押す
+                    <Smartphone /> テスト: 演者としてページを見てボタンを押す
                 </button>
             </div>
           </div>

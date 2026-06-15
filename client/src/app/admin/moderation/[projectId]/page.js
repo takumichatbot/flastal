@@ -4,10 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
-import { 
-  FiArrowLeft, FiSearch, FiTrash2, FiCopy, FiMessageSquare, 
-  FiUser, Fiusers, FiShoppingBag, FiRefreshCw 
-} from 'react-icons/fi';
+import { ArrowLeft, Search, Trash2, Copy, MessageSquare, User, Users, ShoppingBag, RefreshCw } from 'lucide-react';
 import { useAuth } from '@/app/contexts/AuthContext'; 
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
@@ -146,18 +143,18 @@ export default function ChatModerationPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex justify-between items-center">
           <div className="flex items-center gap-4">
              <Link href="/admin/moderation" className="p-2 rounded-full hover:bg-gray-100 text-gray-500 transition-colors">
-                  <FiArrowLeft size={20} />
+                  <ArrowLeft size={20} />
               </Link>
               <div>
                 <h1 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                  <FiMessageSquare className="text-sky-500"/> チャットログ監視
+                  <MessageSquare className="text-sky-500"/> チャットログ監視
                 </h1>
                 <p className="text-xs text-gray-400">Project ID: {projectId}</p>
               </div>
           </div>
           <div className="flex items-center gap-2">
             <button onClick={fetchChats} className="p-2 text-gray-500 hover:text-sky-600 hover:bg-sky-50 rounded-full transition-colors" title="更新">
-              <FiRefreshCw className={loadingData ? "animate-spin" : ""} />
+              <RefreshCw className={loadingData ? "animate-spin" : ""} />
             </button>
             <button onClick={() => { logout(); router.push('/login'); }} className="text-xs font-bold text-gray-500 hover:text-red-500">
               ログアウト
@@ -171,7 +168,7 @@ export default function ChatModerationPage() {
         {/* コントロールバー */}
         <div className="mb-6 flex flex-col sm:flex-row justify-between items-center gap-4">
           <div className="relative w-full sm:w-96">
-            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input 
               type="text" 
               placeholder="メッセージ内容やユーザー名で検索..." 
@@ -196,7 +193,7 @@ export default function ChatModerationPage() {
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col overflow-hidden">
               <div className="p-4 border-b border-gray-100 bg-orange-50/30 flex justify-between items-center">
                 <h2 className="font-bold text-gray-700 flex items-center gap-2">
-                  <span className="p-1.5 bg-orange-100 text-orange-600 rounded-md"><FiUser /></span>
+                  <span className="p-1.5 bg-orange-100 text-orange-600 rounded-md"><User /></span>
                   参加者グループ
                 </h2>
                 <span className="text-xs bg-gray-100 px-2 py-1 rounded-full text-gray-500">{filteredChats.groupChat.length}件</span>
@@ -220,7 +217,7 @@ export default function ChatModerationPage() {
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col overflow-hidden">
               <div className="p-4 border-b border-gray-100 bg-sky-50/30 flex justify-between items-center">
                 <h2 className="font-bold text-gray-700 flex items-center gap-2">
-                  <span className="p-1.5 bg-sky-100 text-sky-600 rounded-md"><FiShoppingBag /></span>
+                  <span className="p-1.5 bg-sky-100 text-sky-600 rounded-md"><ShoppingBag /></span>
                   企画者 ⇔ 花屋
                 </h2>
                 <span className="text-xs bg-gray-100 px-2 py-1 rounded-full text-gray-500">{filteredChats.floristChat.length}件</span>
@@ -294,8 +291,8 @@ function MessageBubble({ msg, type, onDelete, onCopyId }) {
            </span>
            {/* Admin Controls (Hoverで表示) */}
            <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-             <button onClick={onCopyId} className="p-1 text-gray-400 hover:text-gray-600" title="IDをコピー"><FiCopy size={12}/></button>
-             <button onClick={onDelete} className="p-1 text-red-400 hover:text-red-600 bg-red-50 rounded" title="削除"><FiTrash2 size={12}/></button>
+             <button onClick={onCopyId} className="p-1 text-gray-400 hover:text-gray-600" title="IDをコピー"><Copy size={12}/></button>
+             <button onClick={onDelete} className="p-1 text-red-400 hover:text-red-600 bg-red-50 rounded" title="削除"><Trash2 size={12}/></button>
            </div>
         </div>
       </div>
@@ -321,7 +318,7 @@ function EmptyState() {
     return (
         <div className="h-full flex flex-col items-center justify-center text-gray-400 py-10">
             <div className="bg-gray-100 p-3 rounded-full mb-2">
-                <FiMessageSquare size={24} />
+                <MessageSquare size={24} />
             </div>
             <p className="text-sm">メッセージはありません</p>
         </div>

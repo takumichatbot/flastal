@@ -134,7 +134,7 @@ function InstructionSheetModal({ project, onClose }) {
     <div className="fixed inset-0 bg-slate-900/60 flex justify-center items-center z-50 p-4 backdrop-blur-sm">
       <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-2xl flex flex-col max-h-[90vh] overflow-hidden border border-white">
         <div className="p-4 md:p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-          <h3 className="text-lg md:text-xl font-black flex items-center text-slate-800"><FileText className="mr-2 text-sky-500"/> 制作指示書プレビュー</h3>
+          <h3 className="text-lg md:text-xl font-black flex items-center text-slate-800"><FileText className="mr-2 text-pink-500"/> 制作指示書プレビュー</h3>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 bg-white p-2 rounded-full shadow-sm"><X size={20}/></button>
         </div>
         <div className="flex-grow p-4 md:p-8 bg-white text-sm overflow-y-auto prose prose-sm">
@@ -142,7 +142,7 @@ function InstructionSheetModal({ project, onClose }) {
         </div>
         <div className="p-4 md:p-6 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
           <button onClick={onClose} className="px-5 py-2.5 bg-white border border-slate-200 rounded-xl font-bold text-slate-600 hover:bg-slate-50 shadow-sm">閉じる</button>
-          <button onClick={handlePrint} className="px-5 py-2.5 bg-gradient-to-r from-sky-500 to-indigo-500 text-white rounded-xl font-black flex items-center gap-2 hover:scale-105 transition-transform shadow-md">
+          <button onClick={handlePrint} className="px-5 py-2.5 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-xl font-black flex items-center gap-2 hover:scale-105 transition-transform shadow-md">
             <Printer size={16}/> 印刷 / PDF
           </button>
         </div>
@@ -211,18 +211,18 @@ function QuotationApprovalModal({ project, user, onClose, onUpdate }) {
                 </div>
                 <div className="text-right">
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">現在の支援額</p>
-                    <p className="text-xl font-black text-sky-500 tracking-tight">{collectedAmount.toLocaleString()} <span className="text-sm font-bold text-sky-300">pt</span></p>
+                    <p className="text-xl font-black text-pink-500 tracking-tight">{collectedAmount.toLocaleString()} <span className="text-sm font-bold text-pink-300">pt</span></p>
                 </div>
             </div>
 
             <h3 className="font-black text-slate-700 text-xs md:text-sm uppercase tracking-widest">支払い方法の選択</h3>
             
             <form id="approvalForm" onSubmit={handleApprove} className="space-y-3">
-                <label className={cn("block p-4 md:p-5 border-2 rounded-2xl cursor-pointer transition-all relative overflow-hidden", canFull ? (approvalMethod === 'FULL' ? 'border-sky-500 bg-sky-50/30 shadow-md ring-4 ring-sky-50' : 'border-slate-200 bg-white hover:border-sky-300') : 'border-slate-100 bg-slate-50 opacity-50 cursor-not-allowed')}>
+                <label className={cn("block p-4 md:p-5 border-2 rounded-2xl cursor-pointer transition-all relative overflow-hidden", canFull ? (approvalMethod === 'FULL' ? 'border-pink-500 bg-pink-50/30 shadow-md ring-4 ring-pink-50' : 'border-slate-200 bg-white hover:border-pink-300') : 'border-slate-100 bg-slate-50 opacity-50 cursor-not-allowed')}>
                     <input type="radio" value="FULL" disabled={!canFull} checked={approvalMethod === 'FULL'} onChange={(e)=>setApprovalMethod(e.target.value)} className="hidden" />
                     <div className="flex justify-between items-start">
                         <div>
-                            <p className="font-black text-slate-800 text-sm md:text-base flex items-center gap-2"><CheckCircle2 size={18} className={approvalMethod === 'FULL' ? 'text-sky-500' : 'text-slate-300'}/> 見積り通りに発注</p>
+                            <p className="font-black text-slate-800 text-sm md:text-base flex items-center gap-2"><CheckCircle2 size={18} className={approvalMethod === 'FULL' ? 'text-pink-500' : 'text-slate-300'}/> 見積り通りに発注</p>
                             <p className="text-xs text-slate-500 mt-1.5 font-medium leading-relaxed">集まった支援額から全額支払います。</p>
                             {!canFull && <p className="text-[10px] text-rose-500 font-bold mt-2 flex items-center gap-1"><AlertTriangle size={12}/>支援額が {shortfall.toLocaleString()} pt不足しています</p>}
                         </div>
@@ -448,8 +448,8 @@ function PledgeForm({ project, user, onPledgeSubmit, isPledger }) {
         {!user && (
             <div className="pt-3 space-y-2 border-t border-slate-100">
               <p className="text-[10px] md:text-xs font-black text-slate-400 uppercase tracking-widest ml-1">ゲスト情報</p>
-              <input type="text" {...register('guestName')} className="w-full p-3.5 bg-slate-50 border-transparent rounded-xl text-xs md:text-sm font-bold focus:bg-white focus:border-sky-400 focus:ring-4 focus:ring-sky-50 outline-none transition-all" placeholder="お名前 (ハンドルネーム)"/>
-              <input type="email" {...register('guestEmail')} className="w-full p-3.5 bg-slate-50 border-transparent rounded-xl text-xs md:text-sm font-bold focus:bg-white focus:border-sky-400 focus:ring-4 focus:ring-sky-50 outline-none transition-all" placeholder="メールアドレス"/>
+              <input type="text" {...register('guestName')} className="w-full p-3.5 bg-slate-50 border-transparent rounded-xl text-xs md:text-sm font-bold focus:bg-white focus:border-pink-400 focus:ring-4 focus:ring-pink-50 outline-none transition-all" placeholder="お名前 (ハンドルネーム)"/>
+              <input type="email" {...register('guestEmail')} className="w-full p-3.5 bg-slate-50 border-transparent rounded-xl text-xs md:text-sm font-bold focus:bg-white focus:border-pink-400 focus:ring-4 focus:ring-pink-50 outline-none transition-all" placeholder="メールアドレス"/>
             </div>
         )}
 
@@ -1040,8 +1040,8 @@ export default function ProjectDetailClient() {
                             {new Date(project.deliveryDateTime).toLocaleString('ja-JP', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                         </span>
                     )}
-                    <span className="text-[10px] md:text-xs font-bold text-slate-600 bg-sky-50/50 px-2.5 py-1 rounded-md shadow-sm border border-sky-100 flex items-center gap-1.5">
-                        <MapPin size={14} className="text-sky-400"/>
+                    <span className="text-[10px] md:text-xs font-bold text-slate-600 bg-rose-50/50 px-2.5 py-1 rounded-md shadow-sm border border-rose-100 flex items-center gap-1.5">
+                        <MapPin size={14} className="text-rose-400"/>
                         <span className="truncate max-w-[200px] md:max-w-xs">{project.venue?.venueName || project.deliveryAddress || '場所未定'}</span>
                     </span>
                 </div>
@@ -1098,7 +1098,7 @@ export default function ProjectDetailClient() {
                         </div>
                         <ul className="text-[10px] text-slate-500 font-bold space-y-2 leading-relaxed">
                             <li className="flex items-start gap-1.5">
-                                <span className="text-sky-500 shrink-0 mt-0.5">※</span>
+                                <span className="text-rose-400 shrink-0 mt-0.5">※</span>
                                 <span>目標金額に達した時点で、期限を待たずに<strong>即時締め切り（発注確定）</strong>となります。</span>
                             </li>
                             <li className="flex items-start gap-1.5">
@@ -1240,7 +1240,7 @@ export default function ProjectDetailClient() {
                 <div className="space-y-4">
                     {aiSummary && (
                         <AppCard className="bg-slate-900 text-white border-slate-800 !p-4 md:!p-6">
-                            <h2 className="text-sm font-black text-slate-300 mb-2 flex items-center"><Wand2 className="mr-2 text-indigo-400" size={16}/> AI Summary</h2>
+                            <h2 className="text-sm font-black text-slate-300 mb-2 flex items-center"><Wand2 className="mr-2 text-slate-400" size={16}/> AI Summary</h2>
                             <div className="text-xs leading-relaxed font-medium prose prose-invert max-w-none line-clamp-3"><Markdown>{aiSummary}</Markdown></div>
                         </AppCard>
                     )}
@@ -1264,7 +1264,7 @@ export default function ProjectDetailClient() {
                                 
                                 {/* ★ ここに「お花屋さんとチャット」ボタンを追加！(目立つように青色にしています) */}
                                 {isPlanner && activeOffer && (
-                                    <Link href={`/projects/${project.id}/florist-chat`} className="px-4 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 whitespace-nowrap transition-all bg-sky-500 text-white hover:bg-sky-600 shadow-md border border-sky-400">
+                                    <Link href={`/projects/${project.id}/florist-chat`} className="px-4 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 whitespace-nowrap transition-all bg-pink-500 text-white hover:bg-pink-600 shadow-md border border-pink-400">
                                         <MessageSquare size={16}/> 花屋と個別相談
                                     </Link>
                                 )}
@@ -1398,14 +1398,14 @@ export default function ProjectDetailClient() {
                                             )}
 
                                             {isFlorist && project.isIllustrationAccepted && project.illustrationDataUrl && (
-                                                <AppCard className="border-sky-100 ring-4 ring-sky-50 bg-gradient-to-br from-white to-sky-50/30">
+                                                <AppCard className="border-pink-100 ring-4 ring-pink-50 bg-gradient-to-br from-white to-pink-50/30">
                                                     <div className="flex flex-col sm:flex-row items-center gap-6 justify-between">
                                                         <div className="flex items-center gap-4">
                                                             <div className="w-16 h-16 rounded-2xl bg-white border border-slate-100 shadow-sm flex items-center justify-center shrink-0 cursor-zoom-in hover:scale-105 transition-transform" onClick={() => { setModalImageSrc(project.illustrationDataUrl); setIsImageModalOpen(true); }}>
                                                                 <Image src={project.illustrationDataUrl} alt="納品イラスト" width={64} height={64} className="object-cover rounded-xl" />
                                                             </div>
                                                             <div>
-                                                                <h3 className="font-black text-slate-800 text-lg mb-1 flex items-center gap-2"><Brush className="text-sky-500" size={18}/> 印刷用データ</h3>
+                                                                <h3 className="font-black text-slate-800 text-lg mb-1 flex items-center gap-2"><Brush className="text-pink-500" size={18}/> 印刷用データ</h3>
                                                                 <p className="text-xs font-bold text-slate-500">絵師から納品された最終データです。</p>
                                                             </div>
                                                         </div>
@@ -1416,12 +1416,12 @@ export default function ProjectDetailClient() {
                                                 </AppCard>
                                             )}
 
-                                            <AppCard className="!p-5 md:!p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between bg-gradient-to-br from-indigo-50/50 to-white border-indigo-100 gap-4">
+                                            <AppCard className="!p-5 md:!p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between bg-gradient-to-br from-slate-50/50 to-white border-slate-100 gap-4">
                                                 <div>
-                                                    <h3 className="font-black text-indigo-900 mb-1 flex items-center text-sm md:text-base"><Box className="mr-2 text-indigo-500" size={18}/> ARプレビュー</h3>
-                                                    <p className="text-[10px] md:text-xs font-bold text-indigo-700/70 mb-0">スマホをかざして実際のサイズ感を確認できます。</p>
+                                                    <h3 className="font-black text-slate-800 mb-1 flex items-center text-sm md:text-base"><Box className="mr-2 text-slate-500" size={18}/> ARプレビュー</h3>
+                                                    <p className="text-[10px] md:text-xs font-bold text-slate-500/70 mb-0">スマホをかざして実際のサイズ感を確認できます。</p>
                                                 </div>
-                                                <button onClick={() => setIsArModalOpen(true)} className="w-full sm:w-auto px-8 py-3 bg-indigo-500 text-white text-xs md:text-sm font-black rounded-xl hover:bg-indigo-600 transition-all shadow-md shrink-0 active:scale-95">起動する</button>
+                                                <button onClick={() => setIsArModalOpen(true)} className="w-full sm:w-auto px-8 py-3 bg-slate-700 text-white text-xs md:text-sm font-black rounded-xl hover:bg-slate-800 transition-all shadow-md shrink-0 active:scale-95">起動する</button>
                                             </AppCard>
                                             
                                             {(isPlanner || isFlorist) && (
@@ -1443,7 +1443,7 @@ export default function ProjectDetailClient() {
                                             )}
                                             
                                             {((isPlanner || isFlorist) || project.productionStatus === 'PRE_COMPLETION') && (
-                                                <AppCard className="border-indigo-100">
+                                                <AppCard className="border-slate-100">
                                                     <h3 className="font-black text-slate-800 mb-3 md:mb-4 flex items-center text-sm md:text-base"><CheckCircle2 className="mr-2 text-emerald-500" size={16}/> 仕上がり確認 (前日写真)</h3>
                                                     {project.preEventPhotoUrls?.length > 0 ? (
                                                         <div className="flex flex-wrap gap-2 md:gap-3">
@@ -1591,8 +1591,8 @@ export default function ProjectDetailClient() {
                           </button>
 
                           <Link href={`/projects/edit/${id}`} className="w-full text-left p-4 bg-white hover:bg-slate-100 border border-slate-200 rounded-2xl transition-all flex items-center group shadow-sm">
-                              <div className="w-8 h-8 rounded-lg bg-sky-50 flex items-center justify-center mr-3 group-hover:scale-110 transition-transform">
-                                 <Edit3 className="text-sky-500" size={16}/>
+                              <div className="w-8 h-8 rounded-lg bg-pink-50 flex items-center justify-center mr-3 group-hover:scale-110 transition-transform">
+                                 <Edit3 className="text-pink-500" size={16}/>
                               </div>
                               <div>
                                  <p className="text-sm font-bold text-slate-800">企画内容を編集する</p>
@@ -1607,13 +1607,13 @@ export default function ProjectDetailClient() {
                               </button>
                           ) : activeOffer ? (
                               // 2. オファー中・お花屋さんが決定している場合（探すボタンの代わりにチャットボタンを表示）
-                              <Link href={`/projects/${project.id}/florist-chat`} className="w-full text-left p-4 bg-sky-500 hover:bg-sky-600 border border-sky-400 rounded-2xl transition-all flex items-center group shadow-md mt-4">
+                              <Link href={`/projects/${project.id}/florist-chat`} className="w-full text-left p-4 bg-pink-500 hover:bg-pink-600 border border-pink-400 rounded-2xl transition-all flex items-center group shadow-md mt-4">
                                   <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center mr-3 group-hover:scale-110 transition-transform">
                                       <MessageSquare className="text-white" size={16}/>
                                   </div>
                                   <div>
                                       <p className="text-sm font-black text-white">{floristName} と相談</p>
-                                      <p className="text-[10px] font-bold text-sky-100">
+                                      <p className="text-[10px] font-bold text-pink-100">
                                           {activeOffer.status === 'PENDING' ? '※お花屋さんの返答・見積り待ち' : '※機密チャット（支援者には非公開）'}
                                       </p>
                                   </div>
@@ -1664,7 +1664,7 @@ export default function ProjectDetailClient() {
 
       {/* --- Mobile Sticky Bottom Action Bar --- */}
       {project.status === 'FUNDRAISING' && !isPledger && (
-        <div className="lg:hidden fixed bottom-0 left-0 right-0 p-3 bg-white/95 backdrop-blur-xl border-t border-slate-200 z-[80] pb-safe shadow-[0_-10px_20px_rgba(0,0,0,0.05)]">
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 px-3 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] bg-white/95 backdrop-blur-xl border-t border-slate-200 z-[80] shadow-[0_-10px_20px_rgba(0,0,0,0.05)]">
             <div className="flex gap-2 max-w-xl mx-auto">
                 <button onClick={() => {
                     document.getElementById('pledge-section')?.scrollIntoView({ behavior: 'smooth' });
@@ -1723,7 +1723,7 @@ export default function ProjectDetailClient() {
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/80 flex justify-center items-center z-[100] p-4 backdrop-blur-md">
             <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="bg-white rounded-[3rem] w-full max-w-lg overflow-hidden relative shadow-2xl flex flex-col max-h-[90vh] border border-white">
               <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                  <h3 className="font-black text-lg text-slate-800 flex items-center"><Box className="mr-2 text-indigo-500"/> ARシミュレーター</h3>
+                  <h3 className="font-black text-lg text-slate-800 flex items-center"><Box className="mr-2 text-slate-500"/> ARシミュレーター</h3>
                   <button onClick={() => setIsArModalOpen(false)} className="bg-white hover:bg-slate-100 rounded-full p-2 transition-colors shadow-sm"><X size={20}/></button>
               </div>
               <div className="p-8 overflow-y-auto">
@@ -1743,7 +1743,7 @@ export default function ProjectDetailClient() {
                             </div>
                             <div className="bg-slate-50 p-5 rounded-[1.5rem] flex items-center gap-4 border border-slate-100">
                                 <span className="text-xs font-black text-slate-500 whitespace-nowrap uppercase tracking-widest">高さ (cm)</span>
-                                <input type="number" value={arHeight} onChange={(e) => setArHeight(e.target.value)} className="w-full p-3 bg-white border-2 border-slate-100 rounded-xl text-center font-black text-slate-800 outline-none focus:border-indigo-300"/>
+                                <input type="number" value={arHeight} onChange={(e) => setArHeight(e.target.value)} className="w-full p-3 bg-white border-2 border-slate-100 rounded-xl text-center font-black text-slate-800 outline-none focus:border-slate-300"/>
                             </div>
                         </div>
                         <button onClick={handleGenerateAr} disabled={arGenLoading || !arImageFile} className="w-full py-4 bg-slate-900 text-white font-black rounded-2xl hover:bg-slate-800 disabled:opacity-50 transition-all flex justify-center items-center shadow-lg">{arGenLoading ? <><Loader2 className="animate-spin mr-2"/> 生成中...</> : 'ARモデルを生成する'}</button>

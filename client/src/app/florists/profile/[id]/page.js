@@ -7,10 +7,7 @@ import Image from 'next/image';
 import { useAuth } from '@/app/contexts/AuthContext';
 import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
-import { 
-  FiSave, FiCamera, FiArrowLeft, FiZap, FiCheck, FiMapPin, 
-  FiPhone, FiGlobe, FiUser, FiImage, FiTrash2, FiLoader 
-} from 'react-icons/fi';
+import { Save, Camera, ArrowLeft, Zap, Check, MapPin, Phone, Globe, User, ImageIcon, Trash2, Loader2 } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -209,7 +206,7 @@ export default function FloristProfileEditPage() {
         <div className="flex items-center justify-between mb-6 sticky top-0 z-20 bg-gray-50/90 backdrop-blur-sm py-4">
             <div className="flex items-center gap-4">
                 <Link href="/florists/dashboard" className="p-2 bg-white rounded-full text-gray-500 hover:text-pink-600 shadow-sm border border-gray-200 transition-colors">
-                    <FiArrowLeft size={20}/>
+                    <ArrowLeft size={20}/>
                 </Link>
                 <h1 className="text-2xl font-bold text-gray-800">プロフィール編集</h1>
             </div>
@@ -218,7 +215,7 @@ export default function FloristProfileEditPage() {
                 disabled={isSubmitting || isIconUploading || isPortfolioUploading}
                 className="hidden sm:flex items-center px-6 py-2.5 bg-pink-600 text-white font-bold rounded-full hover:bg-pink-700 shadow-lg shadow-pink-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
-                {isSubmitting ? <FiLoader className="animate-spin mr-2"/> : <FiSave className="mr-2"/>}
+                {isSubmitting ? <Loader2 className="animate-spin mr-2"/> : <Save className="mr-2"/>}
                 変更を保存
             </button>
         </div>
@@ -227,7 +224,7 @@ export default function FloristProfileEditPage() {
             <section className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 <div className="bg-gray-50 px-6 py-3 border-b border-gray-100">
                     <h2 className="font-bold text-gray-700 flex items-center gap-2">
-                        <FiUser className="text-pink-500"/> 基本情報
+                        <User className="text-pink-500"/> 基本情報
                     </h2>
                 </div>
                 <div className="p-6 md:p-8">
@@ -241,11 +238,11 @@ export default function FloristProfileEditPage() {
                                     <Image src={iconUrl} alt="Icon" fill className="object-cover" />
                                 ) : (
                                     <div className="w-full h-full flex items-center justify-center text-gray-400">
-                                        <FiUser size={48} />
+                                        <User size={48} />
                                     </div>
                                 )}
                                 <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <FiCamera className="text-white text-2xl"/>
+                                    <Camera className="text-white text-2xl"/>
                                 </div>
                             </div>
                             <input type="file" ref={iconInputRef} accept="image/*" onChange={handleIconUpload} className="hidden" />
@@ -284,7 +281,7 @@ export default function FloristProfileEditPage() {
                                     <input type="text" {...register('contactName')} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-pink-500 outline-none transition-all" />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-bold text-gray-700 mb-1"><FiPhone className="inline mr-1"/> 電話番号</label>
+                                    <label className="block text-sm font-bold text-gray-700 mb-1"><Phone className="inline mr-1"/> 電話番号</label>
                                     <input type="tel" {...register('phoneNumber')} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-pink-500 outline-none transition-all" />
                                 </div>
                             </div>
@@ -296,7 +293,7 @@ export default function FloristProfileEditPage() {
             <section className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 <div className="bg-gray-50 px-6 py-3 border-b border-gray-100">
                     <h2 className="font-bold text-gray-700 flex items-center gap-2">
-                        <FiMapPin className="text-pink-500"/> 店舗詳細・Web
+                        <MapPin className="text-pink-500"/> 店舗詳細・Web
                     </h2>
                 </div>
                 <div className="p-6 md:p-8 space-y-6">
@@ -305,7 +302,7 @@ export default function FloristProfileEditPage() {
                        <input type="text" {...register('address')} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-pink-500 outline-none transition-all" placeholder="〒000-0000 東京都..." />
                     </div>
                     <div>
-                       <label className="block text-sm font-bold text-gray-700 mb-1"><FiGlobe className="inline mr-1"/> ウェブサイト / SNS</label>
+                       <label className="block text-sm font-bold text-gray-700 mb-1"><Globe className="inline mr-1"/> ウェブサイト / SNS</label>
                        <input type="url" {...register('website')} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-pink-500 outline-none transition-all" placeholder="https://instagram.com/..." />
                     </div>
                 </div>
@@ -314,7 +311,7 @@ export default function FloristProfileEditPage() {
             <section className="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-2xl border border-yellow-200 p-6 relative overflow-hidden">
                 <div className="relative z-10 flex items-start gap-4">
                     <div className="p-3 bg-yellow-400 text-white rounded-full shadow-md shrink-0">
-                        <FiZap size={24}/>
+                        <Zap size={24}/>
                     </div>
                     <div className="flex-1">
                         <h3 className="text-lg font-bold text-gray-800">お急ぎ便 (Rush Order) 対応</h3>
@@ -328,13 +325,13 @@ export default function FloristProfileEditPage() {
                         </label>
                     </div>
                 </div>
-                <FiZap className="absolute -bottom-4 -right-4 text-9xl text-yellow-400 opacity-10 rotate-12 pointer-events-none" />
+                <Zap className="absolute -bottom-4 -right-4 text-9xl text-yellow-400 opacity-10 rotate-12 pointer-events-none" />
             </section>
 
             <section className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 <div className="bg-gray-50 px-6 py-3 border-b border-gray-100">
                     <h2 className="font-bold text-gray-700 flex items-center gap-2">
-                        <FiCheck className="text-pink-500"/> 特徴タグ
+                        <Check className="text-pink-500"/> 特徴タグ
                     </h2>
                 </div>
                 <div className="p-6 md:p-8">
@@ -360,7 +357,7 @@ export default function FloristProfileEditPage() {
             <section className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 <div className="bg-gray-50 px-6 py-3 border-b border-gray-100">
                     <h2 className="font-bold text-gray-700 flex items-center gap-2">
-                        <FiImage className="text-pink-500"/> 制作実績 & 自己紹介
+                        <ImageIcon className="text-pink-500"/> 制作実績 & 自己紹介
                     </h2>
                 </div>
                 <div className="p-6 md:p-8 space-y-8">
@@ -374,14 +371,14 @@ export default function FloristProfileEditPage() {
                                         onClick={() => setPortfolioImages(prev => prev.filter((_, idx) => idx !== i))}
                                         className="bg-red-500 text-white p-2 rounded-full"
                                     >
-                                        <FiTrash2 size={20} />
+                                        <Trash2 size={20} />
                                     </button>
                                 </div>
                             </div>
                         ))}
                         {portfolioImages.length < 6 && (
                             <label className="aspect-square flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:bg-gray-50 transition-all">
-                                {isPortfolioUploading ? <FiLoader className="animate-spin text-pink-500"/> : <><FiCamera className="w-8 h-8"/><span className="text-xs font-bold">追加</span></>}
+                                {isPortfolioUploading ? <Loader2 className="animate-spin text-pink-500"/> : <><Camera className="w-8 h-8"/><span className="text-xs font-bold">追加</span></>}
                                 <input type="file" multiple accept="image/*" onChange={handlePortfolioUpload} disabled={isPortfolioUploading} className="hidden" />
                             </label>
                         )}
@@ -399,13 +396,13 @@ export default function FloristProfileEditPage() {
             </section>
         </form>
 
-        <div className="sm:hidden fixed bottom-6 left-4 right-4 z-30">
+        <div className="sm:hidden fixed bottom-[calc(1.5rem+env(safe-area-inset-bottom,0px))] left-4 right-4 z-30">
             <button 
                 onClick={handleSubmit(onSubmit)}
                 disabled={isSubmitting || isIconUploading || isPortfolioUploading}
                 className="w-full py-3.5 bg-pink-600 text-white font-bold rounded-full shadow-xl flex items-center justify-center gap-2"
             >
-                {isSubmitting ? <FiLoader className="animate-spin"/> : <FiSave />}
+                {isSubmitting ? <Loader2 className="animate-spin"/> : <Save />}
                 変更を保存する
             </button>
         </div>

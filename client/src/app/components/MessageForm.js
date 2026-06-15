@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/app/contexts/AuthContext';
-import { FiSend, FiUser, FiMessageSquare, FiEdit3, FiEye, FiCheck } from 'react-icons/fi';
+import { Send, User, MessageSquare, Pencil, Eye, Check } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -88,14 +88,14 @@ export default function MessageForm({ projectId, onMessagePosted }) {
             onClick={() => setIsPreviewMode(false)}
             className={`flex-1 py-3 text-sm font-bold flex items-center justify-center gap-2 transition-colors ${!isPreviewMode ? 'bg-pink-50 text-pink-600' : 'text-gray-500 hover:bg-gray-50'}`}
         >
-            <FiEdit3 /> 入力
+            <Pencil /> 入力
         </button>
         <button
             type="button"
             onClick={() => setIsPreviewMode(true)}
             className={`flex-1 py-3 text-sm font-bold flex items-center justify-center gap-2 transition-colors ${isPreviewMode ? 'bg-pink-50 text-pink-600' : 'text-gray-500 hover:bg-gray-50'}`}
         >
-            <FiEye /> プレビュー
+            <Eye /> プレビュー
         </button>
       </div>
 
@@ -133,7 +133,7 @@ export default function MessageForm({ projectId, onMessagePosted }) {
                         カードに記載するお名前 <span className="text-red-500">*</span>
                     </label>
                     <div className="relative">
-                        <FiUser className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                        <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                         <input
                             id="cardName"
                             type="text"
@@ -150,7 +150,7 @@ export default function MessageForm({ projectId, onMessagePosted }) {
                         お祝いメッセージ <span className="text-red-500">*</span>
                     </label>
                     <div className="relative">
-                        <FiMessageSquare className="absolute left-3 top-3 text-gray-400" />
+                        <MessageSquare className="absolute left-3 top-3 text-gray-400" />
                         <textarea
                             id="content"
                             {...register("content", { 
@@ -182,7 +182,7 @@ export default function MessageForm({ projectId, onMessagePosted }) {
                         </span>
                     ) : (
                         <>
-                            <FiSend className="text-lg" /> メッセージを届ける
+                            <Send className="text-lg" /> メッセージを届ける
                         </>
                     )}
                 </button>

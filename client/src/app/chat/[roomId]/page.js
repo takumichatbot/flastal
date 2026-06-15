@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/app/contexts/AuthContext'; // 提示されたAuthContextをインポート
-import { FiSend, FiImage, FiArrowLeft, FiMoreVertical, FiPaperclip } from 'react-icons/fi';
+import { Send, ImageIcon, ArrowLeft, MoreVertical } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function ChatRoomPage() {
@@ -134,7 +134,7 @@ export default function ChatRoomPage() {
       <header className="bg-white border-b border-slate-200 p-4 flex items-center justify-between sticky top-0 z-10 shadow-sm">
         <div className="flex items-center gap-3">
           <button onClick={() => router.back()} className="text-slate-500 hover:bg-slate-100 p-2 rounded-full transition-colors">
-            <FiArrowLeft size={20} />
+            <ArrowLeft size={20} />
           </button>
           
           <div className="flex items-center gap-3">
@@ -159,7 +159,7 @@ export default function ChatRoomPage() {
         
         {/* メニュー（通報やブロックなど用） */}
         <button className="text-slate-400 hover:text-slate-600 p-2">
-          <FiMoreVertical size={20} />
+          <MoreVertical size={20} />
         </button>
       </header>
 
@@ -168,7 +168,7 @@ export default function ChatRoomPage() {
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-slate-400 text-sm">
             <div className="bg-slate-200 p-4 rounded-full mb-3">
-              <FiSend size={24} className="ml-1" />
+              <Send size={24} className="ml-1" />
             </div>
             <p>メッセージを送って会話を始めましょう！</p>
             <p className="text-xs mt-1">企画の相談や詳細の確認などにご利用ください。</p>
@@ -223,7 +223,7 @@ export default function ChatRoomPage() {
         <form onSubmit={handleSend} className="relative flex items-end gap-2 max-w-4xl mx-auto">
           {/* ファイル添付ボタン（機能未実装ならUIのみ） */}
           <button type="button" className="p-3 text-slate-400 hover:text-pink-500 hover:bg-slate-50 rounded-full transition-colors" title="画像を添付">
-            <FiImage size={20} />
+            <ImageIcon size={20} />
           </button>
           
           <div className="flex-1 bg-slate-100 rounded-2xl flex items-center px-4 py-2 border border-transparent focus-within:border-pink-300 focus-within:bg-white focus-within:ring-2 focus-within:ring-pink-100 transition-all">
@@ -251,7 +251,7 @@ export default function ChatRoomPage() {
             {isSending ? (
               <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
             ) : (
-              <FiSend size={18} className="ml-0.5" /> // アイコンの視覚調整
+              <Send size={18} className="ml-0.5" /> // アイコンの視覚調整
             )}
           </button>
         </form>

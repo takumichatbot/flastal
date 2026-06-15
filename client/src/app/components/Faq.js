@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { FiChevronDown, FiHelpCircle, FiInfo } from 'react-icons/fi';
+import { ChevronDown, HelpCircle, Info } from 'lucide-react';
 
 export default function Faq() {
   const [openIndex, setOpenIndex] = useState(null);
@@ -39,8 +39,8 @@ export default function Faq() {
         
         {/* ヘッダー */}
         <div className="text-center mb-12">
-          <div className="inline-flex items-center justify-center p-3 bg-sky-100 text-sky-600 rounded-full mb-4">
-            <FiHelpCircle size={32} />
+          <div className="inline-flex items-center justify-center p-3 bg-pink-100 text-pink-600 rounded-full mb-4">
+            <HelpCircle size={32} />
           </div>
           <h2 className="text-3xl font-bold text-gray-900">よくある質問</h2>
           <p className="text-gray-500 mt-2 text-sm">FLASTALのご利用について、よくいただくご質問をまとめました。</p>
@@ -53,18 +53,18 @@ export default function Faq() {
             return (
               <div 
                 key={index} 
-                className={`bg-white rounded-2xl border transition-all duration-300 overflow-hidden ${isOpen ? 'border-sky-200 shadow-md' : 'border-gray-200 shadow-sm hover:border-sky-100'}`}
+                className={`bg-white rounded-2xl border transition-all duration-300 overflow-hidden ${isOpen ? 'border-pink-200 shadow-md' : 'border-gray-200 shadow-sm hover:border-pink-100'}`}
               >
                 <button
                   onClick={() => toggle(index)}
                   className="w-full flex items-center justify-between p-5 text-left focus:outline-none"
                 >
-                  <span className={`font-bold text-lg flex gap-3 ${isOpen ? 'text-sky-600' : 'text-gray-800'}`}>
-                    <span className="text-sky-500 shrink-0">Q.</span>
+                  <span className={`font-bold text-lg flex gap-3 ${isOpen ? 'text-pink-600' : 'text-gray-800'}`}>
+                    <span className="text-pink-500 shrink-0">Q.</span>
                     {faq.q}
                   </span>
-                  <FiChevronDown 
-                    className={`shrink-0 transition-transform duration-300 ${isOpen ? 'rotate-180 text-sky-500' : 'text-gray-400'}`} 
+                  <ChevronDown
+                    className={`shrink-0 transition-transform duration-300 ${isOpen ? 'rotate-180 text-pink-500' : 'text-gray-400'}`} 
                     size={24} 
                   />
                 </button>
@@ -89,9 +89,9 @@ export default function Faq() {
           <p className="text-gray-500 text-sm mb-4">解決しない場合は、こちらからお問い合わせください。</p>
           <a 
             href="mailto:support@flastal.jp" 
-            className="inline-flex items-center px-6 py-3 bg-white border border-gray-300 rounded-lg text-gray-700 font-bold hover:bg-gray-50 hover:text-sky-600 transition-colors shadow-sm"
+            className="inline-flex items-center px-6 py-3 bg-white border border-gray-300 rounded-lg text-gray-700 font-bold hover:bg-gray-50 hover:text-pink-600 transition-colors shadow-sm"
           >
-            <FiInfo className="mr-2" /> お問い合わせ窓口へ
+            <Info className="mr-2" /> お問い合わせ窓口へ
           </a>
         </div>
 
