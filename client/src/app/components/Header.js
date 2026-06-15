@@ -284,6 +284,10 @@ export default function Header() {
     }
   }, [user]);
 
+  const pathname = usePathname();
+  const AUTH_PAGES = ['/login', '/register', '/forgot-password', '/reset-password', '/verify'];
+  if (AUTH_PAGES.some(p => pathname?.startsWith(p))) return null;
+
   return (
     <>
       {/* ★ 新規追加: ヘッダーの下敷きになるのを防ぐための「透明なスペーサー」 */}
