@@ -39,7 +39,7 @@ function ProjectCard({ project, roleType }) {
   return (
     <div onClick={() => router.push(`/projects/${project.id}`)} className="block group h-full cursor-pointer">
       <div className="bg-white/90 backdrop-blur-md rounded-[1.5rem] overflow-hidden border border-white shadow-sm hover:shadow-[0_12px_30px_rgba(244,114,182,0.15)] transition-all duration-300 hover:-translate-y-1 relative h-full flex flex-col">
-        <div className="relative w-full aspect-[3/4] bg-slate-100 shrink-0">
+        <div className="relative w-full aspect-video bg-slate-100 shrink-0">
           {project.imageUrl ? (
             <Image src={project.imageUrl} alt={project.title || '企画画像'} fill className="object-cover group-hover:scale-105 transition-transform duration-700" />
           ) : (
@@ -386,15 +386,24 @@ function DashboardContent() {
                   <div className="grid grid-cols-3 gap-2 mt-5 pt-4 border-t border-white/20 relative z-10">
                     <div className="text-center">
                       <p className="text-2xl font-black text-white leading-none">{createdProjects.length}</p>
-                      <p className="text-[9px] text-pink-100/80 font-bold mt-1">主催企画</p>
+                      <div className="flex items-center justify-center gap-1 mt-1">
+                        <Star size={8} className="text-pink-100/60 fill-pink-100/60" />
+                        <p className="text-[9px] text-pink-100/80 font-bold">主催企画</p>
+                      </div>
                     </div>
                     <div className="text-center border-x border-white/20">
                       <p className="text-2xl font-black text-white leading-none">{pledgedProjects.length}</p>
-                      <p className="text-[9px] text-pink-100/80 font-bold mt-1">参加企画</p>
+                      <div className="flex items-center justify-center gap-1 mt-1">
+                        <Heart size={8} className="text-pink-100/60 fill-pink-100/60" />
+                        <p className="text-[9px] text-pink-100/80 font-bold">参加企画</p>
+                      </div>
                     </div>
                     <div className="text-center">
                       <p className="text-2xl font-black text-white leading-none font-mono">{(user.points || 0).toLocaleString()}</p>
-                      <p className="text-[9px] text-pink-100/80 font-bold mt-1">ポイント</p>
+                      <div className="flex items-center justify-center gap-1 mt-1">
+                        <Zap size={8} className="text-amber-300/80 fill-amber-300/80" />
+                        <p className="text-[9px] text-pink-100/80 font-bold">ポイント</p>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -767,43 +776,101 @@ function DashboardContent() {
 
             {/* ========== NOTIFICATIONS ========== */}
             {activeTab === 'notifications' && (
-              <div className="space-y-4 max-w-3xl mx-auto">
+              <div className="space-y-3 max-w-3xl mx-auto">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-xl font-black text-slate-800">お知らせ</h2>
+                  <div>
+                    <h2 className="text-xl font-black text-slate-800">お知らせ</h2>
+                    {unreadCount > 0 && (
+                      <p className="text-[11px] font-bold text-rose-500 mt-0.5">未読 {unreadCount}件</p>
+                    )}
+                  </div>
                   {unreadCount > 0 && (
-                    <span className="bg-rose-500 text-white text-[10px] font-black px-3 py-1 rounded-full shadow-sm">
-                      未読 {unreadCount}件
-                    </span>
-                  )}
-                </div>
-                <div className="bg-white/80 backdrop-blur-md rounded-[2rem] border border-white shadow-sm overflow-hidden">
-                  {notifications.length > 0 ? notifications.map((n) => (
-                    <div
-                      key={n.id}
+                    <button
                       onClick={async () => {
-                        await authenticatedFetch(`${API_URL}/api/notifications/${n.id}/read`, { method: 'PATCH' });
-                        if (n.linkUrl) router.push(n.linkUrl);
+                        await Promise.all(
+                          notifications.filter(n => !n.isRead).map(n =>
+                            authenticatedFetch(`${API_URL}/api/notifications/${n.id}/read`, { method: 'PATCH' })
+                          )
+                        );
                         fetchMyData();
                       }}
-                      className={cn(
-                        'p-5 flex gap-4 cursor-pointer transition-colors active:bg-slate-50 border-b border-slate-100/50 last:border-0',
-                        n.isRead ? 'opacity-60' : 'bg-pink-50/30'
-                      )}
+                      className="text-xs font-black text-pink-500 bg-pink-50 border border-pink-100 px-4 py-2 rounded-full active:scale-95 transition-transform"
                     >
-                      <div className={cn('w-2 h-2 rounded-full mt-2 shrink-0', n.isRead ? 'bg-slate-200' : 'bg-pink-500 animate-pulse shadow-sm shadow-pink-200')} />
-                      <div className="flex-1">
-                        <p className={cn('text-xs leading-relaxed', n.isRead ? 'text-slate-600' : 'text-slate-900 font-bold')}>{n.message}</p>
-                        <p className="text-[9px] text-slate-400 mt-1.5 font-black uppercase tracking-widest">{new Date(n.createdAt).toLocaleString()}</p>
-                      </div>
-                      {n.linkUrl && <ChevronRight size={16} className="text-slate-200 shrink-0 mt-1" />}
-                    </div>
-                  )) : (
-                    <div className="p-16 text-center flex flex-col items-center">
-                      <Bell size={32} className="text-slate-200 mb-3" />
-                      <p className="text-slate-400 font-bold text-sm">新しいお知らせはありません</p>
-                    </div>
+                      全て既読にする
+                    </button>
                   )}
                 </div>
+
+                {notifications.length > 0 ? (
+                  <div className="space-y-1">
+                    {notifications.map((n, i) => {
+                      const msg = n.message || '';
+                      const isSupport = msg.includes('支援') || msg.includes('pledge');
+                      const isGoal = msg.includes('達成') || msg.includes('成功') || msg.includes('goal');
+                      const isChat = msg.includes('チャット') || msg.includes('メッセージ') || msg.includes('コメント');
+                      const isDone = msg.includes('完了') || msg.includes('納品');
+
+                      const iconBg = isSupport ? 'bg-pink-100' : isGoal ? 'bg-emerald-100' : isChat ? 'bg-sky-100' : isDone ? 'bg-amber-100' : 'bg-slate-100';
+                      const iconColor = isSupport ? 'text-pink-500' : isGoal ? 'text-emerald-500' : isChat ? 'text-sky-500' : isDone ? 'text-amber-500' : 'text-slate-400';
+                      const NotifIcon = isSupport ? Heart : isGoal ? Award : isChat ? MessageCircle : isDone ? Star : Bell;
+
+                      const prevDateStr = i > 0 ? new Date(notifications[i - 1].createdAt).toDateString() : null;
+                      const thisDateStr = new Date(n.createdAt).toDateString();
+                      const showSep = prevDateStr !== thisDateStr;
+                      const todayStr = new Date().toDateString();
+                      const yesterdayStr = new Date(Date.now() - 86400000).toDateString();
+                      const dateLabel = thisDateStr === todayStr ? '今日'
+                                      : thisDateStr === yesterdayStr ? '昨日'
+                                      : new Date(n.createdAt).toLocaleDateString('ja-JP', { month: 'short', day: 'numeric' });
+
+                      return (
+                        <div key={n.id}>
+                          {showSep && (
+                            <div className="flex items-center gap-3 py-2 px-1">
+                              <div className="flex-1 h-px bg-slate-100" />
+                              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{dateLabel}</span>
+                              <div className="flex-1 h-px bg-slate-100" />
+                            </div>
+                          )}
+                          <div
+                            onClick={async () => {
+                              await authenticatedFetch(`${API_URL}/api/notifications/${n.id}/read`, { method: 'PATCH' });
+                              if (n.linkUrl) router.push(n.linkUrl);
+                              fetchMyData();
+                            }}
+                            className={cn(
+                              'flex gap-3 px-4 py-3.5 rounded-2xl cursor-pointer transition-all active:scale-[0.98]',
+                              n.isRead ? 'bg-white/50' : 'bg-white shadow-sm border border-slate-100'
+                            )}
+                          >
+                            <div className={cn('w-10 h-10 rounded-full flex items-center justify-center shrink-0', iconBg)}>
+                              <NotifIcon size={18} className={iconColor} />
+                            </div>
+                            <div className="flex-1 min-w-0 py-0.5">
+                              <p className={cn('text-sm leading-relaxed', n.isRead ? 'text-slate-500 font-medium' : 'text-slate-800 font-bold')}>
+                                {n.message}
+                              </p>
+                              <p className="text-[10px] text-slate-400 font-bold mt-1">
+                                {new Date(n.createdAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}
+                              </p>
+                            </div>
+                            {!n.isRead && (
+                              <div className="w-2 h-2 bg-pink-500 rounded-full mt-2 shrink-0 shadow-sm shadow-pink-200 animate-pulse" />
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="py-20 flex flex-col items-center text-center bg-white/60 rounded-[2rem] border border-white">
+                    <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4 border border-slate-100">
+                      <Bell size={28} className="text-slate-200" />
+                    </div>
+                    <h3 className="text-sm font-black text-slate-600 mb-1">通知はありません</h3>
+                    <p className="text-xs font-bold text-slate-400">企画への支援や活動があると届きます</p>
+                  </div>
+                )}
               </div>
             )}
 
@@ -814,11 +881,13 @@ function DashboardContent() {
                 {/* プロフィールカード */}
                 <div className="bg-white rounded-[2rem] p-5 border border-slate-100 shadow-sm">
                   <div className="flex items-center gap-4">
-                    <div className="relative w-16 h-16 rounded-2xl overflow-hidden border-2 border-slate-100 shrink-0 bg-slate-100">
-                      {user.iconUrl
-                        ? <Image src={user.iconUrl} alt="アイコン" fill className="object-cover" />
-                        : <User size={28} className="absolute inset-0 m-auto text-slate-300" />
-                      }
+                    <div className="p-[2px] rounded-2xl bg-gradient-to-br from-pink-400 to-rose-500 shrink-0 shadow-md shadow-pink-100">
+                      <div className="relative w-16 h-16 rounded-2xl overflow-hidden bg-slate-100">
+                        {user.iconUrl
+                          ? <Image src={user.iconUrl} alt="アイコン" fill className="object-cover" />
+                          : <User size={28} className="absolute inset-0 m-auto text-slate-300" />
+                        }
+                      </div>
                     </div>
                     <div className="flex-1 min-w-0">
                       <h3 className="text-lg font-black text-slate-800 truncate">{user.handleName}</h3>
