@@ -5,20 +5,25 @@ import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useAuth } from '@/app/contexts/AuthContext';
-import { Send, ChevronLeft, User, Loader2, ExternalLink } from 'lucide-react';
+import { Send, ChevronLeft, User, Loader2, ExternalLink, Check, CheckCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
-function formatTime(dateString) {
-  if (!dateString) return '';
-  const date = new Date(dateString);
-  const now = new Date();
-  if (date.toDateString() === now.toDateString()) {
-    return date.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
-  }
-  return date.toLocaleDateString('ja-JP', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+function formatTime(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  return d.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+}
+
+function formatDateLabel(dateStr) {
+  const d = new Date(dateStr);
+  const today = new Date();
+  const yesterday = new Date(Date.now() - 86400000);
+  if (d.toDateString() === today.toDateString()) return '今日';
+  if (d.toDateString() === yesterday.toDateString()) return '昨日';
+  return d.toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' });
 }
 
 export default function ChatRoomPage() {
@@ -34,6 +39,7 @@ export default function ChatRoomPage() {
 
   const bottomRef = useRef(null);
   const textareaRef = useRef(null);
+  const prevMsgCountRef = useRef(0);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -51,7 +57,11 @@ export default function ChatRoomPage() {
       if (!res.ok) throw new Error();
       const data = await res.json();
       setRoom(data);
-      setMessages(data.messages || []);
+      setMessages(prev => {
+        const incoming = data.messages || [];
+        prevMsgCountRef.current = prev.length;
+        return incoming;
+      });
     } catch {
       toast.error('メッセージの読み込みに失敗しました');
     } finally {
@@ -89,10 +99,7 @@ export default function ChatRoomPage() {
     try {
       const res = await fetch(`${API_URL}/api/project-details/chat/${roomId}/messages`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ content: text }),
       });
       if (!res.ok) throw new Error();
@@ -117,7 +124,7 @@ export default function ChatRoomPage() {
   const handleResize = (e) => {
     const el = e.target;
     el.style.height = 'auto';
-    el.style.height = `${Math.min(el.scrollHeight, 100)}px`;
+    el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
     setNewMessage(el.value);
   };
 
@@ -133,14 +140,30 @@ export default function ChatRoomPage() {
     );
   }
 
+  // Build rendered items: inject date separators and track grouping
+  const renderedItems = [];
+  let lastDateStr = null;
+  messages.forEach((msg, i) => {
+    const dateStr = new Date(msg.createdAt).toDateString();
+    if (dateStr !== lastDateStr) {
+      renderedItems.push({ type: 'date', label: formatDateLabel(msg.createdAt), key: `date-${i}` });
+      lastDateStr = dateStr;
+    }
+    const prevMsg = messages[i - 1];
+    const nextMsg = messages[i + 1];
+    const isFirst = !prevMsg || prevMsg.senderType !== msg.senderType || new Date(msg.createdAt).toDateString() !== new Date(prevMsg.createdAt).toDateString();
+    const isLast = !nextMsg || nextMsg.senderType !== msg.senderType || new Date(nextMsg.createdAt).toDateString() !== new Date(msg.createdAt).toDateString();
+    renderedItems.push({ type: 'msg', msg, isFirst, isLast, key: msg.id });
+  });
+
   return (
     <div
-      className="flex flex-col bg-slate-50 font-sans overflow-hidden"
+      className="flex flex-col bg-[#F2F1F6] font-sans overflow-hidden"
       style={{ height: '100dvh' }}
     >
       {/* ── ヘッダー ── */}
       <div
-        className="flex-shrink-0 bg-white border-b border-slate-100 flex items-center gap-3 px-4"
+        className="flex-shrink-0 bg-white/95 backdrop-blur-xl border-b border-slate-100 shadow-sm flex items-center gap-3 px-4"
         style={{
           paddingTop: 'env(safe-area-inset-top)',
           height: 'calc(3.5rem + env(safe-area-inset-top))',
@@ -153,8 +176,8 @@ export default function ChatRoomPage() {
           <ChevronLeft size={20} />
         </button>
 
-        <div className="flex items-center gap-2.5 flex-1 min-w-0">
-          <div className="w-9 h-9 rounded-xl bg-slate-100 overflow-hidden flex-shrink-0 border border-slate-100">
+        <Link href={florist?.id ? `/florists/${florist.id}` : '#'} className="flex items-center gap-2.5 flex-1 min-w-0 active:opacity-70 transition-opacity">
+          <div className="w-9 h-9 rounded-full bg-slate-100 overflow-hidden flex-shrink-0 border border-slate-100">
             {florist?.iconUrl ? (
               <Image src={florist.iconUrl} alt="" width={36} height={36} className="object-cover w-full h-full" />
             ) : (
@@ -164,115 +187,137 @@ export default function ChatRoomPage() {
             )}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="font-black text-slate-800 text-sm truncate">{floristName}</p>
+            <p className="font-black text-slate-800 text-sm truncate leading-tight">{floristName}</p>
             {project?.title && (
               <p className="text-[10px] text-pink-500 font-bold truncate">📌 {project.title}</p>
             )}
           </div>
-        </div>
+        </Link>
 
         {project?.id && (
-          <Link href={`/projects/${project.id}`} className="w-9 h-9 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 active:bg-slate-200 transition-colors flex-shrink-0">
+          <Link href={`/projects/${project.id}`}
+            className="w-9 h-9 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 active:bg-slate-200 transition-colors flex-shrink-0">
             <ExternalLink size={16} />
           </Link>
         )}
       </div>
 
       {/* ── メッセージエリア ── */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-1">
         {messages.length === 0 && !isLoading ? (
           <div className="flex flex-col items-center justify-center h-full text-slate-300 py-16">
-            <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-3">
+            <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mb-3 shadow-sm border border-slate-100">
               <Send size={20} className="text-slate-300" />
             </div>
             <p className="text-sm font-bold text-slate-400">メッセージを送って会話を始めましょう！</p>
             <p className="text-xs text-slate-300 mt-1">企画の相談や詳細の確認などにご利用ください</p>
           </div>
         ) : (
-          messages.map((msg, i) => {
+          renderedItems.map(item => {
+            if (item.type === 'date') {
+              return (
+                <div key={item.key} className="flex items-center gap-3 py-3 select-none">
+                  <div className="flex-1 h-px bg-slate-200/60" />
+                  <span className="text-[10px] font-bold text-slate-400 bg-[#F2F1F6] px-2">{item.label}</span>
+                  <div className="flex-1 h-px bg-slate-200/60" />
+                </div>
+              );
+            }
+
+            const { msg, isFirst, isLast } = item;
             const isMe = msg.senderType === 'USER';
-            const prevMsg = messages[i - 1];
-            const showAvatar = !isMe && prevMsg?.senderType !== 'FLORIST';
+
+            const bubbleRadius = isMe
+              ? `rounded-[20px] ${isLast ? 'rounded-br-[6px]' : 'rounded-br-[20px]'} ${!isFirst ? 'rounded-tr-[8px]' : ''}`
+              : `rounded-[20px] ${isLast ? 'rounded-bl-[6px]' : 'rounded-bl-[20px]'} ${!isFirst ? 'rounded-tl-[8px]' : ''}`;
 
             return (
               <motion.div
                 key={msg.id}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: msg._optimistic ? 0.7 : 1, y: 0 }}
-                transition={{ duration: 0.2 }}
-                className={`flex items-end gap-2 ${isMe ? 'justify-end' : 'justify-start'}`}
+                initial={{ opacity: 0, y: 6, scale: 0.96 }}
+                animate={{ opacity: msg._optimistic ? 0.75 : 1, y: 0, scale: 1 }}
+                transition={{ duration: 0.18 }}
+                className={`flex items-end gap-2 ${isMe ? 'justify-end' : 'justify-start'} ${isFirst ? 'mt-3' : 'mt-0.5'}`}
               >
                 {/* 相手アイコン */}
                 {!isMe && (
-                  <div className={`w-7 h-7 rounded-full bg-slate-100 overflow-hidden flex-shrink-0 mb-1 border border-slate-100 ${showAvatar ? 'opacity-100' : 'opacity-0'}`}>
+                  <div className={`w-7 h-7 rounded-full bg-slate-100 overflow-hidden flex-shrink-0 border border-slate-100 transition-opacity ${isLast ? 'opacity-100' : 'opacity-0'}`}>
                     {florist?.iconUrl ? (
                       <Image src={florist.iconUrl} alt="" width={28} height={28} className="object-cover w-full h-full" />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center text-slate-300 text-xs">
-                        <User size={14} />
-                      </div>
+                      <div className="w-full h-full flex items-center justify-center"><User size={14} className="text-slate-300" /></div>
                     )}
                   </div>
                 )}
 
                 <div className={`flex flex-col max-w-[78%] ${isMe ? 'items-end' : 'items-start'}`}>
                   <div
-                    className={`px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap break-words shadow-sm ${
+                    className={`px-4 py-2.5 text-[15px] leading-relaxed whitespace-pre-wrap break-words shadow-sm ${bubbleRadius} ${
                       isMe
-                        ? 'bg-gradient-to-br from-pink-500 to-rose-500 text-white rounded-[20px] rounded-br-[6px]'
-                        : 'bg-white text-slate-800 border border-slate-100 rounded-[20px] rounded-bl-[6px]'
+                        ? 'bg-gradient-to-br from-pink-500 to-rose-500 text-white'
+                        : 'bg-white text-slate-800 border border-slate-100/80'
                     }`}
                   >
                     {msg.content}
                   </div>
-                  <span className="text-[9px] text-slate-300 font-medium mt-1 px-1">
-                    {formatTime(msg.createdAt)}
-                  </span>
+
+                  {/* Timestamp + read receipt (my messages only, last in group) */}
+                  {isLast && (
+                    <div className={`flex items-center gap-1 mt-0.5 px-1 ${isMe ? 'flex-row-reverse' : ''}`}>
+                      <span className="text-[9px] text-slate-300 font-medium">{formatTime(msg.createdAt)}</span>
+                      {isMe && (
+                        <span className="text-[9px] text-slate-300 flex items-center">
+                          {msg._optimistic
+                            ? <Check size={10} className="text-slate-300" />
+                            : <CheckCheck size={10} className="text-pink-400" />
+                          }
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
               </motion.div>
             );
           })
         )}
-        <div ref={bottomRef} />
+        <div ref={bottomRef} className="h-2" />
       </div>
 
       {/* ── 入力エリア ── */}
       <div
-        className="flex-shrink-0 bg-white border-t border-slate-100 px-4 py-3"
-        style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}
+        className="flex-shrink-0 bg-white border-t border-slate-100 px-3 py-2"
+        style={{ paddingBottom: 'calc(0.5rem + env(safe-area-inset-bottom))' }}
       >
         <div className="flex items-end gap-2">
-          <div className="flex-1 bg-slate-50 rounded-[20px] border-2 border-transparent focus-within:border-pink-300 focus-within:bg-white transition-all flex items-end px-4 py-2.5">
+          <div className="flex-1 bg-[#F2F1F6] rounded-[22px] border-2 border-transparent focus-within:border-pink-300 focus-within:bg-white transition-all flex items-end px-4 py-2.5 min-h-[44px]">
             <textarea
               ref={textareaRef}
               value={newMessage}
               onChange={handleResize}
               onKeyDown={handleKeyDown}
-              placeholder="メッセージを入力..."
+              placeholder="メッセージ..."
               rows={1}
-              className="w-full bg-transparent outline-none text-[16px] text-slate-800 placeholder:text-slate-300 resize-none max-h-[100px] font-medium"
+              className="w-full bg-transparent outline-none text-[16px] text-slate-800 placeholder:text-slate-400 resize-none max-h-[120px] font-medium leading-relaxed"
             />
           </div>
 
           <AnimatePresence>
-            {newMessage.trim() && (
+            {newMessage.trim() ? (
               <motion.button
                 key="send"
                 initial={{ scale: 0, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0, opacity: 0 }}
-                whileTap={{ scale: 0.9 }}
+                whileTap={{ scale: 0.88 }}
                 type="button"
                 onClick={handleSend}
                 disabled={isSending}
                 className="w-11 h-11 bg-gradient-to-br from-pink-500 to-rose-500 text-white rounded-full flex items-center justify-center shadow-lg shadow-pink-200 flex-shrink-0 disabled:opacity-50 transition-opacity"
               >
-                {isSending ? (
-                  <Loader2 size={16} className="animate-spin" />
-                ) : (
-                  <Send size={16} className="ml-0.5" />
-                )}
+                {isSending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} className="ml-0.5" />}
               </motion.button>
+            ) : (
+              <div className="w-11 h-11 flex-shrink-0" />
             )}
           </AnimatePresence>
         </div>

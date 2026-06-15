@@ -18,7 +18,7 @@ export async function generateMetadata({ params }) {
 
   // ★ 修正2: 企画の画像がない場合や、エラー時に表示する「FLASTALの公式ロゴ画像」などのURLを指定
   // ※ 実際の本番環境にある画像のURLに変更してください
-  const DEFAULT_IMAGE_URL = 'https://flastal.com/default-og.png'; 
+  const DEFAULT_IMAGE_URL = 'https://www.flastal.com/opengraph-image.png';
 
   try {
     // APIからプロジェクト情報を取得 (キャッシュ有効化で高速化)

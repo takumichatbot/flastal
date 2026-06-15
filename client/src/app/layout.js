@@ -50,11 +50,20 @@ export const metadata = {
     siteName: 'FLASTAL',
     locale: 'ja_JP',
     type: 'website',
+    images: [
+      {
+        url: '/opengraph-image.png',
+        width: 1200,
+        height: 630,
+        alt: 'FLASTAL - 推しにフラスタを贈ろう',
+      },
+    ],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'FLASTAL - 推しにフラスタを贈ろう',
     description: 'ファン有志で贈る「フラスタ企画」を安全・簡単・感動的に。',
+    images: ['/opengraph-image.png'],
   },
   alternates: {
     canonical: '/',
