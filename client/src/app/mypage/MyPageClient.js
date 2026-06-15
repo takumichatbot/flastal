@@ -12,7 +12,8 @@ import {
   Plus, Search, LogOut, Award,
   Loader2, Zap, ArrowRight, ChevronRight, Copy,
   FileText, HelpCircle, Mail, ShieldCheck, Star,
-  Pencil, MessageCircle, X, Lock, Send, Trash2
+  Pencil, MessageCircle, X, Lock, Send, Trash2,
+  ExternalLink, TrendingUp,
 } from 'lucide-react';
 
 import UploadForm from '@/app/components/UploadForm';
@@ -399,10 +400,15 @@ function DashboardContent() {
                       </div>
                     </div>
                     <div className="text-center">
-                      <p className="text-2xl font-black text-white leading-none font-mono">{(user.points || 0).toLocaleString()}</p>
+                      <p className="text-lg font-black text-white leading-none font-mono">
+                        ¥{((user.totalPledgedAmount || 0) / 10000 >= 1
+                          ? `${((user.totalPledgedAmount || 0) / 10000).toFixed(1)}万`
+                          : (user.totalPledgedAmount || 0).toLocaleString()
+                        )}
+                      </p>
                       <div className="flex items-center justify-center gap-1 mt-1">
-                        <Zap size={8} className="text-amber-300/80 fill-amber-300/80" />
-                        <p className="text-[9px] text-pink-100/80 font-bold">ポイント</p>
+                        <TrendingUp size={8} className="text-pink-100/60" />
+                        <p className="text-[9px] text-pink-100/80 font-bold">総支援額</p>
                       </div>
                     </div>
                   </div>
@@ -429,6 +435,60 @@ function DashboardContent() {
                     <span className="text-[11px] font-black text-slate-700 leading-tight">ポイント<br />チャージ</span>
                   </Link>
                 </div>
+
+                {/* 応援ランクカード */}
+                {(() => {
+                  const LEVEL_LABELS = {
+                    FAN: { label: 'ファン', color: 'text-slate-500', bg: 'bg-slate-100', next: 'BRONZE', nextLabel: 'ブロンズ', threshold: 1000 },
+                    BRONZE: { label: 'ブロンズ', color: 'text-amber-700', bg: 'bg-amber-50', next: 'SILVER', nextLabel: 'シルバー', threshold: 5000 },
+                    SILVER: { label: 'シルバー', color: 'text-slate-500', bg: 'bg-slate-100', next: 'GOLD', nextLabel: 'ゴールド', threshold: 20000 },
+                    GOLD: { label: 'ゴールド', color: 'text-yellow-600', bg: 'bg-yellow-50', next: 'PLATINUM', nextLabel: 'プラチナ', threshold: 100000 },
+                    PLATINUM: { label: 'プラチナ', color: 'text-sky-600', bg: 'bg-sky-50', next: 'DIAMOND', nextLabel: 'ダイヤモンド', threshold: 500000 },
+                    DIAMOND: { label: 'ダイヤモンド', color: 'text-violet-600', bg: 'bg-violet-50', next: null, nextLabel: null, threshold: null },
+                  };
+                  const lv = user.supportLevel || 'FAN';
+                  const info = LEVEL_LABELS[lv] || LEVEL_LABELS.FAN;
+                  const pledged = user.totalPledgedAmount || 0;
+                  const prevThreshold = lv === 'FAN' ? 0 : { BRONZE: 1000, SILVER: 5000, GOLD: 20000, PLATINUM: 100000, DIAMOND: 500000 }[lv] || 0;
+                  const pct = info.threshold
+                    ? Math.min(Math.round(((pledged - prevThreshold) / (info.threshold - prevThreshold)) * 100), 100)
+                    : 100;
+                  return (
+                    <div className="bg-white rounded-[1.5rem] border border-slate-100 shadow-sm p-4 flex items-center gap-4">
+                      <div className={cn('w-12 h-12 rounded-2xl flex items-center justify-center shrink-0', info.bg)}>
+                        <Award size={22} className={info.color} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between mb-1.5">
+                          <p className={cn('text-sm font-black', info.color)}>{info.label}</p>
+                          {info.next && (
+                            <p className="text-[10px] font-bold text-slate-400">
+                              次: {info.nextLabel} (¥{(info.threshold || 0).toLocaleString()})
+                            </p>
+                          )}
+                        </div>
+                        <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                          <motion.div
+                            initial={{ width: 0 }} animate={{ width: `${pct}%` }}
+                            transition={{ duration: 1, ease: 'easeOut' }}
+                            className="h-full rounded-full bg-gradient-to-r from-pink-400 to-rose-400"
+                          />
+                        </div>
+                        {info.next && (
+                          <p className="text-[10px] font-bold text-slate-400 mt-1">
+                            あと¥{Math.max(0, (info.threshold || 0) - pledged).toLocaleString()}で昇格
+                          </p>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => router.push(`/users/${user.id}`)}
+                        className="w-9 h-9 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-400 active:bg-slate-100 transition-colors shrink-0"
+                      >
+                        <ExternalLink size={14} />
+                      </button>
+                    </div>
+                  );
+                })()}
 
                 {/* マイ企画 */}
                 {loadingData ? (
@@ -932,6 +992,11 @@ function DashboardContent() {
                     icon={<Pencil size={16} />}
                     label="プロフィールを編集する"
                     onClick={() => router.push('/mypage/edit')}
+                  />
+                  <SettingsRow
+                    icon={<ExternalLink size={16} />}
+                    label="公開プロフィールを見る"
+                    onClick={() => router.push(`/users/${user.id}`)}
                   />
                   <SettingsRow
                     icon={<Award size={16} />}

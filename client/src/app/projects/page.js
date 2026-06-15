@@ -3,98 +3,208 @@
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
 
-import { useState, useEffect, Suspense, useCallback } from 'react';
+import { useState, useEffect, Suspense, useCallback, useRef } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
-import { useAuth } from '@/app/contexts/AuthContext'; 
+import { useAuth } from '@/app/contexts/AuthContext';
 import Link from 'next/link';
 import Image from 'next/image';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
-
-// ★ Heartアイコンを追加！
 import {
-  Search, MapPin, Calendar, Loader2, Filter,
-  PlusCircle, Sparkles, ChevronLeft
+  Search, MapPin, Calendar, Loader2, SlidersHorizontal,
+  PlusCircle, ChevronLeft, X, Heart, Clock, TrendingUp, Sparkles,
 } from 'lucide-react';
 
 const PREFECTURES = [
-  '北海道', '青森県', '岩手県', '宮城県', '秋田県', '山形県', '福島県',
-  '茨城県', '栃木県', '群馬県', '埼玉県', '千葉県', '東京都', '神奈川県',
-  '新潟県', '富山県', '石川県', '福井県', '山梨県', '長野県', '岐阜県', 
-  '静岡県', '愛知県', '三重県', '滋賀県', '京都府', '大阪府', '兵庫県', 
-  '奈良県', '和歌山県', '鳥取県', '島根県', '岡山県', '広島県', '山口県',
-  '徳島県', '香川県', '愛媛県', '高知県', '福岡県', '佐賀県', '長崎県', 
-  '熊本県', '大分県', '宮崎県', '鹿児島県', '沖縄県'
+  '北海道','青森県','岩手県','宮城県','秋田県','山形県','福島県',
+  '茨城県','栃木県','群馬県','埼玉県','千葉県','東京都','神奈川県',
+  '新潟県','富山県','石川県','福井県','山梨県','長野県','岐阜県',
+  '静岡県','愛知県','三重県','滋賀県','京都府','大阪府','兵庫県',
+  '奈良県','和歌山県','鳥取県','島根県','岡山県','広島県','山口県',
+  '徳島県','香川県','愛媛県','高知県','福岡県','佐賀県','長崎県',
+  '熊本県','大分県','宮崎県','鹿児島県','沖縄県',
 ];
 
-function cn(...classes) {
-  return classes.filter(Boolean).join(' ');
+const CATEGORIES = [
+  { id: '',          label: 'すべて',   emoji: '🌸' },
+  { id: 'idol',      label: 'アイドル', emoji: '🎤' },
+  { id: 'vtuber',    label: 'VTuber',   emoji: '💜' },
+  { id: 'stage',     label: '舞台',     emoji: '🎭' },
+  { id: 'anime',     label: 'アニメ',   emoji: '✨' },
+  { id: 'birthday',  label: '生誕祭',   emoji: '🎂' },
+  { id: 'voice',     label: '声優',     emoji: '🎙️' },
+];
+
+const SORTS = [
+  { id: 'newest',   label: '新着順',     icon: Sparkles },
+  { id: 'popular',  label: '人気順',     icon: Heart },
+  { id: 'deadline', label: '締切が近い', icon: Clock },
+  { id: 'percent',  label: '達成率順',   icon: TrendingUp },
+];
+
+function cn(...classes) { return classes.filter(Boolean).join(' '); }
+
+// ── Filter Sheet ──────────────────────────────────────────────
+function FilterSheet({ open, onClose, prefecture, setPrefecture, sort, setSort, onApply }) {
+  return (
+    <AnimatePresence>
+      {open && (
+        <>
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40"
+            onClick={onClose}
+          />
+          <motion.div
+            initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
+            transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+            className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-[2rem] shadow-2xl overflow-hidden"
+            style={{ paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom))' }}
+          >
+            {/* Drag handle */}
+            <div className="flex justify-center pt-3 pb-1">
+              <div className="w-10 h-1 bg-slate-200 rounded-full" />
+            </div>
+
+            <div className="px-5 pt-2 pb-4 flex items-center justify-between">
+              <h3 className="font-black text-slate-800 text-lg">絞り込み・並び替え</h3>
+              <button onClick={onClose} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500">
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="px-5 space-y-6 max-h-[60vh] overflow-y-auto">
+              {/* Sort */}
+              <div>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">並び替え</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {SORTS.map(s => {
+                    const Icon = s.icon;
+                    const active = sort === s.id;
+                    return (
+                      <button key={s.id} onClick={() => setSort(s.id)}
+                        className={cn(
+                          'flex items-center gap-2 px-4 py-3 rounded-2xl font-black text-sm border-2 transition-all',
+                          active ? 'border-pink-400 bg-pink-50 text-pink-600' : 'border-slate-100 bg-white text-slate-600',
+                        )}>
+                        <Icon size={14} /> {s.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Prefecture */}
+              <div>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">都道府県</p>
+                <div className="relative">
+                  <MapPin size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                  <select
+                    value={prefecture}
+                    onChange={e => setPrefecture(e.target.value)}
+                    className="w-full pl-8 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-sm text-slate-700 outline-none focus:border-pink-300 focus:ring-2 focus:ring-pink-100 text-[16px]"
+                  >
+                    <option value="">すべての都道府県</option>
+                    {PREFECTURES.map(p => <option key={p} value={p}>{p}</option>)}
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div className="px-5 pt-4">
+              <button
+                onClick={onApply}
+                className="w-full py-4 bg-gradient-to-r from-pink-500 to-rose-500 text-white font-black rounded-2xl shadow-lg shadow-pink-200 active:scale-[0.98] transition-transform"
+              >
+                この条件で絞り込む
+              </button>
+            </div>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
+  );
 }
 
-const JpText = ({ children, className }) => (
-  <span className={cn("inline-block", className)}>{children}</span>
-);
-
-// ==========================================
-// 🎨 ANIMATION & MAGIC UI COMPONENTS
-// ==========================================
-
-const PROJECTS_PARTICLES = Array.from({ length: 12 }, () => ({
-  xRatio: Math.random(),
-  yRatio: Math.random(),
-  dy: -(Math.random() * 200 + 50),
-  dx: (Math.random() - 0.5) * 100,
-  duration: Math.random() * 10 + 15,
-}));
-
-const FloatingParticles = () => {
-  const [windowSize, setWindowSize] = useState({ width: 1000, height: 1000 });
-
-  useEffect(() => {
-    setWindowSize({ width: window.innerWidth, height: window.innerHeight });
-  }, []);
+// ── Project Card ──────────────────────────────────────────────
+function ProjectCard({ project, index }) {
+  const router = useRouter();
+  const percent = Math.min(Math.round(((project.collectedAmount || 0) / (project.targetAmount || 1)) * 100), 100);
+  const isSuccess = percent >= 100;
+  const daysLeft = project.deadline
+    ? Math.max(0, Math.ceil((new Date(project.deadline) - new Date()) / 86400000))
+    : null;
 
   return (
-    <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
-      {PROJECTS_PARTICLES.map((p, i) => (
-        <motion.div
-          key={i}
-          className="absolute w-3 h-3 bg-pink-300 rounded-full mix-blend-multiply filter blur-[1px] opacity-40"
-          initial={{ x: p.xRatio * windowSize.width, y: p.yRatio * windowSize.height }}
-          animate={{
-            y: [null, p.dy],
-            x: [null, p.dx],
-            opacity: [0.2, 0.6, 0.2],
-            scale: [1, 1.5, 1],
-          }}
-          transition={{ duration: p.duration, repeat: Infinity, ease: "linear" }}
-        />
-      ))}
-    </div>
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.04, duration: 0.25 }}
+      onClick={() => router.push(`/projects/${project.id}`)}
+      className="bg-white rounded-[1.5rem] overflow-hidden shadow-sm border border-slate-100 cursor-pointer active:scale-[0.98] transition-transform"
+    >
+      {/* Thumbnail */}
+      <div className="relative w-full aspect-video bg-slate-100 overflow-hidden">
+        {project.imageUrl ? (
+          <Image src={project.imageUrl} alt={project.title} fill sizes="50vw" className="object-cover" />
+        ) : (
+          <div className="w-full h-full bg-gradient-to-br from-pink-50 to-rose-50 flex items-center justify-center text-3xl">💐</div>
+        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+        <div className="absolute top-2 left-2">
+          <span className={cn(
+            'px-2 py-0.5 rounded-full text-[9px] font-black text-white uppercase tracking-wide',
+            isSuccess ? 'bg-emerald-500' : project.status === 'COMPLETED' ? 'bg-purple-500' : 'bg-pink-500',
+          )}>
+            {isSuccess ? '達成' : project.status === 'COMPLETED' ? '完了' : '募集中'}
+          </span>
+        </div>
+        {daysLeft !== null && project.status === 'FUNDRAISING' && (
+          <div className="absolute top-2 right-2 bg-black/50 backdrop-blur-sm rounded-full px-2 py-0.5 flex items-center gap-1">
+            <Clock size={9} className="text-rose-300" />
+            <span className="text-[9px] font-black text-white">{daysLeft}日</span>
+          </div>
+        )}
+      </div>
+
+      {/* Body */}
+      <div className="p-3">
+        <h3 className="font-black text-slate-800 text-xs leading-snug line-clamp-2 mb-2">{project.title}</h3>
+
+        <div className="space-y-0.5 mb-2.5">
+          {project.deliveryDateTime && (
+            <p className="text-[10px] font-bold text-slate-400 flex items-center gap-1 truncate">
+              <Calendar size={9} className="text-pink-400 shrink-0" />
+              {new Date(project.deliveryDateTime).toLocaleDateString('ja-JP', { month: 'short', day: 'numeric' })}
+            </p>
+          )}
+          <p className="text-[10px] font-bold text-slate-400 flex items-center gap-1 truncate">
+            <MapPin size={9} className="text-rose-400 shrink-0" />
+            <span className="truncate">{project.venue?.venueName || project.deliveryAddress || '場所未定'}</span>
+          </p>
+        </div>
+
+        {/* Progress */}
+        <div>
+          <div className="flex justify-between items-center mb-1">
+            <p className="text-[11px] font-black text-slate-700">¥{(project.collectedAmount || 0).toLocaleString()}</p>
+            <span className={cn('text-[11px] font-black', isSuccess ? 'text-emerald-500' : 'text-pink-500')}>{percent}%</span>
+          </div>
+          <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+            <motion.div
+              initial={{ width: 0 }}
+              whileInView={{ width: `${percent}%` }}
+              transition={{ duration: 0.8, ease: 'easeOut' }}
+              className={cn('h-full rounded-full', isSuccess ? 'bg-emerald-400' : 'bg-gradient-to-r from-pink-400 to-rose-400')}
+            />
+          </div>
+        </div>
+      </div>
+    </motion.div>
   );
-};
+}
 
-const Reveal = ({ children, delay = 0, className = "" }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 30 }}
-    whileInView={{ opacity: 1, y: 0 }}
-    viewport={{ once: true, margin: "-50px" }}
-    transition={{ duration: 0.6, delay, type: "spring", bounce: 0.3 }}
-    className={className}
-  >
-    {children}
-  </motion.div>
-);
-
-const GlassCard = ({ children, className }) => (
-  <div className={cn("bg-white/80 backdrop-blur-xl border border-white shadow-[0_8px_30px_rgba(244,114,182,0.1)] rounded-[2.5rem]", className)}>
-    {children}
-  </div>
-);
-
-// ==========================================
-// 💡 メインのコンテンツコンポーネント
-// ==========================================
+// ── Main Content ──────────────────────────────────────────────
 function ProjectsContent() {
   const router = useRouter();
   const pathname = usePathname();
@@ -103,277 +213,224 @@ function ProjectsContent() {
 
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [keyword, setKeyword] = useState('');
+  const [prefecture, setPrefecture] = useState('');
+  const [sort, setSort] = useState('newest');
+  const [category, setCategory] = useState('');
+  const [filterOpen, setFilterOpen] = useState(false);
+  const searchRef = useRef(null);
 
-  const [keyword, setKeyword] = useState(searchParams.get('keyword') || '');
-  const [prefecture, setPrefecture] = useState(searchParams.get('prefecture') || '');
+  const activeFilterCount = [prefecture].filter(Boolean).length;
 
   const fetchProjects = useCallback(async () => {
     if (authLoading) return;
-
     setLoading(true);
     try {
       const params = new URLSearchParams();
-      const currentKeyword = searchParams.get('keyword');
-      const currentPrefecture = searchParams.get('prefecture');
+      const kw = searchParams.get('keyword');
+      const pref = searchParams.get('prefecture');
+      if (kw) params.append('keyword', kw);
+      if (pref) params.append('prefecture', pref);
+      params.append('t', Date.now());
 
-      if (currentKeyword) params.append('keyword', currentKeyword);
-      if (currentPrefecture) params.append('prefecture', currentPrefecture);
-      
-      const queryString = params.toString();
-      const fetchPath = queryString ? `/projects?${queryString}&t=${Date.now()}` : `/projects?t=${Date.now()}`;
-
-      const res = await authenticatedFetch(fetchPath);
-      
-      if (!res || !res.ok) {
-        throw new Error(`Fetch failed with status: ${res?.status}`);
-      }
-      
+      const res = await authenticatedFetch(`/projects?${params.toString()}`);
+      if (!res?.ok) throw new Error(`Status ${res?.status}`);
       const data = await res.json();
-      let projectsArray = Array.isArray(data) ? data : (data?.projects || []);
-      
-      projectsArray = projectsArray.filter(project => {
-        const isHidden = project.visibility === 'UNLISTED' || project.status === 'REJECTED' || project.status === 'CANCELED';
-        return !isHidden;
-      });
-
-      setProjects(projectsArray);
-      
-      if (projectsArray.length === 0 && (currentKeyword || currentPrefecture)) {
-        toast('条件に一致する企画はありませんでした', { icon: '🔍' });
-      }
-    } catch (error) {
-      console.error('Fetch error:', error);
-      toast.error('通信エラーが発生しました。再読み込みしてください。');
+      let arr = Array.isArray(data) ? data : (data?.projects || []);
+      arr = arr.filter(p => p.visibility !== 'UNLISTED' && p.status !== 'REJECTED' && p.status !== 'CANCELED');
+      setProjects(arr);
+    } catch {
+      toast.error('通信エラーが発生しました');
     } finally {
       setLoading(false);
     }
   }, [searchParams, authenticatedFetch, authLoading]);
 
-  useEffect(() => {
-    fetchProjects();
-  }, [fetchProjects]);
+  useEffect(() => { fetchProjects(); }, [fetchProjects]);
 
   const handleSearch = (e) => {
-    e.preventDefault();
+    e?.preventDefault();
     const params = new URLSearchParams(searchParams);
-    if (keyword.trim()) params.set('keyword', keyword);
+    if (keyword.trim()) params.set('keyword', keyword.trim());
     else params.delete('keyword');
     if (prefecture) params.set('prefecture', prefecture);
     else params.delete('prefecture');
     router.replace(`${pathname}?${params.toString()}`);
+    searchRef.current?.blur();
   };
 
+  const handleApplyFilter = () => {
+    handleSearch();
+    setFilterOpen(false);
+  };
+
+  const clearFilters = () => {
+    setKeyword('');
+    setPrefecture('');
+    setSort('newest');
+    setCategory('');
+    router.replace(pathname);
+  };
+
+  // Sort + category filter (client-side)
+  const filtered = projects
+    .filter(p => !category || (p.eventType || '').toLowerCase().includes(category))
+    .sort((a, b) => {
+      if (sort === 'popular') return (b.collectedAmount || 0) - (a.collectedAmount || 0);
+      if (sort === 'deadline') {
+        const da = a.deadline ? new Date(a.deadline) : new Date(9999, 0);
+        const db = b.deadline ? new Date(b.deadline) : new Date(9999, 0);
+        return da - db;
+      }
+      if (sort === 'percent') {
+        const pa = Math.round(((a.collectedAmount || 0) / (a.targetAmount || 1)) * 100);
+        const pb = Math.round(((b.collectedAmount || 0) / (b.targetAmount || 1)) * 100);
+        return pb - pa;
+      }
+      return new Date(b.createdAt) - new Date(a.createdAt);
+    });
+
+  const hasActiveFilters = keyword || prefecture || sort !== 'newest' || category;
+
   return (
-    <div className="bg-gradient-to-br from-pink-50/80 to-rose-50/80 min-h-screen font-sans text-slate-800 relative overflow-hidden pb-24">
-      <FloatingParticles />
+    <div className="flex flex-col bg-[#F7F7FA] font-sans" style={{ minHeight: '100dvh' }}>
 
-      {/* 戻るボタン */}
-      <button
-        onClick={() => router.back()}
-        className="fixed top-0 left-0 z-40 m-4 w-10 h-10 bg-white/80 hover:bg-white backdrop-blur-md rounded-full flex items-center justify-center text-slate-500 border border-slate-200 shadow-sm transition-colors active:scale-95"
-        style={{ marginTop: 'calc(1rem + env(safe-area-inset-top))' }}
-        aria-label="戻る"
+      {/* ── Fixed Header ── */}
+      <div
+        className="fixed top-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-xl border-b border-slate-100 shadow-sm"
+        style={{ paddingTop: 'env(safe-area-inset-top)' }}
       >
-        <ChevronLeft size={20} />
-      </button>
+        <div className="max-w-2xl mx-auto px-4">
+          {/* Top row */}
+          <div className="h-14 flex items-center gap-3">
+            <button onClick={() => router.back()}
+              className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 active:bg-slate-200 transition-colors shrink-0">
+              <ChevronLeft size={20} />
+            </button>
 
-      <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-pink-200/40 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/3 pointer-events-none" />
-      <div className="absolute top-40 left-0 w-[400px] h-[400px] bg-rose-100/30 rounded-full blur-[100px] -translate-x-1/2 pointer-events-none" />
+            {/* Search */}
+            <form onSubmit={handleSearch} className="flex-1 relative">
+              <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              <input
+                ref={searchRef}
+                type="search"
+                value={keyword}
+                onChange={e => setKeyword(e.target.value)}
+                placeholder="企画名・グループ名で検索"
+                className="w-full pl-9 pr-4 py-2.5 bg-slate-100 rounded-full text-[16px] font-medium text-slate-800 placeholder:text-slate-400 outline-none focus:bg-white focus:ring-2 focus:ring-pink-200 transition-all text-sm"
+              />
+            </form>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-16 relative z-10">
-        
-        <Reveal>
-          <div className="flex flex-col md:flex-row justify-between items-center md:items-end mb-10 md:mb-12 gap-6 text-center md:text-left">
-            <div>
-              <div className="inline-flex items-center justify-center w-12 h-12 bg-white rounded-2xl shadow-sm border border-pink-100 mb-4 text-pink-500 rotate-3">
-                <Sparkles size={24} className="animate-pulse" />
-              </div>
-              <h1 className="text-3xl md:text-5xl font-black text-slate-900 tracking-tighter mb-2">みんなの企画を探す</h1>
-              <p className="text-slate-500 font-bold text-sm md:text-base">現在進行中のフラスタ企画を見つけて応援しよう🌸</p>
-            </div>
-            
-            <Link href="/projects/create">
-              <motion.button 
-                whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
-                className="inline-flex items-center px-8 py-4 bg-gradient-to-r from-pink-500 to-rose-500 text-white font-black rounded-full shadow-xl shadow-pink-200 transition-all gap-2 w-full md:w-auto justify-center"
-              >
-                <PlusCircle size={20} /> 自分で企画を立てる
-              </motion.button>
+            {/* Filter button */}
+            <button onClick={() => setFilterOpen(true)}
+              className={cn(
+                'relative w-9 h-9 rounded-full flex items-center justify-center transition-colors shrink-0',
+                activeFilterCount > 0 ? 'bg-pink-500 text-white' : 'bg-slate-100 text-slate-500 active:bg-slate-200',
+              )}>
+              <SlidersHorizontal size={16} />
+              {activeFilterCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 rounded-full text-[9px] text-white font-black flex items-center justify-center border border-white">
+                  {activeFilterCount}
+                </span>
+              )}
+            </button>
+
+            {/* New project */}
+            <Link href="/projects/create"
+              className="shrink-0 px-3 py-2 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-full font-black text-xs shadow-sm shadow-pink-200 flex items-center gap-1 active:scale-95 transition-transform">
+              <PlusCircle size={13} /> 作成
             </Link>
           </div>
-        </Reveal>
 
-        <Reveal delay={0.1}>
-          <GlassCard className="p-6 md:p-8 mb-12">
-            <form onSubmit={handleSearch} className="grid grid-cols-1 md:grid-cols-12 gap-5 items-end">
-              
-              <div className="md:col-span-6">
-                <label className="block text-[10px] md:text-xs font-black text-slate-500 mb-2 uppercase tracking-widest pl-2">Keyword</label>
-                <div className="relative">
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18}/>
-                  <input
-                    type="text"
-                    value={keyword}
-                    onChange={(e) => setKeyword(e.target.value)}
-                    placeholder="企画名、グループ名、イベント名..."
-                    className="w-full pl-12 pr-4 py-4 bg-white/60 backdrop-blur-sm border-2 border-slate-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-pink-100 focus:border-pink-300 outline-none transition-all font-bold text-slate-700 placeholder:text-slate-300 text-[16px]"
-                  />
-                </div>
-              </div>
-              
-              <div className="md:col-span-4">
-                <label className="block text-[10px] md:text-xs font-black text-slate-500 mb-2 uppercase tracking-widest pl-2">Location</label>
-                <div className="relative">
-                  <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18}/>
-                  <select
-                    value={prefecture}
-                    onChange={(e) => setPrefecture(e.target.value)}
-                    className="w-full pl-12 pr-10 py-4 bg-white/60 backdrop-blur-sm border-2 border-slate-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-pink-100 focus:border-pink-300 outline-none appearance-none cursor-pointer transition-all font-bold text-slate-700 text-[16px]"
-                  >
-                    <option value="">すべての都道府県</option>
-                    {PREFECTURES.map(pref => (
-                      <option key={pref} value={pref}>{pref}</option>
-                    ))}
-                  </select>
-                  <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                      <Filter size={16} />
-                  </div>
-                </div>
-              </div>
+          {/* Category chips */}
+          <div className="pb-3 flex gap-2 overflow-x-auto no-scrollbar">
+            {CATEGORIES.map(c => (
+              <button key={c.id} onClick={() => setCategory(c.id)}
+                className={cn(
+                  'shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full font-black text-xs transition-all border',
+                  category === c.id
+                    ? 'bg-slate-900 text-white border-slate-900'
+                    : 'bg-white text-slate-500 border-slate-100 active:bg-slate-50',
+                )}>
+                <span>{c.emoji}</span> {c.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
 
-              <div className="md:col-span-2">
-                <motion.button 
-                  whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
-                  type="submit" 
-                  disabled={loading}
-                  className="w-full py-4 bg-gradient-to-r from-pink-500 to-rose-500 text-white font-black rounded-2xl shadow-lg shadow-pink-100 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-all hover:brightness-105"
-                >
-                  {loading ? <Loader2 className="animate-spin" size={20}/> : <><Search size={18}/> 検索</>}
-                </motion.button>
-              </div>
-            </form>
-          </GlassCard>
-        </Reveal>
+      {/* ── Content ── */}
+      <div
+        className="flex-1 overflow-y-auto max-w-2xl mx-auto w-full px-4"
+        style={{
+          paddingTop: 'calc(7.5rem + env(safe-area-inset-top))',
+          paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))',
+        }}
+      >
+        {/* Active filters / result count */}
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-[11px] font-bold text-slate-400">
+            {loading ? '検索中...' : `${filtered.length}件`}
+          </p>
+          {hasActiveFilters && (
+            <button onClick={clearFilters}
+              className="flex items-center gap-1 text-[11px] font-black text-rose-500 active:opacity-70">
+              <X size={11} /> 絞り込みを解除
+            </button>
+          )}
+        </div>
 
         {loading ? (
-          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-5">
-             {[...Array(8)].map((_, i) => (
-                 <div key={i} className="bg-white/50 backdrop-blur-sm rounded-[2rem] shadow-sm border border-white animate-pulse overflow-hidden p-3">
-                     <div className="aspect-video bg-slate-200/50 rounded-[1.5rem]"></div>
-                     <div className="p-2 mt-2 space-y-3">
-                         <div className="h-4 bg-slate-200/50 rounded-full w-3/4"></div>
-                         <div className="h-3 bg-slate-200/50 rounded-full w-1/2"></div>
-                         <div className="h-2 bg-slate-200/50 rounded-full w-full"></div>
-                     </div>
-                 </div>
-             ))}
+          <div className="grid grid-cols-2 gap-3">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="bg-white rounded-[1.5rem] overflow-hidden animate-pulse border border-slate-100">
+                <div className="aspect-video bg-slate-100" />
+                <div className="p-3 space-y-2">
+                  <div className="h-3 bg-slate-100 rounded-full w-3/4" />
+                  <div className="h-2 bg-slate-100 rounded-full w-1/2" />
+                  <div className="h-1.5 bg-slate-100 rounded-full w-full" />
+                </div>
+              </div>
+            ))}
           </div>
-        ) : projects.length > 0 ? (
-          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-5">
-            <AnimatePresence>
-              {projects.map((project, i) => {
-                const percent = Math.min(Math.round(((project.collectedAmount || 0) / (project.targetAmount || 1)) * 100), 100);
-                const isSuccess = percent >= 100;
-
-                let badgeLabel = isSuccess ? 'SUCCESS' : '募集中';
-                let badgeClass = isSuccess ? 'bg-emerald-500/90 border-emerald-400' : 'bg-pink-500/90 border-pink-400';
-
-                return (
-                  <Reveal key={project.id} delay={i * 0.05} className="h-full">
-                    <div onClick={() => router.push(`/projects/${project.id}`)} className="group h-full block cursor-pointer">
-
-                      <GlassCard className="!p-3 h-full flex flex-col transition-all duration-500 overflow-hidden bg-white hover:-translate-y-1 hover:shadow-[0_12px_30px_rgba(244,114,182,0.15)] group-hover:border-pink-200">
-
-                        <div className="relative w-full aspect-video rounded-[1.5rem] overflow-hidden bg-slate-100 shrink-0">
-                          {project.imageUrl ? (
-                            <Image
-                              src={project.imageUrl} alt={project.title} fill
-                              sizes="(max-width: 768px) 50vw, 33vw"
-                              className="object-cover group-hover:scale-105 transition-transform duration-700"
-                            />
-                          ) : (
-                            <div className="absolute inset-0 bg-gradient-to-br from-pink-100 to-rose-100 flex items-center justify-center text-3xl">💐</div>
-                          )}
-                          <div className="absolute inset-0 bg-gradient-to-t from-slate-900/50 via-transparent to-transparent" />
-                          <div className="absolute top-2 left-2">
-                              <span className={cn("px-2 py-1 rounded-full text-[9px] font-black shadow-md border backdrop-blur-md text-white uppercase tracking-wider", badgeClass)}>
-                                  {badgeLabel}
-                              </span>
-                          </div>
-                        </div>
-
-                        <div className="pt-3 flex flex-col flex-grow px-1">
-                          <h2 className="text-sm font-bold transition-colors line-clamp-2 mb-2 leading-snug text-slate-800 group-hover:text-pink-500">
-                              <JpText>{project.title}</JpText>
-                          </h2>
-
-                          <div className="space-y-1 mb-2">
-                              {project.deliveryDateTime && (
-                                  <p className="text-[10px] font-bold text-slate-500 flex items-center">
-                                      <Calendar className="mr-1 shrink-0 text-pink-400" size={11}/>
-                                      {new Date(project.deliveryDateTime).toLocaleDateString()}
-                                  </p>
-                              )}
-                              <p className="text-[10px] font-bold text-slate-500 flex items-center truncate">
-                                  <MapPin className="mr-1 shrink-0 text-rose-400" size={11}/>
-                                  <span className="truncate">{project.venue?.venueName || project.deliveryAddress || '場所未定'}</span>
-                              </p>
-                          </div>
-
-                          <div className="mt-auto pt-2 border-t border-slate-100/50">
-                              <div className="flex justify-between items-center mb-1.5">
-                                  <p className="text-xs font-black leading-none text-slate-700">
-                                    ¥{(project.collectedAmount || 0).toLocaleString()}
-                                  </p>
-                                  <span className={cn("text-sm font-black font-mono leading-none", isSuccess ? "text-emerald-500" : "text-pink-500")}>
-                                    {percent}%
-                                  </span>
-                              </div>
-                              <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden shadow-inner">
-                                  <motion.div
-                                      initial={{ width: 0 }} whileInView={{ width: `${percent}%` }} transition={{ duration: 1 }}
-                                      className={cn("h-full rounded-full", isSuccess ? "bg-emerald-400" : "bg-gradient-to-r from-pink-400 to-rose-400")}
-                                  />
-                              </div>
-                          </div>
-                        </div>
-                      </GlassCard>
-                    </div>
-                  </Reveal>
-                );
-              })}
-            </AnimatePresence>
+        ) : filtered.length > 0 ? (
+          <div className="grid grid-cols-2 gap-3">
+            {filtered.map((p, i) => <ProjectCard key={p.id} project={p} index={i} />)}
           </div>
         ) : (
-          <Reveal>
-            <div className="flex flex-col items-center justify-center py-24 bg-white/60 backdrop-blur-md rounded-[3rem] border border-white text-center shadow-[0_8px_30px_rgba(0,0,0,0.04)]">
-              <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mb-6 text-slate-300 shadow-inner">
-                  <Search size={36}/>
-              </div>
-              <p className="text-xl font-black text-slate-800 mb-2">企画が見つかりませんでした</p>
-              <p className="text-sm font-bold text-slate-500 mb-8">条件を変更するか、新しい企画を立ち上げてみませんか？🌸</p>
-              <Link href="/projects/create">
-                  <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="px-8 py-4 bg-gradient-to-r from-pink-500 to-rose-500 text-white font-black rounded-full shadow-lg shadow-pink-200 flex items-center gap-2">
-                    <PlusCircle size={18}/> 企画を作成する
-                  </motion.button>
-              </Link>
+          <div className="flex flex-col items-center justify-center py-24 text-center">
+            <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mb-4 text-slate-300 shadow-sm border border-slate-100">
+              <Search size={28} />
             </div>
-          </Reveal>
+            <p className="font-black text-slate-700 text-base mb-1.5">企画が見つかりませんでした</p>
+            <p className="text-xs font-bold text-slate-400 mb-6">条件を変えるか、新しい企画を立ち上げましょう</p>
+            <Link href="/projects/create"
+              className="px-6 py-3 bg-gradient-to-r from-pink-500 to-rose-500 text-white font-black rounded-full text-sm shadow-lg shadow-pink-200 active:scale-95 transition-transform">
+              企画を作成する
+            </Link>
+          </div>
         )}
       </div>
+
+      <FilterSheet
+        open={filterOpen}
+        onClose={() => setFilterOpen(false)}
+        prefecture={prefecture}
+        setPrefecture={setPrefecture}
+        sort={sort}
+        setSort={setSort}
+        onApply={handleApplyFilter}
+      />
     </div>
   );
 }
 
-// ==========================================
-// 👑 ROOT EXPORT (Suspense Wrapper)
-// ==========================================
 export default function ProjectsPage() {
   return (
     <Suspense fallback={
-        <div className="min-h-screen flex items-center justify-center bg-pink-50/30">
-            <Loader2 className="animate-spin text-pink-500 w-12 h-12" />
-        </div>
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <Loader2 className="animate-spin text-pink-500 w-10 h-10" />
+      </div>
     }>
       <ProjectsContent />
     </Suspense>
