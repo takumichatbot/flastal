@@ -971,6 +971,11 @@ export default function ProjectDetailClient() {
 
   const totalExpense = (project.expenses || []).reduce((sum, exp) => sum + exp.amount, 0);
   const balance = project.collectedAmount - totalExpense;
+  const percent = Math.min(Math.round(((project.collectedAmount || 0) / (project.targetAmount || 1)) * 100), 100);
+  const isSuccess = percent >= 100;
+  const daysLeft = project.deadline
+    ? Math.max(0, Math.ceil((new Date(project.deadline) - new Date()) / (1000 * 60 * 60 * 24)))
+    : null;
 
   const TABS = [
     { id: 'overview', label: '概要と報告', icon: Book }, 
@@ -1037,111 +1042,191 @@ export default function ProjectDetailClient() {
         {/* --- MAIN COLUMN --- */}
         <div className="lg:col-span-8 space-y-5 md:space-y-6">
           
-          <AppCard className="flex flex-col gap-5 md:gap-8 !p-5 sm:!p-8">
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-                <div className="flex items-center gap-3 md:gap-4 w-full md:w-auto">
-                    <div className="w-12 h-12 md:w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center overflow-hidden border border-slate-200 shrink-0">
-                        {project.planner?.iconUrl ? <Image src={project.planner.iconUrl} alt="" width={64} height={64} className="object-cover" /> : <User size={24} className="text-slate-400"/>}
-                    </div>
-                    <div>
-                        <p className="text-[10px] md:text-xs font-black text-slate-400 uppercase tracking-widest mb-0.5">Organizer</p>
-                        <p className="font-black text-slate-800 text-sm md:text-lg leading-tight">{project.planner?.handleName || project.planner?.name || '不明'}</p>
-                    </div>
+          <AppCard className="!p-0 overflow-hidden">
+            {/* プランナー + ステータス */}
+            <div className="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-slate-50">
+              <Link href={`/users/${project.planner?.id}`} className="flex items-center gap-3 group">
+                <div className="w-10 h-10 bg-slate-100 rounded-full overflow-hidden border-2 border-white shadow-sm shrink-0">
+                  {project.planner?.iconUrl
+                    ? <Image src={project.planner.iconUrl} alt="" width={40} height={40} className="object-cover w-10 h-10"/>
+                    : <User size={18} className="text-slate-400 m-auto mt-3"/>}
                 </div>
-            </div>
-            
-            <div>
-                <h1 className="text-2xl md:text-3xl lg:text-4xl font-black text-slate-800 tracking-tight leading-snug mb-3">
-                    <JpText>{project.title}</JpText>
-                </h1>
-                <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-[10px] md:text-xs font-bold text-slate-500 uppercase tracking-widest bg-white px-2.5 py-1 rounded-md shadow-sm border border-slate-100">
-                        ID: {project.id.slice(0,6)}
-                    </span>
-                    {project.deliveryDateTime && (
-                        <span className="text-[10px] md:text-xs font-bold text-slate-600 bg-pink-50/50 px-2.5 py-1 rounded-md shadow-sm border border-pink-100 flex items-center gap-1.5">
-                            <Calendar size={14} className="text-pink-400"/>
-                            {new Date(project.deliveryDateTime).toLocaleString('ja-JP', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                    )}
-                    <span className="text-[10px] md:text-xs font-bold text-slate-600 bg-rose-50/50 px-2.5 py-1 rounded-md shadow-sm border border-rose-100 flex items-center gap-1.5">
-                        <MapPin size={14} className="text-rose-400"/>
-                        <span className="truncate max-w-[200px] md:max-w-xs">{project.venue?.venueName || project.deliveryAddress || '場所未定'}</span>
-                    </span>
+                <div>
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Organizer</p>
+                  <p className="font-black text-slate-800 text-sm leading-tight group-hover:text-pink-500 transition-colors">
+                    {project.planner?.handleName || project.planner?.name || '不明'}
+                  </p>
                 </div>
+              </Link>
+              <span className={cn(
+                "px-3 py-1.5 rounded-full text-[10px] font-black tracking-wider border",
+                project.status === 'FUNDRAISING' ? 'bg-pink-50 text-pink-600 border-pink-200' :
+                project.status === 'SUCCESSFUL' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' :
+                project.status === 'COMPLETED' ? 'bg-amber-50 text-amber-600 border-amber-200' :
+                'bg-slate-100 text-slate-500 border-slate-200'
+              )}>
+                {project.status === 'FUNDRAISING' ? '募集中' :
+                 project.status === 'SUCCESSFUL' ? '目標達成' :
+                 project.status === 'COMPLETED' ? '完了' :
+                 project.status === 'CANCELED' ? '中止' : project.status}
+              </span>
             </div>
 
-            <div className="w-full flex flex-col gap-3 mt-2 pt-4 border-t border-slate-100">
-                <div className="flex justify-between items-end px-1">
-                    <div className="flex flex-col">
-                        <span className="text-[10px] md:text-xs font-black text-slate-400 tracking-widest mb-1">現在の支援総額</span>
-                        <div className="flex items-baseline gap-1">
-                            <span className="text-xl md:text-4xl font-black text-emerald-500 tracking-tighter leading-none">
-                                ¥{(project.collectedAmount || 0).toLocaleString()}
-                            </span>
-                        </div>
-                    </div>
-                    <div className="flex flex-col text-right">
-                        <div className="text-[10px] md:text-xs font-bold text-slate-400 mb-1 flex items-center justify-end gap-1.5">
-                            <span className="bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-md tracking-normal hidden sm:inline-block">1口 ¥{(project.minContributionAmount || 1000).toLocaleString()}〜</span>
-                            <span>目標金額</span>
-                        </div>
-                        <span className="text-sm md:text-xl font-black text-slate-700 tracking-tight leading-none">
-                            ¥{(project.targetAmount || 0).toLocaleString()}
-                        </span>
-                        <span className="text-[9px] text-slate-400 mt-1 sm:hidden">
-                            1口 ¥{(project.minContributionAmount || 1000).toLocaleString()}〜
-                        </span>
-                    </div>
-                </div>
-                <UpsellAlert target={project.targetAmount} collected={project.collectedAmount} />
-
-                {/* ★ 追加：締切と返還ポリシーの表示 */}
-                {project.status === 'FUNDRAISING' && (
-                    <div className="mt-4 p-4 md:p-5 bg-slate-50 rounded-2xl border border-slate-200 shadow-sm">
-                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-3 pb-3 border-b border-slate-200/60 gap-2">
-                            <span className="text-xs font-black text-slate-500 flex items-center gap-1.5"><Clock size={14}/> 募集締切</span>
-                            
-                            {/* ★ 変更: 締切日と編集ボタンをグループ化 */}
-                            <div className="flex items-center gap-2">
-                                <span className="text-sm font-black text-rose-500 bg-rose-50 px-3 py-1 rounded-full border border-rose-100">
-                                    {project.deadline ? new Date(project.deadline).toLocaleDateString('ja-JP') : '未定'} 23:59 まで
-                                </span>
-                                
-                                {/* ★ 管理者(ADMIN)の時だけ表示される編集ボタン */}
-                                {user?.role === 'ADMIN' && (
-                                    <button 
-                                        onClick={() => setShowDeadlineModal(true)}
-                                        className="p-1.5 bg-white text-slate-400 hover:bg-rose-100 hover:text-rose-500 border border-slate-200 hover:border-rose-200 rounded-full transition-all shadow-sm"
-                                        title="【運営用】締切日を強制変更"
-                                    >
-                                        <PenTool size={14} />
-                                    </button>
-                                )}
-                            </div>
-                        </div>
-                        <ul className="text-[10px] text-slate-500 font-bold space-y-2 leading-relaxed">
-                            <li className="flex items-start gap-1.5">
-                                <span className="text-rose-400 shrink-0 mt-0.5">※</span>
-                                <span>目標金額に達した時点で、期限を待たずに<strong>即時締め切り（発注確定）</strong>となります。</span>
-                            </li>
-                            <li className="flex items-start gap-1.5">
-                                <span className="text-rose-500 shrink-0 mt-0.5">※</span>
-                                <span>万が一、締切日までに目標金額に達しなかった場合、企画は自動で中止となり、<strong className="text-rose-500">支援いただいたポイントは全額返還</strong>されます。安心してご支援ください。</span>
-                            </li>
-                        </ul>
-                    </div>
-                )}
-                {/* ★ 追加ここまで */}
-            </div>
-            
-            <div className="flex justify-center md:justify-end border-t border-slate-100 pt-4 md:pt-6">
-                <div className="flex items-center gap-3 md:gap-4 bg-slate-50 px-4 py-2.5 md:px-5 md:py-3 rounded-2xl border border-slate-100 w-full md:w-auto justify-center">
-                  <span className="text-[10px] md:text-xs font-black text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
-                    <Share2 size={14} className="md:w-4 md:h-4" /> <span className="hidden sm:inline">Share</span>
+            {/* タイトル + メタ */}
+            <div className="px-5 sm:px-6 pt-5 pb-4">
+              <div className="mb-2"><OfficialBadge projectId={project.id} isPlanner={isPlanner} /></div>
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-black text-slate-900 tracking-tight leading-snug mb-4">
+                <JpText>{project.title}</JpText>
+              </h1>
+              <div className="flex flex-wrap gap-2">
+                {project.deliveryDateTime && (
+                  <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-pink-700 bg-pink-50 px-2.5 py-1.5 rounded-xl border border-pink-100">
+                    <Calendar size={12} className="text-pink-400"/>
+                    {new Date(project.deliveryDateTime).toLocaleDateString('ja-JP', { year: 'numeric', month: 'short', day: 'numeric' })}
                   </span>
-                  <ShareButtons text={`${project.title} のフラスタ企画が進行中！一緒に参加しませんか？🌸`} />
+                )}
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-rose-700 bg-rose-50 px-2.5 py-1.5 rounded-xl border border-rose-100 max-w-[220px]">
+                  <MapPin size={12} className="text-rose-400 shrink-0"/>
+                  <span className="truncate">{project.venue?.venueName || project.deliveryAddress || '場所未定'}</span>
+                </span>
+                {project.size && (
+                  <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-slate-600 bg-slate-50 px-2.5 py-1.5 rounded-xl border border-slate-100">
+                    □ {project.size}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* プログレスセクション */}
+            <div className="px-5 sm:px-6 py-5 bg-gradient-to-br from-pink-50/40 to-rose-50/20 border-t border-slate-50">
+              <div className="flex items-center gap-4 mb-4">
+                {/* リングプログレス */}
+                <div className="relative shrink-0 w-[72px] h-[72px]">
+                  <svg className="-rotate-90 w-[72px] h-[72px]" viewBox="0 0 72 72">
+                    <circle cx="36" cy="36" r="29" fill="none" stroke="#f1f5f9" strokeWidth="7"/>
+                    <circle
+                      cx="36" cy="36" r="29" fill="none"
+                      stroke={isSuccess ? '#34d399' : 'url(#ringGrad)'}
+                      strokeWidth="7"
+                      strokeLinecap="round"
+                      strokeDasharray={`${2 * Math.PI * 29}`}
+                      strokeDashoffset={`${2 * Math.PI * 29 * (1 - percent / 100)}`}
+                    />
+                    <defs>
+                      <linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1">
+                        <stop offset="0%" stopColor="#f472b6"/>
+                        <stop offset="100%" stopColor="#fb7185"/>
+                      </linearGradient>
+                    </defs>
+                  </svg>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className={cn("text-sm font-black leading-none", isSuccess ? "text-emerald-500" : "text-pink-500")}>
+                      {percent}%
+                    </span>
+                  </div>
                 </div>
+
+                {/* 金額 */}
+                <div className="flex-1 min-w-0">
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5">現在の支援総額</p>
+                  <p className="text-2xl sm:text-3xl font-black text-slate-800 tracking-tighter leading-none">
+                    ¥{(project.collectedAmount || 0).toLocaleString()}
+                  </p>
+                  <p className="text-[11px] font-bold text-slate-400 mt-1">
+                    目標 ¥{(project.targetAmount || 0).toLocaleString()}
+                    <span className="mx-1.5 text-slate-200">|</span>
+                    1口 ¥{(project.minContributionAmount || 1000).toLocaleString()}〜
+                  </p>
+                </div>
+
+                {/* 残り日数 */}
+                {project.status === 'FUNDRAISING' && daysLeft !== null && (
+                  <div className="text-center shrink-0 bg-white rounded-2xl px-3 py-2.5 border border-rose-100 shadow-sm">
+                    <p className="text-2xl font-black text-rose-500 leading-none">{daysLeft}</p>
+                    <p className="text-[9px] font-black text-rose-400 uppercase tracking-wider mt-0.5">日後締切</p>
+                  </div>
+                )}
+              </div>
+
+              {/* プログレスバー */}
+              <div className="w-full bg-white rounded-full h-2.5 overflow-hidden shadow-inner mb-2">
+                <motion.div
+                  initial={{ width: 0 }} animate={{ width: `${percent}%` }} transition={{ duration: 1, ease: 'easeOut' }}
+                  className={cn("h-full rounded-full", isSuccess ? "bg-gradient-to-r from-emerald-400 to-green-400" : "bg-gradient-to-r from-pink-400 to-rose-400")}
+                />
+              </div>
+              <UpsellAlert target={project.targetAmount} collected={project.collectedAmount} />
+            </div>
+
+            {/* 支援者アバター列 */}
+            {project.pledges && project.pledges.length > 0 && (
+              <div className="px-5 sm:px-6 py-3.5 flex items-center gap-3 border-t border-slate-50">
+                <div className="flex -space-x-2">
+                  {project.pledges.slice(0, 7).map((pledge, i) => (
+                    <div key={pledge.id || i} className="w-8 h-8 rounded-full border-2 border-white bg-slate-100 overflow-hidden shadow-sm shrink-0">
+                      {pledge.user?.iconUrl
+                        ? <Image src={pledge.user.iconUrl} alt="" width={32} height={32} className="object-cover w-8 h-8"/>
+                        : <div className="w-8 h-8 bg-gradient-to-br from-pink-200 to-rose-200 flex items-center justify-center">
+                            <span className="text-[10px] font-black text-pink-600">
+                              {(pledge.user?.handleName || '?')[0]}
+                            </span>
+                          </div>
+                      }
+                    </div>
+                  ))}
+                  {project.pledges.length > 7 && (
+                    <div className="w-8 h-8 rounded-full border-2 border-white bg-slate-100 flex items-center justify-center shadow-sm shrink-0">
+                      <span className="text-[9px] font-black text-slate-500">+{project.pledges.length - 7}</span>
+                    </div>
+                  )}
+                </div>
+                <p className="text-xs font-bold text-slate-500">
+                  <span className="font-black text-slate-800">{project.pledges.length}</span> 人が支援中
+                </p>
+              </div>
+            )}
+
+            {/* 締切ポリシー */}
+            {project.status === 'FUNDRAISING' && (
+              <div className="px-5 sm:px-6 py-4 border-t border-slate-50">
+                <div className="flex items-start gap-3 p-4 bg-rose-50 rounded-2xl border border-rose-100">
+                  <Clock size={15} className="text-rose-400 mt-0.5 shrink-0"/>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <span className="text-xs font-black text-rose-600">
+                        {project.deadline
+                          ? new Date(project.deadline).toLocaleDateString('ja-JP') + ' 23:59 締切'
+                          : '締切日未定'}
+                      </span>
+                      {user?.role === 'ADMIN' && (
+                        <button onClick={() => setShowDeadlineModal(true)} className="p-1 bg-white text-slate-400 hover:text-rose-500 border border-slate-200 rounded-full transition-all shadow-sm">
+                          <PenTool size={11}/>
+                        </button>
+                      )}
+                    </div>
+                    <ul className="space-y-1">
+                      <li className="text-[10px] font-bold text-rose-700 flex items-start gap-1">
+                        <span className="shrink-0">※</span>
+                        <span>目標達成時点で即時締め切り・発注確定します</span>
+                      </li>
+                      <li className="text-[10px] font-bold text-rose-700 flex items-start gap-1">
+                        <span className="shrink-0">※</span>
+                        <span>未達の場合は自動中止・<strong>支援額全額返還</strong>されます</span>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* シェア */}
+            <div className="px-5 sm:px-6 py-4 border-t border-slate-50">
+              <div className="flex items-center gap-3 bg-slate-50 px-4 py-3 rounded-2xl border border-slate-100 w-full">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5 shrink-0">
+                  <Share2 size={13}/> Share
+                </span>
+                <ShareButtons text={`${project.title} のフラスタ企画が進行中！一緒に参加しませんか？🌸`}/>
+              </div>
             </div>
           </AppCard>
 
@@ -1164,7 +1249,7 @@ export default function ProjectDetailClient() {
               {activeTab === 'overview' && (
                   <div className="space-y-6 md:space-y-8">
                       <AppCard>
-                          <h2 className="text-lg md:text-xl font-black text-slate-800 mb-6 flex items-center gap-2">
+                          <h2 className="text-lg md:text-xl font-black text-slate-800 mb-5 flex items-center gap-2">
                               <Book className="text-slate-400" size={20}/> 企画の詳細
                           </h2>
                           <div className="text-slate-700 whitespace-pre-wrap leading-relaxed md:leading-loose font-medium text-xs sm:text-sm md:text-base">
@@ -1172,29 +1257,49 @@ export default function ProjectDetailClient() {
                           </div>
                       </AppCard>
 
+                      {/* デザイン参考画像ギャラリー */}
+                      {project.designImageUrls && project.designImageUrls.filter(Boolean).length > 0 && (
+                          <div>
+                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 px-1">デザイン参考画像</p>
+                              <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
+                                  {project.designImageUrls.filter(Boolean).map((url, i) => (
+                                      <div
+                                          key={i}
+                                          className="relative shrink-0 w-44 h-44 sm:w-52 sm:h-52 rounded-2xl overflow-hidden cursor-zoom-in border border-slate-100 shadow-sm hover:scale-[1.02] transition-transform"
+                                          onClick={() => { setModalImageSrc(url); setIsImageModalOpen(true); }}
+                                      >
+                                          <Image src={url} alt={`デザイン参考 ${i + 1}`} fill className="object-cover"/>
+                                          <div className="absolute inset-0 bg-gradient-to-t from-slate-900/50 to-transparent"/>
+                                          <span className="absolute bottom-2 left-3 text-[9px] font-black text-white/80 uppercase tracking-wider">参考 {i + 1}</span>
+                                      </div>
+                                  ))}
+                              </div>
+                          </div>
+                      )}
+
                       {(project.designDetails || project.size || project.flowerTypes) && (
                           <AppCard className="bg-pink-50/30 border border-pink-100">
-                              <h2 className="text-lg md:text-xl font-black text-slate-800 mb-6 flex items-center gap-2">
+                              <h2 className="text-lg md:text-xl font-black text-slate-800 mb-5 flex items-center gap-2">
                                   <ImageIcon className="text-pink-400" size={20}/> デザインの希望
                               </h2>
-                              <div className="space-y-4">
+                              <div className="space-y-3">
                                   {project.designDetails && (
-                                      <div className="bg-white p-4 md:p-6 rounded-2xl border border-pink-50 shadow-sm">
-                                          <span className="text-[10px] md:text-xs font-black text-pink-400 uppercase tracking-widest block mb-2">雰囲気・詳細</span>
-                                          <p className="text-slate-700 font-bold text-xs sm:text-sm md:text-base leading-relaxed">{project.designDetails}</p>
+                                      <div className="bg-white p-4 md:p-5 rounded-2xl border border-pink-50 shadow-sm">
+                                          <span className="text-[10px] font-black text-pink-400 uppercase tracking-widest block mb-2">雰囲気・詳細</span>
+                                          <p className="text-slate-700 font-bold text-xs sm:text-sm leading-relaxed">{project.designDetails}</p>
                                       </div>
                                   )}
-                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                  <div className="grid grid-cols-2 gap-3">
                                     {project.size && (
-                                        <div className="bg-white p-4 md:p-6 rounded-2xl border border-pink-50 shadow-sm">
-                                            <span className="text-[10px] md:text-xs font-black text-pink-400 uppercase tracking-widest block mb-2">希望サイズ</span>
-                                            <p className="text-slate-700 font-bold text-xs sm:text-sm md:text-base">{project.size}</p>
+                                        <div className="bg-white p-4 rounded-2xl border border-pink-50 shadow-sm">
+                                            <span className="text-[10px] font-black text-pink-400 uppercase tracking-widest block mb-1.5">希望サイズ</span>
+                                            <p className="text-slate-700 font-black text-sm">{project.size}</p>
                                         </div>
                                     )}
                                     {project.flowerTypes && (
-                                        <div className="bg-white p-4 md:p-6 rounded-2xl border border-pink-50 shadow-sm">
-                                            <span className="text-[10px] md:text-xs font-black text-pink-400 uppercase tracking-widest block mb-2">使いたい花</span>
-                                            <p className="text-slate-700 font-bold text-xs sm:text-sm md:text-base">{project.flowerTypes}</p>
+                                        <div className="bg-white p-4 rounded-2xl border border-pink-50 shadow-sm">
+                                            <span className="text-[10px] font-black text-pink-400 uppercase tracking-widest block mb-1.5">使いたい花</span>
+                                            <p className="text-slate-700 font-black text-sm">{project.flowerTypes}</p>
                                         </div>
                                     )}
                                   </div>
@@ -1655,11 +1760,6 @@ export default function ProjectDetailClient() {
                           )}
                           {/* ▲▲▲ 条件分岐の修正ここまで ▲▲▲ */}
 
-                          {project?.status === 'SUCCESSFUL' && (
-                              <button onClick={()=>setIsCompletionModalOpen(true)} className="w-full mt-4 bg-emerald-500 hover:bg-emerald-600 text-white p-4 rounded-2xl text-sm font-black transition-colors shadow-md flex justify-center items-center gap-2">
-                                  <CheckCircle2 size={18}/> 完了報告をする
-                              </button>
-                          )}
                           {project?.status === 'SUCCESSFUL' && (
                               <button onClick={()=>setIsCompletionModalOpen(true)} className="w-full mt-4 bg-emerald-500 hover:bg-emerald-600 text-white p-4 rounded-2xl text-sm font-black transition-colors shadow-md flex justify-center items-center gap-2">
                                   <CheckCircle2 size={18}/> 完了報告をする
