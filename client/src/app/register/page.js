@@ -24,7 +24,6 @@ export default function RegisterPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isNativeApp, setIsNativeApp] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
-  const [focusedField, setFocusedField] = useState(null);
 
   useEffect(() => {
     setIsNativeApp(sessionStorage.getItem('nativeApp') === '1');
@@ -65,12 +64,8 @@ export default function RegisterPage() {
     }
   };
 
-  const inputClass = (field) =>
-    `relative flex items-center rounded-2xl border-2 transition-all duration-200 bg-slate-50 ${
-      focusedField === field
-        ? 'border-pink-400 bg-white shadow-[0_0_0_4px_rgba(244,114,182,0.1)]'
-        : 'border-transparent'
-    }`;
+  const inputClass = () =>
+    'relative flex items-center rounded-2xl border-2 border-transparent bg-slate-50 transition-all duration-200 focus-within:border-pink-400 focus-within:bg-white focus-within:shadow-[0_0_0_4px_rgba(244,114,182,0.1)]';
 
   // ── 登録完了画面 ──
   if (isSubmitted) {
@@ -182,8 +177,7 @@ export default function RegisterPage() {
                 type="text"
                 value={formData.handleName}
                 onChange={(e) => setFormData({ ...formData, handleName: e.target.value })}
-                onFocus={() => setFocusedField('name')}
-                onBlur={() => setFocusedField(null)}
+
                 required
                 placeholder="フラスタ太郎"
                 className="w-full pl-11 pr-4 py-4 bg-transparent rounded-2xl outline-none font-medium text-slate-800 placeholder:text-slate-300 text-[16px]"
@@ -200,8 +194,7 @@ export default function RegisterPage() {
                 type="email"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                onFocus={() => setFocusedField('email')}
-                onBlur={() => setFocusedField(null)}
+
                 required
                 placeholder="example@email.com"
                 className="w-full pl-11 pr-4 py-4 bg-transparent rounded-2xl outline-none font-medium text-slate-800 placeholder:text-slate-300 text-[16px]"
@@ -218,8 +211,7 @@ export default function RegisterPage() {
                 type={showPassword ? 'text' : 'password'}
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                onFocus={() => setFocusedField('password')}
-                onBlur={() => setFocusedField(null)}
+
                 required
                 placeholder="8文字以上"
                 className="w-full pl-11 pr-12 py-4 bg-transparent rounded-2xl outline-none font-medium text-slate-800 placeholder:text-slate-300 text-[16px]"
@@ -270,8 +262,7 @@ export default function RegisterPage() {
                 type="text"
                 value={formData.referralCode}
                 onChange={(e) => setFormData({ ...formData, referralCode: e.target.value })}
-                onFocus={() => setFocusedField('referral')}
-                onBlur={() => setFocusedField(null)}
+
                 placeholder="コードを入力"
                 className="w-full pl-11 pr-4 py-4 bg-transparent rounded-2xl outline-none font-medium text-slate-800 placeholder:text-slate-300 text-[16px]"
               />

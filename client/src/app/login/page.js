@@ -20,7 +20,6 @@ function LoginForm() {
   const [showResend, setShowResend] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isNativeApp, setIsNativeApp] = useState(false);
-  const [focusedField, setFocusedField] = useState(null);
 
   useEffect(() => {
     setIsNativeApp(sessionStorage.getItem('nativeApp') === '1');
@@ -141,16 +140,12 @@ function LoginForm() {
           {/* Email */}
           <div>
             <label className="block text-xs font-bold text-slate-500 mb-1.5 ml-1">メールアドレス</label>
-            <div className={`relative flex items-center rounded-2xl border-2 transition-all duration-200 bg-slate-50 ${
-              focusedField === 'email' ? 'border-pink-400 bg-white shadow-[0_0_0_4px_rgba(244,114,182,0.1)]' : 'border-transparent'
-            }`}>
+            <div className="relative flex items-center rounded-2xl border-2 border-transparent bg-slate-50 transition-all duration-200 focus-within:border-pink-400 focus-within:bg-white focus-within:shadow-[0_0_0_4px_rgba(244,114,182,0.1)]">
               <Mail className="absolute left-4 text-slate-400" size={18} />
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                onFocus={() => setFocusedField('email')}
-                onBlur={() => setFocusedField(null)}
                 required
                 placeholder="example@email.com"
                 className="w-full pl-11 pr-4 py-4 bg-transparent rounded-2xl outline-none font-medium text-slate-800 placeholder:text-slate-300 text-[16px]"
@@ -166,16 +161,12 @@ function LoginForm() {
                 忘れた方はこちら
               </Link>
             </div>
-            <div className={`relative flex items-center rounded-2xl border-2 transition-all duration-200 bg-slate-50 ${
-              focusedField === 'password' ? 'border-pink-400 bg-white shadow-[0_0_0_4px_rgba(244,114,182,0.1)]' : 'border-transparent'
-            }`}>
+            <div className="relative flex items-center rounded-2xl border-2 border-transparent bg-slate-50 transition-all duration-200 focus-within:border-pink-400 focus-within:bg-white focus-within:shadow-[0_0_0_4px_rgba(244,114,182,0.1)]">
               <Lock className="absolute left-4 text-slate-400" size={18} />
               <input
                 type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                onFocus={() => setFocusedField('password')}
-                onBlur={() => setFocusedField(null)}
                 required
                 placeholder="••••••••"
                 className="w-full pl-11 pr-12 py-4 bg-transparent rounded-2xl outline-none font-medium text-slate-800 placeholder:text-slate-300 text-[16px]"
