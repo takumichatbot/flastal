@@ -6,17 +6,23 @@
   "id": "/",
   "display": "standalone",
   "display_override": ["standalone", "minimal-ui"],
-  "background_color": "#ffffff",
+  "background_color": "#fff0f5",
   "theme_color": "#ec4899",
   "orientation": "portrait",
   "lang": "ja",
   "categories": ["lifestyle", "social"],
   "icons": [
     {
-      "src": "/apple-icon.png",
+      "src": "/icon-512x512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/apple-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
     },
     {
       "src": "/favicon.ico",

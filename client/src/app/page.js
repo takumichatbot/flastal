@@ -174,18 +174,18 @@ const IntroLoader = ({ onComplete }) => {
       />
       {/* ロゴ */}
       <motion.div
-        className="absolute z-20 flex flex-col items-center gap-3"
+        className="absolute z-20 flex flex-col items-center gap-4"
         initial={{ opacity: 0, scale: 0.85, y: 8 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.9 }}
         transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
       >
         <motion.div
-          animate={{ rotate: [0, 10, -10, 0] }}
-          transition={{ duration: 1.5, repeat: 1, ease: "easeInOut" }}
-          className="text-5xl"
+          animate={{ scale: [1, 1.08, 1], rotate: [0, 6, -6, 0] }}
+          transition={{ duration: 1.6, ease: "easeInOut" }}
         >
-          🌸
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/icon-512x512.png" alt="FLASTAL" width={96} height={96} style={{ borderRadius: '28px', boxShadow: '0 8px 32px rgba(236,72,153,0.25)' }} />
         </motion.div>
         <div className="text-center">
           <span className="font-calligraphy text-xl text-pink-400 block mb-1">Welcome to</span>

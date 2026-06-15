@@ -16,7 +16,6 @@ import {
 } from 'lucide-react';
 
 import { useAuth } from '../contexts/AuthContext';
-import FloatingParticles from '@/app/components/FloatingParticles';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -362,15 +361,10 @@ function FloristsListContent() {
   const activeFilterCount = [filters.prefecture, filters.tag, filters.isRush].filter(Boolean).length;
 
   return (
-    <div className="bg-gradient-to-br from-pink-50/80 to-sky-50/80 min-h-screen font-sans text-slate-800 relative">
-      <FloatingParticles />
-      <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-pink-200/30 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/3 pointer-events-none" />
+    <div className="bg-[#FAF8F5] min-h-screen font-sans text-slate-800">
 
       {/* ── Fixed Header ─────────────────────────────── */}
-      <div
-        className="fixed top-0 left-0 right-0 z-40 bg-white/92 backdrop-blur-xl border-b border-slate-100 shadow-sm"
-        style={{ paddingTop: 'env(safe-area-inset-top)' }}
-      >
+      <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-xl border-b border-slate-100 shadow-sm">
         {/* Title row */}
         <div className="max-w-7xl mx-auto px-4 h-14 flex items-center gap-3">
           <button onClick={() => router.back()}
@@ -464,13 +458,7 @@ function FloristsListContent() {
       </div>
 
       {/* ── Content ──────────────────────────────────── */}
-      <div
-        className="relative z-10 max-w-7xl mx-auto px-4"
-        style={{
-          paddingTop: 'calc(7.5rem + env(safe-area-inset-top))',
-          paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))',
-        }}
-      >
+      <div className="max-w-7xl mx-auto px-4 py-5 pb-20">
         {/* Offer mode banner */}
         {projectId && (
           <div className="mb-4 p-4 bg-pink-50 border border-pink-200 rounded-2xl flex items-center justify-between gap-3">

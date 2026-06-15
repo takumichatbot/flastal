@@ -13,9 +13,6 @@ import {
     Mail, Activity, TrendingUp, UserCheck, CheckCircle2, LogOut, ArrowRight, Palette,
     Flower2, Building2, ShieldCheck, FileText, Users, Send, LayoutGrid, Image as ImageIcon
 } from 'lucide-react';
-import FloatingParticles from '@/app/components/FloatingParticles';
-
-
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
 function cn(...classes) { return classes.filter(Boolean).join(' '); }
@@ -127,11 +124,9 @@ export default function AdminPage() {
   if (loading || !isAuthenticated) return <div className="min-h-screen flex items-center justify-center bg-slate-50"><RefreshCw className="animate-spin text-3xl text-sky-500"/></div>;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-sky-50/30 p-4 sm:p-8 font-sans text-slate-800 relative overflow-hidden pb-24">
-      <FloatingParticles />
-      <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-sky-200/20 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/3 pointer-events-none z-0" />
+    <div className="min-h-screen bg-slate-50 p-4 sm:p-8 font-sans text-slate-800 pb-24">
 
-      <div className="max-w-7xl mx-auto space-y-8 relative z-10 pt-4">
+      <div className="max-w-7xl mx-auto space-y-8 pt-4">
         
         {/* --- ヘッダー --- */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-10 bg-white/60 backdrop-blur-md p-4 rounded-full border border-white shadow-sm">
