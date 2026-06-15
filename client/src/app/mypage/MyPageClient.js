@@ -425,6 +425,29 @@ function DashboardContent() {
                     <ProjectGrid />
                   </div>
                 )}
+
+                {/* 思い出アルバムプレビュー */}
+                {!loadingData && myPosts.length > 0 && (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h2 className="text-base font-black text-slate-800">最近の投稿</h2>
+                      <button onClick={() => setActiveTab('album')} className="text-xs font-bold text-pink-500 flex items-center gap-0.5 active:opacity-70">
+                        アルバムへ <ChevronRight size={14} />
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-3 gap-1 rounded-2xl overflow-hidden">
+                      {myPosts.slice(0, 6).map((post) => (
+                        <button
+                          key={post.id}
+                          onClick={() => { setActiveTab('album'); }}
+                          className="relative aspect-square bg-slate-100 active:opacity-70 transition-opacity overflow-hidden"
+                        >
+                          <Image src={post.imageUrl} alt={post.eventName} fill className="object-cover" sizes="33vw" />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 

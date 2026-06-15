@@ -429,27 +429,41 @@ function PledgeForm({ project, user, onPledgeSubmit, isPledger }) {
         )}
 
         {user && finalAmount > 0 && (
-            <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 space-y-2">
-                <div className="flex justify-between items-center text-xs font-bold text-slate-500">
-                    <span>支援総額</span>
-                    <span>{finalAmount.toLocaleString()} 円</span>
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-gradient-to-br from-pink-50 to-rose-50 rounded-2xl p-4 border border-pink-100"
+            >
+              <p className="text-[10px] font-black text-pink-400 uppercase tracking-widest mb-3">お支払い内訳</p>
+              <div className="space-y-2">
+                <div className="flex justify-between items-center text-sm font-bold text-slate-600">
+                  <span>支援金額</span>
+                  <span>{finalAmount.toLocaleString()} 円</span>
                 </div>
-                <div className="flex justify-between items-center text-xs font-bold text-pink-500 border-b border-slate-200 pb-2">
+                {pointsToUse > 0 && (
+                  <div className="flex justify-between items-center text-sm font-bold text-pink-500">
                     <span>ポイント利用 (所持: {userPoints.toLocaleString()}pt)</span>
                     <span>- {pointsToUse.toLocaleString()} pt</span>
+                  </div>
+                )}
+                <div className="h-px bg-pink-100 my-1" />
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-black text-slate-800">
+                    {cardAmount === 0 ? 'ポイントで全額決済' : 'カード決済額'}
+                  </span>
+                  <span className="text-xl font-black text-slate-800">
+                    {cardAmount.toLocaleString()} <span className="text-xs font-bold text-slate-400">円</span>
+                  </span>
                 </div>
-                <div className="flex justify-between items-center pt-1">
-                    <span className="text-sm font-black text-slate-800">クレジットカード決済額</span>
-                    <span className="text-lg font-black text-slate-800">{cardAmount.toLocaleString()} <span className="text-xs">円</span></span>
-                </div>
-            </div>
+              </div>
+            </motion.div>
         )}
 
         {!user && (
             <div className="pt-3 space-y-2 border-t border-slate-100">
               <p className="text-[10px] md:text-xs font-black text-slate-400 uppercase tracking-widest ml-1">ゲスト情報</p>
-              <input type="text" {...register('guestName')} className="w-full p-3.5 bg-slate-50 border-transparent rounded-xl text-xs md:text-sm font-bold focus:bg-white focus:border-pink-400 focus:ring-4 focus:ring-pink-50 outline-none transition-all" placeholder="お名前 (ハンドルネーム)"/>
-              <input type="email" {...register('guestEmail')} className="w-full p-3.5 bg-slate-50 border-transparent rounded-xl text-xs md:text-sm font-bold focus:bg-white focus:border-pink-400 focus:ring-4 focus:ring-pink-50 outline-none transition-all" placeholder="メールアドレス"/>
+              <input type="text" {...register('guestName')} className="w-full p-3.5 bg-slate-50 border-transparent rounded-xl text-[16px] font-bold focus:bg-white focus:border-pink-400 focus:ring-4 focus:ring-pink-50 outline-none transition-all" placeholder="お名前 (ハンドルネーム)"/>
+              <input type="email" {...register('guestEmail')} className="w-full p-3.5 bg-slate-50 border-transparent rounded-xl text-[16px] font-bold focus:bg-white focus:border-pink-400 focus:ring-4 focus:ring-pink-50 outline-none transition-all" placeholder="メールアドレス"/>
             </div>
         )}
 

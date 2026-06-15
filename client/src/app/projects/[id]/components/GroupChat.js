@@ -71,7 +71,7 @@ const ChatReportModal = ({ messageId, onClose }) => {
                 
                 <form onSubmit={handleSubmit}>
                     <textarea
-                        className="w-full p-4 border border-slate-200 rounded-2xl bg-slate-50 text-sm h-28 mb-4 focus:ring-4 focus:ring-rose-100 focus:border-rose-400 outline-none resize-none transition-all font-medium"
+                        className="w-full p-4 border border-slate-200 rounded-2xl bg-slate-50 text-[16px] h-28 mb-4 focus:ring-4 focus:ring-rose-100 focus:border-rose-400 outline-none resize-none transition-all font-medium"
                         placeholder="通報の理由を入力（例: 暴言、勧誘行為など）"
                         value={reason}
                         onChange={(e) => setReason(e.target.value)}
@@ -616,7 +616,7 @@ export default function GroupChat({ project, user, isPlanner, isPledger, isFlori
                  placeholder={isUploading ? "送信中..." : (hasPermission ? "メッセージを入力..." : "参加者のみ書き込めます")} 
                  disabled={isUploading || !hasPermission} 
                  rows="1"
-                 className="w-full bg-transparent border-0 px-2 py-3.5 focus:ring-0 outline-none resize-none text-sm font-medium max-h-32 disabled:opacity-50 placeholder:text-slate-400 placeholder:font-bold"
+                 className="w-full bg-transparent border-0 px-2 py-3.5 focus:ring-0 outline-none resize-none text-[16px] font-medium max-h-32 disabled:opacity-50 placeholder:text-slate-400 placeholder:font-bold"
                  style={{ minHeight: '48px' }}
                />
              </div>
@@ -664,7 +664,7 @@ export default function GroupChat({ project, user, isPlanner, isPledger, isFlori
                     onChange={(e) => setCustomInputModal({ ...customInputModal, text: e.target.value })} 
                     placeholder={customInputModal.template.placeholder || "ここに入力..."} 
                     required autoFocus 
-                    className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 font-bold focus:ring-4 focus:ring-pink-100 focus:border-pink-400 outline-none mb-6 transition-all"
+                    className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl text-[16px] text-slate-800 font-bold focus:ring-4 focus:ring-pink-100 focus:border-pink-400 outline-none mb-6 transition-all"
                 />
                 <div className="flex justify-end gap-3">
                     <button type="button" onClick={() => setCustomInputModal({ isOpen: false, template: null, text: '' })} className="px-5 py-3 text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 font-bold text-sm transition-colors">キャンセル</button>

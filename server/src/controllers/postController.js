@@ -22,8 +22,11 @@ export const getPublicFeed = async (req, res) => {
     const sort = req.query.sort || 'new'; // 'new' | 'popular'
     const userId = req.user?.id ?? null;
 
+    const filterUserId = req.query.userId || null;
+
     const where = {
       isPublic: true,
+      ...(filterUserId ? { userId: filterUserId } : {}),
       ...(search ? {
         OR: [
           { eventName: { contains: search, mode: 'insensitive' } },

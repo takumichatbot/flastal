@@ -1,26 +1,39 @@
 "use client";
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useAuth } from '@/app/contexts/AuthContext'; // 提示されたAuthContextをインポート
-import { Send, ImageIcon, ArrowLeft, MoreVertical } from 'lucide-react';
+import Image from 'next/image';
+import { useAuth } from '@/app/contexts/AuthContext';
+import { Send, ChevronLeft, User } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
+
+function formatTime(dateString) {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  const now = new Date();
+  if (date.toDateString() === now.toDateString()) {
+    return date.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+  }
+  return date.toLocaleDateString('ja-JP', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
 export default function ChatRoomPage() {
-  const { id: roomId } = useParams();
+  const { roomId } = useParams();
   const router = useRouter();
   const { user, token, isAuthenticated, loading: authLoading } = useAuth();
-  
+
   const [messages, setMessages] = useState([]);
+  const [recipient, setRecipient] = useState(null);
   const [newMessage, setNewMessage] = useState('');
-  const [recipient, setRecipient] = useState(null); // チャット相手の情報
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
-  
-  const messagesEndRef = useRef(null);
+
+  const bottomRef = useRef(null);
   const textareaRef = useRef(null);
 
-  // 認証チェック
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
       toast.error('ログインが必要です');
@@ -28,248 +41,231 @@ export default function ChatRoomPage() {
     }
   }, [authLoading, isAuthenticated, router]);
 
-  // チャットデータの取得
-  useEffect(() => {
+  const fetchData = useCallback(async () => {
     if (!token || !roomId) return;
-
-    const fetchChatData = async () => {
-      try {
-        // 注: バックエンドの実装に合わせてエンドポイントを調整してください
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${roomId}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-
-        if (!res.ok) throw new Error('チャット情報の取得に失敗しました');
-
-        const data = await res.json();
-        setMessages(data.messages || []);
-        setRecipient(data.recipient || { name: '相手ユーザー', iconUrl: null }); // デフォルト値
-      } catch (error) {
-        console.error(error);
-        toast.error('メッセージの読み込みに失敗しました');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchChatData();
-
-    // リアルタイム更新（ポーリング例）※Socket.ioがあればそちらに置き換え推奨
-    const interval = setInterval(fetchChatData, 10000); // 10秒ごとに更新
-    return () => clearInterval(interval);
-
+    try {
+      const res = await fetch(`${API_URL}/api/chats/${roomId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      setMessages(data.messages || []);
+      setRecipient(data.recipient || null);
+    } catch {
+      toast.error('メッセージの読み込みに失敗しました');
+    } finally {
+      setIsLoading(false);
+    }
   }, [roomId, token]);
 
-  // 最新メッセージまでスクロール
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+  useEffect(() => {
+    fetchData();
+    const interval = setInterval(fetchData, 8000);
+    return () => clearInterval(interval);
+  }, [fetchData]);
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages, isLoading]);
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
 
-  // テキストエリアの高さ自動調整
-  const handleInputResize = (e) => {
-    const target = e.target;
-    target.style.height = 'auto';
-    target.style.height = `${Math.min(target.scrollHeight, 120)}px`; // 最大120pxまで拡張
-    setNewMessage(target.value);
-  };
-
-  // メッセージ送信
-  const handleSend = async (e) => {
-    e.preventDefault();
-    if (!newMessage.trim() || isSending) return;
+  const handleSend = async () => {
+    const text = newMessage.trim();
+    if (!text || isSending) return;
 
     setIsSending(true);
+    setNewMessage('');
+    if (textareaRef.current) textareaRef.current.style.height = 'auto';
+
+    const optimisticMsg = {
+      id: `opt-${Date.now()}`,
+      content: text,
+      senderId: user?.id,
+      createdAt: new Date().toISOString(),
+      _optimistic: true,
+    };
+    setMessages(prev => [...prev, optimisticMsg]);
+
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${roomId}/messages`, {
+      const res = await fetch(`${API_URL}/api/chats/${roomId}/messages`, {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ content: newMessage })
+        body: JSON.stringify({ content: text }),
       });
-
-      if (!res.ok) throw new Error('送信エラー');
-
-      const savedMessage = await res.json();
-      
-      // UIを即時更新
-      setMessages(prev => [...prev, savedMessage]);
-      setNewMessage('');
-      if(textareaRef.current) textareaRef.current.style.height = 'auto'; // 高さリセット
-      scrollToBottom();
-
-    } catch (error) {
-      toast.error('メッセージを送信できませんでした');
+      if (!res.ok) throw new Error();
+      const saved = await res.json();
+      setMessages(prev => prev.map(m => m.id === optimisticMsg.id ? saved : m));
+    } catch {
+      setMessages(prev => prev.filter(m => m.id !== optimisticMsg.id));
+      setNewMessage(text);
+      toast.error('送信に失敗しました');
     } finally {
       setIsSending(false);
     }
   };
 
-  // Enterキーで送信（Shift+Enterで改行）
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      handleSend(e);
+      handleSend();
     }
   };
 
-  // ロード中表示
+  const handleResize = (e) => {
+    const el = e.target;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, 100)}px`;
+    setNewMessage(el.value);
+  };
+
   if (authLoading || (isLoading && !recipient)) {
     return (
-      <div className="flex h-screen items-center justify-center bg-slate-50">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-500"></div>
+      <div className="flex items-center justify-center bg-slate-50 font-sans" style={{ height: '100dvh' }}>
+        <div className="w-8 h-8 border-2 border-pink-200 border-t-pink-500 rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-64px)] bg-slate-100 md:bg-slate-50 max-w-4xl mx-auto md:my-4 md:rounded-2xl md:shadow-xl md:border md:border-slate-200 overflow-hidden">
-      
-      {/* --- ヘッダー --- */}
-      <header className="bg-white border-b border-slate-200 p-4 flex items-center justify-between sticky top-0 z-10 shadow-sm">
-        <div className="flex items-center gap-3">
-          <button onClick={() => router.back()} className="text-slate-500 hover:bg-slate-100 p-2 rounded-full transition-colors">
-            <ArrowLeft size={20} />
-          </button>
-          
-          <div className="flex items-center gap-3">
-            {/* 相手のアイコン */}
-            <div className="w-10 h-10 rounded-full bg-slate-200 overflow-hidden border border-slate-100">
-              {recipient?.iconUrl ? (
-                <img src={recipient.iconUrl} alt={recipient.name} className="w-full h-full object-cover" />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-slate-400 text-lg">👤</div>
-              )}
-            </div>
-            <div>
-              <h2 className="font-bold text-slate-800 text-sm md:text-base leading-tight">
-                {recipient?.name || 'Unknown User'}
-              </h2>
-              <p className="text-xs text-slate-500">
-                {recipient?.isOnline ? '● オンライン' : 'オフライン'}
-              </p>
-            </div>
+    <div
+      className="flex flex-col bg-slate-50 font-sans overflow-hidden"
+      style={{ height: '100dvh' }}
+    >
+      {/* ── ヘッダー ── */}
+      <div
+        className="flex-shrink-0 bg-white border-b border-slate-100 flex items-center gap-3 px-4"
+        style={{
+          paddingTop: 'env(safe-area-inset-top)',
+          height: 'calc(3.5rem + env(safe-area-inset-top))',
+        }}
+      >
+        <button
+          onClick={() => router.back()}
+          className="w-9 h-9 flex items-center justify-center rounded-full bg-slate-100 text-slate-600 active:bg-slate-200 transition-colors flex-shrink-0"
+        >
+          <ChevronLeft size={20} />
+        </button>
+
+        <div className="flex items-center gap-2.5 flex-1 min-w-0">
+          <div className="w-9 h-9 rounded-full bg-slate-100 overflow-hidden flex-shrink-0">
+            {recipient?.iconUrl ? (
+              <Image src={recipient.iconUrl} alt="" width={36} height={36} className="object-cover w-full h-full" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-slate-300">
+                <User size={18} />
+              </div>
+            )}
+          </div>
+          <div className="min-w-0">
+            <p className="font-black text-slate-800 text-sm truncate">{recipient?.name || '相手ユーザー'}</p>
+            <p className="text-[10px] text-slate-400 font-medium">
+              {recipient?.isOnline ? '● オンライン' : 'オフライン'}
+            </p>
           </div>
         </div>
-        
-        {/* メニュー（通報やブロックなど用） */}
-        <button className="text-slate-400 hover:text-slate-600 p-2">
-          <MoreVertical size={20} />
-        </button>
-      </header>
+      </div>
 
-      {/* --- メッセージエリア --- */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-6 bg-slate-100 scrollbar-thin scrollbar-thumb-slate-300">
-        {messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-slate-400 text-sm">
-            <div className="bg-slate-200 p-4 rounded-full mb-3">
-              <Send size={24} className="ml-1" />
+      {/* ── メッセージエリア ── */}
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+        {messages.length === 0 && !isLoading ? (
+          <div className="flex flex-col items-center justify-center h-full text-slate-300 py-16">
+            <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-3">
+              <Send size={20} className="text-slate-300" />
             </div>
-            <p>メッセージを送って会話を始めましょう！</p>
-            <p className="text-xs mt-1">企画の相談や詳細の確認などにご利用ください。</p>
+            <p className="text-sm font-bold text-slate-400">メッセージを送って会話を始めましょう！</p>
+            <p className="text-xs text-slate-300 mt-1">企画の相談や詳細の確認などにご利用ください</p>
           </div>
         ) : (
-          // 日付ごとにグループ化などを将来的に実装可能
-          messages.map((msg, index) => {
+          messages.map((msg, i) => {
             const isMe = msg.senderId === user?.id;
-            const showTime = index === messages.length - 1 || messages[index+1]?.senderId !== msg.senderId;
+            const prevMsg = messages[i - 1];
+            const showAvatar = !isMe && prevMsg?.senderId !== msg.senderId;
 
             return (
-              <div key={msg.id || index} className={`flex w-full ${isMe ? 'justify-end' : 'justify-start'}`}>
-                <div className={`flex max-w-[85%] md:max-w-[70%] gap-2 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
-                  
-                  {/* 相手のアイコン（連続投稿時は省略などのロジックも可） */}
-                  {!isMe && (
-                    <div className="w-8 h-8 rounded-full bg-slate-200 shrink-0 mt-1 overflow-hidden">
-                       {recipient?.iconUrl ? (
-                          <img src={recipient.iconUrl} alt="" className="w-full h-full object-cover" />
-                        ) : (
-                          <span className="flex items-center justify-center h-full text-xs">👤</span>
-                        )}
-                    </div>
-                  )}
-
-                  <div className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
-                    {/* 吹き出し */}
-                    <div className={`
-                      px-4 py-2.5 shadow-sm text-sm leading-relaxed whitespace-pre-wrap break-words
-                      ${isMe 
-                        ? 'bg-pink-500 text-white rounded-2xl rounded-tr-none' 
-                        : 'bg-white text-slate-700 border border-slate-200 rounded-2xl rounded-tl-none'}
-                    `}>
-                      {msg.content}
-                    </div>
-                    
-                    {/* タイムスタンプ */}
-                    <span className="text-[10px] text-slate-400 mt-1 px-1">
-                      {formatDate(msg.createdAt)}
-                    </span>
+              <motion.div
+                key={msg.id}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: msg._optimistic ? 0.7 : 1, y: 0 }}
+                transition={{ duration: 0.2 }}
+                className={`flex items-end gap-2 ${isMe ? 'justify-end' : 'justify-start'}`}
+              >
+                {/* 相手アイコン */}
+                {!isMe && (
+                  <div className={`w-7 h-7 rounded-full bg-slate-100 overflow-hidden flex-shrink-0 mb-1 ${showAvatar ? 'opacity-100' : 'opacity-0'}`}>
+                    {recipient?.iconUrl ? (
+                      <Image src={recipient.iconUrl} alt="" width={28} height={28} className="object-cover w-full h-full" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-slate-300 text-xs">
+                        <User size={14} />
+                      </div>
+                    )}
                   </div>
+                )}
+
+                <div className={`flex flex-col max-w-[78%] ${isMe ? 'items-end' : 'items-start'}`}>
+                  <div
+                    className={`px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap break-words shadow-sm ${
+                      isMe
+                        ? 'bg-gradient-to-br from-pink-500 to-rose-500 text-white rounded-[20px] rounded-br-[6px]'
+                        : 'bg-white text-slate-800 border border-slate-100 rounded-[20px] rounded-bl-[6px]'
+                    }`}
+                  >
+                    {msg.content}
+                  </div>
+                  <span className="text-[9px] text-slate-300 font-medium mt-1 px-1">
+                    {formatTime(msg.createdAt)}
+                  </span>
                 </div>
-              </div>
+              </motion.div>
             );
           })
         )}
-        <div ref={messagesEndRef} />
+        <div ref={bottomRef} />
       </div>
 
-      {/* --- 入力エリア --- */}
-      <div className="bg-white border-t border-slate-200 p-3 md:p-4">
-        <form onSubmit={handleSend} className="relative flex items-end gap-2 max-w-4xl mx-auto">
-          {/* ファイル添付ボタン（機能未実装ならUIのみ） */}
-          <button type="button" className="p-3 text-slate-400 hover:text-pink-500 hover:bg-slate-50 rounded-full transition-colors" title="画像を添付">
-            <ImageIcon size={20} />
-          </button>
-          
-          <div className="flex-1 bg-slate-100 rounded-2xl flex items-center px-4 py-2 border border-transparent focus-within:border-pink-300 focus-within:bg-white focus-within:ring-2 focus-within:ring-pink-100 transition-all">
+      {/* ── 入力エリア ── */}
+      <div
+        className="flex-shrink-0 bg-white border-t border-slate-100 px-4 py-3"
+        style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}
+      >
+        <div className="flex items-end gap-2">
+          <div className="flex-1 bg-slate-50 rounded-[20px] border-2 border-transparent focus-within:border-pink-300 focus-within:bg-white transition-all flex items-end px-4 py-2.5">
             <textarea
               ref={textareaRef}
               value={newMessage}
-              onChange={handleInputResize}
+              onChange={handleResize}
               onKeyDown={handleKeyDown}
               placeholder="メッセージを入力..."
-              className="w-full bg-transparent border-none focus:ring-0 resize-none text-sm text-slate-800 placeholder-slate-400 max-h-[120px] py-2"
               rows={1}
+              className="w-full bg-transparent outline-none text-[16px] text-slate-800 placeholder:text-slate-300 resize-none max-h-[100px] font-medium"
             />
           </div>
 
-          <button 
-            type="submit" 
-            disabled={!newMessage.trim() || isSending}
-            className={`
-              p-3 rounded-full shadow-md transition-all flex items-center justify-center shrink-0
-              ${!newMessage.trim() || isSending
-                ? 'bg-slate-200 text-slate-400 cursor-not-allowed' 
-                : 'bg-pink-500 text-white hover:bg-pink-600 hover:scale-105'}
-            `}
-          >
-            {isSending ? (
-              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            ) : (
-              <Send size={18} className="ml-0.5" /> // アイコンの視覚調整
+          <AnimatePresence>
+            {newMessage.trim() && (
+              <motion.button
+                key="send"
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0, opacity: 0 }}
+                whileTap={{ scale: 0.9 }}
+                type="button"
+                onClick={handleSend}
+                disabled={isSending}
+                className="w-11 h-11 bg-gradient-to-br from-pink-500 to-rose-500 text-white rounded-full flex items-center justify-center shadow-lg shadow-pink-200 flex-shrink-0 disabled:opacity-50 transition-opacity"
+              >
+                {isSending ? (
+                  <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <Send size={16} className="ml-0.5" />
+                )}
+              </motion.button>
             )}
-          </button>
-        </form>
+          </AnimatePresence>
+        </div>
       </div>
     </div>
   );
-}
-
-// ユーティリティ: 日付フォーマット
-function formatDate(dateString) {
-  if (!dateString) return '';
-  const date = new Date(dateString);
-  const now = new Date();
-  
-  // 今日なら時刻のみ
-  if (date.toDateString() === now.toDateString()) {
-    return date.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
-  }
-  // それ以外なら日付と時刻
-  return date.toLocaleDateString('ja-JP', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 }

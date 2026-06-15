@@ -12,6 +12,7 @@ import {
 import { motion, AnimatePresence, useScroll, useMotionValueEvent } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { usePathname } from 'next/navigation';
+import { io } from 'socket.io-client';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -173,11 +174,37 @@ export default function Header() {
   }, [user, isLoading, authenticatedFetch]); 
 
   useEffect(() => {
-    if (!isLoading && user) {
-      fetchNotifications();
-      const interval = setInterval(fetchNotifications, 60000); 
-      return () => clearInterval(interval); 
+    if (isLoading || !user) return;
+
+    fetchNotifications();
+
+    // Socket.IO でリアルタイム通知
+    const token = typeof window !== 'undefined'
+      ? (localStorage.getItem('authToken') || '').replace(/^"|"$/g, '')
+      : null;
+
+    let socket = null;
+    if (token) {
+      socket = io(API_URL, {
+        transports: ['polling'],
+        auth: { token: `Bearer ${token}` },
+        reconnectionDelay: 3000,
+      });
+      socket.on('connect', () => {
+        socket.emit('joinRoom', user.id);
+      });
+      socket.on('newNotification', (notif) => {
+        setNotifications(prev => [notif, ...prev]);
+      });
     }
+
+    // フォールバック: 5分ごとにポーリング
+    const interval = setInterval(fetchNotifications, 300000);
+
+    return () => {
+      socket?.disconnect();
+      clearInterval(interval);
+    };
   }, [user, isLoading, fetchNotifications]);
 
   const handleLogout = () => {
