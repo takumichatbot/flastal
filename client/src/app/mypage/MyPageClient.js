@@ -139,7 +139,9 @@ function DashboardContent() {
   }, [searchParams]);
 
   useEffect(() => {
-    setIsNative(sessionStorage.getItem('nativeApp') === '1');
+    const fromSession = sessionStorage.getItem('nativeApp') === '1';
+    const fromCapacitor = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+    setIsNative(fromSession || fromCapacitor);
   }, []);
 
   const [createdProjects, setCreatedProjects] = useState([]);

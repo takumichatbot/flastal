@@ -133,7 +133,9 @@ export default function Header() {
   const userMenuRef = useRef(null);
 
   useEffect(() => {
-    setIsNative(sessionStorage.getItem('nativeApp') === '1');
+    const fromSession = sessionStorage.getItem('nativeApp') === '1';
+    const fromCapacitor = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+    setIsNative(fromSession || fromCapacitor);
   }, []);
   
   const [hoveredNav, setHoveredNav] = useState(null);
