@@ -10,7 +10,8 @@ const SLIDES = [
     id: 0,
     bg: 'from-pink-400 to-rose-500',
     icon: Sparkles,
-    iconBg: 'bg-white/20',
+    iconBg: 'bg-white',
+    useLogo: true,
     title: 'FLASTALへようこそ',
     subtitle: 'フラスタをもっと\n楽しく、スマートに',
     body: '推し活の必須アイテム「フラスタ（フラワースタンド）」を、みんなで一緒に企画・制作できるプラットフォームです。',
@@ -158,7 +159,11 @@ export default function OnboardingPage() {
               className="w-full flex flex-col items-center gap-6"
             >
               <div className={`w-28 h-28 rounded-[2.5rem] ${slide.iconBg} flex items-center justify-center border border-white/20 shadow-xl backdrop-blur-md`}>
-                <Icon size={52} className="text-white" strokeWidth={1.5} />
+                {slide.useLogo ? (
+                  <img src="/icon-512x512.png" alt="FLASTAL" width={76} height={76} style={{ borderRadius: '18px' }} />
+                ) : (
+                  <Icon size={52} className="text-white" strokeWidth={1.5} />
+                )}
               </div>
 
               <div>

@@ -10,7 +10,7 @@ import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   User, Mail, Lock, Eye, EyeOff, Gift,
-  Loader2, Sparkles, CheckCircle2, Flower2, ArrowRight, Heart
+  Loader2, Sparkles, CheckCircle2, ArrowRight, Heart
 } from 'lucide-react';
 
 export default function RegisterPage() {
@@ -134,7 +134,7 @@ export default function RegisterPage() {
 
         {!isNativeApp && (
           <Link
-            href="/"
+            href="/login"
             className="absolute top-4 left-4 text-white/70 hover:text-white transition-colors p-2"
             style={{ marginTop: 'env(safe-area-inset-top)' }}
           >
@@ -150,8 +150,8 @@ export default function RegisterPage() {
           transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
           className="flex flex-col items-center"
         >
-          <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center mb-2 border border-white/30 shadow-lg">
-            <Flower2 className="text-white" size={24} />
+          <div className="w-12 h-12 mb-2">
+            <img src="/icon-512x512.png" alt="FLASTAL" width={48} height={48} style={{ borderRadius: '12px', boxShadow: '0 4px 16px rgba(0,0,0,0.25)' }} />
           </div>
           <h1 className="text-2xl font-black text-white tracking-tight">アカウント作成</h1>
           <p className="text-pink-100 text-xs font-bold mt-0.5 flex items-center gap-1">

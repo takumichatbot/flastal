@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/app/contexts/AuthContext';
 import {
   Calendar, MapPin, Search, AlertTriangle, CheckCircle2,
-  Plus, Cpu, ExternalLink, X, Filter, Heart, Loader2,
+  Plus, Cpu, ExternalLink, X, Heart, Loader2,
   Pencil, Trash2, User, Info, Star, ImageIcon, Upload, Globe,
   ArrowRight, Megaphone, Shield, ArrowLeft
 } from 'lucide-react';
@@ -133,48 +133,76 @@ function EventListContent() {
   };
 
   return (
-    <div className="bg-slate-50 min-h-screen py-10 font-sans text-gray-800">
-      {/* フローティング戻るボタン */}
-      <button
-        onClick={() => router.back()}
-        className="fixed left-4 z-40 w-10 h-10 bg-white/80 backdrop-blur-md rounded-full flex items-center justify-center shadow-lg border border-slate-100 active:scale-90 transition-transform"
-        style={{ top: 'calc(1rem + env(safe-area-inset-top))' }}
-        aria-label="戻る"
-      >
-        <ArrowLeft size={18} className="text-slate-700" />
-      </button>
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-
-        <div className="flex flex-col md:flex-row justify-between items-center mb-10 gap-6">
-          <div className="flex items-center gap-4">
-              <div className="bg-pink-500 p-3 rounded-2xl text-white shadow-lg shadow-pink-100">
-                  <Calendar size={28}/>
-              </div>
-              <div>
-                  <h1 className="text-3xl font-black text-gray-900 tracking-tight">イベント情報局</h1>
-                  <p className="text-gray-500 text-sm font-medium">推しのイベントを探してフラスタを贈ろう</p>
-              </div>
+    <div className="bg-[#FAF8F5] min-h-screen font-sans text-gray-800">
+      {/* Sticky header */}
+      <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-xl border-b border-slate-100 shadow-sm"
+           style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+        <div className="max-w-7xl mx-auto px-4 h-14 flex items-center gap-3">
+          <button onClick={() => router.back()}
+            className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 active:bg-slate-200 transition-colors shrink-0">
+            <ArrowLeft size={18} />
+          </button>
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            <Calendar size={16} className="text-pink-500 shrink-0" />
+            <span className="font-black text-slate-800 text-sm truncate">イベント情報局</span>
           </div>
-
-          <div className="flex gap-3">
-               <button 
-                  onClick={() => isAuthenticated ? setShowManualModal(true) : toast.error('ログインが必要です')}
-                  className="flex items-center px-6 py-3 bg-white border border-gray-200 text-gray-600 font-bold rounded-2xl hover:bg-gray-50 transition-all shadow-sm active:scale-95"
-               >
-                  <Plus className="mr-2"/> 手動追加
-               </button>
-               <button 
-                  onClick={() => isAuthenticated ? setShowAiModal(true) : toast.error('ログインが必要です')}
-                  className="flex items-center px-6 py-3 bg-gradient-to-r from-pink-500 to-rose-500 text-white font-bold rounded-2xl shadow-lg shadow-pink-100 hover:scale-105 transition-all active:scale-95"
-               >
-                  <Cpu className="mr-2"/> AI解析で追加
-               </button>
+          <button
+            onClick={() => isAuthenticated ? setShowManualModal(true) : toast.error('ログインが必要です')}
+            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 text-slate-600 font-bold text-xs rounded-xl hover:bg-slate-200 transition-all shrink-0"
+          >
+            <Plus size={14} /> 手動追加
+          </button>
+          <button
+            onClick={() => isAuthenticated ? setShowAiModal(true) : toast.error('ログインが必要です')}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-pink-500 to-rose-500 text-white font-bold text-xs rounded-xl shadow-sm shadow-pink-100 active:scale-95 transition-all shrink-0"
+          >
+            <Cpu size={14} /> AI解析
+          </button>
+        </div>
+        <div className="max-w-7xl mx-auto px-4 pb-2.5 flex gap-2">
+          <div className="flex-1 relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={15} />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="イベント名・アーティスト・会場名..."
+              className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium outline-none focus:bg-white focus:border-pink-300 focus:ring-2 focus:ring-pink-100 transition-all"
+            />
+          </div>
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            className="px-3 py-2.5 bg-slate-800 text-white font-bold text-xs rounded-2xl outline-none cursor-pointer shrink-0"
+          >
+            <option value="date">開催日順</option>
+            <option value="newest">新着順</option>
+            <option value="popular">人気順</option>
+          </select>
+        </div>
+        <div className="overflow-x-auto pb-3" style={{ scrollbarWidth: 'none' }}>
+          <div className="flex gap-2 px-4 min-w-max">
+            {GENRES.map(g => (
+              <button
+                key={g.id}
+                onClick={() => setSelectedGenre(g.id)}
+                className={`px-4 py-1.5 rounded-full text-xs font-black whitespace-nowrap transition-all ${
+                  selectedGenre === g.id
+                    ? 'bg-slate-900 text-white shadow-sm'
+                    : 'bg-white border border-slate-200 text-slate-500 hover:border-slate-300'
+                }`}
+              >
+                {g.label}
+              </button>
+            ))}
           </div>
         </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
 
         {/* イラスト公募バナー */}
-        <Link href="/illustrators/recruitment" className="block mb-10 overflow-hidden rounded-[2rem] shadow-xl shadow-rose-100 group">
+        <Link href="/illustrators/recruitment" className="block mb-8 overflow-hidden rounded-[2rem] shadow-xl shadow-rose-100 group">
           <div className="bg-gradient-to-r from-rose-500 via-pink-500 to-orange-400 p-8 flex flex-col md:flex-row justify-between items-center gap-6 relative transition-all duration-500 group-hover:scale-[1.01]">
             <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:rotate-12 transition-transform duration-700">
               <Star size={120} className="fill-white text-white" />
@@ -192,50 +220,6 @@ function EventListContent() {
             </div>
           </div>
         </Link>
-
-        <div className="bg-white rounded-[2rem] shadow-sm border border-gray-100 p-6 mb-10">
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
-            <div className="md:col-span-6">
-              <label className="block text-[10px] font-black text-gray-400 mb-1.5 uppercase tracking-widest ml-1">キーワード検索</label>
-              <div className="relative">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 size-5"/>
-                <input
-                  type="text"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="イベント名、アーティスト名、会場名..."
-                  className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-transparent rounded-2xl focus:bg-white focus:ring-2 focus:ring-pink-500 outline-none transition-all font-medium text-[16px]"
-                />
-              </div>
-            </div>
-            
-            <div className="md:col-span-4">
-              <label className="block text-[10px] font-black text-gray-400 mb-1.5 uppercase tracking-widest ml-1">ジャンル選択</label>
-              <div className="relative">
-                <Filter className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"/>
-                <select
-                  value={selectedGenre}
-                  onChange={(e) => setSelectedGenre(e.target.value)}
-                  className="w-full pl-11 pr-8 py-3.5 bg-slate-50 border border-transparent rounded-2xl focus:bg-white focus:ring-2 focus:ring-pink-500 outline-none appearance-none cursor-pointer transition-all font-bold text-gray-700 text-[16px]"
-                >
-                  {GENRES.map(g => <option key={g.id} value={g.id}>{g.label}</option>)}
-                </select>
-              </div>
-            </div>
-
-            <div className="md:col-span-2">
-              <select 
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                className="w-full py-3.5 px-4 bg-slate-800 text-white font-bold rounded-2xl outline-none cursor-pointer hover:bg-gray-900 transition-all shadow-md text-[16px]"
-              >
-                <option value="date">開催日順</option>
-                <option value="newest">新着順</option>
-                <option value="popular">人気順</option>
-              </select>
-            </div>
-          </div>
-        </div>
 
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">

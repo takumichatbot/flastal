@@ -12,7 +12,6 @@ import {
   Loader2, Zap, Star, Gem, Sparkles, Gift, CreditCard,
   ChevronLeft, History, ArrowRight,
 } from 'lucide-react';
-import FloatingParticles from '@/app/components/FloatingParticles';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -119,14 +118,11 @@ function PointsPageContent() {
   const pts = user?.points || 0;
 
   return (
-    <div className="bg-gradient-to-br from-slate-50 to-amber-50/30 min-h-screen font-sans text-slate-800 relative overflow-hidden">
-      <FloatingParticles />
-      <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-amber-200/20 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/3 pointer-events-none" />
-      <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-rose-100/20 rounded-full blur-[80px] translate-y-1/3 -translate-x-1/3 pointer-events-none" />
+    <div className="bg-[#FAF8F5] min-h-screen font-sans text-slate-800">
 
-      {/* ── Fixed Header ─────────────────────────────── */}
+      {/* ── Sticky Header ─────────────────────────────── */}
       <div
-        className="fixed top-0 left-0 right-0 z-30 bg-white/90 backdrop-blur-xl border-b border-slate-100 shadow-sm"
+        className="sticky top-0 z-30 bg-white/95 backdrop-blur-xl border-b border-slate-100 shadow-sm"
         style={{ paddingTop: 'env(safe-area-inset-top)' }}
       >
         <div className="max-w-2xl mx-auto px-4 h-14 flex items-center gap-3">
@@ -163,11 +159,8 @@ function PointsPageContent() {
 
       {/* ── Content ──────────────────────────────────── */}
       <div
-        className="relative z-10 max-w-2xl mx-auto px-4"
-        style={{
-          paddingTop: 'calc(8rem + env(safe-area-inset-top))',
-          paddingBottom: 'calc(4rem + env(safe-area-inset-bottom))',
-        }}
+        className="max-w-2xl mx-auto px-4 py-5"
+        style={{ paddingBottom: 'calc(4rem + env(safe-area-inset-bottom))' }}
       >
         {/* Balance hero card */}
         <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-[2rem] p-6 text-white shadow-xl mb-6 relative overflow-hidden">

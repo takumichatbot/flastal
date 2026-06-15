@@ -9,7 +9,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mail, Lock, Eye, EyeOff, Loader2, Sparkles, ArrowRight, Flower2 } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, Loader2, Sparkles, ArrowRight } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -109,8 +109,8 @@ function LoginForm() {
           transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
           className="flex flex-col items-center"
         >
-          <div className="w-14 h-14 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center mb-2 border border-white/30 shadow-lg">
-            <Flower2 className="text-white" size={28} />
+          <div className="w-14 h-14 mb-2">
+            <img src="/icon-512x512.png" alt="FLASTAL" width={56} height={56} style={{ borderRadius: '14px', boxShadow: '0 4px 20px rgba(0,0,0,0.25)' }} />
           </div>
           <h1 className="text-3xl font-black text-white tracking-tight">FLASTAL</h1>
           <p className="text-pink-100 text-xs font-bold mt-0.5 tracking-wider">推しへの想いを、花束に</p>

@@ -16,13 +16,13 @@ export default function NotFound() {
         transition={{ duration: 0.6, ease: "easeOut" }}
         className="max-w-md w-full bg-white/80 backdrop-blur-xl p-10 rounded-[3rem] shadow-[0_8px_40px_rgba(244,114,182,0.15)] border border-white relative z-10"
       >
-        <motion.span
+        <motion.div
           animate={{ rotate: [0, -8, 8, -8, 0], y: [0, -8, 0] }}
           transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-          className="text-7xl mb-6 block select-none"
+          className="mb-6 flex justify-center select-none"
         >
-          🌸
-        </motion.span>
+          <img src="/icon-512x512.png" alt="FLASTAL" width={80} height={80} style={{ borderRadius: '22px', boxShadow: '0 8px 24px rgba(236,72,153,0.2)' }} />
+        </motion.div>
 
         <h1 className="text-7xl font-black text-pink-500 tracking-tighter mb-2">404</h1>
         <h2 className="text-xl font-black text-slate-800 mb-3">お花が見つかりませんでした</h2>
