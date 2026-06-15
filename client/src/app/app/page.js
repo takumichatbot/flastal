@@ -10,6 +10,7 @@ export default function AppEntryPage() {
   const router = useRouter();
 
   useEffect(() => {
+    sessionStorage.setItem('nativeApp', '1');
     try {
       const raw = localStorage.getItem('authToken');
       const token = raw ? raw.replace(/['"]+/g, '').trim() : null;

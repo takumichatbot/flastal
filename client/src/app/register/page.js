@@ -28,6 +28,8 @@ export default function RegisterPage() {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isNativeApp, setIsNativeApp] = useState(false);
+  useEffect(() => { setIsNativeApp(sessionStorage.getItem('nativeApp') === '1'); }, []);
   const [isSubmitted, setIsSubmitted] = useState(false);
   
   const router = useRouter();
@@ -116,9 +118,11 @@ export default function RegisterPage() {
         className="bg-white/80 backdrop-blur-xl max-w-md w-full p-8 md:p-10 border border-white rounded-[2.5rem] shadow-[0_8px_30px_rgba(244,114,182,0.15)] relative z-10"
       >
         <div className="text-center mb-8 relative">
-          <Link href="/" className="absolute left-0 top-0 text-slate-400 hover:text-pink-500 transition-colors p-2 -ml-2 -mt-2 rounded-full hover:bg-pink-50">
-            <ArrowLeft size={20} />
-          </Link>
+          {!isNativeApp && (
+            <Link href="/" className="absolute left-0 top-0 text-slate-400 hover:text-pink-500 transition-colors p-2 -ml-2 -mt-2 rounded-full hover:bg-pink-50">
+              <ArrowLeft size={20} />
+            </Link>
+          )}
           
           <div className="w-16 h-16 bg-gradient-to-br from-pink-100 to-rose-100 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-inner -rotate-3">
             <Heart className="text-pink-500 fill-pink-500" size={28} />
