@@ -12,15 +12,17 @@ export const getPublicProfile = async (req, res) => {
             where: { id },
             select: {
                 id: true, handleName: true, iconUrl: true, bio: true,
-                favoriteGenres: true, twitterUrl: true, instagramUrl: true, isProfilePublic: true,
+                favoriteGenres: true, twitterUrl: true, instagramUrl: true,
+                isProfilePublic: true, totalPledgedAmount: true, supportLevel: true, badgeIds: true,
+                createdAt: true,
                 pledges: {
                     where: { project: { status: { in: ['SUCCESSFUL', 'COMPLETED'] }, visibility: 'PUBLIC' } },
-                    include: { project: { select: { id: true, title: true, imageUrl: true, status: true } } },
+                    include: { project: { select: { id: true, title: true, imageUrl: true, status: true, collectedAmount: true } } },
                     orderBy: { createdAt: 'desc' }
                 },
                 createdProjects: {
                     where: { status: { in: ['SUCCESSFUL', 'COMPLETED', 'FUNDRAISING'] }, visibility: 'PUBLIC' },
-                    select: { id: true, title: true, imageUrl: true, status: true },
+                    select: { id: true, title: true, imageUrl: true, status: true, collectedAmount: true, targetAmount: true },
                     orderBy: { createdAt: 'desc' }
                 }
             }
