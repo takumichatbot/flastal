@@ -374,7 +374,26 @@ export const subscribePush = async (req, res) => {
 };
 
 export const sendTestPush = async (req, res) => {
-    res.json({ message: 'テスト送信機能は未実装です' }); 
+    res.json({ message: 'テスト送信機能は未実装です' });
+};
+
+export const registerNativeDeviceToken = async (req, res) => {
+    const { token } = req.body;
+    const userId = req.user.id;
+    if (!token) return res.status(400).json({ message: 'tokenは必須です' });
+    try {
+        // APNs device token を PushSubscription の endpoint フィールドに保存
+        // p256dh / auth は Web Push 専用フィールドのためプレースホルダーを使用
+        await prisma.pushSubscription.upsert({
+            where: { endpoint: `apns:${token}` },
+            update: { userId },
+            create: { userId, endpoint: `apns:${token}`, p256dh: 'native', auth: 'native' }
+        });
+        res.status(201).json({ message: 'デバイストークンを登録しました' });
+    } catch (error) {
+        console.error('[NativePush] デバイストークン登録エラー:', error);
+        res.status(500).json({ message: '登録に失敗しました' });
+    }
 };
 
 // 画像アップロード用 (Cloudinary用)

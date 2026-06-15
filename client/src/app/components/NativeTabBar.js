@@ -5,6 +5,7 @@ import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/app/contexts/AuthContext';
 import { Home, Heart, MessageCircle, Bell, Settings } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { usePushNotifications } from '@/app/hooks/usePushNotifications';
 
 const TABS = [
   { id: 'home',          label: 'ホーム',     icon: Home,     href: '/mypage' },
@@ -29,6 +30,7 @@ function getActiveTab(pathname, tab) {
 export default function NativeTabBar() {
   const [isNative, setIsNative] = useState(false);
   const [unread, setUnread] = useState(0);
+  usePushNotifications();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();

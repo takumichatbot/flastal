@@ -49,7 +49,10 @@ router.post('/upload-image', authenticateToken, upload.single('image'), toolCont
 // 画像からお花屋さん検索
 router.post('/search-florist-by-image', authenticateToken, upload.single('image'), toolController.searchFloristByImage);
 
-// Push通知登録
+// Web Push通知登録
 router.post('/subscribe-push', authenticateToken, toolController.subscribePush);
+
+// ネイティブ(APNs)デバイストークン登録
+router.post('/native-device-token', authenticateToken, toolController.registerNativeDeviceToken);
 
 export default router;
