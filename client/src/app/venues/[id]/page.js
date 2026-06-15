@@ -4,14 +4,12 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '../../contexts/AuthContext';
-import { motion } from 'framer-motion';
 
 // 修正後 (User, Camera を追加):
 import {
   MapPin, Info, AlertTriangle, CheckCircle2,
   XCircle, ArrowRight, Edit3, Settings, Calendar, Truck, ExternalLink, Image as ImageIcon, Loader2, User, Camera, ArrowLeft
 } from 'lucide-react';
-import FloatingParticles from '@/app/components/FloatingParticles';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -56,22 +54,21 @@ export default function VenueDetailPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50/50 to-sky-50/50 font-sans text-slate-800 relative overflow-hidden pb-24">
-      {/* フローティング戻るボタン */}
+      {/* 戻るボタン */}
       <button
         onClick={() => router.back()}
-        className="fixed left-4 z-50 w-10 h-10 bg-white/80 backdrop-blur-md rounded-full flex items-center justify-center shadow-lg border border-slate-100 active:scale-90 transition-transform"
+        className="fixed left-4 z-[100] w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-lg border border-slate-200 active:scale-90 transition-transform"
         style={{ top: 'calc(1rem + env(safe-area-inset-top))' }}
         aria-label="戻る"
       >
         <ArrowLeft size={18} className="text-slate-700" />
       </button>
-      <FloatingParticles />
       <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-sky-200/30 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/3 pointer-events-none z-0" />
       <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-indigo-200/20 rounded-full blur-[100px] translate-y-1/3 -translate-x-1/3 pointer-events-none z-0" />
 
       {/* 会場専用管理バー */}
       {isOwner && (
-        <div className="bg-amber-50/90 backdrop-blur-md border-b border-amber-200 py-3 sticky top-0 z-50 shadow-sm">
+        <div className="bg-amber-50/90 backdrop-blur-md border-b border-amber-200 py-3 sticky top-0 z-40 shadow-sm">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center text-amber-800 font-black text-xs uppercase tracking-widest gap-2">
               <Settings size={14}/> 会場管理モード

@@ -15,7 +15,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Search, MapPin, CheckCircle2, Loader2, Plus, Trash2, ShieldCheck, Filter, Building2 
 } from 'lucide-react';
-import FloatingParticles from '@/app/components/FloatingParticles';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -120,38 +119,30 @@ function VenuesContent() {
   });
 
   return (
-    <div className="bg-gradient-to-br from-indigo-50/50 to-sky-50/50 min-h-screen py-10 md:py-16 font-sans text-slate-800 relative overflow-hidden pb-24">
-      <FloatingParticles />
-      <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-sky-200/30 rounded-full blur-[100px] -translate-y-1/2 -translate-x-1/3 pointer-events-none z-0" />
-      <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-indigo-200/20 rounded-full blur-[100px] translate-y-1/3 translate-x-1/3 pointer-events-none z-0" />
+    <div className="bg-gradient-to-br from-indigo-50/50 to-sky-50/50 min-h-screen font-sans text-slate-800 relative pb-24">
 
-      {/* フローティング戻るボタン */}
-      <button
-        onClick={() => router.back()}
-        className="fixed left-4 z-40 w-10 h-10 bg-white/80 backdrop-blur-md rounded-full flex items-center justify-center shadow-lg border border-slate-100 active:scale-90 transition-transform"
-        style={{ top: 'calc(1rem + env(safe-area-inset-top))' }}
-        aria-label="戻る"
+      {/* Sticky header */}
+      <div
+        className="sticky top-0 z-40 bg-white/95 backdrop-blur-xl border-b border-slate-100 shadow-sm"
+        style={{ paddingTop: 'env(safe-area-inset-top)' }}
       >
-        <ArrowLeft size={18} className="text-slate-700" />
-      </button>
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-
-        {/* ヘッダーセクション */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col md:flex-row justify-between items-center md:items-end mb-10 gap-6 text-center md:text-left">
-          <div>
-            <div className="inline-flex items-center justify-center w-12 h-12 bg-white rounded-2xl shadow-sm border border-sky-100 mb-4 text-sky-500 rotate-3">
-              <Building2 size={24} className="animate-pulse" />
-            </div>
-            <h1 className="text-3xl md:text-5xl font-black text-slate-900 tracking-tighter mb-2">会場・施設を探す</h1>
-            <p className="text-slate-500 font-bold text-sm md:text-base">推しへ想いを届けるための全国の会場データベース🏛️</p>
-          </div>
-          <Link href="/venues/add">
-            <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="inline-flex items-center px-8 py-4 bg-gradient-to-r from-sky-400 to-indigo-500 text-white font-black rounded-full shadow-lg shadow-sky-200 transition-all w-full md:w-auto justify-center gap-2">
-              <Plus size={18}/> 新しい会場情報を教える
-            </motion.button>
+        <div className="flex items-center h-14 px-4 max-w-7xl mx-auto gap-3">
+          <button
+            onClick={() => router.back()}
+            className="p-2 -ml-1 rounded-xl active:bg-slate-100 transition-colors text-slate-600"
+          >
+            <ArrowLeft size={22} />
+          </button>
+          <span className="flex-1 font-black text-slate-800 text-base tracking-tight">会場を探す</span>
+          <Link href="/venues/add"
+            className="px-3 py-2 bg-sky-500 text-white text-xs font-black rounded-xl flex items-center gap-1.5 active:scale-95 transition-transform shadow-sm"
+          >
+            <Plus size={14} /> 会場を追加
           </Link>
-        </motion.div>
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 pt-6">
 
         {/* 検索フォーム */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
