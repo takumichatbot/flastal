@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/app/contexts/AuthContext';
 import { useForm } from 'react-hook-form';
 import { io } from 'socket.io-client';
@@ -587,9 +587,31 @@ function DeadlineEditModal({ project, onClose, onUpdate, authenticatedFetch }) {
 export default function ProjectDetailClient() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { id } = params;
-  
-  const [activeTab, setActiveTab] = useState('overview'); 
+
+  // Stripe決済完了 / キャンセルの検出
+  useEffect(() => {
+    const payment = searchParams.get('payment');
+    if (!payment) return;
+    // URLパラメータをクリア
+    const url = new URL(window.location.href);
+    url.searchParams.delete('payment');
+    router.replace(url.pathname, { scroll: false });
+
+    if (payment === 'success') {
+      import('canvas-confetti').then(({ default: confetti }) => {
+        setTimeout(() => {
+          confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 }, colors: ['#ec4899', '#f43f5e', '#a855f7', '#fbbf24'] });
+        }, 300);
+      }).catch(() => {});
+      toast.success('支援が完了しました！ありがとうございます 🌸', { duration: 6000, icon: '🎉' });
+    } else if (payment === 'cancelled') {
+      toast('決済がキャンセルされました', { icon: 'ℹ️' });
+    }
+  }, [searchParams, router]);
+
+  const [activeTab, setActiveTab] = useState('overview');
   const [collabTab, setCollabTab] = useState('chat');
 
   const [aiSummary, setAiSummary] = useState(null);
