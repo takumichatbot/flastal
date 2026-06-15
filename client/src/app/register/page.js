@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../contexts/AuthContext';
 import Link from 'next/link';
@@ -22,12 +22,7 @@ export default function RegisterPage() {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [isNativeApp, setIsNativeApp] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
-
-  useEffect(() => {
-    setIsNativeApp(sessionStorage.getItem('nativeApp') === '1');
-  }, []);
 
   const router = useRouter();
   const { register } = useAuth();
@@ -132,17 +127,15 @@ export default function RegisterPage() {
         <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full" />
         <div className="absolute -bottom-6 -left-6 w-28 h-28 bg-white/10 rounded-full" />
 
-        {!isNativeApp && (
-          <Link
-            href="/login"
-            className="absolute top-4 left-4 text-white/70 hover:text-white transition-colors p-2"
-            style={{ marginTop: 'env(safe-area-inset-top)' }}
-          >
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <path d="M19 12H5M5 12l7-7M5 12l7 7"/>
-            </svg>
-          </Link>
-        )}
+        <Link
+          href="/login"
+          className="absolute top-4 left-4 text-white/70 hover:text-white transition-colors p-2"
+          style={{ marginTop: 'env(safe-area-inset-top)' }}
+        >
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <path d="M19 12H5M5 12l7-7M5 12l7 7"/>
+          </svg>
+        </Link>
 
         <motion.div
           initial={{ scale: 0.8, opacity: 0 }}
