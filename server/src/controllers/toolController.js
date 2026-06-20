@@ -35,28 +35,31 @@ const s3Client = new S3Client({
 export const getS3UploadUrl = async (req, res) => {
     try {
         const { fileName, fileType } = req.body;
-        
+
         if (!fileName || !fileType) {
             return res.status(400).json({ message: 'ファイル情報が不足しています。' });
+        }
+
+        const bucketName = process.env.AWS_S3_BUCKET_NAME || process.env.AWS_BUCKET_NAME;
+        if (!bucketName) {
+            console.error('S3バケット名の環境変数が未設定 (AWS_S3_BUCKET_NAME / AWS_BUCKET_NAME)');
+            return res.status(500).json({ message: 'サーバー設定エラー: S3バケット未設定' });
         }
 
         const extension = fileName.split('.').pop();
         const fileKey = `events/${Date.now()}.${extension}`;
 
         const command = new PutObjectCommand({
-            Bucket: process.env.AWS_S3_BUCKET_NAME,
+            Bucket: bucketName,
             Key: fileKey,
             ContentType: fileType,
         });
 
-        const signedUrl = await getSignedUrl(s3Client, command, { 
-            expiresIn: 300,
-            unhoistableHeaders: new Set(['content-type']),
-        });
-        
-        res.json({ 
-            uploadUrl: signedUrl, 
-            fileUrl: `https://${process.env.AWS_S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${fileKey}` 
+        const signedUrl = await getSignedUrl(s3Client, command, { expiresIn: 300 });
+
+        res.json({
+            uploadUrl: signedUrl,
+            fileUrl: `https://${bucketName}.s3.${process.env.AWS_REGION}.amazonaws.com/${fileKey}`
         });
     } catch (err) {
         console.error("S3署名エラー:", err);
