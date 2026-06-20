@@ -120,11 +120,16 @@ export const deleteVenue = async (req, res) => {
     const { id } = req.params;
     if (req.user.role !== 'ADMIN') return res.status(403).json({ message: '権限がありません。' });
     try {
-        await prisma.venue.delete({ where: { id } });
+        await prisma.$transaction(async (tx) => {
+            // 外部キー制約を持つ関連レコードの venueId を先に null にする
+            await tx.project.updateMany({ where: { venueId: id }, data: { venueId: null } });
+            await tx.event.updateMany({ where: { venueId: id }, data: { venueId: null } });
+            await tx.venue.delete({ where: { id } });
+        });
         res.status(204).send();
-    } catch (e) { 
+    } catch (e) {
         console.error('deleteVenue Error:', e);
-        res.status(500).json({ message: '会場の削除に失敗しました。' }); 
+        res.status(500).json({ message: '会場の削除に失敗しました。' });
     }
 };
 
