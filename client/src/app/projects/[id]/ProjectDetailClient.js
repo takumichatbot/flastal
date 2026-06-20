@@ -884,22 +884,18 @@ export default function ProjectDetailClient() {
   const handleGenerateAr = async () => {
       if (!arImageFile) return toast.error('画像を選択してください');
       setArGenLoading(true);
-      const toastId = toast.loading('ARを起動中...');
+      const toastId = toast.loading('ARモデルを生成中...');
       try {
-          const formData = new FormData();
-          formData.append('image', arImageFile);
-          
-          const res = await authenticatedFetch(`${API_URL}/api/tools/upload-image`, {
-              method: 'POST',
-              body: formData
-          });
-          if (!res.ok) throw new Error('エラーが発生しました');
-          const data = await res.json();
-          
-          setArSrc(data.url); 
-          toast.success('起動しました！', { id: toastId });
+          // 既存のblobURLがあれば解放
+          if (arSrc && arSrc.startsWith('blob:')) URL.revokeObjectURL(arSrc);
+
+          const { imageFileToGlbUrl } = await import('@/app/utils/imageToGlb');
+          const glbUrl = await imageFileToGlbUrl(arImageFile, Number(arHeight) || 200);
+          setArSrc(glbUrl);
+          toast.success('ARモデル準備完了！', { id: toastId });
       } catch (err) {
-          toast.error('ARの起動に失敗しました', { id: toastId });
+          console.error('AR generate error:', err);
+          toast.error('生成に失敗しました', { id: toastId });
       } finally {
           setArGenLoading(false);
       }
@@ -1898,7 +1894,7 @@ export default function ProjectDetailClient() {
                     <div className="flex flex-col items-center">
                         <p className="text-sm text-center text-slate-600 mb-6 font-bold leading-relaxed">カメラを起動して、平らな床に向けてください。<br/>高さ <strong className="text-pink-500">{arHeight}cm</strong> のパネルが表示されます。</p>
                         <div className="w-full aspect-[3/4] bg-black rounded-[2rem] overflow-hidden shadow-2xl border-4 border-slate-800"><ArViewer src={arSrc} alt="AR" /></div>
-                        <button onClick={() => { setArSrc(null); setArImageFile(null); }} className="mt-8 px-6 py-3 bg-slate-100 rounded-full text-sm font-black text-slate-500 flex items-center hover:bg-slate-200 transition-colors"><RefreshCw className="mr-2" size={16}/> 別の画像で試す</button>
+                        <button onClick={() => { if (arSrc?.startsWith('blob:')) URL.revokeObjectURL(arSrc); setArSrc(null); setArImageFile(null); }} className="mt-8 px-6 py-3 bg-slate-100 rounded-full text-sm font-black text-slate-500 flex items-center hover:bg-slate-200 transition-colors"><RefreshCw className="mr-2" size={16}/> 別の画像で試す</button>
                     </div>
                 )}
               </div>
