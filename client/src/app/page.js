@@ -664,17 +664,6 @@ const BentoFeatures = () => {
       iconBg: "bg-amber-100",
       textColor: "text-amber-700",
     },
-    {
-      title: "レギュレーション確認済み",
-      desc: "お花送付のルールを会場と連携。「サイズオーバーで置けなかった」という悲劇を防ぎます。",
-      span: "col-span-1 md:col-span-2",
-      icon: Building,
-      gradient: "from-slate-50 to-gray-50",
-      border: "border-slate-100",
-      iconColor: "text-slate-500",
-      iconBg: "bg-slate-100",
-      textColor: "text-slate-600",
-    }
   ];
 
   return (
