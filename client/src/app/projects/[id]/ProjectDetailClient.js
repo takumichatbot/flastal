@@ -996,9 +996,10 @@ export default function ProjectDetailClient() {
     : null;
 
   const TABS = [
-    { id: 'overview', label: '概要と報告', icon: Book }, 
-    { id: 'collaboration', label: '共同作業', icon: PenTool }, 
-    { id: 'finance', label: '収支報告', icon: DollarSign }
+    { id: 'overview',       label: '概要と報告', icon: Book },
+    { id: 'backers',        label: '支援者',     icon: Users },
+    { id: 'collaboration',  label: '共同作業',   icon: PenTool },
+    { id: 'finance',        label: '収支報告',   icon: DollarSign }
   ];
 
   return (
@@ -1381,6 +1382,58 @@ export default function ProjectDetailClient() {
                           )}
                       </div>
                   </div>
+              )}
+
+              {/* ===== 支援者タブ ===== */}
+              {activeTab === 'backers' && (
+                <div className="space-y-4">
+                  {(!project.pledges || project.pledges.length === 0) ? (
+                    <AppCard className="text-center py-16">
+                      <Users size={40} className="text-slate-200 mx-auto mb-4" />
+                      <p className="font-black text-slate-400">まだ支援者がいません</p>
+                      <p className="text-xs text-slate-300 mt-1">最初の支援者になりましょう！</p>
+                    </AppCard>
+                  ) : (
+                    <AppCard>
+                      <div className="flex items-center justify-between mb-5">
+                        <h2 className="text-base font-black text-slate-800 flex items-center gap-2">
+                          <Users size={18} className="text-pink-400" />
+                          支援者一覧
+                        </h2>
+                        <span className="text-xs font-black text-pink-500 bg-pink-50 px-3 py-1 rounded-full">
+                          {project.pledges.length} 人
+                        </span>
+                      </div>
+                      <div className="space-y-3">
+                        {project.pledges.map((pledge, i) => (
+                          <div key={pledge.id || i} className="flex items-center gap-3 p-3 rounded-2xl hover:bg-slate-50 transition-colors">
+                            <div className="w-10 h-10 rounded-full border-2 border-white bg-slate-100 overflow-hidden shadow-sm shrink-0">
+                              {pledge.user?.iconUrl
+                                ? <Image src={pledge.user.iconUrl} alt="" width={40} height={40} className="object-cover w-10 h-10" />
+                                : <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-pink-100 to-rose-100 text-pink-400 font-black text-sm">
+                                    {(pledge.user?.handleName || '?')[0]}
+                                  </div>
+                              }
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-black text-sm text-slate-800 truncate">
+                                {pledge.user?.handleName || '匿名'}
+                              </p>
+                              {pledge.comment && (
+                                <p className="text-xs text-slate-500 font-medium mt-0.5 truncate">"{pledge.comment}"</p>
+                              )}
+                            </div>
+                            <div className="shrink-0 text-right">
+                              <span className="text-xs font-black text-pink-500 bg-pink-50 px-2.5 py-1 rounded-full">
+                                ¥{(pledge.amount || 0).toLocaleString()}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </AppCard>
+                  )}
+                </div>
               )}
 
               {activeTab === 'collaboration' && (
