@@ -561,7 +561,7 @@ export const updateProductionDetails = async (req, res) => {
     const userId = req.user.id;
     const {
         productionStatus, illustrationPanelUrls, messagePanelUrls,
-        sponsorPanelUrls, preEventPhotoUrls
+        sponsorPanelUrls, preEventPhotoUrls, completionImageUrls
     } = req.body;
 
     try {
@@ -583,6 +583,7 @@ export const updateProductionDetails = async (req, res) => {
                 messagePanelUrls: messagePanelUrls || undefined,
                 sponsorPanelUrls: sponsorPanelUrls || undefined,
                 preEventPhotoUrls: preEventPhotoUrls || undefined,
+                completionImageUrls: completionImageUrls || undefined,
             }
         });
 

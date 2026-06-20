@@ -238,16 +238,16 @@ function PhotoUploadArea({ urls = [], type, projectId, onUploadComplete }) {
                 xhr.send(file);
             });
 
-            const field = type === 'pre_photo' ? 'preEventPhotoUrls' : 'completionPhotoUrls';
-            const updateRes = await fetch(`${API_URL}/api/projects/${projectId}`, {
+            const field = type === 'pre_photo' ? 'preEventPhotoUrls' : 'completionImageUrls';
+            const updateRes = await fetch(`${API_URL}/api/projects/${projectId}/production`, {
                 method: 'PATCH',
-                headers: { 
+                headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}` 
+                    'Authorization': `Bearer ${token}`
                 },
                 body: JSON.stringify({ [field]: [...urls, fileUrl] })
             });
-            
+
             if(!updateRes.ok) throw new Error('企画情報の更新に失敗しました');
 
             toast.success('写真をアップロードしました', { id: toastId });
