@@ -31,5 +31,9 @@ export default async function ArtistPage({ params }) {
     const projectsRes = await fetch(`${API_URL}/api/artists/${slug}/projects`, { next: { revalidate: 300 } });
     const projects = projectsRes.ok ? await projectsRes.json() : [];
 
-    return <ArtistPageClient artist={artist} projects={projects} />;
+    const eventsRes = await fetch(`${API_URL}/api/events?artistSlug=${slug}&upcoming=true`, { next: { revalidate: 300 } });
+    const eventsData = eventsRes.ok ? await eventsRes.json() : [];
+    const events = Array.isArray(eventsData) ? eventsData : (eventsData?.events ?? []);
+
+    return <ArtistPageClient artist={artist} projects={projects} events={events} />;
 }

@@ -1,6 +1,7 @@
 import cron from 'node-cron';
 import prisma from '../config/prisma.js';
 import { createNotification } from '../utils/notification.js';
+import { queueEmail } from '../utils/email.js';
 
 // 毎日深夜 0時0分 に実行される設定 ('0 0 * * *')
 // ※日本時間(JST)で動かすための設定を入れています
@@ -95,4 +96,83 @@ cron.schedule('0 0 * * *', async () => {
 }, {
   scheduled: true,
   timezone: "Asia/Tokyo" // 確実に日本時間の深夜0時に動かす
+});
+
+// ==========================================
+// 毎日午前9時 (JST) に実行: 締切3日前リマインダーメール
+// ==========================================
+export async function sendDeadlineReminderEmails() {
+  console.log('--- [CRON] 実行: 締切3日前リマインダーメールバッチ ---');
+  try {
+    const now = new Date();
+    const threeDaysFromNow = new Date(now);
+    threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3);
+
+    // 締切が現在〜3日後の FUNDRAISING 企画を取得
+    const projects = await prisma.project.findMany({
+      where: {
+        status: 'FUNDRAISING',
+        deadline: {
+          gte: now,
+          lte: threeDaysFromNow,
+        },
+      },
+      include: {
+        pledges: {
+          where: { userId: { not: null } },
+          include: {
+            user: { select: { id: true, email: true, handleName: true } },
+          },
+          distinct: ['userId'],
+        },
+      },
+    });
+
+    // 目標未達成の企画のみ対象
+    const failingProjects = projects.filter(
+      (p) => p.collectedAmount < p.targetAmount
+    );
+
+    if (failingProjects.length === 0) {
+      console.log('[リマインダー] 対象企画なし');
+      return;
+    }
+
+    for (const project of failingProjects) {
+      const progress =
+        project.targetAmount > 0
+          ? Math.round((project.collectedAmount / project.targetAmount) * 100)
+          : 0;
+      const remaining = Math.max(0, project.targetAmount - project.collectedAmount);
+      const hoursLeft = Math.round(
+        (new Date(project.deadline) - now) / 3600000
+      );
+
+      for (const pledge of project.pledges) {
+        if (!pledge.user?.email) continue;
+        queueEmail(pledge.user.email, 'DEADLINE_REMINDER', {
+          userName: pledge.user.handleName || 'さん',
+          projectTitle: project.title,
+          progress,
+          remaining: remaining.toLocaleString(),
+          hoursLeft,
+          projectId: project.id,
+        });
+        console.log(
+          `[リマインダー] 送信: ${pledge.user.email} → 企画「${project.title}」`
+        );
+      }
+    }
+
+    console.log(
+      `--- [CRON] 完了: リマインダー対象 ${failingProjects.length}件 ---`
+    );
+  } catch (error) {
+    console.error('[CRON] リマインダーメールバッチエラー:', error);
+  }
+}
+
+cron.schedule('0 9 * * *', () => sendDeadlineReminderEmails(), {
+  scheduled: true,
+  timezone: 'Asia/Tokyo', // 日本時間の午前9時に実行
 });

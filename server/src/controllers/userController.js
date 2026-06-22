@@ -436,7 +436,10 @@ export const submitKyc = async (req, res) => {
 export const getReferralStats = async (req, res) => {
     const userId = req.user.id;
     try {
-        const [user, referredUsers, conversions] = await Promise.all([
+        const now = new Date();
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+        const [user, referredUsers, conversions, thisMonthReferredCount] = await Promise.all([
             prisma.user.findUnique({
                 where: { id: userId },
                 select: { referralCode: true, points: true },
@@ -452,6 +455,9 @@ export const getReferralStats = async (req, res) => {
                 orderBy: { createdAt: 'desc' },
                 take: 50,
             }),
+            prisma.user.count({
+                where: { referredById: userId, createdAt: { gte: startOfMonth } },
+            }),
         ]);
 
         const totalReward = conversions.reduce((s, c) => s + c.reward, 0);
@@ -460,10 +466,11 @@ export const getReferralStats = async (req, res) => {
         res.json({
             referralCode: user?.referralCode,
             referralUrl: user?.referralCode
-                ? `https://www.flastal.com/register?ref=${user.referralCode}`
+                ? `https://flastal.com/register?ref=${user.referralCode}`
                 : null,
             points: user?.points ?? 0,
             referredCount: referredUsers.length,
+            thisMonthReferredCount,
             referredUsers,
             conversionCount: conversions.length,
             totalReward,

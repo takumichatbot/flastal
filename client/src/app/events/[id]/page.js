@@ -109,6 +109,36 @@ function VenueEditModal({ event, onClose, onUpdate }) {
   );
 }
 
+function extractYouTubeId(url) {
+  if (!url) return null;
+  const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\s]+)/);
+  return match ? match[1] : null;
+}
+
+function LiveStreamEmbed({ youtubeUrl, twitcastingUrl }) {
+  const ytId = extractYouTubeId(youtubeUrl);
+  if (ytId) {
+    return (
+      <div className="relative w-full aspect-video rounded-2xl overflow-hidden bg-black">
+        <iframe
+          src={`https://www.youtube.com/embed/${ytId}?autoplay=0`}
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+          className="absolute inset-0 w-full h-full"
+        />
+      </div>
+    );
+  }
+  if (twitcastingUrl) {
+    return (
+      <div className="relative w-full aspect-video rounded-2xl overflow-hidden bg-black">
+        <iframe src={twitcastingUrl} allowFullScreen className="absolute inset-0 w-full h-full" />
+      </div>
+    );
+  }
+  return null;
+}
+
 function ReportModal({ eventId, onClose }) {
   const [reason, setReason] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -179,6 +209,15 @@ export default function EventDetailPage() {
   useEffect(() => { if (id) fetchEvent(); }, [id, fetchEvent]);
 
   const isOwner = user && (user.role === 'ADMIN' || user.id === event?.creator?.id || user.id === event?.organizer?.id);
+
+  const isLiveNow = (() => {
+    if (!event) return false;
+    const now = new Date();
+    const start = event.startDate ? new Date(event.startDate) : null;
+    const end = event.endDate ? new Date(event.endDate) : null;
+    if (!start || !end) return false;
+    return start <= now && now <= end;
+  })();
 
   const nextImage = () => {
     if (!event?.imageUrls) return;
@@ -251,6 +290,12 @@ export default function EventDetailPage() {
         <div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/30 to-transparent pointer-events-none" />
         <div className="absolute bottom-0 left-0 right-0 p-5 sm:p-8 pointer-events-none">
           <div className="flex flex-wrap gap-2 mb-3">
+            {isLiveNow && (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-red-600/95 backdrop-blur-sm text-white rounded-full text-[10px] font-black border border-white/20 animate-pulse shadow-lg shadow-red-900/40">
+                <span className="w-2 h-2 rounded-full bg-white animate-ping inline-block" />
+                LIVE配信中
+              </span>
+            )}
             {event.organizer ? (
               <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-pink-500/90 backdrop-blur-sm text-white rounded-full text-[10px] font-black border border-white/20">
                 <Shield size={10} /> 公式主催者: {event.organizer.name}
@@ -275,6 +320,22 @@ export default function EventDetailPage() {
           </h1>
         </div>
       </div>
+
+      {/* ライブ配信埋め込み */}
+      {(event.youtubeUrl || event.twitcastingUrl) && (
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+          {isLiveNow && (
+            <div className="flex items-center gap-2 mb-3">
+              <span className="flex items-center gap-1.5 px-3 py-1 bg-red-600 text-white rounded-full text-xs font-black shadow-md shadow-red-300/40 animate-pulse">
+                <span className="w-2 h-2 rounded-full bg-white inline-block" />
+                LIVE配信中
+              </span>
+              <span className="text-xs text-slate-500 font-bold">現在このイベントは配信中です</span>
+            </div>
+          )}
+          <LiveStreamEmbed youtubeUrl={event.youtubeUrl} twitcastingUrl={event.twitcastingUrl} />
+        </div>
+      )}
 
       {/* 主催者アナウンスバナー */}
       {event.announcement && (

@@ -178,6 +178,8 @@ app.use((err, req, res, _next) => {
 // cronジョブ起動
 startWebhookRetryJob();
 startReminderJob();
+// 期限切れ自動キャンセル & 締切3日前リマインダーメール cron
+import('./cron/deadlineChecker.js').catch(console.error);
 
 // BullMQ メールワーカー起動（REDIS_URL が設定されている場合のみ有効）
 import('./queues/emailQueue.js').then(({ startEmailWorker }) => startEmailWorker()).catch(() => {});

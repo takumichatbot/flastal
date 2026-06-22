@@ -11,6 +11,18 @@ export default function BackersTab({ ctx }) {
     handlePostCheer, isPostingCheer,
   } = ctx;
 
+  // 早期支援者バッジ: pledgeOrder があればその値で、なければ id 昇順で上位10件を対象にする
+  const earlyBackerIds = (() => {
+    if (!project.pledges || project.pledges.length === 0) return new Set();
+    const sorted = [...project.pledges].sort((a, b) => {
+      if (a.pledgeOrder != null && b.pledgeOrder != null) return a.pledgeOrder - b.pledgeOrder;
+      if (a.pledgeOrder != null) return -1;
+      if (b.pledgeOrder != null) return 1;
+      return (a.id > b.id ? 1 : a.id < b.id ? -1 : 0);
+    });
+    return new Set(sorted.slice(0, 10).map(p => p.id));
+  })();
+
   return (
     <div className="space-y-4">
       {/* 支援者一覧 */}
@@ -42,7 +54,12 @@ export default function BackersTab({ ctx }) {
                   }
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-black text-sm text-slate-800 truncate">{pledge.user?.handleName || '匿名'}</p>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <p className="font-black text-sm text-slate-800 truncate">{pledge.user?.handleName || '匿名'}</p>
+                    {earlyBackerIds.has(pledge.id) && (
+                      <span className="text-[10px] font-black bg-rose-100 text-rose-500 rounded-full px-2 py-0.5 shrink-0">🌸 早期支援者</span>
+                    )}
+                  </div>
                   {pledge.comment && (
                     <p className="text-xs text-slate-500 font-medium mt-0.5 truncate">"{pledge.comment}"</p>
                   )}

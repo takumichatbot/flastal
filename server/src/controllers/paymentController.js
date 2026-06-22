@@ -445,7 +445,7 @@ export const downloadInvoice = async (req, res) => {
         doc.pipe(res);
 
         doc.fontSize(20).font('Helvetica-Bold').text('INVOICE / 適格請求書', { align: 'center' });
-        doc.fontSize(9).font('Helvetica').fillColor('#64748b').text('登録番号: T0000000000000（仮）', { align: 'center' });
+        doc.fontSize(9).font('Helvetica').fillColor('#64748b').text(`登録番号: ${process.env.INVOICE_REGISTRATION_NUMBER || 'T0000000000000'}`, { align: 'center' });
         doc.fillColor('#000000').moveDown(1.5);
         doc.moveTo(60, doc.y).lineTo(535, doc.y).stroke('#e2e8f0').moveDown(1);
 

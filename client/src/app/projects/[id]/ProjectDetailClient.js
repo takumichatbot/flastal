@@ -45,6 +45,7 @@ const ProjectCancelModal = dynamic(() => import('@/components/project/ProjectCan
 
 // Dynamic Import
 const ArViewer = dynamic(() => import('@/app/components/ArViewer'), { ssr: false });
+const OshiAvatarUpload = dynamic(() => import('./components/OshiAvatarUpload'), { ssr: false });
 
 // Tab components (dynamic to keep main bundle small)
 const OverviewTab      = dynamic(() => import('./tabs/OverviewTab'),      { ssr: false });
@@ -1843,6 +1844,9 @@ export default function ProjectDetailClient() {
                         <p className="text-sm text-center text-slate-600 mb-6 font-bold leading-relaxed">カメラを起動して、平らな床に向けてください。<br/>高さ <strong className="text-pink-500">{arHeight}cm</strong> のパネルが表示されます。</p>
                         <div className="w-full aspect-[3/4] bg-black rounded-[2rem] overflow-hidden shadow-2xl border-4 border-slate-800"><ArViewer src={arSrc} alt="AR" /></div>
                         <button onClick={() => { if (arSrc?.startsWith('blob:')) URL.revokeObjectURL(arSrc); setArSrc(null); setArImageFile(null); }} className="mt-8 px-6 py-3 bg-slate-100 rounded-full text-sm font-black text-slate-500 flex items-center hover:bg-slate-200 transition-colors"><RefreshCw className="mr-2" size={16}/> 別の画像で試す</button>
+                        <div className="w-full mt-6">
+                          <OshiAvatarUpload projectId={id} onGenerated={(url) => { toast.success('アバターを追加しました！'); }} />
+                        </div>
                     </div>
                 )}
               </div>

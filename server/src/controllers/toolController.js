@@ -5,6 +5,7 @@ import webpush from 'web-push';
 import prisma from '../config/prisma.js';
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { createNotification } from '../utils/notification.js';
 
 // ★ Google AI (Gemini) のインポート
 import { GoogleGenerativeAI } from '@google/generative-ai';
@@ -377,7 +378,27 @@ export const subscribePush = async (req, res) => {
 };
 
 export const sendTestPush = async (req, res) => {
-    res.json({ message: 'テスト送信機能は未実装です' });
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ message: '認証が必要です' });
+
+    try {
+        const result = await createNotification(
+            userId,
+            'TEST',
+            'FLASTALのプッシュ通知が正常に機能しています',
+            null,
+            '/mypage'
+        );
+
+        if (result) {
+            res.json({ message: 'テスト通知を送信しました', notification: result });
+        } else {
+            res.status(500).json({ message: 'テスト通知の送信に失敗しました' });
+        }
+    } catch (error) {
+        console.error('[sendTestPush] エラー:', error);
+        res.status(500).json({ message: 'テスト通知の送信中にエラーが発生しました' });
+    }
 };
 
 export const registerNativeDeviceToken = async (req, res) => {

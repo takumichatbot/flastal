@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Twitter, Youtube, ExternalLink, CheckCircle2, Heart, ArrowRight, Users } from 'lucide-react';
+import { Twitter, Youtube, ExternalLink, CheckCircle2, Heart, ArrowRight, Users, Calendar, MapPin, Ticket } from 'lucide-react';
 
 const CATEGORY_LABELS = {
     idol:        'アイドル・アーティスト',
@@ -55,7 +55,55 @@ function ProjectCard({ project, index }) {
     );
 }
 
-export default function ArtistPageClient({ artist, projects }) {
+function EventCard({ event, index }) {
+    const router = useRouter();
+    const eventDate = event.eventDate ? new Date(event.eventDate) : null;
+    const formattedDate = eventDate
+        ? eventDate.toLocaleString('ja-JP', {
+              year: 'numeric', month: 'long', day: 'numeric',
+              weekday: 'short', hour: '2-digit', minute: '2-digit',
+              timeZone: 'Asia/Tokyo',
+          })
+        : '日時未定';
+
+    return (
+        <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.06, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+            className="bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all overflow-hidden"
+        >
+            <div className="h-24 bg-gradient-to-br from-pink-50 to-rose-50 relative overflow-hidden">
+                {event.imageUrls?.[0]
+                    ? <img src={event.imageUrls[0]} alt={event.title} className="w-full h-full object-cover opacity-80" />
+                    : <div className="w-full h-full flex items-center justify-center"><Ticket size={28} className="text-pink-200" /></div>
+                }
+                <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
+            </div>
+            <div className="p-4">
+                <h3 className="text-sm font-black text-slate-800 line-clamp-2 leading-snug mb-3">{event.title}</h3>
+                <div className="flex items-center gap-1.5 text-[11px] text-slate-500 font-bold mb-1.5">
+                    <Calendar size={11} className="text-pink-400 shrink-0" />
+                    <span>{formattedDate}</span>
+                </div>
+                {event.venue?.venueName && (
+                    <div className="flex items-center gap-1.5 text-[11px] text-slate-500 font-bold mb-3">
+                        <MapPin size={11} className="text-pink-400 shrink-0" />
+                        <span className="truncate">{event.venue.venueName}</span>
+                    </div>
+                )}
+                <Link
+                    href={`/projects/create?eventId=${event.id}`}
+                    className="flex items-center justify-center gap-1.5 w-full py-2 px-3 bg-gradient-to-r from-pink-500 to-rose-500 text-white text-xs font-black rounded-xl shadow-sm hover:shadow-md hover:opacity-90 transition-all active:scale-95"
+                >
+                    <Heart size={11} /> 企画する <ArrowRight size={11} />
+                </Link>
+            </div>
+        </motion.div>
+    );
+}
+
+export default function ArtistPageClient({ artist, projects, events = [] }) {
     return (
         <div className="min-h-screen bg-white font-sans">
             {/* ヒーロー */}
@@ -115,6 +163,24 @@ export default function ArtistPageClient({ artist, projects }) {
                         </div>
                     </div>
                 )}
+
+                {/* 開催予定のイベント */}
+                <div className="mb-10">
+                    <div className="flex items-center gap-2 mb-4">
+                        <Calendar size={16} className="text-pink-500" />
+                        <h2 className="text-lg font-black text-slate-800">開催予定のイベント</h2>
+                    </div>
+                    {events.length === 0 ? (
+                        <div className="bg-slate-50 rounded-2xl border border-slate-100 py-10 text-center">
+                            <Calendar size={32} className="mx-auto mb-2 text-slate-200" />
+                            <p className="text-sm font-bold text-slate-400">現在開催予定のイベントはありません</p>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {events.map((ev, i) => <EventCard key={ev.id} event={ev} index={i} />)}
+                        </div>
+                    )}
+                </div>
 
                 {/* 企画一覧 */}
                 <div className="flex items-center justify-between mb-5">
