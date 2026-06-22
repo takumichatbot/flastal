@@ -3,13 +3,14 @@
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, Suspense } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Mail, Lock, Eye, EyeOff, Loader2, Sparkles, ArrowRight, ShieldCheck } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -19,13 +20,10 @@ function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [showResend, setShowResend] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [isNativeApp, setIsNativeApp] = useState(false);
   const [totpRequired, setTotpRequired] = useState(false);
   const [totpToken, setTotpToken] = useState('');
 
-  useEffect(() => {
-    setIsNativeApp(sessionStorage.getItem('nativeApp') === '1');
-  }, []);
+  const isNativeApp = Capacitor.isNativePlatform();
 
   const router = useRouter();
   const { login } = useAuth();
