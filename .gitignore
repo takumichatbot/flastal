@@ -1,5 +1,6 @@
-/node_modules
+node_modules/
 .env
+ios-export-v2/
 
 # GCP Service Account Key
 src/config/gcp-key.jsonserver/config/gcp-key.json
