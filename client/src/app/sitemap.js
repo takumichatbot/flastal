@@ -28,6 +28,8 @@ export default async function sitemap() {
     { url: `${BASE}/about`,                    changeFrequency: 'monthly', priority: 0.5 },
     { url: `${BASE}/login`,                    changeFrequency: 'monthly', priority: 0.4 },
     { url: `${BASE}/register`,                 changeFrequency: 'monthly', priority: 0.4 },
+    { url: `${BASE}/matching`,                 changeFrequency: 'daily',   priority: 0.8 },
+    { url: `${BASE}/corporate`,                changeFrequency: 'monthly', priority: 0.6 },
     { url: `${BASE}/gallery`,                  changeFrequency: 'daily',   priority: 0.7 },
     { url: `${BASE}/status`,                   changeFrequency: 'hourly',  priority: 0.5 },
     { url: `${BASE}/terms`,                    changeFrequency: 'yearly',  priority: 0.3 },

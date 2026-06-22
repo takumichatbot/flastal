@@ -42,6 +42,11 @@ export default function AdminPage() {
       florists: 0, illustrators: 0, venues: 0, organizers: 0, projects: 0,
   });
 
+  // 追加KPI
+  const [newUsersThisWeek, setNewUsersThisWeek] = useState(null);
+  const [monthlyRevenue, setMonthlyRevenue] = useState(null);
+  const [activeProjectCount, setActiveProjectCount] = useState(null);
+
   const fetchAdminData = useCallback(async () => { 
     setLoadingData(true);
     try {
@@ -86,7 +91,13 @@ export default function AdminPage() {
 
       setCommissions(Array.isArray(commissionData) ? commissionData : []);
       setChatReportCount(Array.isArray(reportData) ? reportData.length : 0);
-      if (analyticsData) setAnalytics(analyticsData);
+      if (analyticsData) {
+        setAnalytics(analyticsData);
+        // 追加KPI: analyticsデータから取得できる場合は優先して使用
+        if (analyticsData.newUsersThisWeek !== undefined) setNewUsersThisWeek(analyticsData.newUsersThisWeek);
+        if (analyticsData.monthlyRevenue !== undefined) setMonthlyRevenue(analyticsData.monthlyRevenue);
+        if (analyticsData.activeProjects !== undefined) setActiveProjectCount(analyticsData.activeProjects);
+      }
 
       if (Array.isArray(allProjects)) {
           const sorted = [...allProjects].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 5);
@@ -163,6 +174,31 @@ export default function AdminPage() {
             <KpiCard label="取引成立数" value={`${commissions.length}件`} subValue="累計トランザクション" icon={<CheckCircle2 size={24}/>} color="emerald" />
             <KpiCard label="審査待ちアカウント" value={`${totalPendingAccounts}件`} subValue="早急な対応が必要です" icon={<UserCheck size={24}/>} color="amber" isAlert={totalPendingAccounts > 0} />
             <KpiCard label="未処理の通報" value={`${chatReportCount}件`} subValue="チャット・企画の違反報告" icon={<AlertTriangle size={24}/>} color="rose" isAlert={chatReportCount > 0} />
+        </div>
+
+        {/* --- 追加KPIカード (ユーザー統計) --- */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <KpiCard
+                label="新規登録数（今週）"
+                value={newUsersThisWeek !== null ? `${newUsersThisWeek}人` : (analytics?.totals?.users !== undefined ? `${analytics.totals.users}人` : '—')}
+                subValue={newUsersThisWeek !== null ? "直近7日間の新規ユーザー" : "累計ユーザー数"}
+                icon={<Users size={24}/>}
+                color="indigo"
+            />
+            <KpiCard
+                label="今月の売上"
+                value={monthlyRevenue !== null ? `¥${Number(monthlyRevenue).toLocaleString()}` : (analytics?.totals?.pledgeAmount !== undefined ? `¥${Number(analytics.totals.pledgeAmount).toLocaleString()}` : '—')}
+                subValue={monthlyRevenue !== null ? "今月の総支援金額" : "累計総支援金額"}
+                icon={<TrendingUp size={24}/>}
+                color="emerald"
+            />
+            <KpiCard
+                label="アクティブ企画数"
+                value={activeProjectCount !== null ? `${activeProjectCount}件` : (analytics?.totals?.projects !== undefined ? `${analytics.totals.projects}件` : '—')}
+                subValue={activeProjectCount !== null ? "募集中（FUNDRAISING）" : "累計企画数"}
+                icon={<Activity size={24}/>}
+                color="pink"
+            />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -396,6 +432,8 @@ function KpiCard({ label, value, subValue, icon, color, isAlert }) {
         emerald: 'bg-emerald-50 text-emerald-600 border-emerald-100',
         amber: 'bg-amber-50 text-amber-600 border-amber-100',
         rose: 'bg-rose-50 text-rose-600 border-rose-100',
+        indigo: 'bg-indigo-50 text-indigo-600 border-indigo-100',
+        pink: 'bg-pink-50 text-pink-600 border-pink-100',
     };
     return (
         <GlassCard className={cn("!p-6 flex items-start justify-between hover:-translate-y-1 transition-transform", isAlert ? 'ring-4 ring-rose-100 border-rose-200' : '')}>

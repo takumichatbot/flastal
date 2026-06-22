@@ -60,7 +60,18 @@ const nextConfig = {
     ];
   },
 
-  experimental: {},
+  // 圧縮
+  compress: true,
+
+  // ビルド最適化: 本番環境でconsole.log等を除去（エラーログは残す）
+  compiler: {
+    removeConsole: process.env.NODE_ENV === 'production' ? { exclude: ['error'] } : false,
+  },
+
+  // 実験的機能
+  experimental: {
+    optimizeCss: true, // CSSの最適化
+  },
 };
 
 // PWAの設定

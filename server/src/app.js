@@ -1,4 +1,5 @@
 import express from 'express';
+import compression from 'compression';
 import cors from 'cors';
 import webpush from 'web-push';
 import { generalLimiter, authLimiter, uploadLimiter, paymentLimiter, aiLimiter } from './middleware/rateLimiter.js';
@@ -41,6 +42,11 @@ import { authenticateToken } from './middleware/auth.js';
 import * as userController from './controllers/userController.js'; // 🌟 追記: 通知用にインポート
 
 const app = express();
+
+// ==========================================
+// ★★★ gzip圧縮 ★★★
+// ==========================================
+app.use(compression());
 
 // ==========================================
 // ★★★ Push通知 (VAPID) 設定 ★★★

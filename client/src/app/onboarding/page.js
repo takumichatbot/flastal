@@ -3,7 +3,9 @@
 import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Heart, Sparkles, Store, Users, ChevronRight } from 'lucide-react';
+import { Heart, Sparkles, Store, Users, ChevronRight, Star } from 'lucide-react';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
 const SLIDES = [
   {
@@ -47,6 +49,27 @@ const SLIDES = [
     body: 'ポイントを使って企画を支援。支援者が増えるほど豪華なフラスタが実現します。一人ではできないことも、みんなの力で！',
     accent: 'white',
   },
+  // ステップ4: 推しジャンル選択
+  {
+    id: 4,
+    bg: 'from-fuchsia-500 to-pink-600',
+    icon: Star,
+    iconBg: 'bg-white/20',
+    title: '推しのジャンルは？',
+    subtitle: 'あなたの推し活を\nもっと楽しくする',
+    body: '興味のあるジャンルを選ぶと、おすすめの企画やイラストレーターが表示されます。',
+    accent: 'white',
+    isGenreStep: true,
+  },
+];
+
+const GENRE_OPTIONS = [
+  { label: 'アイドル', emoji: '' },
+  { label: 'VTuber', emoji: '' },
+  { label: 'アニメ', emoji: '' },
+  { label: '声優', emoji: '' },
+  { label: '2.5次元', emoji: '' },
+  { label: 'その他', emoji: '' },
 ];
 
 const slideVariants = {
@@ -59,6 +82,8 @@ export default function OnboardingPage() {
   const router = useRouter();
   const [step, setStep] = useState(0);
   const [dir, setDir] = useState(1);
+  const [selectedGenres, setSelectedGenres] = useState([]);
+  const [isSaving, setIsSaving] = useState(false);
   const touchStartX = useRef(null);
 
   const slide = SLIDES[step];
@@ -68,6 +93,35 @@ export default function OnboardingPage() {
     if (next < 0 || next >= SLIDES.length) return;
     setDir(next > step ? 1 : -1);
     setStep(next);
+  };
+
+  const toggleGenre = (label) => {
+    setSelectedGenres((prev) =>
+      prev.includes(label) ? prev.filter((g) => g !== label) : [...prev, label]
+    );
+  };
+
+  const saveGenresAndFinish = async () => {
+    setIsSaving(true);
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      if (token && selectedGenres.length > 0) {
+        await fetch(`${API_URL}/api/users/me`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ preferredGenres: selectedGenres }),
+        });
+      }
+    } catch (err) {
+      // ジャンル保存失敗はオンボーディング完了をブロックしない
+      console.error('Failed to save genres:', err);
+    } finally {
+      setIsSaving(false);
+      finish();
+    }
   };
 
   const finish = () => {
@@ -86,6 +140,8 @@ export default function OnboardingPage() {
     const dx = e.changedTouches[0].clientX - touchStartX.current;
     touchStartX.current = null;
     if (Math.abs(dx) < 40) return;
+    // ジャンル選択ステップはスワイプ無効（誤操作防止）
+    if (slide.isGenreStep) return;
     if (dx < 0 && step < SLIDES.length - 1) goTo(step + 1);
     if (dx > 0 && step > 0) goTo(step - 1);
   };
@@ -145,7 +201,7 @@ export default function OnboardingPage() {
       {/* Content */}
       <div className="relative z-10 flex flex-col h-full px-8 pt-16 pb-10 max-w-md mx-auto">
 
-        {/* Icon card */}
+        {/* Icon card + テキスト */}
         <div className="flex-1 flex flex-col items-center justify-center text-center gap-8">
           <AnimatePresence mode="wait" custom={dir}>
             <motion.div
@@ -166,7 +222,7 @@ export default function OnboardingPage() {
                 )}
               </div>
 
-              <div>
+              <div className="w-full">
                 <p className="text-white/70 text-xs font-black uppercase tracking-[0.2em] mb-3">
                   {step + 1} / {SLIDES.length}
                 </p>
@@ -179,6 +235,28 @@ export default function OnboardingPage() {
                 <p className="text-sm font-medium text-white/80 leading-relaxed max-w-xs mx-auto">
                   {slide.body}
                 </p>
+
+                {/* 推しジャンル選択UI */}
+                {slide.isGenreStep && (
+                  <div className="mt-6 flex flex-wrap justify-center gap-2">
+                    {GENRE_OPTIONS.map(({ label }) => (
+                      <motion.button
+                        key={label}
+                        type="button"
+                        whileTap={{ scale: 0.92 }}
+                        onClick={() => toggleGenre(label)}
+                        className={[
+                          'px-4 py-2 rounded-full text-sm font-black border-2 transition-all',
+                          selectedGenres.includes(label)
+                            ? 'bg-white text-fuchsia-600 border-white shadow-lg'
+                            : 'bg-white/20 text-white border-white/40 hover:bg-white/30',
+                        ].join(' ')}
+                      >
+                        {label}
+                      </motion.button>
+                    ))}
+                  </div>
+                )}
               </div>
             </motion.div>
           </AnimatePresence>
@@ -191,7 +269,7 @@ export default function OnboardingPage() {
             {SLIDES.map((_, i) => (
               <motion.button
                 key={i}
-                onClick={() => goTo(i)}
+                onClick={() => !slide.isGenreStep && goTo(i)}
                 animate={{
                   width: i === step ? 24 : 8,
                   opacity: i === step ? 1 : 0.4,
@@ -206,11 +284,11 @@ export default function OnboardingPage() {
           {isLast ? (
             <motion.button
               whileTap={{ scale: 0.96 }}
-              onClick={finish}
-              className="w-full py-4 bg-white rounded-2xl font-black text-base shadow-xl active:scale-[0.98] transition-transform"
-              style={{ color: step === 0 ? '#ec4899' : step === 1 ? '#7c3aed' : step === 2 ? '#0284c7' : '#d97706' }}
+              onClick={saveGenresAndFinish}
+              disabled={isSaving}
+              className="w-full py-4 bg-white rounded-2xl font-black text-base shadow-xl active:scale-[0.98] transition-transform text-fuchsia-600 disabled:opacity-70"
             >
-              はじめる
+              {isSaving ? '保存中...' : 'はじめる'}
             </motion.button>
           ) : (
             <motion.button

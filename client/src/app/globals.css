@@ -58,6 +58,8 @@ body {
   background: var(--seasonal-bg);
   color: var(--foreground);
   transition: background 0.3s ease, color 0.3s ease;
+  /* next/font/google のフォントが読み込まれるまでのシステムフォントフォールバック */
+  font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Yu Gothic UI', 'Hiragino Kaku Gothic ProN', sans-serif;
 }
 
 /* ダークモード: Tailwind 固定色クラスのグローバル上書き */

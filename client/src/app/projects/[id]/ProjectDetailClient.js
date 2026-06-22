@@ -1370,6 +1370,13 @@ export default function ProjectDetailClient() {
                   </span>
                 )}
               </div>
+              <div className="mt-3 flex justify-end">
+                <ShareButtons
+                  url={`https://www.flastal.com/projects/${project.id}`}
+                  text={`「${project.title}」を一緒に応援しよう！`}
+                  hashtags="FLASTAL,フラスタ"
+                />
+              </div>
             </div>
 
             {/* プログレスセクション */}

@@ -9,7 +9,7 @@ import toast from 'react-hot-toast';
 import {
     Search, Users, Mail, Shield, Filter, ArrowLeft,
     ShieldCheck, Palette, Store, Building2, User, RefreshCw,
-    MessageSquare, Trash2, EyeOff, CheckCircle, Coins, X
+    MessageSquare, Trash2, EyeOff, CheckCircle, Coins, X, Crown, Sparkles
 } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
@@ -43,6 +43,7 @@ export default function AdminUsersPage() {
     const [isLoadingData, setIsLoadingData] = useState(true);
     const [searchKeyword, setSearchKeyword] = useState('');
     const [activeTab, setActiveTab] = useState('ALL');
+    const [premiumOnly, setPremiumOnly] = useState(false);
 
     const [pointModal, setPointModal] = useState(null); // { id, name, currentPoints }
     const [pointDelta, setPointDelta] = useState('');
@@ -111,11 +112,21 @@ export default function AdminUsersPage() {
     }, [isAuthenticated, user, loading, router, searchKeyword]);
 
     const filteredUsers = useMemo(() => {
-        if (activeTab === 'ALL') return users;
-        if (activeTab === 'USER') return users.filter(u => u.role === 'USER' || !u.role);
-        if (activeTab === 'ILLUSTRATOR') return users.filter(u => u.role === 'ILLUSTRATOR' || u.role === 'ILLUSTRATOR_OLD'); 
-        return users.filter(u => u.role === activeTab);
-    }, [users, activeTab]);
+        let result = users;
+        if (activeTab !== 'ALL') {
+            if (activeTab === 'USER') result = result.filter(u => u.role === 'USER' || !u.role);
+            else if (activeTab === 'ILLUSTRATOR') result = result.filter(u => u.role === 'ILLUSTRATOR' || u.role === 'ILLUSTRATOR_OLD');
+            else result = result.filter(u => u.role === activeTab);
+        }
+        if (premiumOnly) result = result.filter(u => u.isPremium || u.plan === 'PREMIUM' || u.subscriptionStatus === 'active');
+        return result;
+    }, [users, activeTab, premiumOnly]);
+
+    // 今日の新規登録判定 (24時間以内)
+    const isNewToday = (createdAt) => {
+        if (!createdAt) return false;
+        return Date.now() - new Date(createdAt).getTime() < 24 * 60 * 60 * 1000;
+    };
 
     const handleStartChat = async (targetUser) => {
         const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
@@ -271,28 +282,42 @@ export default function AdminUsersPage() {
                         />
                     </div>
 
-                    <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0 w-full md:w-auto scrollbar-hide">
-                        {[
-                            { id: 'ALL', label: 'すべて' },
-                            { id: 'USER', label: 'ファン' },
-                            { id: 'ORGANIZER', label: '主催者' },
-                            { id: 'FLORIST', label: 'お花屋さん' },
-                            { id: 'ILLUSTRATOR', label: 'イラストレーター' }, 
-                            { id: 'VENUE', label: '会場' },
-                        ].map((tab) => (
-                            <button
-                                key={tab.id}
-                                onClick={() => setActiveTab(tab.id)}
-                                className={cn(
-                                    "px-4 py-2 text-xs font-bold rounded-xl whitespace-nowrap transition-all duration-200 shadow-sm",
-                                    activeTab === tab.id 
-                                        ? "bg-slate-900 text-white shadow-md border border-slate-800" 
-                                        : "bg-white text-slate-500 border border-slate-200 hover:bg-slate-50 hover:text-slate-700 hover:border-slate-300"
-                                )}
-                            >
-                                {tab.label}
-                            </button>
-                        ))}
+                    <div className="flex flex-wrap gap-2 w-full md:w-auto">
+                        <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0 scrollbar-hide">
+                            {[
+                                { id: 'ALL', label: 'すべて' },
+                                { id: 'USER', label: 'ファン' },
+                                { id: 'ORGANIZER', label: '主催者' },
+                                { id: 'FLORIST', label: 'お花屋さん' },
+                                { id: 'ILLUSTRATOR', label: 'イラストレーター' },
+                                { id: 'VENUE', label: '会場' },
+                            ].map((tab) => (
+                                <button
+                                    key={tab.id}
+                                    onClick={() => setActiveTab(tab.id)}
+                                    className={cn(
+                                        "px-4 py-2 text-xs font-bold rounded-xl whitespace-nowrap transition-all duration-200 shadow-sm",
+                                        activeTab === tab.id
+                                            ? "bg-slate-900 text-white shadow-md border border-slate-800"
+                                            : "bg-white text-slate-500 border border-slate-200 hover:bg-slate-50 hover:text-slate-700 hover:border-slate-300"
+                                    )}
+                                >
+                                    {tab.label}
+                                </button>
+                            ))}
+                        </div>
+                        {/* プレミアム会員フィルター */}
+                        <button
+                            onClick={() => setPremiumOnly(v => !v)}
+                            className={cn(
+                                "flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-xl whitespace-nowrap transition-all duration-200 shadow-sm border",
+                                premiumOnly
+                                    ? "bg-amber-500 text-white border-amber-500 shadow-md"
+                                    : "bg-white text-amber-600 border-amber-200 hover:bg-amber-50"
+                            )}
+                        >
+                            <Crown size={13} /> プレミアム会員のみ
+                        </button>
                     </div>
                 </div>
 
@@ -330,20 +355,37 @@ export default function AdminUsersPage() {
                                         const statusBadge = getStatusBadge(u.status); // ★ 状態バッジを取得
 
                                         return (
-                                            <tr key={u.id} className={cn("transition-colors group", u.status === 'SUSPENDED' ? 'bg-slate-50 opacity-60' : 'hover:bg-sky-50/30')}>
+                                            <tr key={u.id} className={cn("transition-colors group", u.status === 'SUSPENDED' ? 'bg-slate-50 opacity-60' : isNewToday(u.createdAt) ? 'bg-emerald-50/40 hover:bg-emerald-50/60' : 'hover:bg-sky-50/30')}>
                                                 <td className="px-6 py-4">
                                                     <div className="flex items-center gap-4">
-                                                        <div className="w-10 h-10 rounded-full bg-white border border-slate-200 overflow-hidden flex items-center justify-center shrink-0 shadow-sm">
+                                                        <div className="relative w-10 h-10 rounded-full bg-white border border-slate-200 overflow-hidden flex items-center justify-center shrink-0 shadow-sm">
                                                             {u.iconUrl ? (
                                                                 <img src={u.iconUrl} alt="icon" className="w-full h-full object-cover" />
                                                             ) : (
                                                                 <User className="text-slate-400" size={20} />
                                                             )}
+                                                            {isNewToday(u.createdAt) && (
+                                                                <span className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-white flex items-center justify-center" title="今日の新規登録">
+                                                                    <Sparkles size={8} className="text-white" />
+                                                                </span>
+                                                            )}
                                                         </div>
                                                         <div>
-                                                            <p className={cn("text-sm font-bold transition-colors", u.status === 'SUSPENDED' ? 'text-slate-500 line-through' : 'text-slate-800 group-hover:text-sky-600')}>
-                                                                {u.displayName}
-                                                            </p>
+                                                            <div className="flex items-center gap-2">
+                                                                <p className={cn("text-sm font-bold transition-colors", u.status === 'SUSPENDED' ? 'text-slate-500 line-through' : 'text-slate-800 group-hover:text-sky-600')}>
+                                                                    {u.displayName}
+                                                                </p>
+                                                                {isNewToday(u.createdAt) && (
+                                                                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-emerald-100 text-emerald-700 text-[9px] font-black rounded-full border border-emerald-200">
+                                                                        <Sparkles size={8} /> NEW
+                                                                    </span>
+                                                                )}
+                                                                {(u.isPremium || u.plan === 'PREMIUM' || u.subscriptionStatus === 'active') && (
+                                                                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[9px] font-black rounded-full border border-amber-200">
+                                                                        <Crown size={8} /> PRO
+                                                                    </span>
+                                                                )}
+                                                            </div>
                                                             <p className="text-[10px] text-slate-400 font-mono mt-0.5">ID: {u.id.substring(0, 8)}...</p>
                                                         </div>
                                                     </div>

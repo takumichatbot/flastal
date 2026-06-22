@@ -2,46 +2,59 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { motion } from 'framer-motion';
 
-// lucide-reactに統一
-import { 
-  Eye, EyeOff, PenTool, Mail, Lock, ArrowLeft, 
-  CheckCircle2, Sparkles, Loader2 
+import {
+  Eye, EyeOff, PenTool, Mail, Lock, ArrowLeft,
+  CheckCircle2, Sparkles, Loader2, Link as LinkIcon, Tag, DollarSign
 } from 'lucide-react';
 import FloatingParticles from '@/app/components/FloatingParticles';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
-// ★ ここに cn 関数を確実に定義します（これがないとエラーになります）
+const GENRE_OPTIONS = [
+  'アイドル', 'VTuber', 'アニメ', '声優', '2.5次元', 'ゲーム', 'その他'
+];
+
 function cn(...classes) {
   return classes.filter(Boolean).join(' ');
 }
 
-// ふわふわ浮かぶパーティクル（クリエイター向けのアンバー系）
 export default function IllustratorRegisterPage() {
   const [formData, setFormData] = useState({
     activityName: '',
     email: '',
     password: '',
+    portfolioUrl: '',
+    genres: [],
+    unitPrice: '',
   });
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const router = useRouter();
-  
+
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const toggleGenre = (genre) => {
+    setFormData((prev) => ({
+      ...prev,
+      genres: prev.genres.includes(genre)
+        ? prev.genres.filter((g) => g !== genre)
+        : [...prev.genres, genre],
+    }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
-    
+
     try {
       const res = await fetch(`${API_URL}/api/illustrators/register`, {
         method: 'POST',
@@ -56,7 +69,7 @@ export default function IllustratorRegisterPage() {
       }
 
       setIsSubmitted(true);
-      toast.success('申請を送信しました');
+      toast.success('登録が完了しました！審査まで2〜3営業日かかります。メールをご確認ください。', { duration: 6000 });
     } catch (err) {
       console.error(err);
       toast.error(err.message);
@@ -65,22 +78,28 @@ export default function IllustratorRegisterPage() {
     }
   };
 
-  // ★ 送信完了画面
+  // 送信完了画面
   if (isSubmitted) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-50/50 flex items-center justify-center p-4 relative overflow-hidden font-sans">
         <FloatingParticles />
         <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-amber-200/40 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/3 pointer-events-none z-0" />
-        
+
         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-white/80 backdrop-blur-xl max-w-lg w-full p-8 md:p-10 border border-white rounded-[2.5rem] shadow-[0_8px_30px_rgba(245,158,11,0.15)] relative z-10 text-center">
           <div className="mb-6 flex justify-center">
             <div className="w-20 h-20 bg-gradient-to-br from-amber-100 to-orange-100 rounded-full flex items-center justify-center shadow-inner border-4 border-white">
               <CheckCircle2 className="text-amber-500 w-10 h-10" />
             </div>
           </div>
-          <h2 className="text-2xl font-black text-slate-800 mb-2 tracking-tight">申請ありがとうございます！</h2>
-          <p className="text-sm font-bold text-slate-500 mb-8">イラストレーター登録の第一歩です🎨</p>
-          
+          <h2 className="text-2xl font-black text-slate-800 mb-2 tracking-tight">登録が完了しました！</h2>
+          <p className="text-sm font-bold text-slate-500 mb-4">イラストレーター登録の第一歩です</p>
+
+          <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 mb-6">
+            <p className="text-sm font-bold text-amber-700 leading-relaxed">
+              審査まで2〜3営業日かかります。<br/>メールをご確認ください。
+            </p>
+          </div>
+
           <div className="bg-white/60 border border-amber-100/50 rounded-[1.5rem] p-6 mb-8 text-left shadow-sm relative overflow-hidden">
             <p className="text-[10px] font-black text-amber-500 tracking-widest uppercase mb-4 flex items-center gap-1"><Sparkles size={14}/> 今後の流れ</p>
             <ul className="text-sm text-slate-600 space-y-4 font-medium">
@@ -90,7 +109,7 @@ export default function IllustratorRegisterPage() {
               </li>
               <li className="flex items-start">
                 <span className="bg-orange-100 text-orange-600 rounded-full w-6 h-6 flex items-center justify-center font-black text-[10px] mt-0.5 mr-3 shrink-0 shadow-sm border border-white">2</span>
-                <span className="leading-relaxed">事務局にてポートフォリオ等の審査を行います（通常1〜3営業日）。</span>
+                <span className="leading-relaxed">事務局にてポートフォリオ等の審査を行います（通常2〜3営業日）。</span>
               </li>
               <li className="flex items-start">
                 <span className="bg-yellow-100 text-yellow-600 rounded-full w-6 h-6 flex items-center justify-center font-black text-[10px] mt-0.5 mr-3 shrink-0 shadow-sm border border-white">3</span>
@@ -115,7 +134,7 @@ export default function IllustratorRegisterPage() {
       <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-amber-200/40 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/3 pointer-events-none z-0" />
       <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-orange-200/30 rounded-full blur-[100px] translate-y-1/3 -translate-x-1/3 pointer-events-none z-0" />
 
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: 20, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.5, ease: "easeOut" }}
         className="bg-white/80 backdrop-blur-xl max-w-md w-full p-8 md:p-10 border border-white rounded-[2.5rem] shadow-[0_8px_30px_rgba(245,158,11,0.15)] relative z-10 mt-8"
       >
@@ -123,11 +142,11 @@ export default function IllustratorRegisterPage() {
           <Link href="/" className="absolute left-0 top-0 text-slate-400 hover:text-amber-500 transition-colors p-2 -ml-2 -mt-2 rounded-full hover:bg-amber-50">
             <ArrowLeft size={20} />
           </Link>
-          
+
           <div className="w-16 h-16 bg-gradient-to-br from-amber-100 to-orange-100 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-inner -rotate-3">
             <PenTool className="text-amber-500" size={28} />
           </div>
-          
+
           <h2 className="text-2xl font-black text-slate-800 tracking-tight">クリエイター登録</h2>
           <p className="text-[10px] md:text-xs font-bold text-slate-400 mt-2 tracking-widest uppercase flex items-center justify-center gap-1">
             <Sparkles size={12} className="text-amber-400"/> あなたのイラストで推し活を彩る
@@ -135,44 +154,102 @@ export default function IllustratorRegisterPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* 活動名 */}
           <div>
             <label className="block text-[10px] font-black text-slate-500 mb-1.5 tracking-widest uppercase">活動名（ペンネーム） <span className="text-amber-500">*</span></label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                 <PenTool className="text-slate-400" size={18} />
               </div>
-              <input 
-                name="activityName" type="text" required value={formData.activityName} onChange={handleChange} 
+              <input
+                name="activityName" type="text" required value={formData.activityName} onChange={handleChange}
                 className="w-full pl-12 pr-4 py-3.5 bg-white/50 border border-slate-200 rounded-2xl focus:outline-none focus:border-amber-400 focus:ring-4 focus:ring-amber-100 transition-all font-bold text-slate-700 placeholder:text-slate-300"
-                placeholder="FLASTAL 絵師" 
+                placeholder="FLASTAL 絵師"
               />
             </div>
           </div>
-          
+
+          {/* ポートフォリオURL */}
+          <div>
+            <label className="block text-[10px] font-black text-slate-500 mb-1.5 tracking-widest uppercase">ポートフォリオURL</label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                <LinkIcon className="text-slate-400" size={18} />
+              </div>
+              <input
+                name="portfolioUrl" type="url" value={formData.portfolioUrl} onChange={handleChange}
+                className="w-full pl-12 pr-4 py-3.5 bg-white/50 border border-slate-200 rounded-2xl focus:outline-none focus:border-amber-400 focus:ring-4 focus:ring-amber-100 transition-all font-bold text-slate-700 placeholder:text-slate-300"
+                placeholder="https://www.pixiv.net/users/..."
+              />
+            </div>
+            <p className="mt-1.5 text-[10px] font-bold text-slate-400">あなたの作品が見られるURL（Pixiv、Twitter、Webサイトなど）</p>
+          </div>
+
+          {/* 対応ジャンル */}
+          <div>
+            <label className="block text-[10px] font-black text-slate-500 mb-1.5 tracking-widest uppercase flex items-center gap-1.5"><Tag size={12}/> 対応ジャンル</label>
+            <p className="mb-2 text-[10px] font-bold text-slate-400">対応できるイラストのジャンルを選択してください（複数選択可）</p>
+            <div className="flex flex-wrap gap-2">
+              {GENRE_OPTIONS.map((genre) => (
+                <button
+                  key={genre}
+                  type="button"
+                  onClick={() => toggleGenre(genre)}
+                  className={cn(
+                    "px-3 py-1.5 rounded-full text-xs font-black border transition-all",
+                    formData.genres.includes(genre)
+                      ? 'bg-amber-400 text-white border-amber-400 shadow-sm'
+                      : 'bg-white text-slate-500 border-slate-200 hover:border-amber-300 hover:text-amber-600'
+                  )}
+                >
+                  {genre}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 希望単価 */}
+          <div>
+            <label className="block text-[10px] font-black text-slate-500 mb-1.5 tracking-widest uppercase">希望単価（円）</label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                <DollarSign className="text-slate-400" size={18} />
+              </div>
+              <input
+                name="unitPrice" type="number" min="0" value={formData.unitPrice} onChange={handleChange}
+                className="w-full pl-12 pr-4 py-3.5 bg-white/50 border border-slate-200 rounded-2xl focus:outline-none focus:border-amber-400 focus:ring-4 focus:ring-amber-100 transition-all font-bold text-slate-700 placeholder:text-slate-300"
+                placeholder="例: 5000"
+              />
+            </div>
+            <p className="mt-1.5 text-[10px] font-bold text-slate-400">1枚あたりの希望金額（目安）。後から変更可能です</p>
+          </div>
+
+          {/* Email */}
           <div>
             <label className="block text-[10px] font-black text-slate-500 mb-1.5 tracking-widest uppercase">Email <span className="text-amber-500">*</span></label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                 <Mail className="text-slate-400" size={18} />
               </div>
-              <input 
-                name="email" type="email" required value={formData.email} onChange={handleChange} 
+              <input
+                name="email" type="email" required value={formData.email} onChange={handleChange}
                 className="w-full pl-12 pr-4 py-3.5 bg-white/50 border border-slate-200 rounded-2xl focus:outline-none focus:border-amber-400 focus:ring-4 focus:ring-amber-100 transition-all font-bold text-slate-700 placeholder:text-slate-300"
-                placeholder="illustrator@example.com" 
+                placeholder="illustrator@example.com"
               />
             </div>
           </div>
-          
+
+          {/* Password */}
           <div>
             <label className="block text-[10px] font-black text-slate-500 mb-1.5 tracking-widest uppercase">Password <span className="text-amber-500">*</span></label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                 <Lock className="text-slate-400" size={18} />
               </div>
-              <input 
-                type={showPassword ? 'text' : 'password'} name="password" required value={formData.password} onChange={handleChange} 
+              <input
+                type={showPassword ? 'text' : 'password'} name="password" required value={formData.password} onChange={handleChange}
                 className="w-full pl-12 pr-12 py-3.5 bg-white/50 border border-slate-200 rounded-2xl focus:outline-none focus:border-amber-400 focus:ring-4 focus:ring-amber-100 transition-all font-bold text-slate-700 placeholder:text-slate-300"
-                placeholder="8文字以上" 
+                placeholder="8文字以上"
               />
               <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 hover:text-amber-500 transition-colors">
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -181,9 +258,9 @@ export default function IllustratorRegisterPage() {
           </div>
 
           <div className="pt-2">
-            <motion.button 
+            <motion.button
               whileHover={{ scale: 1.02, boxShadow: "0 10px 25px rgba(245,158,11,0.4)" }} whileTap={{ scale: 0.98 }}
-              type="submit" disabled={isLoading} 
+              type="submit" disabled={isLoading}
               className={cn("w-full py-4 bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-2xl font-black text-base shadow-xl flex items-center justify-center gap-2 transition-all", isLoading ? 'opacity-70 cursor-not-allowed' : '')}
             >
               {isLoading ? <Loader2 className="animate-spin" size={18}/> : <Sparkles size={18}/>}

@@ -64,7 +64,7 @@ function createBaseHtml(title, bodyHtml) {
 // ── Default templates (DB優先、fallback) ──────────────────────
 const DEFAULT_TEMPLATES = {
   'VERIFICATION_EMAIL': {
-    subject: '【FLASTAL】メールアドレスの確認',
+    subject: '【FLASTAL】✉️ メールアドレスの確認',
     body: createBaseHtml('メールアドレスの確認', `
       <p class="greeting">{{userName}} 様</p>
       <p class="message">FLASTALにご登録ありがとうございます。<br/>以下のボタンをクリックして、メールアドレスの認証を完了してください。</p>
@@ -73,7 +73,7 @@ const DEFAULT_TEMPLATES = {
     `),
   },
   'WELCOME': {
-    subject: '【FLASTAL】ようこそ！登録が完了しました',
+    subject: '【FLASTAL】🌸 ようこそ！登録が完了しました',
     body: createBaseHtml('ようこそ、FLASTALへ 🌸', `
       <p class="greeting">{{userName}} 様</p>
       <p class="message">会員登録が完了しました！<br/>推しへのフラスタ企画を始めましょう。</p>
@@ -81,7 +81,7 @@ const DEFAULT_TEMPLATES = {
     `),
   },
   'PROJECT_SUBMITTED': {
-    subject: '【FLASTAL】企画申請を受け付けました',
+    subject: '【FLASTAL】✅ 企画申請を受け付けました',
     body: createBaseHtml('企画申請を受け付けました ✅', `
       <p class="greeting">{{plannerName}} 様</p>
       <p class="message">企画の申請を受け付けました。運営チームが審査を行います。通常1〜2営業日以内に結果をお知らせします。</p>
@@ -93,7 +93,7 @@ const DEFAULT_TEMPLATES = {
     `),
   },
   'PLEDGE_RECEIVED': {
-    subject: '【FLASTAL】{{projectTitle}} に支援が届きました！',
+    subject: '【FLASTAL】💖 {{projectTitle}} に支援が届きました！',
     body: createBaseHtml('支援が届きました 💖', `
       <p class="greeting">{{plannerName}} 様</p>
       <p class="message">あなたの企画に新しい支援が届きました！</p>
@@ -109,7 +109,7 @@ const DEFAULT_TEMPLATES = {
     `),
   },
   'PLEDGE_COMPLETED': {
-    subject: '【FLASTAL】{{projectTitle}} への支援が完了しました',
+    subject: '【FLASTAL】🌸 {{projectTitle}} への支援が完了しました',
     body: createBaseHtml('支援ありがとうございます 🌸', `
       <p class="greeting">{{userName}} 様</p>
       <p class="message">以下の企画への支援が完了しました。ありがとうございます！</p>
@@ -141,7 +141,7 @@ const DEFAULT_TEMPLATES = {
     `),
   },
   'OFFER_RECEIVED': {
-    subject: '【FLASTAL】新しい制作オファーが届きました',
+    subject: '【FLASTAL】🌷 新しい制作オファーが届きました',
     body: createBaseHtml('新着オファー 🌷', `
       <p class="greeting">{{floristName}} 様</p>
       <p class="message">新しいフラスタ制作オファーが届いています。ダッシュボードから確認してください。</p>
@@ -157,7 +157,7 @@ const DEFAULT_TEMPLATES = {
     `),
   },
   'OFFER_ACCEPTED': {
-    subject: '【FLASTAL】オファーが受諾されました！',
+    subject: '【FLASTAL】🌸 オファーが受諾されました！',
     body: createBaseHtml('オファー受諾のお知らせ 🌸', `
       <p class="greeting">{{plannerName}} 様</p>
       <p class="message">お花屋さんがオファーを受諾しました！チャットで制作の詳細を相談しましょう。</p>
@@ -173,7 +173,7 @@ const DEFAULT_TEMPLATES = {
     `),
   },
   'OFFER_DECLINED': {
-    subject: '【FLASTAL】オファーが辞退されました',
+    subject: '【FLASTAL】😔 オファーが辞退されました',
     body: createBaseHtml('オファー辞退のお知らせ', `
       <p class="greeting">{{plannerName}} 様</p>
       <p class="message">残念ながら、お花屋さんがオファーを辞退しました。他のお花屋さんへオファーを出してみましょう。</p>
@@ -185,7 +185,7 @@ const DEFAULT_TEMPLATES = {
     `),
   },
   'PROJECT_COMPLETED': {
-    subject: '【FLASTAL】企画が完了しました！',
+    subject: '【FLASTAL】🌺 企画が完了しました！',
     body: createBaseHtml('企画完了のご報告 🌺', `
       <p class="greeting">{{userName}} 様</p>
       <p class="message">あなたが支援した企画が無事に完了しました。ご協力ありがとうございました！</p>
@@ -197,7 +197,7 @@ const DEFAULT_TEMPLATES = {
     `),
   },
   'POINTS_CHARGED': {
-    subject: '【FLASTAL】ポイントチャージが完了しました',
+    subject: '【FLASTAL】💎 ポイントチャージが完了しました',
     body: createBaseHtml('ポイントチャージ完了 💎', `
       <p class="greeting">{{userName}} 様</p>
       <p class="message">ポイントチャージが完了しました。さっそく気になる企画を支援してみましょう！</p>
@@ -209,7 +209,7 @@ const DEFAULT_TEMPLATES = {
     `),
   },
   'PASSWORD_RESET': {
-    subject: '【FLASTAL】パスワードの再設定',
+    subject: '【FLASTAL】🔑 パスワードの再設定',
     body: createBaseHtml('パスワード再設定', `
       <p class="greeting">{{userName}} 様</p>
       <p class="message">パスワード再設定のリクエストを受け付けました。以下のボタンをクリックして新しいパスワードを設定してください。</p>
@@ -289,6 +289,50 @@ export async function sendDynamicEmail(toEmail, templateKey, variables = {}) {
 // ── Convenience wrappers ──────────────────────────────────────
 export const sendBrandedEmail = (to, title, bodyHtml) =>
   sendEmail(to, title, createBaseHtml(title, bodyHtml));
+
+/**
+ * 支援完了メール（支援者向け）
+ * 支援が確定した直後に呼び出す。
+ */
+export async function sendPledgeConfirmationEmail(userEmail, userName, projectTitle, amount) {
+  const bodyHtml = `
+    <p class="greeting">こんにちは、${userName}さん 🌸</p>
+    <p class="message">「${projectTitle}」への支援が完了しました。ありがとうございます！</p>
+    <div class="highlight">
+      <div class="highlight-label">支援金額</div>
+      <div class="highlight-value">¥${Number(amount).toLocaleString()}</div>
+    </div>
+    <p class="message">企画の進捗はFLASTALでいつでもご確認いただけます。</p>
+    <div class="cta"><a href="${APP_URL}/mypage" class="btn">マイページを開く</a></div>
+  `;
+  return sendEmail(
+    userEmail,
+    `【FLASTAL】🌸「${projectTitle}」への支援が完了しました`,
+    createBaseHtml('支援完了のお知らせ 💖', bodyHtml)
+  );
+}
+
+/**
+ * 企画目標達成メール（企画者向け）
+ * 企画が目標金額を達成した際に呼び出す。
+ */
+export async function sendGoalAchievedEmail(plannerEmail, plannerName, projectTitle, totalAmount) {
+  const bodyHtml = `
+    <p class="greeting">おめでとうございます、${plannerName}さん！🎉</p>
+    <p class="message">「${projectTitle}」が目標金額を達成しました！</p>
+    <div class="highlight">
+      <div class="highlight-label">総支援金額</div>
+      <div class="highlight-value">¥${Number(totalAmount).toLocaleString()}</div>
+    </div>
+    <p class="message">ダッシュボードで詳細を確認し、お花屋さんとの交渉を進めましょう。</p>
+    <div class="cta"><a href="${APP_URL}/dashboard" class="btn">ダッシュボードを開く</a></div>
+  `;
+  return sendEmail(
+    plannerEmail,
+    `【FLASTAL】🎉「${projectTitle}」が目標達成しました！`,
+    createBaseHtml('🌸 目標達成おめでとうございます！', bodyHtml)
+  );
+}
 
 /**
  * fire-and-forget メール送信。

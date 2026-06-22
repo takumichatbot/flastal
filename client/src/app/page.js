@@ -145,6 +145,40 @@ const CATEGORIES = [
 ];
 
 // ==========================================
+// 📈 COUNT UP COMPONENT
+// ==========================================
+function CountUp({ end, suffix = '', prefix = '' }) {
+  const [count, setCount] = useState(0);
+  const [hasStarted, setHasStarted] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting && !hasStarted) setHasStarted(true); },
+      { threshold: 0.3 }
+    );
+    if (ref.current) observer.observe(ref.current);
+    return () => observer.disconnect();
+  }, [hasStarted]);
+
+  useEffect(() => {
+    if (!hasStarted) return;
+    const duration = 2000;
+    const steps = 60;
+    const increment = end / steps;
+    let current = 0;
+    const timer = setInterval(() => {
+      current += increment;
+      if (current >= end) { setCount(end); clearInterval(timer); }
+      else setCount(Math.floor(current));
+    }, duration / steps);
+    return () => clearInterval(timer);
+  }, [end, hasStarted]);
+
+  return <span ref={ref}>{prefix}{count.toLocaleString()}{suffix}</span>;
+}
+
+// ==========================================
 // 🎬 INTRO LOADER（幕開け）
 // ==========================================
 const IntroLoader = ({ onComplete }) => {
@@ -482,6 +516,48 @@ const HowItWorks = () => {
           ))}
         </div>
 
+        {/* ===== はじめての方へ：4ステップフロー ===== */}
+        <Reveal delay={0.2}>
+          <div className="mb-10 md:mb-16 bg-gradient-to-br from-rose-50 via-pink-50 to-amber-50 rounded-3xl border border-pink-100 p-6 md:p-10">
+            <div className="text-center mb-6">
+              <span className="text-[11px] font-black tracking-[0.25em] text-rose-400 uppercase bg-white/80 px-4 py-1.5 rounded-full inline-block mb-3">はじめての方へ</span>
+              <h3 className="text-xl md:text-2xl font-black text-slate-800 tracking-tighter">支援から会場到着まで</h3>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 relative">
+              {[
+                { num: "1", emoji: "🔍", title: "応援したいイベントを探す",   desc: "企画一覧から気になるフラスタ企画を見つけよう" },
+                { num: "2", emoji: "💳", title: "企画ページで支援する",        desc: "クレジットカードで簡単・安全に支援完了" },
+                { num: "3", emoji: "💐", title: "花屋とプランナーが制作",      desc: "プロの花屋さんが心を込めてフラスタを制作" },
+                { num: "4", emoji: "🎉", title: "会場にフラスタが届く",        desc: "当日会場にフラスタが飾られ推しに届きます" },
+              ].map((s, i, arr) => (
+                <div key={i} className="relative">
+                  <motion.div
+                    initial={{ opacity: 0, y: 16 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.5, delay: i * 0.12, ease: [0.22, 1, 0.36, 1] }}
+                    className="bg-white rounded-2xl p-4 md:p-5 border border-pink-100/70 shadow-sm text-center h-full flex flex-col items-center"
+                  >
+                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-pink-400 to-rose-400 text-white text-sm font-black flex items-center justify-center mb-3 shadow-sm shrink-0">
+                      {s.num}
+                    </div>
+                    <span className="text-3xl mb-2.5">{s.emoji}</span>
+                    <h4 className="font-black text-slate-800 text-xs md:text-sm leading-snug mb-1.5">{s.title}</h4>
+                    <p className="text-[10px] md:text-xs font-medium text-slate-400 leading-relaxed">{s.desc}</p>
+                  </motion.div>
+                  {i < arr.length - 1 && (
+                    <div className="hidden md:flex absolute top-1/2 -right-2.5 -translate-y-1/2 z-10">
+                      <div className="w-5 h-5 rounded-full bg-white border border-pink-200 flex items-center justify-center shadow-sm">
+                        <ChevronRight size={12} className="text-pink-400" />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </Reveal>
+
         {/* 使い方ガイドへの誘導 */}
         <Reveal delay={0.3}>
           <Link href="/guide" className="block relative overflow-hidden rounded-[1.75rem] bg-gradient-to-br from-pink-50 to-rose-50 border border-pink-100 hover:border-pink-200 transition-all duration-400 group shadow-sm hover:shadow-lg">
@@ -691,7 +767,7 @@ const PersonalizedFeed = () => {
                   >
                     <div className="aspect-square bg-gradient-to-br from-violet-100 to-pink-100 relative overflow-hidden">
                       {project.coverImageUrl
-                        ? <img src={project.coverImageUrl} alt={project.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                        ? <img src={project.coverImageUrl} alt={project.title} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                         : <div className="w-full h-full flex items-center justify-center text-violet-300"><Heart size={40} /></div>
                       }
                       <div className="absolute top-2 right-2 bg-violet-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full">{percent}%</div>
@@ -885,10 +961,10 @@ const ArticlesSection = () => (
 // ==========================================
 const SocialProof = () => {
   const stats = [
-    { value: '1,200+', label: '企画数', sub: '累計' },
-    { value: '98%',    label: '満足度', sub: '完了企画' },
-    { value: '全国',   label: '対応',   sub: 'お花屋さん' },
-    { value: '0円',    label: '参加費', sub: '無料で使える' },
+    { numeric: true,  end: 1200, suffix: '+', label: '企画数', sub: '累計' },
+    { numeric: true,  end: 98,   suffix: '%', label: '満足度', sub: '完了企画' },
+    { numeric: false, value: '全国',           label: '対応',   sub: 'お花屋さん' },
+    { numeric: false, value: '0円',            label: '参加費', sub: '無料で使える' },
   ];
 
   const testimonials = [
@@ -926,7 +1002,9 @@ const SocialProof = () => {
                 transition={{ type: 'spring', stiffness: 300, damping: 25 }}
                 className="bg-gradient-to-br from-pink-50 to-rose-50 rounded-3xl p-5 md:p-6 text-center border border-pink-100 shadow-sm"
               >
-                <p className="text-3xl md:text-4xl font-black text-pink-500 tracking-tighter leading-none mb-1">{s.value}</p>
+                <p className="text-3xl md:text-4xl font-black text-pink-500 tracking-tighter leading-none mb-1">
+                  {s.numeric ? <CountUp end={s.end} suffix={s.suffix} /> : s.value}
+                </p>
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2">{s.sub}</p>
                 <p className="text-sm font-black text-slate-700 mt-0.5">{s.label}</p>
               </motion.div>
@@ -1002,6 +1080,22 @@ const FAQ = () => {
     {
       q: '企画者はどんな管理をするのですか？',
       a: '目標金額の設定・締切日の管理・お花屋さんへのオファー・見積もり承認など、フラスタ制作に必要な手続きがサイト内で完結します。支援者への連絡やシェアも簡単に行えます。',
+    },
+    {
+      q: 'フラスタとは何ですか？',
+      a: 'フラワースタンドの略で、アイドルやVTuberなどへの応援として、コンサートやライブ会場に送る花のスタンドです。ファンの気持ちを形にした特別なプレゼントとして、推し活の定番になっています。',
+    },
+    {
+      q: '支援した後にキャンセルできますか？',
+      a: '企画が達成（目標金額到達）する前であれば、マイページからキャンセルが可能です。達成後はお花屋さんへの発注が始まるため、原則としてキャンセルはお受けできません。',
+    },
+    {
+      q: '花屋はどうやって選ばれますか？',
+      a: 'プランナー（企画者）がFLASTALに登録済みの提携花屋の中から希望のお花屋さんを選び、直接交渉・見積もりの依頼を行います。都道府県やスタイルで絞り込んで探すことができます。',
+    },
+    {
+      q: '最低支援金額はいくらですか？',
+      a: '最低支援金額は各企画のプランナーが自由に設定します。500円から参加できる企画も多く、気軽に推し活を楽しめます。各企画ページで詳細な支援プランをご確認ください。',
     },
   ];
 
@@ -1123,7 +1217,65 @@ const GalleryHighlight = () => {
 };
 
 // ==========================================
-// 11. PARTNER CTA
+// 11. TRUST BADGES
+// ==========================================
+const TrustBadges = () => {
+  const badges = [
+    {
+      icon: '🔒',
+      title: 'SSL暗号化通信',
+      desc: '全ページでSSL/TLS通信を採用。個人情報・決済情報を安全に保護します。',
+    },
+    {
+      icon: '💳',
+      title: 'Stripe決済（PCI DSS準拠）',
+      desc: '世界標準のStripeで決済を処理。カード情報はFLASTALに保存されません。',
+    },
+    {
+      icon: '✅',
+      title: '全花屋審査済み',
+      desc: '登録花屋は事前審査を通過したプロのみ。安心してフラスタを依頼できます。',
+    },
+    {
+      icon: '📧',
+      title: '24時間サポート',
+      desc: 'お問い合わせはいつでも受付中。トラブル時も迅速に対応いたします。',
+    },
+  ];
+
+  return (
+    <section className="py-14 md:py-20 bg-white relative z-10 border-t border-slate-100/60">
+      <div className="container mx-auto px-4 md:px-6 max-w-5xl">
+        <div className="text-center mb-8 md:mb-12">
+          <Reveal>
+            <span className="text-[11px] font-black tracking-[0.25em] text-emerald-500 uppercase bg-emerald-50 px-4 py-1.5 rounded-full inline-block mb-4">Security</span>
+            <h2 className="text-2xl md:text-4xl font-black text-slate-800 tracking-tighter mt-2">安心・安全の理由</h2>
+            <p className="text-sm font-medium text-slate-400 mt-2">FLASTALはセキュリティと品質にこだわってサービスを提供しています。</p>
+          </Reveal>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+          {badges.map((badge, i) => (
+            <Reveal key={i} delay={i * 0.09}>
+              <motion.div
+                whileHover={{ y: -5 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+                className="bg-gradient-to-br from-slate-50 to-white rounded-2xl p-5 border border-slate-100 shadow-sm hover:shadow-md transition-shadow h-full flex flex-col items-center text-center"
+              >
+                <span className="text-3xl mb-3">{badge.icon}</span>
+                <h3 className="font-black text-slate-800 text-sm mb-2 leading-snug">{badge.title}</h3>
+                <p className="text-xs font-medium text-slate-400 leading-relaxed">{badge.desc}</p>
+              </motion.div>
+            </Reveal>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+};
+
+// ==========================================
+// 12. PARTNER CTA
 // ==========================================
 const PartnerCTA = () => (
   <section className="py-14 md:py-24 bg-gradient-to-b from-pink-50 to-rose-50 relative z-10 overflow-hidden border-t border-pink-100/60">
@@ -1190,6 +1342,7 @@ const MainContent = () => (
     <SocialProof />
     <GalleryHighlight />
     <FAQ />
+    <TrustBadges />
     <ArticlesSection />
     <PartnerCTA />
   </motion.div>
