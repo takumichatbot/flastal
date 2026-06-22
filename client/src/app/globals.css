@@ -64,13 +64,20 @@ body {
 html.dark .bg-white    { background-color: var(--card-bg) !important; }
 html.dark .bg-slate-50 { background-color: #1e293b !important; }
 html.dark .bg-slate-100 { background-color: #334155 !important; }
+html.dark .bg-pink-50  { background-color: #2d1a24 !important; }
+html.dark .bg-rose-50  { background-color: #2d1a1f !important; }
 html.dark .text-slate-800 { color: #f1f5f9 !important; }
+html.dark .text-slate-900 { color: #f8fafc !important; }
 html.dark .text-slate-700 { color: #e2e8f0 !important; }
 html.dark .text-slate-600 { color: #cbd5e1 !important; }
 html.dark .text-slate-500 { color: #94a3b8 !important; }
 html.dark .border-slate-100 { border-color: #334155 !important; }
 html.dark .border-slate-200 { border-color: #475569 !important; }
 html.dark .shadow-sm { box-shadow: 0 1px 2px rgba(0,0,0,0.4) !important; }
+/* ピンク/ローズグラデーション背景のダークモード対応 */
+html.dark [class*="from-pink-50"] { --tw-gradient-from: #2d1a24 !important; }
+html.dark [class*="to-rose-50"]   { --tw-gradient-to: #2d1a1f !important; }
+html.dark [class*="from-rose-50"] { --tw-gradient-from: #2d1a1f !important; }
 
 /* 🎨 推し色適用ユーティリティ */
 .oshi-theme-bg { background-color: hsl(var(--primary)) !important; }
