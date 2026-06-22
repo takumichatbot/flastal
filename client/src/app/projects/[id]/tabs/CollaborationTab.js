@@ -67,7 +67,7 @@ function TeamSection({ project }) {
           {members.map(m => (
             <div key={m.id} className="flex items-center gap-3 p-2.5 bg-slate-50 rounded-xl">
               <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center overflow-hidden shrink-0">
-                {m.user.iconUrl ? <img src={m.user.iconUrl} alt="" className="w-full h-full object-cover" /> : <User size={14} className="text-indigo-400" />}
+                {m.user.iconUrl ? <Image src={m.user.iconUrl} alt={m.user.handleName || 'ユーザーアイコン'} width={32} height={32} className="object-cover" /> : <User size={14} className="text-indigo-400" />}
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-black text-slate-800 truncate">{m.user.handleName}</p>
@@ -551,7 +551,7 @@ export default function CollaborationTab({ ctx }) {
                           <div className="flex items-start justify-between mb-4">
                             <div className="flex items-center gap-3">
                               <div className="w-10 h-10 rounded-full overflow-hidden bg-slate-100 shrink-0">
-                                {app.illustrator?.iconUrl ? <Image src={app.illustrator.iconUrl} alt="" width={40} height={40} className="object-cover" /> : <User size={20} className="m-2 text-slate-300" />}
+                                {app.illustrator?.iconUrl ? <Image src={app.illustrator.iconUrl} alt={app.illustrator?.name || 'コラボレーターアイコン'} width={40} height={40} className="object-cover" /> : <User size={20} className="m-2 text-slate-300" />}
                               </div>
                               <div>
                                 <p className="font-black text-slate-800 text-sm">{app.illustrator?.name || '絵師さん'}</p>

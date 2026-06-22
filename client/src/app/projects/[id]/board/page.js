@@ -159,7 +159,7 @@ export default function DigitalNameBoardPage() {
                                 </div>
                                 <div className="flex items-center gap-4 bg-white/5 px-8 py-4 rounded-full backdrop-blur-md border border-white/10 shadow-2xl">
                                     {pledge.user?.iconUrl ? (
-                                        <Image src={pledge.user.iconUrl} alt="" width={48} height={48} className="rounded-full border-2 border-white/50 shadow-[0_0_15px_rgba(255,255,255,0.2)] object-cover" />
+                                        <Image src={pledge.user.iconUrl} alt={pledge.user?.handleName || 'ユーザーアイコン'} width={48} height={48} className="rounded-full border-2 border-white/50 shadow-[0_0_15px_rgba(255,255,255,0.2)] object-cover" />
                                     ) : (
                                         <div className="w-12 h-12 rounded-full border-2 border-white/50 bg-white/10 flex items-center justify-center text-white/50"><User size={24}/></div>
                                     )}

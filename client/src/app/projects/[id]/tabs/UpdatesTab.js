@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import Image from 'next/image';
 import { Rss, Plus, Trash2, Image as ImageIcon, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 import { useAuth } from '@/app/contexts/AuthContext';
 import { AppCard } from './shared.js';
@@ -37,7 +38,9 @@ function UpdateCard({ update, canDelete, onDelete }) {
                     {update.imageUrls?.length > 0 && (
                         <div className="flex gap-2 mt-3 flex-wrap">
                             {update.imageUrls.map((url, i) => (
-                                <img key={i} src={url} alt="" className="w-32 h-32 object-cover rounded-xl border border-slate-100" />
+                                <div key={i} className="relative w-32 h-32 shrink-0">
+                                    <Image src={url} alt={`${update.title || '更新画像'} ${i + 1}`} fill className="object-cover rounded-xl border border-slate-100" />
+                                </div>
                             ))}
                         </div>
                     )}

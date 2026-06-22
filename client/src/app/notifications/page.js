@@ -76,20 +76,25 @@ export default function NotificationsPage() {
                 headers: { Authorization: `Bearer ${token}` },
             });
             if (res.ok) setNotifications(await res.json());
-        } catch {}
-        finally { setLoading(false); }
+            else throw new Error('通知の取得に失敗しました');
+        } catch (e) {
+            toast.error(e.message || 'データの取得に失敗しました');
+        } finally { setLoading(false); }
     }, [token]);
 
     useEffect(() => { fetchNotifications(); }, [fetchNotifications]);
 
     const markRead = async (id) => {
         try {
-            await fetch(`${API_URL}/api/notifications/${id}/read`, {
+            const res = await fetch(`${API_URL}/api/notifications/${id}/read`, {
                 method: 'PATCH',
                 headers: { Authorization: `Bearer ${token}` },
             });
+            if (!res.ok) throw new Error('既読にできませんでした');
             setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
-        } catch {}
+        } catch (e) {
+            toast.error(e.message || 'データの取得に失敗しました');
+        }
     };
 
     const markAllRead = async () => {

@@ -513,6 +513,7 @@ const HowItWorks = () => {
 const TrendingProjects = () => {
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -524,8 +525,12 @@ const TrendingProjects = () => {
           const arr = Array.isArray(data) ? data : (data?.projects || []);
           const active = arr.filter(p => p?.status === 'FUNDRAISING' || p?.status === 'SUCCESSFUL');
           setProjects(active.slice(0, 4));
+        } else {
+          setFetchError(true);
         }
-      } catch {}
+      } catch {
+        setFetchError(true);
+      }
       finally { setLoading(false); }
     };
     fetchProjects();
@@ -557,6 +562,10 @@ const TrendingProjects = () => {
         {loading ? (
           <div className="flex justify-center py-20">
             <Loader2 className="w-8 h-8 text-pink-400 animate-spin" />
+          </div>
+        ) : fetchError ? (
+          <div className="text-center py-16 text-slate-400 font-bold bg-white rounded-3xl border border-slate-100">
+            データの取得に失敗しました。しばらくしてからページを再読み込みしてください。
           </div>
         ) : projects.length > 0 ? (
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-5">
@@ -634,6 +643,7 @@ const PersonalizedFeed = () => {
   const { isAuthenticated } = useAuth();
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -642,13 +652,13 @@ const PersonalizedFeed = () => {
     fetch(`${API_URL}/api/projects/feed/personalized`, {
       headers: { Authorization: `Bearer ${t}` },
     })
-      .then(r => r.ok ? r.json() : [])
+      .then(r => r.ok ? r.json() : Promise.reject(new Error('fetch failed')))
       .then(data => setProjects(Array.isArray(data) ? data.slice(0, 4) : []))
-      .catch(() => {})
+      .catch(() => { setFetchError(true); })
       .finally(() => setLoading(false));
   }, [isAuthenticated]);
 
-  if (!isAuthenticated || (!loading && projects.length === 0)) return null;
+  if (!isAuthenticated || (!loading && projects.length === 0 && !fetchError)) return null;
 
   return (
     <section className="py-14 md:py-20 bg-gradient-to-br from-violet-50 via-purple-50 to-pink-50 relative z-10 border-t border-violet-100/60">
@@ -665,6 +675,10 @@ const PersonalizedFeed = () => {
 
         {loading ? (
           <div className="flex justify-center py-16"><Loader2 className="w-8 h-8 text-violet-400 animate-spin" /></div>
+        ) : fetchError ? (
+          <div className="text-center py-12 text-slate-400 font-bold bg-white/60 rounded-3xl border border-violet-100 mt-8">
+            データの取得に失敗しました。しばらくしてからページを再読み込みしてください。
+          </div>
         ) : (
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-5 mt-8">
             {projects.map((project, i) => {

@@ -264,7 +264,7 @@ function ImageLightbox({ url, onClose }) {
       <motion.img
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
-        src={url} alt="" onClick={e => e.stopPropagation()}
+        src={url} alt="画像プレビュー" onClick={e => e.stopPropagation()}
         className="max-w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl pointer-events-none"
       />
     </div>
@@ -901,7 +901,7 @@ function CreateProjectForm() {
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
                 {formData.imageUrl ? (
                   <div className="relative w-full max-w-xs mx-auto aspect-video rounded-2xl overflow-hidden shadow-md">
-                    <Image src={formData.imageUrl} alt="" fill className="object-cover" />
+                    <Image src={formData.imageUrl} alt="デザインプレビュー" fill className="object-cover" />
                   </div>
                 ) : (
                   <div className="py-6">
@@ -992,7 +992,7 @@ function CreateProjectForm() {
               <div className="flex flex-wrap gap-3">
                 {formData.designImageUrls.map((url, idx) => (
                   <div key={idx} className="relative w-24 h-24 group">
-                    <img src={url} alt="" className="w-full h-full object-cover rounded-[1rem] border-2 border-white shadow-md cursor-zoom-in" onClick={() => setPreviewImageUrl(url)} />
+                    <img src={url} alt="花材プレビュー" className="w-full h-full object-cover rounded-[1rem] border-2 border-white shadow-md cursor-zoom-in" onClick={() => setPreviewImageUrl(url)} />
                     <div className="absolute inset-0 bg-slate-900/20 opacity-0 group-hover:opacity-100 flex items-center justify-center rounded-[1rem] pointer-events-none transition-opacity">
                       <ZoomIn className="text-white" size={20} />
                     </div>
@@ -1140,7 +1140,7 @@ function CreateProjectForm() {
               <div className="flex items-center gap-2 flex-wrap">
                 {formData.imageUrl ? (
                   <div className="relative w-16 h-16 rounded-xl overflow-hidden border-2 border-white shadow-md">
-                    <Image src={formData.imageUrl} alt="" fill className="object-cover" />
+                    <Image src={formData.imageUrl} alt="デザインプレビュー" fill className="object-cover" />
                   </div>
                 ) : (
                   <div className="w-16 h-16 rounded-xl bg-slate-100 flex items-center justify-center text-slate-300 border border-slate-100">
@@ -1149,7 +1149,7 @@ function CreateProjectForm() {
                 )}
                 {formData.designImageUrls.slice(0, 3).map((url, i) => (
                   <div key={i} className="relative w-16 h-16 rounded-xl overflow-hidden border-2 border-white shadow-md">
-                    <Image src={url} alt="" fill className="object-cover" />
+                    <Image src={url} alt="画像プレビュー" fill className="object-cover" />
                   </div>
                 ))}
                 {formData.designImageUrls.length > 3 && (

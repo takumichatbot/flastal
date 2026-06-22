@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import Link from 'next/link';
+import toast from 'react-hot-toast';
 import {
     AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts';
@@ -49,7 +50,7 @@ function ProjectAnalyticsCard({ project, token }) {
                 headers: { Authorization: `Bearer ${token}` },
             });
             if (res.ok) setData(await res.json());
-        } catch {}
+        } catch (err) { console.error('[Dashboard] analytics fetch failed:', err); }
         finally { setLoading(false); }
     };
 
@@ -172,7 +173,10 @@ export default function DashboardPage() {
                     totalBackers: list.reduce((s, p) => s + (p._count?.pledges || 0), 0),
                 });
             })
-            .catch(() => {})
+            .catch((err) => {
+                console.error('[Dashboard] projects fetch failed:', err);
+                toast.error('データの取得に失敗しました');
+            })
             .finally(() => setLoading(false));
     }, [token]);
 

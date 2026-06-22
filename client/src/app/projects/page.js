@@ -3,7 +3,7 @@
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
 
-import { useState, useEffect, Suspense, useCallback, useRef } from 'react';
+import { useState, useEffect, Suspense, useCallback, useRef, useMemo } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/app/contexts/AuthContext';
 import Link from 'next/link';
@@ -292,7 +292,7 @@ function ProjectsContent() {
   };
 
   // Sort + category + status filter (client-side)
-  const filtered = projects
+  const filtered = useMemo(() => projects
     .filter(p => !category || (p.eventType || '').toLowerCase().includes(category))
     .filter(p => {
       if (!statusFilter) return true;
@@ -315,7 +315,7 @@ function ProjectsContent() {
         return pb - pa;
       }
       return new Date(b.createdAt) - new Date(a.createdAt);
-    });
+    }), [projects, category, statusFilter, sort]);
 
   const hasActiveFilters = keyword || prefecture || sort !== 'newest' || category || statusFilter;
 
@@ -350,8 +350,9 @@ function ProjectsContent() {
 
             {/* Filter button */}
             <button onClick={() => setFilterOpen(true)}
+              aria-label="フィルターを開く"
               className={cn(
-                'relative w-9 h-9 rounded-full flex items-center justify-center transition-colors shrink-0',
+                'relative min-w-[44px] min-h-[44px] w-9 h-9 rounded-full flex items-center justify-center transition-colors shrink-0',
                 activeFilterCount > 0 ? 'bg-pink-500 text-white' : 'bg-slate-100 text-slate-500 active:bg-slate-200',
               )}>
               <SlidersHorizontal size={16} />

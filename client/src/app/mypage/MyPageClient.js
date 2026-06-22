@@ -398,6 +398,7 @@ function DashboardContent() {
               </div>
               <button
                 onClick={() => setActiveTab('notifications')}
+                aria-label="通知を開く"
                 className="relative p-2 rounded-xl active:bg-slate-100 transition-colors"
               >
                 <Bell size={22} className="text-slate-500" />
@@ -787,11 +788,21 @@ function DashboardContent() {
                         <motion.div
                           key={post.id}
                           whileTap={{ scale: 0.96 }}
+                          role="button"
+                          tabIndex={0}
                           onClick={() => {
                             setSelectedPost(post);
                             setPostComments([]);
                             fetch(`${API_URL}/api/posts/${post.id}/comments`)
                               .then(r => r.ok ? r.json() : []).then(setPostComments).catch(() => {});
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              setSelectedPost(post);
+                              setPostComments([]);
+                              fetch(`${API_URL}/api/posts/${post.id}/comments`)
+                                .then(r => r.ok ? r.json() : []).then(setPostComments).catch(() => {});
+                            }
                           }}
                           className="relative aspect-square bg-slate-100 cursor-pointer overflow-hidden"
                         >

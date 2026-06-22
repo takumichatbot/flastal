@@ -179,7 +179,7 @@ export default function ChatRoomPage() {
         <Link href={florist?.id ? `/florists/${florist.id}` : '#'} className="flex items-center gap-2.5 flex-1 min-w-0 active:opacity-70 transition-opacity">
           <div className="w-9 h-9 rounded-full bg-slate-100 overflow-hidden flex-shrink-0 border border-slate-100">
             {florist?.iconUrl ? (
-              <Image src={florist.iconUrl} alt="" width={36} height={36} className="object-cover w-full h-full" />
+              <Image src={florist.iconUrl} alt={florist?.shopName || '花屋アイコン'} width={36} height={36} className="object-cover w-full h-full" />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-slate-300">
                 <User size={18} />
@@ -243,7 +243,7 @@ export default function ChatRoomPage() {
                 {!isMe && (
                   <div className={`w-7 h-7 rounded-full bg-slate-100 overflow-hidden flex-shrink-0 border border-slate-100 transition-opacity ${isLast ? 'opacity-100' : 'opacity-0'}`}>
                     {florist?.iconUrl ? (
-                      <Image src={florist.iconUrl} alt="" width={28} height={28} className="object-cover w-full h-full" />
+                      <Image src={florist.iconUrl} alt={florist?.shopName || '花屋アイコン'} width={28} height={28} className="object-cover w-full h-full" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center"><User size={14} className="text-slate-300" /></div>
                     )}

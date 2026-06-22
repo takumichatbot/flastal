@@ -58,6 +58,15 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onre
 
 // Helper
 function cn(...classes) { return classes.filter(Boolean).join(' '); }
+
+function sanitizeHtml(html) {
+  if (typeof html !== 'string') return '';
+  return html
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+    .replace(/\son\w+\s*=\s*["'][^"']*["']/gi, '')
+    .replace(/javascript\s*:/gi, '')
+    .replace(/<iframe[^>]*>[\s\S]*?<\/iframe>/gi, '');
+}
 const JpText = ({ children, className }) => <span className={cn("inline-block leading-relaxed", className)}>{children}</span>;
 
 const getAuthToken = () => {
@@ -147,7 +156,7 @@ function InstructionSheetModal({ project, onClose }) {
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 bg-white p-2 rounded-full shadow-sm"><X size={20}/></button>
         </div>
         <div className="flex-grow p-4 md:p-8 bg-white text-sm overflow-y-auto prose prose-sm">
-             <div dangerouslySetInnerHTML={{ __html: contentHtml }} />
+             <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(contentHtml) }} />
         </div>
         <div className="p-4 md:p-6 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
           <button onClick={onClose} className="px-5 py-2.5 bg-white border border-slate-200 rounded-xl font-bold text-slate-600 hover:bg-slate-50 shadow-sm">閉じる</button>
@@ -1313,7 +1322,7 @@ export default function ProjectDetailClient() {
               <Link href={`/users/${project.planner?.id}`} className="flex items-center gap-3 group">
                 <div className="w-10 h-10 bg-slate-100 rounded-full overflow-hidden border-2 border-white shadow-sm shrink-0">
                   {project.planner?.iconUrl
-                    ? <Image src={project.planner.iconUrl} alt="" width={40} height={40} className="object-cover w-10 h-10"/>
+                    ? <Image src={project.planner.iconUrl} alt={project.planner?.name || 'プランナー'} width={40} height={40} className="object-cover w-10 h-10"/>
                     : <User size={18} className="text-slate-400 m-auto mt-3"/>}
                 </div>
                 <div>
@@ -1427,7 +1436,7 @@ export default function ProjectDetailClient() {
                   {project.pledges.slice(0, 7).map((pledge, i) => (
                     <div key={pledge.id || i} className="w-8 h-8 rounded-full border-2 border-white bg-slate-100 overflow-hidden shadow-sm shrink-0">
                       {pledge.user?.iconUrl
-                        ? <Image src={pledge.user.iconUrl} alt="" width={32} height={32} className="object-cover w-8 h-8"/>
+                        ? <Image src={pledge.user.iconUrl} alt={pledge.user?.nickname || 'サポーター'} width={32} height={32} className="object-cover w-8 h-8"/>
                         : <div className="w-8 h-8 bg-gradient-to-br from-pink-200 to-rose-200 flex items-center justify-center">
                             <span className="text-[10px] font-black text-pink-600">
                               {(pledge.user?.handleName || '?')[0]}

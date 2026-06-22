@@ -35,7 +35,7 @@ export default function BackersTab({ ctx }) {
               <div key={pledge.id || i} className="flex items-center gap-3 p-3 rounded-2xl hover:bg-slate-50 transition-colors">
                 <div className="w-10 h-10 rounded-full border-2 border-white bg-slate-100 overflow-hidden shadow-sm shrink-0">
                   {pledge.user?.iconUrl
-                    ? <Image src={pledge.user.iconUrl} alt="" width={40} height={40} className="object-cover w-10 h-10" />
+                    ? <Image src={pledge.user.iconUrl} alt={pledge.user?.handleName || 'ユーザーアイコン'} width={40} height={40} className="object-cover w-10 h-10" />
                     : <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-pink-100 to-rose-100 text-pink-400 font-black text-sm">
                         {(pledge.user?.handleName || '?')[0]}
                       </div>
@@ -114,7 +114,7 @@ export default function BackersTab({ ctx }) {
                 <div key={cheer.id} className="flex gap-3">
                   <div className="w-8 h-8 rounded-full bg-gradient-to-br from-pink-100 to-rose-100 flex items-center justify-center text-pink-400 font-black text-xs shrink-0 overflow-hidden border border-pink-100">
                     {cheer.user?.iconUrl
-                      ? <Image src={cheer.user.iconUrl} alt="" width={32} height={32} className="object-cover w-8 h-8" />
+                      ? <Image src={cheer.user.iconUrl} alt={cheer.user?.nickname || 'ユーザーアイコン'} width={32} height={32} className="object-cover w-8 h-8" />
                       : (cheer.user?.handleName || cheer.guestName || '?')[0]}
                   </div>
                   <div className="flex-1 min-w-0 bg-slate-50 rounded-2xl rounded-tl-none px-4 py-3">

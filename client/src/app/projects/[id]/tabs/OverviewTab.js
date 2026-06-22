@@ -292,7 +292,7 @@ export default function OverviewTab({ ctx }) {
                 <div className="flex items-center gap-2 mb-3">
                   <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center overflow-hidden border border-slate-200 shrink-0">
                     {project.planner?.iconUrl
-                      ? <Image src={project.planner.iconUrl} alt="" width={32} height={32} className="object-cover" />
+                      ? <Image src={project.planner.iconUrl} alt={project.planner?.name || 'プランナーアイコン'} width={32} height={32} className="object-cover" />
                       : <User size={14} className="text-slate-400" />}
                   </div>
                   <div>
