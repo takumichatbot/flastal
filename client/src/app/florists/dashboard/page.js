@@ -384,6 +384,18 @@ function DashboardContent() {
                 プロフィールを編集 <ArrowRight size={16} className="text-pink-500 group-hover:translate-x-1 transition-transform" />
               </Link>
             </div>
+
+          {/* 花屋向け資材ショップへのバナー */}
+          <div className="md:col-span-3 bg-gradient-to-r from-sky-500 to-cyan-400 p-5 md:p-6 rounded-[2rem] shadow-lg shadow-sky-200 flex items-center justify-between gap-4">
+            <div className="text-white">
+              <p className="text-xs font-black uppercase tracking-widest opacity-80 mb-1">NEW</p>
+              <h3 className="text-lg md:text-xl font-black mb-0.5">🌸 花材・資材ショップ</h3>
+              <p className="text-sm opacity-90">フローラルフォーム・リボン・梱包材などをまとめて仕入れできます</p>
+            </div>
+            <Link href="/shop" className="shrink-0 bg-white text-sky-600 font-black px-6 py-3 rounded-full hover:bg-sky-50 transition-colors shadow-md flex items-center gap-2 text-sm whitespace-nowrap">
+              ショップを見る <ArrowRight size={15} />
+            </Link>
+          </div>
           </div>
         </Reveal>
 

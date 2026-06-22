@@ -78,6 +78,16 @@ enum RefundStatus {
   FAILED      // 返金失敗
 }
 
+enum ShopOrderStatus {
+  PENDING     // 支払い待ち
+  PAID        // 支払い完了
+  PROCESSING  // 出荷準備中
+  SHIPPED     // 発送済み
+  DELIVERED   // 配達完了
+  CANCELLED   // キャンセル
+  REFUNDED    // 返金済み
+}
+
 enum FloristStatus {
   PENDING
   APPROVED
@@ -448,6 +458,8 @@ model Florist {
   deliveryNotes      String?   @db.Text        // 配送の特記事項
   groupChatMessages GroupChatMessage[]
   favorites         FloristFavorite[]
+  shopCart          ShopCart?
+  shopOrders        ShopOrder[]
 }
 
 model FloristDeal {
@@ -1370,4 +1382,93 @@ model CompletionPhoto {
   uploader    User     @relation(fields: [uploaderId], references: [id], onDelete: Cascade)
   @@index([projectId, createdAt])
   @@index([createdAt])
+}
+
+// ===================================================
+// 花屋向け資材・花材ショップ
+// ===================================================
+
+model ShopProductCategory {
+  id        String        @id @default(cuid())
+  name      String        // "生花・花材", "資材・道具", "梱包材", "リボン・装飾", "フォーム・給水", "パネル・印刷"
+  slug      String        @unique
+  emoji     String        @default("🌸")
+  sortOrder Int           @default(0)
+  products  ShopProduct[]
+}
+
+model ShopProduct {
+  id           String              @id @default(cuid())
+  name         String
+  description  String?             @db.Text
+  price        Int                 // 円（税抜）
+  comparePrice Int?                // 定価（割引前）
+  sku          String?             @unique
+  images       String[]            // Cloudinary/S3 URL配列
+  categoryId   String
+  category     ShopProductCategory @relation(fields: [categoryId], references: [id])
+  stock        Int                 @default(0)
+  unit         String              @default("個") // "本", "個", "セット", "m", "枚", "袋"
+  minOrder     Int                 @default(1)
+  isActive     Boolean             @default(true)
+  isFeatured   Boolean             @default(false)
+  tags         String[]
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  cartItems    ShopCartItem[]
+  orderItems   ShopOrderItem[]
+
+  @@index([categoryId])
+  @@index([isActive, isFeatured])
+}
+
+model ShopCart {
+  id        String         @id @default(cuid())
+  floristId String         @unique
+  florist   Florist        @relation(fields: [floristId], references: [id], onDelete: Cascade)
+  items     ShopCartItem[]
+  updatedAt DateTime       @updatedAt
+}
+
+model ShopCartItem {
+  id        String      @id @default(cuid())
+  cartId    String
+  cart      ShopCart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  productId String
+  product   ShopProduct @relation(fields: [productId], references: [id])
+  quantity  Int         @default(1)
+
+  @@unique([cartId, productId])
+}
+
+model ShopOrder {
+  id              String          @id @default(cuid())
+  floristId       String
+  florist         Florist         @relation(fields: [floristId], references: [id])
+  items           ShopOrderItem[]
+  subtotal        Int             // 小計（税抜）
+  tax             Int             // 消費税（10%）
+  shippingFee     Int             @default(0)
+  total           Int             // 合計（税込）
+  status          ShopOrderStatus @default(PENDING)
+  stripeSessionId String?         @unique
+  stripePaymentId String?
+  trackingNumber  String?
+  note            String?         @db.Text
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([floristId, createdAt])
+  @@index([status])
+}
+
+model ShopOrderItem {
+  id          String      @id @default(cuid())
+  orderId     String
+  order       ShopOrder   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId   String
+  product     ShopProduct @relation(fields: [productId], references: [id])
+  productName String      // 注文時の商品名スナップショット
+  price       Int         // 注文時の価格スナップショット（税抜）
+  quantity    Int
 }

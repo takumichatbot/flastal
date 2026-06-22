@@ -6,6 +6,7 @@ import { queueEmail } from '../utils/email.js';
 import { getIO } from '../config/socket.js';
 import { evaluateAndAwardBadges } from '../utils/badges.js';
 import { pledgeCounter } from '../config/metrics.js';
+import { fulfillShopOrder } from './shopController.js';
 
 export const handleStripeWebhook = async (req, res) => {
     const sig = req.headers['stripe-signature'];
@@ -183,6 +184,29 @@ export const handleStripeWebhook = async (req, res) => {
                 }).catch(() => {});
             } catch (err) {
                 console.error("[Webhook] Pledge Processing Error:", err);
+                await prisma.webhookLog.upsert({
+                    where: { eventId: event.id },
+                    update: { status: 'error', error: err.message },
+                    create: { eventId: event.id, eventType: event.type, status: 'error', metadata: meta, error: err.message },
+                }).catch(() => {});
+            }
+        }
+
+        // ==========================================
+        // ==========================================
+        // ケースB-0: 花屋向け資材ショップ注文
+        // ==========================================
+        if (meta && meta.type === 'shop_order') {
+            try {
+                await fulfillShopOrder(session);
+                console.log(`[Webhook] Shop order fulfilled: session ${session.id}`);
+                await prisma.webhookLog.upsert({
+                    where: { eventId: event.id },
+                    update: {},
+                    create: { eventId: event.id, eventType: event.type, status: 'success', metadata: meta },
+                }).catch(() => {});
+            } catch (err) {
+                console.error('[Webhook] Shop Order Error:', err);
                 await prisma.webhookLog.upsert({
                     where: { eventId: event.id },
                     update: { status: 'error', error: err.message },

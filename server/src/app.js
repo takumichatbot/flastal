@@ -32,6 +32,7 @@ import teamRoutes          from './routes/team.js';
 import artistPageRoutes    from './routes/artistPages.js';
 import giftCardRoutes      from './routes/giftCards.js';
 import galleryRoutes       from './routes/gallery.js';
+import shopRoutes          from './routes/shop.js';
 import { metricsMiddleware, register } from './config/metrics.js';
 
 // ★ 追加: Webhook、アップロード、認証関連、ユーザーコントローラーのインポート
@@ -144,6 +145,7 @@ app.use('/api/projects/:projectId/team',          generalLimiter, teamRoutes);
 app.use('/api/artists',                           generalLimiter, artistPageRoutes);
 app.use('/api/gift-cards',                        generalLimiter, giftCardRoutes);
 app.use('/api/gallery',                           generalLimiter, galleryRoutes);
+app.use('/api/shop',                              generalLimiter, shopRoutes);
 app.use('/api/tools', uploadLimiter, toolRoutes); // S3アップロード・AI生成
 app.use('/api/ai', aiLimiter, toolRoutes);
 app.use('/api/payment', paymentLimiter, paymentRoutes);
