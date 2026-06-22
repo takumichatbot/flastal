@@ -256,13 +256,13 @@ const Hero = () => {
             {/* キャッチコピー */}
             <div className="mb-5 flex flex-col items-center lg:items-start">
               <Reveal delay={0.06}>
-                <span className="font-calligraphy text-3xl sm:text-4xl lg:text-5xl text-rose-300 block -mb-2 ml-1 lg:ml-0 drop-shadow-sm">
+                <span className="font-calligraphy text-3xl sm:text-4xl lg:text-5xl text-rose-500 block -mb-2 ml-1 lg:ml-0 drop-shadow-sm">
                   To your favorite
                 </span>
               </Reveal>
               <SplitTextReveal
                 text="世界でひとつのお花を。"
-                className="text-[2.1rem] sm:text-5xl md:text-6xl lg:text-[4rem] font-black text-slate-800 tracking-tighter leading-tight"
+                className="text-[2.1rem] sm:text-5xl md:text-6xl lg:text-[4rem] font-black text-slate-900 tracking-tighter leading-tight [text-shadow:0_1px_3px_rgba(0,0,0,0.08)]"
                 delay={0.12}
               />
             </div>
