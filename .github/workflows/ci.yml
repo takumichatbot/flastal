@@ -1,0 +1,118 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  server:
+    name: Server – lint & test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: flastal
+          POSTGRES_PASSWORD: flastal
+          POSTGRES_DB: flastal_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://flastal:flastal@localhost:5432/flastal_test
+      JWT_SECRET: ci_test_secret
+      NODE_ENV: test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npx prisma db push --skip-generate
+      - run: npm test --if-present
+
+  client:
+    name: Client – build check
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: client
+
+    env:
+      NEXT_PUBLIC_API_URL: https://flastal-backend.onrender.com
+      NEXT_TELEMETRY_DISABLED: 1
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+
+      - run: npm ci --legacy-peer-deps
+      - run: npm run build
+
+  e2e:
+    name: E2E – Playwright
+    runs-on: ubuntu-latest
+    needs: client
+    defaults:
+      run:
+        working-directory: client
+
+    env:
+      NEXT_PUBLIC_API_URL: https://flastal-backend.onrender.com
+      NEXT_TELEMETRY_DISABLED: 1
+      PLAYWRIGHT_BASE_URL: http://localhost:3000
+      CI: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+
+      - run: npm ci --legacy-peer-deps
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Start Next.js dev server
+        run: npm run dev &
+        env:
+          PORT: 3000
+
+      - name: Wait for server
+        run: npx wait-on http://localhost:3000 --timeout 60000
+
+      - name: Run E2E tests
+        run: npm run e2e
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: client/playwright-report/
+          retention-days: 7
