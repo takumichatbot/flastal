@@ -4,12 +4,50 @@ import { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useAuth } from '../contexts/AuthContext';
-import { Camera, X, Loader2, ImageOff, ExternalLink, Plus, Trash2 } from 'lucide-react';
+import { Camera, X, Loader2, ImageOff, ExternalLink, Plus, Trash2, Heart, ChevronDown } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
-function PhotoCard({ photo, onDelete, canDelete }) {
+const GENRE_TABS = [
+    { id: 'all', label: 'すべて' },
+    { id: 'idol', label: 'アイドル' },
+    { id: 'vtuber', label: 'VTuber' },
+    { id: 'anime', label: 'アニメ' },
+    { id: 'voice_actor', label: '声優' },
+];
+
+const SORT_OPTIONS = [
+    { id: 'newest', label: '新着順' },
+    { id: 'likes', label: 'いいね順' },
+    { id: 'project', label: 'プロジェクト別' },
+];
+
+function PhotoCard({ photo, onDelete, canDelete, token, onLikeUpdate }) {
     const [showFull, setShowFull] = useState(false);
+    const [liked, setLiked] = useState(photo.likedByMe || false);
+    const [likeCount, setLikeCount] = useState(photo.likeCount || 0);
+    const [liking, setLiking] = useState(false);
+
+    const handleLike = async (e) => {
+        e.stopPropagation();
+        if (!token || liking) return;
+        setLiking(true);
+        try {
+            const res = await fetch(`${API_URL}/api/gallery/${photo.id}/like`, {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            if (res.ok) {
+                const data = await res.json();
+                const newLiked = data.liked ?? !liked;
+                const newCount = data.likeCount ?? (newLiked ? likeCount + 1 : Math.max(0, likeCount - 1));
+                setLiked(newLiked);
+                setLikeCount(newCount);
+                if (onLikeUpdate) onLikeUpdate(photo.id, newLiked, newCount);
+            }
+        } catch { /* ignore */ }
+        finally { setLiking(false); }
+    };
 
     return (
         <>
@@ -36,6 +74,15 @@ function PhotoCard({ photo, onDelete, canDelete }) {
                         <Trash2 size={12} className="text-white" />
                     </button>
                 )}
+                {/* いいねボタン */}
+                <button
+                    onClick={handleLike}
+                    disabled={!token || liking}
+                    className="absolute bottom-2 right-2 flex items-center gap-1 px-2 py-1 rounded-full bg-black/50 text-white text-[10px] font-black backdrop-blur-sm transition-all opacity-0 group-hover:opacity-100 hover:bg-rose-500/80 disabled:cursor-not-allowed"
+                >
+                    <Heart size={10} className={liked ? 'fill-rose-400 text-rose-400' : ''} />
+                    {likeCount > 0 && <span>{likeCount}</span>}
+                </button>
             </div>
 
             {showFull && (
@@ -56,10 +103,20 @@ function PhotoCard({ photo, onDelete, canDelete }) {
                                     )}
                                     <p className="text-[11px] text-slate-400">{photo.uploader?.handleName}</p>
                                 </div>
-                                <button onClick={() => setShowFull(false)}
-                                    className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center hover:bg-slate-200">
-                                    <X size={14} />
-                                </button>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={handleLike}
+                                        disabled={!token || liking}
+                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black transition-all ${liked ? 'bg-rose-50 text-rose-500' : 'bg-slate-100 text-slate-500 hover:bg-rose-50 hover:text-rose-500'} disabled:opacity-50`}
+                                    >
+                                        <Heart size={12} className={liked ? 'fill-rose-500' : ''} />
+                                        {likeCount > 0 ? likeCount : 'いいね'}
+                                    </button>
+                                    <button onClick={() => setShowFull(false)}
+                                        className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center hover:bg-slate-200">
+                                        <X size={14} />
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -69,7 +126,8 @@ function PhotoCard({ photo, onDelete, canDelete }) {
     );
 }
 
-function UploadModal({ projectId, onClose, onSuccess, token }) {
+function UploadModal({ onClose, onSuccess, token }) {
+    const [projectId, setProjectId] = useState('');
     const [imageUrl, setImageUrl] = useState('');
     const [caption, setCaption] = useState('');
     const [uploading, setUploading] = useState(false);
@@ -94,7 +152,7 @@ function UploadModal({ projectId, onClose, onSuccess, token }) {
     };
 
     const submit = async () => {
-        if (!imageUrl) return;
+        if (!imageUrl || !projectId) return;
         setUploading(true);
         const res = await fetch(`${API_URL}/api/gallery/${projectId}`, {
             method: 'POST',
@@ -113,6 +171,13 @@ function UploadModal({ projectId, onClose, onSuccess, token }) {
                     <button onClick={onClose}><X size={18} className="text-slate-400" /></button>
                 </div>
                 <div className="p-5 space-y-4">
+                    <input
+                        type="text"
+                        value={projectId}
+                        onChange={e => setProjectId(e.target.value)}
+                        placeholder="企画ID（URLの末尾の番号）"
+                        className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 outline-none focus:border-violet-400"
+                    />
                     <label className={`block border-2 border-dashed rounded-xl cursor-pointer overflow-hidden aspect-video flex items-center justify-center transition-colors ${preview ? 'border-transparent' : 'border-slate-200 hover:border-violet-300'}`}>
                         {preview ? (
                             <div className="relative w-full h-full">
@@ -138,7 +203,7 @@ function UploadModal({ projectId, onClose, onSuccess, token }) {
                     />
                     <button
                         onClick={submit}
-                        disabled={uploading || !imageUrl}
+                        disabled={uploading || !imageUrl || !projectId}
                         className="w-full bg-gradient-to-r from-violet-500 to-pink-500 text-white font-black text-sm py-3 rounded-xl disabled:opacity-50 flex items-center justify-center gap-2">
                         {uploading && <Loader2 size={16} className="animate-spin" />}
                         {uploading ? 'アップロード中...' : '投稿する'}
@@ -154,7 +219,9 @@ export default function GalleryPage() {
     const [photos, setPhotos] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showUpload, setShowUpload] = useState(false);
-    const [uploadProjectId, setUploadProjectId] = useState('');
+    const [activeGenre, setActiveGenre] = useState('all');
+    const [sortBy, setSortBy] = useState('newest');
+    const [showSortMenu, setShowSortMenu] = useState(false);
 
     const load = useCallback(async () => {
         setLoading(true);
@@ -175,61 +242,128 @@ export default function GalleryPage() {
         setPhotos(p => p.filter(ph => ph.id !== id));
     };
 
+    const handleLikeUpdate = (photoId, newLiked, newCount) => {
+        setPhotos(p => p.map(ph =>
+            ph.id === photoId ? { ...ph, likedByMe: newLiked, likeCount: newCount } : ph
+        ));
+    };
+
+    const filteredAndSorted = [...photos]
+        .filter(ph => {
+            if (activeGenre === 'all') return true;
+            return ph.genre === activeGenre || ph.project?.genre === activeGenre;
+        })
+        .sort((a, b) => {
+            if (sortBy === 'likes') return (b.likeCount || 0) - (a.likeCount || 0);
+            if (sortBy === 'project') return (a.project?.title || '').localeCompare(b.project?.title || '');
+            // newest: 降順
+            return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+        });
+
+    const currentSortLabel = SORT_OPTIONS.find(o => o.id === sortBy)?.label || '新着順';
+
     return (
         <div className="min-h-screen bg-[#FAF9FF] font-sans">
-            <div className="bg-gradient-to-br from-rose-400 to-pink-500 py-10 px-4">
-                <div className="max-w-3xl mx-auto">
-                    <p className="text-rose-200 text-xs font-black uppercase tracking-widest mb-1">Gallery</p>
-                    <h1 className="text-2xl font-black text-white">達成報告ギャラリー</h1>
-                    <p className="text-white/70 text-sm font-bold mt-1">みんなが完成させたフラスタの写真</p>
+            {/* ヒーローセクション */}
+            <div className="bg-gradient-to-br from-pink-500 to-rose-500 text-white py-10 px-4 text-center">
+                <h1 className="text-2xl font-black">達成報告ギャラリー</h1>
+                <p className="text-pink-100 mt-1 text-sm">完成したフラスタの写真を共有しよう</p>
+                {token && (
+                    <button
+                        onClick={() => setShowUpload(true)}
+                        className="mt-4 inline-flex items-center gap-2 bg-white text-pink-500 font-black text-sm px-5 py-2.5 rounded-2xl shadow-lg hover:shadow-xl transition-shadow active:scale-95">
+                        <Plus size={16} /> 写真を投稿する
+                    </button>
+                )}
+            </div>
+
+            {/* フィルタータブ */}
+            <div className="bg-white border-b border-slate-100 sticky top-0 z-10">
+                <div className="max-w-3xl mx-auto px-4 flex items-center gap-2 overflow-x-auto py-2 no-scrollbar">
+                    {GENRE_TABS.map(tab => (
+                        <button
+                            key={tab.id}
+                            onClick={() => setActiveGenre(tab.id)}
+                            className={`flex-shrink-0 px-4 py-1.5 rounded-full text-xs font-black transition-all ${
+                                activeGenre === tab.id
+                                    ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-sm'
+                                    : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                            }`}
+                        >
+                            {tab.label}
+                        </button>
+                    ))}
                 </div>
             </div>
 
-            <div className="max-w-3xl mx-auto px-4 py-8">
-                {token && (
-                    <div className="mb-6 flex items-center gap-3">
-                        <input
-                            type="text"
-                            value={uploadProjectId}
-                            onChange={e => setUploadProjectId(e.target.value)}
-                            placeholder="企画ID（URLの末尾から取得）"
-                            className="flex-1 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 outline-none focus:border-pink-400"
-                        />
+            <div className="max-w-3xl mx-auto px-4 py-6">
+                {/* ソート + 件数 */}
+                <div className="flex items-center justify-between mb-4">
+                    <p className="text-xs font-black text-slate-400">
+                        {filteredAndSorted.length}件
+                    </p>
+                    <div className="relative">
                         <button
-                            onClick={() => uploadProjectId && setShowUpload(true)}
-                            disabled={!uploadProjectId}
-                            className="flex items-center gap-2 bg-gradient-to-r from-rose-500 to-pink-500 text-white font-black text-sm px-4 py-2.5 rounded-xl disabled:opacity-40">
-                            <Plus size={14} /> 投稿
+                            onClick={() => setShowSortMenu(v => !v)}
+                            className="flex items-center gap-1.5 text-xs font-black text-slate-600 bg-white border border-slate-200 px-3 py-1.5 rounded-xl hover:border-pink-300 transition-colors"
+                        >
+                            {currentSortLabel}
+                            <ChevronDown size={12} className={`transition-transform ${showSortMenu ? 'rotate-180' : ''}`} />
                         </button>
+                        {showSortMenu && (
+                            <div className="absolute right-0 top-full mt-1 bg-white border border-slate-100 rounded-xl shadow-lg overflow-hidden z-20 min-w-[120px]">
+                                {SORT_OPTIONS.map(opt => (
+                                    <button
+                                        key={opt.id}
+                                        onClick={() => { setSortBy(opt.id); setShowSortMenu(false); }}
+                                        className={`w-full text-left px-4 py-2.5 text-xs font-black transition-colors ${sortBy === opt.id ? 'text-pink-500 bg-pink-50' : 'text-slate-600 hover:bg-slate-50'}`}
+                                    >
+                                        {opt.label}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
                     </div>
-                )}
+                </div>
 
                 {loading ? (
                     <div className="flex justify-center py-20">
                         <Loader2 size={28} className="animate-spin text-pink-400" />
                     </div>
-                ) : photos.length === 0 ? (
+                ) : filteredAndSorted.length === 0 ? (
                     <div className="text-center py-20">
                         <ImageOff size={36} className="mx-auto mb-3 text-slate-200" />
                         <p className="text-slate-400 font-bold text-sm">まだ写真がありません</p>
                     </div>
                 ) : (
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                        {photos.map(photo => (
+                        {filteredAndSorted.map(photo => (
                             <PhotoCard
                                 key={photo.id}
                                 photo={photo}
                                 onDelete={handleDelete}
                                 canDelete={user?.id === photo.uploaderId || user?.role === 'ADMIN'}
+                                token={token}
+                                onLikeUpdate={handleLikeUpdate}
                             />
                         ))}
                     </div>
                 )}
             </div>
 
+            {/* フローティング投稿ボタン（ログイン済みのみ） */}
+            {token && (
+                <button
+                    onClick={() => setShowUpload(true)}
+                    className="fixed bottom-24 right-4 z-40 w-14 h-14 rounded-full bg-gradient-to-br from-pink-500 to-rose-500 text-white shadow-xl shadow-pink-200 flex items-center justify-center hover:scale-110 transition-transform active:scale-95"
+                    aria-label="写真を投稿"
+                >
+                    <Plus size={24} />
+                </button>
+            )}
+
             {showUpload && (
                 <UploadModal
-                    projectId={uploadProjectId}
                     token={token}
                     onClose={() => setShowUpload(false)}
                     onSuccess={() => { setShowUpload(false); load(); }}

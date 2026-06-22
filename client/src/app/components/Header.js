@@ -8,7 +8,7 @@ import {
   Bell, ChevronDown, User, LogOut, Heart, CheckCircle2, Menu, X,
   Calendar, MapPin, LayoutDashboard, Settings, Sparkles, Store, ShieldCheck, Briefcase, FileText,
   UserCheck, ClipboardList, BarChart3, Building2, Package, Truck, Search, PlusCircle, Star, Rss,
-  Sun, Moon, Gift
+  Sun, Moon, Gift, Users
 } from 'lucide-react';
 import { useDarkMode } from '@/app/contexts/DarkModeContext';
 import { motion, AnimatePresence, useScroll, useMotionValueEvent } from 'framer-motion';
@@ -247,10 +247,12 @@ export default function Header() {
   const navLinks = useMemo(() => {
     const baseLinks = [
       { href: '/projects', label: '企画一覧', icon: <Heart size={16}/> },
+      { href: '/matching', label: 'みんなで企画', icon: <Users size={16}/> },
       { href: '/events', label: 'イベント', icon: <Calendar size={16}/> },
-      { href: '/illustrators/recruitment', label: '絵師募集中', icon: <Star size={16}/> }, 
+      { href: '/illustrators/recruitment', label: '絵師募集中', icon: <Star size={16}/> },
       { href: '/venues', label: '会場', icon: <MapPin size={16}/> },
       { href: '/florists', label: 'お花屋さん', icon: <Store size={16}/> },
+      { href: '/corporate', label: '法人の方へ', icon: <Building2 size={16}/> },
     ];
     if (!user) return baseLinks;
 

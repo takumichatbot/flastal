@@ -22,7 +22,7 @@ function getActiveTab(pathname, tab) {
     if (tab === 'settings')      return 'settings';
     return 'home';
   }
-  if (pathname.startsWith('/projects') || pathname.startsWith('/events') || pathname.startsWith('/venues') || pathname.startsWith('/florists') || pathname.startsWith('/illustrators')) return 'explore';
+  if (pathname.startsWith('/projects') || pathname.startsWith('/matching') || pathname.startsWith('/events') || pathname.startsWith('/venues') || pathname.startsWith('/florists') || pathname.startsWith('/illustrators')) return 'explore';
   return null;
 }
 
