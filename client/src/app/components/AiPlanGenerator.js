@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from 'react';
-import { Cpu, Loader2, Check, X, Star, Pencil, Zap } from 'lucide-react';
+import { Cpu, Loader2, Check, X, Pencil, Zap, Sparkles } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 // 雰囲気の選択肢定義
@@ -15,7 +15,8 @@ const TONE_OPTIONS = [
 const LOADING_MESSAGES = [
   'キーワードを分析しています...',
   '魅力的なタイトルを考案中...',
-  '説明文を構成しています...',
+  '目標金額と締切を計算中...',
+  'ティアプランを作成しています...',
   '最後の仕上げをしています...',
 ];
 
@@ -27,7 +28,10 @@ export default function AiPlanGenerator({ onGenerated, onClose }) {
     targetName: '',
     eventName: '',
     tone: '情熱的・エモい',
-    extraInfo: ''
+    extraInfo: '',
+    genre: '',
+    budget: '',
+    deadline: '',
   });
 
   // ローディングメッセージのアニメーション
@@ -61,21 +65,23 @@ export default function AiPlanGenerator({ onGenerated, onClose }) {
 
     try {
       const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/ai/generate-plan`, {
+      // ドラフトウィザード（全項目生成）を優先、なければ旧エンドポイント
+      const draftRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tools/draft-project`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(formData)
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({
+          genre: formData.genre || formData.eventName,
+          budget: formData.budget,
+          deadline: formData.deadline,
+          memo: `推し: ${formData.targetName}, トーン: ${formData.tone}. ${formData.extraInfo}`,
+        }),
       });
 
-      if (!res.ok) throw new Error('生成に失敗しました');
+      if (!draftRes.ok) throw new Error('生成に失敗しました');
+      const data = await draftRes.json();
 
-      const data = await res.json();
-      
-      onGenerated(data.title, data.description);
-      toast.success('AIが文章を作成しました！', { icon: '🤖' });
+      onGenerated(data);
+      toast.success('AIがドラフトを作成しました！', { icon: '🤖' });
       onClose();
 
     } catch (error) {
@@ -160,14 +166,36 @@ export default function AiPlanGenerator({ onGenerated, onClose }) {
             </div>
           </div>
 
+          {/* ジャンル・予算・締切 */}
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-gray-600 mb-1.5 ml-1">ジャンル</label>
+              <input name="genre" placeholder="アイドル" disabled={loading}
+                className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-violet-500 outline-none"
+                onChange={handleChange} />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-600 mb-1.5 ml-1">予算目安(円)</label>
+              <input name="budget" type="number" placeholder="50000" disabled={loading}
+                className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-violet-500 outline-none"
+                onChange={handleChange} />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-600 mb-1.5 ml-1">締切日</label>
+              <input name="deadline" type="date" disabled={loading}
+                className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-violet-500 outline-none"
+                onChange={handleChange} />
+            </div>
+          </div>
+
           <div>
             <label className="block text-xs font-bold text-gray-600 mb-1.5 ml-1">補足情報 (任意)</label>
             <div className="relative">
-                <textarea 
-                name="extraInfo" 
-                placeholder="AIに伝えたい要素があれば入力してください。&#13;&#10;例: イメージカラーは赤。バルーンスタンドにしたい。感動的にしてほしい。" 
+                <textarea
+                name="extraInfo"
+                placeholder="AIに伝えたい要素があれば入力してください。&#13;&#10;例: イメージカラーは赤。バルーンスタンドにしたい。感動的にしてほしい。"
                 disabled={loading}
-                className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-violet-500 outline-none h-24 text-sm resize-none placeholder-gray-400"
+                className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-violet-500 outline-none h-20 text-sm resize-none placeholder-gray-400"
                 onChange={handleChange}
                 />
                 <Pencil className="absolute bottom-3 right-3 text-gray-400 pointer-events-none"/>
@@ -191,8 +219,8 @@ export default function AiPlanGenerator({ onGenerated, onClose }) {
                 </div>
             ) : (
                 <>
-                    <Cpu className="text-xl group-hover:rotate-12 transition-transform" /> 
-                    AIに文章を考えてもらう
+                    <Sparkles className="text-xl group-hover:rotate-12 transition-transform" />
+                    AIにドラフトを作成してもらう
                 </>
             )}
           </button>

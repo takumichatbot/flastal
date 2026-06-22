@@ -26,7 +26,13 @@ router.get('/:userId/offerable-projects', userController.getOfferableProjects);
 // ★ 通知関連
 // ==========================================
 router.get('/notifications', authenticateToken, userController.getNotifications);
+router.patch('/notifications/read-all', authenticateToken, userController.markAllNotificationsRead);
 router.patch('/notifications/:notificationId/read', authenticateToken, userController.markNotificationRead);
+
+// ==========================================
+// ★ ポイント履歴
+// ==========================================
+router.get('/points/history', authenticateToken, userController.getPointHistory);
 
 // ==========================================
 // ★ 銀行口座関連
@@ -37,7 +43,23 @@ router.post('/bank-accounts', authenticateToken, userController.registerBankAcco
 // ==========================================
 // ★ ユーザー出金関連
 // ==========================================
-router.get('/payouts/history', authenticateToken, userController.getUserPayouts); 
+router.get('/payouts/history', authenticateToken, userController.getUserPayouts);
 router.post('/payouts/request', authenticateToken, userController.requestUserPayout);
+
+// ==========================================
+// ★ フォロー関連
+// ==========================================
+router.post('/:userId/follow',    authenticateToken, userController.followUser);
+router.delete('/:userId/follow',  authenticateToken, userController.unfollowUser);
+router.get('/:userId/follow',     authenticateToken, userController.getFollowStatus);
+router.get('/feed/following',     authenticateToken, userController.getFollowingFeed);
+
+// ==========================================
+// ★ KYC
+// ==========================================
+router.post('/kyc/submit', authenticateToken, userController.submitKyc);
+
+// 紹介/アフィリエイト統計
+router.get('/referral/stats', authenticateToken, userController.getReferralStats);
 
 export default router;

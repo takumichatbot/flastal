@@ -313,6 +313,8 @@ function CreateProjectForm() {
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
   const [isAiPlanModalOpen, setIsAiPlanModalOpen] = useState(false);
   const [previewImageUrl, setPreviewImageUrl] = useState(null);
+  const [isAiCoverGenerating, setIsAiCoverGenerating] = useState(false);
+  const [aiCoverStyle, setAiCoverStyle] = useState('illustration');
 
   const [selectedVenue, setSelectedVenue] = useState(null);
   const [selectedEvent, setSelectedEvent] = useState(null);
@@ -324,6 +326,9 @@ function CreateProjectForm() {
   const [budgetRefs, setBudgetRefs] = useState([]);
   const [isLoadingRefs, setIsLoadingRefs] = useState(true);
 
+  const [selectedTags, setSelectedTags] = useState([]);
+  const [availableTags, setAvailableTags] = useState([]);
+
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -333,6 +338,7 @@ function CreateProjectForm() {
     venueId: '',
     eventId: '',
     imageUrl: '',
+    videoUrl: '',
     designImageUrls: [],
     designDetails: '',
     size: '',
@@ -350,6 +356,13 @@ function CreateProjectForm() {
       .then(setBudgetRefs)
       .catch(() => {})
       .finally(() => setIsLoadingRefs(false));
+  }, []);
+
+  useEffect(() => {
+    fetch(`${API_URL}/api/projects/tags/all`)
+      .then(r => r.ok ? r.json() : [])
+      .then(setAvailableTags)
+      .catch(() => {});
   }, []);
 
   const rushFeeAlert = (() => {
@@ -402,6 +415,28 @@ function CreateProjectForm() {
       toast.success('デザイン画像をアップロードしました！', { id: tid });
     } catch { toast.error('一部のアップロードに失敗しました', { id: tid }); }
     finally { setIsDesignUploading(false); e.target.value = ''; }
+  };
+
+  const handleGenerateCoverImage = async () => {
+    if (!formData.title) { toast.error('まずタイトルを入力してください'); return; }
+    setIsAiCoverGenerating(true);
+    const tid = toast.loading('AIでカバー画像を生成中...');
+    try {
+      const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+      const res = await fetch(`${API_URL}/api/tools/generate-cover-image`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ title: formData.title, description: formData.description, artStyle: aiCoverStyle }),
+      });
+      if (!res.ok) throw new Error();
+      const { imageUrl } = await res.json();
+      setFormData(p => ({ ...p, imageUrl }));
+      toast.success('AIがカバー画像を生成しました！', { id: tid });
+    } catch {
+      toast.error('AI画像生成に失敗しました', { id: tid });
+    } finally {
+      setIsAiCoverGenerating(false);
+    }
   };
 
   const fetchEventDetails = useCallback(async (id) => {
@@ -543,6 +578,7 @@ function CreateProjectForm() {
         deliveryAddress: `${formData.deliveryAddress || selectedVenue?.address || ''} 【希望時間帯: ${deliveryTimeText || '指定なし'}】`,
         deliveryDateTime: deliveryDateTimeISO,
         imageUrl: formData.imageUrl || '',
+        videoUrl: formData.videoUrl || '',
         designImageUrls: formData.designImageUrls || [],
         designDetails: formData.designDetails || '',
         size: formData.size || '',
@@ -566,6 +602,15 @@ function CreateProjectForm() {
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.message || '作成に失敗しました。');
+      }
+
+      const newProject = await res.json();
+      // タグを設定（ノンブロッキング）
+      if (selectedTags.length > 0 && newProject?.id) {
+        authenticatedFetch(`${API_URL}/api/projects/${newProject.id}/tags`, {
+          method: 'PUT',
+          body: JSON.stringify({ tagSlugs: selectedTags }),
+        }).catch(() => {});
       }
 
       toast.success('企画を作成しました！', { id: tid });
@@ -869,6 +914,77 @@ function CreateProjectForm() {
               </div>
             </div>
 
+            {/* AI カバー画像生成 */}
+            <div className="mt-4 p-4 bg-gradient-to-r from-violet-50 to-pink-50 rounded-2xl border border-violet-100">
+              <p className="text-xs font-black text-violet-700 mb-3 flex items-center gap-1.5">
+                <Wand2 size={13} /> DALL-E 3 でカバー画像を自動生成
+              </p>
+              <div className="flex gap-2 mb-3">
+                {[
+                  { key: 'illustration', label: 'イラスト' },
+                  { key: 'watercolor', label: '水彩' },
+                  { key: 'anime', label: 'アニメ' },
+                  { key: 'photo', label: 'フォト' },
+                ].map(s => (
+                  <button key={s.key} type="button"
+                    onClick={() => setAiCoverStyle(s.key)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-black border transition-all ${
+                      aiCoverStyle === s.key
+                        ? 'bg-violet-500 text-white border-violet-500'
+                        : 'bg-white text-slate-500 border-slate-200 hover:border-violet-300'
+                    }`}>
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+              <button type="button" onClick={handleGenerateCoverImage}
+                disabled={isAiCoverGenerating || !formData.title}
+                className="w-full py-2.5 bg-violet-500 text-white rounded-xl text-xs font-black flex items-center justify-center gap-2 hover:bg-violet-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm">
+                {isAiCoverGenerating ? <><Loader2 size={13} className="animate-spin" /> 生成中...</> : <><Wand2 size={13} /> AIで生成する</>}
+              </button>
+            </div>
+
+            {/* 動画URL */}
+            <div className="mt-5">
+              <label className="block text-xs font-black text-slate-600 mb-2">
+                動画URL <span className="text-slate-400 font-bold">（YouTube / Vimeo、任意）</span>
+              </label>
+              <input type="url" name="videoUrl" value={formData.videoUrl} onChange={handleChange}
+                placeholder="https://youtu.be/..."
+                className="w-full text-sm font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-pink-300" />
+            </div>
+
+            {/* タグ */}
+            {availableTags.length > 0 && (
+              <div className="mt-5">
+                <label className="block text-xs font-black text-slate-600 mb-2">
+                  カテゴリ・タグ <span className="text-slate-400 font-bold">（複数選択可）</span>
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {availableTags.map(tag => {
+                    const selected = selectedTags.includes(tag.slug);
+                    return (
+                      <button
+                        key={tag.slug}
+                        type="button"
+                        onClick={() => setSelectedTags(prev =>
+                          selected ? prev.filter(s => s !== tag.slug) : [...prev, tag.slug]
+                        )}
+                        className={`px-3 py-1.5 rounded-full text-xs font-black border transition-all ${
+                          selected
+                            ? 'text-white border-transparent shadow-sm'
+                            : 'bg-white text-slate-600 border-slate-200 hover:border-pink-300'
+                        }`}
+                        style={selected ? { backgroundColor: tag.color, borderColor: tag.color } : {}}
+                      >
+                        {tag.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             <div className="mt-5">
               <label className="block text-xs font-black text-slate-600 mb-3">
                 参考画像・ラフ画 <span className="text-slate-400 font-bold">（複数枚OK）</span>
@@ -1170,9 +1286,14 @@ function CreateProjectForm() {
         {isAiPlanModalOpen && (
           <AiPlanGenerator
             onClose={() => setIsAiPlanModalOpen(false)}
-            onGenerated={(title, description) => {
-              setFormData(p => ({ ...p, title, description }));
-              toast.success('AIが文章を作成しました！');
+            onGenerated={(draft) => {
+              setFormData(p => ({
+                ...p,
+                title: draft.title || p.title,
+                description: draft.description || p.description,
+                targetAmount: draft.targetAmount ? String(draft.targetAmount) : p.targetAmount,
+              }));
+              toast.success('AIドラフトを反映しました！ティア案はフォーム下部をご確認ください。', { duration: 4000 });
             }}
           />
         )}

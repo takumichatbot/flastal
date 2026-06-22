@@ -217,10 +217,13 @@ function ProjectsContent() {
   const [prefecture, setPrefecture] = useState('');
   const [sort, setSort] = useState('newest');
   const [category, setCategory] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
   const [filterOpen, setFilterOpen] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(20);
+  const loaderRef = useRef(null);
   const searchRef = useRef(null);
 
-  const activeFilterCount = [prefecture].filter(Boolean).length;
+  const activeFilterCount = [prefecture, statusFilter].filter(Boolean).length;
 
   const fetchProjects = useCallback(async () => {
     if (authLoading) return;
@@ -248,6 +251,21 @@ function ProjectsContent() {
 
   useEffect(() => { fetchProjects(); }, [fetchProjects]);
 
+  // フィルター変更時に表示件数をリセット
+  useEffect(() => { setVisibleCount(20); }, [keyword, prefecture, sort, category, statusFilter]);
+
+  // Infinite Scroll: 末尾に達したら20件ずつ追加
+  useEffect(() => {
+    const el = loaderRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      (entries) => { if (entries[0].isIntersecting) setVisibleCount(prev => prev + 20); },
+      { threshold: 0.1 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   const handleSearch = (e) => {
     e?.preventDefault();
     const params = new URLSearchParams(searchParams);
@@ -269,12 +287,21 @@ function ProjectsContent() {
     setPrefecture('');
     setSort('newest');
     setCategory('');
+    setStatusFilter('');
     router.replace(pathname);
   };
 
-  // Sort + category filter (client-side)
+  // Sort + category + status filter (client-side)
   const filtered = projects
     .filter(p => !category || (p.eventType || '').toLowerCase().includes(category))
+    .filter(p => {
+      if (!statusFilter) return true;
+      const isSuccess = (p.collectedAmount || 0) >= (p.targetAmount || 1);
+      if (statusFilter === 'fundraising') return p.status === 'FUNDRAISING' && !isSuccess;
+      if (statusFilter === 'success') return isSuccess && p.status !== 'COMPLETED';
+      if (statusFilter === 'completed') return p.status === 'COMPLETED';
+      return true;
+    })
     .sort((a, b) => {
       if (sort === 'popular') return (b.collectedAmount || 0) - (a.collectedAmount || 0);
       if (sort === 'deadline') {
@@ -290,7 +317,7 @@ function ProjectsContent() {
       return new Date(b.createdAt) - new Date(a.createdAt);
     });
 
-  const hasActiveFilters = keyword || prefecture || sort !== 'newest' || category;
+  const hasActiveFilters = keyword || prefecture || sort !== 'newest' || category || statusFilter;
 
   return (
     <div className="flex flex-col bg-[#F7F7FA] font-sans" style={{ minHeight: '100dvh' }}>
@@ -343,7 +370,7 @@ function ProjectsContent() {
           </div>
 
           {/* Category chips */}
-          <div className="pb-3 flex gap-2 overflow-x-auto no-scrollbar">
+          <div className="pt-1 pb-2 flex gap-2 overflow-x-auto no-scrollbar">
             {CATEGORIES.map(c => (
               <button key={c.id} onClick={() => setCategory(c.id)}
                 className={cn(
@@ -356,6 +383,24 @@ function ProjectsContent() {
               </button>
             ))}
           </div>
+
+          {/* Status filter chips */}
+          <div className="pb-3 flex gap-2 overflow-x-auto no-scrollbar">
+            {[
+              { id: '',            label: 'すべて', color: 'bg-slate-900 text-white border-slate-900', inactive: 'bg-white text-slate-400 border-slate-100' },
+              { id: 'fundraising', label: '🌸 募集中', color: 'bg-pink-500 text-white border-pink-500',    inactive: 'bg-pink-50 text-pink-500 border-pink-100' },
+              { id: 'success',     label: '✅ 達成',   color: 'bg-emerald-500 text-white border-emerald-500', inactive: 'bg-emerald-50 text-emerald-600 border-emerald-100' },
+              { id: 'completed',   label: '🎉 完了',   color: 'bg-purple-500 text-white border-purple-500',  inactive: 'bg-purple-50 text-purple-600 border-purple-100' },
+            ].map(s => (
+              <button key={s.id} onClick={() => setStatusFilter(s.id)}
+                className={cn(
+                  'shrink-0 px-3 py-1.5 rounded-full font-black text-xs transition-all border',
+                  statusFilter === s.id ? s.color : s.inactive,
+                )}>
+                {s.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -363,7 +408,7 @@ function ProjectsContent() {
       <div
         className="flex-1 overflow-y-auto max-w-2xl mx-auto w-full px-4"
         style={{
-          paddingTop: 'calc(7.5rem + env(safe-area-inset-top))',
+          paddingTop: 'calc(10.5rem + env(safe-area-inset-top))',
           paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))',
         }}
       >
@@ -394,9 +439,16 @@ function ProjectsContent() {
             ))}
           </div>
         ) : filtered.length > 0 ? (
-          <div className="grid grid-cols-2 gap-3">
-            {filtered.map((p, i) => <ProjectCard key={p.id} project={p} index={i} />)}
-          </div>
+          <>
+            <div className="grid grid-cols-2 gap-3">
+              {filtered.slice(0, visibleCount).map((p, i) => <ProjectCard key={p.id} project={p} index={i} />)}
+            </div>
+            {visibleCount < filtered.length && (
+              <div ref={loaderRef} className="flex justify-center py-8">
+                <div className="w-6 h-6 rounded-full border-2 border-pink-300 border-t-pink-500 animate-spin" />
+              </div>
+            )}
+          </>
         ) : (
           <div className="flex flex-col items-center justify-center py-24 text-center">
             <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mb-4 text-slate-300 shadow-sm border border-slate-100">

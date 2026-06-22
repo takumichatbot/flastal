@@ -55,5 +55,12 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+		<string>fetch</string>
+	</array>
+	<key>NSUserNotificationUsageDescription</key>
+	<string>FLASTALからの支援・企画更新・締切のお知らせをお届けします。</string>
 </dict>
 </plist>

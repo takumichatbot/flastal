@@ -2,7 +2,9 @@ import prisma from '../config/prisma.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
-import { sendDynamicEmail } from '../utils/email.js';
+import { sendDynamicEmail, queueEmail } from '../utils/email.js';
+
+const REFERRAL_BONUS_POINTS = parseInt(process.env.REFERRAL_BONUS_POINTS || '200');
 
 // ==========================================
 // ★★★ 共通ヘルパー: トークン発行 ★★★
@@ -40,12 +42,26 @@ export const registerUser = async (req, res) => {
             verificationToken,
         };
 
+        let referrer = null;
         if (referralCode && referralCode.trim() !== '') {
-            const referrer = await prisma.user.findUnique({ where: { referralCode: referralCode.trim() } });
+            referrer = await prisma.user.findUnique({ where: { referralCode: referralCode.trim() } });
             if (referrer) userData.referredById = referrer.id;
         }
 
         await prisma.user.create({ data: userData });
+
+        // 紹介ボーナス: 招待した人と新規ユーザー両方にポイント付与
+        if (referrer) {
+            await prisma.user.update({
+                where: { id: referrer.id },
+                data: { points: { increment: REFERRAL_BONUS_POINTS } },
+            });
+            queueEmail(referrer.email, 'REFERRAL_BONUS', {
+                userName: referrer.handleName || 'さん',
+                points: REFERRAL_BONUS_POINTS.toLocaleString(),
+                newUserName: handleName,
+            });
+        }
 
         const verificationUrl = `${process.env.FRONTEND_URL}/verify?token=${verificationToken}`;
         await sendDynamicEmail(lowerEmail, 'VERIFICATION_EMAIL', {
@@ -76,9 +92,20 @@ export const loginUser = async (req, res) => {
         }
 
         let userRole = user.role;
-        const ADMIN_EMAILS = ["takuminsitou946@gmail.com", "hana87kaori@gmail.com"];
-        if (ADMIN_EMAILS.includes(lowerEmail)) {
+        const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
+        if (ADMIN_EMAILS.length > 0 && ADMIN_EMAILS.includes(lowerEmail)) {
             userRole = 'ADMIN';
+        }
+
+        // 2FA が有効な場合はトークンを要求
+        if (user.totpEnabled) {
+            const { totpToken } = req.body;
+            if (!totpToken) {
+                return res.status(200).json({ requireTotp: true });
+            }
+            const { validateTotpToken } = await import('./totpController.js');
+            const valid = validateTotpToken(user.totpSecret, totpToken);
+            if (!valid) return res.status(401).json({ message: '認証コードが正しくありません' });
         }
 
         const token = generateToken({

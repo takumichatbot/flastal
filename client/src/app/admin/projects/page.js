@@ -232,6 +232,25 @@ export default function AdminProjectsPage() {
         }
     };
 
+    const handleForceClose = async (projectId, projectTitle) => {
+        const reason = window.prompt(`「${projectTitle}」を強制キャンセルします。\n理由を入力してください（任意）:`);
+        if (reason === null) return; // キャンセルボタン押下
+        const toastId = toast.loading('強制キャンセル中...');
+        try {
+            const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+            const res = await fetch(`${API_URL}/api/admin/projects/${projectId}/force-close`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ reason }),
+            });
+            if (!res.ok) throw new Error((await res.json()).message || '失敗しました');
+            toast.success('企画を強制キャンセルしました。', { id: toastId });
+            fetchProjects();
+        } catch (e) {
+            toast.error(e.message, { id: toastId });
+        }
+    };
+
     const handleDeleteProject = async (projectId, projectTitle) => {
         if (!window.confirm(`本当に企画「${projectTitle}」を完全に削除しますか？\nこの操作は取り消せません。`)) {
             return;
@@ -437,7 +456,17 @@ export default function AdminProjectsPage() {
                                                             <Edit3 size={14} /> <span className="hidden xl:inline">編集</span>
                                                         </button>
 
-                                                        <button 
+                                                        {p.status === 'FUNDRAISING' && (
+                                                            <button
+                                                                onClick={() => handleForceClose(p.id, p.title)}
+                                                                className="flex items-center gap-1 px-3 py-1.5 bg-white text-orange-500 hover:bg-orange-500 hover:text-white border border-orange-200 hover:border-orange-500 rounded-lg transition-all text-xs font-bold shadow-sm"
+                                                                title="強制キャンセル"
+                                                            >
+                                                                <XCircle size={14} /> <span className="hidden xl:inline">強制終了</span>
+                                                            </button>
+                                                        )}
+
+                                                        <button
                                                             onClick={() => handleDeleteProject(p.id, p.title)}
                                                             className="flex items-center gap-1 px-3 py-1.5 bg-white text-rose-500 hover:bg-rose-500 hover:text-white border border-rose-200 hover:border-rose-500 rounded-lg transition-all text-xs font-bold shadow-sm"
                                                             title="強制削除"

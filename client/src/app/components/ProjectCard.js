@@ -3,8 +3,45 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import ImageModal from './ImageModal';
-import ImageWithFallback from './ImageWithFallback'; // ★追加: 作成したコンポーネントをインポート
-import { MapPin, Clock, ZoomIn } from 'lucide-react';
+import ImageWithFallback from './ImageWithFallback';
+import { MapPin, Clock, ZoomIn, TrendingUp } from 'lucide-react';
+
+// 達成確率スコア算出
+function calcSuccessProbability(project) {
+  const { collectedAmount, targetAmount, createdAt, deadline, status } = project;
+  if (status !== 'FUNDRAISING' || !targetAmount || !createdAt) return null;
+  const progress = collectedAmount / targetAmount;
+  if (progress >= 1) return 100;
+
+  const now = Date.now();
+  const start = new Date(createdAt).getTime();
+  const end = deadline ? new Date(deadline).getTime() : start + 30 * 86400000;
+  const total = end - start;
+  const elapsed = now - start;
+  const remaining = end - now;
+  if (remaining <= 0 || total <= 0) return Math.min(100, Math.round(progress * 100));
+
+  const elapsedFrac = elapsed / total;
+  // 経過時間比に対して進捗がどれだけ進んでいるか（ペース係数）
+  const paceRatio = elapsedFrac > 0 ? progress / elapsedFrac : 0;
+  // 残り時間で必要な残達成量をペース係数で割り算して確率推定
+  const projectedFinal = progress + paceRatio * (1 - elapsedFrac);
+  const raw = Math.min(projectedFinal, 1.5) / 1.5; // 150%超は確実とみなす
+  return Math.round(raw * 100);
+}
+
+function SuccessBadge({ probability }) {
+  if (probability === null) return null;
+  const { text, cls } =
+    probability >= 80 ? { text: `達成確率 ${probability}%`, cls: 'bg-emerald-500 text-white' } :
+    probability >= 50 ? { text: `達成確率 ${probability}%`, cls: 'bg-amber-400 text-white' } :
+                        { text: `達成確率 ${probability}%`, cls: 'bg-slate-300 text-slate-700' };
+  return (
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black ${cls}`}>
+      <TrendingUp size={9} /> {text}
+    </span>
+  );
+}
 
 export default function ProjectCard({ project }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -13,9 +50,10 @@ export default function ProjectCard({ project }) {
 
   const collectedAmount = project.collectedAmount || 0;
   const targetAmount = project.targetAmount || 0;
-  
+
   const rawPercentage = targetAmount > 0 ? (collectedAmount / targetAmount) * 100 : 0;
   const progressPercentage = Math.min(rawPercentage, 100);
+  const successProbability = calcSuccessProbability(project);
 
   const handleImageClick = (e) => {
     e.preventDefault(); 
@@ -100,6 +138,11 @@ export default function ProjectCard({ project }) {
             </div>
 
             <div className="mt-auto">
+                {successProbability !== null && (
+                  <div className="mb-2">
+                    <SuccessBadge probability={successProbability} />
+                  </div>
+                )}
                 <div className="flex justify-between items-end mb-1">
                     <span className="text-2xl font-black text-slate-800">
                         {Math.floor(rawPercentage)}<span className="text-sm font-bold text-slate-500 ml-0.5">%</span>

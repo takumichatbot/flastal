@@ -4,3 +4,7 @@
 # GCP Service Account Key
 src/config/gcp-key.jsonserver/config/gcp-key.json
 server/config/gcp-key.json
+
+# APNs private key
+*.p8
+AuthKey_*.p8

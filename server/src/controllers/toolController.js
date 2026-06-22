@@ -402,8 +402,124 @@ export const registerNativeDeviceToken = async (req, res) => {
 // 画像アップロード用 (Cloudinary用)
 export const uploadImage = async (req, res) => {
     if (!req.file) return res.status(400).json({ message: 'ファイルなし' });
-    cloudinary.uploader.upload_stream({ resource_type: 'image' }, (error, result) => {
-        if (error) return res.status(500).json({ message: 'アップロード失敗' });
-        res.status(200).json({ url: result.secure_url });
-    }).end(req.file.buffer);
+
+    // 1200px にリサイズしてWebP変換してからアップロード
+    let processedBuffer;
+    try {
+        processedBuffer = await sharp(req.file.buffer)
+            .resize({ width: 1200, withoutEnlargement: true })
+            .webp({ quality: 82 })
+            .toBuffer();
+    } catch {
+        processedBuffer = req.file.buffer;
+    }
+
+    cloudinary.uploader.upload_stream(
+        { resource_type: 'image', format: 'webp' },
+        (error, result) => {
+            if (error) return res.status(500).json({ message: 'アップロード失敗' });
+            res.status(200).json({ url: result.secure_url });
+        }
+    ).end(processedBuffer);
+};
+
+// ─── AIドラフトウィザード ────────────────────────────────────────
+// genre(ジャンル), budget(予算), deadline(希望締切), description(補足) を受け取り
+// title / description / targetAmount / deadline / pledgeTiers を返す
+
+export const generateProjectDraft = async (req, res) => {
+    const { genre, budget, deadline, memo } = req.body;
+    try {
+        const fallback = {
+            title: `${genre || 'フラワー'}プロジェクト`,
+            description: `${genre || ''}をテーマにしたフラスタ企画です。${memo || ''}`.trim(),
+            targetAmount: budget ? Math.round(Number(budget) * 0.8) : 30000,
+            deadline: deadline || new Date(Date.now() + 14 * 86400000).toISOString().split('T')[0],
+            pledgeTiers: [
+                { title: 'スタンダード支援', amount: 1000, description: 'お名前をカードに掲載します', badge: '🌸' },
+                { title: 'プレミアム支援',   amount: 3000, description: 'お名前 + 感謝メッセージ',   badge: '🌺' },
+                { title: 'スペシャル支援',   amount: 5000, description: '限定デジタルカード進呈',     badge: '💐' },
+            ],
+        };
+
+        if (!process.env.GEMINI_API_KEY) return res.json(fallback);
+
+        const today = new Date().toISOString().split('T')[0];
+        const prompt = `
+フラワースタンド（フラスタ）クラウドファンディング企画のドラフトを作成してください。
+- ジャンル: ${genre || '不明'}
+- 予算目安: ${budget ? `${Number(budget).toLocaleString()}円` : '未定'}
+- 希望締切: ${deadline || '2週間後'}
+- 補足: ${memo || 'なし'}
+- 今日の日付: ${today}
+
+必ず以下のJSONのみを出力してください（説明文不要）:
+{
+  "title": "企画タイトル（30文字以内）",
+  "description": "募集説明文（200〜400文字）",
+  "targetAmount": 目標金額（整数・円）,
+  "deadline": "YYYY-MM-DD",
+  "pledgeTiers": [
+    { "title": "ティア名", "amount": 金額（整数）, "description": "特典説明", "badge": "絵文字1文字" },
+    { "title": "ティア名", "amount": 金額（整数）, "description": "特典説明", "badge": "絵文字1文字" },
+    { "title": "ティア名", "amount": 金額（整数）, "description": "特典説明", "badge": "絵文字1文字" }
+  ]
+}`;
+
+        const model = genAI.getGenerativeModel({
+            model: 'gemini-2.5-flash',
+            generationConfig: { responseMimeType: 'application/json' },
+        });
+        const result = await model.generateContent(prompt);
+        const draft = JSON.parse(result.response.text());
+        res.json(draft);
+    } catch (error) {
+        console.error('AIドラフト生成エラー:', error);
+        res.status(500).json({ message: 'AIドラフト生成に失敗しました。' });
+    }
+};
+// ==========================================
+// ★ DALL-E 3 カバー画像生成
+// ==========================================
+export const generateCoverImage = async (req, res) => {
+    if (!process.env.OPENAI_API_KEY) {
+        return res.status(503).json({ message: 'AI画像生成は現在利用できません' });
+    }
+    const { title, description, artStyle } = req.body;
+    if (!title) return res.status(400).json({ message: 'タイトルは必須です' });
+
+    try {
+        const { default: OpenAI } = await import('openai');
+        const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+        const styleGuide = {
+            watercolor: 'soft watercolor painting style, pastel colors',
+            illustration: 'flat vector illustration, vibrant colors, modern graphic design',
+            photo: 'photorealistic product photo, professional studio lighting',
+            anime: 'anime style illustration, colorful, dynamic composition',
+        }[artStyle] || 'beautiful digital illustration';
+
+        const prompt = [
+            `Flower stand decoration (フラスタ) for a Japanese fan event.`,
+            `Theme: "${title}".`,
+            styleGuide,
+            `No text or letters in the image. Square format. High quality.`,
+            description ? `Additional context: ${description.slice(0, 100)}` : '',
+        ].filter(Boolean).join(' ');
+
+        const response = await openai.images.generate({
+            model: 'dall-e-3',
+            prompt,
+            n: 1,
+            size: '1024x1024',
+            quality: 'standard',
+            response_format: 'url',
+        });
+
+        const imageUrl = response.data[0].url;
+        res.json({ imageUrl, revisedPrompt: response.data[0].revised_prompt });
+    } catch (err) {
+        console.error('[DALL-E3]', err?.message || err);
+        res.status(500).json({ message: 'AI画像生成に失敗しました' });
+    }
 };

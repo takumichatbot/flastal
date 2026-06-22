@@ -1,8 +1,11 @@
+import { Prisma } from '@prisma/client';
 import prisma from '../config/prisma.js';
 import stripe from '../config/stripe.js';
-import { sendDynamicEmail } from '../utils/email.js';
+import { sendDynamicEmail, queueEmail } from '../utils/email.js';
 import { createNotification } from '../utils/notification.js';
 import { getIO } from '../config/socket.js';
+import { withCache, cache } from '../utils/cache.js';
+import { searchProjects } from '../config/typesense.js';
 
 // ==========================================
 // ★★★ 1. 取得系 (Public) ★★★
@@ -11,34 +14,79 @@ import { getIO } from '../config/socket.js';
 // 全ての企画を取得 (検索・フィルタ付き)
 export const getProjects = async (req, res) => {
     try {
-        const { keyword, prefecture } = req.query;
+        const { keyword, prefecture, myProjects, status } = req.query;
 
         const whereClause = {
-            status: 'FUNDRAISING',
             NOT: { status: 'CANCELED' },
-            projectType: 'PUBLIC',
         };
 
-        if (keyword && keyword.trim() !== '') {
-            whereClause.OR = [
-                { title: { contains: keyword, mode: 'insensitive' } },
-                { description: { contains: keyword, mode: 'insensitive' } },
-            ];
+        // myProjects=true: ログインユーザー自身の企画のみ返す（オファーモーダル用）
+        if (myProjects === 'true') {
+            if (!req.user) return res.status(401).json({ message: '認証が必要です' });
+            whereClause.plannerId = req.user.id;
+            whereClause.visibility = 'PUBLIC';
+            if (status) whereClause.status = status;
+        } else {
+            whereClause.status = 'FUNDRAISING';
+            whereClause.projectType = 'PUBLIC';
         }
 
-        if (prefecture && prefecture.trim() !== '') {
-            whereClause.deliveryAddress = { contains: prefecture };
+        const kw = keyword?.trim();
+
+        if (kw) {
+            // Typesense で検索 → 失敗時は pg_trgm にフォールバック
+            const tsHits = await searchProjects(kw, { limit: 100, filterBy: prefecture?.trim() ? `deliveryAddress:=${prefecture.trim()}` : '' });
+            if (tsHits !== null) return res.status(200).json(tsHits);
+
+            // pg_trgm トライグラム類似度 + ILIKE で日本語を正確にカバー
+            const kwLike = `%${kw}%`;
+            const prefClause = prefecture?.trim()
+                ? Prisma.sql`AND p."deliveryAddress" ILIKE ${`%${prefecture.trim()}%`}`
+                : Prisma.empty;
+
+            const results = await prisma.$queryRaw(Prisma.sql`
+                SELECT p.id, p.title, p.description, p."imageUrl", p."targetAmount",
+                       p."collectedAmount", p.status, p."projectType", p."createdAt", p.deadline,
+                       p."deliveryAddress",
+                       json_build_object('handleName', u."handleName", 'iconUrl', u."iconUrl") AS planner,
+                       GREATEST(
+                           similarity(p.title, ${kw}),
+                           similarity(COALESCE(p.description, ''), ${kw}) * 0.6,
+                           CASE WHEN p.title ILIKE ${kwLike} THEN 0.5 ELSE 0 END
+                       ) AS _score
+                FROM "Project" p
+                LEFT JOIN "User" u ON p."plannerId" = u.id
+                WHERE p.status = 'FUNDRAISING'
+                  AND p."projectType" = 'PUBLIC'
+                  ${prefClause}
+                  AND (
+                    p.title % ${kw}
+                    OR p.description % ${kw}
+                    OR p.title ILIKE ${kwLike}
+                    OR p.description ILIKE ${kwLike}
+                  )
+                ORDER BY _score DESC, p."createdAt" DESC
+                LIMIT 100
+            `);
+
+            return res.status(200).json(results);
         }
 
-        const projects = await prisma.project.findMany({
+        if (prefecture?.trim()) {
+            whereClause.deliveryAddress = { contains: prefecture.trim() };
+        }
+
+        // 検索・個人クエリはキャッシュしない。公開一覧のみ60秒キャッシュ
+        const cacheKey = (!kw && !prefecture && myProjects !== 'true')
+            ? `projects:public`
+            : null;
+
+        const projects = await withCache(cacheKey, () => prisma.project.findMany({
             where: whereClause,
-            include: {
-                planner: {
-                    select: { handleName: true, iconUrl: true }
-                }
-            },
-            orderBy: { createdAt: 'desc' }
-        });
+            include: { planner: { select: { handleName: true, iconUrl: true } } },
+            orderBy: { createdAt: 'desc' },
+        }), 60);
+
         res.status(200).json(projects);
     } catch (error) {
         console.error('企画一覧取得エラー:', error);
@@ -99,9 +147,100 @@ export const getSuccessfulTemplates = async (req, res) => {
 };
 
 // 単一の企画詳細を取得
+export const getProjectStats = async (req, res) => {
+    const { id } = req.params;
+    try {
+        const project = await prisma.project.findUnique({
+            where: { id },
+            select: {
+                id: true,
+                collectedAmount: true,
+                targetAmount: true,
+                status: true,
+                _count: { select: { pledges: true } },
+            },
+        });
+        if (!project) return res.status(404).json({ message: '見つかりません' });
+        res.json({
+            collectedAmount: project.collectedAmount,
+            targetAmount: project.targetAmount,
+            status: project.status,
+            backerCount: project._count.pledges,
+        });
+    } catch (err) {
+        res.status(500).json({ message: 'エラーが発生しました' });
+    }
+};
+
+// ─── プランナー向けアナリティクス ────────────────────────────────────────
+export const getProjectAnalytics = async (req, res) => {
+    const { id } = req.params;
+    const plannerId = req.user.id;
+    try {
+        const project = await prisma.project.findUnique({
+            where: { id },
+            select: {
+                id: true, title: true, plannerId: true,
+                targetAmount: true, collectedAmount: true,
+                viewCount: true, createdAt: true, deadline: true,
+                pledges: {
+                    select: {
+                        amount: true, createdAt: true,
+                        user: { select: { id: true } },
+                    },
+                    orderBy: { createdAt: 'asc' },
+                },
+                _count: { select: { pledges: true, cheers: true } },
+            },
+        });
+        if (!project) return res.status(404).json({ message: '見つかりません' });
+        if (project.plannerId !== plannerId) return res.status(403).json({ message: '権限がありません' });
+
+        // CVR = 支援者数 / 閲覧数
+        const cvr = project.viewCount > 0
+            ? Math.round((project._count.pledges / project.viewCount) * 1000) / 10  // 小数点1桁
+            : 0;
+
+        // 日別累積支援額（折れ線グラフ用）
+        const dailyMap = new Map();
+        let running = 0;
+        for (const p of project.pledges) {
+            const day = p.createdAt.toISOString().slice(0, 10);
+            running += p.amount;
+            dailyMap.set(day, running);
+        }
+        const dailyProgress = Array.from(dailyMap.entries()).map(([date, total]) => ({ date, total }));
+
+        // 達成率
+        const progress = project.targetAmount > 0
+            ? Math.round((project.collectedAmount / project.targetAmount) * 100)
+            : 0;
+
+        res.json({
+            viewCount:       project.viewCount,
+            backerCount:     project._count.pledges,
+            cheerCount:      project._count.cheers,
+            collectedAmount: project.collectedAmount,
+            targetAmount:    project.targetAmount,
+            progress,
+            cvr,
+            dailyProgress,
+            avgPledge: project._count.pledges > 0
+                ? Math.round(project.collectedAmount / project._count.pledges)
+                : 0,
+        });
+    } catch (err) {
+        console.error('getProjectAnalytics:', err);
+        res.status(500).json({ message: 'エラーが発生しました' });
+    }
+};
+
 export const getProjectById = async (req, res) => {
     const { id } = req.params;
     try {
+        // 閲覧数カウントをバックグラウンドでインクリメント（レスポンスをブロックしない）
+        prisma.project.update({ where: { id }, data: { viewCount: { increment: 1 } } }).catch(() => {});
+
         const project = await prisma.project.findUnique({
             where: { id: id },
             include: {
@@ -142,6 +281,7 @@ export const getProjectById = async (req, res) => {
                             include: {
                                 messages: {
                                     orderBy: { createdAt: 'asc' },
+                                    take: 100, // 直近100件のみ取得
                                     include: {
                                         user: { select: { id: true, handleName: true, iconUrl: true } },
                                         florist: { select: { id: true, platformName: true, shopName: true, iconUrl: true } }
@@ -160,10 +300,16 @@ export const getProjectById = async (req, res) => {
                 },
                 groupChatMessages: {
                     orderBy: { createdAt: 'asc' },
-                    include: { 
+                    take: 100, // 直近100件のみ取得（追加分はpaginationで取得）
+                    include: {
                         user: { select: { id: true, handleName: true, iconUrl: true } },
-                        florist: { select: { id: true, platformName: true, iconUrl: true } } // ★ この1行を追加！
+                        florist: { select: { id: true, platformName: true, iconUrl: true } }
                     }
+                },
+                cheers: {
+                    orderBy: { createdAt: 'desc' },
+                    take: 20,
+                    include: { user: { select: { id: true, handleName: true, iconUrl: true } } }
                 }
             },
         });
@@ -216,7 +362,7 @@ export const createProject = async (req, res) => {
     try {
         const {
             title, description, targetAmount, deliveryAddress, deliveryDateTime,
-            imageUrl, designImageUrls, designDetails, size, flowerTypes,
+            imageUrl, videoUrl, designImageUrls, designDetails, size, flowerTypes,
             visibility, venueId, eventId, projectType, password,
             minContributionAmount, needsIllustrator, illustratorBudget, illustratorRequirements,
             isExpress // ★ 新規追加: フロントから「お急ぎ便かどうか」を受け取る
@@ -266,6 +412,7 @@ export const createProject = async (req, res) => {
             
             plannerId: req.user.id,
             imageUrl: imageUrl ? String(imageUrl) : null,
+            videoUrl: videoUrl ? String(videoUrl) : null,
             designDetails: designDetails ? String(designDetails) : "",
             size: size ? String(size) : "",
             flowerTypes: flowerTypes ? String(flowerTypes) : "",
@@ -299,6 +446,7 @@ export const createProject = async (req, res) => {
 
         sendDynamicEmail(req.user.email, 'PROJECT_SUBMITTED', { plannerName: req.user.handleName || 'さん', projectTitle: title, projectId: newProject.id });
 
+        cache.del('projects:public');
         res.status(201).json({ project: newProject, message: '企画の作成申請が完了しました。' });
     } catch (error) {
         console.error('--- [CRITICAL: PROJECT CREATE ERROR] ---');
@@ -399,6 +547,9 @@ export const setPledgeTiers = async (req, res) => {
                         amount: parseInt(tier.amount, 10),
                         title: tier.title,
                         description: tier.description,
+                        imageUrl: tier.imageUrl || null,
+                        badge: tier.badge || null,
+                        maxBackers: tier.maxBackers ? parseInt(tier.maxBackers, 10) : null,
                     }
                 })
             ));
@@ -592,6 +743,37 @@ export const updateProductionDetails = async (req, res) => {
             await createNotification(targetUserId, 'PROJECT_STATUS_UPDATE', '制作状況が更新されました', projectId, `/projects/${projectId}`);
         }
 
+        // 制作ステータス変更時に支援者全員へ進捗メール
+        if (productionStatus) {
+            const STATUS_LABELS = {
+                NOT_STARTED: '準備中',
+                FLORIST_MATCHED: '花屋さんが決まりました',
+                DESIGN_FIXED: 'デザインが確定しました',
+                MATERIAL_PREP: '素材を準備中です',
+                IN_PRODUCTION: '制作が始まりました',
+                PRE_COMPLETION: 'もうすぐ完成です',
+                COMPLETED: '制作が完了しました',
+            };
+            const label = STATUS_LABELS[productionStatus];
+            if (label) {
+                const pledges = await prisma.pledge.findMany({
+                    where: { projectId },
+                    include: { user: { select: { email: true, handleName: true } } },
+                    distinct: ['userId'],
+                });
+                for (const pledge of pledges) {
+                    if (pledge.user?.email) {
+                        queueEmail(pledge.user.email, 'PROJECT_STATUS_UPDATE', {
+                            userName: pledge.user.handleName || 'さん',
+                            projectTitle: project.title,
+                            statusLabel: label,
+                            projectId,
+                        });
+                    }
+                }
+            }
+        }
+
         res.status(200).json(updatedProject);
     } catch (error) {
         res.status(500).json({ message: '更新に失敗しました' });
@@ -680,12 +862,47 @@ export const updateProjectStatus = async (req, res) => {
             where: { id: projectId },
             data: { status },
         });
-        
+
         await createNotification(
-            project.plannerId, 'PROJECT_STATUS_UPDATE', 
-            `企画「${project.title}」のステータスが「${status}」に更新されました。`, 
+            project.plannerId, 'PROJECT_STATUS_UPDATE',
+            `企画「${project.title}」のステータスが「${status}」に更新されました。`,
             projectId, `/projects/${projectId}`
         );
+
+        // Typesense インデックス更新（ノンブロッキング）
+        if (status === 'FUNDRAISING') {
+            import('../config/typesense.js').then(({ indexProject }) =>
+                indexProject({ ...project, status: 'FUNDRAISING' })
+            ).catch(() => {});
+        }
+
+        // FUNDRAISING 開始時：企画者のフォロワー全員に通知
+        if (status === 'FUNDRAISING') {
+            const planner = await prisma.user.findUnique({
+                where: { id: project.plannerId },
+                select: { handleName: true, followers: { select: { followerId: true, follower: { select: { email: true, handleName: true } } } } },
+            });
+            if (planner?.followers?.length) {
+                const notifPromises = planner.followers.map(f =>
+                    createNotification(
+                        f.followerId, 'PROJECT_STATUS_UPDATE',
+                        `${planner.handleName}さんが新しい企画「${project.title}」を公開しました！`,
+                        projectId, `/projects/${projectId}`
+                    )
+                );
+                const emailPromises = planner.followers
+                    .filter(f => f.follower?.email)
+                    .map(f =>
+                        queueEmail(f.follower.email, 'FOLLOWING_NEW_PROJECT', {
+                            followerName: f.follower.handleName || 'さん',
+                            plannerName: planner.handleName,
+                            projectTitle: project.title,
+                            projectId,
+                        })
+                    );
+                await Promise.allSettled([...notifPromises, ...emailPromises]);
+            }
+        }
         
         const io = getIO();
         let tickerType = 'info';
@@ -1070,5 +1287,274 @@ export const updateProjectDeadlineAdmin = async (req, res) => {
     } catch (error) {
         console.error('Deadline Update Error:', error);
         res.status(500).json({ message: '締切の更新に失敗しました。' });
+    }
+};
+// ==========================================
+// ★ 支援者データ CSV エクスポート
+// ==========================================
+export const exportPledgesCSV = async (req, res) => {
+    const { id } = req.params;
+    const plannerId = req.user.id;
+    try {
+        const project = await prisma.project.findUnique({
+            where: { id },
+            select: { plannerId: true, title: true },
+        });
+        if (!project) return res.status(404).json({ message: '企画が見つかりません' });
+        if (project.plannerId !== plannerId) return res.status(403).json({ message: 'アクセス権がありません' });
+
+        const pledges = await prisma.pledge.findMany({
+            where: { projectId: id },
+            include: { user: { select: { handleName: true, email: true } } },
+            orderBy: { createdAt: 'desc' },
+        });
+
+        // CSV 生成（BOM付きUTF-8でExcel対応）
+        const BOM = '﻿';
+        const header = ['支援ID', '支援者名', 'メールアドレス', '支援額(pt)', '支援日時', '支払方法', 'ステータス'].join(',');
+        const rows = pledges.map(p => [
+            p.id,
+            `"${(p.user?.handleName || p.guestName || '').replace(/"/g, '""')}"`,
+            `"${(p.user?.email || p.guestEmail || '').replace(/"/g, '""')}"`,
+            p.amount,
+            new Date(p.createdAt).toLocaleString('ja-JP'),
+            p.paymentMethod || 'points',
+            p.status || 'completed',
+        ].join(','));
+
+        const csv = BOM + [header, ...rows].join('\r\n');
+        const filename = encodeURIComponent(`pledges_${project.title}_${new Date().toISOString().slice(0, 10)}.csv`);
+
+        res.setHeader('Content-Type', 'text/csv; charset=UTF-8');
+        res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${filename}`);
+        res.send(csv);
+    } catch (err) {
+        console.error('exportPledgesCSV:', err);
+        res.status(500).json({ message: 'エクスポートに失敗しました' });
+    }
+};
+
+// ==========================================
+// ★ 月間ランキング
+// ==========================================
+export const getMonthlyRanking = async (req, res) => {
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    try {
+        // 今月の支援額トップ企画
+        const topProjects = await prisma.project.findMany({
+            where: {
+                status: { in: ['FUNDRAISING', 'SUCCESSFUL', 'COMPLETED'] },
+                projectType: 'PUBLIC',
+                createdAt: { gte: startOfMonth },
+            },
+            select: {
+                id: true, title: true, imageUrl: true,
+                collectedAmount: true, targetAmount: true,
+                planner: { select: { handleName: true, iconUrl: true } },
+                _count: { select: { pledges: true } },
+            },
+            orderBy: { collectedAmount: 'desc' },
+            take: 10,
+        });
+
+        // 今月の支援額トップユーザー
+        const topPledgers = await prisma.$queryRaw`
+            SELECT u.id, u."handleName", u."iconUrl", SUM(p.amount)::int AS total
+            FROM "Pledge" p
+            JOIN "User" u ON p."userId" = u.id
+            WHERE p."createdAt" >= ${startOfMonth}
+              AND p."userId" IS NOT NULL
+            GROUP BY u.id, u."handleName", u."iconUrl"
+            ORDER BY total DESC
+            LIMIT 10
+        `;
+
+        res.json({
+            month: `${now.getFullYear()}年${now.getMonth() + 1}月`,
+            topProjects: topProjects.map((p, i) => ({
+                rank: i + 1,
+                id: p.id,
+                title: p.title,
+                imageUrl: p.imageUrl,
+                collectedAmount: p.collectedAmount,
+                targetAmount: p.targetAmount,
+                backerCount: p._count.pledges,
+                planner: p.planner,
+            })),
+            topPledgers: topPledgers.map((u, i) => ({
+                rank: i + 1,
+                id: u.id,
+                handleName: u.handleName,
+                iconUrl: u.iconUrl,
+                totalAmount: u.total,
+            })),
+        });
+    } catch (err) {
+        console.error('getMonthlyRanking:', err);
+        res.status(500).json({ message: 'ランキング取得に失敗しました' });
+    }
+};
+
+// ==========================================
+// ★ 企業スポンサー
+// ==========================================
+export const getSponsors = async (req, res) => {
+    const { id } = req.params;
+    try {
+        const sponsors = await prisma.corporateSponsor.findMany({
+            where: { projectId: id, approved: true },
+            orderBy: { amount: 'desc' },
+        });
+        res.json(sponsors);
+    } catch (err) {
+        res.status(500).json({ message: 'スポンサー取得に失敗しました' });
+    }
+};
+
+export const applyAsSponsor = async (req, res) => {
+    const { id: projectId } = req.params;
+    const { companyName, logoUrl, websiteUrl, tier, amount, message } = req.body;
+    if (!companyName || !amount) return res.status(400).json({ message: '会社名と金額は必須です' });
+
+    try {
+        const sponsor = await prisma.corporateSponsor.create({
+            data: { projectId, companyName, logoUrl, websiteUrl, tier: tier || 'SILVER', amount: parseInt(amount), message },
+        });
+        res.status(201).json(sponsor);
+    } catch (err) {
+        console.error('applyAsSponsor:', err);
+        res.status(500).json({ message: '申請に失敗しました' });
+    }
+};
+
+// ==========================================
+// ★ AIパーソナライズドフィード
+// ==========================================
+export const getPersonalizedFeed = async (req, res) => {
+    const userId = req.user?.id;
+
+    try {
+        // ユーザーの支援履歴からカテゴリ傾向を推定
+        const recentPledges = userId ? await prisma.pledge.findMany({
+            where: { userId },
+            select: { project: { select: { deliveryAddress: true, flowerTypes: true, title: true } } },
+            orderBy: { createdAt: 'desc' },
+            take: 20,
+        }) : [];
+
+        // 支援した企画の地域・花の種類から類似企画を検索
+        const regions = [...new Set(recentPledges.map(p => {
+            const addr = p.project?.deliveryAddress || '';
+            const m = addr.match(/^(東京|大阪|名古屋|福岡|札幌|仙台|広島|京都|神奈川|埼玉|千葉)/);
+            return m?.[1] || null;
+        }).filter(Boolean))].slice(0, 3);
+
+        const pledgedIds = await prisma.pledge.findMany({
+            where: { userId: userId || '__none__' },
+            select: { projectId: true },
+        }).then(ps => ps.map(p => p.projectId));
+
+        const whereClause = {
+            status: 'FUNDRAISING',
+            projectType: 'PUBLIC',
+            ...(pledgedIds.length > 0 ? { id: { notIn: pledgedIds } } : {}),
+            ...(regions.length > 0 ? {
+                OR: regions.map(r => ({ deliveryAddress: { contains: r } }))
+            } : {}),
+        };
+
+        const recommended = await prisma.project.findMany({
+            where: whereClause,
+            include: { planner: { select: { handleName: true, iconUrl: true } }, _count: { select: { pledges: true } } },
+            orderBy: { collectedAmount: 'desc' },
+            take: 12,
+        });
+
+        // 足りない場合は新着で補完
+        if (recommended.length < 6) {
+            const fallback = await prisma.project.findMany({
+                where: { status: 'FUNDRAISING', projectType: 'PUBLIC', id: { notIn: [...pledgedIds, ...recommended.map(p => p.id)] } },
+                include: { planner: { select: { handleName: true, iconUrl: true } }, _count: { select: { pledges: true } } },
+                orderBy: { createdAt: 'desc' },
+                take: 12 - recommended.length,
+            });
+            recommended.push(...fallback);
+        }
+
+        res.json({ projects: recommended, personalized: regions.length > 0 });
+    } catch (err) {
+        console.error('getPersonalizedFeed:', err);
+        res.status(500).json({ message: 'フィード取得に失敗しました' });
+    }
+};
+
+// ==========================================
+// ★ AI花屋マッチング
+// ==========================================
+export const matchFlorists = async (req, res) => {
+    const { projectId } = req.params;
+    try {
+        const project = await prisma.project.findUnique({
+            where: { id: projectId },
+            select: { title: true, description: true, deliveryAddress: true, targetAmount: true, designDetails: true, flowerTypes: true },
+        });
+        if (!project) return res.status(404).json({ message: '企画が見つかりません' });
+
+        // 地域の花屋を取得
+        const regionMatch = project.deliveryAddress.match(/^(東京|大阪|名古屋|福岡|札幌|仙台|広島|京都|神奈川|埼玉|千葉)/);
+        const region = regionMatch?.[1] || '';
+
+        const florists = await prisma.florist.findMany({
+            where: {
+                status: 'APPROVED',
+                ...(region ? { address: { contains: region } } : {}),
+            },
+            select: { id: true, shopName: true, address: true, prefectures: true, minPrice: true, maxPrice: true, description: true, specialties: true },
+            take: 20,
+        });
+
+        if (florists.length === 0) return res.json({ florists: [], explanation: 'エリア内の花屋が見つかりませんでした' });
+
+        // GPT-4o-mini でスコアリング
+        const { default: OpenAI } = await import('openai');
+        const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+        const prompt = `あなたはフラワースタンド企画の専門家です。以下の企画に最適な花屋を上位3件選んで、理由を50文字以内で各花屋に付けてください。JSON配列で返してください: [{"id":"...","reason":"..."}]
+
+企画: ${project.title}
+予算: ${project.targetAmount}円
+希望デザイン: ${project.designDetails || 'なし'}
+花の種類: ${project.flowerTypes || 'なし'}
+配送先: ${project.deliveryAddress}
+
+候補花屋:
+${florists.map(f => `ID:${f.id} 店名:${f.shopName} 住所:${f.address} 価格帯:${f.minPrice}〜${f.maxPrice}円 得意分野:${f.specialties?.join(',') || 'なし'}`).join('\n')}`;
+
+        const completion = await openai.chat.completions.create({
+            model: 'gpt-4o-mini',
+            messages: [{ role: 'user', content: prompt }],
+            response_format: { type: 'json_object' },
+            max_tokens: 500,
+        });
+
+        let ranked = [];
+        try {
+            const parsed = JSON.parse(completion.choices[0].message.content);
+            ranked = Array.isArray(parsed) ? parsed : parsed.florists || [];
+        } catch (_) {
+            ranked = florists.slice(0, 3).map(f => ({ id: f.id, reason: 'エリアが一致します' }));
+        }
+
+        const result = ranked.map(r => ({
+            ...florists.find(f => f.id === r.id),
+            aiReason: r.reason,
+        })).filter(Boolean);
+
+        res.json({ florists: result, explanation: 'AIがあなたの企画に最適な花屋を選びました' });
+    } catch (err) {
+        console.error('matchFlorists:', err);
+        res.status(500).json({ message: 'マッチングに失敗しました' });
     }
 };

@@ -1,6 +1,9 @@
+import { Prisma } from '@prisma/client';
 import prisma from '../config/prisma.js';
 import OpenAI from 'openai';
 import { createNotification } from '../utils/notification.js';
+import { sendDynamicEmail } from '../utils/email.js';
+import { withCache, cache } from '../utils/cache.js';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -124,78 +127,94 @@ export const getRecentFloristPosts = async (req, res) => {
 export const getFlorists = async (req, res) => {
     try {
         const { keyword, prefecture, rush, tag } = req.query;
+        const kw = keyword?.trim();
+
+        // キーワードあり → GIN全文検索 + ILIKE の OR（日本語対応）
+        if (kw) {
+            const kwLike = `%${kw}%`;
+            const prefClause = prefecture?.trim()
+                ? Prisma.sql`AND (f.address ILIKE ${`%${prefecture.trim()}%`} OR f."baseDeliveryArea" ILIKE ${`%${prefecture.trim()}%`})`
+                : Prisma.empty;
+            const rushClause = rush === 'true' ? Prisma.sql`AND f."acceptsRushOrders" = true` : Prisma.empty;
+            const tagClause = tag?.trim() ? Prisma.sql`AND ${tag.trim()} = ANY(f.specialties)` : Prisma.empty;
+
+            const results = await prisma.$queryRaw(Prisma.sql`
+                SELECT f.id, f."platformName", f.portfolio, f.address, f."iconUrl",
+                       f."portfolioImages", f.specialties, f."acceptsRushOrders",
+                       f."baseDeliveryArea", f."baseDeliveryFee",
+                       COUNT(r.id)::int AS "reviewCount",
+                       0 AS "averageRating",
+                       GREATEST(
+                           similarity(f."platformName", ${kw}),
+                           similarity(COALESCE(f.portfolio, ''), ${kw}) * 0.6,
+                           CASE WHEN f."platformName" ILIKE ${kwLike} THEN 0.5 ELSE 0 END
+                       ) AS _score
+                FROM "Florist" f
+                LEFT JOIN "Review" r ON r."floristId" = f.id
+                WHERE f.status = 'APPROVED'
+                  ${prefClause}
+                  ${rushClause}
+                  ${tagClause}
+                  AND (
+                    f."platformName" % ${kw}
+                    OR f.portfolio % ${kw}
+                    OR f."platformName" ILIKE ${kwLike}
+                    OR f.portfolio ILIKE ${kwLike}
+                  )
+                GROUP BY f.id
+                ORDER BY _score DESC, f."createdAt" DESC
+                LIMIT 100
+            `);
+            return res.status(200).json(results);
+        }
+
         const whereClause = { status: 'APPROVED' };
 
-        // 1. キーワード検索（店名やポートフォリオ）
-        if (keyword && keyword.trim() !== '') {
+        // エリア検索
+        if (prefecture?.trim()) {
+            const areaKeyword = prefecture.trim();
             whereClause.OR = [
-                { platformName: { contains: keyword, mode: 'insensitive' } },
-                { portfolio: { contains: keyword, mode: 'insensitive' } },
+                { address: { contains: areaKeyword } },
+                { baseDeliveryArea: { contains: areaKeyword } },
             ];
         }
 
-        // 2. エリア（都道府県）検索の強化 ★ここが修正ポイント★
-        // 住所だけでなく、配送設定のエリアも含めて検索する
-        if (prefecture && prefecture.trim() !== '') {
-            const areaKeyword = prefecture.trim();
-            
-            // もし既にキーワード検索の OR が存在する場合は、AND で繋ぐ必要があるため構造を調整します
-            const areaCondition = {
-                OR: [
-                    { address: { contains: areaKeyword } }, // 実際の店舗住所
-                    { baseDeliveryArea: { contains: areaKeyword } }, // 基本配送エリア
-                    // areaFees は JSON 型のため、PostgreSQLのJSON関数を使った文字列検索（テキストとしてキャストして検索）
-                    { areaFees: { path: ['$'], string_contains: areaKeyword } } 
-                ]
-            };
-
-            if (whereClause.OR) {
-                // 既にキーワード検索がある場合は AND で結合
-                whereClause.AND = [
-                    { OR: whereClause.OR },
-                    areaCondition
-                ];
-                delete whereClause.OR;
-            } else {
-                whereClause.OR = areaCondition.OR;
-            }
-        }
-
-        // 3. タグ（得意な装飾）検索
-        if (tag && tag.trim() !== '') {
+        // タグ検索
+        if (tag?.trim()) {
             whereClause.specialties = { has: tag.trim() };
         }
 
-        // 4. お急ぎ便対応の検索
+        // お急ぎ便
         if (rush === 'true') {
             whereClause.acceptsRushOrders = true;
         }
 
-        // データベースから取得
-        const florists = await prisma.florist.findMany({
+        // フィルタなし公開一覧は60秒キャッシュ
+        const isFiltered = keyword || prefecture || tag || rush;
+        const cacheKey = isFiltered ? null : 'florists:public';
+
+        const florists = await withCache(cacheKey, () => prisma.florist.findMany({
             where: whereClause,
             select: {
-                id: true, 
-                platformName: true, 
-                portfolio: true, 
+                id: true,
+                platformName: true,
+                portfolio: true,
                 address: true,
-                iconUrl: true, 
-                portfolioImages: true, 
-                specialties: true, 
+                iconUrl: true,
+                portfolioImages: true,
+                specialties: true,
                 acceptsRushOrders: true,
-                // ★ 配送料金情報を検索結果のカードで表示するために追加
                 baseDeliveryArea: true,
                 baseDeliveryFee: true,
                 _count: { select: { reviews: true } }
             },
             orderBy: { createdAt: 'desc' },
-        });
+        }), 60);
 
-        // レビュー数の整形
         const floristsWithRating = florists.map(florist => ({
             ...florist,
             reviewCount: florist._count.reviews,
-            averageRating: 0, // ※ここは別テーブルから集計するか、現状の仕様通り0またはダミー
+            averageRating: 0,
             _count: undefined
         }));
 
@@ -213,16 +232,41 @@ export const getFloristById = async (req, res) => {
         const florist = await prisma.florist.findUnique({ where: { id } });
         if (!florist) return res.status(404).json({ message: '花屋が見つかりません。' });
 
-        const appealPosts = await prisma.floristPost.findMany({
-            where: { floristId: id, isPublic: true },
-            include: { likes: { select: { userId: true } }, _count: { select: { likes: true } } },
-            orderBy: { createdAt: 'desc' }
-        });
+        const [appealPosts, reviews, offers] = await Promise.all([
+            prisma.floristPost.findMany({
+                where: { floristId: id, isPublic: true },
+                include: { likes: { select: { userId: true } }, _count: { select: { likes: true } } },
+                orderBy: { createdAt: 'desc' }
+            }),
+            prisma.review.findMany({
+                where: { floristId: id },
+                orderBy: { createdAt: 'desc' },
+                include: {
+                    user: { select: { id: true, handleName: true, iconUrl: true } },
+                    project: { select: { id: true, title: true, imageUrl: true } },
+                },
+            }),
+            prisma.offer.findMany({
+                where: { floristId: id },
+                select: { status: true, createdAt: true, updatedAt: true },
+            }),
+        ]);
+
+        // レスポンス率・平均返答時間を集計
+        const totalOffers = offers.length;
+        const respondedOffers = offers.filter(o => o.status !== 'PENDING');
+        const responseRate = totalOffers > 0 ? Math.round((respondedOffers.length / totalOffers) * 100) : null;
+        const avgResponseHours = respondedOffers.length > 0
+            ? Math.round(respondedOffers.reduce((sum, o) => sum + (new Date(o.updatedAt) - new Date(o.createdAt)), 0) / respondedOffers.length / (1000 * 60 * 60))
+            : null;
 
         // パスワードとAPIキーは除外し、配送設定などの公開情報をセット
         const { password, laruBotApiKey, ...publicData } = florist;
-        
+
         publicData.appealPosts = appealPosts;
+        publicData.reviews = reviews;
+        publicData.responseRate = responseRate;
+        publicData.avgResponseHours = avgResponseHours;
         
         // ★ 追加: 配送・回収設定のデフォルト値を保証してフロントに渡す
         publicData.deliverySettings = {
@@ -242,30 +286,85 @@ export const getFloristById = async (req, res) => {
 };
 
 export const matchFloristsByAi = async (req, res) => {
-    const { designDetails, flowerTypes } = req.body;
+    const { designDetails, flowerTypes, prefecture } = req.body;
     const STYLE_TAGS = ['かわいい/キュート', 'クール/かっこいい', 'おしゃれ/モダン', '和風/和モダン', 'ゴージャス/豪華', 'パステルカラー', 'ビビッドカラー', 'バルーン装飾', 'ペーパーフラワー', '大型/連結', '卓上/楽屋花'];
 
     if (!designDetails && !flowerTypes) return res.json({ recommendedFlorists: [] });
 
     try {
+        // AIでタグ抽出
         let targetTags = [];
         if (process.env.OPENAI_API_KEY) {
-            const prompt = `以下の要望に合うタグを、選択肢の中から最大3つ抽出してカンマ区切りで出力してください。\n要望: "${designDetails} ${flowerTypes}"\n選択肢: ${STYLE_TAGS.join(', ')}`;
+            const prompt = `以下の要望に合うタグを、選択肢の中から最大3つ抽出してカンマ区切りで出力してください。他の文字は一切含めないこと。\n要望: "${designDetails} ${flowerTypes}"\n選択肢: ${STYLE_TAGS.join(', ')}`;
             const completion = await openai.chat.completions.create({
-                model: "gpt-3.5-turbo",
-                messages: [{ role: "user", content: prompt }],
+                model: 'gpt-4o-mini',
+                messages: [{ role: 'user', content: prompt }],
+                max_tokens: 60,
             });
-            targetTags = completion.choices[0].message.content.split(',').map(t => t.trim());
+            targetTags = completion.choices[0].message.content.split(',').map(t => t.trim()).filter(Boolean);
         } else {
             targetTags = STYLE_TAGS.filter(tag => (designDetails + flowerTypes).includes(tag.split('/')[0]));
         }
 
-        const florists = await prisma.florist.findMany({
-            where: { status: 'APPROVED', specialties: { hasSome: targetTags } },
-            select: { id: true, platformName: true, iconUrl: true, portfolioImages: true, specialties: true },
-            take: 4
+        // 承認済み花屋を全件取得してスコアリング
+        const allFlorists = await prisma.florist.findMany({
+            where: { status: 'APPROVED' },
+            select: {
+                id: true, platformName: true, iconUrl: true,
+                portfolioImages: true, specialties: true, prefecture: true,
+                catchPhrase: true,
+                reviews: { select: { rating: true } },
+                offers: { select: { status: true, createdAt: true, updatedAt: true } },
+                _count: { select: { reviews: true } },
+            },
         });
-        res.json({ tags: targetTags, recommendedFlorists: florists });
+
+        const scored = allFlorists.map(f => {
+            // タグ一致スコア (0〜3点)
+            const tagMatch = f.specialties.filter(s => targetTags.includes(s)).length;
+
+            // 評価スコア (0〜2点)
+            const avgRating = f.reviews.length > 0
+                ? f.reviews.reduce((s, r) => s + r.rating, 0) / f.reviews.length
+                : 0;
+            const ratingScore = (avgRating / 5) * 2;
+
+            // 返答率スコア (0〜2点)
+            const responded = f.offers.filter(o => o.status !== 'PENDING').length;
+            const responseRate = f.offers.length > 0 ? responded / f.offers.length : 0;
+            const responseScore = responseRate * 2;
+
+            // 実績スコア (0〜1点)
+            const expScore = Math.min(f._count.reviews / 10, 1);
+
+            // 都道府県一致ボーナス (0〜1点)
+            const prefScore = (prefecture && f.prefecture === prefecture) ? 1 : 0;
+
+            const total = tagMatch * 1.5 + ratingScore + responseScore + expScore + prefScore;
+
+            return {
+                id: f.id,
+                platformName: f.platformName,
+                iconUrl: f.iconUrl,
+                portfolioImages: f.portfolioImages,
+                specialties: f.specialties,
+                prefecture: f.prefecture,
+                catchPhrase: f.catchPhrase,
+                averageRating: avgRating > 0 ? Math.round(avgRating * 10) / 10 : null,
+                reviewCount: f._count.reviews,
+                responseRate: f.offers.length > 0 ? Math.round(responseRate * 100) : null,
+                tagMatchCount: tagMatch,
+                _score: total,
+            };
+        });
+
+        // スコア降順で上位6件を返す
+        const recommended = scored
+            .sort((a, b) => b._score - a._score)
+            .slice(0, 6)
+            .map(({ _score, ...f }) => f);
+
+        res.json({ tags: targetTags, recommendedFlorists: recommended });
     } catch (error) {
         console.error('AI Match Error:', error);
         res.status(500).json({ message: 'マッチング処理に失敗しました' });
@@ -300,7 +399,18 @@ export const createOffer = async (req, res) => {
         });
         
         await createNotification(floristId, 'NEW_OFFER', `新しいオファーが届きました！`, projectId, `/florists/offers/${newOffer.id}`);
-        
+
+        // フロリストへメール通知
+        const floristForEmail = await prisma.florist.findUnique({ where: { id: floristId }, select: { email: true, platformName: true } });
+        if (floristForEmail) {
+            const deliveryDate = project.deliveryDateTime ? new Date(project.deliveryDateTime).toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' }) : '未定';
+            sendDynamicEmail(floristForEmail.email, 'OFFER_RECEIVED', {
+                floristName: floristForEmail.platformName,
+                projectTitle: project.title,
+                eventDate: deliveryDate,
+            });
+        }
+
         res.status(201).json(newOffer);
     } catch (error) {
         if (error.code === 'P2002') return res.status(409).json({ message: '既にこのお花屋さんにオファーを送信済みです。' });
@@ -326,13 +436,30 @@ export const respondToOffer = async (req, res) => {
             include: { project: true, chatRoom: true }
         });
 
+        // プランナー情報を取得してメール送信
+        const planner = await prisma.user.findUnique({ where: { id: updatedOffer.project.plannerId }, select: { email: true, handleName: true } });
+        const floristInfo = await prisma.florist.findUnique({ where: { id: floristId }, select: { platformName: true } });
+
         if (status === 'ACCEPTED') {
             if (!updatedOffer.chatRoom) {
                 await prisma.chatRoom.create({ data: { offerId: offerId } });
             }
-            await createNotification(updatedOffer.project.plannerId, 'OFFER_ACCEPTED', 'オファーが承諾されました！', updatedOffer.projectId, `/projects/${updatedOffer.projectId}/chat`);
+            await createNotification(updatedOffer.project.plannerId, 'OFFER_ACCEPTED', `${floristInfo?.platformName || 'お花屋さん'}がオファーを承諾しました！`, updatedOffer.projectId, `/projects/${updatedOffer.projectId}/florist-chat`);
+            if (planner) {
+                sendDynamicEmail(planner.email, 'OFFER_ACCEPTED', {
+                    plannerName: planner.handleName || 'さん',
+                    floristName: floristInfo?.platformName || 'お花屋さん',
+                    projectTitle: updatedOffer.project.title,
+                });
+            }
         } else if (status === 'REJECTED') {
             await createNotification(updatedOffer.project.plannerId, 'OFFER_REJECTED', 'オファーが辞退されました。', updatedOffer.projectId, `/florists`);
+            if (planner) {
+                sendDynamicEmail(planner.email, 'OFFER_DECLINED', {
+                    plannerName: planner.handleName || 'さん',
+                    projectTitle: updatedOffer.project.title,
+                });
+            }
         }
 
         res.status(200).json(updatedOffer);
@@ -530,6 +657,7 @@ export const updateFloristProfile = async (req, res) => {
             data: dataToUpdate
         });
         
+        cache.del('florists:public');
         const { password, ...clean } = updated;
         res.status(200).json(clean);
     } catch (error) {
@@ -806,5 +934,47 @@ export const updateDeliverySettings = async (req, res) => {
     } catch (error) {
         console.error("updateDeliverySettings Error:", error);
         res.status(500).json({ message: '設定の保存に失敗しました' });
+    }
+};
+export const toggleFavorite = async (req, res) => {
+    const { id: floristId } = req.params;
+    const userId = req.user.id;
+    try {
+        const existing = await prisma.floristFavorite.findUnique({
+            where: { userId_floristId: { userId, floristId } },
+        });
+        if (existing) {
+            await prisma.floristFavorite.delete({ where: { userId_floristId: { userId, floristId } } });
+            return res.json({ favorited: false });
+        }
+        await prisma.floristFavorite.create({ data: { userId, floristId } });
+        res.json({ favorited: true });
+    } catch (error) {
+        console.error('toggleFavorite Error:', error);
+        res.status(500).json({ message: 'お気に入りの更新に失敗しました' });
+    }
+};
+
+export const getMyFavorites = async (req, res) => {
+    const userId = req.user.id;
+    try {
+        const favorites = await prisma.floristFavorite.findMany({
+            where: { userId },
+            orderBy: { createdAt: 'desc' },
+            include: {
+                florist: {
+                    select: {
+                        id: true, platformName: true, iconUrl: true,
+                        portfolioImages: true, specialties: true,
+                        baseDeliveryArea: true, reviewCount: false,
+                        _count: { select: { reviews: true } },
+                    },
+                },
+            },
+        });
+        res.json(favorites.map(f => ({ ...f.florist, reviewCount: f.florist._count.reviews, _count: undefined })));
+    } catch (error) {
+        console.error('getMyFavorites Error:', error);
+        res.status(500).json({ message: 'お気に入りの取得に失敗しました' });
     }
 };

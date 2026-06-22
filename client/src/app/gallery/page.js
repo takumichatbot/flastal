@@ -1,242 +1,240 @@
 'use client';
 
-export const dynamic = 'force-dynamic';
-export const fetchCache = 'force-no-store';
-
 import { useState, useEffect, useCallback } from 'react';
-import Link from 'next/link';
 import Image from 'next/image';
-import toast from 'react-hot-toast';
-import { motion, AnimatePresence } from 'framer-motion';
-
-// lucide-reactに統一
-import {
-  Camera, Heart, User, ZoomIn, X, Sparkles
-} from 'lucide-react';
-import FloatingParticles from '@/app/components/FloatingParticles';
+import Link from 'next/link';
+import { useAuth } from '../contexts/AuthContext';
+import { Camera, X, Loader2, ImageOff, ExternalLink, Plus, Trash2 } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
-// cn関数
-function cn(...classes) { 
-  return classes.filter(Boolean).join(' '); 
+function PhotoCard({ photo, onDelete, canDelete }) {
+    const [showFull, setShowFull] = useState(false);
+
+    return (
+        <>
+            <div className="group relative rounded-2xl overflow-hidden bg-slate-100 aspect-square cursor-pointer"
+                onClick={() => setShowFull(true)}>
+                <Image
+                    src={photo.imageUrl}
+                    alt={photo.caption || photo.project?.title || ''}
+                    fill
+                    className="object-cover group-hover:scale-105 transition-transform duration-300"
+                    sizes="(max-width: 640px) 50vw, 33vw"
+                    unoptimized
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-3">
+                    {photo.project && (
+                        <p className="text-white text-[10px] font-bold truncate">{photo.project.title}</p>
+                    )}
+                    <p className="text-white/80 text-[10px] truncate">{photo.uploader?.handleName}</p>
+                </div>
+                {canDelete && (
+                    <button
+                        onClick={e => { e.stopPropagation(); onDelete(photo.id); }}
+                        className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-rose-500">
+                        <Trash2 size={12} className="text-white" />
+                    </button>
+                )}
+            </div>
+
+            {showFull && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4" onClick={() => setShowFull(false)}>
+                    <div className="relative max-w-2xl w-full bg-white rounded-2xl overflow-hidden shadow-2xl" onClick={e => e.stopPropagation()}>
+                        <div className="relative aspect-video bg-black">
+                            <Image src={photo.imageUrl} alt={photo.caption || ''} fill className="object-contain" unoptimized />
+                        </div>
+                        <div className="p-4">
+                            {photo.caption && <p className="text-sm font-bold text-slate-700 mb-2">{photo.caption}</p>}
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    {photo.project && (
+                                        <Link href={`/projects/${photo.project.id}`}
+                                            className="text-xs font-black text-violet-500 hover:underline flex items-center gap-1">
+                                            {photo.project.title} <ExternalLink size={10} />
+                                        </Link>
+                                    )}
+                                    <p className="text-[11px] text-slate-400">{photo.uploader?.handleName}</p>
+                                </div>
+                                <button onClick={() => setShowFull(false)}
+                                    className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center hover:bg-slate-200">
+                                    <X size={14} />
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </>
+    );
 }
 
-const GlassCard = ({ children, className }) => (
-  <div className={cn("bg-white/80 backdrop-blur-xl border border-white shadow-[0_8px_30px_rgba(0,0,0,0.04)] rounded-[2.5rem] p-6", className)}>
-    {children}
-  </div>
-);
+function UploadModal({ projectId, onClose, onSuccess, token }) {
+    const [imageUrl, setImageUrl] = useState('');
+    const [caption, setCaption] = useState('');
+    const [uploading, setUploading] = useState(false);
+    const [preview, setPreview] = useState('');
 
-// --- スケルトンローディング ---
-const GallerySkeleton = () => (
-  <div className="bg-white/50 backdrop-blur-sm rounded-[2.5rem] shadow-sm border border-white overflow-hidden h-full flex flex-col animate-pulse p-4">
-    <div className="h-64 bg-slate-200/50 rounded-[2rem]" />
-    <div className="p-4 mt-2 space-y-3">
-      <div className="flex gap-2 items-center">
-         <div className="w-8 h-8 rounded-full bg-slate-200/50" />
-         <div className="h-4 bg-slate-200/50 rounded-full w-1/2" />
-      </div>
-      <div className="h-4 bg-slate-200/50 rounded-full w-full" />
-    </div>
-  </div>
-);
+    const handleFile = async (f) => {
+        setPreview(URL.createObjectURL(f));
+        setUploading(true);
+        const fd = new FormData();
+        fd.append('image', f);
+        try {
+            const res = await fetch(`${API_URL}/api/upload`, {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${token}` },
+                body: fd,
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setImageUrl(data.url || data.imageUrl || '');
+            }
+        } finally { setUploading(false); }
+    };
 
-// --- 画像拡大モーダル ---
-const ImageModal = ({ src, alt, onClose }) => {
-    if (!src) return null;
+    const submit = async () => {
+        if (!imageUrl) return;
+        setUploading(true);
+        const res = await fetch(`${API_URL}/api/gallery/${projectId}`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ imageUrl, caption }),
+        });
+        setUploading(false);
+        if (res.ok) onSuccess();
+    };
+
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/90 backdrop-blur-sm p-4 transition-opacity" onClick={onClose}>
-            <button onClick={onClose} className="absolute top-6 right-6 text-white/70 hover:text-white p-3 rounded-full hover:bg-white/10 transition-colors border border-white/20">
-                <X size={24} />
-            </button>
-            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="relative max-w-5xl max-h-[85vh] w-full h-full flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
-                <div className="relative w-full h-full">
-                    <Image src={src} alt={alt} fill className="object-contain drop-shadow-2xl rounded-2xl" sizes="100vw" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+                <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+                    <p className="font-black text-slate-800">達成写真を投稿</p>
+                    <button onClick={onClose}><X size={18} className="text-slate-400" /></button>
                 </div>
-            </motion.div>
-            <p className="absolute bottom-8 text-white/80 text-xs font-black uppercase tracking-widest pointer-events-none">
-                背景をクリックして閉じる
-            </p>
+                <div className="p-5 space-y-4">
+                    <label className={`block border-2 border-dashed rounded-xl cursor-pointer overflow-hidden aspect-video flex items-center justify-center transition-colors ${preview ? 'border-transparent' : 'border-slate-200 hover:border-violet-300'}`}>
+                        {preview ? (
+                            <div className="relative w-full h-full">
+                                <Image src={preview} alt="" fill className="object-cover" unoptimized />
+                            </div>
+                        ) : (
+                            <div className="text-center">
+                                <Camera size={24} className="mx-auto mb-2 text-slate-300" />
+                                <p className="text-xs text-slate-400 font-bold">クリックして写真を選択</p>
+                            </div>
+                        )}
+                        <input type="file" accept="image/*" className="sr-only"
+                            onChange={e => e.target.files?.[0] && handleFile(e.target.files[0])} />
+                    </label>
+
+                    <input
+                        type="text"
+                        value={caption}
+                        onChange={e => setCaption(e.target.value)}
+                        placeholder="コメント（任意）"
+                        className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 outline-none focus:border-violet-400"
+                        maxLength={200}
+                    />
+                    <button
+                        onClick={submit}
+                        disabled={uploading || !imageUrl}
+                        className="w-full bg-gradient-to-r from-violet-500 to-pink-500 text-white font-black text-sm py-3 rounded-xl disabled:opacity-50 flex items-center justify-center gap-2">
+                        {uploading && <Loader2 size={16} className="animate-spin" />}
+                        {uploading ? 'アップロード中...' : '投稿する'}
+                    </button>
+                </div>
+            </div>
         </div>
     );
-};
-
-// ===========================================
-// ★★★ フィードカードコンポーネント ★★★
-// ===========================================
-function GalleryCard({ item, onImageClick }) {
-    const mainImage = item.imageUrl;
-    const [isLiked, setIsLiked] = useState(false);
-    const [likeCount, setLikeCount] = useState(0);
-
-    const handleLike = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setIsLiked(!isLiked);
-        setLikeCount(prev => isLiked ? prev - 1 : prev + 1);
-        if (!isLiked) toast.success("いいねしました！");
-    };
-
-    const CardWrapper = ({ children }) => {
-        if (item.link) return <Link href={item.link} className="block h-full group">{children}</Link>;
-        return <div className="block h-full group cursor-default">{children}</div>;
-    };
-
-    return (
-        <CardWrapper>
-            <GlassCard className="!p-4 sm:!p-5 transition-all duration-500 hover:-translate-y-2 hover:shadow-[0_20px_40px_rgba(244,114,182,0.15)] hover:border-pink-200 flex flex-col h-full">
-                
-                <div className="relative aspect-[4/5] bg-slate-100 rounded-[2rem] overflow-hidden cursor-zoom-in shadow-inner" onClick={(e) => {
-                    if(item.link) e.preventDefault(); 
-                    onImageClick(mainImage);
-                }}>
-                    {mainImage ? (
-                        <>
-                            <Image src={mainImage} alt={item.title} fill sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" style={{ objectFit: 'cover' }} className="group-hover:scale-105 transition-transform duration-700 ease-in-out" />
-                            <div className="absolute inset-0 bg-slate-900/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center pointer-events-none">
-                                <span className="bg-white/90 backdrop-blur-md text-slate-800 px-5 py-2.5 rounded-full text-xs font-black flex items-center gap-2 shadow-lg tracking-widest uppercase">
-                                    <ZoomIn size={16}/> 拡大する
-                                </span>
-                            </div>
-                        </>
-                    ) : (
-                        <div className="w-full h-full flex items-center justify-center text-slate-300 bg-slate-50">
-                            <Camera size={32} />
-                        </div>
-                    )}
-                    
-                    <div className="absolute top-3 right-3">
-                        {item.type === 'PROJECT' ? (
-                            <span className="bg-emerald-500/90 backdrop-blur-sm text-white text-[10px] font-black px-3 py-1.5 rounded-full shadow-sm uppercase tracking-widest border border-emerald-400">
-                                COMPLETED
-                            </span>
-                        ) : (
-                            <span className="bg-pink-500/90 backdrop-blur-sm text-white text-[10px] font-black px-3 py-1.5 rounded-full shadow-sm uppercase tracking-widest border border-pink-400">
-                                FAN POST
-                            </span>
-                        )}
-                    </div>
-                </div>
-
-                <div className="pt-5 flex flex-col flex-grow px-2">
-                    <h3 className="font-black text-slate-800 text-base leading-snug line-clamp-2 group-hover:text-pink-600 transition-colors mb-3">
-                        {item.title}
-                    </h3>
-
-                    {item.comment && (
-                        <div className="bg-slate-50/80 p-4 rounded-2xl mb-5 text-xs text-slate-600 relative mt-auto border border-slate-100 shadow-inner">
-                            <p className="line-clamp-2 font-medium leading-relaxed italic">&quot;{item.comment}&quot;</p>
-                        </div>
-                    )}
-
-                    <div className="mt-auto flex items-center justify-between border-t border-slate-100 pt-4">
-                        <div className="flex items-center gap-2 min-w-0">
-                            <div className="w-7 h-7 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center shrink-0 overflow-hidden border border-slate-200 shadow-sm">
-                                {item.user?.iconUrl ? (
-                                    <img src={item.user.iconUrl} alt="" className="w-full h-full object-cover"/>
-                                ) : (
-                                    <User size={14}/>
-                                )}
-                            </div>
-                            <span className="text-[10px] font-black text-slate-500 truncate max-w-[100px] uppercase tracking-wider">
-                                {item.user?.handleName || '匿名'}
-                            </span>
-                        </div>
-
-                        <button onClick={handleLike} className={cn("flex items-center gap-1.5 text-xs font-black transition-colors px-3 py-1.5 rounded-full shadow-sm", isLiked ? 'text-pink-600 bg-pink-50 border border-pink-100' : 'text-slate-400 bg-white border border-slate-100 hover:text-pink-500 hover:border-pink-200')}>
-                            <Heart size={14} className={isLiked ? "fill-pink-500 text-pink-500" : ""} />
-                            {likeCount}
-                        </button>
-                    </div>
-                </div>
-            </GlassCard>
-        </CardWrapper>
-    );
 }
 
-// ===========================================
-// ★★★ メインページコンポーネント ★★★
-// ===========================================
 export default function GalleryPage() {
-    const [feedItems, setFeedItems] = useState([]);
+    const { token, user } = useAuth();
+    const [photos, setPhotos] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [modalImage, setModalImage] = useState(null);
-    
-    const fetchFeed = useCallback(async () => {
+    const [showUpload, setShowUpload] = useState(false);
+    const [uploadProjectId, setUploadProjectId] = useState('');
+
+    const load = useCallback(async () => {
         setLoading(true);
         try {
-            const response = await fetch(`${API_URL}/api/gallery/feed`); 
-            if (!response.ok) throw new Error('ギャラリーデータの取得に失敗しました');
-            const data = await response.json();
-            setFeedItems(Array.isArray(data) ? data : []);
-        } catch (error) {
-            toast.error("読み込みに失敗しました");
-        } finally {
-            setLoading(false);
-        }
+            const res = await fetch(`${API_URL}/api/gallery/feed?limit=40`);
+            if (res.ok) setPhotos(await res.json());
+        } finally { setLoading(false); }
     }, []);
 
-    useEffect(() => { fetchFeed(); }, [fetchFeed]);
+    useEffect(() => { load(); }, [load]);
+
+    const handleDelete = async (id) => {
+        if (!confirm('この写真を削除しますか？')) return;
+        await fetch(`${API_URL}/api/gallery/${id}`, {
+            method: 'DELETE',
+            headers: { Authorization: `Bearer ${token}` },
+        });
+        setPhotos(p => p.filter(ph => ph.id !== id));
+    };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-pink-50/50 to-sky-50/50 font-sans text-slate-800 relative overflow-hidden pb-24">
-            <FloatingParticles />
-            <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-pink-200/30 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/3 pointer-events-none z-0" />
-            <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-sky-200/20 rounded-full blur-[100px] translate-y-1/3 -translate-x-1/3 pointer-events-none z-0" />
+        <div className="min-h-screen bg-[#FAF9FF] font-sans">
+            <div className="bg-gradient-to-br from-rose-400 to-pink-500 py-10 px-4">
+                <div className="max-w-3xl mx-auto">
+                    <p className="text-rose-200 text-xs font-black uppercase tracking-widest mb-1">Gallery</p>
+                    <h1 className="text-2xl font-black text-white">達成報告ギャラリー</h1>
+                    <p className="text-white/70 text-sm font-bold mt-1">みんなが完成させたフラスタの写真</p>
+                </div>
+            </div>
 
-            <header className="relative pt-20 pb-16 px-4 sm:px-6 lg:px-8 text-center z-10 max-w-4xl mx-auto">
-                <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="inline-flex items-center justify-center w-20 h-20 bg-white rounded-[2rem] mb-6 shadow-lg border border-pink-100 rotate-3">
-                    <Camera className="text-pink-500" size={36}/>
-                </motion.div>
-                <h1 className="text-4xl md:text-5xl font-black text-slate-800 mb-6 tracking-tighter">
-                    FLASTAL 実績ギャラリー
-                </h1>
-                <p className="text-slate-500 text-sm md:text-base font-bold leading-relaxed max-w-2xl mx-auto mb-10">
-                    ファンと花屋さんが力を合わせて作り上げた、最高のフラワースタンドたち。<br/>
-                    企画者からの感謝のメッセージと共に紹介します。
-                </p>
-                
-                <Link href="/projects">
-                    <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="inline-flex items-center justify-center gap-2 px-8 py-4 border border-transparent text-base font-black rounded-full shadow-xl text-white bg-gradient-to-r from-pink-500 to-rose-500 hover:shadow-pink-200 transition-all">
-                        <Sparkles size={18}/> 進行中の企画を探す
-                    </motion.button>
-                </Link>
-            </header>
-
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-                {loading ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-8">
-                        {[...Array(8)].map((_, i) => <GallerySkeleton key={i} />)}
+            <div className="max-w-3xl mx-auto px-4 py-8">
+                {token && (
+                    <div className="mb-6 flex items-center gap-3">
+                        <input
+                            type="text"
+                            value={uploadProjectId}
+                            onChange={e => setUploadProjectId(e.target.value)}
+                            placeholder="企画ID（URLの末尾から取得）"
+                            className="flex-1 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 outline-none focus:border-pink-400"
+                        />
+                        <button
+                            onClick={() => uploadProjectId && setShowUpload(true)}
+                            disabled={!uploadProjectId}
+                            className="flex items-center gap-2 bg-gradient-to-r from-rose-500 to-pink-500 text-white font-black text-sm px-4 py-2.5 rounded-xl disabled:opacity-40">
+                            <Plus size={14} /> 投稿
+                        </button>
                     </div>
-                ) : feedItems.length === 0 ? (
-                    <GlassCard className="text-center py-32 border-2 border-dashed border-white">
-                        <div className="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-6 text-slate-300 shadow-inner">
-                            <Camera size={40}/>
-                        </div>
-                        <p className="text-2xl font-black text-slate-800 mb-2">まだ実績がありません</p>
-                        <p className="text-slate-500 font-bold text-sm">新しい企画が完了すると、ここに表示されます🌸</p>
-                    </GlassCard>
-                ) : (
-                    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-8">
-                        <AnimatePresence>
-                            {feedItems.map((item) => (
-                                <GalleryCard
-                                    key={item.id}
-                                    item={item}
-                                    onImageClick={(src) => setModalImage({ src, alt: item.title })}
-                                />
-                            ))}
-                        </AnimatePresence>
-                    </motion.div>
                 )}
-            </main>
 
-            <AnimatePresence>
-                {modalImage && (
-                    <ImageModal src={modalImage.src} alt={modalImage.alt} onClose={() => setModalImage(null)} />
+                {loading ? (
+                    <div className="flex justify-center py-20">
+                        <Loader2 size={28} className="animate-spin text-pink-400" />
+                    </div>
+                ) : photos.length === 0 ? (
+                    <div className="text-center py-20">
+                        <ImageOff size={36} className="mx-auto mb-3 text-slate-200" />
+                        <p className="text-slate-400 font-bold text-sm">まだ写真がありません</p>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        {photos.map(photo => (
+                            <PhotoCard
+                                key={photo.id}
+                                photo={photo}
+                                onDelete={handleDelete}
+                                canDelete={user?.id === photo.uploaderId || user?.role === 'ADMIN'}
+                            />
+                        ))}
+                    </div>
                 )}
-            </AnimatePresence>
+            </div>
+
+            {showUpload && (
+                <UploadModal
+                    projectId={uploadProjectId}
+                    token={token}
+                    onClose={() => setShowUpload(false)}
+                    onSuccess={() => { setShowUpload(false); load(); }}
+                />
+            )}
         </div>
     );
 }

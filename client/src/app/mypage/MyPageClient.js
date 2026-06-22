@@ -15,10 +15,14 @@ import {
   Pencil, MessageCircle, X, Lock, Send, Trash2,
   ExternalLink, TrendingUp,
   Calendar, MapPin, Store, Palette,
+  Bookmark, BookmarkCheck, Download,
 } from 'lucide-react';
 
 import UploadForm from '@/app/components/UploadForm';
 import SupportLevelBadge from '@/app/components/SupportLevelBadge';
+import BadgeDisplay from '@/app/components/BadgeDisplay';
+import TotpSetup from '@/app/components/TotpSetup';
+import KycUpload from '@/app/components/KycUpload';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -148,7 +152,10 @@ function DashboardContent() {
   const [createdProjects, setCreatedProjects] = useState([]);
   const [pledgedProjects, setPledgedProjects] = useState([]);
   const [notifications, setNotifications] = useState([]);
+  const [notifCategory, setNotifCategory] = useState('all');
   const [myPosts, setMyPosts] = useState([]);
+  const [pointHistory, setPointHistory] = useState([]);
+  const [favoriteFlorists, setFavoriteFlorists] = useState([]);
   const [loadingData, setLoadingData] = useState(true);
   const [selectedPost, setSelectedPost] = useState(null);
   const [postComments, setPostComments] = useState([]);
@@ -159,16 +166,21 @@ function DashboardContent() {
     if (!user?.id) return;
     setLoadingData(true);
     try {
-      const [createdRes, pledgedRes, notifRes, postsRes] = await Promise.all([
+      const results = await Promise.allSettled([
         authenticatedFetch(`${API_URL}/api/users/${user.id}/created-projects`),
         authenticatedFetch(`${API_URL}/api/users/${user.id}/pledged-projects`),
         authenticatedFetch(`${API_URL}/api/notifications`),
-        authenticatedFetch(`${API_URL}/api/posts/my`)
+        authenticatedFetch(`${API_URL}/api/posts/my`),
+        authenticatedFetch(`${API_URL}/api/users/points/history`),
+        authenticatedFetch(`${API_URL}/api/florists/my-favorites`),
       ]);
+      const [createdRes, pledgedRes, notifRes, postsRes, pointRes, favRes] = results.map(r => r.status === 'fulfilled' ? r.value : null);
       if (createdRes?.ok) setCreatedProjects(await createdRes.json());
       if (pledgedRes?.ok) setPledgedProjects(await pledgedRes.json());
       if (notifRes?.ok) setNotifications(await notifRes.json());
       if (postsRes?.ok) setMyPosts(await postsRes.json());
+      if (pointRes?.ok) setPointHistory(await pointRes.json());
+      if (favRes?.ok) setFavoriteFlorists(await favRes.json());
     } catch (e) { console.error(e); }
     finally { setLoadingData(false); }
   }, [user, authenticatedFetch]);
@@ -180,9 +192,21 @@ function DashboardContent() {
 
   const unreadCount = useMemo(() => notifications.filter(n => !n.isRead).length, [notifications]);
 
+  const filteredNotifications = useMemo(() => {
+    if (notifCategory === 'all') return notifications;
+    return notifications.filter(n => {
+      const msg = n.message || '';
+      if (notifCategory === 'support') return msg.includes('支援') || msg.includes('pledge');
+      if (notifCategory === 'chat')    return msg.includes('チャット') || msg.includes('メッセージ') || msg.includes('コメント');
+      if (notifCategory === 'status')  return msg.includes('制作') || msg.includes('完了') || msg.includes('更新') || msg.includes('ステータス');
+      if (notifCategory === 'offer')   return msg.includes('オファー') || msg.includes('見積') || msg.includes('承認');
+      return true;
+    });
+  }, [notifications, notifCategory]);
+
   const displayProjects = useMemo(() => {
     const created = createdProjects.map(p => ({ ...p, _role: 'owner' }));
-    const pledged = pledgedProjects.map(p => ({ ...p.project, _role: 'backer' })).filter(p => p.id);
+    const pledged = pledgedProjects.map(p => ({ ...p?.project, _role: 'backer' })).filter(p => p?.id);
     const all = [...created, ...pledged].reduce((acc, current) => {
       const x = acc.find(item => item.id === current.id);
       if (!x) return acc.concat([current]);
@@ -205,7 +229,7 @@ function DashboardContent() {
   const BOTTOM_NAVS = [
     { id: 'home', label: 'ホーム', icon: Home },
     { id: 'projects', label: '企画', icon: Heart },
-    { id: 'album', label: 'アルバム', icon: Camera },
+    { id: 'favorites', label: 'お気に入り', icon: Bookmark },
     { id: 'notifications', label: '通知', icon: Bell, badge: unreadCount > 0 ? unreadCount : null },
     { id: 'settings', label: '設定', icon: Settings }
   ];
@@ -215,7 +239,8 @@ function DashboardContent() {
       {[
         { id: 'all', label: 'すべて' },
         { id: 'created', label: '主催した企画' },
-        { id: 'pledged', label: '参加中の企画' }
+        { id: 'pledged', label: '参加中の企画' },
+        { id: 'history', label: '支援履歴' },
       ].map(pill => (
         <button
           key={pill.id}
@@ -231,6 +256,95 @@ function DashboardContent() {
         </button>
       ))}
     </div>
+  );
+
+  const PledgeHistory = () => (
+    pledgedProjects.length === 0 ? (
+      <div className="py-16 text-center flex flex-col items-center bg-white/50 backdrop-blur-sm rounded-[2rem]">
+        <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center text-3xl mb-3 shadow-sm border border-slate-100">💸</div>
+        <h3 className="text-sm font-black text-slate-800 mb-1">まだ支援がありません</h3>
+        <p className="text-xs font-bold text-slate-400 mb-5">気になる企画を見つけて応援しよう！</p>
+        <Link href="/projects" className="px-6 py-3 bg-slate-900 text-white rounded-full font-black text-xs shadow-md flex items-center gap-2">
+          <Search size={14} /> 企画を探す
+        </Link>
+      </div>
+    ) : (
+      <div className="space-y-3">
+        {pledgedProjects.map((pledge) => (
+          <div key={pledge.id} className="flex items-center gap-3 bg-white rounded-2xl p-4 border border-slate-100 shadow-sm">
+            <Link href={`/projects/${pledge.project?.id}`} className="flex items-center gap-3 flex-1 min-w-0 active:scale-[0.99] transition-transform">
+              <div className="relative w-14 h-14 rounded-xl overflow-hidden shrink-0 bg-slate-100">
+                {pledge.project?.imageUrl
+                  ? <Image src={pledge.project.imageUrl} alt="" fill className="object-cover" sizes="56px" />
+                  : <div className="absolute inset-0 flex items-center justify-center text-2xl">🌸</div>
+                }
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-black text-slate-800 truncate">{pledge.project?.title}</p>
+                <p className="text-[10px] text-slate-400 font-bold mt-0.5">
+                  {new Date(pledge.createdAt).toLocaleDateString('ja-JP', { year: 'numeric', month: 'short', day: 'numeric' })}
+                </p>
+                {pledge.comment && <p className="text-[10px] text-slate-500 mt-1 truncate">"{pledge.comment}"</p>}
+              </div>
+            </Link>
+            <div className="shrink-0 text-right flex flex-col items-end gap-1.5">
+              <p className="text-sm font-black text-pink-500">¥{(pledge.amount || 0).toLocaleString()}</p>
+              <span className={cn(
+                'text-[9px] font-black px-2 py-0.5 rounded-full inline-block',
+                pledge.project?.status === 'COMPLETED' ? 'bg-purple-50 text-purple-600' :
+                pledge.project?.status === 'SUCCESSFUL' ? 'bg-emerald-50 text-emerald-600' :
+                'bg-pink-50 text-pink-500'
+              )}>
+                {pledge.project?.status === 'COMPLETED' ? '完了' :
+                 pledge.project?.status === 'SUCCESSFUL' ? '達成' : '募集中'}
+              </span>
+              <a
+                href={`${API_URL}/api/payment/pledges/${pledge.id}/receipt`}
+                download={`receipt_${pledge.id}.pdf`}
+                onClick={e => {
+                  e.stopPropagation();
+                  const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+                  if (!token) return;
+                  e.preventDefault();
+                  fetch(`${API_URL}/api/payment/pledges/${pledge.id}/receipt`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                  }).then(r => r.blob()).then(blob => {
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url; a.download = `receipt_${pledge.id}.pdf`;
+                    a.click(); URL.revokeObjectURL(url);
+                  }).catch(() => toast.error('ダウンロードに失敗しました'));
+                }}
+                className="flex items-center gap-1 text-[9px] font-black text-slate-400 hover:text-violet-500 transition-colors"
+              >
+                <Download size={11}/> 領収書
+              </a>
+              <button
+                onClick={e => {
+                  e.stopPropagation();
+                  const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+                  if (!token) return;
+                  fetch(`${API_URL}/api/payment/pledges/${pledge.id}/invoice`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                  }).then(r => r.blob()).then(blob => {
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url; a.download = `invoice_${pledge.id}.pdf`;
+                    a.click(); URL.revokeObjectURL(url);
+                  }).catch(() => toast.error('ダウンロードに失敗しました'));
+                }}
+                className="flex items-center gap-1 text-[9px] font-black text-slate-400 hover:text-indigo-500 transition-colors"
+              >
+                <Download size={11}/> 請求書
+              </button>
+            </div>
+          </div>
+        ))}
+        <p className="text-center text-[10px] font-bold text-slate-400 pt-2">
+          合計 ¥{pledgedProjects.reduce((sum, p) => sum + (p.amount || 0), 0).toLocaleString()} を支援しました 🌸
+        </p>
+      </div>
+    )
   );
 
   const ProjectGrid = () => (
@@ -322,6 +436,9 @@ function DashboardContent() {
               <p className="text-[10px] font-black text-pink-500 tracking-[0.2em] uppercase mb-1">Welcome back</p>
               <h1 className="text-3xl font-black text-slate-800 tracking-tighter">{user.handleName || 'Guest'}</h1>
               <div className="mt-2"><SupportLevelBadge level={user.supportLevel} /></div>
+              {user.badgeIds?.length > 0 && (
+                <div className="mt-2"><BadgeDisplay badgeIds={user.badgeIds} size="sm" /></div>
+              )}
             </div>
           </div>
           <div className="bg-gradient-to-br from-slate-900 to-slate-800 p-1 rounded-[2rem] shadow-xl w-[350px] group transition-transform hover:-translate-y-1">
@@ -603,7 +720,7 @@ function DashboardContent() {
                 ) : (
                   <div className="space-y-4">
                     <FilterPills />
-                    <ProjectGrid />
+                    {filterPill === 'history' ? <PledgeHistory /> : <ProjectGrid />}
                   </div>
                 )}
               </div>
@@ -638,7 +755,7 @@ function DashboardContent() {
                           setSelectedPost(p);
                           setPostComments([]);
                           fetch(`${API_URL}/api/posts/${p.id}/comments`)
-                            .then(r => r.json()).then(setPostComments);
+                            .then(r => r.ok ? r.json() : []).then(setPostComments).catch(() => {});
                         }}
                         className="flex flex-col items-center gap-1.5 shrink-0 cursor-pointer">
                         <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-pink-400 p-0.5 bg-gradient-to-tr from-pink-500 to-rose-400 active:scale-95 transition-transform">
@@ -674,7 +791,7 @@ function DashboardContent() {
                             setSelectedPost(post);
                             setPostComments([]);
                             fetch(`${API_URL}/api/posts/${post.id}/comments`)
-                              .then(r => r.json()).then(setPostComments);
+                              .then(r => r.ok ? r.json() : []).then(setPostComments).catch(() => {});
                           }}
                           className="relative aspect-square bg-slate-100 cursor-pointer overflow-hidden"
                         >
@@ -877,6 +994,44 @@ function DashboardContent() {
               )}
             </AnimatePresence>
 
+            {/* ========== FAVORITES ========== */}
+            {activeTab === 'favorites' && (
+              <div className="space-y-4 max-w-3xl mx-auto">
+                <div className="flex items-center gap-2 mb-2">
+                  <Bookmark size={16} className="text-pink-500" />
+                  <h2 className="font-black text-slate-700 text-sm">お気に入りの花屋</h2>
+                  <span className="ml-auto text-xs font-bold text-slate-400">{favoriteFlorists.length}件</span>
+                </div>
+                {favoriteFlorists.length === 0 ? (
+                  <div className="bg-white rounded-[2rem] p-12 text-center border border-slate-100 shadow-sm">
+                    <BookmarkCheck size={32} className="text-slate-200 mx-auto mb-3" />
+                    <p className="font-black text-slate-400 text-sm">まだお気に入りがありません</p>
+                    <p className="text-xs text-slate-300 mt-1">花屋ページの右上ボタンで追加できます</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {favoriteFlorists.map(f => (
+                      <a key={f.id} href={`/florists/${f.id}`}
+                        className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex flex-col items-center gap-2 active:scale-95 transition-transform">
+                        <div className="w-14 h-14 rounded-2xl overflow-hidden bg-slate-100 border border-slate-200 shrink-0">
+                          {f.iconUrl
+                            ? <Image src={f.iconUrl} alt={f.platformName} width={56} height={56} className="w-full h-full object-cover" />
+                            : <div className="w-full h-full flex items-center justify-center text-slate-300"><Store size={22} /></div>
+                          }
+                        </div>
+                        <p className="text-xs font-black text-slate-700 text-center line-clamp-2 leading-tight">{f.platformName}</p>
+                        {f.reviewCount > 0 && (
+                          <span className="text-[10px] font-bold text-amber-500 flex items-center gap-0.5">
+                            <Star size={10} className="fill-amber-400 text-amber-400" /> {f.reviewCount}件
+                          </span>
+                        )}
+                      </a>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* ========== NOTIFICATIONS ========== */}
             {activeTab === 'notifications' && (
               <div className="space-y-3 max-w-3xl mx-auto">
@@ -904,9 +1059,16 @@ function DashboardContent() {
                   )}
                 </div>
 
+                {/* カテゴリフィルタ */}
+                <NotifCategoryFilter
+                  notifications={notifications}
+                  category={notifCategory}
+                  onCategory={setNotifCategory}
+                />
+
                 {notifications.length > 0 ? (
                   <div className="space-y-1">
-                    {notifications.map((n, i) => {
+                    {filteredNotifications.map((n, i) => {
                       const msg = n.message || '';
                       const isSupport = msg.includes('支援') || msg.includes('pledge');
                       const isGoal = msg.includes('達成') || msg.includes('成功') || msg.includes('goal');
@@ -917,7 +1079,7 @@ function DashboardContent() {
                       const iconColor = isSupport ? 'text-pink-500' : isGoal ? 'text-emerald-500' : isChat ? 'text-sky-500' : isDone ? 'text-amber-500' : 'text-slate-400';
                       const NotifIcon = isSupport ? Heart : isGoal ? Award : isChat ? MessageCircle : isDone ? Star : Bell;
 
-                      const prevDateStr = i > 0 ? new Date(notifications[i - 1].createdAt).toDateString() : null;
+                      const prevDateStr = i > 0 ? new Date(filteredNotifications[i - 1].createdAt).toDateString() : null;
                       const thisDateStr = new Date(n.createdAt).toDateString();
                       const showSep = prevDateStr !== thisDateStr;
                       const todayStr = new Date().toDateString();
@@ -1028,6 +1190,25 @@ function DashboardContent() {
                   </div>
                 </div>
 
+                {/* ポイントチャージ履歴 */}
+                {pointHistory.length > 0 && (
+                  <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-5 pt-4 pb-2 flex items-center gap-1.5">
+                      <Zap size={12} className="text-amber-400 fill-amber-400" /> チャージ履歴
+                    </p>
+                    <div className="divide-y divide-slate-50">
+                      {pointHistory.slice(0, 5).map(h => (
+                        <div key={h.id} className="flex items-center justify-between px-5 py-3">
+                          <span className="text-xs font-bold text-slate-500">
+                            {new Date(h.createdAt).toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' })}
+                          </span>
+                          <span className="text-sm font-black text-amber-500">+{Number(h.points).toLocaleString()} pt</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* アカウント */}
                 <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-5 pt-4 pb-1">アカウント</p>
@@ -1058,6 +1239,12 @@ function DashboardContent() {
                     }}
                   />
                 </div>
+
+                {/* 2FA */}
+                <TotpSetup enabled={!!user.totpEnabled} onToggle={() => {}} />
+
+                {/* KYC */}
+                <KycUpload kycStatus={user.kycStatus || 'NONE'} />
 
                 {/* サポート */}
                 <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
@@ -1144,5 +1331,47 @@ export default function MyPageClientPage() {
     }>
       <DashboardContent />
     </Suspense>
+  );
+}
+
+function cn2(...c) { return c.filter(Boolean).join(' '); }
+
+function NotifCategoryFilter({ notifications, category, onCategory }) {
+  const cats = [
+    { id: 'all',     label: 'すべて' },
+    { id: 'support', label: '💰 支援' },
+    { id: 'chat',    label: '💬 チャット' },
+    { id: 'status',  label: '🔧 制作状況' },
+    { id: 'offer',   label: '📋 オファー' },
+  ];
+  const counts = {
+    all:     notifications.length,
+    support: notifications.filter(n => (n.message||'').includes('支援')).length,
+    chat:    notifications.filter(n => (n.message||'').includes('チャット')||(n.message||'').includes('メッセージ')).length,
+    status:  notifications.filter(n => (n.message||'').includes('制作')||(n.message||'').includes('完了')).length,
+    offer:   notifications.filter(n => (n.message||'').includes('オファー')||(n.message||'').includes('見積')).length,
+  };
+  return (
+    <div className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+      {cats.map(c => (
+        <button
+          key={c.id}
+          onClick={() => onCategory(c.id)}
+          className={cn2(
+            'shrink-0 px-3 py-1.5 rounded-full text-[11px] font-black transition-all',
+            category === c.id
+              ? 'bg-pink-500 text-white shadow-sm shadow-pink-200'
+              : 'bg-white border border-slate-200 text-slate-500 hover:border-pink-200'
+          )}
+        >
+          {c.label}
+          {counts[c.id] > 0 && (
+            <span className={cn2('ml-1.5 text-[9px]', category === c.id ? 'opacity-80' : 'text-slate-400')}>
+              {counts[c.id]}
+            </span>
+          )}
+        </button>
+      ))}
+    </div>
   );
 }

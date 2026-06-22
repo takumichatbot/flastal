@@ -1,5 +1,13 @@
 @import "tailwindcss";
 
+@keyframes shimmer {
+  0%   { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+
+/* ダークモード: .dark クラスを html に付与することで有効化 */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* ネイティブアプリモード: ヘッダー・フッター等を即時非表示 (useEffect より前に適用) */
 html.native-app .web-only {
   display: none !important;
@@ -11,6 +19,19 @@ html.native-app .web-only {
   --seasonal-primary: #0ea5e9;
   --seasonal-bg: #ffffff;
   --primary: 204 89% 53%;
+  --card-bg: #ffffff;
+  --border-color: #e2e8f0;
+  --muted: #f8fafc;
+}
+
+html.dark {
+  --background: #0f172a;
+  --foreground: #f1f5f9;
+  --seasonal-bg: #0f172a;
+  --card-bg: #1e293b;
+  --border-color: #334155;
+  --muted: #1e293b;
+  color-scheme: dark;
 }
 
 /* 1. 標準的なリセット（余白を奪いすぎない） */
@@ -38,6 +59,18 @@ body {
   color: var(--foreground);
   transition: background 0.3s ease, color 0.3s ease;
 }
+
+/* ダークモード: Tailwind 固定色クラスのグローバル上書き */
+html.dark .bg-white    { background-color: var(--card-bg) !important; }
+html.dark .bg-slate-50 { background-color: #1e293b !important; }
+html.dark .bg-slate-100 { background-color: #334155 !important; }
+html.dark .text-slate-800 { color: #f1f5f9 !important; }
+html.dark .text-slate-700 { color: #e2e8f0 !important; }
+html.dark .text-slate-600 { color: #cbd5e1 !important; }
+html.dark .text-slate-500 { color: #94a3b8 !important; }
+html.dark .border-slate-100 { border-color: #334155 !important; }
+html.dark .border-slate-200 { border-color: #475569 !important; }
+html.dark .shadow-sm { box-shadow: 0 1px 2px rgba(0,0,0,0.4) !important; }
 
 /* 🎨 推し色適用ユーティリティ */
 .oshi-theme-bg { background-color: hsl(var(--primary)) !important; }

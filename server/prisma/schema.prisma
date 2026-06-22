@@ -143,6 +143,9 @@ model Notification {
   recipient User     @relation("UserNotifications", fields: [recipientId], references: [id])
   projectId String?
   project   Project? @relation("ProjectNotifications", fields: [projectId], references: [id])
+
+  @@index([recipientId, isRead])
+  @@index([recipientId, createdAt])
 }
 
 model User {
@@ -181,7 +184,14 @@ model User {
   isProfilePublic      Boolean            @default(true)
   totalPledgedAmount   Int?    @default(0) 
   supportLevel         String?   
-  badgeIds             String[]  
+  badgeIds             String[]
+  totpSecret           String?
+  totpEnabled          Boolean @default(false)
+  kycStatus            String  @default("NONE")  // NONE | PENDING | APPROVED | REJECTED
+  kycDocumentUrl       String?
+  isPremium            Boolean  @default(false)
+  premiumUntil         DateTime?
+  premiumStripeSubId   String?
   eventInterests       EventInterest[] 
   
   // Relations
@@ -209,12 +219,29 @@ model User {
 
   moodBoardItems MoodBoardItem[]
   moodBoardLikes MoodBoardLike[]
+  cheers         Cheer[]
+  floristFavorites FloristFavorite[]
 
   // ★ 絵師用のリレーション追加
   illustratorProfile   IllustratorProfile?
   illustratorOffers    IllustratorOffer[]
   illustratorApps      IllustratorApplication[]
   illustratorProjects  Project[] @relation("AssignedIllustrator")
+
+  // フォロー
+  following Follow[] @relation("Follower")
+  followers Follow[] @relation("Following")
+
+  discussions Discussion[]
+
+  // ⑤ チームプランナー
+  projectMemberships ProjectMember[]
+  // ⑭ ギフトカード
+  giftCardsIssued    GiftCard[]      @relation("GiftCardIssuer")
+  giftCardsRedeemed  GiftCard[]      @relation("GiftCardRedeemer")
+  // ⑮ アフィリエイト変換ログ
+  affiliateConversions AffiliateConversion[]
+  completionPhotos     CompletionPhoto[]
 }
 
 model Project {
@@ -223,9 +250,11 @@ model Project {
   description             String            @db.Text
   targetAmount            Int
   collectedAmount         Int               @default(0)
+  viewCount               Int               @default(0)
   deliveryAddress         String
   deliveryDateTime        DateTime
   imageUrl                String?
+  videoUrl                String?
   designDetails           String?           @db.Text
   size                    String?
   cancellationDate        DateTime? 
@@ -276,6 +305,23 @@ model Project {
   moodBoardItems          MoodBoardItem[]
   officialReaction        OfficialReaction?
   digitalFlowers          DigitalFlower[]
+  cheers                  Cheer[]
+  discussions             Discussion[]
+  sponsors                CorporateSponsor[]
+  // ① 企画アップデート
+  updates                 ProjectUpdate[]
+  // ② ストレッチゴール
+  stretchGoals            StretchGoal[]
+  // ③ 支援者限定コンテンツ
+  exclusiveContents       ExclusiveContent[]
+  // ⑤ チームプランナー
+  members                 ProjectMember[]
+  // ⑥ タグ
+  tags                    ProjectTag[]
+  // ⑦ アーティストページ紐付け
+  artistPageId            String?
+  artistPageSlug          String?
+  completionPhotos        CompletionPhoto[]
 
   // ▼ 新規追加（自動計算される締切日とお急ぎ便フラグ）
   deadline         DateTime? 
@@ -296,11 +342,18 @@ model Project {
   illustratorOffers       IllustratorOffer[]
   illustratorApplications IllustratorApplication[]
 
-  isPanelReceived    Boolean   @default(false) // パネル受取済
-  isGoodsReceived    Boolean   @default(false) // グッズ受取済
-  isReturnCompleted  Boolean   @default(false) // 返送完了
+  isPanelReceived    Boolean   @default(false)
+  isGoodsReceived    Boolean   @default(false)
+  isReturnCompleted  Boolean   @default(false)
   actualPrice      Int?
   deliveredImageUrl String?
+
+  @@index([status, createdAt])
+  @@index([plannerId, status])
+  @@index([visibility, status, createdAt])
+  @@index([eventId])
+  @@index([venueId])
+  @@index([deadline])
 }
 
 model PledgeTier {
@@ -308,6 +361,9 @@ model PledgeTier {
   amount      Int
   title       String
   description String   @db.Text
+  imageUrl    String?
+  badge       String?
+  maxBackers  Int?
   createdAt   DateTime @default(now())
 
   projectId String
@@ -332,6 +388,16 @@ model Pledge {
 
   pledgeTierId String?
   pledgeTier   PledgeTier? @relation(fields: [pledgeTierId], references: [id])
+
+  isEarlyBacker Boolean @default(false)
+
+  // Stripe Subscription 月次サポーター
+  subscriptionId     String?
+  subscriptionStatus String? // active / canceled / past_due
+
+  @@index([projectId, createdAt])
+  @@index([userId, createdAt])
+  @@index([subscriptionId])
 }
 
 model Florist {
@@ -381,6 +447,7 @@ model Florist {
   panelReturnFee     Int       @default(0)     // パネル返送時の手数料
   deliveryNotes      String?   @db.Text        // 配送の特記事項
   groupChatMessages GroupChatMessage[]
+  favorites         FloristFavorite[]
 }
 
 model FloristDeal {
@@ -400,11 +467,14 @@ model Offer {
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
 
-  projectId String    // ★ @unique を削除しました
+  projectId String
   project   Project   @relation(fields: [projectId], references: [id])
   floristId String
   florist   Florist   @relation(fields: [floristId], references: [id])
   chatRoom  ChatRoom?
+
+  @@index([projectId, status])
+  @@index([floristId, status])
 }
 
 model ChatRoom {
@@ -434,6 +504,8 @@ model ChatMessage {
   florist    Florist? @relation("FloristChatMessages", fields: [floristId], references: [id])
 
   reports ChatMessageReport[]
+
+  @@index([chatRoomId, createdAt])
 }
 
 model Venue {
@@ -484,6 +556,8 @@ model Review {
   user      User    @relation(fields: [userId], references: [id])
 
   likes ReviewLike[]
+
+  @@index([floristId, createdAt])
 }
 
 model ReviewLike {
@@ -496,6 +570,21 @@ model ReviewLike {
   user     User   @relation(fields: [userId], references: [id])
 
   @@unique([reviewId, userId])
+}
+
+// 応援コメント（支援前ユーザーも書けるコメント）
+model Cheer {
+  id        String   @id @default(cuid())
+  message   String   @db.Text
+  createdAt DateTime @default(now())
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userId    String?
+  user      User?   @relation(fields: [userId], references: [id])
+  guestName String?
+
+  @@index([projectId, createdAt])
 }
 
 model Commission {
@@ -515,6 +604,8 @@ model Announcement {
 
   projectId String
   project   Project @relation(fields: [projectId], references: [id])
+
+  @@index([projectId, createdAt])
 }
 
 model PayoutRequest {
@@ -600,17 +691,17 @@ model GroupChatMessage {
 
   projectId   String
   project     Project     @relation(fields: [projectId], references: [id])
-  
-  // ▼ 変更箇所（?をつけてオプショナルに）
+
   userId      String?
   user        User?       @relation(fields: [userId], references: [id])
-  
-  // ▼ 新規追加（お花屋さんの枠）
+
   floristId   String?
   florist     Florist?    @relation(fields: [floristId], references: [id])
 
   reactions   GroupChatMessageReaction[]
   reports     GroupChatMessageReport[]
+
+  @@index([projectId, createdAt])
 }
 
 model GroupChatMessageReaction {
@@ -781,6 +872,8 @@ model PushSubscription {
   p256dh    String
   auth      String
   createdAt DateTime @default(now())
+
+  @@index([userId])
 }
 
 model VenueLogisticsInfo {
@@ -1058,4 +1151,223 @@ model BudgetReferenceImage {
   isActive    Boolean  @default(true) // 画面に表示するかどうか
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+// お気に入り花屋
+model FloristFavorite {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  floristId String
+  florist   Florist  @relation(fields: [floristId], references: [id], onDelete: Cascade)
+  @@unique([userId, floristId])
+  @@index([userId])
+}
+
+// Stripe Webhookエラーログ
+model WebhookLog {
+  id          String    @id @default(cuid())
+  eventId     String?   @unique
+  eventType   String
+  status      String    // 'success' | 'error'
+  metadata    Json?
+  error       String?   @db.Text
+  retryCount  Int       @default(0)
+  lastRetryAt DateTime?
+  createdAt   DateTime  @default(now())
+  @@index([status])
+  @@index([createdAt])
+  @@index([status, retryCount])
+}
+
+// フォロー（企画者フォロー）
+model Follow {
+  id          String   @id @default(cuid())
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+  follower    User     @relation("Follower",  fields: [followerId],  references: [id], onDelete: Cascade)
+  following   User     @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
+}
+
+// 企画ディスカッション（スレッド型Q&A）
+model Discussion {
+  id        String   @id @default(cuid())
+  projectId String
+  authorId  String
+  body      String   @db.Text
+  parentId  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  parent    Discussion?  @relation("DiscussionReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies   Discussion[] @relation("DiscussionReplies")
+  @@index([projectId, createdAt])
+  @@index([parentId])
+}
+
+// 不正支援フラグ
+model FraudFlag {
+  id        String   @id @default(cuid())
+  userId    String
+  projectId String
+  reasons   String[]
+  details   String   @db.Text
+  reviewed  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  @@index([userId])
+  @@index([reviewed, createdAt])
+}
+
+// 企業スポンサー
+model CorporateSponsor {
+  id          String   @id @default(cuid())
+  projectId   String
+  companyName String
+  logoUrl     String?
+  websiteUrl  String?
+  tier        String   @default("SILVER")  // BRONZE | SILVER | GOLD | PLATINUM
+  amount      Int
+  message     String?  @db.Text
+  approved    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  @@index([projectId])
+}
+
+// ① 企画アップデート（進捗ブログ）
+model ProjectUpdate {
+  id        String   @id @default(cuid())
+  projectId String
+  title     String
+  body      String   @db.Text
+  imageUrls String[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  @@index([projectId, createdAt])
+}
+
+// ② ストレッチゴール
+model StretchGoal {
+  id          String   @id @default(cuid())
+  projectId   String
+  targetAmount Int
+  title       String
+  description String   @db.Text
+  achieved    Boolean  @default(false)
+  achievedAt  DateTime?
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  @@index([projectId, order])
+}
+
+// ③ 支援者限定コンテンツ
+model ExclusiveContent {
+  id          String   @id @default(cuid())
+  projectId   String
+  title       String
+  body        String?  @db.Text
+  fileUrls    String[]
+  contentType String   @default("TEXT")  // TEXT | IMAGE | VIDEO | FILE
+  createdAt   DateTime @default(now())
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  @@index([projectId])
+}
+
+// ⑤ チームプランナー（共同企画者）
+model ProjectMember {
+  id        String   @id @default(cuid())
+  projectId String
+  userId    String
+  role      String   @default("EDITOR")  // EDITOR | VIEWER
+  invitedAt DateTime @default(now())
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([projectId, userId])
+  @@index([userId])
+}
+
+// ⑥ タグ
+model Tag {
+  id       String       @id @default(cuid())
+  name     String       @unique
+  slug     String       @unique
+  color    String       @default("#6366f1")
+  projects ProjectTag[]
+  @@index([slug])
+}
+
+model ProjectTag {
+  projectId String
+  tagId     String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tag       Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  @@id([projectId, tagId])
+}
+
+// ⑦ アーティスト/グループ専用ページ
+model ArtistPage {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  name        String
+  nameKana    String?
+  category    String   @default("idol")  // idol | vtuber | stage | voice | anime | anniversary
+  description String?  @db.Text
+  coverImageUrl String?
+  iconUrl     String?
+  twitterUrl  String?
+  youtubeUrl  String?
+  officialUrl String?
+  verified    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  @@index([slug])
+  @@index([category])
+}
+
+// ⑭ ギフトカード
+model GiftCard {
+  id          String    @id @default(cuid())
+  code        String    @unique
+  points      Int
+  message     String?   @db.Text
+  issuedById  String?
+  redeemedById String?
+  redeemedAt  DateTime?
+  expiresAt   DateTime
+  createdAt   DateTime  @default(now())
+  issuedBy    User?     @relation("GiftCardIssuer",   fields: [issuedById],   references: [id])
+  redeemedBy  User?     @relation("GiftCardRedeemer", fields: [redeemedById], references: [id])
+  @@index([code])
+  @@index([issuedById])
+}
+
+// ⑮ アフィリエイト変換ログ
+model AffiliateConversion {
+  id           String   @id @default(cuid())
+  referrerId   String
+  pledgeAmount Int
+  reward       Int
+  createdAt    DateTime @default(now())
+  referrer     User     @relation(fields: [referrerId], references: [id], onDelete: Cascade)
+  @@index([referrerId, createdAt])
+}
+
+model CompletionPhoto {
+  id          String   @id @default(cuid())
+  projectId   String
+  uploaderId  String
+  imageUrl    String
+  caption     String?
+  createdAt   DateTime @default(now())
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  uploader    User     @relation(fields: [uploaderId], references: [id], onDelete: Cascade)
+  @@index([projectId, createdAt])
+  @@index([createdAt])
 }

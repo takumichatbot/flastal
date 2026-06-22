@@ -31,6 +31,12 @@ const nextConfig = {
       { protocol: 'https', hostname: 'images.unsplash.com' },
       { protocol: 'https', hostname: 'www.transparenttextures.com' },
       { protocol: 'https', hostname: 'flastal-backend.onrender.com' },
+      { protocol: 'https', hostname: 'flastal.com' },
+      { protocol: 'https', hostname: 'www.flastal.com' },
+      { protocol: 'https', hostname: 'i.imgur.com' },
+      { protocol: 'https', hostname: 'pbs.twimg.com' },
+      { protocol: 'https', hostname: 'yt3.ggpht.com' },
+      { protocol: 'https', hostname: 'yt3.googleusercontent.com' },
     ],
   },
 

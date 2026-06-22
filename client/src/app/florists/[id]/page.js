@@ -2,10 +2,21 @@ import FloristDetailClient from './FloristDetailClient';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
+export const revalidate = 120;
+
+export async function generateStaticParams() {
+  try {
+    const res = await fetch(`${API_URL}/api/florists?limit=100`, { next: { revalidate: 3600 } });
+    if (!res.ok) return [];
+    const florists = await res.json();
+    return (Array.isArray(florists) ? florists : []).map(f => ({ id: f.id }));
+  } catch {
+    return [];
+  }
+}
+
 export async function generateMetadata({ params }) {
   const { id } = await params;
-  const DEFAULT_IMAGE = 'https://www.flastal.com/opengraph-image.png';
-
   try {
     const res = await fetch(`${API_URL}/api/florists/${id}`, { next: { revalidate: 60 } });
     if (!res.ok) throw new Error();
@@ -13,7 +24,17 @@ export async function generateMetadata({ params }) {
 
     const name = florist.platformName || florist.shopName || 'お花屋さん';
     const desc = florist.catchPhrase || `${name}のフラスタ制作実績・ポートフォリオをチェック。FLASTAL（フラスタル）でオファーしよう。`;
-    const image = florist.portfolioImages?.[0] || florist.iconUrl || DEFAULT_IMAGE;
+    const coverImage = florist.portfolioImages?.[0] || florist.iconUrl || null;
+
+    const ogParams = new URLSearchParams({
+      name,
+      ...(florist.prefecture ? { prefecture: florist.prefecture } : {}),
+      ...(florist.averageRating != null ? { rating: String(florist.averageRating) } : {}),
+      ...(florist.reviewCount != null ? { reviews: String(florist.reviewCount) } : {}),
+      ...(florist.responseRate != null ? { responseRate: String(florist.responseRate) } : {}),
+      ...(coverImage ? { image: coverImage } : {}),
+    });
+    const ogImage = `https://www.flastal.com/api/og/florist?${ogParams}`;
 
     return {
       title: `${name} | お花屋さん | FLASTAL`,
@@ -23,7 +44,7 @@ export async function generateMetadata({ params }) {
         description: desc,
         url: `https://www.flastal.com/florists/${id}`,
         siteName: 'FLASTAL',
-        images: [{ url: image, width: 1200, height: 630, alt: name }],
+        images: [{ url: ogImage, width: 1200, height: 630, alt: name }],
         locale: 'ja_JP',
         type: 'profile',
       },
@@ -31,7 +52,7 @@ export async function generateMetadata({ params }) {
         card: 'summary_large_image',
         title: `${name} | FLASTAL`,
         description: desc,
-        images: [image],
+        images: [ogImage],
       },
     };
   } catch {

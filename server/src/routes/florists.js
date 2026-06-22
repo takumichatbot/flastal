@@ -55,11 +55,14 @@ router.post('/posts/:postId/like', authenticateToken, floristController.likeFlor
 
 router.get('/posts/public', floristController.getRecentFloristPosts);
 
+// お気に入り
+router.get('/my-favorites', authenticateToken, floristController.getMyFavorites);
+router.post('/:id/favorite', authenticateToken, floristController.toggleFavorite);
+
 // 全体検索
 router.get('/', floristController.getFlorists);
 
 // 個別詳細
-// ★これが profile 等より上にあると、/profile が ID="profile" として扱われてしまいます。
 router.get('/:id', floristController.getFloristById);
 
 export default router;

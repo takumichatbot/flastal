@@ -4,11 +4,13 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '@/app/contexts/AuthContext';
-import { 
-  Bell, ChevronDown, User, LogOut, Heart, CheckCircle2, Menu, X, 
+import {
+  Bell, ChevronDown, User, LogOut, Heart, CheckCircle2, Menu, X,
   Calendar, MapPin, LayoutDashboard, Settings, Sparkles, Store, ShieldCheck, Briefcase, FileText,
-  UserCheck, ClipboardList, BarChart3, Building2, Package, Truck, Search, PlusCircle, Star
-} from 'lucide-react'; 
+  UserCheck, ClipboardList, BarChart3, Building2, Package, Truck, Search, PlusCircle, Star, Rss,
+  Sun, Moon, Gift
+} from 'lucide-react';
+import { useDarkMode } from '@/app/contexts/DarkModeContext';
 import { motion, AnimatePresence, useScroll, useMotionValueEvent } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { usePathname } from 'next/navigation';
@@ -38,7 +40,7 @@ function NotificationDropdown({ notifications, fetchNotifications, unreadCount, 
     const handleMarkAllAsRead = async () => {
       if (unreadCount === 0) return;
       try {
-        const response = await authenticatedFetch(`${API_URL}/api/notifications/readall`, { method: 'PATCH' });
+        const response = await authenticatedFetch(`${API_URL}/api/users/notifications/read-all`, { method: 'PATCH' });
         if (response.ok) { toast.success('全ての通知を既読にしました'); fetchNotifications(); }
       } catch (error) { toast.error('既読処理に失敗しました'); }
     };
@@ -46,7 +48,7 @@ function NotificationDropdown({ notifications, fetchNotifications, unreadCount, 
     const handleRead = async (notificationId, linkUrl) => {
       setIsOpen(false);
       try {
-        await authenticatedFetch(`${API_URL}/api/notifications/${notificationId}/read`, { method: 'PATCH' });
+        await authenticatedFetch(`${API_URL}/api/users/notifications/${notificationId}/read`, { method: 'PATCH' });
         fetchNotifications();
       } catch (error) { console.error(error); }
       if (linkUrl) window.location.href = linkUrl;
@@ -91,7 +93,7 @@ function NotificationDropdown({ notifications, fetchNotifications, unreadCount, 
                 </button>
               </div>
               
-              <div className="max-h-[400px] overflow-y-auto no-scrollbar">
+              <div className="max-h-[360px] overflow-y-auto no-scrollbar">
                 {notifications.length > 0 ? (
                   notifications.map((notif) => (
                     <div key={notif.id} onClick={() => handleRead(notif.id, notif.linkUrl)}
@@ -114,6 +116,11 @@ function NotificationDropdown({ notifications, fetchNotifications, unreadCount, 
                   </div>
                 )}
               </div>
+              <div className="px-5 py-3 border-t border-slate-100 bg-slate-50/60">
+                <a href="/notifications" className="text-xs font-black text-violet-500 hover:text-violet-700 transition-colors">
+                  すべての通知を見る →
+                </a>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
@@ -126,6 +133,7 @@ function NotificationDropdown({ notifications, fetchNotifications, unreadCount, 
 // ==========================================
 export default function Header() {
   const { user, logout, isLoading, authenticatedFetch } = useAuth();
+  const { dark, toggle: toggleDark } = useDarkMode();
   const [notifications, setNotifications] = useState([]);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -311,8 +319,12 @@ export default function Header() {
           { href: '/organizers/messages', label: '参加者メッセージ', icon: <Bell size={14} /> },
       ];
       default: return [
+          { href: '/feed', label: 'フォローフィード', icon: <Rss size={14} /> },
           { href: '/mypage', label: '参加した企画', icon: <Heart size={14} /> },
           { href: '/mypage?tab=created', label: '主催した企画', icon: <ClipboardList size={14} /> },
+          { href: '/dashboard', label: 'プランナーダッシュボード', icon: <BarChart3 size={14} /> },
+          { href: '/notifications', label: '通知センター', icon: <Bell size={14} /> },
+          { href: '/gift-cards', label: 'ギフトカード', icon: <Gift size={14} /> },
           { href: '/mypage/edit', label: 'プロフィール設定', icon: <Settings size={14} /> },
       ];
     }
@@ -387,9 +399,13 @@ export default function Header() {
             </div>
             
             <div className="flex items-center space-x-1 md:space-x-3">
+              <button onClick={toggleDark} aria-label="ダークモード切替"
+                  className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-500 hover:text-slate-700 transition-colors">
+                  {dark ? <Sun size={17} /> : <Moon size={17} />}
+              </button>
               {user ? (
                 <>
-                  <NotificationDropdown 
+                  <NotificationDropdown
                       notifications={notifications} 
                       fetchNotifications={fetchNotifications} 
                       unreadCount={unreadCount}

@@ -548,3 +548,87 @@ export const sendUserChatMessage = async (req, res) => {
         res.status(500).json({ message: '送信失敗' });
     }
 };
+// グループチャットのpagination取得
+export const getGroupChatMessages = async (req, res) => {
+    const { id: projectId } = req.params;
+    const cursor = req.query.cursor; // 最後に取得したメッセージのcreatedAt
+    const take = 50;
+    try {
+        const messages = await prisma.groupChatMessage.findMany({
+            where: {
+                projectId,
+                ...(cursor ? { createdAt: { lt: new Date(cursor) } } : {}),
+            },
+            orderBy: { createdAt: 'desc' },
+            take,
+            include: {
+                user: { select: { id: true, handleName: true, iconUrl: true } },
+                florist: { select: { id: true, platformName: true, iconUrl: true } },
+            },
+        });
+        // 古い順に戻す
+        const sorted = messages.reverse();
+        const nextCursor = sorted.length === take ? sorted[0].createdAt.toISOString() : null;
+        res.json({ messages: sorted, nextCursor });
+    } catch (e) {
+        res.status(500).json({ message: '取得失敗' });
+    }
+};
+
+// 応援コメント一覧取得
+export const getCheers = async (req, res) => {
+    const { projectId } = req.params;
+    const cursor = req.query.cursor;
+    try {
+        const cheers = await prisma.cheer.findMany({
+            where: {
+                projectId,
+                ...(cursor ? { createdAt: { lt: new Date(cursor) } } : {}),
+            },
+            orderBy: { createdAt: 'desc' },
+            take: 20,
+            include: { user: { select: { id: true, handleName: true, iconUrl: true } } },
+        });
+        const nextCursor = cheers.length === 20 ? cheers[cheers.length - 1].createdAt.toISOString() : null;
+        res.json({ cheers, nextCursor });
+    } catch (e) {
+        res.status(500).json({ message: '取得失敗' });
+    }
+};
+
+// 応援コメント投稿（ログイン不要）
+export const postCheer = async (req, res) => {
+    const { projectId } = req.params;
+    const { message, guestName } = req.body;
+    const userId = req.user?.id ?? null;
+
+    if (!message?.trim()) return res.status(400).json({ message: 'メッセージを入力してください' });
+    if (!userId && !guestName?.trim()) return res.status(400).json({ message: 'お名前を入力してください' });
+
+    try {
+        const project = await prisma.project.findUnique({ where: { id: projectId }, select: { id: true, plannerId: true, title: true } });
+        if (!project) return res.status(404).json({ message: '企画が見つかりません' });
+
+        const cheer = await prisma.cheer.create({
+            data: { message: message.trim(), projectId, userId, guestName: guestName?.trim() || null },
+            include: { user: { select: { id: true, handleName: true, iconUrl: true } } },
+        });
+
+        // プランナーへ通知
+        if (project.plannerId) {
+            await prisma.notification.create({
+                data: {
+                    recipientId: project.plannerId,
+                    type: 'NEW_ANNOUNCEMENT',
+                    message: `応援メッセージが届きました！`,
+                    projectId,
+                    linkUrl: `/projects/${projectId}`,
+                },
+            });
+        }
+
+        res.status(201).json(cheer);
+    } catch (e) {
+        res.status(500).json({ message: '投稿に失敗しました' });
+    }
+};

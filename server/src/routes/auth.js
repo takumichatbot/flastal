@@ -1,13 +1,16 @@
 import express from 'express';
 import * as authController from '../controllers/authController.js';
+import { validate, loginSchema, registerSchema } from '../middleware/validate.js';
+import * as totpController from '../controllers/totpController.js';
+import { authenticateToken } from '../middleware/auth.js';
 
 const router = express.Router();
 
 // ==========================================
 // 1. 一般ユーザー (User)
 // ==========================================
-router.post('/users/register', authController.registerUser);
-router.post('/users/login', authController.loginUser);
+router.post('/users/register', validate(registerSchema), authController.registerUser);
+router.post('/users/login', validate(loginSchema), authController.loginUser);
 
 // ==========================================
 // 2. お花屋さん (Florist)
@@ -40,5 +43,12 @@ router.post('/reset-password', authController.resetPassword);
 // 【重要】ログインロジックを一般ユーザー用と分離
 // ==========================================
 router.post('/admin/login', authController.loginAdmin || authController.loginUser);
+
+// ==========================================
+// 7. 2FA (TOTP)
+// ==========================================
+router.post('/auth/totp/setup',   authenticateToken, totpController.setupTotp);
+router.post('/auth/totp/verify',  authenticateToken, totpController.verifyTotp);
+router.post('/auth/totp/disable', authenticateToken, totpController.disableTotp);
 
 export default router;

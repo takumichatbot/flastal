@@ -55,4 +55,10 @@ router.post('/subscribe-push', authenticateToken, toolController.subscribePush);
 // ネイティブ(APNs)デバイストークン登録
 router.post('/native-device-token', authenticateToken, toolController.registerNativeDeviceToken);
 
+// AIドラフトウィザード
+router.post('/draft-project', authenticateToken, toolController.generateProjectDraft);
+
+// DALL-E 3 カバー画像生成
+router.post('/generate-cover-image', authenticateToken, toolController.generateCoverImage);
+
 export default router;

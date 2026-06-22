@@ -6,10 +6,10 @@ import Link from 'next/link';
 import { useAuth } from '../../contexts/AuthContext';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
-import { 
-    Search, Users, Mail, Shield, Filter, ArrowLeft, 
-    ShieldCheck, Palette, Store, Building2, User, RefreshCw, 
-    MessageSquare, Trash2, EyeOff, CheckCircle // ★ EyeOff, CheckCircle を追加
+import {
+    Search, Users, Mail, Shield, Filter, ArrowLeft,
+    ShieldCheck, Palette, Store, Building2, User, RefreshCw,
+    MessageSquare, Trash2, EyeOff, CheckCircle, Coins, X
 } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
@@ -43,6 +43,10 @@ export default function AdminUsersPage() {
     const [isLoadingData, setIsLoadingData] = useState(true);
     const [searchKeyword, setSearchKeyword] = useState('');
     const [activeTab, setActiveTab] = useState('ALL');
+
+    const [pointModal, setPointModal] = useState(null); // { id, name, currentPoints }
+    const [pointDelta, setPointDelta] = useState('');
+    const [pointReason, setPointReason] = useState('');
 
     const fetchUsers = async () => {
         setIsLoadingData(true);
@@ -179,6 +183,29 @@ export default function AdminUsersPage() {
         }
     };
 
+    const handleAdjustPoints = async () => {
+        const delta = parseInt(pointDelta, 10);
+        if (!pointModal || isNaN(delta) || delta === 0) return;
+        const toastId = toast.loading('ポイントを更新中...');
+        try {
+            const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+            const res = await fetch(`${API_URL}/api/admin/users/${pointModal.id}/points`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ delta, reason: pointReason }),
+            });
+            if (!res.ok) throw new Error((await res.json()).message || '失敗しました');
+            const data = await res.json();
+            toast.success(`${data.message} (残高: ${data.user.points}pt)`, { id: toastId });
+            setPointModal(null);
+            setPointDelta('');
+            setPointReason('');
+            fetchUsers();
+        } catch (e) {
+            toast.error(e.message, { id: toastId });
+        }
+    };
+
     const handleDeleteUser = async (targetUserId, targetUserName, targetRole) => {
         if (!window.confirm(`本当にアカウント「${targetUserName}」を物理削除しますか？\n※基本的には「BAN（非表示）」を推奨します。物理削除は紐づく全データが消去されます。`)) {
             return;
@@ -205,6 +232,7 @@ export default function AdminUsersPage() {
     if (loading) return <div className="min-h-screen flex items-center justify-center"><RefreshCw className="animate-spin text-sky-500" /></div>;
 
     return (
+        <>
         <div className="min-h-screen bg-slate-50 pb-24">
             
             <div className="bg-white border-b border-slate-200 sticky top-0 z-10 shadow-sm">
@@ -355,12 +383,19 @@ export default function AdminUsersPage() {
 
                                                 <td className="px-6 py-4">
                                                     <div className="flex items-center justify-end gap-2">
-                                                        <button 
+                                                        <button
                                                             onClick={() => handleStartChat(u)}
                                                             className="flex items-center gap-1 px-3 py-1.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white border border-indigo-100 hover:border-indigo-600 rounded-lg transition-all text-xs font-bold shadow-sm"
                                                             title="チャットを開始"
                                                         >
                                                             <MessageSquare size={14} /> <span className="hidden sm:inline">連絡</span>
+                                                        </button>
+                                                        <button
+                                                            onClick={() => { setPointModal({ id: u.id, name: u.displayName, currentPoints: u.points ?? 0 }); setPointDelta(''); setPointReason(''); }}
+                                                            className="flex items-center gap-1 px-3 py-1.5 bg-amber-50 text-amber-600 hover:bg-amber-500 hover:text-white border border-amber-200 hover:border-amber-500 rounded-lg transition-all text-xs font-bold shadow-sm"
+                                                            title="ポイント調整"
+                                                        >
+                                                            <Coins size={14} /> <span className="hidden sm:inline">Pt</span>
                                                         </button>
                                                         
                                                         {/* ★ BAN/復旧トグルボタン */}
@@ -402,5 +437,44 @@ export default function AdminUsersPage() {
 
             </div>
         </div>
+
+        {/* ポイント調整モーダル */}
+        {pointModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+                <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6">
+                    <div className="flex items-center justify-between mb-4">
+                        <h2 className="text-base font-black text-slate-800 flex items-center gap-2">
+                            <Coins size={18} className="text-amber-500" /> ポイント調整
+                        </h2>
+                        <button onClick={() => setPointModal(null)} className="text-slate-400 hover:text-slate-600">
+                            <X size={20} />
+                        </button>
+                    </div>
+                    <p className="text-sm text-slate-600 mb-1">対象: <span className="font-bold">{pointModal.name}</span></p>
+                    <p className="text-xs text-slate-400 mb-4">現在の残高: {pointModal.currentPoints.toLocaleString()} pt</p>
+                    <label className="block text-xs font-bold text-slate-600 mb-1">増減量（例: +500 or -200）</label>
+                    <input
+                        type="number"
+                        value={pointDelta}
+                        onChange={(e) => setPointDelta(e.target.value)}
+                        placeholder="例: 500 または -200"
+                        className="w-full px-4 py-2 border border-slate-200 rounded-xl text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                    />
+                    <label className="block text-xs font-bold text-slate-600 mb-1">理由（任意）</label>
+                    <input
+                        type="text"
+                        value={pointReason}
+                        onChange={(e) => setPointReason(e.target.value)}
+                        placeholder="例: キャンペーン付与"
+                        className="w-full px-4 py-2 border border-slate-200 rounded-xl text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                    />
+                    <div className="flex gap-2">
+                        <button onClick={() => setPointModal(null)} className="flex-1 py-2 rounded-xl border border-slate-200 text-slate-500 text-sm font-bold hover:bg-slate-50">キャンセル</button>
+                        <button onClick={handleAdjustPoints} className="flex-1 py-2 rounded-xl bg-amber-500 text-white text-sm font-black hover:bg-amber-600 transition-colors">適用する</button>
+                    </div>
+                </div>
+            </div>
+        )}
+        </>
     );
 }

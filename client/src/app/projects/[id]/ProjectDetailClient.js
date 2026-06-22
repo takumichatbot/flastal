@@ -21,29 +21,38 @@ import {
   CheckCircle2, AlertTriangle, DollarSign, Calendar, 
   ChevronLeft, Send, Image as ImageIcon, 
   Award, Plus, Search, Loader2, X,
-  FileText, Printer, Info, Lock, PenTool, Check, Wand2, 
-  MessageSquare, Trash2, Box, UploadCloud, RefreshCw, Pen, Book, Users, Sparkles, Edit3, UserPlus, Zap, Brush, Download
+  FileText, Printer, Info, Lock, PenTool, Check, Wand2,
+  MessageSquare, Trash2, Box, UploadCloud, RefreshCw, Pen, Book, Users, Sparkles, Edit3, UserPlus, Zap, Brush, Download, Star, BarChart2, Rss
 } from 'lucide-react';
 
 // --- Components ---
-import VenueLogisticsWiki from '@/app/components/VenueLogisticsWiki';
-import MoodboardPostForm from '@/app/components/MoodboardPostForm';
-import MoodboardDisplay from '@/app/components/MoodboardDisplay';
 import OfficialBadge from '@/app/components/OfficialBadge';
 import UpsellAlert from '@/app/components/UpsellAlert';
 import FlowerScrollIndicator from '@/app/components/FlowerScrollIndicator';
-import PanelPreviewer from '@/app/components/PanelPreviewer';
-import GroupChat from './components/GroupChat';
-import CompletionReportModal from './components/CompletionReportModal';
-import ReportModal from './components/ReportModal';
-import VenueRegulationCard from '@/app/components/VenueRegulationCard';
-import { BalanceSheet } from '@/app/components/BalanceSheet';
+import CountdownTimer from '@/app/components/CountdownTimer';
 
-import FloristMaterialModal from '@/components/project/FloristMaterialModal';
-import ProjectCancelModal from '@/components/project/ProjectCancelModal';
+const VenueLogisticsWiki = dynamic(() => import('@/app/components/VenueLogisticsWiki'), { ssr: false });
+const MoodboardPostForm = dynamic(() => import('@/app/components/MoodboardPostForm'), { ssr: false });
+const MoodboardDisplay = dynamic(() => import('@/app/components/MoodboardDisplay'), { ssr: false });
+const PanelPreviewer = dynamic(() => import('@/app/components/PanelPreviewer'), { ssr: false });
+const GroupChat = dynamic(() => import('./components/GroupChat'), { ssr: false });
+const CompletionReportModal = dynamic(() => import('./components/CompletionReportModal'), { ssr: false });
+const ReportModal = dynamic(() => import('./components/ReportModal'), { ssr: false });
+const VenueRegulationCard = dynamic(() => import('@/app/components/VenueRegulationCard'), { ssr: false });
+const BalanceSheet = dynamic(() => import('@/app/components/BalanceSheet').then(m => ({ default: m.BalanceSheet })), { ssr: false });
+const FloristMaterialModal = dynamic(() => import('@/components/project/FloristMaterialModal'), { ssr: false });
+const ProjectCancelModal = dynamic(() => import('@/components/project/ProjectCancelModal'), { ssr: false });
 
 // Dynamic Import
 const ArViewer = dynamic(() => import('@/app/components/ArViewer'), { ssr: false });
+
+// Tab components (dynamic to keep main bundle small)
+const OverviewTab      = dynamic(() => import('./tabs/OverviewTab'),      { ssr: false });
+const BackersTab       = dynamic(() => import('./tabs/BackersTab'),       { ssr: false });
+const CollaborationTab = dynamic(() => import('./tabs/CollaborationTab'), { ssr: false });
+const FinanceTab       = dynamic(() => import('./tabs/FinanceTab'),       { ssr: false });
+const DiscussionTab    = dynamic(() => import('./tabs/DiscussionTab'),    { ssr: false });
+const UpdatesTab       = dynamic(() => import('./tabs/UpdatesTab'),       { ssr: false });
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -278,11 +287,12 @@ function PledgeForm({ project, user, onPledgeSubmit, isPledger }) {
   const finalAmount = pledgeType === 'tier' && selectedTier ? selectedTier.amount : parseInt(watch('pledgeAmount')) || 0;
 
   const userPoints = user?.points || 0;
-  const pointsToUse = user ? Math.min(userPoints, finalAmount) : 0; 
-  const cardAmount = finalAmount - pointsToUse; 
+  const pointsToUse = user ? Math.min(userPoints, finalAmount) : 0;
+  const cardAmount = finalAmount - pointsToUse;
 
   const minAmount = project.minContributionAmount || 1000;
   const [quantity, setQuantity] = useState(1);
+  const [paymentMethod, setPaymentMethod] = useState('card'); // 'card' | 'konbini' | 'paypay'
 
   const handleQuantityChange = (newQty) => {
       setQuantity(newQty);
@@ -320,7 +330,8 @@ function PledgeForm({ project, user, onPledgeSubmit, isPledger }) {
                     tierId: pledgeType === 'tier' ? data.selectedTierId : undefined,
                     guestName: !user ? data.guestName : undefined, 
                     guestEmail: !user ? data.guestEmail : undefined,
-                    successUrl: `${window.location.origin}/projects/${project.id}?payment=success`, 
+                    paymentMethod,
+                    successUrl: `${window.location.origin}/projects/${project.id}?payment=success`,
                     cancelUrl: `${window.location.origin}/projects/${project.id}?payment=cancelled`,
                 })
             });
@@ -376,17 +387,44 @@ function PledgeForm({ project, user, onPledgeSubmit, isPledger }) {
         {pledgeType === 'tier' ? (
           project.pledgeTiers && project.pledgeTiers.length > 0 ? (
             <div className="space-y-2 md:space-y-3 max-h-60 overflow-y-auto pr-1 no-scrollbar">
-              {project.pledgeTiers.map(tier => (
-                <label key={tier.id} className={cn("block p-4 border-2 rounded-xl md:rounded-2xl cursor-pointer transition-all relative overflow-hidden", selectedTierId === tier.id ? 'border-pink-500 bg-pink-50/30' : 'border-slate-100 bg-white hover:border-slate-200')}>
-                  <input type="radio" {...register('selectedTierId')} value={tier.id} className="hidden" />
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="font-black text-xl md:text-2xl text-slate-800 tracking-tight">{tier.amount.toLocaleString()} <span className="text-xs font-bold text-slate-400">pt(円)</span></span>
-                    {selectedTierId === tier.id ? <CheckCircle2 className="text-pink-500 fill-pink-100" size={20}/> : <div className="w-5 h-5 rounded-full border-2 border-slate-200"/>}
+              {project.pledgeTiers.map(tier => {
+                const backerCount = project.pledges?.filter(p => p.pledgeTierId === tier.id).length ?? 0;
+                const isSoldOut = tier.maxBackers != null && backerCount >= tier.maxBackers;
+                return (
+                <label key={tier.id} className={cn(
+                  "block border-2 rounded-xl md:rounded-2xl cursor-pointer transition-all relative overflow-hidden",
+                  isSoldOut ? 'opacity-50 cursor-not-allowed border-slate-100' :
+                  selectedTierId === tier.id ? 'border-pink-500 bg-pink-50/30' : 'border-slate-100 bg-white hover:border-slate-200'
+                )}>
+                  <input type="radio" {...register('selectedTierId')} value={tier.id} className="hidden" disabled={isSoldOut} />
+
+                  {/* ティア画像 */}
+                  {tier.imageUrl && (
+                    <div className="relative h-24 w-full overflow-hidden rounded-t-xl">
+                      <img src={tier.imageUrl} alt={tier.title} className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+                    </div>
+                  )}
+
+                  <div className="p-4">
+                    <div className="flex justify-between items-start mb-1">
+                      <div>
+                        <span className="font-black text-xl md:text-2xl text-slate-800 tracking-tight">{tier.amount.toLocaleString()} <span className="text-xs font-bold text-slate-400">pt(円)</span></span>
+                        {tier.badge && <span className="ml-2 text-[10px] font-black px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full border border-amber-200">{tier.badge}</span>}
+                      </div>
+                      {selectedTierId === tier.id ? <CheckCircle2 className="text-pink-500 fill-pink-100 shrink-0" size={20}/> : <div className="w-5 h-5 rounded-full border-2 border-slate-200 shrink-0"/>}
+                    </div>
+                    <span className="text-xs md:text-sm font-bold text-pink-500 block mb-1">{tier.title}</span>
+                    <p className="text-[10px] md:text-xs text-slate-500 font-medium leading-relaxed">{tier.description}</p>
+                    {tier.maxBackers != null && (
+                      <p className="text-[10px] font-black mt-2 text-slate-400">
+                        {isSoldOut ? '🔒 定員に達しました' : `残り ${tier.maxBackers - backerCount} 枠`}
+                      </p>
+                    )}
                   </div>
-                  <span className="text-xs md:text-sm font-bold text-pink-500 block mb-1">{tier.title}</span>
-                  <p className="text-[10px] md:text-xs text-slate-500 font-medium leading-relaxed">{tier.description}</p>
                 </label>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <div className="p-4 bg-slate-50 rounded-xl text-center">
@@ -465,6 +503,39 @@ function PledgeForm({ project, user, onPledgeSubmit, isPledger }) {
               <input type="text" {...register('guestName')} className="w-full p-3.5 bg-slate-50 border-transparent rounded-xl text-[16px] font-bold focus:bg-white focus:border-pink-400 focus:ring-4 focus:ring-pink-50 outline-none transition-all" placeholder="お名前 (ハンドルネーム)"/>
               <input type="email" {...register('guestEmail')} className="w-full p-3.5 bg-slate-50 border-transparent rounded-xl text-[16px] font-bold focus:bg-white focus:border-pink-400 focus:ring-4 focus:ring-pink-50 outline-none transition-all" placeholder="メールアドレス"/>
             </div>
+        )}
+
+        {/* 支払い方法選択（カード決済がある場合のみ） */}
+        {cardAmount > 0 && (
+          <div className="pt-3 space-y-2 border-t border-slate-100">
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">お支払い方法</p>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { id: 'card',    label: 'クレジットカード', icon: '💳' },
+                { id: 'konbini', label: 'コンビニ払い',     icon: '🏪' },
+                { id: 'paypay',  label: 'PayPay',           icon: '📱' },
+              ].map(m => (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => setPaymentMethod(m.id)}
+                  className={`py-2.5 px-2 rounded-xl border-2 text-xs font-black text-center transition-all ${
+                    paymentMethod === m.id
+                      ? 'border-pink-400 bg-pink-50 text-pink-700 shadow-sm'
+                      : 'border-slate-100 bg-white text-slate-500 hover:border-slate-200'
+                  }`}
+                >
+                  <div className="text-lg mb-0.5">{m.icon}</div>
+                  {m.label}
+                </button>
+              ))}
+            </div>
+            {paymentMethod === 'konbini' && (
+              <p className="text-[10px] text-slate-400 font-medium px-1">
+                ※ 支払い期限は3日間です。ローソン・ファミリーマート・セブンイレブン等でお支払いいただけます。
+              </p>
+            )}
+          </div>
         )}
 
         <div className="space-y-3">
@@ -602,10 +673,13 @@ export default function ProjectDetailClient() {
     if (payment === 'success') {
       import('canvas-confetti').then(({ default: confetti }) => {
         setTimeout(() => {
-          confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 }, colors: ['#ec4899', '#f43f5e', '#a855f7', '#fbbf24'] });
-        }, 300);
+          confetti({ particleCount: 150, spread: 80, origin: { y: 0.5 }, colors: ['#ec4899', '#f43f5e', '#a855f7', '#fbbf24'] });
+        }, 200);
+        setTimeout(() => {
+          confetti({ particleCount: 80, spread: 120, origin: { y: 0.4 }, angle: 60, colors: ['#ec4899', '#fbbf24', '#34d399'] });
+        }, 600);
       }).catch(() => {});
-      toast.success('支援が完了しました！ありがとうございます 🌸', { duration: 6000, icon: '🎉' });
+      setShowSuccessModal(true);
     } else if (payment === 'cancelled') {
       toast('決済がキャンセルされました', { icon: 'ℹ️' });
     }
@@ -631,8 +705,12 @@ export default function ProjectDetailClient() {
   const [isTargetAmountModalOpen, setIsTargetAmountModalOpen] = useState(false);
   const [isInstructionModalOpen, setIsInstructionModalOpen] = useState(false);
   const [isArModalOpen, setIsArModalOpen] = useState(false);
-  const [isQuotationModalOpen, setIsQuotationModalOpen] = useState(false); 
+  const [isQuotationModalOpen, setIsQuotationModalOpen] = useState(false);
   const [showDeadlineModal, setShowDeadlineModal] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+  const [reviewComment, setReviewComment] = useState('');
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [arSrc, setArSrc] = useState(null); 
   const [arImageFile, setArImageFile] = useState(null);
   const [arHeight, setArHeight] = useState(200); 
@@ -649,6 +727,67 @@ export default function ProjectDetailClient() {
 
   const [isDeliveryNoteModalOpen, setIsDeliveryNoteModalOpen] = useState(false);
   const [isIllustrationUploading, setIsIllustrationUploading] = useState(false);
+
+  const [cheers, setCheers] = useState(null);
+  const [cheerMessage, setCheerMessage] = useState('');
+  const [cheerGuestName, setCheerGuestName] = useState('');
+  const [isPostingCheer, setIsPostingCheer] = useState(false);
+  const [quickCheerSent, setQuickCheerSent] = useState(false);
+
+  const fetchCheers = useCallback(async () => {
+    if (!id) return;
+    try {
+      const res = await fetch(`${API_URL}/api/project-details/projects/${id}/cheers`);
+      if (res.ok) {
+        const data = await res.json();
+        setCheers(data.cheers || []);
+      }
+    } catch { /* silent */ }
+  }, [id]);
+
+  const handlePostCheer = async () => {
+    if (!cheerMessage.trim()) return;
+    if (!user && !cheerGuestName.trim()) return toast.error('お名前を入力してください');
+    setIsPostingCheer(true);
+    try {
+      const headers = { 'Content-Type': 'application/json' };
+      const cheerToken = getAuthToken();
+      if (user && cheerToken) headers['Authorization'] = `Bearer ${cheerToken}`;
+      const res = await fetch(`${API_URL}/api/project-details/projects/${id}/cheers`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ message: cheerMessage.trim(), guestName: cheerGuestName.trim() || undefined }),
+      });
+      if (!res.ok) throw new Error();
+      toast.success('応援コメントを投稿しました！');
+      setCheerMessage('');
+      setCheerGuestName('');
+      fetchCheers();
+    } catch {
+      toast.error('投稿に失敗しました');
+    } finally {
+      setIsPostingCheer(false);
+    }
+  };
+
+  const handleQuickCheer = async () => {
+    if (quickCheerSent) return;
+    try {
+      const cheerToken = getAuthToken();
+      const headers = { 'Content-Type': 'application/json' };
+      if (user && cheerToken) headers['Authorization'] = `Bearer ${cheerToken}`;
+      const res = await fetch(`${API_URL}/api/project-details/projects/${id}/cheers`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ message: '♡', guestName: user ? undefined : 'ゲスト' }),
+      });
+      if (res.ok) {
+        setQuickCheerSent(true);
+        fetchCheers();
+        setTimeout(() => setQuickCheerSent(false), 3000);
+      }
+    } catch { /* silent */ }
+  };
 
   const handlePrint = useReactToPrint({
     content: () => componentRef.current,
@@ -677,6 +816,22 @@ export default function ProjectDetailClient() {
    }, [id]);
 
   useEffect(() => { fetchProject(); }, [fetchProject]);
+  useEffect(() => { fetchCheers(); }, [fetchCheers]);
+
+  // 30秒ごとに支援数・金額だけ軽量ポーリング
+  useEffect(() => {
+    if (!id) return;
+    const poll = async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/projects/${id}/stats`);
+        if (!res.ok) return;
+        const stats = await res.json();
+        setProject(prev => prev ? { ...prev, ...stats } : null);
+      } catch {}
+    };
+    const timerId = setInterval(poll, 30000);
+    return () => clearInterval(timerId);
+  }, [id]);
 
   useEffect(() => {
     if (!user || !id) return;
@@ -687,6 +842,23 @@ export default function ProjectDetailClient() {
     newSocket.emit('joinProjectRoom', id);
     newSocket.on('receiveGroupChatMessage', (msg) => setProject(prev => prev ? { ...prev, groupChatMessages: [...(prev.groupChatMessages || []), msg] } : null));
     newSocket.on('messageError', (msg) => toast.error(msg));
+
+    // ── リアルタイム支援カウンター ────────────────────────────────────────
+    newSocket.on('pledgeUpdate', ({ collectedAmount, targetAmount, pledgerName, pledgeAmount }) => {
+      setProject(prev => prev ? { ...prev, collectedAmount, targetAmount } : null);
+      if (pledgerName && pledgeAmount) {
+        toast.success(`${pledgerName}さんが ${Number(pledgeAmount).toLocaleString()}pt 支援しました！`, {
+          duration: 3000,
+          icon: '🎉',
+        });
+      }
+    });
+    newSocket.on('projectGoalReached', () => {
+      setProject(prev => prev ? { ...prev, status: 'SUCCESSFUL' } : null);
+      toast.success('🎊 目標金額100%達成！', { duration: 5000, icon: '🔥' });
+    });
+    // ──────────────────────────────────────────────────────────────────────
+
     return () => newSocket.disconnect();
   }, [id, user]);
 
@@ -952,6 +1124,33 @@ export default function ProjectDetailClient() {
       }
   };
 
+  const handleSubmitReview = async () => {
+    if (!reviewComment.trim()) return;
+    const floristId = activeOffer?.floristId;
+    if (!floristId) return;
+    setIsSubmittingReview(true);
+    const toastId = toast.loading('レビューを投稿中...');
+    try {
+      const res = await authenticatedFetch(`${API_URL}/api/projects/${project.id}/reviews`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ comment: reviewComment, floristId, projectId: project.id }),
+      });
+      if (!res?.ok) {
+        const err = await res?.json();
+        throw new Error(err?.message || '投稿失敗');
+      }
+      toast.success('レビューを投稿しました！ありがとうございます 🌸', { id: toastId });
+      setIsReviewModalOpen(false);
+      setReviewComment('');
+      fetchProject();
+    } catch (e) {
+      toast.error(e.message || '投稿に失敗しました', { id: toastId });
+    } finally {
+      setIsSubmittingReview(false);
+    }
+  };
+
   const handleDownloadIllustration = async (url) => {
       try {
           const response = await fetch(url);
@@ -984,11 +1183,56 @@ export default function ProjectDetailClient() {
   const isMounted = useIsMounted();
   
   if (!isMounted) return null;
-  if (loading) return <div className="min-h-[100dvh] flex items-center justify-center bg-slate-50"><Loader2 className="animate-spin text-slate-300" size={40} /></div>;
+  if (loading) return (
+    <div className="min-h-[100dvh] bg-slate-50 animate-pulse px-4 py-8 max-w-5xl mx-auto space-y-4">
+      <div className="h-64 md:h-96 bg-white rounded-[2.5rem] border border-slate-100 shadow-sm" />
+      <div className="grid md:grid-cols-3 gap-4">
+        <div className="md:col-span-2 space-y-4">
+          <div className="h-8 bg-slate-200 rounded-full w-3/4" />
+          <div className="h-4 bg-slate-100 rounded-full w-full" />
+          <div className="h-4 bg-slate-100 rounded-full w-5/6" />
+          <div className="h-4 bg-slate-100 rounded-full w-2/3" />
+        </div>
+        <div className="space-y-3">
+          <div className="h-32 bg-white rounded-[2rem] border border-slate-100 shadow-sm" />
+          <div className="h-12 bg-pink-100 rounded-2xl" />
+        </div>
+      </div>
+    </div>
+  );
   if (!project) return <div className="text-center py-32 text-slate-400 font-bold text-lg bg-slate-50 min-h-screen">企画が見つかりませんでした。</div>;
 
   const totalExpense = (project.expenses || []).reduce((sum, exp) => sum + exp.amount, 0);
   const balance = project.collectedAmount - totalExpense;
+
+  // タブコンポーネントに渡す共有コンテキスト
+  const tabCtx = {
+    project, user, isPlanner, isPledger, isFlorist, isAssignedIllustrator,
+    setModalImageSrc, setIsImageModalOpen,
+    showAnnouncementForm, setShowAnnouncementForm,
+    handlePostAnnouncement,
+    announcementTitle, setAnnouncementTitle,
+    announcementContent, setAnnouncementContent,
+    isPostingAnnouncement,
+    cheers, cheerGuestName, setCheerGuestName,
+    cheerMessage, setCheerMessage,
+    handlePostCheer, isPostingCheer,
+    aiSummary, collabTab, setCollabTab,
+    activeOffer, socket, setAiSummary, fetchProject,
+    newTaskTitle, setNewTaskTitle,
+    handleAddTask, handleToggleTask, handleDeleteTask,
+    handleUpload, isIllustrationUploading,
+    handleAcceptIllustration, handleRejectIllustration,
+    handleDownloadIllustration, handleAcceptApplication,
+    setIsArModalOpen,
+    floristName,
+    totalExpense, balance,
+    expenseName, setExpenseName,
+    expenseAmount, setExpenseAmount,
+    handleAddExpense, handleDeleteExpense,
+    handlePrint, componentRef, BalanceSheet,
+    GroupChat, MoodboardPostForm, MoodboardDisplay, PanelPreviewer,
+  };
   const percent = Math.min(Math.round(((project.collectedAmount || 0) / (project.targetAmount || 1)) * 100), 100);
   const isSuccess = percent >= 100;
   const daysLeft = project.deadline
@@ -997,9 +1241,11 @@ export default function ProjectDetailClient() {
 
   const TABS = [
     { id: 'overview',       label: '概要と報告', icon: Book },
+    { id: 'updates',        label: 'アップデート', icon: Rss },
     { id: 'backers',        label: '支援者',     icon: Users },
     { id: 'collaboration',  label: '共同作業',   icon: PenTool },
-    { id: 'finance',        label: '収支報告',   icon: DollarSign }
+    { id: 'finance',        label: '収支報告',   icon: DollarSign },
+    { id: 'discussion',     label: 'Q&A',        icon: MessageSquare },
   ];
 
   return (
@@ -1158,12 +1404,9 @@ export default function ProjectDetailClient() {
                   </p>
                 </div>
 
-                {/* 残り日数 */}
-                {project.status === 'FUNDRAISING' && daysLeft !== null && (
-                  <div className="text-center shrink-0 bg-white rounded-2xl px-3 py-2.5 border border-rose-100 shadow-sm">
-                    <p className="text-2xl font-black text-rose-500 leading-none">{daysLeft}</p>
-                    <p className="text-[9px] font-black text-rose-400 uppercase tracking-wider mt-0.5">日後締切</p>
-                  </div>
+                {/* 残り時間カウントダウン */}
+                {project.status === 'FUNDRAISING' && project.deadline && (
+                  <CountdownTimer deadline={project.deadline} className="shrink-0" />
                 )}
               </div>
 
@@ -1265,502 +1508,14 @@ export default function ProjectDetailClient() {
           <AnimatePresence mode="wait">
             <motion.div key={activeTab} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }}>
               
-              {activeTab === 'overview' && (
-                  <div className="space-y-6 md:space-y-8">
-                      <AppCard>
-                          <h2 className="text-lg md:text-xl font-black text-slate-800 mb-5 flex items-center gap-2">
-                              <Book className="text-slate-400" size={20}/> 企画の詳細
-                          </h2>
-                          <div className="text-slate-700 whitespace-pre-wrap leading-relaxed md:leading-loose font-medium text-xs sm:text-sm md:text-base">
-                            <JpText>{project.description}</JpText>
-                          </div>
-                      </AppCard>
 
-                      {/* デザイン参考画像ギャラリー */}
-                      {project.designImageUrls && project.designImageUrls.filter(Boolean).length > 0 && (
-                          <div>
-                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 px-1">デザイン参考画像</p>
-                              <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
-                                  {project.designImageUrls.filter(Boolean).map((url, i) => (
-                                      <div
-                                          key={i}
-                                          className="relative shrink-0 w-44 h-44 sm:w-52 sm:h-52 rounded-2xl overflow-hidden cursor-zoom-in border border-slate-100 shadow-sm hover:scale-[1.02] transition-transform"
-                                          onClick={() => { setModalImageSrc(url); setIsImageModalOpen(true); }}
-                                      >
-                                          <Image src={url} alt={`デザイン参考 ${i + 1}`} fill className="object-cover"/>
-                                          <div className="absolute inset-0 bg-gradient-to-t from-slate-900/50 to-transparent"/>
-                                          <span className="absolute bottom-2 left-3 text-[9px] font-black text-white/80 uppercase tracking-wider">参考 {i + 1}</span>
-                                      </div>
-                                  ))}
-                              </div>
-                          </div>
-                      )}
+              {activeTab === 'overview'      && <OverviewTab      ctx={tabCtx} />}
+              {activeTab === 'updates'       && <UpdatesTab       ctx={tabCtx} />}
+              {activeTab === 'backers'       && <BackersTab       ctx={tabCtx} />}
+              {activeTab === 'collaboration' && <CollaborationTab ctx={tabCtx} />}
+              {activeTab === 'finance'       && <FinanceTab       ctx={tabCtx} />}
+              {activeTab === 'discussion'    && <DiscussionTab    ctx={tabCtx} />}
 
-                      {(project.designDetails || project.size || project.flowerTypes) && (
-                          <AppCard className="bg-pink-50/30 border border-pink-100">
-                              <h2 className="text-lg md:text-xl font-black text-slate-800 mb-5 flex items-center gap-2">
-                                  <ImageIcon className="text-pink-400" size={20}/> デザインの希望
-                              </h2>
-                              <div className="space-y-3">
-                                  {project.designDetails && (
-                                      <div className="bg-white p-4 md:p-5 rounded-2xl border border-pink-50 shadow-sm">
-                                          <span className="text-[10px] font-black text-pink-400 uppercase tracking-widest block mb-2">雰囲気・詳細</span>
-                                          <p className="text-slate-700 font-bold text-xs sm:text-sm leading-relaxed">{project.designDetails}</p>
-                                      </div>
-                                  )}
-                                  <div className="grid grid-cols-2 gap-3">
-                                    {project.size && (
-                                        <div className="bg-white p-4 rounded-2xl border border-pink-50 shadow-sm">
-                                            <span className="text-[10px] font-black text-pink-400 uppercase tracking-widest block mb-1.5">希望サイズ</span>
-                                            <p className="text-slate-700 font-black text-sm">{project.size}</p>
-                                        </div>
-                                    )}
-                                    {project.flowerTypes && (
-                                        <div className="bg-white p-4 rounded-2xl border border-pink-50 shadow-sm">
-                                            <span className="text-[10px] font-black text-pink-400 uppercase tracking-widest block mb-1.5">使いたい花</span>
-                                            <p className="text-slate-700 font-black text-sm">{project.flowerTypes}</p>
-                                        </div>
-                                    )}
-                                  </div>
-                              </div>
-                          </AppCard>
-                      )}
-
-                      <div className="pt-2">
-                          <div className="flex flex-row justify-between items-center gap-2 mb-4 px-1">
-                              <h2 className="text-lg md:text-xl font-black text-slate-800 flex items-center gap-2"><MessageCircle className="text-pink-500" size={20}/> 活動報告</h2>
-                              {isPlanner && (
-                                <button onClick={() => setShowAnnouncementForm(!showAnnouncementForm)} className="bg-pink-500 text-white px-4 py-2 rounded-lg text-xs font-black shadow-sm hover:bg-pink-600 transition-colors flex items-center gap-1.5">
-                                  <PenTool size={12}/> 新規投稿
-                                </button>
-                              )}
-                          </div>
-                          
-                          <AnimatePresence>
-                            {isPlanner && showAnnouncementForm && (
-                                <motion.form 
-                                  initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
-                                  onSubmit={handlePostAnnouncement} 
-                                  className="mb-5 p-4 md:p-5 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden relative z-20"
-                                >
-                                    <input value={announcementTitle} onChange={(e)=>setAnnouncementTitle(e.target.value)} placeholder="タイトル (活動の進捗など)" disabled={isPostingAnnouncement} className="w-full p-3 mb-2 bg-slate-50 border border-transparent rounded-lg focus:bg-white focus:border-emerald-300 outline-none font-bold text-slate-800 text-sm transition-all disabled:opacity-50"/>
-                                    <textarea value={announcementContent} onChange={(e)=>setAnnouncementContent(e.target.value)} placeholder="本文を入力..." rows="3" disabled={isPostingAnnouncement} className="w-full p-3 mb-3 bg-slate-50 border border-transparent rounded-lg focus:bg-white focus:border-emerald-300 outline-none font-medium text-slate-700 text-sm resize-none transition-all disabled:opacity-50"/>
-                                    <div className="flex justify-end gap-2">
-                                        <button type="button" onClick={() => setShowAnnouncementForm(false)} disabled={isPostingAnnouncement} className="px-4 py-2 text-xs text-slate-500 hover:bg-slate-100 rounded-lg font-bold transition-colors disabled:opacity-50">キャンセル</button>
-                                        <button type="submit" disabled={isPostingAnnouncement} className="px-5 py-2 bg-pink-500 text-white text-xs font-black rounded-lg hover:bg-pink-600 shadow-sm transition-all flex items-center gap-1.5 disabled:opacity-50">
-                                            {isPostingAnnouncement ? <Loader2 size={14} className="animate-spin"/> : <Send size={14}/>} 
-                                            投稿する
-                                        </button>
-                                    </div>
-                                </motion.form>
-                            )}
-                          </AnimatePresence>
-
-                          {project.announcements?.length > 0 ? (
-                              <div className="space-y-3 md:space-y-4">
-                                  {project.announcements.map(a=>(
-                                      <AppCard key={a.id} className="!p-5 hover:shadow-md transition-shadow">
-                                          <div className="flex items-center gap-2 mb-3">
-                                            <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center overflow-hidden border border-slate-200 shrink-0">
-                                                {project.planner?.iconUrl ? <Image src={project.planner.iconUrl} alt="" width={32} height={32} className="object-cover" /> : <User size={14} className="text-slate-400"/>}
-                                            </div>
-                                            <div>
-                                                <p className="text-[10px] font-black text-slate-800">{project.planner?.handleName || project.planner?.name}</p>
-                                                <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">{new Date(a.createdAt).toLocaleDateString('ja-JP', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
-                                            </div>
-                                          </div>
-                                          <h3 className="font-black text-slate-800 text-sm md:text-base mb-1.5">{a.title}</h3>
-                                          <p className="text-xs md:text-sm text-slate-600 whitespace-pre-wrap leading-relaxed font-medium"><JpText>{a.content}</JpText></p>
-                                      </AppCard>
-                                  ))}
-                              </div>
-                          ) : (
-                              <div className="text-slate-400 text-sm text-center py-12 bg-white rounded-2xl font-bold flex flex-col items-center shadow-sm">
-                                <MessageCircle size={28} className="text-slate-200 mb-2"/>
-                                まだ活動報告はありません
-                              </div>
-                          )}
-                      </div>
-                  </div>
-              )}
-
-              {/* ===== 支援者タブ ===== */}
-              {activeTab === 'backers' && (
-                <div className="space-y-4">
-                  {(!project.pledges || project.pledges.length === 0) ? (
-                    <AppCard className="text-center py-16">
-                      <Users size={40} className="text-slate-200 mx-auto mb-4" />
-                      <p className="font-black text-slate-400">まだ支援者がいません</p>
-                      <p className="text-xs text-slate-300 mt-1">最初の支援者になりましょう！</p>
-                    </AppCard>
-                  ) : (
-                    <AppCard>
-                      <div className="flex items-center justify-between mb-5">
-                        <h2 className="text-base font-black text-slate-800 flex items-center gap-2">
-                          <Users size={18} className="text-pink-400" />
-                          支援者一覧
-                        </h2>
-                        <span className="text-xs font-black text-pink-500 bg-pink-50 px-3 py-1 rounded-full">
-                          {project.pledges.length} 人
-                        </span>
-                      </div>
-                      <div className="space-y-3">
-                        {project.pledges.map((pledge, i) => (
-                          <div key={pledge.id || i} className="flex items-center gap-3 p-3 rounded-2xl hover:bg-slate-50 transition-colors">
-                            <div className="w-10 h-10 rounded-full border-2 border-white bg-slate-100 overflow-hidden shadow-sm shrink-0">
-                              {pledge.user?.iconUrl
-                                ? <Image src={pledge.user.iconUrl} alt="" width={40} height={40} className="object-cover w-10 h-10" />
-                                : <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-pink-100 to-rose-100 text-pink-400 font-black text-sm">
-                                    {(pledge.user?.handleName || '?')[0]}
-                                  </div>
-                              }
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="font-black text-sm text-slate-800 truncate">
-                                {pledge.user?.handleName || '匿名'}
-                              </p>
-                              {pledge.comment && (
-                                <p className="text-xs text-slate-500 font-medium mt-0.5 truncate">"{pledge.comment}"</p>
-                              )}
-                            </div>
-                            <div className="shrink-0 text-right">
-                              <span className="text-xs font-black text-pink-500 bg-pink-50 px-2.5 py-1 rounded-full">
-                                ¥{(pledge.amount || 0).toLocaleString()}
-                              </span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </AppCard>
-                  )}
-                </div>
-              )}
-
-              {activeTab === 'collaboration' && (
-                <div className="space-y-4">
-                    {aiSummary && (
-                        <AppCard className="bg-slate-900 text-white border-slate-800 !p-4 md:!p-6">
-                            <h2 className="text-sm font-black text-slate-300 mb-2 flex items-center"><Wand2 className="mr-2 text-slate-400" size={16}/> AI Summary</h2>
-                            <div className="text-xs leading-relaxed font-medium prose prose-invert max-w-none line-clamp-3"><Markdown>{aiSummary}</Markdown></div>
-                        </AppCard>
-                    )}
-
-                    
-
-                    {!(isPlanner || isPledger || isFlorist || isAssignedIllustrator) && (
-                        <AppCard className="text-center py-16 bg-slate-50">
-                            <Lock size={32} className="mx-auto text-slate-300 mb-4" />
-                            <h3 className="text-lg font-black text-slate-700 mb-2">参加者限定スペース</h3>
-                            <p className="text-slate-500 font-bold text-sm">共同作業は、支援者と関係者のみ利用できます。</p>
-                        </AppCard>
-                    )}
-
-                    {(isPlanner || isPledger || isFlorist || isAssignedIllustrator) && (
-                        <>
-                            <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2">
-                                <button onClick={() => setCollabTab('chat')} className={cn("px-4 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 whitespace-nowrap transition-all", collabTab === 'chat' ? 'bg-pink-500 text-white shadow-md shadow-pink-100' : 'bg-white text-slate-500 hover:bg-slate-100 shadow-sm border border-slate-200')}>
-                                    <MessageSquare size={16}/> ミーティング
-                                </button>
-                                
-                                {/* ★ ここに「お花屋さんとチャット」ボタンを追加！(目立つように青色にしています) */}
-                                {isPlanner && activeOffer && (
-                                    <Link href={`/projects/${project.id}/florist-chat`} className="px-4 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 whitespace-nowrap transition-all bg-pink-500 text-white hover:bg-pink-600 shadow-md border border-pink-400">
-                                        <MessageSquare size={16}/> 花屋と個別相談
-                                    </Link>
-                                )}
-
-                                <button onClick={() => setCollabTab('board')} className={cn("px-4 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 whitespace-nowrap transition-all", collabTab === 'board' ? 'bg-pink-500 text-white shadow-md shadow-pink-100' : 'bg-white text-slate-500 hover:bg-slate-100 shadow-sm border border-slate-200')}>
-                                    <ImageIcon size={16}/> アイデアボード
-                                </button>
-                                {isPlanner && (
-                                    <button onClick={() => setCollabTab('tasks')} className={cn("px-4 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 whitespace-nowrap transition-all", collabTab === 'tasks' ? 'bg-pink-500 text-white shadow-md shadow-pink-100' : 'bg-white text-slate-500 hover:bg-slate-100 shadow-sm border border-slate-200')}>
-                                        <CheckCircle2 size={16}/> やることリスト
-                                    </button>
-                                )}
-                                <button onClick={() => setCollabTab('tools')} className={cn("px-4 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 whitespace-nowrap transition-all", collabTab === 'tools' ? 'bg-pink-500 text-white shadow-md shadow-pink-100' : 'bg-white text-slate-500 hover:bg-slate-100 shadow-sm border border-slate-200')}>
-                                    <UploadCloud size={16}/> 提出・データ
-                                </button>
-                                
-                                {isPlanner && !project.illustratorId && (
-                                    <button onClick={() => setCollabTab('applicants')} className={cn("px-4 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 whitespace-nowrap transition-all", collabTab === 'applicants' ? 'bg-gradient-to-r from-amber-400 to-orange-500 text-white shadow-md' : 'bg-amber-50 text-amber-600 hover:bg-amber-100 shadow-sm border border-amber-200')}>
-                                        <UserPlus size={16}/> クリエイター応募
-                                    </button>
-                                )}
-                            </div>
-
-                            <AnimatePresence mode="wait">
-                                <motion.div key={collabTab} initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} transition={{ duration: 0.2 }}>
-                                    
-                                    {collabTab === 'chat' && (
-                                        <AppCard className="!p-0 overflow-hidden flex flex-col h-[600px] border-pink-100 ring-4 ring-pink-50">
-                                            <div className="p-4 border-b border-slate-100 bg-pink-50 flex items-center justify-between">
-                                                <div className="flex items-center gap-2">
-                                                  <MessageSquare className="text-pink-500" size={18}/>
-                                                  <h2 className="text-sm font-black text-slate-800">企画チャット</h2>
-                                                </div>
-                                            </div>
-                                            <div className="flex-1 overflow-hidden relative bg-white">
-                                                <GroupChat project={project} user={user} isPlanner={isPlanner} isPledger={isPledger} socket={socket} onSummaryUpdate={setAiSummary} summary={aiSummary} />
-                                            </div>
-                                        </AppCard>
-                                    )}
-
-                                    {collabTab === 'board' && (
-                                        <AppCard className="border-pink-100 ring-4 ring-pink-50 !p-4 md:!p-6 bg-slate-50/50">
-                                            <MoodboardPostForm projectId={project.id} onPostSuccess={fetchProject} /> 
-                                            <div className="mt-6 pt-6 border-t border-slate-200/60"><MoodboardDisplay projectId={project.id} /></div>
-                                        </AppCard>
-                                    )}
-
-                                    {isPlanner && collabTab === 'tasks' && (
-                                        <AppCard className="border-emerald-100 ring-4 ring-emerald-50">
-                                            <form onSubmit={handleAddTask} className="flex flex-col sm:flex-row gap-2 mb-6">
-                                                <input type="text" value={newTaskTitle} onChange={(e)=>setNewTaskTitle(e.target.value)} placeholder="新しいタスクを追加" className="p-3 border border-slate-200 rounded-xl flex-grow bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-200 outline-none transition-all text-sm font-bold"/>
-                                                <button type="submit" className="px-6 py-3 bg-emerald-500 text-white rounded-xl hover:bg-emerald-600 transition-colors shadow-sm font-black text-sm flex justify-center items-center gap-2"><Plus size={16}/>追加</button>
-                                            </form>
-                                            <div className="space-y-2">
-                                                {project.tasks?.map(t=>(
-                                                    <div key={t.id} className="flex justify-between items-center p-3 bg-slate-50 rounded-xl group">
-                                                        <div className="flex items-center gap-3">
-                                                            <input type="checkbox" checked={t.isCompleted} onChange={()=>handleToggleTask(t.id, t.isCompleted)} className="w-5 h-5 text-emerald-500 rounded focus:ring-emerald-500 border-slate-300 cursor-pointer"/>
-                                                            <span className={cn("text-sm font-bold transition-colors", t.isCompleted ? 'line-through text-slate-400' : 'text-slate-700')}>{t.title}</span>
-                                                        </div>
-                                                        <button onClick={()=>handleDeleteTask(t.id)} className="text-slate-300 hover:text-rose-500 p-1.5 rounded-lg hover:bg-white transition-colors"><Trash2 size={16}/></button>
-                                                    </div>
-                                                ))}
-                                                {(!project.tasks || project.tasks.length === 0) && <p className="text-center text-slate-400 text-sm font-bold py-10">タスクはありません</p>}
-                                            </div>
-                                        </AppCard>
-                                    )}
-
-                                    {collabTab === 'tools' && (
-                                        <div className="space-y-5 md:space-y-6">
-                                            {(isPlanner || isAssignedIllustrator) && (
-                                                <AppCard className="border-amber-100 ring-4 ring-amber-50">
-                                                    <h3 className="font-black text-slate-800 mb-3 md:mb-4 flex items-center text-sm md:text-base">
-                                                        <Brush className="mr-2 text-amber-500" size={18}/> イラスト納品・検収
-                                                    </h3>
-                                                    <div className="bg-white p-5 md:p-6 rounded-[1.5rem] border border-slate-100">
-                                                        {project.isIllustrationAccepted ? (
-                                                            <div className="text-center py-8">
-                                                                <div className="w-16 h-16 bg-emerald-100 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                                                                    <CheckCircle2 size={32}/>
-                                                                </div>
-                                                                <h4 className="text-lg font-black text-slate-800 mb-2">イラストの検収が完了しました！🎉</h4>
-                                                                <p className="text-sm font-bold text-slate-500 mb-6">報酬のポイントがクリエイターに支払われました。</p>
-                                                                {project.illustrationDataUrl && (
-                                                                    <div className="relative w-full max-w-sm mx-auto aspect-square rounded-2xl overflow-hidden border-2 border-slate-100 cursor-zoom-in" onClick={() => { setModalImageSrc(project.illustrationDataUrl); setIsImageModalOpen(true); }}>
-                                                                        <Image src={project.illustrationDataUrl} alt="納品イラスト" fill className="object-contain" />
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        ) : project.illustrationDataUrl ? (
-                                                            <div className="text-center py-4">
-                                                                <span className="bg-amber-100 text-amber-600 text-[10px] font-black px-3 py-1 rounded-full mb-4 inline-block">納品確認待ち</span>
-                                                                <div className="relative w-full max-w-sm mx-auto aspect-square rounded-2xl overflow-hidden border-2 border-slate-100 mb-6 cursor-zoom-in" onClick={() => { setModalImageSrc(project.illustrationDataUrl); setIsImageModalOpen(true); }}>
-                                                                    <Image src={project.illustrationDataUrl} alt="納品イラスト" fill className="object-contain" />
-                                                                </div>
-                                                                {isPlanner ? (
-                                                                    <div className="space-y-3 max-w-sm mx-auto">
-                                                                        <p className="text-xs font-bold text-slate-500 mb-4">クリエイターからイラストが納品されました。<br/>確認して、問題なければ検収（ポイント支払い）を完了してください。</p>
-                                                                        <button onClick={handleAcceptIllustration} className="w-full py-3.5 bg-emerald-500 text-white font-black rounded-xl shadow-lg hover:bg-emerald-600 transition-all flex items-center justify-center gap-2">
-                                                                            <CheckCircle2 size={18}/> 問題ないので検収して支払う
-                                                                        </button>
-                                                                        <button onClick={handleRejectIllustration} className="w-full py-3 bg-white text-slate-500 font-black rounded-xl border border-slate-200 hover:bg-slate-50 transition-all">
-                                                                            修正を依頼する (リテイク)
-                                                                        </button>
-                                                                    </div>
-                                                                ) : (
-                                                                    <p className="text-sm font-bold text-slate-500">企画者の確認と検収をお待ちください...</p>
-                                                                )}
-                                                            </div>
-                                                        ) : (
-                                                            <div className="text-center py-8">
-                                                                {isAssignedIllustrator ? (
-                                                                    <>
-                                                                        <p className="text-sm font-bold text-slate-500 mb-6">完成したイラストデータをアップロードして納品してください。</p>
-                                                                        <label className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-gradient-to-r from-amber-400 to-orange-500 text-white font-black rounded-xl shadow-lg hover:shadow-orange-500/30 cursor-pointer transition-all active:scale-95">
-                                                                            {isIllustrationUploading ? <Loader2 className="animate-spin" size={18}/> : <UploadCloud size={18}/>}
-                                                                            完成データを納品する
-                                                                            <input type="file" className="hidden" accept="image/*" onChange={(e) => handleUpload(e, 'illustration_delivery')} disabled={isIllustrationUploading} />
-                                                                        </label>
-                                                                    </>
-                                                                ) : (
-                                                                    <>
-                                                                        <div className="w-16 h-16 bg-slate-50 text-slate-300 rounded-full flex items-center justify-center mx-auto mb-4"><Brush size={32}/></div>
-                                                                        <p className="text-sm font-bold text-slate-500">クリエイターからのイラスト納品をお待ちください。</p>
-                                                                    </>
-                                                                )}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </AppCard>
-                                            )}
-
-                                            {isFlorist && project.isIllustrationAccepted && project.illustrationDataUrl && (
-                                                <AppCard className="border-pink-100 ring-4 ring-pink-50 bg-gradient-to-br from-white to-pink-50/30">
-                                                    <div className="flex flex-col sm:flex-row items-center gap-6 justify-between">
-                                                        <div className="flex items-center gap-4">
-                                                            <div className="w-16 h-16 rounded-2xl bg-white border border-slate-100 shadow-sm flex items-center justify-center shrink-0 cursor-zoom-in hover:scale-105 transition-transform" onClick={() => { setModalImageSrc(project.illustrationDataUrl); setIsImageModalOpen(true); }}>
-                                                                <Image src={project.illustrationDataUrl} alt="納品イラスト" width={64} height={64} className="object-cover rounded-xl" />
-                                                            </div>
-                                                            <div>
-                                                                <h3 className="font-black text-slate-800 text-lg mb-1 flex items-center gap-2"><Brush className="text-pink-500" size={18}/> 印刷用データ</h3>
-                                                                <p className="text-xs font-bold text-slate-500">絵師から納品された最終データです。</p>
-                                                            </div>
-                                                        </div>
-                                                        <button onClick={() => handleDownloadIllustration(project.illustrationDataUrl)} className="w-full sm:w-auto px-6 py-3.5 bg-slate-900 text-white font-black rounded-xl hover:bg-slate-800 transition-all flex items-center justify-center gap-2 shadow-lg active:scale-95 shrink-0">
-                                                            <Download size={18}/> ダウンロード
-                                                        </button>
-                                                    </div>
-                                                </AppCard>
-                                            )}
-
-                                            <AppCard className="!p-5 md:!p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between bg-gradient-to-br from-slate-50/50 to-white border-slate-100 gap-4">
-                                                <div>
-                                                    <h3 className="font-black text-slate-800 mb-1 flex items-center text-sm md:text-base"><Box className="mr-2 text-slate-500" size={18}/> ARプレビュー</h3>
-                                                    <p className="text-[10px] md:text-xs font-bold text-slate-500/70 mb-0">スマホをかざして実際のサイズ感を確認できます。</p>
-                                                </div>
-                                                <button onClick={() => setIsArModalOpen(true)} className="w-full sm:w-auto px-8 py-3 bg-slate-700 text-white text-xs md:text-sm font-black rounded-xl hover:bg-slate-800 transition-all shadow-md shrink-0 active:scale-95">起動する</button>
-                                            </AppCard>
-                                            
-                                            {(isPlanner || isFlorist) && (
-                                                <div className="bg-white rounded-[2rem] border border-slate-100 shadow-[0_4px_20px_rgb(0,0,0,0.03)] flex flex-col justify-between overflow-hidden w-full">
-                                                    <PanelPreviewer onImageSelected={(file) => handleUpload({ target: { files: [file] } }, 'illustration')} />
-                                                    {project.illustrationPanelUrls?.length > 0 && (
-                                                        <div className="p-5 md:p-6 border-t border-slate-100 bg-slate-50">
-                                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 md:mb-3">提出済みデータ (過去分)</p>
-                                                            <div className="flex flex-wrap gap-2 md:gap-3">
-                                                                {project.illustrationPanelUrls.map((url, i) => (
-                                                                    <div key={i} className="relative w-14 h-14 md:w-16 md:h-16 rounded-lg overflow-hidden border border-slate-200 shadow-sm cursor-zoom-in hover:scale-105 transition-transform" onClick={()=>{setModalImageSrc(url); setIsImageModalOpen(true)}}>
-                                                                        <Image src={url} alt={`提出データ ${i}`} fill className="object-cover" />
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            )}
-                                            
-                                            {((isPlanner || isFlorist) || project.productionStatus === 'PRE_COMPLETION') && (
-                                                <AppCard className="border-slate-100">
-                                                    <h3 className="font-black text-slate-800 mb-3 md:mb-4 flex items-center text-sm md:text-base"><CheckCircle2 className="mr-2 text-emerald-500" size={16}/> 仕上がり確認 (前日写真)</h3>
-                                                    {project.preEventPhotoUrls?.length > 0 ? (
-                                                        <div className="flex flex-wrap gap-2 md:gap-3">
-                                                            {project.preEventPhotoUrls.map((url, i) => (
-                                                                <div key={i} className="relative w-20 h-20 md:w-24 md:h-24 rounded-xl overflow-hidden border border-slate-200 shadow-sm cursor-zoom-in hover:scale-105 transition-transform" onClick={()=>{setModalImageSrc(url); setIsImageModalOpen(true)}}>
-                                                                    <Image src={url} alt={`前日写真 ${i}`} fill className="object-cover" />
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    ) : (
-                                                        <p className="text-[10px] md:text-xs font-bold text-slate-400 py-6 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200">まだ写真はアップロードされていません。</p>
-                                                    )}
-                                                    {isFlorist && (
-                                                        <div className="mt-4 md:mt-5">
-                                                            <label className="inline-flex items-center px-6 py-3 bg-white border border-slate-200 text-slate-700 text-xs font-black rounded-xl cursor-pointer hover:bg-slate-50 shadow-sm transition-all w-full justify-center active:scale-95">
-                                                                <UploadCloud className="mr-2" size={16}/> 写真を追加
-                                                                <input type="file" className="hidden" onChange={(e) => handleUpload(e, 'pre_photo')} />
-                                                            </label>
-                                                        </div>
-                                                    )}
-                                                </AppCard>
-                                            )}
-                                        </div>
-                                    )}
-
-                                    {/* 5. クリエイター応募 */}
-                                    {isPlanner && !project.illustratorId && collabTab === 'applicants' && (
-                                        <AppCard className="border-amber-100 ring-4 ring-amber-50/50 bg-slate-50/50">
-                                            <div className="flex items-center justify-between mb-6">
-                                                <h3 className="font-black text-slate-800 flex items-center gap-2"><UserPlus className="text-amber-500" size={20}/> 届いている立候補</h3>
-                                                <span className="bg-amber-100 text-amber-600 text-xs font-bold px-3 py-1 rounded-full">{project.illustratorApplications?.length || 0} 件</span>
-                                            </div>
-                                            {project.illustratorApplications?.length > 0 ? (
-                                                <div className="space-y-4">
-                                                    {project.illustratorApplications.map(app => (
-                                                        <div key={app.id} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-                                                            <div className="flex items-start justify-between mb-4">
-                                                                <div className="flex items-center gap-3">
-                                                                    <div className="w-10 h-10 rounded-full overflow-hidden bg-slate-100 shrink-0">
-                                                                        {app.illustrator?.iconUrl ? <Image src={app.illustrator.iconUrl} alt="" width={40} height={40} className="object-cover"/> : <User size={20} className="m-2 text-slate-300"/>}
-                                                                    </div>
-                                                                    <div>
-                                                                        <p className="font-black text-slate-800 text-sm">{app.illustrator?.name || '絵師さん'}</p>
-                                                                        <Link href={`/illustrators/${app.illustrator?.userId}`} className="text-[10px] text-amber-500 font-bold hover:underline">プロフィールを見る</Link>
-                                                                    </div>
-                                                                </div>
-                                                                <div className="text-right">
-                                                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">希望金額</p>
-                                                                    <p className="font-black text-amber-500 text-lg leading-none">{app.proposedAmount?.toLocaleString()} <span className="text-[10px]">pt</span></p>
-                                                                </div>
-                                                            </div>
-                                                            <div className="bg-amber-50/50 p-4 rounded-xl border border-amber-100 mb-4">
-                                                                <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest mb-1.5 flex items-center gap-1"><MessageSquare size={12}/> 提案メッセージ</p>
-                                                                <p className="text-xs text-slate-700 font-medium whitespace-pre-wrap leading-relaxed">{app.message}</p>
-                                                            </div>
-                                                            <button onClick={() => handleAcceptApplication(app.id, app.proposedAmount)} className="w-full py-3 bg-gradient-to-r from-amber-400 to-orange-500 hover:brightness-105 text-white text-sm font-black rounded-xl transition-all shadow-md shadow-amber-100 flex items-center justify-center gap-2">
-                                                                <CheckCircle2 size={16}/> 採用して {app.proposedAmount?.toLocaleString()}pt 仮払いする
-                                                            </button>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            ) : (
-                                                <div className="text-center py-16 bg-white rounded-2xl border border-dashed border-slate-200">
-                                                    <UserPlus className="mx-auto text-slate-300 mb-3" size={32}/>
-                                                    <p className="text-sm font-bold text-slate-500 mb-1">まだ立候補はありません</p>
-                                                    <p className="text-xs text-slate-400 font-medium">掲示板に掲載して、クリエイターからの応募を待ちましょう！</p>
-                                                </div>
-                                            )}
-                                        </AppCard>
-                                    )}
-                                </motion.div>
-                            </AnimatePresence>
-                        </>
-                    )}
-                </div> 
-              )}
-
-              {/* --- TAB: FINANCE --- */}
-              {activeTab === 'finance' && (
-                <div className="space-y-4 md:space-y-6">
-                    <AppCard className="!p-5 md:!p-8">
-                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
-                            <h2 className="text-base md:text-lg font-black text-slate-800 flex items-center"><DollarSign className="mr-1.5 text-slate-400" size={18}/> 収支報告</h2>
-                            <button onClick={handlePrint} className="flex items-center gap-1.5 text-[10px] md:text-xs font-black bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-1.5 rounded-lg transition-colors"><Printer size={12}/> PDF保存</button>
-                        </div>
-                        <div className="bg-slate-50 p-4 rounded-xl text-xs md:text-sm space-y-2 md:space-y-3">
-                            <div className="flex justify-between items-center"><span className="text-slate-500 font-bold">収入 (支援総額)</span><span className="font-black text-sm md:text-base text-slate-800">{project.collectedAmount.toLocaleString()} pt</span></div>
-                            <div className="flex justify-between items-center text-rose-500"><span className="font-bold">支出合計</span><span className="font-black text-sm md:text-base">- {totalExpense.toLocaleString()} pt</span></div>
-                            <div className="h-px bg-slate-200 my-2"></div>
-                            <div className="flex justify-between items-center"><span className="font-black text-slate-800">残高 (余剰金)</span><span className="text-lg md:text-xl font-black text-slate-900">{balance.toLocaleString()} pt</span></div>
-                        </div>
-                    </AppCard>
-                    <div style={{ display: 'none' }}><BalanceSheet ref={componentRef} project={project} totalExpense={totalExpense} balance={balance} /></div>
-                    <AppCard className="!p-5 md:!p-8">
-                        <h3 className="font-black text-slate-800 mb-3 text-sm md:text-base">支出の内訳</h3>
-                        {isPlanner && (
-                            <form onSubmit={handleAddExpense} className="flex flex-col sm:flex-row gap-2 mb-4 bg-slate-50 p-2.5 rounded-lg">
-                                <input type="text" value={expenseName} onChange={(e)=>setExpenseName(e.target.value)} placeholder="項目名 (例: パネル代)" className="p-2.5 border border-transparent rounded-md flex-grow text-xs font-bold focus:outline-none focus:bg-white focus:border-slate-300"/>
-                                <input type="number" value={expenseAmount} onChange={(e)=>setExpenseAmount(e.target.value)} placeholder="金額" className="p-2.5 border border-transparent rounded-md w-full sm:w-28 text-xs font-bold focus:outline-none focus:bg-white focus:border-slate-300"/>
-                                <button type="submit" className="p-2.5 bg-slate-900 text-white rounded-md hover:bg-slate-800 transition-colors text-xs font-black w-full sm:w-auto">追加</button>
-                            </form>
-                        )}
-                        <div className="space-y-1.5">
-                            {project.expenses?.map(e=>(
-                                <div key={e.id} className="flex justify-between items-center text-xs md:text-sm bg-slate-50 p-3 rounded-lg">
-                                    <span className="font-black text-slate-700">{e.itemName}</span>
-                                    <div className="flex items-center gap-2">
-                                        <span className="font-black text-slate-800">{e.amount.toLocaleString()} pt</span>
-                                        {isPlanner && <button onClick={()=>handleDeleteExpense(e.id)} className="text-slate-300 hover:text-rose-500 transition-colors p-1"><Trash2 size={14}/></button>}
-                                    </div>
-                                </div>
-                            ))}
-                            {(!project.expenses || project.expenses.length === 0) && <p className="text-center text-slate-400 text-xs font-bold py-6 bg-slate-50 rounded-lg border border-dashed border-slate-200">支出はまだ登録されていません</p>}
-                        </div>
-                    </AppCard>
-                </div>
-              )}
             </motion.div>
           </AnimatePresence>
         </div>
@@ -1796,6 +1551,16 @@ export default function ProjectDetailClient() {
                               </div>
                               <div>
                                  <p className="text-sm font-bold text-slate-800">企画内容を編集する</p>
+                              </div>
+                          </Link>
+
+                          <Link href={`/projects/${id}/analytics`} className="w-full text-left p-4 bg-white hover:bg-slate-100 border border-slate-200 rounded-2xl transition-all flex items-center group shadow-sm">
+                              <div className="w-8 h-8 rounded-lg bg-sky-50 flex items-center justify-center mr-3 group-hover:scale-110 transition-transform">
+                                 <BarChart2 className="text-sky-500" size={16}/>
+                              </div>
+                              <div>
+                                 <p className="text-sm font-bold text-slate-800">アナリティクスを見る</p>
+                                 <p className="text-xs text-slate-400">閲覧数・CVR・日別推移</p>
                               </div>
                           </Link>
                           
@@ -1837,14 +1602,35 @@ export default function ProjectDetailClient() {
                               </button>
                           )}
                           {project?.status !== 'CANCELED' && project?.status !== 'COMPLETED' && (
-                             <button 
-                                 onClick={() => setIsCancelModalOpen(true)} 
+                             <button
+                                 onClick={() => setIsCancelModalOpen(true)}
                                  className="w-full mt-4 bg-white hover:bg-rose-50 border border-slate-200 hover:border-rose-200 text-rose-500 p-4 rounded-2xl text-xs md:text-sm font-bold transition-all flex items-center justify-center gap-2 group shadow-sm"
                              >
-                                 <AlertTriangle size={16} className="text-rose-400 group-hover:scale-110 transition-transform"/> 
+                                 <AlertTriangle size={16} className="text-rose-400 group-hover:scale-110 transition-transform"/>
                                  企画を中止して精算する
                              </button>
                          )}
+
+                          {/* フロリストレビュー (完了後・担当フロリストがいる場合のみ) */}
+                          {project?.status === 'COMPLETED' && activeOffer?.floristId && (
+                            <div className="mt-4 pt-4 border-t border-slate-100">
+                              {project.review ? (
+                                <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4">
+                                  <p className="text-[10px] font-black text-emerald-600 mb-1.5 flex items-center gap-1.5">
+                                    <CheckCircle2 size={12}/> レビュー投稿済み
+                                  </p>
+                                  <p className="text-xs text-slate-600 font-medium leading-relaxed">{project.review.comment}</p>
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={() => setIsReviewModalOpen(true)}
+                                  className="w-full py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-2xl text-sm font-black transition-colors shadow-md flex items-center justify-center gap-2"
+                                >
+                                  <Star size={16}/> {floristName} をレビューする
+                                </button>
+                              )}
+                            </div>
+                          )}
                       </div>
                   </AppCard>
               )}
@@ -1861,10 +1647,18 @@ export default function ProjectDetailClient() {
       {project.status === 'FUNDRAISING' && !isPledger && (
         <div className="lg:hidden fixed bottom-0 left-0 right-0 px-3 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] bg-white/95 backdrop-blur-xl border-t border-slate-200 z-[80] shadow-[0_-10px_20px_rgba(0,0,0,0.05)]">
             <div className="flex gap-2 max-w-xl mx-auto">
+                <button
+                  onClick={handleQuickCheer}
+                  className={`px-4 py-3.5 rounded-xl font-black border text-sm active:scale-95 transition-all flex items-center gap-1.5 ${quickCheerSent ? 'bg-pink-50 border-pink-200 text-pink-500' : 'bg-slate-50 border-slate-200 text-slate-500'}`}
+                  title="応援する"
+                >
+                  <Heart size={16} className={quickCheerSent ? 'fill-pink-400 text-pink-400' : ''} />
+                  {cheers?.length ?? 0}
+                </button>
                 <button onClick={() => {
                     document.getElementById('pledge-section')?.scrollIntoView({ behavior: 'smooth' });
                 }} className="flex-1 py-3.5 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-xl font-black shadow-md shadow-pink-200 flex justify-center items-center gap-2 text-sm active:scale-95 transition-transform">
-                    <Heart size={16} className="text-pink-400 fill-pink-400" />
+                    <Heart size={16} className="text-pink-200 fill-pink-200" />
                     プロジェクトを支援する
                 </button>
                 {isPlanner && (
@@ -1883,6 +1677,98 @@ export default function ProjectDetailClient() {
         {isImageModalOpen && <ImageLightbox url={modalImageSrc} onClose={() => setIsImageModalOpen(false)} />}
         {isReportModalOpen && <ReportModal projectId={id} user={user} onClose={() => setReportModalOpen(false)} />}
         {isCompletionModalOpen && <CompletionReportModal project={project} user={user} onClose={() => setIsCompletionModalOpen(false)} onReportSubmitted={fetchProject} />}
+        {isReviewModalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/60 backdrop-blur-sm p-4"
+            style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+            onClick={() => setIsReviewModalOpen(false)}
+          >
+            <motion.div
+              initial={{ y: 60, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 60, opacity: 0 }}
+              transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+              className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center shrink-0">
+                  <Star size={20} className="text-amber-500" />
+                </div>
+                <div>
+                  <h2 className="text-base font-black text-slate-900">{floristName} をレビュー</h2>
+                  <p className="text-[10px] font-bold text-slate-400">企画を通じた感想を書きましょう</p>
+                </div>
+              </div>
+              <textarea
+                value={reviewComment}
+                onChange={e => setReviewComment(e.target.value)}
+                placeholder="お花屋さんへの感謝や仕上がりの感想など…"
+                rows={4}
+                className="w-full p-4 bg-slate-50 rounded-2xl text-sm text-slate-800 font-medium outline-none focus:ring-2 focus:ring-amber-200 resize-none placeholder:text-slate-400 border border-transparent focus:border-amber-200"
+              />
+              <div className="flex gap-2 mt-4">
+                <button onClick={() => setIsReviewModalOpen(false)}
+                  className="flex-1 py-3 bg-slate-100 text-slate-600 rounded-2xl font-black text-sm active:scale-95 transition-transform">
+                  キャンセル
+                </button>
+                <button
+                  onClick={handleSubmitReview}
+                  disabled={!reviewComment.trim() || isSubmittingReview}
+                  className="flex-1 py-3 bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-2xl font-black text-sm shadow-lg disabled:opacity-50 active:scale-95 transition-transform"
+                >
+                  {isSubmittingReview ? '投稿中...' : '投稿する'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {showSuccessModal && project && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/60 backdrop-blur-sm p-4"
+            style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+            onClick={() => setShowSuccessModal(false)}
+          >
+            <motion.div
+              initial={{ y: 60, opacity: 0, scale: 0.97 }}
+              animate={{ y: 0, opacity: 1, scale: 1 }}
+              exit={{ y: 60, opacity: 0 }}
+              transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+              className="bg-white rounded-3xl w-full max-w-sm p-6 text-center shadow-2xl"
+              onClick={e => e.stopPropagation()}
+            >
+              {/* emoji burst */}
+              <div className="text-5xl mb-3">🌸</div>
+              <h2 className="text-xl font-black text-slate-900 mb-1">支援ありがとうございます！</h2>
+              <p className="text-sm font-bold text-slate-500 mb-1">
+                <span className="text-pink-500">{project.title}</span> の企画を応援しています
+              </p>
+              <p className="text-xs text-slate-400 mb-5">
+                フラスタが完成するのを一緒に楽しみにしましょう 🎉
+              </p>
+
+              {/* Share */}
+              <div className="bg-slate-50 rounded-2xl p-4 mb-4">
+                <p className="text-xs font-black text-slate-500 mb-3">シェアして仲間を増やそう</p>
+                <div className="flex justify-center">
+                  <ShareButtons
+                    url={`${typeof window !== 'undefined' ? window.location.origin : ''}/projects/${project.id}`}
+                    text={`「${project.title}」のフラスタ企画に支援しました！一緒に応援しませんか？🌸`}
+                    hashtags="FLASTAL,フラスタ,応援"
+                  />
+                </div>
+              </div>
+
+              <button
+                onClick={() => setShowSuccessModal(false)}
+                className="w-full py-3 bg-gradient-to-r from-pink-500 to-rose-500 text-white font-black rounded-2xl text-sm shadow-lg shadow-pink-200 active:scale-95 transition-transform"
+              >
+                企画詳細を見る
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
         {isInstructionModalOpen && <InstructionSheetModal project={project} onClose={() => setIsInstructionModalOpen(false)} />}
         {isQuotationModalOpen && <QuotationApprovalModal project={project} user={user} onClose={() => setIsQuotationModalOpen(false)} onUpdate={fetchProject} />}
         {isCancelModalOpen && (

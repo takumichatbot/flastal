@@ -31,6 +31,9 @@ router.get('/email-templates', adminController.getEmailTemplates);
 router.post('/email-templates', adminController.createEmailTemplate);
 
 // ★ 追加: 予算別参考写真 (Budget Reference) の管理エンドポイント
+router.get('/analytics', adminController.getAnalytics);
+router.get('/export/csv', adminController.exportCsv);
+router.post('/bulk-email', adminController.sendBulkEmail);
 router.get('/budget-references', adminController.getBudgetReferences);
 router.post('/budget-references', adminController.upsertBudgetReference);
 router.delete('/budget-references/:priceRange', adminController.deleteBudgetReference);
@@ -67,14 +70,21 @@ router.post('/chat-rooms', adminController.createAdminChatRoom);
 router.get('/chat-rooms/:roomId/messages', adminController.getAdminChatMessages);
 router.get('/users/search', adminController.searchAllUsers);
 router.patch('/projects/:projectId/visibility', adminController.updateProjectVisibility);
-// ★★★ ここから追加: 強制削除・ステータス変更用エンドポイント ★★★
-router.patch('/users/:userId/status', adminController.toggleUserStatus); // ← ★この1行を追加！
+router.patch('/users/:userId/status', adminController.toggleUserStatus);
 router.delete('/users/:userId', adminController.deleteUserByAdmin);
 router.delete('/projects/:projectId', adminController.deleteProjectByAdmin);
-// ★★★ ここまで追加 ★★★
-// ★★★ ここから追加: 強制削除用エンドポイント ★★★
-router.delete('/users/:userId', adminController.deleteUserByAdmin);
-router.delete('/projects/:projectId', adminController.deleteProjectByAdmin);
-// ★★★ ここまで追加 ★★★
+router.patch('/projects/:projectId/force-close', adminController.forceCloseProject);
+router.patch('/users/:userId/points', adminController.adjustUserPoints);
+
+// WebhookLog ビューア
+router.get('/webhook-logs', adminController.getWebhookLogs);
+router.post('/webhook-logs/:id/retry', adminController.retryWebhookLog);
+
+// KYC 審査
+router.patch('/users/:userId/kyc', adminController.reviewKyc);
+
+// 不正フラグ
+router.get('/fraud-flags', adminController.getFraudFlags);
+router.patch('/fraud-flags/:id/review', adminController.reviewFraudFlag);
 
 export default router;

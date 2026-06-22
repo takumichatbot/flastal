@@ -7,9 +7,11 @@ import Link from 'next/link';
 import {
   ChevronLeft, Award, Heart, User, LayoutGrid, Lock,
   AlertCircle, Grid3X3, Images, MessageCircle,
-  Share2, Calendar, TrendingUp,
+  Share2, Calendar, TrendingUp, UserPlus, UserCheck, Users,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useAuth } from '../../contexts/AuthContext';
+import BadgeDisplay from '../../components/BadgeDisplay';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -161,11 +163,14 @@ function AlbumGrid({ posts }) {
 export default function PublicUserProfile() {
   const { id } = useParams();
   const router = useRouter();
+  const { user: me, isAuthenticated } = useAuth();
   const [profile, setProfile] = useState(null);
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('created');
+  const [followStatus, setFollowStatus] = useState({ following: false, followersCount: 0, followingCount: 0 });
+  const [followLoading, setFollowLoading] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -182,6 +187,37 @@ export default function PublicUserProfile() {
     };
     load();
   }, [id]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !me || me.id === id) return;
+    const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+    fetch(`${API_URL}/api/users/${id}/follow`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data) setFollowStatus(data); })
+      .catch(() => {});
+  }, [id, isAuthenticated, me]);
+
+  const handleFollow = async () => {
+    if (!isAuthenticated) { router.push('/login'); return; }
+    setFollowLoading(true);
+    const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+    const method = followStatus.following ? 'DELETE' : 'POST';
+    try {
+      const res = await fetch(`${API_URL}/api/users/${id}/follow`, {
+        method, headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setFollowStatus(prev => ({
+          ...prev,
+          following: data.following,
+          followersCount: prev.followersCount + (data.following ? 1 : -1),
+        }));
+      }
+    } finally {
+      setFollowLoading(false);
+    }
+  };
 
   const loadPosts = useCallback(async () => {
     try {
@@ -304,8 +340,24 @@ export default function PublicUserProfile() {
               )}
             </div>
 
-            {/* SNS links float right */}
+            {/* フォローボタン + SNS links float right */}
             <div className="flex items-center gap-2 mb-2">
+              {isAuthenticated && me && me.id !== id && (
+                <button
+                  onClick={handleFollow}
+                  disabled={followLoading}
+                  className={cn(
+                    'flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-black shadow-sm border transition-all',
+                    followStatus.following
+                      ? 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200'
+                      : 'bg-pink-500 text-white border-pink-500 hover:bg-pink-600',
+                    followLoading && 'opacity-60 cursor-not-allowed',
+                  )}
+                >
+                  {followStatus.following ? <UserCheck size={13} /> : <UserPlus size={13} />}
+                  {followStatus.following ? 'フォロー中' : 'フォロー'}
+                </button>
+              )}
               {profile.twitterUrl && (
                 <a href={profile.twitterUrl} target="_blank" rel="noopener noreferrer"
                   className="w-9 h-9 bg-white rounded-full flex items-center justify-center text-slate-700 shadow-sm border border-slate-100 active:bg-slate-50 transition-colors">
@@ -340,6 +392,10 @@ export default function PublicUserProfile() {
             {profile.supportLevel && <SupportBadge level={profile.supportLevel} />}
           </div>
 
+          {profile.badgeIds?.length > 0 && (
+            <div className="mb-3"><BadgeDisplay badgeIds={profile.badgeIds} size="sm" /></div>
+          )}
+
           {profile.bio && (
             <p className="text-sm text-slate-600 leading-relaxed mb-3 font-medium">{profile.bio}</p>
           )}
@@ -355,10 +411,11 @@ export default function PublicUserProfile() {
           )}
 
           {/* Stats row */}
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-4 gap-2">
             {[
               { value: createdCount, label: '主催',     icon: Award,       iconColor: 'text-amber-500',  bg: 'bg-amber-50' },
               { value: backedCount,  label: '支援',     icon: Heart,       iconColor: 'text-pink-500',   bg: 'bg-pink-50' },
+              { value: followStatus.followersCount, label: 'フォロワー', icon: Users, iconColor: 'text-sky-500', bg: 'bg-sky-50' },
               { value: totalPledged > 0 ? `¥${totalPledged.toLocaleString()}` : '−',
                                      label: '総支援額', icon: TrendingUp,  iconColor: 'text-emerald-500', bg: 'bg-emerald-50' },
             ].map((s, i) => {

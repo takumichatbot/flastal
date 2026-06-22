@@ -1,11 +1,15 @@
 import express from 'express';
 import cors from 'cors';
-import Stripe from 'stripe'; 
 import webpush from 'web-push';
-import prisma from './config/prisma.js';
+import { generalLimiter, authLimiter, uploadLimiter, paymentLimiter, aiLimiter } from './middleware/rateLimiter.js';
 import postRoutes from './routes/posts.js';
 import { sendEmail } from './utils/email.js';
-import { createNotification } from './utils/notification.js';
+import { startWebhookRetryJob } from './jobs/webhookRetry.js';
+import { startReminderJob } from './jobs/reminderJob.js';
+import { initSentry, Sentry } from './config/sentry.js';
+
+// Sentryは最初に初期化する
+initSentry();
 
 // --- ルーティングファイルのインポート ---
 import authRoutes from './routes/auth.js';
@@ -20,6 +24,14 @@ import paymentRoutes from './routes/payment.js';
 import projectDetailRoutes from './routes/projectDetails.js';
 import organizerRoutes from './routes/organizers.js';
 import illustratorRoutes from './routes/illustrators.js';
+import discussionRoutes from './routes/discussions.js';
+import projectUpdateRoutes from './routes/projectUpdates.js';
+import stretchGoalRoutes   from './routes/stretchGoals.js';
+import teamRoutes          from './routes/team.js';
+import artistPageRoutes    from './routes/artistPages.js';
+import giftCardRoutes      from './routes/giftCards.js';
+import galleryRoutes       from './routes/gallery.js';
+import { metricsMiddleware, register } from './config/metrics.js';
 
 // ★ 追加: Webhook、アップロード、認証関連、ユーザーコントローラーのインポート
 import { handleStripeWebhook } from './controllers/webhookController.js';
@@ -29,7 +41,6 @@ import { authenticateToken } from './middleware/auth.js';
 import * as userController from './controllers/userController.js'; // 🌟 追記: 通知用にインポート
 
 const app = express();
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 // ==========================================
 // ★★★ Push通知 (VAPID) 設定 ★★★
@@ -96,54 +107,79 @@ app.post('/api/contact', async (req, res) => {
 // ==========================================
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
+app.use(metricsMiddleware);
 
-app.get('/', (req, res) => {
+// Prometheus メトリクスエンドポイント（Grafana Agent が scrape）
+app.get('/metrics', async (_req, res) => {
+    res.set('Content-Type', register.contentType);
+    res.end(await register.metrics());
+});
+
+app.get('/', (_req, res) => {
     res.send('FLASTAL API Server is running (v2)');
 });
 
 // ==========================================
 // ★★★ ルーティングのマウント ★★★
 // ==========================================
-app.use('/api', authRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/florists', floristRoutes);
-app.use('/api/venues', venueRoutes); 
-app.use('/api/events', eventRoutes); 
-app.use('/api/projects', projectRoutes);
-app.use('/api/project-details', projectDetailRoutes);
-app.use('/api/organizers', organizerRoutes);
-app.use('/api/illustrators', illustratorRoutes);
-app.use('/api/tools', toolRoutes);
-app.use('/api/ai', toolRoutes); 
-app.use('/api/payment', paymentRoutes);
-app.use('/api/admin', adminRoutes);
-app.use('/api/posts', postRoutes);
+app.use('/api', authLimiter, authRoutes);       // ログイン・登録は厳しく制限
+app.use('/api/users', generalLimiter, userRoutes);
+app.use('/api/florists', generalLimiter, floristRoutes);
+app.use('/api/venues', generalLimiter, venueRoutes);
+app.use('/api/events', generalLimiter, eventRoutes);
+app.use('/api/projects', generalLimiter, projectRoutes);
+app.use('/api/project-details', generalLimiter, projectDetailRoutes);
+app.use('/api/organizers', generalLimiter, organizerRoutes);
+app.use('/api/illustrators', generalLimiter, illustratorRoutes);
+app.use('/api/projects/:projectId/discussions', generalLimiter, discussionRoutes);
+app.use('/api/projects/:projectId/updates',      generalLimiter, projectUpdateRoutes);
+app.use('/api/projects/:projectId/stretch-goals', generalLimiter, stretchGoalRoutes);
+app.use('/api/projects/:projectId/team',          generalLimiter, teamRoutes);
+app.use('/api/artists',                           generalLimiter, artistPageRoutes);
+app.use('/api/gift-cards',                        generalLimiter, giftCardRoutes);
+app.use('/api/gallery',                           generalLimiter, galleryRoutes);
+app.use('/api/tools', uploadLimiter, toolRoutes); // S3アップロード・AI生成
+app.use('/api/ai', aiLimiter, toolRoutes);
+app.use('/api/payment', paymentLimiter, paymentRoutes);
+app.use('/api/admin', generalLimiter, adminRoutes);
+app.use('/api/posts', generalLimiter, postRoutes);
 
 // ★★★ 画像アップロード用の汎用エンドポイント ★★★
-app.post('/api/upload', authenticateToken, upload.single('image'), uploadImage);
+app.post('/api/upload', uploadLimiter, authenticateToken, upload.single('image'), uploadImage);
 
 // 🌟 追記: フロントエンドからの通知取得URL(/api/notifications)の受け皿
 app.get('/api/notifications', authenticateToken, userController.getNotifications);
 app.patch('/api/notifications/:notificationId/read', authenticateToken, userController.markNotificationRead);
+app.patch('/api/notifications/read-all', authenticateToken, userController.markAllNotificationsRead);
 
 
 // 404ハンドラー
-app.use((req, res) => {
+app.use((_req, res) => {
     res.status(404).json({ message: "Requested route not found" });
 });
 
+// Sentryエラーハンドラー（エラーを捕捉してSentryへ送信）
+app.use(Sentry.expressErrorHandler());
+
 // エラーハンドリングミドルウェア
-app.use((err, req, res, next) => {
+app.use((err, req, res, _next) => {
     console.error('--- SERVER ERROR ---');
     console.error('Method:', req.method);
     console.error('URL:', req.url);
     console.error('Body Keys:', Object.keys(req.body || {}));
     console.error('Error Stack:', err.stack);
-    
+
     res.status(err.status || 500).json({
         message: 'サーバー側でエラーが発生しました。',
         error: process.env.NODE_ENV === 'development' ? err.message : undefined
     });
 });
+
+// cronジョブ起動
+startWebhookRetryJob();
+startReminderJob();
+
+// BullMQ メールワーカー起動（REDIS_URL が設定されている場合のみ有効）
+import('./queues/emailQueue.js').then(({ startEmailWorker }) => startEmailWorker()).catch(() => {});
 
 export default app;

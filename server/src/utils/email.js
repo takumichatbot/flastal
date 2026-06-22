@@ -196,6 +196,18 @@ const DEFAULT_TEMPLATES = {
       <div class="cta"><a href="${APP_URL}/projects/{{projectId}}" class="btn">完了レポートを見る</a></div>
     `),
   },
+  'POINTS_CHARGED': {
+    subject: '【FLASTAL】ポイントチャージが完了しました',
+    body: createBaseHtml('ポイントチャージ完了 💎', `
+      <p class="greeting">{{userName}} 様</p>
+      <p class="message">ポイントチャージが完了しました。さっそく気になる企画を支援してみましょう！</p>
+      <div class="highlight">
+        <div class="highlight-label">チャージポイント</div>
+        <div class="highlight-value">{{points}} pt</div>
+      </div>
+      <div class="cta"><a href="${APP_URL}/projects" class="btn">企画一覧を見る</a></div>
+    `),
+  },
   'PASSWORD_RESET': {
     subject: '【FLASTAL】パスワードの再設定',
     body: createBaseHtml('パスワード再設定', `
@@ -277,3 +289,27 @@ export async function sendDynamicEmail(toEmail, templateKey, variables = {}) {
 // ── Convenience wrappers ──────────────────────────────────────
 export const sendBrandedEmail = (to, title, bodyHtml) =>
   sendEmail(to, title, createBaseHtml(title, bodyHtml));
+
+/**
+ * fire-and-forget メール送信。
+ * 呼び出し元をブロックせず、失敗してもリクエストに影響しない。
+ * Webhook・通知など副次的なメール全般に使用する。
+ */
+export async function queueEmail(toEmail, templateKey, variables = {}) {
+  // BullMQ キューが利用可能なら永続キューに追加（リトライ・耐障害性あり）
+  try {
+    const { getEmailQueue } = await import('../queues/emailQueue.js');
+    const q = getEmailQueue();
+    if (q) {
+      await q.add(templateKey, { toEmail, templateKey, variables });
+      return;
+    }
+  } catch {
+    // Redis 未設定 or 接続失敗 → フォールバック
+  }
+  setImmediate(() => {
+    sendDynamicEmail(toEmail, templateKey, variables).catch(err => {
+      console.error(`[Email Queue Error] ${templateKey} → ${toEmail}:`, err?.message || err);
+    });
+  });
+}

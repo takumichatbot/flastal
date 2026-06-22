@@ -3,6 +3,21 @@ import ProjectDetailClient from './ProjectDetailClient';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
+// ページ単位の ISR — 60秒ごとに再検証
+export const revalidate = 60;
+
+// 人気上位プロジェクトをビルド時に静的生成
+export async function generateStaticParams() {
+  try {
+    const res = await fetch(`${API_URL}/api/projects?limit=50`, { next: { revalidate: 3600 } });
+    if (!res.ok) return [];
+    const projects = await res.json();
+    return (Array.isArray(projects) ? projects : []).map(p => ({ id: p.id }));
+  } catch {
+    return [];
+  }
+}
+
 // ✅ ビューポート設定
 export const viewport = {
   themeColor: '#ffffff',
@@ -30,9 +45,12 @@ export async function generateMetadata({ params }) {
 
     const project = await res.json();
     const description = project.description?.substring(0, 120) + (project.description?.length > 120 ? '...' : '') || '推し活フラスタ企画のクラウドファンディング';
-    
-    // 画像があればそれを使用し、なければデフォルト画像
-    const imageUrl = project.imageUrl || DEFAULT_IMAGE_URL;
+
+    const progress = project.targetAmount > 0
+      ? Math.round((project.collectedAmount / project.targetAmount) * 100)
+      : 0;
+
+    const ogImageUrl = `https://www.flastal.com/api/og?title=${encodeURIComponent(project.title)}&progress=${progress}&collected=${project.collectedAmount || 0}&target=${project.targetAmount || 0}&user=${encodeURIComponent(project.planner?.handleName || '')}&image=${encodeURIComponent(project.imageUrl || '')}`;
 
     return {
       title: `${project.title} | FLASTAL`,
@@ -40,24 +58,17 @@ export async function generateMetadata({ params }) {
       openGraph: {
         title: project.title,
         description: description,
-        url: `https://flastal.com/projects/${id}`,
+        url: `https://www.flastal.com/projects/${id}`,
         siteName: 'FLASTAL',
-        images: [
-          {
-            url: imageUrl,
-            width: 1200,
-            height: 630,
-            alt: project.title,
-          },
-        ],
+        images: [{ url: ogImageUrl, width: 1200, height: 630, alt: project.title }],
         locale: 'ja_JP',
         type: 'article',
       },
       twitter: {
-        card: 'summary_large_image', // 大きな画像カード
+        card: 'summary_large_image',
         title: project.title,
         description: description,
-        images: [imageUrl], // ★ ここに画像URLが必須
+        images: [ogImageUrl],
       },
     };
   } catch (error) {
@@ -92,11 +103,63 @@ function LoadingSkeleton() {
   );
 }
 
+// JSON-LD 構造化データ
+async function ProjectJsonLd({ id }) {
+  try {
+    const res = await fetch(`${API_URL}/api/projects/${id}`, { next: { revalidate: 60 } });
+    if (!res.ok) return null;
+    const project = await res.json();
+
+    const jsonLd = {
+      '@context': 'https://schema.org',
+      '@type': 'CrowdfundingCampaign',
+      name: project.title,
+      description: project.description?.substring(0, 200) || '',
+      url: `https://www.flastal.com/projects/${id}`,
+      image: project.imageUrl || 'https://www.flastal.com/opengraph-image.png',
+      startDate: project.createdAt,
+      endDate: project.deadline,
+      fundingGoal: {
+        '@type': 'MonetaryAmount',
+        currency: 'JPY',
+        value: project.targetAmount || 0,
+      },
+      amountRaised: {
+        '@type': 'MonetaryAmount',
+        currency: 'JPY',
+        value: project.collectedAmount || 0,
+      },
+      creator: {
+        '@type': 'Person',
+        name: project.planner?.handleName || 'プランナー',
+      },
+      organizer: {
+        '@type': 'Organization',
+        name: 'FLASTAL',
+        url: 'https://www.flastal.com',
+      },
+    };
+
+    return (
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+    );
+  } catch {
+    return null;
+  }
+}
+
 // メインコンポーネント
-export default function Page() {
+export default async function Page({ params }) {
+  const { id } = await params;
   return (
-    <Suspense fallback={<LoadingSkeleton />}>
-      <ProjectDetailClient />
-    </Suspense>
+    <>
+      <ProjectJsonLd id={id} />
+      <Suspense fallback={<LoadingSkeleton />}>
+        <ProjectDetailClient />
+      </Suspense>
+    </>
   );
 }

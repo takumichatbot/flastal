@@ -1,6 +1,7 @@
 import express from 'express';
 import * as actionController from '../controllers/projectActionController.js';
 import { authenticateToken } from '../middleware/auth.js';
+import { validate, cheerSchema, reviewSchema } from '../middleware/validate.js';
 
 const router = express.Router();
 
@@ -29,7 +30,7 @@ router.post('/group-chat/:messageId/report', authenticateToken, (req, res, next)
 router.post('/chat/:messageId/report', authenticateToken, (req, res, next) => { req.body.type = 'DIRECT'; next(); }, actionController.reportChat);
 
 // レビュー
-router.post('/reviews', authenticateToken, actionController.createReview);
+router.post('/reviews', authenticateToken, validate(reviewSchema), actionController.createReview);
 router.get('/reviews/featured', actionController.getFeaturedReviews);
 router.post('/reviews/:reviewId/like', actionController.toggleReviewLike);
 
@@ -59,4 +60,12 @@ router.get('/projects/:id/official-status', actionController.getOfficialStatus);
 // デジタルフラスタ
 router.post('/projects/:id/digital-flowers', actionController.sendDigitalFlower);
 router.get('/projects/:id/digital-flowers', actionController.getDigitalFlowers);
+
+// グループチャットのpagination
+router.get('/projects/:id/group-chat', actionController.getGroupChatMessages);
+
+// 応援コメント
+router.get('/projects/:projectId/cheers', actionController.getCheers);
+router.post('/projects/:projectId/cheers', validate(cheerSchema), actionController.postCheer);
+
 export default router;

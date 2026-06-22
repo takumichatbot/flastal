@@ -19,8 +19,9 @@ import {
   Heart, Sparkles, ArrowRight, Search, Users,
   Gift, MessageCircle, Clock, Crown, PenTool, Video, Music, MapPin, Store,
   ArrowUpRight, Shield, Command, KeyRound, Building, Ticket, Loader2, Calendar,
-  ChevronRight, CheckCircle2
+  ChevronRight, CheckCircle2, Wand2
 } from 'lucide-react';
+import { useAuth } from './contexts/AuthContext';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -627,7 +628,79 @@ const TrendingProjects = () => {
 };
 
 // ==========================================
-// 5. BENTO FEATURES
+// 5. AI PERSONALIZED FEED（ログイン済みユーザー向け）
+// ==========================================
+const PersonalizedFeed = () => {
+  const { isAuthenticated } = useAuth();
+  const [projects, setProjects] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isAuthenticated) { setLoading(false); return; }
+    const t = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+    fetch(`${API_URL}/api/projects/feed/personalized`, {
+      headers: { Authorization: `Bearer ${t}` },
+    })
+      .then(r => r.ok ? r.json() : [])
+      .then(data => setProjects(Array.isArray(data) ? data.slice(0, 4) : []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [isAuthenticated]);
+
+  if (!isAuthenticated || (!loading && projects.length === 0)) return null;
+
+  return (
+    <section className="py-14 md:py-20 bg-gradient-to-br from-violet-50 via-purple-50 to-pink-50 relative z-10 border-t border-violet-100/60">
+      <div className="container mx-auto px-4 md:px-6 max-w-6xl">
+        <Reveal>
+          <div className="flex items-center gap-2 mb-2">
+            <span className="inline-flex items-center gap-1.5 text-[11px] font-black tracking-[0.25em] text-violet-500 uppercase bg-violet-100 px-4 py-1.5 rounded-full">
+              <Wand2 size={11} /> AI おすすめ
+            </span>
+          </div>
+          <h2 className="text-2xl md:text-4xl font-black text-slate-800 tracking-tighter">あなたへのおすすめ企画</h2>
+          <p className="text-slate-500 font-medium mt-1.5 text-sm">支援履歴をもとにAIがピックアップ</p>
+        </Reveal>
+
+        {loading ? (
+          <div className="flex justify-center py-16"><Loader2 className="w-8 h-8 text-violet-400 animate-spin" /></div>
+        ) : (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-5 mt-8">
+            {projects.map((project, i) => {
+              const percent = Math.min(Math.round(((project?.collectedAmount || 0) / (project?.targetAmount || 1)) * 100), 100);
+              return (
+                <Reveal key={project.id} delay={i * 0.07}>
+                  <div
+                    onClick={() => router.push(`/projects/${project.id}`)}
+                    className="bg-white rounded-3xl overflow-hidden shadow-sm border border-violet-100 hover:shadow-md hover:-translate-y-1 transition-all cursor-pointer group"
+                  >
+                    <div className="aspect-square bg-gradient-to-br from-violet-100 to-pink-100 relative overflow-hidden">
+                      {project.coverImageUrl
+                        ? <img src={project.coverImageUrl} alt={project.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                        : <div className="w-full h-full flex items-center justify-center text-violet-300"><Heart size={40} /></div>
+                      }
+                      <div className="absolute top-2 right-2 bg-violet-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full">{percent}%</div>
+                    </div>
+                    <div className="p-3">
+                      <p className="text-xs font-black text-slate-800 line-clamp-2 leading-snug mb-2">{project.title}</p>
+                      <div className="w-full h-1.5 bg-violet-100 rounded-full overflow-hidden">
+                        <div className="h-full bg-gradient-to-r from-violet-400 to-pink-400 rounded-full transition-all" style={{ width: `${percent}%` }} />
+                      </div>
+                    </div>
+                  </div>
+                </Reveal>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+};
+
+// ==========================================
+// 6. BENTO FEATURES
 // ==========================================
 const BentoFeatures = () => {
   const features = [
@@ -990,7 +1063,53 @@ const FAQ = () => {
 };
 
 // ==========================================
-// 10. PARTNER CTA
+// 10. GALLERY HIGHLIGHT
+// ==========================================
+const GalleryHighlight = () => {
+  const [photos, setPhotos] = useState([]);
+  useEffect(() => {
+    fetch(`${API_URL}/api/gallery/feed?limit=6`)
+      .then(r => r.ok ? r.json() : [])
+      .then(data => { if (Array.isArray(data) && data.length) setPhotos(data); })
+      .catch(() => {});
+  }, []);
+
+  if (!photos.length) return null;
+
+  return (
+    <section className="py-14 md:py-20 bg-white relative z-10 border-t border-slate-100/60">
+      <div className="container mx-auto px-4 md:px-6 max-w-5xl">
+        <Reveal>
+          <div className="text-center mb-10">
+            <span className="text-[11px] font-black tracking-[0.25em] text-rose-400 uppercase bg-rose-50 px-4 py-1.5 rounded-full inline-block mb-4">Gallery</span>
+            <h2 className="text-2xl md:text-3xl font-black text-slate-900">みんなの達成フラスタ</h2>
+            <p className="text-slate-500 mt-2 text-sm">完成したフラスタを写真でシェア</p>
+          </div>
+        </Reveal>
+        <Reveal delay={0.1}>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {photos.map((photo) => (
+              <div key={photo.id} className="relative aspect-square rounded-2xl overflow-hidden bg-slate-100 group">
+                <Image src={photo.imageUrl} alt={photo.caption || ''} fill className="object-cover group-hover:scale-105 transition-transform duration-300" unoptimized sizes="33vw" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3">
+                  <p className="text-white text-[10px] font-bold truncate">{photo.project?.title || ''}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="text-center mt-6">
+            <Link href="/gallery" className="inline-flex items-center gap-2 text-sm font-black text-rose-500 hover:text-rose-700 transition-colors">
+              もっと見る <ArrowRight size={14} />
+            </Link>
+          </div>
+        </Reveal>
+      </div>
+    </section>
+  );
+};
+
+// ==========================================
+// 11. PARTNER CTA
 // ==========================================
 const PartnerCTA = () => (
   <section className="py-14 md:py-24 bg-gradient-to-b from-pink-50 to-rose-50 relative z-10 overflow-hidden border-t border-pink-100/60">
@@ -1051,9 +1170,11 @@ const MainContent = () => (
     <InfiniteMarquee />
     <HowItWorks />
     <TrendingProjects />
+    <PersonalizedFeed />
     <BentoFeatures />
     <CategoryGrid />
     <SocialProof />
+    <GalleryHighlight />
     <FAQ />
     <ArticlesSection />
     <PartnerCTA />

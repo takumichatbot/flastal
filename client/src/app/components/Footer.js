@@ -61,8 +61,10 @@ export default function Footer() {
             <h3 className="text-white font-bold mb-4">サービス</h3>
             <ul className="space-y-3">
               <li><Link href="/projects" className="hover:text-white transition-colors">企画一覧</Link></li>
+              <li><Link href="/ranking" className="hover:text-white transition-colors">ランキング</Link></li>
+              <li><Link href="/artists" className="hover:text-white transition-colors">アーティスト</Link></li>
+              <li><Link href="/gallery" className="hover:text-white transition-colors">達成ギャラリー</Link></li>
               <li><Link href="/florists" className="hover:text-white transition-colors">お花屋さんを探す</Link></li>
-              <li><Link href="/#faq" className="hover:text-white transition-colors">よくある質問</Link></li> 
               <li><Link href="/contact" className="hover:text-white transition-colors">お問い合わせ</Link></li>
             </ul>
           </div>
@@ -71,6 +73,8 @@ export default function Footer() {
             <h3 className="text-white font-bold mb-4">参加する</h3>
             <ul className="space-y-3">
               <li><Link href="/register" className="hover:text-white transition-colors">ファン登録</Link></li>
+              <li><Link href="/referral" className="hover:text-white transition-colors">紹介プログラム</Link></li>
+              <li><Link href="/gift-cards" className="hover:text-white transition-colors">ギフトカード</Link></li>
               <li><Link href="/florists/register" className="hover:text-white transition-colors">お花屋さん登録</Link></li>
               <li><Link href="/venues/register" className="hover:text-white transition-colors">会場・運営登録</Link></li>
             </ul>
@@ -80,6 +84,7 @@ export default function Footer() {
             <h3 className="text-white font-bold mb-4">FLASTALについて</h3>
             <ul className="space-y-3">
               <li><Link href="/about" className="hover:text-white transition-colors">運営会社</Link></li>
+              <li><Link href="/status" className="hover:text-white transition-colors">サービス稼働状況</Link></li>
               <li><Link href="/terms" className="hover:text-white transition-colors">利用規約</Link></li>
               <li><Link href="/privacy" className="hover:text-white transition-colors">プライバシーポリシー</Link></li>
               <li><Link href="/tokushoho" className="hover:text-white transition-colors">特定商取引法</Link></li>

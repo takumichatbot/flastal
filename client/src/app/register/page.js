@@ -2,8 +2,8 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '../contexts/AuthContext';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
@@ -25,7 +25,13 @@ export default function RegisterPage() {
   const [isSubmitted, setIsSubmitted] = useState(false);
 
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { register } = useAuth();
+
+  useEffect(() => {
+    const ref = searchParams.get('ref');
+    if (ref) setFormData(prev => ({ ...prev, referralCode: ref }));
+  }, [searchParams]);
 
   const passwordStrength = (() => {
     const p = formData.password;

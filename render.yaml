@@ -1,19 +1,94 @@
 services:
-  # 1. バックエンドサービス (Python) の設計図
+  # ========================================
+  # 1. バックエンド (Node.js / Express)
+  # ========================================
   - type: web
     name: flastal-backend
-    runtime: python
+    runtime: node
     rootDir: server
-    buildCommand: "pip install -r ../requirements.txt"
-    startCommand: "uvicorn main:app --host 0.0.0.0 --port $PORT"
+    buildCommand: "npm ci && npx prisma generate --schema=prisma/schema.prisma"
+    startCommand: "node index.js"
+    healthCheckPath: /
     envVars:
-      - key: PYTHON_VERSION
-        value: 3.11.9 # あなたのPythonバージョンに合わせてください
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "20"
+      - key: DATABASE_URL
+        sync: false          # Render ダッシュボードで設定
+      - key: JWT_SECRET
+        generateValue: true
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: FRONTEND_URL
+        value: https://www.flastal.com
+      - key: RESEND_API_KEY
+        sync: false
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      - key: AWS_S3_BUCKET
+        sync: false
+      - key: AWS_REGION
+        value: ap-northeast-1
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: NEXT_PUBLIC_VAPID_PUBLIC_KEY
+        sync: false
+      - key: VAPID_PRIVATE_KEY
+        sync: false
+      - key: TYPESENSE_HOST
+        sync: false
+      - key: TYPESENSE_API_KEY
+        sync: false
+      - key: SENTRY_DSN
+        sync: false
+      - key: REDIS_URL
+        sync: false
 
-  # 2. フロントエンドサービス (Node) の設計図
+  # ========================================
+  # 2. フロントエンド (Next.js)
+  # ========================================
   - type: web
     name: flastal-frontend
     runtime: node
     rootDir: client
-    buildCommand: "npm install && npm run build"
+    buildCommand: "npm ci --legacy-peer-deps && npm run build"
     startCommand: "npm start"
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: NEXT_PUBLIC_API_URL
+        value: https://flastal-backend.onrender.com
+      - key: NEXT_PUBLIC_VAPID_PUBLIC_KEY
+        sync: false
+      - key: NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+        sync: false
+      - key: NEXT_PUBLIC_GROWTHBOOK_CLIENT_KEY
+        sync: false
+      - key: NEXT_TELEMETRY_DISABLED
+        value: "1"
+      - key: SENTRY_DSN
+        sync: false
+
+  # ========================================
+  # 3. BullMQ ワーカー (メールキュー)
+  # ========================================
+  - type: worker
+    name: flastal-email-worker
+    runtime: node
+    rootDir: server
+    buildCommand: "npm ci && npx prisma generate --schema=prisma/schema.prisma"
+    startCommand: "node -e \"import('./src/queues/emailQueue.js').then(m => m.startEmailWorker())\""
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false

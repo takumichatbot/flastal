@@ -1,5 +1,7 @@
 import { Inter, Noto_Sans_JP } from 'next/font/google';
 import { AuthProvider } from './contexts/AuthContext';
+import { DarkModeProvider } from './contexts/DarkModeContext';
+import { GrowthBookProvider } from './contexts/GrowthBookContext';
 import Footer from './components/Footer';
 import './globals.css';
 import { Toaster } from 'react-hot-toast';
@@ -121,6 +123,8 @@ export default function RootLayout({ children }) {
       </head>
       <body className="font-sans antialiased text-slate-900 bg-white min-h-screen flex flex-col m-0 p-0 overflow-x-hidden">
         <ThemeController />
+        <GrowthBookProvider>
+        <DarkModeProvider>
         <AuthProvider>
           <header className="web-only w-full flex flex-col m-0 p-0 border-none bg-white relative z-[100] isolate">
             <Header />
@@ -140,6 +144,8 @@ export default function RootLayout({ children }) {
           <Toaster position="top-center" />
           <PushNotificationManager />
         </AuthProvider>
+        </DarkModeProvider>
+        </GrowthBookProvider>
       </body>
     </html>
   );

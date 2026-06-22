@@ -13,7 +13,7 @@ import ShareButtons from '@/app/components/ShareButtons';
 import {
     Camera, Award, Clock,
     User, Heart, Star, X, Shield, Zap, AlertCircle, ArrowLeft, Briefcase,
-    Store, Truck, Loader2, CheckCircle2, MapPin
+    Store, Truck, Loader2, CheckCircle2, MapPin, Bookmark, BookmarkCheck
 } from 'lucide-react';
 
 import FloristDeliveryInfo from '@/app/components/FloristDeliveryInfo';
@@ -203,9 +203,11 @@ export default function FloristDetailPage() {
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [modalImageSrc, setModalImageSrc] = useState('');
 
-  const [activeTab, setActiveTab] = useState('profile'); 
-  const [appealPosts, setAppealPosts] = useState([]); 
-  const [activeTag, setActiveTag] = useState(null); 
+  const [activeTab, setActiveTab] = useState('profile');
+  const [appealPosts, setAppealPosts] = useState([]);
+  const [activeTag, setActiveTag] = useState(null);
+  const [isFavorited, setIsFavorited] = useState(false);
+  const [favoriteLoading, setFavoriteLoading] = useState(false);
 
   const fetchFlorist = useCallback(async () => {
     if (!id) return;
@@ -230,6 +232,32 @@ export default function FloristDetailPage() {
   }, [id]);
 
   useEffect(() => { fetchFlorist(); }, [fetchFlorist]);
+
+  // お気に入り状態をチェック
+  useEffect(() => {
+    if (!token || !id) return;
+    fetch(`${API_URL}/api/florists/my-favorites`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }).then(r => r.ok ? r.json() : []).then(list => {
+      setIsFavorited(list.some(f => f.id === id));
+    }).catch(() => {});
+  }, [id, token]);
+
+  const handleToggleFavorite = async () => {
+    if (!token || !user) { toast.error('ログインが必要です'); return; }
+    setFavoriteLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/api/florists/${id}/favorite`, {
+        method: 'POST', headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setIsFavorited(data.favorited);
+        toast.success(data.favorited ? 'お気に入りに追加しました' : 'お気に入りを解除しました');
+      }
+    } catch { toast.error('エラーが発生しました'); }
+    finally { setFavoriteLoading(false); }
+  };
 
   const handleLikeToggle = async (post) => {
     if (!token || !user) {
@@ -302,7 +330,30 @@ export default function FloristDetailPage() {
   }, [appealPosts, activeTag]);
 
   if (loading) {
-      return <div className="flex items-center justify-center min-h-screen bg-slate-50/50"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-pink-500"></div></div>;
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-pink-50/50 to-sky-50/50 pb-24">
+        <div className="max-w-6xl mx-auto px-4 py-8 space-y-4 animate-pulse">
+          {/* Hero card skeleton */}
+          <div className="rounded-[2.5rem] bg-white border border-slate-100 overflow-hidden shadow-sm">
+            <div className="h-44 bg-gradient-to-r from-pink-100 to-rose-100" />
+            <div className="px-8 pb-8 pt-4 flex flex-col md:flex-row items-center gap-6">
+              <div className="w-28 h-28 rounded-[2rem] bg-slate-200 -mt-14 shrink-0" />
+              <div className="flex-1 space-y-3 w-full">
+                <div className="h-6 bg-slate-200 rounded-full w-3/4" />
+                <div className="h-4 bg-slate-100 rounded-full w-1/2" />
+                <div className="flex gap-2 mt-2">
+                  {[1,2,3].map(i => <div key={i} className="h-6 w-16 bg-slate-100 rounded-full" />)}
+                </div>
+              </div>
+            </div>
+          </div>
+          {/* Portfolio grid skeleton */}
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            {[...Array(6)].map((_, i) => <div key={i} className="aspect-square bg-white rounded-[2rem] border border-slate-100 shadow-sm" />)}
+          </div>
+        </div>
+      </div>
+    );
   }
 
   if (!florist) {
@@ -341,6 +392,19 @@ export default function FloristDetailPage() {
             >
               <ArrowLeft size={18} />
             </button>
+
+            {/* Favorite button */}
+            {user && user.role === 'USER' && (
+              <button
+                onClick={handleToggleFavorite}
+                disabled={favoriteLoading}
+                className="fixed top-0 right-4 z-50 w-10 h-10 bg-white/80 backdrop-blur-md rounded-full border shadow-sm flex items-center justify-center transition-all"
+                style={{ marginTop: 'calc(1rem + env(safe-area-inset-top))', borderColor: isFavorited ? '#f43f5e' : '#e2e8f0', color: isFavorited ? '#f43f5e' : '#94a3b8' }}
+                aria-label="お気に入り"
+              >
+                {isFavorited ? <BookmarkCheck size={18} /> : <Bookmark size={18} />}
+              </button>
+            )}
 
             {/* Hero card — pink/rose gradient */}
             <GlassCard className="!p-0 overflow-hidden mb-8 relative">
@@ -390,6 +454,19 @@ export default function FloristDetailPage() {
                             <span className="font-black text-lg">{averageRating.toFixed(1)}</span>
                             <span className="text-[10px] ml-2 font-bold opacity-60">({reviews.length} reviews)</span>
                           </div>
+
+                          {florist.responseRate !== null && florist.responseRate !== undefined && (
+                            <div className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-700 rounded-[1rem] border border-emerald-100 shadow-sm">
+                              <CheckCircle2 size={15} className="text-emerald-500" />
+                              <span className="font-black text-sm">{florist.responseRate}%</span>
+                              <span className="text-[10px] font-bold opacity-60">返答率</span>
+                              {florist.avgResponseHours !== null && florist.avgResponseHours !== undefined && (
+                                <span className="text-[10px] font-bold text-emerald-500 ml-1">
+                                  avg {florist.avgResponseHours < 24 ? `${florist.avgResponseHours}h` : `${Math.round(florist.avgResponseHours / 24)}日`}
+                                </span>
+                              )}
+                            </div>
+                          )}
 
                           {isMyProfile && (
                              <Link href="/florists/dashboard" className="text-sm px-6 py-3 bg-slate-900 text-white rounded-full font-black hover:bg-slate-800 transition-all shadow-md flex items-center gap-2">
@@ -540,31 +617,37 @@ export default function FloristDetailPage() {
                     )}
                     
                     {activeTab === 'reviews' && (
-                        <div className="max-w-3xl mx-auto space-y-6">
-                             {reviews.length > 0 ? reviews.map(review => (
-                                  <GlassCard key={review.id} className="!p-8 transition-all hover:border-pink-200">
-                                      <div className="flex items-center justify-between mb-6">
-                                          <div className="flex items-center gap-4">
-                                              <div className="w-12 h-12 bg-slate-100 rounded-[1rem] flex items-center justify-center text-slate-400 border border-slate-200 shadow-inner">
-                                                  <User size={20} />
-                                              </div>
-                                              <div>
-                                                  <span className="font-black text-slate-800 block leading-none">{review.user?.handleName || 'Guest'}</span>
-                                                  <span className="text-[9px] text-slate-400 font-black mt-1.5 block uppercase tracking-widest">{new Date(review.createdAt).toLocaleDateString()}</span>
-                                              </div>
-                                          </div>
-                                          <div className="flex text-yellow-400 gap-0.5">
-                                              {[...Array(5)].map((_, i) => <Star key={i} fill={i < review.rating ? "currentColor" : "none"} size={14}/>)}
-                                          </div>
-                                      </div>
-                                      <div className="bg-slate-50/80 p-5 md:p-6 rounded-[1.5rem] border border-slate-100 relative">
-                                          <span className="absolute -top-3 left-4 text-3xl text-slate-200 font-serif leading-none">“</span>
-                                          <p className="text-slate-600 text-sm leading-relaxed font-bold relative z-10"><JpText>{review.comment}</JpText></p>
-                                      </div>
-                                  </GlassCard>
-                              )) : (
-                                  <GlassCard className="text-center py-24 text-slate-300 font-black tracking-widest uppercase">No reviews found</GlassCard>
-                              )}
+                        <div className="max-w-3xl mx-auto space-y-4">
+                            {reviews.length > 0 ? reviews.map(review => (
+                                <GlassCard key={review.id} className="!p-6 transition-all hover:border-pink-200">
+                                    <div className="flex items-start gap-4 mb-4">
+                                        <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 border border-slate-200 shrink-0 overflow-hidden">
+                                            {review.user?.iconUrl
+                                                ? <Image src={review.user.iconUrl} alt="" width={40} height={40} className="object-cover w-10 h-10" />
+                                                : <User size={18} />}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <span className="font-black text-slate-800 text-sm block leading-tight">{review.user?.handleName || 'さん'}</span>
+                                            <span className="text-[10px] text-slate-400 font-bold mt-0.5 block">{new Date(review.createdAt).toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
+                                            {review.project && (
+                                                <span className="text-[10px] text-pink-500 font-black mt-1 block truncate">
+                                                    🌸 {review.project.title}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div className="bg-slate-50/80 p-4 rounded-2xl border border-slate-100 relative">
+                                        <span className="absolute -top-2 left-3 text-2xl text-slate-200 font-serif leading-none">"</span>
+                                        <p className="text-slate-600 text-sm leading-relaxed font-medium relative z-10 pt-1"><JpText>{review.comment || '（コメントなし）'}</JpText></p>
+                                    </div>
+                                </GlassCard>
+                            )) : (
+                                <GlassCard className="text-center py-16">
+                                    <div className="text-4xl mb-3">🌸</div>
+                                    <p className="font-black text-slate-400 text-sm">まだレビューがありません</p>
+                                    <p className="text-xs text-slate-300 mt-1">企画完了後にプランナーからレビューが届きます</p>
+                                </GlassCard>
+                            )}
                         </div>
                     )}
                   </motion.div>

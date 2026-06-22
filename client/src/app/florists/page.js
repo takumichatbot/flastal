@@ -172,7 +172,7 @@ function FloristCard({ florist, projectId, onOffer, isOffering }) {
 
 // ── Filter Sheet (mobile bottom drawer) ──────────────────────
 function FilterSheet({ filters, onFilterChange, onTagSelect, onClose }) {
-  const activeCount = [filters.prefecture, filters.tag, filters.isRush].filter(Boolean).length;
+  const activeCount = [filters.prefecture, filters.tag, filters.isRush, filters.sort !== 'newest'].filter(Boolean).length;
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col justify-end" onClick={onClose}>
@@ -222,6 +222,22 @@ function FilterSheet({ filters, onFilterChange, onTagSelect, onClose }) {
             </label>
           </div>
 
+          {/* Sort */}
+          <div>
+            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">並び順</label>
+            <div className="flex gap-2">
+              {[{ value: 'newest', label: '新着順' }, { value: 'reviews', label: '実績数順' }].map(opt => (
+                <button key={opt.value} onClick={() => onFilterChange({ target: { name: 'sort', value: opt.value, type: 'select-one' } })}
+                  className={cn(
+                    'flex-1 py-2.5 text-xs rounded-2xl font-black transition-all border',
+                    filters.sort === opt.value ? 'bg-slate-900 text-white border-slate-900' : 'bg-slate-50 text-slate-500 border-slate-100',
+                  )}>
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Style tags */}
           <div>
             <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">スタイル</label>
@@ -258,6 +274,8 @@ function FloristsListContent() {
   const [isOffering, setIsOffering] = useState(false);
   const [projectId, setProjectId] = useState(null);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(20);
+  const loaderRef = useRef(null);
 
   const fileInputRef = useRef(null);
   const [isSearchingImage, setIsSearchingImage] = useState(false);
@@ -266,7 +284,7 @@ function FloristsListContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const [filters, setFilters] = useState({ keyword: '', prefecture: '', isRush: false, tag: '' });
+  const [filters, setFilters] = useState({ keyword: '', prefecture: '', isRush: false, tag: '', sort: 'newest' });
 
   useEffect(() => {
     setProjectId(searchParams.get('projectId'));
@@ -275,6 +293,7 @@ function FloristsListContent() {
       prefecture: searchParams.get('prefecture') || '',
       isRush: searchParams.get('rush') === 'true',
       tag: searchParams.get('tag') || '',
+      sort: searchParams.get('sort') || 'newest',
     });
   }, [searchParams]);
 
@@ -288,13 +307,19 @@ function FloristsListContent() {
       if (f.tag) url.searchParams.append('tag', f.tag);
       const res = await fetch(url.toString());
       if (!res.ok) throw new Error();
-      setFlorists(await res.json());
+      let data = await res.json();
+
+      if (f.sort === 'reviews') {
+        data = [...data].sort((a, b) => (b.reviewCount || 0) - (a.reviewCount || 0));
+      }
+      setFlorists(data);
 
       const params = new URLSearchParams();
       if (f.keyword) params.set('keyword', f.keyword);
       if (f.prefecture) params.set('prefecture', f.prefecture);
       if (f.isRush) params.set('rush', 'true');
       if (f.tag) params.set('tag', f.tag);
+      if (f.sort && f.sort !== 'newest') params.set('sort', f.sort);
       if (projectId) params.set('projectId', projectId);
       router.replace(`/florists?${params.toString()}`, { scroll: false });
     } catch { toast.error('お花屋さん一覧の取得に失敗しました'); }
@@ -306,12 +331,27 @@ function FloristsListContent() {
     return () => clearTimeout(t);
   }, [filters, fetchFlorists]);
 
+  // フィルター変更時に表示件数リセット
+  useEffect(() => { setVisibleCount(20); }, [filters]);
+
+  // Infinite Scroll
+  useEffect(() => {
+    const el = loaderRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      (entries) => { if (entries[0].isIntersecting) setVisibleCount(prev => prev + 20); },
+      { threshold: 0.1 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   const handleFilterChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFilters(p => ({ ...p, [name]: type === 'checkbox' ? checked : value }));
   };
   const handleTagSelect = (tag) => setFilters(p => ({ ...p, tag: p.tag === tag ? '' : tag }));
-  const handleReset = () => { setFilters({ keyword: '', prefecture: '', isRush: false, tag: '' }); setDetectedTags([]); };
+  const handleReset = () => { setFilters({ keyword: '', prefecture: '', isRush: false, tag: '', sort: 'newest' }); setDetectedTags([]); };
 
   const handleImageSearch = async (e) => {
     const file = e.target.files[0];
@@ -487,15 +527,22 @@ function FloristsListContent() {
             {[...Array(8)].map((_, i) => <SkeletonCard key={i} />)}
           </div>
         ) : florists.length > 0 ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-5">
-            <AnimatePresence>
-              {florists.map((f, i) => (
-                <motion.div key={f.id} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }} className="h-full">
-                  <FloristCard florist={f} projectId={projectId} onOffer={handleOffer} isOffering={isOffering} />
-                </motion.div>
-              ))}
-            </AnimatePresence>
-          </div>
+          <>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-5">
+              <AnimatePresence>
+                {florists.slice(0, visibleCount).map((f, i) => (
+                  <motion.div key={f.id} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }} className="h-full">
+                    <FloristCard florist={f} projectId={projectId} onOffer={handleOffer} isOffering={isOffering} />
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </div>
+            {visibleCount < florists.length && (
+              <div ref={loaderRef} className="flex justify-center py-10">
+                <div className="w-6 h-6 rounded-full border-2 border-pink-300 border-t-pink-500 animate-spin" />
+              </div>
+            )}
+          </>
         ) : (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
             className="bg-white/60 backdrop-blur-md rounded-[2.5rem] border border-white shadow-sm p-16 text-center mt-8">
