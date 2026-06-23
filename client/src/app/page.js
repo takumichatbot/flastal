@@ -145,41 +145,6 @@ const CATEGORIES = [
 ];
 
 // ==========================================
-// 📈 COUNT UP COMPONENT
-// ==========================================
-function CountUp({ end, suffix = '', prefix = '' }) {
-  const [count, setCount] = useState(0);
-  const [hasStarted, setHasStarted] = useState(false);
-  const ref = useRef(null);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting && !hasStarted) setHasStarted(true); },
-      { threshold: 0.3 }
-    );
-    if (ref.current) observer.observe(ref.current);
-    return () => observer.disconnect();
-  }, [hasStarted]);
-
-  useEffect(() => {
-    if (!hasStarted) return;
-    const duration = 1500; // ms
-    const startTime = performance.now();
-    let rafId;
-    const animate = (now) => {
-      const elapsed = now - startTime;
-      const progress = Math.min(elapsed / duration, 1);
-      // easeOut cubic
-      const eased = 1 - Math.pow(1 - progress, 3);
-      setCount(Math.floor(eased * end));
-      if (progress < 1) rafId = requestAnimationFrame(animate);
-    };
-    rafId = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(rafId);
-  }, [end, hasStarted]);
-
-  return <span ref={ref}>{prefix}{count.toLocaleString()}{suffix}</span>;
-}
 
 // ==========================================
 // 🎬 INTRO LOADER（幕開け）
@@ -1019,103 +984,6 @@ const ArticlesSection = () => (
   </section>
 );
 
-// ==========================================
-// 8. SOCIAL PROOF
-// ==========================================
-const SocialProof = () => {
-  const stats = [
-    { numeric: true,  end: 1200, suffix: '+', label: '企画数', sub: '累計' },
-    { numeric: true,  end: 98,   suffix: '%', label: '満足度', sub: '完了企画' },
-    { numeric: false, value: '全国',           label: '対応',   sub: 'お花屋さん' },
-    { numeric: false, value: '0円',            label: '参加費', sub: '無料で使える' },
-  ];
-
-  const testimonials = [
-    {
-      avatar: '🌸',
-      name: 'さくらP',
-      role: '企画者',
-      text: '口座管理やお釣りの計算が不要で、集金がすごく楽でした。お花屋さんとのやり取りもサイト内でできるので安心感が違います！',
-    },
-    {
-      avatar: '💜',
-      name: 'みほぴ',
-      role: '支援者',
-      text: '匿名で参加できるのが最高！カードで支援してそれだけ。当日会場で本物のフラスタを見たときに感動して泣きました🥲',
-    },
-    {
-      avatar: '🌷',
-      name: 'ゆなまる',
-      role: 'お花屋さん',
-      text: 'FLASTALを通してファンの方と直接やり取りできるようになり、制作のやりがいが増しました。発注管理もシンプルで助かっています。',
-    },
-  ];
-
-  return (
-    <section className="py-16 md:py-24 bg-white relative z-10 border-t border-slate-100/60">
-      <div className="container mx-auto px-4 sm:px-5 md:px-6 max-w-5xl">
-
-        {/* Stats */}
-        <Reveal>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-3.5 md:gap-4 mb-14 md:mb-20">
-            {stats.map((s, i) => (
-              <motion.div
-                key={i}
-                whileHover={{ y: -4 }}
-                transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-                className="bg-gradient-to-br from-pink-50 to-rose-50 rounded-3xl p-5 md:p-6 text-center border border-pink-100 shadow-sm"
-              >
-                <p className="text-3xl md:text-4xl font-black text-pink-500 tracking-tighter leading-none mb-1">
-                  {s.numeric ? <CountUp end={s.end} suffix={s.suffix} /> : s.value}
-                </p>
-                <p className="text-sm font-black text-slate-700 mt-1.5">{s.label}</p>
-                <p className="text-[10px] font-medium text-slate-400 tracking-wide mt-0.5">{s.sub}</p>
-              </motion.div>
-            ))}
-          </div>
-        </Reveal>
-
-        {/* Testimonials */}
-        <div className="text-center mb-8 md:mb-12">
-          <Reveal>
-            <span className="text-xs font-black tracking-[0.25em] text-pink-400 uppercase bg-pink-50 px-4 py-1.5 rounded-full inline-block mb-4">Voice</span>
-            <h2 className="text-2xl md:text-4xl font-black text-slate-800 tracking-tighter mt-2">使ってみた感想</h2>
-          </Reveal>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {testimonials.map((t, i) => (
-            <Reveal key={i} delay={i * 0.1}>
-              <motion.div
-                whileHover={{ y: -5 }}
-                transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-                className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm hover:shadow-md transition-shadow h-full flex flex-col"
-              >
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-11 h-11 rounded-2xl bg-pink-50 flex items-center justify-center text-2xl border border-pink-100 shrink-0">
-                    {t.avatar}
-                  </div>
-                  <div>
-                    <p className="font-black text-slate-800 text-sm">{t.name}</p>
-                    <p className="text-[10px] font-bold text-pink-500 uppercase tracking-wider">{t.role}</p>
-                  </div>
-                </div>
-                <p className="text-sm font-medium text-slate-600 leading-relaxed flex-1">"{t.text}"</p>
-                <div className="flex text-pink-400 gap-0.5 mt-4">
-                  {[...Array(5)].map((_, j) => (
-                    <svg key={j} width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                    </svg>
-                  ))}
-                </div>
-              </motion.div>
-            </Reveal>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-};
 
 // ==========================================
 // 9. FAQ
@@ -1337,53 +1205,6 @@ const TrustBadges = () => {
   );
 };
 
-// ==========================================
-// 12. PARTNER CTA
-// ==========================================
-const PartnerCTA = () => (
-  <section className="py-16 md:py-24 bg-gradient-to-b from-pink-50 to-rose-50 relative z-10 overflow-hidden border-t border-pink-100/60">
-    <div className="container mx-auto px-4 md:px-6 max-w-5xl relative z-10">
-      <Reveal>
-        <div className="text-center mb-8 md:mb-12">
-          <span className="text-xs font-black tracking-[0.25em] text-pink-400 uppercase bg-white/80 px-4 py-1.5 rounded-full inline-block mb-4">Partner</span>
-          <h2 className="text-2xl md:text-4xl font-black text-slate-800 mb-3 tracking-tighter mt-2">法人・クリエイターの皆様へ</h2>
-          <p className="text-slate-500 text-sm font-medium max-w-xl mx-auto leading-relaxed">
-            お花屋さん・ライブ会場・イベント主催者・イラストレーターとファンを繋ぐサービスです。<br className="hidden md:block"/>初期費用・月額費用は一切かかりません。
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {[
-            { href: "/venues/login",     title: "会場・ホールのご担当者様", desc: "搬入ルールの設定など",       icon: Building, color: "text-rose-500",    bg: "bg-rose-50" },
-            { href: "/organizers/login", title: "イベント主催者様",         desc: "お祝い花のルール周知",       icon: Ticket,   color: "text-pink-600",    bg: "bg-pink-50" },
-            { href: "/florists/login",   title: "お花屋さん",               desc: "フラスタの受注・納品報告",   icon: Store,    color: "text-rose-600",    bg: "bg-rose-50" },
-            { href: "/illustrators/login", title: "クリエイター様",         desc: "イラストパネルの受注",       icon: PenTool,  color: "text-pink-500",    bg: "bg-pink-50" },
-          ].map((role, i) => (
-            <Link key={i} href={role.href} className="group">
-              <motion.div
-                whileHover={{ scale: 1.02, y: -3 }}
-                whileTap={{ scale: 0.98 }}
-                transition={{ type: "spring", stiffness: 300, damping: 25 }}
-                className="bg-white border border-white/80 rounded-2xl p-5 flex items-center justify-between shadow-sm hover:shadow-md transition-shadow h-full"
-              >
-                <div className="flex items-center gap-3.5">
-                  <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center shrink-0", role.bg, role.color)}>
-                    <role.icon size={18} strokeWidth={2}/>
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-black text-slate-800 leading-tight">{role.title}</h3>
-                    <p className="text-slate-400 text-xs font-medium mt-0.5">{role.desc}</p>
-                  </div>
-                </div>
-                <ChevronRight size={16} className="text-slate-300 group-hover:text-pink-400 transition-colors shrink-0 ml-2" />
-              </motion.div>
-            </Link>
-          ))}
-        </div>
-      </Reveal>
-    </div>
-  </section>
-);
 
 // ==========================================
 // 📦 MAIN CONTENT
@@ -1430,12 +1251,10 @@ const MainContent = () => {
       <BentoFeatures />
       <CategoryGrid />
       <div className="h-px bg-gradient-to-r from-transparent via-pink-200/40 to-transparent mx-4 md:mx-8" />
-      <SocialProof />
       <GalleryHighlight />
       <FAQ />
       <TrustBadges />
       <ArticlesSection />
-      <PartnerCTA />
     </motion.div>
   );
 };
