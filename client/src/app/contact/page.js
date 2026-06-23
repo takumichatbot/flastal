@@ -135,7 +135,7 @@ export default function ContactPage() {
             >
               {/* お名前 */}
               <div>
-                <label htmlFor="contact-name" className="block text-xs font-black text-slate-500 mb-2 tracking-widest uppercase">
+                <label htmlFor="contact-name" className="block text-xs font-black text-slate-600 mb-2">
                   お名前 <span className="text-pink-400">*</span>
                 </label>
                 <input
@@ -145,7 +145,7 @@ export default function ContactPage() {
                   required
                   minLength={1}
                   maxLength={100}
-                  placeholder="推し活 太郎"
+                  placeholder="山田 花子"
                   aria-describedby={errors.name ? 'name-error' : undefined}
                   aria-invalid={!!errors.name}
                   className={errors.name ? inputErrorClass : inputClass}
@@ -159,7 +159,7 @@ export default function ContactPage() {
 
               {/* メールアドレス */}
               <div>
-                <label htmlFor="contact-email" className="block text-xs font-black text-slate-500 mb-2 tracking-widest uppercase">
+                <label htmlFor="contact-email" className="block text-xs font-black text-slate-600 mb-2">
                   メールアドレス <span className="text-pink-400">*</span>
                 </label>
                 <input
@@ -168,7 +168,7 @@ export default function ContactPage() {
                   name="email"
                   required
                   autoComplete="email"
-                  placeholder="example@flastal.com"
+                  placeholder="your@email.com"
                   aria-describedby={errors.email ? 'email-error' : undefined}
                   aria-invalid={!!errors.email}
                   className={errors.email ? inputErrorClass : inputClass}
@@ -182,7 +182,7 @@ export default function ContactPage() {
 
               {/* お問い合わせ内容 */}
               <div>
-                <label htmlFor="contact-message" className="block text-xs font-black text-slate-500 mb-2 tracking-widest uppercase">
+                <label htmlFor="contact-message" className="block text-xs font-black text-slate-600 mb-2">
                   お問い合わせ内容 <span className="text-pink-400">*</span>
                 </label>
                 <textarea

@@ -76,10 +76,10 @@ export default function CountdownTimer({ deadline, className = '' }) {
 function Unit({ value, label, containerClass, labelClass, valueClass }) {
   return (
     <div className={`text-center rounded-xl px-2 py-1 border shadow-sm ${containerClass}`}>
-      <p className={`text-lg leading-none tabular-nums ${valueClass}`}>
+      <p className={`text-xl leading-none tabular-nums ${valueClass}`}>
         {String(value).padStart(2, '0')}
       </p>
-      <p className={`text-[8px] font-black uppercase tracking-wider mt-0.5 ${labelClass}`}>{label}</p>
+      <p className={`text-[10px] font-black tracking-wide mt-0.5 ${labelClass}`}>{label}</p>
     </div>
   );
 }

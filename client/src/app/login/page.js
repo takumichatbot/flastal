@@ -143,7 +143,7 @@ function LoginForm() {
             <img src="/icon-512x512.png" alt="FLASTAL" width={56} height={56} style={{ borderRadius: '14px', boxShadow: '0 4px 20px rgba(0,0,0,0.25)' }} />
           </div>
           <h1 className="text-3xl font-black text-white tracking-tight">FLASTAL</h1>
-          <p className="text-pink-100 text-xs font-bold mt-0.5 tracking-wider">推しへの想いを、花束に</p>
+          <p className="text-pink-100 text-xs font-bold mt-0.5 tracking-wider">推しへの想いを、花束に込めて。</p>
         </motion.div>
 
         {/* 波形 */}
@@ -164,7 +164,7 @@ function LoginForm() {
       >
         <div className="mb-4">
           <h2 className="text-xl font-black text-slate-800">おかえりなさい</h2>
-          <p className="text-slate-400 text-xs mt-0.5 font-medium">ログインして推し活を続けよう</p>
+          <p className="text-slate-400 text-xs mt-0.5 font-medium">メールアドレスとパスワードでログイン</p>
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-3 flex-1">

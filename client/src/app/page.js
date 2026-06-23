@@ -130,7 +130,7 @@ const ButterflyParticle = ({ delay = 0, x = "0%", y = "0%", scale = 1, color = "
 const BACKGROUND_BUTTERFLIES = [
   { x: "8%",  y: "12%", delay: 0,   scale: 0.7,  color: "text-pink-200"  },
   { x: "22%", y: "58%", delay: 1.5, scale: 0.5,  color: "text-rose-200"   },
-  { x: "55%", y: "22%", delay: 2.8, scale: 0.9,  color: "text-amber-200" },
+  { x: "55%", y: "22%", delay: 2.8, scale: 0.9,  color: "text-rose-200"  },
   { x: "71%", y: "68%", delay: 0.7, scale: 0.6,  color: "text-rose-200"  },
   { x: "86%", y: "38%", delay: 2.0, scale: 0.8,  color: "text-pink-200"  },
   { x: "40%", y: "82%", delay: 4.0, scale: 0.5,  color: "text-rose-200"   },
@@ -265,7 +265,7 @@ const SoftBackground = () => {
   return (
     <div className="fixed inset-0 overflow-hidden pointer-events-none z-0 bg-pink-50/10">
       <motion.div style={{ y: y1 }} className="absolute -top-[10%] -left-[5%] w-[90vw] h-[90vw] md:w-[70vw] md:h-[70vw] rounded-full bg-pink-100/60 blur-[100px]" />
-      <motion.div style={{ y: y2 }} className="absolute top-[40%] -right-[10%] w-[70vw] h-[70vw] md:w-[50vw] md:h-[50vw] rounded-full bg-amber-50/60 blur-[80px]" />
+      <motion.div style={{ y: y2 }} className="absolute top-[40%] -right-[10%] w-[70vw] h-[70vw] md:w-[50vw] md:h-[50vw] rounded-full bg-rose-100/40 blur-[80px]" />
       {BACKGROUND_BUTTERFLIES.map((bf, i) => (
         <ButterflyParticle key={`bf-${i}`} {...bf} />
       ))}
@@ -363,10 +363,10 @@ const Hero = () => {
                   transition={{ duration: 0.8, delay: 0.5, type: "spring", bounce: 0.4 }}
                   className="w-28 h-32 bg-white p-2 pb-6 rounded-xl shadow-xl border border-slate-100 shrink-0"
                 >
-                  <div className="w-full h-full bg-amber-50 rounded-lg flex items-center justify-center border border-amber-100">
+                  <div className="w-full h-full bg-pink-50 rounded-lg flex items-center justify-center border border-pink-100">
                     <span className="text-4xl">🌟</span>
                   </div>
-                  <p className="font-calligraphy text-center mt-2 text-amber-400 text-[10px]">Congratulations</p>
+                  <p className="font-calligraphy text-center mt-2 text-pink-400 text-[10px]">Congratulations</p>
                 </motion.div>
               </div>
             </Reveal>
@@ -400,13 +400,13 @@ const Hero = () => {
             <Reveal delay={0.36}>
               <div className="flex items-center gap-4 mt-6 text-slate-400">
                 <span className="flex items-center gap-1.5 text-xs font-bold">
-                  <CheckCircle2 size={13} className="text-emerald-400" /> 完全無料で参加
+                  <CheckCircle2 size={13} className="text-pink-400" /> 完全無料で参加
                 </span>
                 <span className="flex items-center gap-1.5 text-xs font-bold">
-                  <CheckCircle2 size={13} className="text-emerald-400" /> 匿名で安心
+                  <CheckCircle2 size={13} className="text-pink-400" /> 匿名で安心
                 </span>
                 <span className="flex items-center gap-1.5 text-xs font-bold">
-                  <CheckCircle2 size={13} className="text-emerald-400" /> 最短1日で開始
+                  <CheckCircle2 size={13} className="text-pink-400" /> 最短1日で開始
                 </span>
               </div>
             </Reveal>
@@ -477,14 +477,14 @@ const Hero = () => {
                   initial={{ opacity: 0, y: 30 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.8, delay: 0.4, type: "spring", bounce: 0.35 }}
-                  className="w-64 h-24 bg-gradient-to-r from-amber-50 to-orange-50 rounded-2xl shadow-lg border border-amber-100 flex items-center p-4 cursor-pointer self-start"
+                  className="w-64 h-24 bg-gradient-to-r from-pink-50 to-rose-50 rounded-2xl shadow-lg border border-pink-100 flex items-center p-4 cursor-pointer self-start"
                   whileHover={{ scale: 1.04, y: -4 }}
                 >
-                  <div className="border-r-2 border-dashed border-amber-200 pr-4 mr-4">
-                    <Ticket className="text-amber-400" size={28} />
+                  <div className="border-r-2 border-dashed border-pink-200 pr-4 mr-4">
+                    <Ticket className="text-pink-400" size={28} />
                   </div>
                   <div>
-                    <p className="text-[10px] font-black tracking-widest uppercase text-amber-400 mb-0.5">Live Event</p>
+                    <p className="text-[10px] font-black tracking-widest uppercase text-pink-400 mb-0.5">Live Event</p>
                     <p className="font-black text-slate-800 text-sm">フラスタ受付完了 🎉</p>
                   </div>
                 </motion.div>
@@ -527,13 +527,13 @@ const InfiniteMarquee = () => {
 // ==========================================
 const HowItWorks = () => {
   const steps = [
-    { num: "01", title: "企画ページをつくる", desc: "イベントの日程や会場、贈りたいお花のイメージを入力してページを公開します。", icon: PenTool, color: "text-amber-700", bg: "bg-amber-50", iconBg: "bg-amber-100", iconColor: "text-amber-700" },
+    { num: "01", title: "企画ページをつくる", desc: "イベントの日程や会場、贈りたいお花のイメージを入力してページを公開します。", icon: PenTool, color: "text-pink-600", bg: "bg-pink-50", iconBg: "bg-pink-100", iconColor: "text-pink-600" },
     { num: "02", title: "SNSでシェアして集金", desc: "みんなでお金を出し合います。クレジットカード対応で、面倒な口座管理は不要です。", icon: Heart, color: "text-pink-500", bg: "bg-pink-50", iconBg: "bg-pink-500", iconColor: "text-white" },
     { num: "03", title: "お花屋さんがお届け", desc: "目標達成後、提携のプロのお花屋さんが制作し、直接会場へお届けします。", icon: Gift, color: "text-rose-500", bg: "bg-rose-50", iconBg: "bg-rose-500", iconColor: "text-white" },
   ];
 
   return (
-    <section className="py-14 md:py-24 bg-white relative z-10">
+    <section className="py-16 md:py-24 bg-white relative z-10">
       <div className="container mx-auto px-4 sm:px-5 md:px-6 max-w-5xl">
 
         <div className="text-center mb-10 md:mb-16">
@@ -573,7 +573,7 @@ const HowItWorks = () => {
 
         {/* ===== はじめての方へ：4ステップフロー ===== */}
         <Reveal delay={0.2}>
-          <div className="mb-10 md:mb-16 bg-gradient-to-br from-rose-50 via-pink-50 to-amber-50 rounded-3xl border border-pink-100 p-6 md:p-10">
+          <div className="mb-10 md:mb-16 bg-gradient-to-br from-rose-50 via-pink-50 to-rose-50/50 rounded-3xl border border-pink-100 p-6 md:p-10">
             <div className="text-center mb-6">
               <span className="text-xs font-black tracking-[0.25em] text-rose-400 uppercase bg-white/80 px-4 py-1.5 rounded-full inline-block mb-3">はじめての方へ</span>
               <h3 className="text-xl md:text-2xl font-black text-slate-800 tracking-tighter">支援から会場到着まで</h3>
@@ -620,7 +620,7 @@ const HowItWorks = () => {
             <div className="relative z-10 p-6 md:p-10 flex flex-col md:flex-row items-center justify-between gap-5">
               <div className="text-center md:text-left">
                 <p className="text-xs font-black tracking-widest text-pink-400 uppercase mb-2">Guide</p>
-                <h3 className="text-xl md:text-2xl font-black text-slate-800 mb-1.5">はじめての方へ 🌸</h3>
+                <h3 className="text-xl md:text-2xl font-black text-slate-800 mb-1.5">はじめての方へ</h3>
                 <p className="text-slate-500 font-medium text-sm leading-relaxed">
                   企画の立て方からフラスタが届くまで、わかりやすく解説しています！
                 </p>
@@ -668,7 +668,7 @@ const TrendingProjects = () => {
   }, []);
 
   return (
-    <section className="py-14 md:py-24 bg-violet-50/30 relative z-10 border-t border-slate-100/60">
+    <section className="py-16 md:py-24 bg-rose-50/20 relative z-10 border-t border-slate-100/60">
       <div className="container mx-auto px-4 md:px-6 max-w-6xl">
 
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-8 md:mb-12 gap-4">
@@ -704,7 +704,7 @@ const TrendingProjects = () => {
               const percent = Math.min(Math.round(((project?.collectedAmount || 0) / (project?.targetAmount || 1)) * 100), 100);
               const isSuccess = percent >= 100 || project?.status === 'SUCCESSFUL' || project?.status === 'COMPLETED';
               const badgeLabel = project?.status === 'COMPLETED' ? '完了' : isSuccess ? '達成!' : '募集中';
-              const badgeColor = project?.status === 'COMPLETED' ? 'bg-purple-500' : isSuccess ? 'bg-emerald-500' : 'bg-pink-500';
+              const badgeColor = project?.status === 'COMPLETED' ? 'bg-rose-600' : isSuccess ? 'bg-rose-500' : 'bg-pink-500';
 
               return (
                 <Reveal key={project?.id || i} delay={i * 0.08}>
@@ -734,14 +734,14 @@ const TrendingProjects = () => {
                       <div className="mt-auto">
                         <div className="flex justify-between items-center mb-1.5">
                           <p className="text-xs font-black text-slate-700">¥{(project?.collectedAmount || 0).toLocaleString()}</p>
-                          <span className={cn("text-sm font-black", isSuccess ? "text-emerald-500" : "text-pink-500")}>{percent}%</span>
+                          <span className={cn("text-sm font-black", isSuccess ? "text-rose-500" : "text-pink-500")}>{percent}%</span>
                         </div>
                         <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
                           <motion.div
                             initial={{ width: 0 }}
                             whileInView={{ width: `${percent}%` }}
                             transition={{ duration: 1.2, delay: 0.3, ease: "easeOut" }}
-                            className={cn("h-full rounded-full", isSuccess ? "bg-emerald-400" : "bg-gradient-to-r from-pink-400 to-rose-400")}
+                            className={cn("h-full rounded-full", isSuccess ? "bg-gradient-to-r from-rose-400 to-rose-500" : "bg-gradient-to-r from-pink-400 to-rose-400")}
                           />
                         </div>
                       </div>
@@ -758,7 +758,7 @@ const TrendingProjects = () => {
         )}
 
         <Link href="/projects" className="sm:hidden flex justify-center mt-5">
-          <button className="w-full px-6 py-3.5 rounded-2xl border border-slate-200 text-sm font-black text-slate-600 bg-white shadow-sm active:opacity-70 transition-opacity">
+          <button className="w-full px-6 py-3.5 rounded-full border border-slate-200 text-sm font-black text-slate-600 bg-white shadow-sm active:opacity-70 transition-opacity">
             すべての企画を見る
           </button>
         </Link>
@@ -792,11 +792,11 @@ const PersonalizedFeed = () => {
   if (!isAuthenticated || (!loading && projects.length === 0 && !fetchError)) return null;
 
   return (
-    <section className="py-14 md:py-20 bg-gradient-to-br from-violet-50 via-purple-50 to-pink-50 relative z-10 border-t border-violet-100/60">
+    <section className="py-16 md:py-24 bg-gradient-to-br from-pink-50/60 via-rose-50/40 to-pink-50/20 relative z-10 border-t border-pink-100/40">
       <div className="container mx-auto px-4 md:px-6 max-w-6xl">
         <Reveal>
           <div className="flex items-center gap-2 mb-2">
-            <span className="inline-flex items-center gap-1.5 text-xs font-black tracking-[0.25em] text-violet-500 uppercase bg-violet-100 px-4 py-1.5 rounded-full">
+            <span className="inline-flex items-center gap-1.5 text-xs font-black tracking-[0.25em] text-pink-500 uppercase bg-pink-100 px-4 py-1.5 rounded-full">
               <Wand2 size={11} /> AI おすすめ
             </span>
           </div>
@@ -805,9 +805,9 @@ const PersonalizedFeed = () => {
         </Reveal>
 
         {loading ? (
-          <div className="flex justify-center py-16"><Loader2 className="w-8 h-8 text-violet-400 animate-spin" /></div>
+          <div className="flex justify-center py-16"><Loader2 className="w-8 h-8 text-pink-400 animate-spin" /></div>
         ) : fetchError ? (
-          <div className="text-center py-12 text-slate-400 font-bold bg-white/60 rounded-3xl border border-violet-100 mt-8">
+          <div className="text-center py-12 text-slate-400 font-bold bg-white/60 rounded-3xl border border-pink-100 mt-8">
             データの取得に失敗しました。しばらくしてからページを再読み込みしてください。
           </div>
         ) : (
@@ -818,19 +818,19 @@ const PersonalizedFeed = () => {
                 <Reveal key={project.id} delay={i * 0.07}>
                   <div
                     onClick={() => router.push(`/projects/${project.id}`)}
-                    className="bg-white rounded-3xl overflow-hidden shadow-sm border border-violet-100 hover:shadow-md hover:-translate-y-1 transition-all cursor-pointer group"
+                    className="bg-white rounded-3xl overflow-hidden shadow-sm border border-pink-100 hover:shadow-md hover:-translate-y-1 transition-all cursor-pointer group"
                   >
-                    <div className="aspect-square bg-gradient-to-br from-violet-100 to-pink-100 relative overflow-hidden">
+                    <div className="aspect-square bg-gradient-to-br from-pink-50 to-rose-50 relative overflow-hidden">
                       {project.coverImageUrl
                         ? <Image src={project.coverImageUrl} alt={project.title} fill sizes="(max-width: 640px) 50vw, 25vw" className="object-cover group-hover:scale-105 transition-transform duration-500" />
-                        : <div className="w-full h-full flex items-center justify-center text-violet-300"><Heart size={40} /></div>
+                        : <div className="w-full h-full flex items-center justify-center text-pink-200"><Heart size={40} /></div>
                       }
-                      <div className="absolute top-2 right-2 bg-violet-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full">{percent}%</div>
+                      <div className="absolute top-2 right-2 bg-pink-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full">{percent}%</div>
                     </div>
                     <div className="p-3">
                       <p className="text-xs font-black text-slate-800 line-clamp-2 leading-snug mb-2">{project.title}</p>
-                      <div className="w-full h-1.5 bg-violet-100 rounded-full overflow-hidden">
-                        <div className="h-full bg-gradient-to-r from-violet-400 to-pink-400 rounded-full transition-all" style={{ width: `${percent}%` }} />
+                      <div className="w-full h-1.5 bg-pink-50 rounded-full overflow-hidden">
+                        <div className="h-full bg-gradient-to-r from-pink-400 to-rose-400 rounded-full transition-all" style={{ width: `${percent}%` }} />
                       </div>
                     </div>
                   </div>
@@ -854,11 +854,11 @@ const BentoFeatures = () => {
       desc: "クレジットカードで自動集金。個人の口座を晒したり、入金確認に追われるストレスをゼロに。",
       span: "col-span-1 md:col-span-2",
       icon: Shield,
-      gradient: "from-emerald-50 to-teal-50",
-      border: "border-emerald-100",
-      iconColor: "text-emerald-500",
-      iconBg: "bg-emerald-100",
-      textColor: "text-emerald-700",
+      gradient: "from-pink-50 to-rose-50",
+      border: "border-pink-100",
+      iconColor: "text-pink-500",
+      iconBg: "bg-pink-100",
+      textColor: "text-pink-700",
     },
     {
       title: "完全匿名で安心参加",
@@ -876,16 +876,16 @@ const BentoFeatures = () => {
       desc: "フラスタ専門のお花屋さんや絵師さんをサイト内で指名・公募できます。",
       span: "col-span-1",
       icon: PenTool,
-      gradient: "from-amber-50 to-orange-50",
-      border: "border-amber-100",
-      iconColor: "text-amber-700",
-      iconBg: "bg-amber-100",
-      textColor: "text-amber-700",
+      gradient: "from-rose-50 to-pink-50",
+      border: "border-rose-100",
+      iconColor: "text-rose-500",
+      iconBg: "bg-rose-100",
+      textColor: "text-rose-700",
     },
   ];
 
   return (
-    <section className="py-14 md:py-24 bg-white relative z-10 border-t border-slate-100/60">
+    <section className="py-16 md:py-24 bg-white relative z-10 border-t border-slate-100/60">
       <div className="container mx-auto px-4 sm:px-5 md:px-6 max-w-5xl">
         <div className="mb-10 md:mb-16 text-center">
           <Reveal>
@@ -927,7 +927,7 @@ const BentoFeatures = () => {
 // ==========================================
 const CategoryGrid = () => {
   return (
-    <section className="py-14 md:py-24 bg-violet-50/30 relative z-10 border-t border-slate-100/60">
+    <section className="py-16 md:py-24 bg-rose-50/20 relative z-10 border-t border-slate-100/60">
       <div className="container mx-auto px-4 sm:px-5 md:px-6 max-w-5xl">
         <div className="text-center mb-8 md:mb-12">
           <Reveal>
@@ -985,7 +985,7 @@ const LaruSeoEmbed = () => {
 };
 
 const ArticlesSection = () => (
-  <section className="py-14 md:py-24 bg-white relative z-10 border-t border-slate-100/60">
+  <section className="py-16 md:py-24 bg-white relative z-10 border-t border-slate-100/60">
     <div className="container mx-auto px-4 md:px-6 max-w-5xl">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-8 gap-4">
         <Reveal>
@@ -996,7 +996,7 @@ const ArticlesSection = () => (
           <motion.button
             whileHover={{ scale: 1.04 }}
             whileTap={{ scale: 0.97 }}
-            className="px-5 py-2.5 rounded-full border border-slate-200 text-xs font-black text-slate-600 bg-white shadow-sm flex items-center gap-2 shrink-0"
+            className="px-5 py-2.5 rounded-full border border-slate-200 text-sm font-black text-slate-600 bg-white shadow-sm flex items-center gap-2 shrink-0"
           >
             すべての記事 <ArrowRight size={13}/>
           </motion.button>
@@ -1044,7 +1044,7 @@ const SocialProof = () => {
   ];
 
   return (
-    <section className="py-14 md:py-24 bg-white relative z-10 border-t border-slate-100/60">
+    <section className="py-16 md:py-24 bg-white relative z-10 border-t border-slate-100/60">
       <div className="container mx-auto px-4 sm:px-5 md:px-6 max-w-5xl">
 
         {/* Stats */}
@@ -1060,8 +1060,8 @@ const SocialProof = () => {
                 <p className="text-3xl md:text-4xl font-black text-pink-500 tracking-tighter leading-none mb-1">
                   {s.numeric ? <CountUp end={s.end} suffix={s.suffix} /> : s.value}
                 </p>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2">{s.sub}</p>
-                <p className="text-sm font-black text-slate-700 mt-0.5">{s.label}</p>
+                <p className="text-sm font-black text-slate-700 mt-1.5">{s.label}</p>
+                <p className="text-[10px] font-medium text-slate-400 tracking-wide mt-0.5">{s.sub}</p>
               </motion.div>
             ))}
           </div>
@@ -1093,7 +1093,7 @@ const SocialProof = () => {
                   </div>
                 </div>
                 <p className="text-sm font-medium text-slate-600 leading-relaxed flex-1">"{t.text}"</p>
-                <div className="flex text-amber-400 gap-0.5 mt-4">
+                <div className="flex text-pink-400 gap-0.5 mt-4">
                   {[...Array(5)].map((_, j) => (
                     <svg key={j} width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                       <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
@@ -1145,8 +1145,8 @@ const FAQ = () => {
       a: '企画が達成（目標金額到達）する前であれば、マイページからキャンセルが可能です。達成後はお花屋さんへの発注が始まるため、原則としてキャンセルはお受けできません。',
     },
     {
-      q: '花屋はどうやって選ばれますか？',
-      a: 'プランナー（企画者）がFLASTALに登録済みの提携花屋の中から希望のお花屋さんを選び、直接交渉・見積もりの依頼を行います。都道府県やスタイルで絞り込んで探すことができます。',
+      q: '支援者の個人情報は他の人に見えますか？',
+      a: '支援者のハンドルネームのみが表示され、本名・住所・メールアドレスなどは他の参加者には一切公開されません。安心してご参加いただけます。',
     },
     {
       q: '最低支援金額はいくらですか？',
@@ -1155,7 +1155,7 @@ const FAQ = () => {
   ];
 
   return (
-    <section className="py-14 md:py-24 bg-violet-50/30 relative z-10 border-t border-slate-100/60">
+    <section className="py-16 md:py-24 bg-rose-50/20 relative z-10 border-t border-slate-100/60">
       <div className="container mx-auto px-4 md:px-6 max-w-3xl">
         <div className="text-center mb-8 md:mb-12">
           <Reveal>
@@ -1208,7 +1208,7 @@ const FAQ = () => {
 
         <Reveal delay={0.3}>
           <div className="mt-8 text-center">
-            <p className="text-sm text-slate-400 font-medium mb-3">他にご不明な点があれば</p>
+            <p className="text-sm text-slate-400 font-medium mb-3">他にご不明な点はお気軽にご連絡ください</p>
             <Link href="/contact">
               <motion.button
                 whileHover={{ scale: 1.03 }}
@@ -1240,13 +1240,13 @@ const GalleryHighlight = () => {
   if (!photos.length) return null;
 
   return (
-    <section className="py-14 md:py-20 bg-white relative z-10 border-t border-slate-100/60">
+    <section className="py-16 md:py-24 bg-white relative z-10 border-t border-slate-100/60">
       <div className="container mx-auto px-4 md:px-6 max-w-5xl">
         <Reveal>
           <div className="text-center mb-10">
-            <span className="text-xs font-black tracking-[0.25em] text-rose-400 uppercase bg-rose-50 px-4 py-1.5 rounded-full inline-block mb-4">Gallery</span>
-            <h2 className="text-2xl md:text-3xl font-black text-slate-900">みんなの達成フラスタ</h2>
-            <p className="text-slate-500 mt-2 text-sm">完成したフラスタを写真でシェア</p>
+            <span className="text-xs font-black tracking-[0.25em] text-pink-400 uppercase bg-pink-50 px-4 py-1.5 rounded-full inline-block mb-4">Gallery</span>
+            <h2 className="text-2xl md:text-4xl font-black text-slate-800 tracking-tighter mt-2">みんなの達成フラスタ</h2>
+            <p className="text-sm font-medium text-slate-400 mt-2">完成したフラスタの写真をチェックしよう</p>
           </div>
         </Reveal>
         <Reveal delay={0.1}>
@@ -1261,7 +1261,7 @@ const GalleryHighlight = () => {
             ))}
           </div>
           <div className="text-center mt-6">
-            <Link href="/gallery" className="inline-flex items-center gap-2 text-sm font-black text-rose-500 hover:text-rose-700 active:opacity-70 transition-colors transition-opacity">
+            <Link href="/gallery" className="inline-flex items-center gap-2 text-sm font-black text-pink-500 hover:text-pink-700 active:opacity-70 transition-colors">
               もっと見る <ArrowRight size={14} />
             </Link>
           </div>
@@ -1299,11 +1299,11 @@ const TrustBadges = () => {
   ];
 
   return (
-    <section className="py-14 md:py-20 bg-white relative z-10 border-t border-slate-100/60">
+    <section className="py-16 md:py-24 bg-white relative z-10 border-t border-slate-100/60">
       <div className="container mx-auto px-4 md:px-6 max-w-5xl">
         <div className="text-center mb-8 md:mb-12">
           <Reveal>
-            <span className="text-xs font-black tracking-[0.25em] text-emerald-500 uppercase bg-emerald-50 px-4 py-1.5 rounded-full inline-block mb-4">Security</span>
+            <span className="text-xs font-black tracking-[0.25em] text-pink-500 uppercase bg-pink-50 px-4 py-1.5 rounded-full inline-block mb-4">Security</span>
             <h2 className="text-2xl md:text-4xl font-black text-slate-800 tracking-tighter mt-2">安心・安全の理由</h2>
             <p className="text-sm font-medium text-slate-400 mt-2">FLASTALはセキュリティと品質にこだわってサービスを提供しています。</p>
           </Reveal>
@@ -1333,7 +1333,7 @@ const TrustBadges = () => {
 // 12. PARTNER CTA
 // ==========================================
 const PartnerCTA = () => (
-  <section className="py-14 md:py-24 bg-gradient-to-b from-pink-50 to-rose-50 relative z-10 overflow-hidden border-t border-pink-100/60">
+  <section className="py-16 md:py-24 bg-gradient-to-b from-pink-50 to-rose-50 relative z-10 overflow-hidden border-t border-pink-100/60">
     <div className="container mx-auto px-4 md:px-6 max-w-5xl relative z-10">
       <Reveal>
         <div className="text-center mb-8 md:mb-12">
@@ -1346,9 +1346,9 @@ const PartnerCTA = () => (
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {[
-            { href: "/venues/login",     title: "会場・ホールのご担当者様", desc: "搬入ルールの設定など",       icon: Building, color: "text-blue-500",    bg: "bg-blue-50" },
-            { href: "/organizers/login", title: "イベント主催者様",         desc: "お祝い花のルール周知",       icon: Ticket,   color: "text-amber-500",   bg: "bg-amber-50" },
-            { href: "/florists/login",   title: "お花屋さん",               desc: "フラスタの受注・納品報告",   icon: Store,    color: "text-emerald-500", bg: "bg-emerald-50" },
+            { href: "/venues/login",     title: "会場・ホールのご担当者様", desc: "搬入ルールの設定など",       icon: Building, color: "text-rose-500",    bg: "bg-rose-50" },
+            { href: "/organizers/login", title: "イベント主催者様",         desc: "お祝い花のルール周知",       icon: Ticket,   color: "text-pink-600",    bg: "bg-pink-50" },
+            { href: "/florists/login",   title: "お花屋さん",               desc: "フラスタの受注・納品報告",   icon: Store,    color: "text-rose-600",    bg: "bg-rose-50" },
             { href: "/illustrators/login", title: "クリエイター様",         desc: "イラストパネルの受注",       icon: PenTool,  color: "text-pink-500",    bg: "bg-pink-50" },
           ].map((role, i) => (
             <Link key={i} href={role.href} className="group">
@@ -1399,15 +1399,16 @@ const MainContent = () => {
       <div className="h-px bg-gradient-to-r from-transparent via-pink-200/40 to-transparent mx-4 md:mx-8" />
       {!user && (
         <div className="container mx-auto px-4 md:px-6 max-w-6xl relative z-10 py-8">
-          <section className="bg-gradient-to-br from-pink-50 to-violet-50 rounded-3xl p-6 mb-8 text-center">
-            <p className="text-2xl font-black text-slate-800 mb-2">🌸 推しへフラスタを贈ろう</p>
-            <p className="text-sm text-slate-500 mb-4">会員登録無料・支援のたびポイント獲得</p>
+          <section className="bg-gradient-to-br from-pink-50 to-rose-50 rounded-3xl p-8 mb-8 text-center border border-pink-100">
+            <span className="inline-block text-xs font-black tracking-[0.2em] text-pink-400 uppercase bg-white px-4 py-1.5 rounded-full mb-4 shadow-sm">はじめての方へ</span>
+            <p className="text-2xl font-black text-slate-800 mb-2 tracking-tight">推しへ、世界でひとつのフラスタを。</p>
+            <p className="text-sm text-slate-500 mb-6 font-medium">会員登録無料・支援のたびポイント獲得</p>
             <div className="flex gap-3 justify-center flex-wrap">
-              <a href="/auth/register" className="bg-pink-500 text-white font-black px-6 py-3 rounded-2xl hover:bg-pink-600 active:opacity-70 transition-colors shadow-lg shadow-pink-200">
+              <a href="/auth/register" className="bg-gradient-to-r from-pink-500 to-rose-500 text-white font-black px-7 py-3.5 rounded-2xl hover:opacity-90 active:opacity-70 transition-opacity shadow-lg shadow-pink-200">
                 無料で始める
               </a>
-              <a href="/auth/login" className="bg-white text-slate-700 font-semibold px-6 py-3 rounded-2xl border border-slate-200 hover:bg-slate-50 active:opacity-70 transition-colors">
-                ログイン
+              <a href="/auth/login" className="bg-white text-slate-700 font-black px-7 py-3.5 rounded-2xl border-2 border-slate-100 hover:border-pink-200 active:opacity-70 transition-colors">
+                ログインする
               </a>
             </div>
           </section>

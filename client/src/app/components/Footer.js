@@ -46,7 +46,7 @@ export default function Footer() {
             
             {/* SNSアイコン */}
             <div className="flex gap-4 mt-6">
-              <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center hover:bg-slate-800 hover:text-white hover:border-slate-700 transition-colors group shadow-sm">
+              <a href="https://x.com" target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center hover:bg-slate-800 hover:text-white hover:border-slate-700 transition-colors group shadow-sm">
                 {/* X Icon (SVG) */}
                 <svg viewBox="0 0 24 24" aria-hidden="true" className="w-4 h-4 fill-current"><g><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"></path></g></svg>
               </a>
@@ -65,18 +65,17 @@ export default function Footer() {
               <li><Link href="/artists" className="hover:text-white transition-colors">アーティスト</Link></li>
               <li><Link href="/gallery" className="hover:text-white transition-colors">達成ギャラリー</Link></li>
               <li><Link href="/florists" className="hover:text-white transition-colors">お花屋さんを探す</Link></li>
-              <li><Link href="/contact" className="hover:text-white transition-colors">お問い合わせ</Link></li>
             </ul>
           </div>
 
           <div>
             <h3 className="text-white font-bold mb-4">参加する</h3>
             <ul className="space-y-3">
-              <li><Link href="/register" className="hover:text-white transition-colors">ファン登録</Link></li>
-              <li><Link href="/referral" className="hover:text-white transition-colors">紹介プログラム</Link></li>
-              <li><Link href="/gift-cards" className="hover:text-white transition-colors">ギフトカード</Link></li>
+              <li><Link href="/register" className="hover:text-white transition-colors">ファン登録（無料）</Link></li>
               <li><Link href="/florists/register" className="hover:text-white transition-colors">お花屋さん登録</Link></li>
               <li><Link href="/venues/register" className="hover:text-white transition-colors">会場・運営登録</Link></li>
+              <li><Link href="/referral" className="hover:text-white transition-colors">紹介プログラム</Link></li>
+              <li><Link href="/gift-cards" className="hover:text-white transition-colors">ギフトカード</Link></li>
             </ul>
           </div>
 
@@ -84,10 +83,10 @@ export default function Footer() {
             <h3 className="text-white font-bold mb-4">FLASTALについて</h3>
             <ul className="space-y-3">
               <li><Link href="/about" className="hover:text-white transition-colors">運営会社</Link></li>
-              <li><Link href="/status" className="hover:text-white transition-colors">サービス稼働状況</Link></li>
+              <li><Link href="/contact" className="hover:text-white transition-colors">お問い合わせ</Link></li>
               <li><Link href="/terms" className="hover:text-white transition-colors">利用規約</Link></li>
               <li><Link href="/privacy" className="hover:text-white transition-colors">プライバシーポリシー</Link></li>
-              <li><Link href="/tokushoho" className="hover:text-white transition-colors">特定商取引法</Link></li>
+              <li><Link href="/tokushoho" className="hover:text-white transition-colors">特定商取引法に基づく表記</Link></li>
               <li><Link href="/legal/cancel" className="hover:text-white transition-colors">キャンセルポリシー</Link></li>
             </ul>
           </div>
@@ -100,15 +99,11 @@ export default function Footer() {
           </p>
           
           <div className="flex items-center gap-6">
-            <Link href="/admin">
-              <span className="text-[10px] text-slate-700 hover:text-slate-500 cursor-pointer transition-colors uppercase tracking-widest">Admin Portal</span>
-            </Link>
-            
-            <button 
-              onClick={scrollToTop} 
+            <button
+              onClick={scrollToTop}
               className="flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-white transition-colors"
             >
-              Page Top <ArrowUp size={14}/>
+              ページトップへ <ArrowUp size={14}/>
             </button>
           </div>
         </div>

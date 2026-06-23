@@ -119,7 +119,7 @@ export default function ProjectCard({ project }) {
 
           {/* コンテンツエリア (以下変更なし) */}
           <div className="p-5 flex flex-col flex-grow">
-            <h3 className="text-lg font-bold text-slate-800 mb-2 line-clamp-2 group-hover:text-pink-600 transition-colors">
+            <h3 className="text-base font-black text-slate-800 mb-2 line-clamp-2 group-hover:text-pink-600 transition-colors leading-snug">
               {project.title}
             </h3>
             
@@ -127,12 +127,12 @@ export default function ProjectCard({ project }) {
             
              <div className="flex flex-col gap-1 mb-4 text-xs text-slate-500">
                 <div className="flex items-center gap-1.5 truncate">
-                    <MapPin className="shrink-0 text-slate-400"/>
+                    <MapPin size={12} className="shrink-0 text-slate-400"/>
                     <span className="truncate">{project.deliveryAddress || '場所未定'}</span>
                 </div>
                 {project.deliveryDateTime && (
                     <div className="flex items-center gap-1.5 truncate">
-                        <Clock className="shrink-0 text-slate-400"/>
+                        <Clock size={12} className="shrink-0 text-slate-400"/>
                         <span>{new Date(project.deliveryDateTime).toLocaleDateString()} お届け</span>
                     </div>
                 )}
@@ -149,7 +149,7 @@ export default function ProjectCard({ project }) {
                         {Math.floor(rawPercentage)}<span className="text-sm font-bold text-slate-500 ml-0.5">%</span>
                     </span>
                     <span className="text-xs font-bold text-slate-400">
-                        あと {(targetAmount - collectedAmount).toLocaleString()}pt
+                        残り ¥{(targetAmount - collectedAmount).toLocaleString()}
                     </span>
                 </div>
                 
