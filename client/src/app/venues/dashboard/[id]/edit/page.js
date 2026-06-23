@@ -171,7 +171,7 @@ export default function VenueEditPage() {
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
               {formData.imageUrls.map((url, index) => (
                 <div key={index} className="relative aspect-square rounded-2xl overflow-hidden border-2 border-white shadow-sm group">
-                  <img src={url} alt={`Venue ${index}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                  <img src={url} alt={`Venue ${index}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform" loading="lazy" />
                   <button type="button" onClick={() => removeImage(index)} className="absolute top-2 right-2 p-2 bg-rose-500 text-white rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity hover:scale-110">
                     <X size={14} />
                   </button>

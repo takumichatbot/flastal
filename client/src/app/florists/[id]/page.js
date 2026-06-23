@@ -2,7 +2,7 @@ import FloristDetailClient from './FloristDetailClient';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
-export const revalidate = 120;
+export const revalidate = 60;
 
 export async function generateStaticParams() {
   try {

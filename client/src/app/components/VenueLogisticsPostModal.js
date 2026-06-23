@@ -203,10 +203,11 @@ export default function VenueLogisticsPostModal({ venueId, venueName, onClose, o
                             <div className="grid grid-cols-3 gap-3">
                                 {imageFiles.map((file, index) => (
                                     <div key={index} className="relative aspect-square group rounded-xl overflow-hidden border border-gray-200 shadow-sm">
-                                        <img 
-                                            src={URL.createObjectURL(file)} 
-                                            alt="preview" 
+                                        <img
+                                            src={URL.createObjectURL(file)}
+                                            alt="preview"
                                             className="w-full h-full object-cover"
+                                            loading="lazy"
                                         />
                                         <button 
                                             type="button" 

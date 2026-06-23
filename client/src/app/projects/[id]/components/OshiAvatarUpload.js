@@ -53,7 +53,7 @@ export default function OshiAvatarUpload({ projectId, onGenerated }) {
 
       {preview ? (
         <div className="relative w-20 h-20 rounded-xl overflow-hidden mb-3">
-          <img src={preview} alt="推し写真プレビュー" className="w-full h-full object-cover" />
+          <img src={preview} alt="推し写真プレビュー" className="w-full h-full object-cover" loading="lazy" />
           <button
             onClick={() => setPreview(null)}
             className="absolute top-1 right-1 bg-black/50 text-white rounded-full p-0.5 hover:bg-black/70 transition-colors"

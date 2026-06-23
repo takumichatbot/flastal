@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useAuth } from '../../contexts/AuthContext';
 import toast from 'react-hot-toast';
 import { 
@@ -377,7 +378,7 @@ export default function AdminProjectsPage() {
                                                     <div className="flex items-center gap-4">
                                                         <div className="w-12 h-12 rounded-xl bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center shrink-0 shadow-sm relative">
                                                             {p.imageUrl ? (
-                                                                <img src={p.imageUrl} alt="thumbnail" className="w-full h-full object-cover" />
+                                                                <Image src={p.imageUrl} alt="thumbnail" width={48} height={48} className="w-full h-full object-cover" />
                                                             ) : (
                                                                 <LayoutGrid className="text-slate-300" size={20} />
                                                             )}

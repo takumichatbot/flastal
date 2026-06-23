@@ -248,7 +248,7 @@ const BudgetReferenceManager = () => {
                             <label className="relative w-full sm:w-64 aspect-video sm:aspect-square bg-slate-50 border-2 border-dashed border-slate-300 hover:border-sky-400 hover:bg-sky-50 rounded-2xl overflow-hidden group cursor-pointer transition-all flex flex-col items-center justify-center text-slate-400 hover:text-sky-500 shadow-sm">
                                 {formData.imageUrl ? (
                                     <>
-                                        <img src={formData.imageUrl} alt="プレビュー" className="w-full h-full object-cover" />
+                                        <img src={formData.imageUrl} alt="プレビュー" className="w-full h-full object-cover" loading="lazy" />
                                         <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
                                             <p className="text-white font-black text-xs flex items-center gap-1"><Edit3 size={14}/> 画像を変更</p>
                                         </div>
@@ -303,7 +303,7 @@ const BudgetReferenceManager = () => {
                         {references.map(ref => (
                             <div key={ref.id} className={cn("bg-white border rounded-[1.5rem] overflow-hidden flex flex-col group transition-all hover:shadow-md", !ref.isActive && "opacity-60", formData.priceRange === ref.priceRange && isEditing && "ring-2 ring-sky-500 border-sky-500")}>
                                 <div className="relative w-full h-40 bg-slate-100 overflow-hidden">
-                                    <img src={ref.imageUrl} alt={ref.label} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                                    <img src={ref.imageUrl} alt={ref.label} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
                                     {!ref.isActive && (
                                         <div className="absolute top-3 left-3 bg-slate-900/80 text-white text-[10px] font-black px-2.5 py-1 rounded-full backdrop-blur-sm">
                                             非公開

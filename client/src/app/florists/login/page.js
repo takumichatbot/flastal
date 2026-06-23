@@ -55,7 +55,7 @@ export default function FloristLoginPage() {
       if (success) {
         toast.success('おかえりなさい！');
         setTimeout(() => {
-          window.location.href = '/florists/dashboard';
+          router.push('/florists/dashboard');
         }, 300);
       } else {
         throw new Error('認証情報の処理に失敗しました');

@@ -14,8 +14,8 @@ export default function OfflineBanner() {
 
   return (
     <div
-      role="status"
-      aria-live="polite"
+      role="alert"
+      aria-live="assertive"
       className="fixed top-0 left-0 right-0 z-[200] bg-amber-500 text-white text-center py-2 text-sm font-medium shadow-md"
     >
       オフラインです。接続を確認してください。

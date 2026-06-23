@@ -262,7 +262,7 @@ function EditEventContent() {
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 md:gap-6 mb-2">
                           {imageUrls.map((url, idx) => (
                               <div key={idx} className="relative aspect-video rounded-2xl overflow-hidden shadow-sm group border-2 border-white">
-                                  <img src={url} className="w-full h-full object-cover" alt="Preview" />
+                                  <img src={url} className="w-full h-full object-cover" alt="Preview" loading="lazy" />
                                   <button type="button" onClick={() => removeImage(idx)} className="absolute top-2 right-2 p-2 bg-rose-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-all shadow-md hover:scale-110"><X size={14} /></button>
                                   {idx === 0 && <div className="absolute bottom-0 left-0 right-0 bg-indigo-500/90 backdrop-blur-sm text-white text-[10px] text-center py-1 font-black uppercase tracking-widest">Cover</div>}
                               </div>

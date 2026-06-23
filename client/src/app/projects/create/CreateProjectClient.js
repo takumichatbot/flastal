@@ -772,7 +772,7 @@ function CreateProjectForm() {
       toast.success('企画を作成しました！', { id: tid });
       await triggerHaptic('success');
       try { localStorage.removeItem(DRAFT_KEY); } catch {}
-      setTimeout(() => { window.location.href = '/mypage'; }, 1000);
+      setTimeout(() => { router.push('/mypage'); }, 1000);
     } catch (error) {
       setIsSubmitting(false);
       toast.error(error.message || '作成に失敗しました。もう一度お試しください。', { id: tid });
@@ -968,7 +968,7 @@ function CreateProjectForm() {
                 {budgetRefs.map(ref => (
                   <div key={ref.id} className="snap-start shrink-0 w-44 border-2 border-slate-100 rounded-[1.5rem] overflow-hidden bg-white hover:border-pink-300 transition-all">
                     <div className="relative h-28 w-full bg-slate-100 overflow-hidden">
-                      <img src={ref.imageUrl} alt={ref.label} className="w-full h-full object-cover" />
+                      <Image src={ref.imageUrl} alt={ref.label} fill className="object-cover" />
                     </div>
                     <div className="p-3 text-center">
                       <h4 className="font-black text-slate-800 text-sm mb-1">{ref.label}</h4>

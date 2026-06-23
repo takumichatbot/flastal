@@ -37,7 +37,7 @@ function IssueForm({ token, onIssued }) {
         <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-4">
             <h2 className="text-base font-black text-slate-800 flex items-center gap-2"><Plus size={16} className="text-pink-500" /> ギフトカード発行</h2>
             <div>
-                <label className="text-xs font-bold text-slate-500 block mb-1">ポイント数</label>
+                <label htmlFor="issue-points" className="text-xs font-bold text-slate-500 block mb-1">ポイント数</label>
                 <div className="flex gap-2 flex-wrap mb-2">
                     {[500, 1000, 3000, 5000, 10000].map(p => (
                         <button type="button" key={p} onClick={() => setPoints(p)}
@@ -46,12 +46,12 @@ function IssueForm({ token, onIssued }) {
                         </button>
                     ))}
                 </div>
-                <input type="number" value={points} onChange={e => setPoints(e.target.value)} min={100} max={100000}
+                <input id="issue-points" type="number" value={points} onChange={e => setPoints(e.target.value)} min={100} max={100000}
                     className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm font-medium outline-none focus:ring-2 focus:ring-pink-300" />
             </div>
             <div>
-                <label className="text-xs font-bold text-slate-500 block mb-1">メッセージ（任意）</label>
-                <textarea value={message} onChange={e => setMessage(e.target.value)} rows={2} placeholder="お世話になっています！"
+                <label htmlFor="issue-message" className="text-xs font-bold text-slate-500 block mb-1">メッセージ（任意）</label>
+                <textarea id="issue-message" value={message} onChange={e => setMessage(e.target.value)} rows={2} placeholder="お世話になっています！"
                     className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-pink-300 resize-none" />
             </div>
             <button type="submit" disabled={loading}
@@ -95,8 +95,8 @@ function RedeemForm({ token, onRedeemed }) {
         <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-4">
             <h2 className="text-base font-black text-slate-800 flex items-center gap-2"><Tag size={16} className="text-emerald-500" /> ギフトカードを使用</h2>
             <div>
-                <label className="text-xs font-bold text-slate-500 block mb-1">ギフトカードコード</label>
-                <input value={code} onChange={e => setCode(e.target.value.toUpperCase())}
+                <label htmlFor="redeem-code" className="text-xs font-bold text-slate-500 block mb-1">ギフトカードコード</label>
+                <input id="redeem-code" value={code} onChange={e => setCode(e.target.value.toUpperCase())}
                     placeholder="FLST-XXXX-XXXX"
                     className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm font-mono outline-none focus:ring-2 focus:ring-emerald-300" />
             </div>

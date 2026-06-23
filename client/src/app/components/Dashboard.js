@@ -1,6 +1,7 @@
 'use client';
 import { useAuth } from '@/app/contexts/AuthContext';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { Plus, Search, CreditCard, Award, Heart, Clock, ChevronRight, User } from 'lucide-react';
@@ -183,8 +184,7 @@ export default function Dashboard() {
             <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 text-center">
                 <div className="w-20 h-20 bg-slate-100 rounded-full mx-auto mb-4 flex items-center justify-center text-slate-300 overflow-hidden">
                     {user.iconUrl ? (
-                        /* eslint-disable-next-line @next/next/no-img-element */
-                        <img src={user.iconUrl} alt={`${user.handleName}のアイコン`} className="w-full h-full object-cover" />
+                        <Image src={user.iconUrl} alt={`${user.handleName}のアイコン`} width={80} height={80} className="w-full h-full object-cover" />
                     ) : (
                         <User size={40} />
                     )}

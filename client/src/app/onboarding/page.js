@@ -216,7 +216,7 @@ export default function OnboardingPage() {
             >
               <div className={`w-28 h-28 rounded-[2.5rem] ${slide.iconBg} flex items-center justify-center border border-white/20 shadow-xl backdrop-blur-md`}>
                 {slide.useLogo ? (
-                  <img src="/icon-512x512.png" alt="FLASTAL" width={76} height={76} style={{ borderRadius: '18px' }} />
+                  <img src="/icon-512x512.png" alt="FLASTAL" width={76} height={76} style={{ borderRadius: '18px' }} loading="lazy" />
                 ) : (
                   <Icon size={52} className="text-white" strokeWidth={1.5} />
                 )}

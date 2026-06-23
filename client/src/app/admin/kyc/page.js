@@ -130,7 +130,7 @@ export default function AdminKycPage() {
                                             <a
                                                 href={u.kycDocumentUrl}
                                                 target="_blank"
-                                                rel="noreferrer"
+                                                rel="noopener noreferrer"
                                                 className="inline-flex items-center gap-1 text-xs font-bold text-sky-500 hover:text-sky-700 mt-1"
                                             >
                                                 <ExternalLink size={12} /> 書類を確認

@@ -24,7 +24,7 @@ function ProjectCard({ project }) {
       <div className="h-40 bg-slate-100 relative overflow-hidden">
         {project.imageUrl ? (
           /* eslint-disable-next-line @next/next/no-img-element */
-          <img src={project.imageUrl} alt={project.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+          <img src={project.imageUrl} alt={project.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-slate-300 bg-slate-50">No Image</div>
         )}
@@ -37,7 +37,7 @@ function ProjectCard({ project }) {
         <div className="flex items-center gap-2 text-xs text-slate-500 mb-3">
           {project.planner?.iconUrl ? (
             /* eslint-disable-next-line @next/next/no-img-element */
-            <img src={project.planner.iconUrl} alt="planner" className="w-4 h-4 rounded-full object-cover" />
+            <img src={project.planner.iconUrl} alt="planner" className="w-4 h-4 rounded-full object-cover" loading="lazy" />
           ) : (
             <span className="w-4 h-4 rounded-full bg-slate-200 block shrink-0" />
           )}

@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic';
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useAuth } from '@/app/contexts/AuthContext';
 import toast from 'react-hot-toast';
 import { RefreshCw, Package, ChevronLeft, AlertCircle, CheckCircle2, Clock } from 'lucide-react';
@@ -186,8 +187,7 @@ function SubscriptionCard({ sub, onCancel, cancelling }) {
       {/* 商品画像 */}
       <div className="w-16 h-16 rounded-xl bg-slate-100 overflow-hidden shrink-0 flex items-center justify-center text-2xl">
         {sub.product.images?.[0] ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={sub.product.images[0]} alt={sub.product.name} className="w-full h-full object-cover" />
+          <Image src={sub.product.images[0]} alt={sub.product.name} width={64} height={64} className="w-full h-full object-cover" unoptimized />
         ) : (
           sub.product.category?.emoji || '🌸'
         )}

@@ -372,7 +372,7 @@ export default function AdminUsersPage() {
                                                     <div className="flex items-center gap-4">
                                                         <div className="relative w-10 h-10 rounded-full bg-white border border-slate-200 overflow-hidden flex items-center justify-center shrink-0 shadow-sm">
                                                             {u.iconUrl ? (
-                                                                <img src={u.iconUrl} alt="icon" className="w-full h-full object-cover" />
+                                                                <img src={u.iconUrl} alt="icon" className="w-full h-full object-cover" loading="lazy" />
                                                             ) : (
                                                                 <User className="text-slate-400" size={20} />
                                                             )}

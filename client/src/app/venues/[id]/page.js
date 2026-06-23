@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useAuth } from '../../contexts/AuthContext';
 
 // 修正後 (User, Camera を追加):
@@ -205,14 +206,14 @@ export default function VenueDetailPage() {
                       <Link key={project.id} href={`/projects/${project.id}`} className="group bg-white rounded-[2rem] border border-slate-100 overflow-hidden hover:shadow-[0_10px_30px_rgba(0,0,0,0.05)] hover:border-sky-200 transition-all duration-500 hover:-translate-y-1 h-full flex flex-col">
                         <div className="h-40 md:h-48 bg-slate-100 relative overflow-hidden shrink-0 border-b border-slate-50">
                           {project.imageUrl ? (
-                            <img src={project.imageUrl} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt={project.title}/>
+                            <Image src={project.imageUrl} fill className="object-cover group-hover:scale-105 transition-transform duration-700" alt={project.title}/>
                           ) : (
                             <div className="w-full h-full flex items-center justify-center text-slate-300 bg-slate-50"><ImageIcon size={32}/></div>
                           )}
                           <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 to-transparent" />
                           <div className="absolute bottom-4 left-4 flex items-center gap-2">
                             {project.planner?.iconUrl ? (
-                                <img src={project.planner.iconUrl} alt="" className="w-6 h-6 rounded-full border border-white/50 object-cover" />
+                                <img src={project.planner.iconUrl} alt="" className="w-6 h-6 rounded-full border border-white/50 object-cover" loading="lazy" />
                             ) : (
                                 <div className="w-6 h-6 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm border border-white/50"><User size={12} className="text-white"/></div>
                             )}

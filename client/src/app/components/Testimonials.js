@@ -127,7 +127,7 @@ export default function Testimonials() {
                     <div className="flex items-center gap-3 mb-3">
                         {review.user.iconUrl ? (
                             // eslint-disable-next-line @next/next/no-img-element
-                            <img src={review.user.iconUrl} alt="" className="w-10 h-10 rounded-full object-cover border border-slate-200" />
+                            <img src={review.user.iconUrl} alt="" className="w-10 h-10 rounded-full object-cover border border-slate-200" loading="lazy" />
                         ) : (
                             <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
                                 <User />

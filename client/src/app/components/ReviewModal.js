@@ -133,7 +133,7 @@ export default function ReviewModal({ project, user, onClose, onReviewSubmitted 
             {/* 1. レビュー対象 */}
             <div className="flex items-center gap-3 mb-6 bg-gray-50 p-3 rounded-lg border border-gray-100">
                 <div className="w-10 h-10 rounded-full bg-pink-100 flex items-center justify-center text-pink-500 text-lg">
-                    {florist.iconUrl ? <img src={florist.iconUrl} className="w-full h-full rounded-full object-cover"/> : <User />}
+                    {florist.iconUrl ? <img src={florist.iconUrl} className="w-full h-full rounded-full object-cover" loading="lazy" /> : <User />}
                 </div>
                 <div>
                     <p className="text-xs text-gray-500 font-bold">担当フローリスト</p>

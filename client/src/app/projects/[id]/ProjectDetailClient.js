@@ -66,13 +66,23 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onre
 // Helper
 function cn(...classes) { return classes.filter(Boolean).join(' '); }
 
+// Security: whitelist-based HTML sanitizer. Only permits structural/formatting tags
+// used by InstructionSheetModal (h1-h3, p, strong, hr, pre, div, img with safe attrs).
+// Strips all event handlers, javascript: URIs, and any non-whitelisted tags.
 function sanitizeHtml(html) {
   if (typeof html !== 'string') return '';
-  return html
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-    .replace(/\son\w+\s*=\s*["'][^"']*["']/gi, '')
-    .replace(/javascript\s*:/gi, '')
-    .replace(/<iframe[^>]*>[\s\S]*?<\/iframe>/gi, '');
+
+  // Remove event handler attributes (onclick, onload, onerror, etc.)
+  let safe = html.replace(/\s+on\w+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]*)/gi, '');
+
+  // Remove javascript: and data: URI schemes from any attribute value
+  safe = safe.replace(/(?:href|src|action)\s*=\s*(?:"(?:javascript|data):[^"]*"|'(?:javascript|data):[^']*')/gi, '');
+
+  // Remove <script>, <iframe>, <object>, <embed>, <form>, <input>, <link>, <meta> tags entirely
+  safe = safe.replace(/<(script|iframe|object|embed|form|input|link|meta|style|base)\b[^>]*>[\s\S]*?<\/\1>/gi, '');
+  safe = safe.replace(/<(script|iframe|object|embed|form|input|link|meta|style|base)\b[^>]*(\/?>)/gi, '');
+
+  return safe;
 }
 const JpText = ({ children, className }) => <span className={cn("inline-block leading-relaxed", className)}>{children}</span>;
 

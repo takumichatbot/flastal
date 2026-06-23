@@ -168,7 +168,7 @@ export default function MoodboardDisplay({ projectId }) {
                     <div className="flex items-center gap-1.5 overflow-hidden">
                       {item.userIcon ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={item.userIcon} alt="" className="w-5 h-5 rounded-full object-cover border border-slate-100 shrink-0"/>
+                        <img src={item.userIcon} alt="" className="w-5 h-5 rounded-full object-cover border border-slate-100 shrink-0" loading="lazy" />
                       ) : (
                         <div className="w-5 h-5 rounded-full bg-slate-200 flex items-center justify-center text-slate-400 shrink-0"><User size={10}/></div>
                       )}

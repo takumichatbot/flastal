@@ -221,7 +221,7 @@ const ChatMessage = ({ msg, user, isPlanner, isPledger, onReaction, onReport, te
             {/* アイコン */}
             <div className="flex-shrink-0 mb-1">
                 {iconUrl ? (
-                    <img src={iconUrl} alt={senderName} className="h-9 w-9 rounded-full object-cover shadow-sm border border-slate-100" />
+                    <img src={iconUrl} alt={senderName} className="h-9 w-9 rounded-full object-cover shadow-sm border border-slate-100" loading="lazy" />
                 ) : (
                     <div className="h-9 w-9 rounded-full bg-gradient-to-br from-indigo-100 to-sky-100 text-indigo-500 flex items-center justify-center font-bold shadow-sm">
                         <User size={16}/>
@@ -255,7 +255,7 @@ const ChatMessage = ({ msg, user, isPlanner, isPledger, onReaction, onReport, te
                         }
                     `}>
                         {msg.messageType === 'IMAGE' ? (
-                            <img src={msg.fileUrl} alt="画像" className="max-w-full h-auto rounded-xl my-1 cursor-zoom-in hover:opacity-90 transition-opacity border border-black/5"/>
+                            <img src={msg.fileUrl} alt="画像" className="max-w-full h-auto rounded-xl my-1 cursor-zoom-in hover:opacity-90 transition-opacity border border-black/5" loading="lazy" />
                         ) : msg.messageType === 'FILE' ? (
                             <a href={msg.fileUrl} target="_blank" rel="noopener noreferrer" className={`flex items-center gap-2 font-bold hover:underline p-2 rounded-xl ${isOwn ? 'bg-black/10' : 'bg-slate-50 text-sky-600'}`}>
                                 📎 {msg.fileName || 'ファイルを表示'}

@@ -140,7 +140,7 @@ function LoginForm() {
           className="flex flex-col items-center"
         >
           <div className="w-14 h-14 mb-2">
-            <img src="/icon-512x512.png" alt="FLASTAL" width={56} height={56} style={{ borderRadius: '14px', boxShadow: '0 4px 20px rgba(0,0,0,0.25)' }} />
+            <img src="/icon-512x512.png" alt="FLASTAL" width={56} height={56} style={{ borderRadius: '14px', boxShadow: '0 4px 20px rgba(0,0,0,0.25)' }} loading="lazy" />
           </div>
           <h1 className="text-3xl font-black text-white tracking-tight">FLASTAL</h1>
           <p className="text-pink-100 text-xs font-bold mt-0.5 tracking-wider">推しへの想いを、花束に込めて。</p>

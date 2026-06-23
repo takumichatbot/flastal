@@ -173,10 +173,11 @@ export default function MoodBoard({ projectId, user }) {
                             onClick={() => setSelectedImage(item.imageUrl)}
                         >
                             {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img 
-                                src={item.imageUrl} 
-                                alt="moodboard item" 
-                                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
+                            <img
+                                src={item.imageUrl}
+                                alt="moodboard item"
+                                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                                loading="lazy"
                             />
                             
                             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center gap-2">
@@ -197,7 +198,7 @@ export default function MoodBoard({ projectId, user }) {
                                 <div className="flex items-center gap-1.5 opacity-70">
                                     {item.userIcon ? (
                                         // eslint-disable-next-line @next/next/no-img-element
-                                        <img src={item.userIcon} alt="" className="w-5 h-5 rounded-full object-cover border border-slate-200"/>
+                                        <img src={item.userIcon} alt="" className="w-5 h-5 rounded-full object-cover border border-slate-200" loading="lazy" />
                                     ) : (
                                         <div className="w-5 h-5 bg-slate-200 rounded-full"/>
                                     )}

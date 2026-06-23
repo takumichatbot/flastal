@@ -137,7 +137,7 @@ export default function CompletionReportModal({ project, user, onClose, onReport
                         {imageUrls.map((url, index) => (
                             <div key={index} className="relative w-24 h-24 group">
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img src={url} className="w-full h-full object-cover rounded-lg shadow-sm" alt={`Uploaded ${index}`} />
+                                <img src={url} className="w-full h-full object-cover rounded-lg shadow-sm" alt={`Uploaded ${index}`} loading="lazy" />
                                 <button 
                                     type="button" 
                                     onClick={() => removeImage(index)}

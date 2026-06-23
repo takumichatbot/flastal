@@ -4,6 +4,7 @@ import { createAuditLog } from '../utils/audit.js';
 import { deleteProjectFromIndex } from '../config/typesense.js';
 import { createNotification } from '../utils/notification.js';
 import { logger } from '../utils/logger.js';
+import { getClientIp } from '../utils/clientIp.js';
 
 // ==========================================
 // ★★★ プロジェクトごとの全チャット履歴取得 ★★★
@@ -111,7 +112,7 @@ export const approveItem = async (req, res) => {
                 targetTypeMap[type] || type,
                 id,
                 { newStatus: finalStatus },
-                req.ip || req.headers['x-forwarded-for'],
+                getClientIp(req),
             );
         }
 
@@ -219,7 +220,7 @@ export const updateAdminPayoutStatus = async (req, res) => {
                 type === 'user' ? 'Payout' : 'PayoutRequest',
                 payoutId,
                 { status, payoutType: type || 'florist' },
-                req.ip || req.headers['x-forwarded-for'],
+                getClientIp(req),
             );
         }
 
@@ -470,7 +471,7 @@ export const toggleUserStatus = async (req, res) => {
             role === 'FLORIST' ? 'Florist' : role === 'VENUE' ? 'Venue' : role === 'ORGANIZER' ? 'Organizer' : 'User',
             userId,
             { status, reason: reason || null },
-            req.ip || req.headers['x-forwarded-for'],
+            getClientIp(req),
         );
 
         res.status(200).json({ message: `ステータスを ${status} に更新しました。`, data: updated });
@@ -612,7 +613,7 @@ export const deleteUserByAdmin = async (req, res) => {
             role === 'FLORIST' ? 'Florist' : role === 'VENUE' ? 'Venue' : role === 'ORGANIZER' ? 'Organizer' : 'User',
             userId,
             { role: role || 'USER' },
-            req.ip || req.headers['x-forwarded-for'],
+            getClientIp(req),
         );
 
         res.status(200).json({ message: 'アカウントを強制削除しました。' });
@@ -780,7 +781,7 @@ export const deleteProjectByAdmin = async (req, res) => {
             'Project',
             projectId,
             { title: project.title, reason: req.body?.reason || null },
-            req.ip || req.headers['x-forwarded-for'],
+            getClientIp(req),
         );
 
         res.status(200).json({ message: '企画を削除しました。' });
@@ -1105,7 +1106,7 @@ export const forceCloseProject = async (req, res) => {
             'Project',
             projectId,
             { title: project.title, reason: reason || null },
-            req.ip || req.headers['x-forwarded-for'],
+            getClientIp(req),
         );
 
         res.json({ message: `「${project.title}」を強制キャンセルしました` });

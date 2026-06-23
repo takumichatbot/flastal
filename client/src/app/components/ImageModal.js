@@ -103,13 +103,14 @@ export default function ImageModal({ src, alt, onClose }) {
 
         {/* 画像 */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img 
-          src={src} 
-          alt={alt || "拡大画像"} 
+        <img
+          src={src}
+          alt={alt || "拡大画像"}
           onLoad={() => setIsLoaded(true)}
           className={`max-w-full max-h-full object-contain shadow-2xl transition-opacity duration-300 ${
             isLoaded ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
           }`}
+          loading="lazy"
         />
       </div>
     </div>

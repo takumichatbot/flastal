@@ -39,7 +39,7 @@ function ProjectCard({ project, index }) {
         >
             <div className="aspect-square bg-gradient-to-br from-pink-50 to-rose-50 relative overflow-hidden">
                 {project.coverImageUrl
-                    ? <img src={project.coverImageUrl} alt={project.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                    ? <img src={project.coverImageUrl} alt={project.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
                     : <div className="w-full h-full flex items-center justify-center"><Heart size={32} className="text-pink-200" /></div>
                 }
                 <div className={`absolute top-2 right-2 text-[10px] font-black px-2 py-0.5 rounded-full text-white ${isSuccess ? 'bg-emerald-500' : 'bg-pink-500'}`}>
@@ -80,7 +80,7 @@ function EventCard({ event, index }) {
         >
             <div className="h-24 bg-gradient-to-br from-pink-50 to-rose-50 relative overflow-hidden">
                 {event.imageUrls?.[0]
-                    ? <img src={event.imageUrls[0]} alt={event.title} className="w-full h-full object-cover opacity-80" />
+                    ? <img src={event.imageUrls[0]} alt={event.title} className="w-full h-full object-cover opacity-80" loading="lazy" />
                     : <div className="w-full h-full flex items-center justify-center"><Ticket size={28} className="text-pink-200" /></div>
                 }
                 <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
@@ -152,13 +152,13 @@ export default function ArtistPageClient({ artist, projects, events = [] }) {
             {/* ヒーロー */}
             <div className="relative h-56 md:h-72 bg-gradient-to-br from-pink-400 via-rose-400 to-pink-600 overflow-hidden">
                 {artist.coverImageUrl && (
-                    <img src={artist.coverImageUrl} alt="" className="absolute inset-0 w-full h-full object-cover opacity-40" />
+                    <img src={artist.coverImageUrl} alt="" className="absolute inset-0 w-full h-full object-cover opacity-40" loading="lazy" />
                 )}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
                 <div className="absolute bottom-0 left-0 right-0 p-6 flex items-end gap-4">
                     {artist.iconUrl && (
                         <img src={artist.iconUrl} alt={artist.name}
-                            className="w-20 h-20 rounded-2xl border-4 border-white shadow-xl object-cover shrink-0" />
+                            className="w-20 h-20 rounded-2xl border-4 border-white shadow-xl object-cover shrink-0" loading="lazy" />
                     )}
                     <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">

@@ -96,7 +96,7 @@ export default function AddVenuePage() {
         });
         
         setTimeout(() => {
-            window.location.href = '/venues';
+            router.push('/venues');
         }, 1000);
 
     } catch (error) {

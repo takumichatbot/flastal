@@ -84,7 +84,7 @@ export default function DigitalNameBoardPage() {
       {/* 背景エフェクト */}
       <div className="fixed inset-0 pointer-events-none z-0">
         {data.imageUrl && (
-            <img src={data.imageUrl} alt="" className="w-full h-full object-cover blur-3xl opacity-20 scale-110" />
+            <img src={data.imageUrl} alt="" className="w-full h-full object-cover blur-3xl opacity-20 scale-110" loading="lazy" />
         )}
         <div className="absolute inset-0 bg-gradient-to-b from-slate-950 via-slate-900/90 to-slate-950"></div>
         <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-20"></div>

@@ -194,7 +194,7 @@ function OrganizerDashboardContent() {
                             <GlassCard className="!p-0 h-full flex flex-col group overflow-hidden hover:-translate-y-2 hover:border-indigo-200 transition-all duration-500 hover:shadow-[0_16px_40px_rgba(79,70,229,0.15)] bg-white">
                                 <div className="h-48 relative overflow-hidden bg-slate-100 shrink-0">
                                     {event.imageUrls && event.imageUrls.length > 0 ? (
-                                    <img src={event.imageUrls[0]} alt={event.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                                    <img src={event.imageUrls[0]} alt={event.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" loading="lazy" />
                                     ) : (
                                     <div className="w-full h-full flex items-center justify-center text-slate-300 bg-slate-50"><ImageIcon size={32} /></div>
                                     )}

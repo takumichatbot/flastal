@@ -1,6 +1,8 @@
 import { notFound } from 'next/navigation';
 import ArtistPageClient from './ArtistPageClient';
 
+export const revalidate = 60;
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
 export async function generateMetadata({ params }) {

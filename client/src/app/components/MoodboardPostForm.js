@@ -131,7 +131,7 @@ export default function MoodboardPostForm({ projectId, onPostSuccess }) {
                 initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}
                 className="relative w-32 h-32 rounded-[1.5rem] overflow-hidden border-4 border-white shadow-md group shrink-0"
               >
-                <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />
+                <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" loading="lazy" />
                 <div className="absolute inset-0 bg-slate-900/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                   <button type="button" onClick={removeImage} disabled={isUploading} className="bg-rose-500 text-white p-2 rounded-full hover:bg-rose-600 transition-transform hover:scale-110 shadow-lg">
                     <X size={16} />

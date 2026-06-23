@@ -146,10 +146,11 @@ export default function PanelPreviewer({ onImageSelected }) {
                 >
                     {/* 画像本体 */}
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img 
-                        src={previewUrl} 
-                        className={`w-full h-full object-cover transition-all duration-500 ${shape === 'wood' ? 'mix-blend-multiply opacity-90 p-4 md:p-6' : ''}`} 
+                    <img
+                        src={previewUrl}
+                        className={`w-full h-full object-cover transition-all duration-500 ${shape === 'wood' ? 'mix-blend-multiply opacity-90 p-4 md:p-6' : ''}`}
                         alt="Preview"
+                        loading="lazy"
                     />
 
                     {/* 木札モードの場合のテクスチャオーバーレイ (画像の上に配置) */}

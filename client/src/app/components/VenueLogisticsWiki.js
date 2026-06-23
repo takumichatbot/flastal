@@ -201,7 +201,7 @@ export default function VenueLogisticsWiki({ venueId, venueName, isFloristView =
                                                     className="relative w-20 h-20 shrink-0 rounded-lg overflow-hidden border border-gray-100 cursor-zoom-in group"
                                                     onClick={() => setSelectedImage(url)}
                                                 >
-                                                    <img src={url} alt="現場写真" className="w-full h-full object-cover transition-transform group-hover:scale-110"/>
+                                                    <img src={url} alt="現場写真" className="w-full h-full object-cover transition-transform group-hover:scale-110" loading="lazy" />
                                                 </div>
                                             ))}
                                         </div>

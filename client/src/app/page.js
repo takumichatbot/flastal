@@ -1,8 +1,7 @@
 // src/app/page.js
 'use client';
 
-export const dynamic = 'force-dynamic';
-export const fetchCache = 'force-no-store';
+export const revalidate = 60;
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
@@ -164,16 +163,19 @@ function CountUp({ end, suffix = '', prefix = '' }) {
 
   useEffect(() => {
     if (!hasStarted) return;
-    const duration = 2000;
-    const steps = 60;
-    const increment = end / steps;
-    let current = 0;
-    const timer = setInterval(() => {
-      current += increment;
-      if (current >= end) { setCount(end); clearInterval(timer); }
-      else setCount(Math.floor(current));
-    }, duration / steps);
-    return () => clearInterval(timer);
+    const duration = 1500; // ms
+    const startTime = performance.now();
+    let rafId;
+    const animate = (now) => {
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      // easeOut cubic
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setCount(Math.floor(eased * end));
+      if (progress < 1) rafId = requestAnimationFrame(animate);
+    };
+    rafId = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(rafId);
   }, [end, hasStarted]);
 
   return <span ref={ref}>{prefix}{count.toLocaleString()}{suffix}</span>;
@@ -712,7 +714,10 @@ const TrendingProjects = () => {
                     whileHover={{ y: -6 }}
                     whileTap={{ scale: 0.98 }}
                     transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                    role="button"
+                    tabIndex={0}
                     onClick={() => router.push(`/projects/${project.id}`)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); router.push(`/projects/${project.id}`); } }}
                     className="bg-white rounded-[1.5rem] overflow-hidden border border-slate-100 shadow-sm hover:shadow-xl transition-shadow cursor-pointer h-full flex flex-col group"
                   >
                     <div className="relative w-full aspect-square bg-slate-100 shrink-0 overflow-hidden">
@@ -817,7 +822,10 @@ const PersonalizedFeed = () => {
               return (
                 <Reveal key={project.id} delay={i * 0.07}>
                   <div
+                    role="button"
+                    tabIndex={0}
                     onClick={() => router.push(`/projects/${project.id}`)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); router.push(`/projects/${project.id}`); } }}
                     className="bg-white rounded-3xl overflow-hidden shadow-sm border border-pink-100 hover:shadow-md hover:-translate-y-1 transition-all cursor-pointer group"
                   >
                     <div className="aspect-square bg-gradient-to-br from-pink-50 to-rose-50 relative overflow-hidden">

@@ -138,6 +138,18 @@ async function ProjectJsonLd({ id }) {
         name: 'FLASTAL',
         url: 'https://www.flastal.com',
       },
+      offers: {
+        '@type': 'Offer',
+        price: project.targetAmount,
+        priceCurrency: 'JPY',
+        availability: project.status === 'ACTIVE' ? 'https://schema.org/InStock' : 'https://schema.org/SoldOut',
+        validThrough: project.eventDate,
+      },
+      funding: {
+        '@type': 'MonetaryAmount',
+        currency: 'JPY',
+        value: project.currentAmount,
+      },
     };
 
     return (

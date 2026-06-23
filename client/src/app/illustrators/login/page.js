@@ -56,7 +56,7 @@ export default function IllustratorLoginPage() {
       if (success) {
         toast.success('おかえりなさい！');
         setTimeout(() => {
-          window.location.href = '/illustrators/dashboard';
+          router.push('/illustrators/dashboard');
         }, 300);
       } else {
         throw new Error('認証情報の処理に失敗しました');

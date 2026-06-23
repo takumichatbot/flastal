@@ -158,7 +158,7 @@ export default function RegisterPage() {
           className="flex flex-col items-center"
         >
           <div className="w-12 h-12 mb-2">
-            <img src="/icon-512x512.png" alt="FLASTAL" width={48} height={48} style={{ borderRadius: '12px', boxShadow: '0 4px 16px rgba(0,0,0,0.25)' }} />
+            <img src="/icon-512x512.png" alt="FLASTAL" width={48} height={48} style={{ borderRadius: '12px', boxShadow: '0 4px 16px rgba(0,0,0,0.25)' }} loading="lazy" />
           </div>
           <h1 className="text-2xl font-black text-white tracking-tight">アカウント作成</h1>
           <p className="text-pink-100 text-xs font-bold mt-0.5 flex items-center gap-1">

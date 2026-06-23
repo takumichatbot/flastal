@@ -153,7 +153,7 @@ function AdminContactInner() {
                                         searchResults.map(user => (
                                             <button key={user.id} onClick={() => { setTargetUser(user); setSearchTerm(user.email); }} className="w-full text-left p-3 hover:bg-indigo-50 border-b border-slate-100 last:border-0 flex items-center gap-3 transition-colors">
                                                 <div className="w-8 h-8 bg-slate-200 rounded-full flex items-center justify-center flex-shrink-0 text-slate-500">
-                                                    {user.iconUrl ? <img src={user.iconUrl} alt={user.name || 'ユーザーアイコン'} className="w-full h-full rounded-full object-cover"/> : <User />}
+                                                    {user.iconUrl ? <img src={user.iconUrl} alt={user.name || 'ユーザーアイコン'} className="w-full h-full rounded-full object-cover" loading="lazy" /> : <User />}
                                                 </div>
                                                 <div className="overflow-hidden">
                                                     <p className="text-sm font-bold text-slate-800 truncate">{user.name || 'No Name'}</p>
@@ -168,7 +168,7 @@ function AdminContactInner() {
                                 <div className="mt-4 p-4 bg-indigo-50 border border-indigo-100 rounded-lg animate-fadeIn">
                                     <div className="flex items-center gap-3 mb-2">
                                         <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-indigo-500 shadow-sm">
-                                            {targetUser.iconUrl ? <img src={targetUser.iconUrl} alt={targetUser.name || 'ユーザーアイコン'} className="w-full h-full rounded-full object-cover"/> : <User size={20} />}
+                                            {targetUser.iconUrl ? <img src={targetUser.iconUrl} alt={targetUser.name || 'ユーザーアイコン'} className="w-full h-full rounded-full object-cover" loading="lazy" /> : <User size={20} />}
                                         </div>
                                         <div>
                                             <p className="font-bold text-indigo-900 text-sm">{targetUser.name}</p>

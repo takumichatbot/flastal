@@ -97,7 +97,7 @@ export default function ArtistsPage() {
                                         <div className="bg-white rounded-2xl overflow-hidden border border-slate-100 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer">
                                             <div className="aspect-square bg-gradient-to-br from-pink-50 to-rose-50 relative overflow-hidden">
                                                 {artist.iconUrl
-                                                    ? <img src={artist.iconUrl} alt={artist.name} className="w-full h-full object-cover" />
+                                                    ? <img src={artist.iconUrl} alt={artist.name} className="w-full h-full object-cover" loading="lazy" />
                                                     : <div className="w-full h-full flex items-center justify-center text-3xl font-black text-pink-200">{artist.name[0]}</div>
                                                 }
                                                 {artist.verified && (

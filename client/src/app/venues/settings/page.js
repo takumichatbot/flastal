@@ -180,7 +180,7 @@ export default function VenueSettingsPage() {
                 {formData.imageUrls.map((url, index) => url && (
                   <div key={index} className="relative aspect-square rounded-[1.5rem] overflow-hidden border-2 border-white shadow-sm bg-slate-100">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={url} alt={`Preview ${index}`} className="object-cover w-full h-full" onError={(e) => e.target.style.display='none'} />
+                    <img src={url} alt={`Preview ${index}`} className="object-cover w-full h-full" onError={(e) => e.target.style.display='none'} loading="lazy" />
                   </div>
                 ))}
               </div>

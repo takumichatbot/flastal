@@ -261,12 +261,12 @@ function EventListContent() {
                     <div className="absolute top-3 right-3 z-20 flex -space-x-2">
                          {event.creator && (
                             <div className="w-9 h-9 rounded-full border-2 border-white bg-white shadow-md overflow-hidden" title={`投稿: ${event.creator.handleName}`}>
-                               {event.creator.iconUrl ? <img src={event.creator.iconUrl} className="w-full h-full object-cover" alt="" /> : <div className="w-full h-full flex items-center justify-center bg-pink-50 text-pink-400"><User size={14}/></div>}
+                               {event.creator.iconUrl ? <img src={event.creator.iconUrl} className="w-full h-full object-cover" alt="" loading="lazy" /> : <div className="w-full h-full flex items-center justify-center bg-pink-50 text-pink-400"><User size={14}/></div>}
                             </div>
                          )}
                          {event.lastEditor && event.lastEditorId !== event.creatorId && (
                            <div className="w-9 h-9 rounded-full border-2 border-white bg-white shadow-md overflow-hidden" title={`最終更新: ${event.lastEditor.handleName}`}>
-                              {event.lastEditor.iconUrl ? <img src={event.lastEditor.iconUrl} className="w-full h-full object-cover" alt="" /> : <div className="w-full h-full flex items-center justify-center bg-emerald-50 text-emerald-500"><Pencil size={14}/></div>}
+                              {event.lastEditor.iconUrl ? <img src={event.lastEditor.iconUrl} className="w-full h-full object-cover" alt="" loading="lazy" /> : <div className="w-full h-full flex items-center justify-center bg-emerald-50 text-emerald-500"><Pencil size={14}/></div>}
                            </div>
                          )}
                     </div>
@@ -274,10 +274,11 @@ function EventListContent() {
                     <Link href={`/events/${event.id}`} className="flex-grow flex flex-col">
                         <div className={cn("h-44 flex items-center justify-center relative bg-slate-100 transition-all duration-700 overflow-hidden", isPastEvent && "grayscale-[0.6]")}>
                             {event.imageUrls && event.imageUrls.length > 0 ? (
-                              <img 
-                                src={event.imageUrls[0]} 
-                                alt={event.title} 
-                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" 
+                              <img
+                                src={event.imageUrls[0]}
+                                alt={event.title}
+                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                                loading="lazy"
                               />
                             ) : (
                               <div className={`w-full h-full bg-gradient-to-br ${genreData.color} flex items-center justify-center`}>
@@ -451,7 +452,7 @@ function ImageUploadArea({ images, setImages, isUploading, setIsUploading }) {
       <div className="grid grid-cols-4 gap-2">
         {images.map((url, i) => (
           <div key={i} className="relative aspect-square rounded-lg overflow-hidden border border-slate-100 group">
-            <img src={url} className="w-full h-full object-cover" alt="" />
+            <img src={url} className="w-full h-full object-cover" alt="" loading="lazy" />
             <button type="button" onClick={() => removeImg(i)} className="absolute top-0 right-0 p-1 bg-red-500 text-white rounded-bl-lg opacity-0 group-hover:opacity-100 transition-opacity"><X size={12}/></button>
           </div>
         ))}

@@ -225,7 +225,7 @@ export default function GuestPledgeForm({ projectId, projectTitle, onCancel, onS
                     className="w-5 h-5 text-pink-600 border-gray-300 rounded focus:ring-pink-500"
                 />
                 <span className="text-sm text-gray-600">
-                    <a href="/terms" target="_blank" className="text-pink-600 underline hover:text-pink-700">利用規約</a> と <a href="/privacy" target="_blank" className="text-pink-600 underline hover:text-pink-700">プライバシーポリシー</a> に同意します
+                    <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-pink-600 underline hover:text-pink-700">利用規約</a> と <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-pink-600 underline hover:text-pink-700">プライバシーポリシー</a> に同意します
                 </span>
             </label>
         </div>

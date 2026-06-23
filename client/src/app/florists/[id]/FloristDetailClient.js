@@ -184,7 +184,7 @@ function ImageLightbox({ url, onClose }) {
           <X size={24} />
         </button>
         <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="relative w-full h-full flex items-center justify-center pointer-events-none">
-          <img src={url} alt="Enlarged" className="max-w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl" />
+          <img src={url} alt="Enlarged" className="max-w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl" loading="lazy" />
         </motion.div>
       </div>
     );
