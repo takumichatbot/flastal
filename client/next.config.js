@@ -70,7 +70,7 @@ const nextConfig = {
 
   // 実験的機能
   experimental: {
-    optimizeCss: true, // CSSの最適化
+    // optimizeCss: true, // critters依存のためRender環境では無効化
   },
 };
 
