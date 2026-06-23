@@ -106,12 +106,20 @@ export default function RegisterPage() {
             ))}
           </div>
 
+          <Link href="/onboarding">
+            <motion.div
+              whileTap={{ scale: 0.97 }}
+              className="w-full py-3.5 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-2xl font-black text-base shadow-lg shadow-pink-200 flex items-center justify-center gap-2 mb-3"
+            >
+              FLASTALの使い方を見る <ArrowRight size={16} />
+            </motion.div>
+          </Link>
           <Link href="/login">
             <motion.div
               whileTap={{ scale: 0.97 }}
-              className="w-full py-3.5 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-2xl font-black text-base shadow-lg shadow-pink-200 flex items-center justify-center gap-2"
+              className="w-full py-3.5 bg-slate-50 text-slate-500 rounded-2xl font-black text-base flex items-center justify-center gap-2"
             >
-              ログイン画面へ <ArrowRight size={16} />
+              ログイン画面へ
             </motion.div>
           </Link>
         </motion.div>

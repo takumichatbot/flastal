@@ -522,10 +522,12 @@ export default function Header() {
                           </div>
                       )}
 
-                      <div className="grid grid-cols-2 gap-4">
-                          <Link href="/projects/create" onClick={() => setIsMobileMenuOpen(false)} className="flex flex-col items-center justify-center gap-2 py-6 bg-gradient-to-br from-pink-500 to-rose-500 text-white rounded-[2rem] font-black shadow-lg shadow-pink-200 transition-transform active:scale-95">
-                              <PlusCircle size={28} /> 企画を立てる
-                          </Link>
+                      <div className={`grid gap-4 ${user && ['FLORIST', 'VENUE', 'ADMIN'].includes(user.role) ? 'grid-cols-1' : 'grid-cols-2'}`}>
+                          {(!user || !['FLORIST', 'VENUE', 'ADMIN'].includes(user.role)) && (
+                            <Link href="/projects/create" onClick={() => setIsMobileMenuOpen(false)} className="flex flex-col items-center justify-center gap-2 py-6 bg-gradient-to-br from-pink-500 to-rose-500 text-white rounded-[2rem] font-black shadow-lg shadow-pink-200 transition-transform active:scale-95">
+                                <PlusCircle size={28} /> 企画を立てる
+                            </Link>
+                          )}
                           <Link href="/projects" onClick={() => setIsMobileMenuOpen(false)} className="flex flex-col items-center justify-center gap-2 py-6 bg-white border-2 border-pink-50 text-pink-500 hover:bg-pink-50 rounded-[2rem] font-black transition-transform active:scale-95 shadow-sm">
                               <Search size={28} /> 企画を探す
                           </Link>

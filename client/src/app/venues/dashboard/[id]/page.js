@@ -68,7 +68,7 @@ function VenueDashboardContent() {
   const currentUserRole = user?.role || (venueAuth ? 'VENUE' : null);
 
   const hasAccess = currentUserId && (
-    String(currentUserId) === String(id) || currentUserRole === 'ADMIN' || currentUserRole === 'VENUE'
+    String(currentUserId) === String(id) || currentUserRole === 'ADMIN'
   );
 
   const handleLogout = () => {
