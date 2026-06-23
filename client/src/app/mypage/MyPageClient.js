@@ -15,7 +15,7 @@ import {
   Pencil, MessageCircle, X, Lock, Send, Trash2,
   ExternalLink, TrendingUp,
   Calendar, MapPin, Store, Palette,
-  Bookmark, BookmarkCheck, Download,
+  Bookmark, BookmarkCheck, Download, Rss, FileDown,
 } from 'lucide-react';
 
 import UploadForm from '@/app/components/UploadForm';
@@ -23,6 +23,9 @@ import SupportLevelBadge from '@/app/components/SupportLevelBadge';
 import BadgeDisplay from '@/app/components/BadgeDisplay';
 import TotpSetup from '@/app/components/TotpSetup';
 import KycUpload from '@/app/components/KycUpload';
+import RecommendedProjects from '@/app/components/RecommendedProjects';
+import { EmptyState } from '@/app/components/EmptyState';
+import { PointsCard } from './components/PointsCard';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -53,10 +56,10 @@ function ProjectCard({ project, roleType }) {
           )}
           <div className="absolute inset-x-0 top-0 h-1/3 bg-gradient-to-b from-slate-900/50 to-transparent" />
           <div className="absolute top-2 left-2 flex flex-col gap-1">
-            <span className={cn('px-2 py-1 rounded-md text-[9px] font-black shadow-sm text-white', badgeColor)}>
+            <span className={cn('px-2.5 py-1 rounded-md text-[9px] font-black shadow-sm text-white', badgeColor)}>
               {badgeLabel}
             </span>
-            <span className={cn('px-2 py-1 rounded-md text-[9px] font-black shadow-sm flex items-center gap-1 backdrop-blur-md border',
+            <span className={cn('px-2.5 py-1 rounded-md text-[9px] font-black shadow-sm flex items-center gap-1 backdrop-blur-md border',
               isOrganizer ? 'bg-slate-900/80 text-white border-slate-700' : 'bg-white/90 text-pink-500 border-pink-100'
             )}>
               {isOrganizer ? <Star size={10} className="fill-yellow-400 text-yellow-400" /> : <Heart size={10} className="fill-pink-500 text-pink-500" />}
@@ -181,6 +184,11 @@ function DashboardContent() {
       if (postsRes?.ok) setMyPosts(await postsRes.json());
       if (pointRes?.ok) setPointHistory(await pointRes.json());
       if (favRes?.ok) setFavoriteFlorists(await favRes.json());
+      const hasError = results.some(r => r.status === 'rejected');
+      if (hasError) {
+        console.error('[MyPage] 一部のデータ取得に失敗しました', results.filter(r => r.status === 'rejected'));
+        toast('一部のデータを読み込めませんでした。再読み込みをお試しください。', { icon: '⚠️' });
+      }
     } catch (e) { console.error(e); }
     finally { setLoadingData(false); }
   }, [user, authenticatedFetch]);
@@ -260,14 +268,12 @@ function DashboardContent() {
 
   const PledgeHistory = () => (
     pledgedProjects.length === 0 ? (
-      <div className="py-16 text-center flex flex-col items-center bg-white/50 backdrop-blur-sm rounded-[2rem]">
-        <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center text-3xl mb-3 shadow-sm border border-slate-100">💸</div>
-        <h3 className="text-sm font-black text-slate-800 mb-1">まだ支援がありません</h3>
-        <p className="text-xs font-bold text-slate-400 mb-5">気になる企画を見つけて応援しよう！</p>
-        <Link href="/projects" className="px-6 py-3 bg-slate-900 text-white rounded-full font-black text-xs shadow-md flex items-center gap-2">
-          <Search size={14} /> 企画を探す
-        </Link>
-      </div>
+      <EmptyState
+        icon="flower"
+        title="まだ支援した企画がありません"
+        description="気になる企画を見つけてフラスタを贈りましょう！"
+        action={{ label: '企画を探す', href: '/projects' }}
+      />
     ) : (
       <div className="space-y-3">
         {pledgedProjects.map((pledge) => (
@@ -275,7 +281,7 @@ function DashboardContent() {
             <Link href={`/projects/${pledge.project?.id}`} className="flex items-center gap-3 flex-1 min-w-0 active:scale-[0.99] transition-transform">
               <div className="relative w-14 h-14 rounded-xl overflow-hidden shrink-0 bg-slate-100">
                 {pledge.project?.imageUrl
-                  ? <Image src={pledge.project.imageUrl} alt="" fill className="object-cover" sizes="56px" />
+                  ? <Image src={pledge.project.imageUrl} alt={pledge.project.title || 'プロジェクト画像'} fill className="object-cover" sizes="56px" />
                   : <div className="absolute inset-0 flex items-center justify-center text-2xl">🌸</div>
                 }
               </div>
@@ -290,7 +296,7 @@ function DashboardContent() {
             <div className="shrink-0 text-right flex flex-col items-end gap-1.5">
               <p className="text-sm font-black text-pink-500">¥{(pledge.amount || 0).toLocaleString()}</p>
               <span className={cn(
-                'text-[9px] font-black px-2 py-0.5 rounded-full inline-block',
+                'text-[9px] font-black px-2.5 py-1 rounded-full inline-block',
                 pledge.project?.status === 'COMPLETED' ? 'bg-purple-50 text-purple-600' :
                 pledge.project?.status === 'SUCCESSFUL' ? 'bg-emerald-50 text-emerald-600' :
                 'bg-pink-50 text-pink-500'
@@ -337,6 +343,65 @@ function DashboardContent() {
               >
                 <Download size={11}/> 請求書
               </button>
+              {pledge.project?.status === 'COMPLETED' && (
+                <button
+                  onClick={e => {
+                    e.stopPropagation();
+                    const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+                    if (!token) return;
+                    fetch(`${API_URL}/api/projects/${pledge.project.id}/certificate/${pledge.id}`, {
+                      headers: { Authorization: `Bearer ${token}` },
+                    }).then(r => r.blob()).then(blob => {
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url; a.download = `certificate_${pledge.id}.pdf`;
+                      a.click(); URL.revokeObjectURL(url);
+                    }).catch(() => toast.error('ダウンロードに失敗しました'));
+                  }}
+                  className="flex items-center gap-1 text-[9px] font-black text-pink-500 hover:text-pink-600 transition-colors"
+                >
+                  <FileDown size={11}/> 証明書DL
+                </button>
+              )}
+              {/* フラワースタンド受け取り確認 */}
+              {pledge.project?.status === 'COMPLETED' && !pledge.receivedAt && (
+                <button
+                  onClick={async e => {
+                    e.stopPropagation();
+                    if (!confirm('フラワースタンドを受け取りましたか？')) return;
+                    const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+                    try {
+                      const res = await fetch(`${API_URL}/api/users/pledges/${pledge.id}/confirm-received`, {
+                        method: 'PATCH',
+                        headers: { Authorization: `Bearer ${token}` },
+                      });
+                      if (res.ok) {
+                        const data = await res.json();
+                        toast.success('受け取り確認しました！');
+                        setPledgedProjects(prev =>
+                          prev.map(p => p.id === pledge.id
+                            ? { ...p, receivedAt: data.receivedAt || new Date().toISOString() }
+                            : p
+                          )
+                        );
+                      } else {
+                        const d = await res.json().catch(() => ({}));
+                        toast.error(d.message || '受け取り確認に失敗しました');
+                      }
+                    } catch {
+                      toast.error('通信エラーが発生しました');
+                    }
+                  }}
+                  className="flex items-center gap-1 text-[9px] font-black text-emerald-600 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg hover:bg-emerald-100 active:scale-95 transition-all"
+                >
+                  🌸 受け取り確認
+                </button>
+              )}
+              {pledge.receivedAt && (
+                <div className="text-[9px] font-bold text-slate-400 flex items-center gap-0.5">
+                  ✓ 受取済（{new Date(pledge.receivedAt).toLocaleDateString('ja-JP', { month: 'short', day: 'numeric' })}）
+                </div>
+              )}
             </div>
           </div>
         ))}
@@ -353,14 +418,12 @@ function DashboardContent() {
         {displayProjects.map(p => <ProjectCard key={`${p._role}_${p.id}`} project={p} roleType={p._role} />)}
       </div>
     ) : (
-      <div className="py-20 text-center flex flex-col items-center bg-white/50 backdrop-blur-sm rounded-[2rem]">
-        <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center text-4xl mb-4 shadow-sm border border-slate-100">🌸</div>
-        <h3 className="text-base font-black text-slate-800 mb-2">企画がありません</h3>
-        <p className="text-xs font-bold text-slate-500 mb-6">参加中のフラスタ企画を探してみましょう！</p>
-        <Link href="/projects" className="px-8 py-3.5 bg-slate-900 text-white rounded-full font-black text-sm shadow-md flex items-center gap-2">
-          <Search size={16} /> 企画を探す
-        </Link>
-      </div>
+      <EmptyState
+        icon="flower"
+        title="企画がありません"
+        description="参加中のフラスタ企画を探してみましょう！"
+        action={{ label: '企画を探す', href: '/projects' }}
+      />
     )
   );
 
@@ -440,6 +503,10 @@ function DashboardContent() {
               {user.badgeIds?.length > 0 && (
                 <div className="mt-2"><BadgeDisplay badgeIds={user.badgeIds} size="sm" /></div>
               )}
+              <Link href="/mypage/badges" className="mt-2 inline-flex items-center gap-1 text-[10px] font-bold text-pink-500 hover:text-pink-600">
+                <Award size={12} />
+                バッジ一覧を見る
+              </Link>
             </div>
           </div>
           <div className="bg-gradient-to-br from-slate-900 to-slate-800 p-1 rounded-[2rem] shadow-xl w-[350px] group transition-transform hover:-translate-y-1">
@@ -572,6 +639,7 @@ function DashboardContent() {
                   </Link>
                 </div>
 
+
                 {/* さがす */}
                 <div>
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">さがす</p>
@@ -650,6 +718,22 @@ function DashboardContent() {
                     </div>
                   );
                 })()}
+
+                {/* おすすめの企画 */}
+                <RecommendedProjects
+                  token={typeof window !== 'undefined'
+                    ? localStorage.getItem('authToken')?.replace(/^"|"$/g, '') || null
+                    : null}
+                />
+
+                {/* アクティビティフィード */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Rss size={14} className="text-pink-500" />
+                    <h2 className="text-base font-black text-slate-800">フォロー中の新着</h2>
+                  </div>
+                  <FeedSection authenticatedFetch={authenticatedFetch} />
+                </div>
 
                 {/* マイ企画 */}
                 {loadingData ? (
@@ -1014,11 +1098,13 @@ function DashboardContent() {
                   <span className="ml-auto text-xs font-bold text-slate-400">{favoriteFlorists.length}件</span>
                 </div>
                 {favoriteFlorists.length === 0 ? (
-                  <div className="bg-white rounded-[2rem] p-12 text-center border border-slate-100 shadow-sm">
-                    <BookmarkCheck size={32} className="text-slate-200 mx-auto mb-3" />
-                    <p className="font-black text-slate-400 text-sm">まだお気に入りがありません</p>
-                    <p className="text-xs text-slate-300 mt-1">花屋ページの右上ボタンで追加できます</p>
-                  </div>
+                  <EmptyState
+                    icon="bookmark"
+                    title="まだお気に入りがありません"
+                    description="花屋ページの右上ボタンで追加できます"
+                    action={{ label: '花屋を探す', href: '/florists' }}
+                    className="bg-white border border-slate-100 shadow-sm"
+                  />
                 ) : (
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     {favoriteFlorists.map(f => (
@@ -1063,7 +1149,7 @@ function DashboardContent() {
                         );
                         fetchMyData();
                       }}
-                      className="text-xs font-black text-pink-500 bg-pink-50 border border-pink-100 px-4 py-2 rounded-full active:scale-95 transition-transform"
+                      className="text-xs font-black text-pink-500 bg-pink-50 border border-pink-100 px-4 py-2.5 rounded-full active:scale-95 transition-transform"
                     >
                       全て既読にする
                     </button>
@@ -1078,6 +1164,13 @@ function DashboardContent() {
                 />
 
                 {notifications.length > 0 ? (
+                  filteredNotifications.length === 0 ? (
+                    <EmptyState
+                      icon="bell"
+                      title="通知はありません"
+                      description="新しい通知が届くとここに表示されます"
+                    />
+                  ) : (
                   <div className="space-y-1">
                     {filteredNotifications.map((n, i) => {
                       const msg = n.message || '';
@@ -1126,6 +1219,15 @@ function DashboardContent() {
                               <p className={cn('text-sm leading-relaxed', n.isRead ? 'text-slate-500 font-medium' : 'text-slate-800 font-bold')}>
                                 {n.message}
                               </p>
+                              {n.type === 'OFFER_REJECTED' && (
+                                <a
+                                  href={n.linkUrl || '/florists'}
+                                  onClick={e => e.stopPropagation()}
+                                  className="inline-block mt-2 text-xs bg-pink-100 text-pink-700 font-semibold px-3 py-1 rounded-full hover:bg-pink-200 transition-colors"
+                                >
+                                  別の花屋を探す →
+                                </a>
+                              )}
                               <p className="text-[10px] text-slate-400 font-bold mt-1">
                                 {new Date(n.createdAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}
                               </p>
@@ -1138,14 +1240,14 @@ function DashboardContent() {
                       );
                     })}
                   </div>
+                  )
                 ) : (
-                  <div className="py-20 flex flex-col items-center text-center bg-white/60 rounded-[2rem] border border-white">
-                    <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4 border border-slate-100">
-                      <Bell size={28} className="text-slate-200" />
-                    </div>
-                    <h3 className="text-sm font-black text-slate-600 mb-1">通知はありません</h3>
-                    <p className="text-xs font-bold text-slate-400">企画への支援や活動があると届きます</p>
-                  </div>
+                  <EmptyState
+                    icon="bell"
+                    title="通知はありません"
+                    description="企画への支援や活動があると届きます"
+                    className="bg-white/60 border border-white"
+                  />
                 )}
               </div>
             )}
@@ -1180,33 +1282,22 @@ function DashboardContent() {
                 </div>
 
                 {/* ポイント残高 */}
-                <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-[2rem] p-5 shadow-lg relative overflow-hidden">
-                  <div className="absolute -top-8 -right-8 w-36 h-36 bg-white/5 rounded-full pointer-events-none" />
-                  <div className="flex items-center justify-between relative z-10">
-                    <div>
-                      <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
-                        <Zap size={12} className="text-amber-400 fill-amber-400" /> ポイント残高
-                      </p>
-                      <p className="text-white text-3xl font-black font-mono tracking-tight">
-                        {(user.points || 0).toLocaleString()}
-                        <span className="text-sm text-slate-400 font-sans ml-1.5">pt</span>
-                      </p>
-                    </div>
-                    <Link
-                      href="/points"
-                      className="bg-gradient-to-r from-amber-400 to-orange-400 text-white font-black text-sm px-5 py-3 rounded-2xl shadow-md flex items-center gap-1.5 active:scale-95 transition-transform"
-                    >
-                      チャージ <ArrowRight size={15} />
-                    </Link>
-                  </div>
-                </div>
+                <PointsCard points={user.points || 0} />
 
                 {/* ポイントチャージ履歴 */}
                 {pointHistory.length > 0 && (
                   <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-5 pt-4 pb-2 flex items-center gap-1.5">
-                      <Zap size={12} className="text-amber-400 fill-amber-400" /> チャージ履歴
-                    </p>
+                    <div className="flex items-center justify-between px-5 pt-4 pb-2">
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                        <Zap size={12} className="text-amber-400 fill-amber-400" /> チャージ履歴
+                      </p>
+                      <Link
+                        href="/mypage/points"
+                        className="text-[10px] font-black text-pink-500 flex items-center gap-0.5 hover:text-pink-600 transition-colors"
+                      >
+                        全履歴 <ChevronRight size={12} />
+                      </Link>
+                    </div>
                     <div className="divide-y divide-slate-50">
                       {pointHistory.slice(0, 5).map(h => (
                         <div key={h.id} className="flex items-center justify-between px-5 py-3">
@@ -1218,6 +1309,22 @@ function DashboardContent() {
                       ))}
                     </div>
                   </div>
+                )}
+
+                {/* ポイント取引履歴へのリンク（チャージ履歴がない場合でも表示） */}
+                {pointHistory.length === 0 && (
+                  <Link
+                    href="/mypage/points"
+                    className="bg-white rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between px-5 py-4 active:scale-[0.99] transition-transform"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-amber-50 flex items-center justify-center shrink-0">
+                        <Zap size={16} className="text-amber-500" />
+                      </div>
+                      <span className="text-sm font-black text-slate-700">ポイント取引履歴</span>
+                    </div>
+                    <ChevronRight size={16} className="text-slate-300" />
+                  </Link>
                 )}
 
                 {/* アカウント */}
@@ -1248,6 +1355,16 @@ function DashboardContent() {
                         toast.success('招待コードをコピーしました');
                       }
                     }}
+                  />
+                  <SettingsRow
+                    icon={<Bell size={16} />}
+                    label="通知設定"
+                    href="/mypage/settings/notifications"
+                  />
+                  <SettingsRow
+                    icon={<Zap size={16} />}
+                    label="ポイント取引履歴"
+                    href="/mypage/points"
                   />
                 </div>
 
@@ -1347,6 +1464,121 @@ export default function MyPageClientPage() {
 
 function cn2(...c) { return c.filter(Boolean).join(' '); }
 
+// ───────────────────────────────────────────────────────────────
+// アクティビティフィードセクション
+// ───────────────────────────────────────────────────────────────
+function FeedSection({ authenticatedFetch }) {
+  const router = useRouter();
+  const [feedItems, setFeedItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [hasMore, setHasMore] = useState(false);
+  const [page, setPage] = useState(1);
+
+  const fetchFeed = useCallback(async (p = 1) => {
+    setLoading(true);
+    try {
+      const res = await authenticatedFetch(`${API_URL}/api/feed?page=${p}`);
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      setFeedItems(prev => p === 1 ? data.items : [...prev, ...data.items]);
+      setHasMore(data.hasMore);
+      setPage(p);
+    } catch {
+      // サイレント失敗
+    } finally {
+      setLoading(false);
+    }
+  }, [authenticatedFetch]);
+
+  useEffect(() => { fetchFeed(1); }, [fetchFeed]);
+
+  if (loading && feedItems.length === 0) {
+    return (
+      <div className="py-8 flex justify-center">
+        <Loader2 className="w-6 h-6 text-pink-400 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!loading && feedItems.length === 0) {
+    return (
+      <div className="bg-white/60 rounded-[1.5rem] border border-white p-6 text-center">
+        <div className="w-12 h-12 bg-pink-50 rounded-full flex items-center justify-center mx-auto mb-3">
+          <Rss size={20} className="text-pink-300" />
+        </div>
+        <p className="text-sm font-black text-slate-600 mb-1">フィードがありません</p>
+        <p className="text-xs font-bold text-slate-400 leading-relaxed">
+          気になる企画者やアーティストをフォローすると<br />新着・完了企画がここに流れます
+        </p>
+        <Link href="/artists" className="inline-flex items-center gap-1.5 mt-4 px-4 py-2 bg-pink-500 text-white text-xs font-black rounded-full shadow-sm">
+          アーティストを探す <ArrowRight size={12} />
+        </Link>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {feedItems.map((item) => {
+        const p = item.project;
+        const isCompleted = item.type === 'PROJECT_COMPLETED';
+        const percent = p.targetAmount > 0
+          ? Math.min(Math.round((p.collectedAmount / p.targetAmount) * 100), 100)
+          : 0;
+
+        return (
+          <div
+            key={`feed-${item.id}`}
+            onClick={() => router.push(`/projects/${p.id}`)}
+            className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex gap-3 p-3 cursor-pointer active:scale-[0.99] transition-transform"
+          >
+            <div className="relative w-16 h-16 rounded-xl overflow-hidden bg-slate-100 shrink-0">
+              {p.imageUrl
+                ? <Image src={p.imageUrl} alt={p.title} fill className="object-cover" sizes="64px" />
+                : <div className="absolute inset-0 flex items-center justify-center text-2xl">🌸</div>
+              }
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-1.5 mb-1">
+                <span className={cn(
+                  'text-[9px] font-black px-1.5 py-0.5 rounded-md text-white',
+                  isCompleted ? 'bg-purple-500' : 'bg-pink-500'
+                )}>
+                  {isCompleted ? '完了' : '新着'}
+                </span>
+                {item.actor?.handleName && (
+                  <span className="text-[10px] font-bold text-slate-400 truncate">{item.actor.handleName}</span>
+                )}
+              </div>
+              <p className="text-xs font-black text-slate-800 line-clamp-2 leading-snug">{p.title}</p>
+              <div className="flex items-center gap-2 mt-1.5">
+                <div className="flex-1 h-1 bg-slate-100 rounded-full overflow-hidden">
+                  <div
+                    className={cn('h-full rounded-full', percent >= 100 ? 'bg-emerald-400' : 'bg-gradient-to-r from-pink-400 to-rose-400')}
+                    style={{ width: `${percent}%` }}
+                  />
+                </div>
+                <span className={cn('text-[10px] font-black font-mono shrink-0', percent >= 100 ? 'text-emerald-500' : 'text-pink-500')}>
+                  {percent}%
+                </span>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+      {hasMore && (
+        <button
+          onClick={() => fetchFeed(page + 1)}
+          disabled={loading}
+          className="w-full py-3 text-xs font-black text-pink-500 bg-white border border-slate-100 rounded-2xl shadow-sm active:scale-[0.98] transition-transform disabled:opacity-50"
+        >
+          {loading ? <Loader2 size={14} className="animate-spin mx-auto" /> : 'もっと見る'}
+        </button>
+      )}
+    </div>
+  );
+}
+
 function NotifCategoryFilter({ notifications, category, onCategory }) {
   const cats = [
     { id: 'all',     label: 'すべて' },
@@ -1369,7 +1601,7 @@ function NotifCategoryFilter({ notifications, category, onCategory }) {
           key={c.id}
           onClick={() => onCategory(c.id)}
           className={cn2(
-            'shrink-0 px-3 py-1.5 rounded-full text-[11px] font-black transition-all',
+            'shrink-0 px-3 py-2 rounded-full text-sm font-bold transition-all min-h-[36px]',
             category === c.id
               ? 'bg-pink-500 text-white shadow-sm shadow-pink-200'
               : 'bg-white border border-slate-200 text-slate-500 hover:border-pink-200'

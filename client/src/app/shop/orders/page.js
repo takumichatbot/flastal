@@ -7,7 +7,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useAuth } from '@/app/contexts/AuthContext';
 import toast from 'react-hot-toast';
-import { Package, CheckCircle2, Truck, Clock, XCircle, ArrowLeft, ChevronDown, ChevronUp } from 'lucide-react';
+import { Package, CheckCircle2, Truck, Clock, XCircle, ArrowLeft, ChevronDown, ChevronUp, MessageCircle } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -48,8 +48,16 @@ function OrderCard({ order }) {
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-4">
-          <div className="text-right">
+        <div className="flex items-center gap-3">
+          <Link
+            href={`/shop/orders/${order.id}`}
+            onClick={(e) => e.stopPropagation()}
+            className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full bg-pink-50 text-pink-600 border border-pink-200 hover:bg-pink-100 transition-colors shrink-0"
+          >
+            <MessageCircle size={13} />
+            詳細・チャット
+          </Link>
+          <div className="text-right shrink-0">
             <p className="text-base font-black text-slate-800">¥{order.total.toLocaleString()}</p>
             <p className="text-xs text-slate-400">{order.items.length}点</p>
           </div>

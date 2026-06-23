@@ -1,6 +1,7 @@
 import prisma from '../config/prisma.js';
 import { createNotification } from '../utils/notification.js';
 import { queueEmail } from '../utils/email.js';
+import { logger } from '../utils/logger.js';
 
 // ④ 達成メッセージ一斉送信
 export const broadcastSuccessMessage = async (req, res) => {
@@ -57,7 +58,7 @@ export const broadcastSuccessMessage = async (req, res) => {
 
         res.json({ sent: supporters.length });
     } catch (err) {
-        console.error('broadcastSuccessMessage:', err);
+        logger.error('broadcastSuccessMessage', { context: 'teamController', error: err.message });
         res.status(500).json({ message: '送信に失敗しました' });
     }
 };

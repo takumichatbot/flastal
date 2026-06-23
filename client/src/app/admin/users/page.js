@@ -49,6 +49,9 @@ export default function AdminUsersPage() {
     const [pointDelta, setPointDelta] = useState('');
     const [pointReason, setPointReason] = useState('');
 
+    const [suspendModal, setSuspendModal] = useState(null); // { id, name, role, newStatus, actionName }
+    const [suspendReason, setSuspendReason] = useState('');
+
     const fetchUsers = async () => {
         setIsLoadingData(true);
         try {
@@ -157,29 +160,37 @@ export default function AdminUsersPage() {
         }
     };
 
-    // ★ 追加: ステータス(BAN/復旧)の切り替えロジック
-    const handleToggleStatus = async (targetUserId, targetUserName, targetRole, currentStatus) => {
+    // ★ ステータス(BAN/復旧)の切り替えロジック — 停止時は理由入力モーダルを開く
+    const handleToggleStatus = (targetUserId, targetUserName, targetRole, currentStatus) => {
         // BAN状態なら適切な「有効化」ステータスに戻し、それ以外なら「SUSPENDED」にする
-        const newStatus = currentStatus === 'SUSPENDED' 
-            ? (['FLORIST', 'VENUE', 'ORGANIZER'].includes(targetRole) ? 'APPROVED' : 'ACTIVE') 
+        const newStatus = currentStatus === 'SUSPENDED'
+            ? (['FLORIST', 'VENUE', 'ORGANIZER'].includes(targetRole) ? 'APPROVED' : 'ACTIVE')
             : 'SUSPENDED';
-            
-        const actionName = newStatus === 'SUSPENDED' ? '非表示（BAN）' : '有効化（復旧）';
 
-        if (!window.confirm(`本当にアカウント「${targetUserName}」を${actionName}にしますか？`)) {
-            return;
+        const actionName = newStatus === 'SUSPENDED' ? '利用停止（BAN）' : '有効化（復旧）';
+
+        if (newStatus === 'SUSPENDED') {
+            // 停止時は理由入力モーダルを表示
+            setSuspendReason('');
+            setSuspendModal({ id: targetUserId, name: targetUserName, role: targetRole, newStatus, actionName });
+        } else {
+            // 復旧は即時実行（確認ダイアログのみ）
+            if (!window.confirm(`本当にアカウント「${targetUserName}」を${actionName}にしますか？`)) return;
+            execToggleStatus(targetUserId, targetRole, newStatus, null, actionName);
         }
+    };
 
+    const execToggleStatus = async (targetUserId, targetRole, newStatus, reason, actionName) => {
         const toastId = toast.loading('更新中...');
         try {
             const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
             const res = await fetch(`${API_URL}/api/admin/users/${targetUserId}/status`, {
                 method: 'PATCH',
-                headers: { 
+                headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}` 
+                    'Authorization': `Bearer ${token}`
                 },
-                body: JSON.stringify({ role: targetRole, status: newStatus })
+                body: JSON.stringify({ role: targetRole, status: newStatus, reason })
             });
 
             if (!res.ok) {
@@ -187,8 +198,9 @@ export default function AdminUsersPage() {
                 throw new Error(errorData.message || '更新に失敗しました');
             }
 
+            setSuspendModal(null);
             toast.success(`アカウントを${actionName}にしました。`, { id: toastId });
-            fetchUsers(); // 成功したらリストを再取得
+            fetchUsers();
         } catch (error) {
             toast.error(error.message, { id: toastId });
         }
@@ -480,9 +492,45 @@ export default function AdminUsersPage() {
             </div>
         </div>
 
+        {/* 利用停止理由入力モーダル */}
+        {suspendModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+                <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6">
+                    <div className="flex items-center justify-between mb-4">
+                        <h2 className="text-base font-black text-slate-800 flex items-center gap-2">
+                            <EyeOff size={18} className="text-rose-500" /> 利用停止
+                        </h2>
+                        <button onClick={() => setSuspendModal(null)} className="text-slate-400 hover:text-slate-600">
+                            <X size={20} />
+                        </button>
+                    </div>
+                    <p className="text-sm text-slate-600 mb-4">
+                        対象: <span className="font-bold">{suspendModal.name}</span> を利用停止にします。
+                    </p>
+                    <label className="block text-xs font-bold text-slate-600 mb-1">停止理由（任意）</label>
+                    <input
+                        type="text"
+                        value={suspendReason}
+                        onChange={(e) => setSuspendReason(e.target.value)}
+                        placeholder="例: 規約違反、不正利用など"
+                        className="w-full px-4 py-2 border border-slate-200 rounded-xl text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-rose-400"
+                    />
+                    <div className="flex gap-2">
+                        <button onClick={() => setSuspendModal(null)} className="flex-1 py-2 rounded-xl border border-slate-200 text-slate-500 text-sm font-bold hover:bg-slate-50">キャンセル</button>
+                        <button
+                            onClick={() => execToggleStatus(suspendModal.id, suspendModal.role, suspendModal.newStatus, suspendReason || '管理者による停止', suspendModal.actionName)}
+                            className="flex-1 py-2 rounded-xl bg-rose-500 text-white text-sm font-black hover:bg-rose-600 transition-colors"
+                        >
+                            停止する
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )}
+
         {/* ポイント調整モーダル */}
         {pointModal && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
                 <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6">
                     <div className="flex items-center justify-between mb-4">
                         <h2 className="text-base font-black text-slate-800 flex items-center gap-2">

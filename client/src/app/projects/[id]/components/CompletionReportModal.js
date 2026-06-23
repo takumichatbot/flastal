@@ -105,7 +105,7 @@ export default function CompletionReportModal({ project, user, onClose, onReport
   };
 
   return (
-    <div className="fixed inset-0 bg-black/70 flex justify-center items-center z-50 p-4 backdrop-blur-sm animate-fadeIn overflow-y-auto">
+    <div className="fixed inset-0 bg-black/60 flex justify-center items-center z-50 p-4 backdrop-blur-sm animate-fadeIn overflow-y-auto">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl my-8 relative overflow-hidden">
         
         {/* ヘッダー */}
@@ -118,7 +118,7 @@ export default function CompletionReportModal({ project, user, onClose, onReport
                     完成写真とメッセージを投稿して、企画を締めくくりましょう。
                 </p>
             </div>
-            <button onClick={onClose} className="text-white/80 hover:text-white p-1 rounded-full hover:bg-white/20 transition-colors">
+            <button onClick={onClose} aria-label="閉じる" className="text-white/80 hover:text-white p-2 rounded-full hover:bg-white/20 transition-colors">
                 <X size={24}/>
             </button>
         </div>

@@ -1,6 +1,7 @@
 import prisma from '../config/prisma.js';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
+import { logger } from '../utils/logger.js';
 
 // 主催者ログイン
 export const loginOrganizer = async (req, res) => {
@@ -32,7 +33,7 @@ export const loginOrganizer = async (req, res) => {
             } 
         });
     } catch (e) {
-        console.error('loginOrganizer Error:', e);
+        logger.error('loginOrganizer Error', { context: 'organizerController', error: e.message });
         res.status(500).json({ message: 'ログイン処理に失敗しました。' });
     }
 };
@@ -52,7 +53,7 @@ export const getOrganizerProfile = async (req, res) => {
 
         res.json(cleanData);
     } catch (e) {
-        console.error('getOrganizerProfile Error:', e);
+        logger.error('getOrganizerProfile Error', { context: 'organizerController', error: e.message });
         res.status(500).json({ message: 'プロフィールの取得に失敗しました' });
     }
 };
@@ -82,7 +83,7 @@ export const updateOrganizerProfile = async (req, res) => {
         const { password, ...cleanData } = updated;
         res.status(200).json(cleanData);
     } catch (error) {
-        console.error('updateOrganizerProfile Error:', error);
+        logger.error('updateOrganizerProfile Error', { context: 'organizerController', error: error.message });
         res.status(500).json({ message: 'プロフィールの更新に失敗しました。' });
     }
 };
@@ -114,7 +115,7 @@ export const createOrganizerEvent = async (req, res) => {
 
         res.status(201).json(event);
     } catch (e) {
-        console.error('createOrganizerEvent Error:', e);
+        logger.error('createOrganizerEvent Error', { context: 'organizerController', error: e.message });
         res.status(500).json({ message: 'イベントの作成に失敗しました。' });
     }
 };
@@ -138,7 +139,7 @@ export const getOrganizerEvents = async (req, res) => {
         });
         res.json(events || []);
     } catch (e) {
-        console.error('getOrganizerEvents Error:', e);
+        logger.error('getOrganizerEvents Error', { context: 'organizerController', error: e.message });
         res.status(500).json({ message: 'データの取得に失敗しました。' });
     }
 };
@@ -166,7 +167,7 @@ export const updateOrganizerEvent = async (req, res) => {
         });
         res.json(updated);
     } catch (e) {
-        console.error('updateOrganizerEvent Error:', e);
+        logger.error('updateOrganizerEvent Error', { context: 'organizerController', error: e.message });
         res.status(500).json({ message: '更新に失敗しました。' });
     }
 };
@@ -185,7 +186,7 @@ export const deleteOrganizerEvent = async (req, res) => {
         await prisma.event.delete({ where: { id } });
         res.status(204).send();
     } catch (e) {
-        console.error('deleteOrganizerEvent Error:', e);
+        logger.error('deleteOrganizerEvent Error', { context: 'organizerController', error: e.message });
         res.status(500).json({ message: '削除に失敗しました。' });
     }
 };

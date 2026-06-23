@@ -17,5 +17,6 @@ router.delete('/members/:memberId', authenticateToken, teamCtrl.removeTeamMember
 router.get('/exclusive',      optionalAuth, exclusiveCtrl.getExclusiveContents);
 router.post('/exclusive',     authenticateToken, exclusiveCtrl.createExclusiveContent);
 router.delete('/exclusive/:id', authenticateToken, exclusiveCtrl.deleteExclusiveContent);
+router.get('/exclusive/:id/download', authenticateToken, exclusiveCtrl.getExclusiveContentDownloadUrl);
 
 export default router;

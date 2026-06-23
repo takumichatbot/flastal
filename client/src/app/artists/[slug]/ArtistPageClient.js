@@ -1,9 +1,14 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Twitter, Youtube, ExternalLink, CheckCircle2, Heart, ArrowRight, Users, Calendar, MapPin, Ticket } from 'lucide-react';
+import { Twitter, Youtube, ExternalLink, CheckCircle2, Heart, ArrowRight, Users, Calendar, MapPin, Ticket, UserPlus, UserCheck } from 'lucide-react';
+import { useAuth } from '@/app/contexts/AuthContext';
+import toast from 'react-hot-toast';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
 const CATEGORY_LABELS = {
     idol:        'アイドル・アーティスト',
@@ -104,6 +109,41 @@ function EventCard({ event, index }) {
 }
 
 export default function ArtistPageClient({ artist, projects, events = [] }) {
+    const { user, authenticatedFetch } = useAuth();
+    const [following, setFollowing] = useState(false);
+    const [followLoading, setFollowLoading] = useState(false);
+
+    // フォロー状態を取得
+    useEffect(() => {
+        if (!user || !artist?.id) return;
+        authenticatedFetch(`${API_URL}/api/feed/follow/status?artistPageId=${artist.id}`)
+            .then((r) => r.ok ? r.json() : null)
+            .then((d) => { if (d) setFollowing(d.following); })
+            .catch(() => {});
+    }, [user, artist?.id, authenticatedFetch]);
+
+    const handleFollow = async () => {
+        if (!user) {
+            toast.error('フォローするにはログインが必要です');
+            return;
+        }
+        setFollowLoading(true);
+        try {
+            const res = await authenticatedFetch(`${API_URL}/api/feed/follow/artist`, {
+                method: 'POST',
+                body: JSON.stringify({ artistPageId: artist.id }),
+            });
+            if (!res.ok) throw new Error();
+            const d = await res.json();
+            setFollowing(d.following);
+            toast.success(d.following ? `${artist.name} をフォローしました` : 'フォローを解除しました');
+        } catch {
+            toast.error('操作に失敗しました');
+        } finally {
+            setFollowLoading(false);
+        }
+    };
+
     return (
         <div className="min-h-screen bg-white font-sans">
             {/* ヒーロー */}
@@ -117,7 +157,7 @@ export default function ArtistPageClient({ artist, projects, events = [] }) {
                         <img src={artist.iconUrl} alt={artist.name}
                             className="w-20 h-20 rounded-2xl border-4 border-white shadow-xl object-cover shrink-0" />
                     )}
-                    <div>
+                    <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
                             <span className="text-[10px] font-black text-white/70 uppercase tracking-widest bg-white/20 px-2 py-0.5 rounded-full">
                                 {CATEGORY_LABELS[artist.category] || artist.category}
@@ -131,6 +171,19 @@ export default function ArtistPageClient({ artist, projects, events = [] }) {
                         <h1 className="text-2xl md:text-3xl font-black text-white drop-shadow-sm">{artist.name}</h1>
                         {artist.nameKana && <p className="text-white/70 text-xs font-bold mt-0.5">{artist.nameKana}</p>}
                     </div>
+                    {/* フォローボタン */}
+                    <button
+                        onClick={handleFollow}
+                        disabled={followLoading}
+                        className={`shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-2xl text-xs font-black shadow-md transition-all active:scale-95 disabled:opacity-60 ${
+                            following
+                                ? 'bg-white/20 border border-white/40 text-white backdrop-blur-md'
+                                : 'bg-white text-pink-500 hover:bg-pink-50'
+                        }`}
+                    >
+                        {following ? <UserCheck size={14} /> : <UserPlus size={14} />}
+                        {following ? 'フォロー中' : 'フォロー'}
+                    </button>
                 </div>
             </div>
 

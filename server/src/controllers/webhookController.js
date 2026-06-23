@@ -1,12 +1,16 @@
 import prisma from '../config/prisma.js';
 import stripe from '../config/stripe.js';
 import { broadcastTicker, checkUserLevelAndBadges, handleSubscriptionWebhook } from './paymentController.js';
-import { createNotification } from '../utils/notification.js';
+import { createNotification, sendPushNotification } from '../utils/notification.js';
 import { queueEmail } from '../utils/email.js';
 import { getIO } from '../config/socket.js';
 import { evaluateAndAwardBadges } from '../utils/badges.js';
 import { pledgeCounter } from '../config/metrics.js';
-import { fulfillShopOrder } from './shopController.js';
+import { fulfillShopOrder, fulfillShopSubscription } from './shopController.js';
+import { fulfillSuperchat } from './liveController.js';
+import { fulfillGroupBuyEntry } from './groupBuyController.js';
+import { detectFraud } from '../utils/fraudDetection.js';
+import { logger } from '../utils/logger.js';
 
 export const handleStripeWebhook = async (req, res) => {
     const sig = req.headers['stripe-signature'];
@@ -16,12 +20,48 @@ export const handleStripeWebhook = async (req, res) => {
         // Express の raw body を使用して検証
         event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
     } catch (err) {
-        console.error(`Webhook Error: ${err.message}`);
+        logger.error('Stripe webhook signature verification failed', { error: err.message });
         return res.status(400).send(`Webhook Error: ${err.message}`);
     }
 
     // 決済完了イベントのハンドリング
     if (event.type === 'checkout.session.completed') {
+        // ==========================================
+        // 重複処理防止: 処理開始時に 'processing' を記録（upsertで競合状態を解消）
+        // ==========================================
+        let logResult;
+        try {
+            logResult = await prisma.webhookLog.upsert({
+                where: { eventId: event.id },
+                update: {},  // 既存レコードは更新しない（status を上書きしない）
+                create: {
+                    eventId: event.id,
+                    eventType: event.type,
+                    status: 'processing',
+                    metadata: event.data.object.metadata || {},
+                },
+            });
+        } catch (upsertErr) {
+            // 一意制約違反（同時リクエスト）→ 重複として安全にスキップ
+            logger.info('Concurrent duplicate event skipped', { context: 'Webhook', eventId: event.id });
+            return res.json({ received: true });
+        }
+
+        // 既に success または processing（60秒以内）なら二重処理をスキップ
+        if (logResult.status === 'success') {
+            logger.info('Duplicate event ignored (already success)', { context: 'Webhook', eventId: event.id });
+            return res.json({ received: true });
+        }
+        if (logResult.status === 'processing') {
+            const ageMs = Date.now() - new Date(logResult.createdAt).getTime();
+            if (ageMs < 60000) {
+                logger.info(`Event already processing (${Math.round(ageMs / 1000)}s ago)`, { context: 'Webhook', eventId: event.id });
+                return res.json({ received: true });
+            }
+            // 60秒超の processing は古いスタックの可能性があるため再処理を許可
+            logger.info('Stale processing event, retrying', { context: 'Webhook', eventId: event.id });
+        }
+
         const session = event.data.object;
         const meta = session.metadata;
 
@@ -37,10 +77,19 @@ export const handleStripeWebhook = async (req, res) => {
                     if (userId !== 'guest' && parseInt(pointsUsed) > 0) {
                         await tx.user.update({
                             where: { id: userId },
-                            data: { 
+                            data: {
                                 points: { decrement: parseInt(pointsUsed) },
                                 totalPledgedAmount: { increment: parseInt(totalAmount) }
                             }
+                        });
+                        await tx.pointTransaction.create({
+                            data: {
+                                userId,
+                                amount: -parseInt(pointsUsed),
+                                type: 'PLEDGE_USED',
+                                note: `プロジェクト支援: ${projectId}`,
+                                projectId,
+                            },
                         });
                         await checkUserLevelAndBadges(tx, userId);
                     } else if (userId !== 'guest') {
@@ -98,6 +147,12 @@ export const handleStripeWebhook = async (req, res) => {
                     `/projects/${projectId}`
                 );
 
+                sendPushNotification(result.project.plannerId, {
+                    title: '💐 新しい支援が届きました！',
+                    body: `${donorName}さんから${parseInt(totalAmount).toLocaleString()}円の支援がありました`,
+                    url: `/projects/${projectId}`,
+                }).catch(() => {});
+
                 // プランナーへメール
                 queueEmail(result.project.planner.email, 'PLEDGE_RECEIVED', {
                     plannerName: result.project.planner.handleName || 'さん',
@@ -116,18 +171,23 @@ export const handleStripeWebhook = async (req, res) => {
                     });
                 }
 
-                // ゲストへ完了メール
+                // ゲストへ完了メール（アカウント作成CTAつき）
                 if (userId === 'guest' && guestEmail) {
-                    queueEmail(guestEmail, 'PLEDGE_COMPLETED', {
+                    queueEmail(guestEmail, 'PLEDGE_COMPLETED_GUEST', {
                         userName: donorName,
                         projectTitle: result.project.title,
                         amount: parseInt(totalAmount).toLocaleString(),
                         projectId,
+                        registerUrl: `${process.env.FRONTEND_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://www.flastal.com'}/register`,
                     });
                 }
 
                 if (userId && userId !== 'guest') {
                     evaluateAndAwardBadges(userId).catch(() => {});
+                }
+
+                if (userId && userId !== 'guest') {
+                    detectFraud(userId, projectId, parseInt(totalAmount)).catch(err => logger.error('FraudDetection Error', { context: 'Webhook', error: err.message }));
                 }
 
                 // 紹介コードからアフィリエイトコミッション記録（3%）
@@ -145,6 +205,15 @@ export const handleStripeWebhook = async (req, res) => {
                                 prisma.user.update({
                                     where: { id: referrer.id },
                                     data: { points: { increment: reward } },
+                                }),
+                                prisma.pointTransaction.create({
+                                    data: {
+                                        userId: referrer.id,
+                                        amount: reward,
+                                        type: 'REFERRAL_BONUS',
+                                        note: `紹介報酬 (支援額: ${parseInt(totalAmount).toLocaleString()}円)`,
+                                        projectId,
+                                    },
                                 }),
                             ]);
                         })
@@ -167,6 +236,11 @@ export const handleStripeWebhook = async (req, res) => {
 
                 if (result.project.collectedAmount >= result.project.targetAmount) {
                     try { getIO().to(projectId).emit('projectGoalReached', { projectId }); } catch (_) {}
+                    sendPushNotification(result.project.plannerId, {
+                        title: '🎉 目標金額を達成しました！',
+                        body: `「${result.project.title}」が${result.project.collectedAmount.toLocaleString()}円を集めました`,
+                        url: `/projects/${projectId}`,
+                    }).catch(() => {});
                     broadcastTicker('goal', `🔥『${result.project.title}』が目標金額100%を達成しました！`, `/projects/${projectId}`);
                     queueEmail(result.project.planner.email, 'PROJECT_FUNDED', {
                         plannerName: result.project.planner.handleName || 'さん',
@@ -176,14 +250,14 @@ export const handleStripeWebhook = async (req, res) => {
                     });
                 }
 
-                console.log(`[Webhook] Pledge processed successfully for project ${projectId}`);
+                logger.info('Pledge processed successfully', { context: 'Webhook', projectId });
                 await prisma.webhookLog.upsert({
                     where: { eventId: event.id },
                     update: {},
                     create: { eventId: event.id, eventType: event.type, status: 'success', metadata: meta },
                 }).catch(() => {});
             } catch (err) {
-                console.error("[Webhook] Pledge Processing Error:", err);
+                logger.error('Pledge Processing Error', { context: 'Webhook', error: err.message });
                 await prisma.webhookLog.upsert({
                     where: { eventId: event.id },
                     update: { status: 'error', error: err.message },
@@ -199,19 +273,59 @@ export const handleStripeWebhook = async (req, res) => {
         if (meta && meta.type === 'shop_order') {
             try {
                 await fulfillShopOrder(session);
-                console.log(`[Webhook] Shop order fulfilled: session ${session.id}`);
+                logger.info('Shop order fulfilled', { context: 'Webhook', sessionId: session.id });
                 await prisma.webhookLog.upsert({
                     where: { eventId: event.id },
                     update: {},
                     create: { eventId: event.id, eventType: event.type, status: 'success', metadata: meta },
                 }).catch(() => {});
             } catch (err) {
-                console.error('[Webhook] Shop Order Error:', err);
+                logger.error('Shop Order Error', { context: 'Webhook', error: err.message });
                 await prisma.webhookLog.upsert({
                     where: { eventId: event.id },
                     update: { status: 'error', error: err.message },
                     create: { eventId: event.id, eventType: event.type, status: 'error', metadata: meta, error: err.message },
                 }).catch(() => {});
+            }
+        }
+
+        // ==========================================
+        // ケースB-0b: 花屋向け資材ショップ 定期購入
+        // ==========================================
+        if (meta && meta.type === 'shop_subscription') {
+            try {
+                await fulfillShopSubscription(session);
+                await prisma.webhookLog.upsert({ where: { eventId: event.id }, update: {}, create: { eventId: event.id, eventType: event.type, status: 'success', metadata: meta } }).catch(() => {});
+            } catch (err) {
+                logger.error('ShopSubscription Error', { context: 'Webhook', error: err.message });
+                await prisma.webhookLog.upsert({ where: { eventId: event.id }, update: { status: 'error', error: err.message }, create: { eventId: event.id, eventType: event.type, status: 'error', metadata: meta, error: err.message } }).catch(() => {});
+            }
+        }
+
+        // ==========================================
+        // ケースB-1: スーパーチャット（制作中継）
+        // ==========================================
+        if (meta && meta.type === 'superchat') {
+            try {
+                await fulfillSuperchat(session);
+                await prisma.webhookLog.upsert({ where: { eventId: event.id }, update: {}, create: { eventId: event.id, eventType: event.type, status: 'success', metadata: meta } }).catch(() => {});
+            } catch (err) {
+                logger.error('Superchat Error', { context: 'Webhook', error: err.message });
+                await prisma.webhookLog.upsert({ where: { eventId: event.id }, update: { status: 'error', error: err.message }, create: { eventId: event.id, eventType: event.type, status: 'error', metadata: meta, error: err.message } }).catch(() => {});
+            }
+        }
+
+
+        // ==========================================
+        // ケースB-2: グループ購入
+        // ==========================================
+        if (meta && meta.type === 'group_buy') {
+            try {
+                await fulfillGroupBuyEntry(session);
+                await prisma.webhookLog.upsert({ where: { eventId: event.id }, update: {}, create: { eventId: event.id, eventType: event.type, status: 'success', metadata: meta } }).catch(() => {});
+            } catch (err) {
+                logger.error('GroupBuy Error', { context: 'Webhook', error: err.message });
+                await prisma.webhookLog.upsert({ where: { eventId: event.id }, update: { status: 'error', error: err.message }, create: { eventId: event.id, eventType: event.type, status: 'error', metadata: meta, error: err.message } }).catch(() => {});
             }
         }
 
@@ -228,20 +342,28 @@ export const handleStripeWebhook = async (req, res) => {
                     data: { points: { increment: points } },
                     select: { email: true, handleName: true },
                 });
+                await prisma.pointTransaction.create({
+                    data: {
+                        userId,
+                        amount: points,
+                        type: 'POINT_CHARGE',
+                        note: 'ポイントチャージ',
+                    },
+                }).catch(err => logger.error('PointTransaction charge record failed', { context: 'Webhook', error: err.message }));
                 if (chargedUser?.email) {
                     queueEmail(chargedUser.email, 'POINTS_CHARGED', {
                         userName: chargedUser.handleName || 'さん',
                         points: points.toLocaleString(),
                     });
                 }
-                console.log(`[Webhook] Points charged: ${points} to user ${userId}`);
+                logger.info('Points charged', { context: 'Webhook', points, userId });
                 await prisma.webhookLog.upsert({
                     where: { eventId: event.id },
                     update: {},
                     create: { eventId: event.id, eventType: event.type, status: 'success', metadata: { userId, points } },
                 }).catch(() => {});
             } catch (err) {
-                console.error("[Webhook] Point Charge Error:", err);
+                logger.error('Point Charge Error', { context: 'Webhook', error: err.message });
                 await prisma.webhookLog.upsert({
                     where: { eventId: event.id },
                     update: { status: 'error', error: err.message },
@@ -259,7 +381,7 @@ export const handleStripeWebhook = async (req, res) => {
     ];
     if (SUB_EVENTS.includes(event.type)) {
         await handleSubscriptionWebhook(event.data.object, event.type).catch(err => {
-            console.error('Subscription webhook error:', err);
+            logger.error('Subscription webhook error', { context: 'Webhook', error: err.message });
         });
     }
 

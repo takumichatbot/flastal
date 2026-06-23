@@ -12,7 +12,7 @@ import {
   ShieldCheck, Zap, Star, Gem, 
   ArrowRight, Info, Loader2, Edit3, 
   MapPin, Calendar, Truck, CheckCircle, 
-  Activity, BarChart3, Settings, LogOut, ExternalLink
+  BarChart3, Settings, LogOut, ExternalLink
 } from 'lucide-react';
 import FloatingParticles from '@/app/components/FloatingParticles';
 
@@ -224,33 +224,20 @@ function VenueDashboardContent() {
               </div>
               <h3 className="font-black text-slate-800 text-lg">会場オーナーへのご案内</h3>
             </div>
-            <div className="grid md:grid-cols-2 gap-8 text-sm">
-              <div className="space-y-6">
-                <div className="flex gap-4 items-start">
-                  <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center shrink-0 font-black text-slate-400 border border-slate-200">1</div>
-                  <p className="text-slate-500 leading-relaxed font-medium">
-                    <strong className="text-slate-700 block mb-1 font-black">レギュレーションの正確性</strong>
-                    ファンは会場の情報を頼りに企画を立てます。変更がある場合は速やかに更新をお願いします。
-                  </p>
-                </div>
-                <div className="flex gap-4 items-start">
-                  <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center shrink-0 font-black text-slate-400 border border-slate-200">2</div>
-                  <p className="text-slate-500 leading-relaxed font-medium">
-                    <strong className="text-slate-700 block mb-1 font-black">搬入トラブルの防止</strong>
-                    搬入口や回収ルールを明文化することで、当日のお花屋さんとのトラブルを未然に防げます。
-                  </p>
-                </div>
-              </div>
-              <div className="bg-slate-50 p-6 rounded-[2rem] border border-slate-100">
-                <h4 className="font-black text-slate-800 mb-3 flex items-center gap-2">
-                  <Activity size={16} className="text-emerald-500" /> システム連携
-                </h4>
-                <p className="text-xs text-slate-500 leading-relaxed mb-6 font-medium">
-                  イベント主催者（イベンター）様との連携機能は現在開発中です。公式レギュレーションの自動同期が可能になります。
+            <div className="space-y-6 text-sm">
+              <div className="flex gap-4 items-start">
+                <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center shrink-0 font-black text-slate-400 border border-slate-200">1</div>
+                <p className="text-slate-500 leading-relaxed font-medium">
+                  <strong className="text-slate-700 block mb-1 font-black">レギュレーションの正確性</strong>
+                  ファンは会場の情報を頼りに企画を立てます。変更がある場合は速やかに更新をお願いします。
                 </p>
-                <div className="flex items-center gap-2 text-[10px] font-black text-emerald-500 uppercase tracking-widest bg-emerald-50 px-3 py-1.5 rounded-full w-fit border border-emerald-100 shadow-sm">
-                  <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]"></span> Coming Soon
-                </div>
+              </div>
+              <div className="flex gap-4 items-start">
+                <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center shrink-0 font-black text-slate-400 border border-slate-200">2</div>
+                <p className="text-slate-500 leading-relaxed font-medium">
+                  <strong className="text-slate-700 block mb-1 font-black">搬入トラブルの防止</strong>
+                  搬入口や回収ルールを明文化することで、当日のお花屋さんとのトラブルを未然に防げます。
+                </p>
               </div>
             </div>
           </GlassCard>

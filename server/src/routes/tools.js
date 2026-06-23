@@ -61,4 +61,7 @@ router.post('/draft-project', authenticateToken, toolController.generateProjectD
 // DALL-E 3 カバー画像生成
 router.post('/generate-cover-image', authenticateToken, toolController.generateCoverImage);
 
+// AIフラスタデザイン生成（認証必須）
+router.post('/design/generate', authenticateToken, toolController.generateFlowerStandDesign);
+
 export default router;

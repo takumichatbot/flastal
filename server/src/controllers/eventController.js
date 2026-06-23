@@ -1,5 +1,6 @@
 import prisma from '../config/prisma.js';
 import OpenAI from 'openai';
+import { logger } from '../utils/logger.js';
 
 // OpenAIの初期化
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -56,7 +57,7 @@ ${text}
     res.json(result);
 
   } catch (error) {
-    console.error('OpenAI API Analysis Error:', error);
+    logger.error('OpenAI API Analysis Error', { context: 'eventController', error: error.message });
     res.status(500).json({ message: '解析に失敗しました' });
   }
 };
@@ -105,7 +106,7 @@ export const getEvents = async (req, res) => {
         });
         res.json(events || []);
     } catch (e) { 
-        console.error('getEvents Error:', e);
+        logger.error('getEvents Error', { context: 'eventController', error: e.message });
         res.status(500).json({ message: 'イベント一覧の取得に失敗しました。' }); 
     }
 };
@@ -127,7 +128,7 @@ export const getEventById = async (req, res) => {
         if (!event) return res.status(404).json({ message: 'イベントが見つかりません。' });
         res.json(event);
     } catch (e) { 
-        console.error('getEventById Error:', e);
+        logger.error('getEventById Error', { context: 'eventController', error: e.message });
         res.status(500).json({ message: 'イベント情報の取得に失敗しました。' }); 
     }
 };
@@ -190,7 +191,7 @@ export const createEvent = async (req, res) => {
 
         res.status(201).json(event);
     } catch (e) { 
-        console.error('createEvent Critical Error:', e);
+        logger.error('createEvent Critical Error', { context: 'eventController', error: e.message });
         res.status(500).json({ 
             message: 'イベントの作成に失敗しました。',
             detail: e.message 
@@ -267,7 +268,7 @@ export const updateEvent = async (req, res) => {
         });
         res.json(updated);
     } catch (e) {
-        console.error('updateEvent Error:', e);
+        logger.error('updateEvent Error', { context: 'eventController', error: e.message });
         res.status(500).json({ message: 'イベントの更新に失敗しました。' });
     }
 };
@@ -286,7 +287,7 @@ export const deleteEvent = async (req, res) => {
         await prisma.event.delete({ where: { id } });
         res.status(204).send();
     } catch (e) {
-        console.error('deleteEvent Error:', e);
+        logger.error('deleteEvent Error', { context: 'eventController', error: e.message });
         res.status(500).json({ message: 'イベントの削除に失敗しました。' });
     }
 };
@@ -385,7 +386,7 @@ export const aiParseEvent = async (req, res) => {
         res.status(201).json(newEvent);
 
     } catch (error) {
-        console.error('OpenAI Parse Error:', error);
+        logger.error('OpenAI Parse Error', { context: 'eventController', error: error.message });
         res.status(500).json({ message: 'AI解析中にエラーが発生しました。' });
     }
 };

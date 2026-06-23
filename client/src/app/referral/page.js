@@ -9,6 +9,7 @@ import {
     CalendarDays, Download, Image as ImageIcon, ExternalLink
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { Capacitor } from '@capacitor/core';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 const REFERRAL_BONUS = 200;
@@ -20,13 +21,39 @@ const BANNER_MATERIALS = [
     { label: 'バナー 160×600（スカイスクレイパー）', file: '/banners/flastal_banner_160x600.png', size: '160×600' },
 ];
 
+// ─── Capacitor 対応クリップボードコピー ──────────────────────────────
+async function copyToClipboard(text) {
+    try {
+        if (Capacitor.isNativePlatform()) {
+            const { Clipboard } = await import('@capacitor/clipboard');
+            await Clipboard.write({ string: text });
+        } else {
+            await navigator.clipboard.writeText(text);
+        }
+    } catch {
+        // フォールバック（古いブラウザ / 権限なし）
+        const el = document.createElement('textarea');
+        el.value = text;
+        el.style.position = 'fixed';
+        el.style.opacity = '0';
+        document.body.appendChild(el);
+        el.select();
+        document.execCommand('copy');
+        document.body.removeChild(el);
+    }
+}
+
 function CopyButton({ text, label }) {
     const [copied, setCopied] = useState(false);
     const copy = async () => {
-        await navigator.clipboard.writeText(text);
-        setCopied(true);
-        toast.success('コピーしました！');
-        setTimeout(() => setCopied(false), 2000);
+        try {
+            await copyToClipboard(text);
+            setCopied(true);
+            toast.success('コピーしました！');
+            setTimeout(() => setCopied(false), 2000);
+        } catch {
+            toast.error('コピーできませんでした。');
+        }
     };
     return (
         <button onClick={copy}
@@ -121,7 +148,14 @@ export default function ReferralPage() {
                             <div className="flex items-center gap-3 bg-white/20 backdrop-blur-sm border border-white/30 rounded-2xl px-6 py-3">
                                 <span className="text-white text-2xl font-black tracking-widest">{referralCode}</span>
                                 <button
-                                    onClick={() => { navigator.clipboard.writeText(referralCode); toast.success('コピーしました！'); }}
+                                    onClick={async () => {
+                                        try {
+                                            await copyToClipboard(referralCode);
+                                            toast.success('コピーしました！');
+                                        } catch {
+                                            toast.error('コピーできませんでした。');
+                                        }
+                                    }}
                                     className="w-8 h-8 rounded-xl bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors"
                                 >
                                     <Copy size={14} className="text-white" />

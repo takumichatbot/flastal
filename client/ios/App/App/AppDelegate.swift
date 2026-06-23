@@ -1,12 +1,16 @@
 import UIKit
 import Capacitor
+import UserNotifications
 
 @UIApplicationMain
-class AppDelegate: UIResponder, UIApplicationDelegate {
+class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterDelegate {
 
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+        // 通知センターのデリゲートを設定（フォアグラウンド通知表示のため）
+        UNUserNotificationCenter.current().delegate = self
+
         return true
     }
 
@@ -22,6 +26,25 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             name: Notification.Name(CAPNotifications.DidFailToRegisterForRemoteNotificationsWithError.name()),
             object: error
         )
+    }
+
+    // アプリがフォアグラウンド時にも通知を表示する
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        // バナー、サウンド、バッジを全て表示
+        completionHandler([.banner, .sound, .badge])
+    }
+
+    // 通知タップ時の処理
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
+        completionHandler()
     }
 
     func applicationWillResignActive(_ application: UIApplication) {

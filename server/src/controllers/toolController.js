@@ -6,6 +6,7 @@ import prisma from '../config/prisma.js';
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { createNotification } from '../utils/notification.js';
+import { logger } from '../utils/logger.js';
 
 // ★ Google AI (Gemini) のインポート
 import { GoogleGenerativeAI } from '@google/generative-ai';
@@ -31,19 +32,44 @@ const s3Client = new S3Client({
 });
 
 // ==========================================
+// ファイルアップロードバリデーション定数
+// ==========================================
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/webm'];
+const MAX_IMAGE_SIZE = 10 * 1024 * 1024;  // 10MB
+const MAX_VIDEO_SIZE = 200 * 1024 * 1024; // 200MB
+
+// ==========================================
 // 1. AWS S3 署名付きURL発行
 // ==========================================
 export const getS3UploadUrl = async (req, res) => {
     try {
-        const { fileName, fileType } = req.body;
+        const { fileName, fileType, fileSize, mediaType = 'image' } = req.body;
 
         if (!fileName || !fileType) {
             return res.status(400).json({ message: 'ファイル情報が不足しています。' });
         }
 
+        // MIMEタイプ・ファイルサイズバリデーション
+        const allowedTypes = mediaType === 'video' ? ALLOWED_VIDEO_TYPES : ALLOWED_IMAGE_TYPES;
+        const maxSize = mediaType === 'video' ? MAX_VIDEO_SIZE : MAX_IMAGE_SIZE;
+
+        if (!allowedTypes.includes(fileType)) {
+            return res.status(400).json({
+                message: `許可されていないファイル形式です。${mediaType === 'video' ? 'MP4/WebM' : 'JPEG/PNG/GIF/WebP'}のみ対応しています。`
+            });
+        }
+
+        if (fileSize && parseInt(fileSize) > maxSize) {
+            const maxMB = maxSize / (1024 * 1024);
+            return res.status(400).json({
+                message: `ファイルサイズが上限（${maxMB}MB）を超えています。`
+            });
+        }
+
         const bucketName = process.env.AWS_S3_BUCKET_NAME || process.env.AWS_BUCKET_NAME;
         if (!bucketName) {
-            console.error('S3バケット名の環境変数が未設定 (AWS_S3_BUCKET_NAME / AWS_BUCKET_NAME)');
+            logger.error('S3バケット名の環境変数が未設定 (AWS_S3_BUCKET_NAME / AWS_BUCKET_NAME)', { context: 'toolController' });
             return res.status(500).json({ message: 'サーバー設定エラー: S3バケット未設定' });
         }
 
@@ -63,7 +89,7 @@ export const getS3UploadUrl = async (req, res) => {
             fileUrl: `https://${bucketName}.s3.${process.env.AWS_REGION}.amazonaws.com/${fileKey}`
         });
     } catch (err) {
-        console.error("S3署名エラー:", err);
+        logger.error('S3署名エラー', { context: 'toolController', error: err.message });
         res.status(500).json({ message: "署名付きURLの生成に失敗しました" });
     }
 };
@@ -129,7 +155,7 @@ export const createArPanel = async (req, res) => {
         res.send(Buffer.from(glbBuffer));
 
     } catch (error) {
-        console.error("ARパネル生成エラー:", error);
+        logger.error('ARパネル生成エラー', { context: 'toolController', error: error.message });
         res.status(500).json({ message: 'ARデータの生成に失敗しました。' });
     }
 };
@@ -158,7 +184,7 @@ export const generateAiImage = async (req, res) => {
         const enhancedResult = await promptEnhancerModel.generateContent(prompt);
         const finalPrompt = enhancedResult.response.text().trim(); 
         
-        console.log(`[AI Image] Original: ${prompt} \n-> Enhanced: ${finalPrompt}`);
+        logger.info('AI Image prompt enhanced', { context: 'AI Image', original: prompt, enhanced: finalPrompt });
 
         // ★ STEP 2: Imagen 4 Ultra へのリクエスト (REST API方式)
         const location = process.env.GOOGLE_CLOUD_LOCATION || 'asia-northeast1';
@@ -210,7 +236,7 @@ export const generateAiImage = async (req, res) => {
         res.status(200).json({ url: uploadResult.secure_url });
 
     } catch (error) {
-        console.error("Imagen 4 生成エラー:", error);
+        logger.error('Imagen 4 生成エラー', { context: 'toolController', error: error.message });
         res.status(500).json({ 
             message: '画像の生成に失敗しました。', 
             detail: error.message 
@@ -244,7 +270,7 @@ export const translateText = async (req, res) => {
         }
         res.json({ translatedText });
     } catch (error) {
-        console.error("Gemini 翻訳エラー:", error);
+        logger.error('Gemini 翻訳エラー', { context: 'toolController', error: error.message });
         res.status(500).json({ message: '翻訳エラー' });
     }
 };
@@ -276,7 +302,7 @@ export const generatePlanText = async (req, res) => {
         }
         res.json({ title, description });
     } catch (error) {
-        console.error("Gemini テキスト生成エラー:", error);
+        logger.error('Gemini テキスト生成エラー', { context: 'toolController', error: error.message });
         res.status(500).json({ message: 'AIによる文章生成に失敗しました。時間をおいてお試しください。' });
     }
 };
@@ -319,7 +345,7 @@ export const parseEventInfo = async (req, res) => {
         });
         res.status(201).json({ message: '登録しました', event: newEvent });
     } catch (error) {
-        console.error("Gemini イベント解析エラー:", error);
+        logger.error('Gemini イベント解析エラー', { context: 'toolController', error: error.message });
         res.status(500).json({ message: '解析エラー' });
     }
 };
@@ -353,7 +379,7 @@ export const searchFloristByImage = async (req, res) => {
         });
         res.json({ analyzedTags: targetTags, florists });
     } catch(e) { 
-        console.error("Gemini 画像検索解析エラー:", e);
+        logger.error('Gemini 画像検索解析エラー', { context: 'toolController', error: e.message });
         res.status(500).json({ message: '解析エラー' }); 
     }
 };
@@ -372,7 +398,7 @@ export const subscribePush = async (req, res) => {
         });
         res.status(201).json({ message: '通知登録完了' });
     } catch (error) {
-        console.error("Push登録エラー:", error);
+        logger.error('Push登録エラー', { context: 'toolController', error: error.message });
         res.status(500).json({ message: '登録エラー' });
     }
 };
@@ -396,26 +422,52 @@ export const sendTestPush = async (req, res) => {
             res.status(500).json({ message: 'テスト通知の送信に失敗しました' });
         }
     } catch (error) {
-        console.error('[sendTestPush] エラー:', error);
+        logger.error('sendTestPush エラー', { context: 'toolController', error: error.message });
         res.status(500).json({ message: 'テスト通知の送信中にエラーが発生しました' });
     }
 };
 
 export const registerNativeDeviceToken = async (req, res) => {
-    const { token } = req.body;
+    const { token, platform = 'ios' } = req.body;
     const userId = req.user.id;
-    if (!token) return res.status(400).json({ message: 'tokenは必須です' });
+
+    if (!token || typeof token !== 'string') {
+        return res.status(400).json({ message: 'tokenは必須です' });
+    }
+
+    // トークン長の上限チェック（過度に長い入力を拒否）
+    if (token.length > 500) {
+        return res.status(400).json({ message: 'トークンが長すぎます。' });
+    }
+
+    // プラットフォーム別のトークン形式バリデーション
+    if (platform === 'ios') {
+        // APNsトークン: 64文字の16進数文字列
+        const normalizedToken = token.replace(/\s/g, '');
+        if (!/^[0-9a-f]{64}$/i.test(normalizedToken)) {
+            return res.status(400).json({ message: '無効なAPNsトークン形式です。' });
+        }
+    } else if (platform === 'android') {
+        // FCMトークン: 100〜500文字の英数字・記号
+        if (token.length < 100 || token.length > 500) {
+            return res.status(400).json({ message: '無効なFCMトークン形式です。' });
+        }
+    } else {
+        return res.status(400).json({ message: '不明なプラットフォームです。ios または android を指定してください。' });
+    }
+
     try {
         // APNs device token を PushSubscription の endpoint フィールドに保存
         // p256dh / auth は Web Push 専用フィールドのためプレースホルダーを使用
+        const endpointPrefix = platform === 'android' ? 'fcm' : 'apns';
         await prisma.pushSubscription.upsert({
-            where: { endpoint: `apns:${token}` },
+            where: { endpoint: `${endpointPrefix}:${token}` },
             update: { userId },
-            create: { userId, endpoint: `apns:${token}`, p256dh: 'native', auth: 'native' }
+            create: { userId, endpoint: `${endpointPrefix}:${token}`, p256dh: 'native', auth: 'native' }
         });
         res.status(201).json({ message: 'デバイストークンを登録しました' });
     } catch (error) {
-        console.error('[NativePush] デバイストークン登録エラー:', error);
+        logger.error('デバイストークン登録エラー', { context: 'NativePush', error: error.message });
         res.status(500).json({ message: '登録に失敗しました' });
     }
 };
@@ -495,10 +547,68 @@ export const generateProjectDraft = async (req, res) => {
         const draft = JSON.parse(result.response.text());
         res.json(draft);
     } catch (error) {
-        console.error('AIドラフト生成エラー:', error);
+        logger.error('AIドラフト生成エラー', { context: 'toolController', error: error.message });
         res.status(500).json({ message: 'AIドラフト生成に失敗しました。' });
     }
 };
+// ─────────────────────────────────────────
+// AIフラスタデザイン提案
+// ─────────────────────────────────────────
+export const generateFlowerStandDesign = async (req, res) => {
+  const { artistName, imageColors, budget, venue, mood, existingTheme } = req.body;
+
+  if (!artistName) return res.status(400).json({ message: 'アーティスト名は必須です。' });
+
+  const prompt = `あなたはフラスタ（フラワースタンド）のプロデザイナーです。以下の条件でフラスタのデザイン案を提案してください。
+
+【条件】
+- 贈り先アーティスト: ${artistName}
+- イメージカラー: ${imageColors || '指定なし'}
+- 予算: ${budget ? `¥${Number(budget).toLocaleString()}` : '指定なし'}
+- 設置会場: ${venue || '指定なし'}
+- 雰囲気・テーマ: ${mood || '指定なし'}
+- 既存テーマ・世界観: ${existingTheme || '指定なし'}
+
+以下の形式でJSONで回答してください（Markdownのコードブロックなしで純粋なJSONのみ）:
+{
+  "concept": "デザインコンセプト（2〜3文）",
+  "flowers": [
+    { "name": "花の名前", "color": "色", "role": "使い方・役割" }
+  ],
+  "colorPalette": ["カラーコード1", "カラーコード2", "カラーコード3"],
+  "layout": "全体構成の説明（上部・中部・下部に何をどう配置するか）",
+  "message": "リボンに書くメッセージ案（例: 〇〇さん いつもありがとう！）",
+  "panels": "パネル・ボードの提案（イラスト内容・フォントスタイルなど）",
+  "tips": ["制作のポイント1", "制作のポイント2", "制作のポイント3"],
+  "estimatedFlowers": "使用花材の数量目安（例: バラ30本、カスミソウ20本など）"
+}`;
+
+  try {
+    const { default: OpenAI } = await import('openai');
+    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [{ role: 'user', content: prompt }],
+      max_tokens: 1000,
+      temperature: 0.8,
+    });
+
+    const raw = completion.choices[0].message.content.trim();
+    let design;
+    try {
+      design = JSON.parse(raw);
+    } catch {
+      return res.json({ raw });
+    }
+
+    res.json({ design });
+  } catch (err) {
+    logger.error('AI Design Error', { context: 'toolController', error: err.message });
+    res.status(500).json({ message: 'AIデザイン生成に失敗しました。しばらくしてから再試行してください。' });
+  }
+};
+
 // ==========================================
 // ★ DALL-E 3 カバー画像生成
 // ==========================================
@@ -540,7 +650,7 @@ export const generateCoverImage = async (req, res) => {
         const imageUrl = response.data[0].url;
         res.json({ imageUrl, revisedPrompt: response.data[0].revised_prompt });
     } catch (err) {
-        console.error('[DALL-E3]', err?.message || err);
+        logger.error('DALL-E3 Error', { context: 'toolController', error: err?.message || String(err) });
         res.status(500).json({ message: 'AI画像生成に失敗しました' });
     }
 };

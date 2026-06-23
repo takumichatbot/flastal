@@ -62,7 +62,7 @@ function ReportDetailModal({ report, type, onClose, onAction }) {
                     <h3 className="font-bold text-gray-800 flex items-center gap-2">
                         <AlertTriangle className="text-red-500"/> 通報詳細確認
                     </h3>
-                    <button onClick={onClose} className="p-1 hover:bg-gray-200 rounded-full"><XCircle size={20} className="text-gray-400"/></button>
+                    <button onClick={onClose} aria-label="閉じる" className="p-2 hover:bg-gray-200 rounded-full"><XCircle size={20} className="text-gray-400"/></button>
                 </div>
                 
                 <div className="p-6 overflow-y-auto">

@@ -1,6 +1,7 @@
 import express from 'express';
 import compression from 'compression';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import webpush from 'web-push';
 import { generalLimiter, authLimiter, uploadLimiter, paymentLimiter, aiLimiter } from './middleware/rateLimiter.js';
 import postRoutes from './routes/posts.js';
@@ -8,8 +9,14 @@ import { sendEmail } from './utils/email.js';
 import { startWebhookRetryJob } from './jobs/webhookRetry.js';
 import { startReminderJob } from './jobs/reminderJob.js';
 import { initSentry, Sentry } from './config/sentry.js';
+import prisma from './config/prisma.js';
+import { validateEnv } from './utils/validateEnv.js';
+import { logger } from './utils/logger.js';
 
-// Sentryは最初に初期化する
+// 必須環境変数の確認（不足があれば即終了）
+validateEnv();
+
+// Sentryは環境変数確認後に初期化する
 initSentry();
 
 // --- ルーティングファイルのインポート ---
@@ -33,6 +40,12 @@ import artistPageRoutes    from './routes/artistPages.js';
 import giftCardRoutes      from './routes/giftCards.js';
 import galleryRoutes       from './routes/gallery.js';
 import shopRoutes          from './routes/shop.js';
+import liveRoutes          from './routes/live.js';
+import orderChatRoutes     from './routes/orderChat.js';
+import groupBuyRoutes      from './routes/groupBuy.js';
+import templateRoutes      from './routes/templates.js';
+import recommendRoutes     from './routes/recommend.js';
+import feedRoutes          from './routes/feed.js';
 import { metricsMiddleware, register } from './config/metrics.js';
 
 // ★ 追加: Webhook、アップロード、認証関連、ユーザーコントローラーのインポート
@@ -76,7 +89,9 @@ app.use(cors({
         if (!origin || allowedOrigins.includes(origin)) {
             callback(null, true);
         } else {
-            console.warn(`CORS blocked for origin: ${origin}`);
+            if (process.env.NODE_ENV !== 'production') {
+                logger.warn('CORS blocked', { origin });
+            }
             callback(new Error('Not allowed by CORS'));
         }
     },
@@ -102,7 +117,17 @@ app.post('/api/webhooks/stripe', express.raw({type: 'application/json'}), handle
 app.post('/api/contact', async (req, res) => {
     const { name, email, message } = req.body;
     try {
-        await sendEmail("admin@flastal.com", `【お問い合わせ】${name}様より`, `<p>${message}</p><p>返信先: ${email}</p>`);
+        const escapeHtml = (str) => String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+        await sendEmail(
+            "admin@flastal.com",
+            `【お問い合わせ】${escapeHtml(name)}様より`,
+            `<p>${escapeHtml(message)}</p><p>返信先: ${escapeHtml(email)}</p>`
+        );
         res.json({ message: "お問い合わせを送信しました。" });
     } catch (e) {
         res.status(500).json({ message: "送信に失敗しました。" });
@@ -112,6 +137,7 @@ app.post('/api/contact', async (req, res) => {
 // ==========================================
 // ★★★ 標準ミドルウェア ★★★
 // ==========================================
+app.use(cookieParser());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(metricsMiddleware);
@@ -124,6 +150,35 @@ app.get('/metrics', async (_req, res) => {
 
 app.get('/', (_req, res) => {
     res.send('FLASTAL API Server is running (v2)');
+});
+
+// ==========================================
+// ★★★ ヘルスチェック ★★★
+// ==========================================
+
+// Liveness: プロセスが生きているか（rate limit なし）
+app.get('/api/health', (_req, res) => {
+    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// Readiness: DB接続が正常か（rate limit なし）
+app.get('/api/readiness', async (_req, res) => {
+    try {
+        await prisma.$queryRaw`SELECT 1`;
+        res.json({
+            status: 'ready',
+            timestamp: new Date().toISOString(),
+            db: 'connected',
+        });
+    } catch (err) {
+        logger.error('Readiness check: DB connection failed', { error: err.message });
+        res.status(503).json({
+            status: 'not_ready',
+            timestamp: new Date().toISOString(),
+            db: 'disconnected',
+            error: 'Database connection failed',
+        });
+    }
 });
 
 // ==========================================
@@ -146,6 +201,12 @@ app.use('/api/artists',                           generalLimiter, artistPageRout
 app.use('/api/gift-cards',                        generalLimiter, giftCardRoutes);
 app.use('/api/gallery',                           generalLimiter, galleryRoutes);
 app.use('/api/shop',                              generalLimiter, shopRoutes);
+app.use('/api/live',                              generalLimiter, liveRoutes);
+app.use('/api/group-buys',                        generalLimiter, groupBuyRoutes);
+app.use('/api/order-chat',                        generalLimiter, orderChatRoutes);
+app.use('/api/templates',                         generalLimiter, templateRoutes);
+app.use('/api/recommend',                         generalLimiter, recommendRoutes);
+app.use('/api/feed',                              generalLimiter, feedRoutes);
 app.use('/api/tools', uploadLimiter, toolRoutes); // S3アップロード・AI生成
 app.use('/api/ai', aiLimiter, toolRoutes);
 app.use('/api/payment', paymentLimiter, paymentRoutes);
@@ -171,11 +232,12 @@ app.use(Sentry.expressErrorHandler());
 
 // エラーハンドリングミドルウェア
 app.use((err, req, res, _next) => {
-    console.error('--- SERVER ERROR ---');
-    console.error('Method:', req.method);
-    console.error('URL:', req.url);
-    console.error('Body Keys:', Object.keys(req.body || {}));
-    console.error('Error Stack:', err.stack);
+    logger.error('Server error', {
+        method: req.method,
+        url: req.url,
+        bodyKeys: Object.keys(req.body || {}),
+        stack: err.stack,
+    });
 
     res.status(err.status || 500).json({
         message: 'サーバー側でエラーが発生しました。',
@@ -186,10 +248,68 @@ app.use((err, req, res, _next) => {
 // cronジョブ起動
 startWebhookRetryJob();
 startReminderJob();
+logger.info('Cron jobs started', { jobs: ['webhookRetry', 'reminder'] });
+
 // 期限切れ自動キャンセル & 締切3日前リマインダーメール cron
-import('./cron/deadlineChecker.js').catch(console.error);
+import('./cron/deadlineChecker.js')
+  .then(() => logger.info('Cron job loaded', { job: 'deadlineChecker' }))
+  .catch((err) => logger.error('Failed to load deadlineChecker cron', { error: err.message }));
+
+// グループ購入 締切未達時の自動返金 cron（毎時0分実行）
+import('./cron/groupBuyRefund.js').then(({ runGroupBuyRefundJob }) => {
+  setInterval(runGroupBuyRefundJob, 60 * 60 * 1000); // 毎時0分に実行
+  runGroupBuyRefundJob(); // 起動時にも即実行
+  logger.info('Cron job loaded', { job: 'groupBuyRefund', interval: '1h' });
+}).catch((err) => logger.error('Failed to load groupBuyRefund cron', { error: err.message }));
+
+// オファー期限切れ自動却下 cron（毎時実行）
+import('./cron/offerExpiry.js').then(({ runOfferExpiryJob }) => {
+  runOfferExpiryJob(); // 起動時に即実行
+  setInterval(runOfferExpiryJob, 60 * 60 * 1000); // 毎時実行
+  logger.info('Cron job loaded', { job: 'offerExpiry', interval: '1h' });
+}).catch((err) => logger.error('Failed to load offerExpiry cron', { error: err.message }));
+
+// 毎日9時（JST = UTC 0時）に通知ダイジェストメールを送信
+import('./cron/notificationDigest.js').then(({ runNotificationDigestJob }) => {
+  const now = new Date();
+  const msUntilNextRun = (() => {
+    const next = new Date(now);
+    next.setUTCHours(0, 0, 0, 0); // UTC 0時 = JST 9時
+    if (next <= now) next.setUTCDate(next.getUTCDate() + 1);
+    return next - now;
+  })();
+  setTimeout(() => {
+    runNotificationDigestJob();
+    setInterval(runNotificationDigestJob, 24 * 60 * 60 * 1000);
+  }, msUntilNextRun);
+  logger.info('Cron job loaded', { job: 'notificationDigest', schedule: 'daily UTC 00:00 (JST 09:00)' });
+}).catch((err) => logger.error('Failed to load notificationDigest cron', { error: err.message }));
 
 // BullMQ メールワーカー起動（REDIS_URL が設定されている場合のみ有効）
-import('./queues/emailQueue.js').then(({ startEmailWorker }) => startEmailWorker()).catch(() => {});
+import('./queues/emailQueue.js')
+  .then(({ startEmailWorker }) => {
+    startEmailWorker();
+    logger.info('BullMQ email worker started');
+  })
+  .catch(() => {
+    logger.warn('BullMQ email worker not started (REDIS_URL may be unset)');
+  });
+
+// Typesense定期同期（毎朝UTC 17時 = JST 2時）
+import('./cron/typesenseSync.js').then(({ runTypesenseSyncJob }) => {
+  const scheduleDaily = () => {
+    const now = new Date();
+    const next = new Date(now);
+    next.setUTCHours(17, 0, 0, 0); // UTC 17時 = JST 2時
+    if (next <= now) next.setUTCDate(next.getUTCDate() + 1);
+    const delay = next - now;
+    setTimeout(() => {
+      runTypesenseSyncJob();
+      setInterval(runTypesenseSyncJob, 24 * 60 * 60 * 1000);
+    }, delay);
+  };
+  scheduleDaily();
+  logger.info('Cron job loaded', { job: 'typesenseSync', schedule: 'daily UTC 17:00' });
+}).catch(() => {});
 
 export default app;

@@ -1,10 +1,14 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useAuth } from '../contexts/AuthContext';
-import { Camera, X, Loader2, ImageOff, ExternalLink, Plus, Trash2, Heart, ChevronDown } from 'lucide-react';
+import { Camera, X, Loader2, ExternalLink, Plus, Trash2, Heart, ChevronDown } from 'lucide-react';
+import { EmptyState } from '../components/EmptyState';
+import { DeleteConfirmModal } from '../components/DeleteConfirmModal';
+import { Capacitor } from '@capacitor/core';
+import toast from 'react-hot-toast';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -86,7 +90,7 @@ function PhotoCard({ photo, onDelete, canDelete, token, onLikeUpdate }) {
             </div>
 
             {showFull && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4" onClick={() => setShowFull(false)}>
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4" onClick={() => setShowFull(false)}>
                     <div className="relative max-w-2xl w-full bg-white rounded-2xl overflow-hidden shadow-2xl" onClick={e => e.stopPropagation()}>
                         <div className="relative aspect-video bg-black">
                             <Image src={photo.imageUrl} alt={photo.caption || ''} fill className="object-contain" unoptimized />
@@ -132,8 +136,9 @@ function UploadModal({ onClose, onSuccess, token }) {
     const [caption, setCaption] = useState('');
     const [uploading, setUploading] = useState(false);
     const [preview, setPreview] = useState('');
+    const fileInputRef = useRef(null);
 
-    const handleFile = async (f) => {
+    const uploadFile = async (f) => {
         setPreview(URL.createObjectURL(f));
         setUploading(true);
         const fd = new FormData();
@@ -151,6 +156,31 @@ function UploadModal({ onClose, onSuccess, token }) {
         } finally { setUploading(false); }
     };
 
+    // ネイティブはCapacitor Camera、WebはfileInputにフォールバック
+    const handleImageSelect = async () => {
+        if (Capacitor.isNativePlatform()) {
+            try {
+                const { Camera, CameraResultType, CameraSource } = await import('@capacitor/camera');
+                const image = await Camera.getPhoto({
+                    quality: 85,
+                    allowEditing: false,
+                    resultType: CameraResultType.DataUrl,
+                    source: CameraSource.Photos,
+                });
+                const response = await fetch(image.dataUrl);
+                const blob = await response.blob();
+                const file = new File([blob], 'photo.jpg', { type: 'image/jpeg' });
+                await uploadFile(file);
+            } catch (err) {
+                if (err?.message !== 'User cancelled photos app') {
+                    toast.error('画像の選択に失敗しました。');
+                }
+            }
+        } else {
+            fileInputRef.current?.click();
+        }
+    };
+
     const submit = async () => {
         if (!imageUrl || !projectId) return;
         setUploading(true);
@@ -164,7 +194,7 @@ function UploadModal({ onClose, onSuccess, token }) {
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
                 <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
                     <p className="font-black text-slate-800">達成写真を投稿</p>
@@ -176,12 +206,16 @@ function UploadModal({ onClose, onSuccess, token }) {
                         value={projectId}
                         onChange={e => setProjectId(e.target.value)}
                         placeholder="企画ID（URLの末尾の番号）"
-                        className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 outline-none focus:border-violet-400"
+                        className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 outline-none focus:border-pink-300 focus:ring-2 focus:ring-pink-200/60"
                     />
-                    <label className={`block border-2 border-dashed rounded-xl cursor-pointer overflow-hidden aspect-video flex items-center justify-center transition-colors ${preview ? 'border-transparent' : 'border-slate-200 hover:border-violet-300'}`}>
+                    <button
+                        type="button"
+                        onClick={handleImageSelect}
+                        className={`w-full border-2 border-dashed rounded-xl overflow-hidden aspect-video flex items-center justify-center transition-colors ${preview ? 'border-transparent p-0' : 'border-slate-200 hover:border-violet-300'}`}
+                    >
                         {preview ? (
                             <div className="relative w-full h-full">
-                                <Image src={preview} alt="" fill className="object-cover" unoptimized />
+                                <Image src={preview} alt="アップロード画像のプレビュー" fill className="object-cover" unoptimized />
                             </div>
                         ) : (
                             <div className="text-center">
@@ -189,16 +223,22 @@ function UploadModal({ onClose, onSuccess, token }) {
                                 <p className="text-xs text-slate-400 font-bold">クリックして写真を選択</p>
                             </div>
                         )}
-                        <input type="file" accept="image/*" className="sr-only"
-                            onChange={e => e.target.files?.[0] && handleFile(e.target.files[0])} />
-                    </label>
+                    </button>
+                    {/* Web用 hidden file input */}
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        className="sr-only"
+                        onChange={e => e.target.files?.[0] && uploadFile(e.target.files[0])}
+                    />
 
                     <input
                         type="text"
                         value={caption}
                         onChange={e => setCaption(e.target.value)}
                         placeholder="コメント（任意）"
-                        className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 outline-none focus:border-violet-400"
+                        className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 outline-none focus:border-pink-300 focus:ring-2 focus:ring-pink-200/60"
                         maxLength={200}
                     />
                     <button
@@ -222,6 +262,8 @@ export default function GalleryPage() {
     const [activeGenre, setActiveGenre] = useState('all');
     const [sortBy, setSortBy] = useState('newest');
     const [showSortMenu, setShowSortMenu] = useState(false);
+    const [deleteTargetId, setDeleteTargetId] = useState(null);
+    const [deleting, setDeleting] = useState(false);
 
     const load = useCallback(async () => {
         setLoading(true);
@@ -233,13 +275,23 @@ export default function GalleryPage() {
 
     useEffect(() => { load(); }, [load]);
 
-    const handleDelete = async (id) => {
-        if (!confirm('この写真を削除しますか？')) return;
-        await fetch(`${API_URL}/api/gallery/${id}`, {
-            method: 'DELETE',
-            headers: { Authorization: `Bearer ${token}` },
-        });
-        setPhotos(p => p.filter(ph => ph.id !== id));
+    const handleDelete = (id) => {
+        setDeleteTargetId(id);
+    };
+
+    const handleDeleteConfirm = async () => {
+        if (!deleteTargetId) return;
+        setDeleting(true);
+        try {
+            await fetch(`${API_URL}/api/gallery/${deleteTargetId}`, {
+                method: 'DELETE',
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            setPhotos(p => p.filter(ph => ph.id !== deleteTargetId));
+        } finally {
+            setDeleting(false);
+            setDeleteTargetId(null);
+        }
     };
 
     const handleLikeUpdate = (photoId, newLiked, newCount) => {
@@ -263,7 +315,7 @@ export default function GalleryPage() {
     const currentSortLabel = SORT_OPTIONS.find(o => o.id === sortBy)?.label || '新着順';
 
     return (
-        <div className="min-h-screen bg-[#FAF9FF] font-sans">
+        <div className="min-h-screen bg-[#F7F7FA] font-sans">
             {/* ヒーローセクション */}
             <div className="bg-gradient-to-br from-pink-500 to-rose-500 text-white py-10 px-4 text-center">
                 <h1 className="text-2xl font-black">達成報告ギャラリー</h1>
@@ -331,10 +383,12 @@ export default function GalleryPage() {
                         <Loader2 size={28} className="animate-spin text-pink-400" />
                     </div>
                 ) : filteredAndSorted.length === 0 ? (
-                    <div className="text-center py-20">
-                        <ImageOff size={36} className="mx-auto mb-3 text-slate-200" />
-                        <p className="text-slate-400 font-bold text-sm">まだ写真がありません</p>
-                    </div>
+                    <EmptyState
+                        icon="photo"
+                        title="まだ写真がありません"
+                        description="最初の達成報告写真を投稿してみましょう！"
+                        action={token ? { label: '写真を投稿する', onClick: () => setShowUpload(true) } : undefined}
+                    />
                 ) : (
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                         {filteredAndSorted.map(photo => (
@@ -355,7 +409,8 @@ export default function GalleryPage() {
             {token && (
                 <button
                     onClick={() => setShowUpload(true)}
-                    className="fixed bottom-24 right-4 z-40 w-14 h-14 rounded-full bg-gradient-to-br from-pink-500 to-rose-500 text-white shadow-xl shadow-pink-200 flex items-center justify-center hover:scale-110 transition-transform active:scale-95"
+                    className="fixed right-4 z-40 w-14 h-14 rounded-full bg-gradient-to-br from-pink-500 to-rose-500 text-white shadow-xl shadow-pink-200 flex items-center justify-center hover:scale-110 transition-transform active:scale-95"
+                    style={{ bottom: 'calc(6rem + env(safe-area-inset-bottom, 0px))' }}
                     aria-label="写真を投稿"
                 >
                     <Plus size={24} />
@@ -369,6 +424,15 @@ export default function GalleryPage() {
                     onSuccess={() => { setShowUpload(false); load(); }}
                 />
             )}
+
+            <DeleteConfirmModal
+                isOpen={!!deleteTargetId}
+                onClose={() => setDeleteTargetId(null)}
+                onConfirm={handleDeleteConfirm}
+                title="この写真を削除しますか？"
+                description="削除した写真は元に戻せません。"
+                isLoading={deleting}
+            />
         </div>
     );
 }

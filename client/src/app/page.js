@@ -22,6 +22,7 @@ import {
   ChevronRight, CheckCircle2, Wand2
 } from 'lucide-react';
 import { useAuth } from './contexts/AuthContext';
+import RecommendedProjects from './components/RecommendedProjects';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -92,7 +93,7 @@ const ButterflyParticle = ({ delay = 0, x = "0%", y = "0%", scale = 1, color = "
     yEnd: -100 - Math.random() * 50,
     xOffset1:  20 + Math.random() * 20,
     xOffset2: -20 - Math.random() * 20,
-    duration: 9 + Math.random() * 4,
+    duration: 5 + Math.random() * 3,
     wingDuration: 0.22 + Math.random() * 0.12,
   }), []);
 
@@ -137,11 +138,11 @@ const BACKGROUND_BUTTERFLIES = [
 
 const CATEGORIES = [
   { id: 'idol',        name: 'Idol / Artist',    jp: 'アイドル・アーティスト', icon: Music,       color: 'text-pink-500',    bg: 'bg-pink-50',    border: 'border-pink-100' },
-  { id: 'vtuber',     name: 'Virtual Creator',  jp: 'VTuber・配信者',         icon: Video,       color: 'text-cyan-500',    bg: 'bg-cyan-50',    border: 'border-cyan-100' },
+  { id: 'vtuber',     name: 'Virtual Creator',  jp: 'VTuber・配信者',         icon: Video,       color: 'text-fuchsia-500', bg: 'bg-fuchsia-50', border: 'border-fuchsia-100' },
   { id: 'stage',      name: 'Stage / Musical',  jp: '舞台・ミュージカル',     icon: Users,       color: 'text-purple-500',  bg: 'bg-purple-50',  border: 'border-purple-100' },
-  { id: 'voice',      name: 'Voice Actor',      jp: '声優・役者',              icon: MessageCircle, color: 'text-amber-500', bg: 'bg-amber-50',   border: 'border-amber-100' },
-  { id: 'anime',      name: 'Anime / Game',     jp: 'アニメ・ゲームイベント', icon: Command,     color: 'text-emerald-500', bg: 'bg-emerald-50', border: 'border-emerald-100' },
-  { id: 'anniversary',name: 'Anniversary',      jp: '生誕祭・周年記念',        icon: Crown,       color: 'text-rose-500',    bg: 'bg-rose-50',    border: 'border-rose-100' },
+  { id: 'voice',      name: 'Voice Actor',      jp: '声優・役者',              icon: MessageCircle, color: 'text-rose-500',  bg: 'bg-rose-50',    border: 'border-rose-100' },
+  { id: 'anime',      name: 'Anime / Game',     jp: 'アニメ・ゲームイベント', icon: Command,     color: 'text-violet-500',  bg: 'bg-violet-50',  border: 'border-violet-100' },
+  { id: 'anniversary',name: 'Anniversary',      jp: '生誕祭・周年記念',        icon: Crown,       color: 'text-pink-600',     bg: 'bg-pink-100',    border: 'border-pink-200' },
 ];
 
 // ==========================================
@@ -183,7 +184,7 @@ function CountUp({ end, suffix = '', prefix = '' }) {
 // ==========================================
 const IntroLoader = ({ onComplete }) => {
   useEffect(() => {
-    const t = setTimeout(onComplete, 950);
+    const t = setTimeout(onComplete, 600);
     return () => clearTimeout(t);
   }, [onComplete]);
 
@@ -219,8 +220,14 @@ const IntroLoader = ({ onComplete }) => {
           animate={{ scale: [1, 1.08, 1], rotate: [0, 6, -6, 0] }}
           transition={{ duration: 1.6, ease: "easeInOut" }}
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/icon-512x512.png" alt="FLASTAL" width={96} height={96} style={{ borderRadius: '28px', boxShadow: '0 8px 32px rgba(236,72,153,0.25)' }} />
+          <Image
+            src="/icon-512x512.png"
+            alt="FLASTAL"
+            width={96}
+            height={96}
+            priority
+            style={{ borderRadius: '28px', boxShadow: '0 8px 32px rgba(236,72,153,0.25)' }}
+          />
         </motion.div>
         <div className="text-center">
           <span className="font-calligraphy text-xl text-pink-400 block mb-1">Welcome to</span>
@@ -270,8 +277,21 @@ const SoftBackground = () => {
 // 1. HERO SECTION
 // ==========================================
 const Hero = () => {
+  const [featuredProjects, setFeaturedProjects] = useState([]);
+
+  useEffect(() => {
+    fetch(`${API_URL}/api/projects?limit=3&status=active`)
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(data => {
+        const arr = Array.isArray(data) ? data : (data?.projects || []);
+        const active = arr.filter(p => p?.status === 'FUNDRAISING' || p?.status === 'active' || p?.status === 'ACTIVE');
+        setFeaturedProjects(active.slice(0, 3));
+      })
+      .catch(() => {});
+  }, []);
+
   return (
-    <section className="relative w-full min-h-[92svh] flex flex-col justify-center overflow-hidden pt-6 pb-8 px-4 md:px-6 z-10">
+    <section className="relative w-full min-h-[92svh] flex flex-col justify-center overflow-hidden pt-6 pb-8 px-4 sm:px-5 md:px-6 z-10">
 
       <div className="container relative z-10 max-w-6xl mx-auto">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-center">
@@ -283,7 +303,7 @@ const Hero = () => {
             <Reveal delay={0}>
               <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-pink-200 bg-pink-50/80 backdrop-blur-sm mb-5 text-pink-500 shadow-sm">
                 <Sparkles size={12} className="shrink-0" />
-                <span className="text-[11px] font-black tracking-wider">ファン同士で贈る、フラスタ企画</span>
+                <span className="text-xs font-black tracking-wider">ファン同士で贈る、フラスタ企画</span>
               </div>
             </Reveal>
 
@@ -296,14 +316,14 @@ const Hero = () => {
               </Reveal>
               <SplitTextReveal
                 text="世界でひとつのお花を。"
-                className="text-[2.1rem] sm:text-5xl md:text-6xl lg:text-[4rem] font-black text-slate-900 tracking-tighter leading-tight [text-shadow:0_1px_3px_rgba(0,0,0,0.08)]"
+                className="text-3xl sm:text-5xl md:text-6xl lg:text-6xl font-black text-slate-900 tracking-tighter leading-tight [text-shadow:0_1px_3px_rgba(0,0,0,0.08)]"
                 delay={0.12}
               />
             </div>
 
             {/* サブテキスト */}
             <Reveal delay={0.2}>
-              <p className="text-[0.95rem] md:text-base text-slate-500 max-w-lg leading-[1.85] font-medium mb-8">
+              <p className="text-sm md:text-base text-slate-500 max-w-lg leading-[1.85] font-medium mb-8">
                 推しの特別な日を、みんなの愛で彩ろう。<br className="hidden sm:block"/>
                 集金・匿名配送・お花屋さんへの発注まで<br className="hidden sm:block"/>
                 FLASTALがすべてサポートします。
@@ -358,7 +378,7 @@ const Hero = () => {
                   whileHover={{ scale: 1.03, y: -2 }}
                   whileTap={{ scale: 0.97 }}
                   transition={{ type: "spring", stiffness: 400, damping: 20 }}
-                  className="w-full sm:w-auto px-7 py-4 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-2xl font-black text-base shadow-lg shadow-pink-200 hover:shadow-xl hover:shadow-pink-200 transition-shadow flex items-center justify-center gap-2.5"
+                  className="w-full sm:w-auto px-7 py-3.5 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-2xl font-black text-base shadow-lg shadow-pink-200 hover:shadow-xl hover:shadow-pink-200 transition-shadow flex items-center justify-center gap-2.5"
                 >
                   <Crown size={18} strokeWidth={2.5} /> 企画を立ち上げる
                 </motion.button>
@@ -369,7 +389,7 @@ const Hero = () => {
                   whileHover={{ scale: 1.03, y: -2 }}
                   whileTap={{ scale: 0.97 }}
                   transition={{ type: "spring", stiffness: 400, damping: 20 }}
-                  className="w-full sm:w-auto px-7 py-4 bg-white text-slate-700 rounded-2xl font-black text-base border-2 border-slate-100 hover:border-pink-200 shadow-sm flex items-center justify-center gap-2.5"
+                  className="w-full sm:w-auto px-7 py-3.5 bg-white text-slate-700 rounded-2xl font-black text-base border-2 border-slate-100 hover:border-pink-200 shadow-sm flex items-center justify-center gap-2.5"
                 >
                   <Search size={18} className="text-slate-400" strokeWidth={2.5} /> 企画を探す
                 </motion.button>
@@ -379,13 +399,13 @@ const Hero = () => {
             {/* 信頼バッジ */}
             <Reveal delay={0.36}>
               <div className="flex items-center gap-4 mt-6 text-slate-400">
-                <span className="flex items-center gap-1.5 text-[11px] font-bold">
+                <span className="flex items-center gap-1.5 text-xs font-bold">
                   <CheckCircle2 size={13} className="text-emerald-400" /> 完全無料で参加
                 </span>
-                <span className="flex items-center gap-1.5 text-[11px] font-bold">
+                <span className="flex items-center gap-1.5 text-xs font-bold">
                   <CheckCircle2 size={13} className="text-emerald-400" /> 匿名で安心
                 </span>
-                <span className="flex items-center gap-1.5 text-[11px] font-bold">
+                <span className="flex items-center gap-1.5 text-xs font-bold">
                   <CheckCircle2 size={13} className="text-emerald-400" /> 最短1日で開始
                 </span>
               </div>
@@ -393,48 +413,83 @@ const Hero = () => {
           </div>
 
           {/* ===== デスクトップ：コラージュビジュアル ===== */}
-          <div className="lg:col-span-5 relative w-full h-[460px] hidden lg:block mt-6 lg:mt-0">
-            <motion.div
-              initial={{ opacity: 0, rotate: -15, x: -30, y: 30 }}
-              animate={{ opacity: 1, rotate: -8, x: 0, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.2, type: "spring", bounce: 0.35 }}
-              className="absolute top-[8%] left-[2%] w-48 h-56 bg-white p-3 pb-8 rounded-2xl shadow-xl border border-slate-100 z-10 cursor-pointer"
-              whileHover={{ scale: 1.05, rotate: 0, zIndex: 30 }}
-            >
-              <div className="w-full h-full bg-rose-50 rounded-xl flex items-center justify-center border border-rose-100">
-                <span className="text-5xl drop-shadow-md">💐</span>
-              </div>
-              <p className="font-calligraphy text-center mt-2.5 text-slate-400 text-xs">Happy Anniversary!</p>
-            </motion.div>
+          <div className="lg:col-span-5 relative w-full hidden lg:flex flex-col justify-center mt-6 lg:mt-0 gap-3">
+            {featuredProjects.length > 0 ? (
+              featuredProjects.map((project, i) => {
+                const percent = Math.min(Math.round(((project?.collectedAmount || project?.currentAmount || 0) / (project?.targetAmount || 1)) * 100), 100);
+                return (
+                  <motion.div
+                    key={project.id}
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.3 + i * 0.1, duration: 0.5 }}
+                    className="bg-white/90 backdrop-blur-sm rounded-2xl p-3 shadow-sm border border-pink-100/50 flex items-center gap-3"
+                  >
+                    <div className="w-12 h-12 rounded-xl bg-pink-50 flex-shrink-0 overflow-hidden">
+                      {project.imageUrl ? (
+                        <img src={project.imageUrl} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-xl">💐</div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-slate-800 truncate">{project.title}</p>
+                      <div className="mt-1 h-1 bg-slate-100 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-gradient-to-r from-pink-400 to-rose-400 rounded-full"
+                          style={{ width: `${percent}%` }}
+                        />
+                      </div>
+                      <p className="text-[10px] text-slate-400 mt-0.5">{percent}% 達成</p>
+                    </div>
+                  </motion.div>
+                );
+              })
+            ) : (
+              <>
+                <motion.div
+                  initial={{ opacity: 0, rotate: -15, x: -30, y: 30 }}
+                  animate={{ opacity: 1, rotate: -8, x: 0, y: 0 }}
+                  transition={{ duration: 0.8, delay: 0.2, type: "spring", bounce: 0.35 }}
+                  className="w-48 h-56 bg-white p-3 pb-8 rounded-2xl shadow-xl border border-slate-100 cursor-pointer self-start"
+                  whileHover={{ scale: 1.05, rotate: 0 }}
+                >
+                  <div className="w-full h-full bg-rose-50 rounded-xl flex items-center justify-center border border-rose-100">
+                    <span className="text-5xl drop-shadow-md">💐</span>
+                  </div>
+                  <p className="font-calligraphy text-center mt-2.5 text-slate-400 text-xs">Happy Anniversary!</p>
+                </motion.div>
 
-            <motion.div
-              initial={{ opacity: 0, rotate: 20, x: 30, y: -30 }}
-              animate={{ opacity: 1, rotate: 10, x: 0, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.3, type: "spring", bounce: 0.35 }}
-              className="absolute top-[18%] right-[2%] w-56 h-64 bg-white p-3 pb-10 rounded-2xl shadow-2xl border border-slate-100 z-20 cursor-pointer"
-              whileHover={{ scale: 1.05, rotate: 0, zIndex: 30 }}
-            >
-              <div className="w-full h-full bg-pink-50 rounded-xl flex items-center justify-center border border-pink-100">
-                <span className="text-6xl drop-shadow-md">💖</span>
-              </div>
-              <p className="font-calligraphy text-center mt-3 text-pink-400 text-base">Thank you</p>
-            </motion.div>
+                <motion.div
+                  initial={{ opacity: 0, rotate: 20, x: 30, y: -30 }}
+                  animate={{ opacity: 1, rotate: 10, x: 0, y: 0 }}
+                  transition={{ duration: 0.8, delay: 0.3, type: "spring", bounce: 0.35 }}
+                  className="w-56 h-64 bg-white p-3 pb-10 rounded-2xl shadow-2xl border border-slate-100 cursor-pointer self-end"
+                  whileHover={{ scale: 1.05, rotate: 0 }}
+                >
+                  <div className="w-full h-full bg-pink-50 rounded-xl flex items-center justify-center border border-pink-100">
+                    <span className="text-6xl drop-shadow-md">💖</span>
+                  </div>
+                  <p className="font-calligraphy text-center mt-3 text-pink-400 text-base">Thank you</p>
+                </motion.div>
 
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.4, type: "spring", bounce: 0.35 }}
-              className="absolute bottom-[8%] left-[15%] w-64 h-24 bg-gradient-to-r from-amber-50 to-orange-50 rounded-2xl shadow-lg border border-amber-100 z-30 flex items-center p-4 cursor-pointer"
-              whileHover={{ scale: 1.04, y: -4 }}
-            >
-              <div className="border-r-2 border-dashed border-amber-200 pr-4 mr-4">
-                <Ticket className="text-amber-400" size={28} />
-              </div>
-              <div>
-                <p className="text-[10px] font-black tracking-widest uppercase text-amber-400 mb-0.5">Live Event</p>
-                <p className="font-black text-slate-800 text-sm">フラスタ受付完了 🎉</p>
-              </div>
-            </motion.div>
+                <motion.div
+                  initial={{ opacity: 0, y: 30 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.8, delay: 0.4, type: "spring", bounce: 0.35 }}
+                  className="w-64 h-24 bg-gradient-to-r from-amber-50 to-orange-50 rounded-2xl shadow-lg border border-amber-100 flex items-center p-4 cursor-pointer self-start"
+                  whileHover={{ scale: 1.04, y: -4 }}
+                >
+                  <div className="border-r-2 border-dashed border-amber-200 pr-4 mr-4">
+                    <Ticket className="text-amber-400" size={28} />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black tracking-widest uppercase text-amber-400 mb-0.5">Live Event</p>
+                    <p className="font-black text-slate-800 text-sm">フラスタ受付完了 🎉</p>
+                  </div>
+                </motion.div>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -472,25 +527,25 @@ const InfiniteMarquee = () => {
 // ==========================================
 const HowItWorks = () => {
   const steps = [
-    { num: "01", title: "企画ページをつくる", desc: "イベントの日程や会場、贈りたいお花のイメージを入力してページを公開します。", icon: PenTool, color: "text-amber-500", bg: "bg-amber-50", iconBg: "bg-amber-500" },
-    { num: "02", title: "SNSでシェアして集金", desc: "みんなでお金を出し合います。クレジットカード対応で、面倒な口座管理は不要です。", icon: Heart, color: "text-pink-500", bg: "bg-pink-50", iconBg: "bg-pink-500" },
-    { num: "03", title: "お花屋さんがお届け", desc: "目標達成後、提携のプロのお花屋さんが制作し、直接会場へお届けします。", icon: Gift, color: "text-rose-500", bg: "bg-rose-50", iconBg: "bg-rose-500" },
+    { num: "01", title: "企画ページをつくる", desc: "イベントの日程や会場、贈りたいお花のイメージを入力してページを公開します。", icon: PenTool, color: "text-amber-700", bg: "bg-amber-50", iconBg: "bg-amber-100", iconColor: "text-amber-700" },
+    { num: "02", title: "SNSでシェアして集金", desc: "みんなでお金を出し合います。クレジットカード対応で、面倒な口座管理は不要です。", icon: Heart, color: "text-pink-500", bg: "bg-pink-50", iconBg: "bg-pink-500", iconColor: "text-white" },
+    { num: "03", title: "お花屋さんがお届け", desc: "目標達成後、提携のプロのお花屋さんが制作し、直接会場へお届けします。", icon: Gift, color: "text-rose-500", bg: "bg-rose-50", iconBg: "bg-rose-500", iconColor: "text-white" },
   ];
 
   return (
     <section className="py-14 md:py-24 bg-white relative z-10">
-      <div className="container mx-auto px-4 md:px-6 max-w-5xl">
+      <div className="container mx-auto px-4 sm:px-5 md:px-6 max-w-5xl">
 
         <div className="text-center mb-10 md:mb-16">
           <Reveal>
-            <span className="text-[11px] font-black tracking-[0.25em] text-pink-400 uppercase bg-pink-50 px-4 py-1.5 rounded-full inline-block mb-4">
+            <span className="text-xs font-black tracking-[0.25em] text-pink-400 uppercase bg-pink-50 px-4 py-1.5 rounded-full inline-block mb-4">
               How it works
             </span>
             <h2 className="text-2xl md:text-4xl lg:text-5xl font-black text-slate-800 tracking-tighter mt-2">フラスタが届くまで</h2>
           </Reveal>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-10 md:mb-16">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5 md:gap-6 mb-10 md:mb-16">
           {steps.map((step, i) => (
             <Reveal key={i} delay={i * 0.12}>
               <motion.div
@@ -500,7 +555,7 @@ const HowItWorks = () => {
               >
                 <span className="text-[10px] font-black tracking-widest text-slate-300 uppercase block mb-4">{step.num}</span>
                 <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center mb-5 shadow-sm", step.iconBg)}>
-                  <step.icon size={26} strokeWidth={2} className="text-white" />
+                  <step.icon size={26} strokeWidth={2} className={step.iconColor ?? "text-white"} />
                 </div>
                 <h3 className="text-lg font-black text-slate-800 mb-2.5 leading-snug">{step.title}</h3>
                 <p className="text-sm text-slate-500 font-medium leading-relaxed">{step.desc}</p>
@@ -520,7 +575,7 @@ const HowItWorks = () => {
         <Reveal delay={0.2}>
           <div className="mb-10 md:mb-16 bg-gradient-to-br from-rose-50 via-pink-50 to-amber-50 rounded-3xl border border-pink-100 p-6 md:p-10">
             <div className="text-center mb-6">
-              <span className="text-[11px] font-black tracking-[0.25em] text-rose-400 uppercase bg-white/80 px-4 py-1.5 rounded-full inline-block mb-3">はじめての方へ</span>
+              <span className="text-xs font-black tracking-[0.25em] text-rose-400 uppercase bg-white/80 px-4 py-1.5 rounded-full inline-block mb-3">はじめての方へ</span>
               <h3 className="text-xl md:text-2xl font-black text-slate-800 tracking-tighter">支援から会場到着まで</h3>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 relative">
@@ -564,7 +619,7 @@ const HowItWorks = () => {
             <div className="absolute top-0 right-0 -mt-6 -mr-6 w-32 h-32 bg-pink-400/10 rounded-full blur-2xl group-hover:bg-pink-400/20 transition-all" />
             <div className="relative z-10 p-6 md:p-10 flex flex-col md:flex-row items-center justify-between gap-5">
               <div className="text-center md:text-left">
-                <p className="text-[11px] font-black tracking-widest text-pink-400 uppercase mb-2">Guide</p>
+                <p className="text-xs font-black tracking-widest text-pink-400 uppercase mb-2">Guide</p>
                 <h3 className="text-xl md:text-2xl font-black text-slate-800 mb-1.5">はじめての方へ 🌸</h3>
                 <p className="text-slate-500 font-medium text-sm leading-relaxed">
                   企画の立て方からフラスタが届くまで、わかりやすく解説しています！
@@ -618,7 +673,7 @@ const TrendingProjects = () => {
 
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-8 md:mb-12 gap-4">
           <Reveal>
-            <span className="text-[11px] font-black tracking-[0.25em] text-pink-400 uppercase bg-pink-50 px-4 py-1.5 rounded-full inline-block mb-3">
+            <span className="text-xs font-black tracking-[0.25em] text-pink-400 uppercase bg-pink-50 px-4 py-1.5 rounded-full inline-block mb-3">
               Trending
             </span>
             <h2 className="text-2xl md:text-4xl font-black text-slate-800 tracking-tighter">注目の企画</h2>
@@ -741,7 +796,7 @@ const PersonalizedFeed = () => {
       <div className="container mx-auto px-4 md:px-6 max-w-6xl">
         <Reveal>
           <div className="flex items-center gap-2 mb-2">
-            <span className="inline-flex items-center gap-1.5 text-[11px] font-black tracking-[0.25em] text-violet-500 uppercase bg-violet-100 px-4 py-1.5 rounded-full">
+            <span className="inline-flex items-center gap-1.5 text-xs font-black tracking-[0.25em] text-violet-500 uppercase bg-violet-100 px-4 py-1.5 rounded-full">
               <Wand2 size={11} /> AI おすすめ
             </span>
           </div>
@@ -767,7 +822,7 @@ const PersonalizedFeed = () => {
                   >
                     <div className="aspect-square bg-gradient-to-br from-violet-100 to-pink-100 relative overflow-hidden">
                       {project.coverImageUrl
-                        ? <img src={project.coverImageUrl} alt={project.title} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                        ? <Image src={project.coverImageUrl} alt={project.title} fill sizes="(max-width: 640px) 50vw, 25vw" className="object-cover group-hover:scale-105 transition-transform duration-500" />
                         : <div className="w-full h-full flex items-center justify-center text-violet-300"><Heart size={40} /></div>
                       }
                       <div className="absolute top-2 right-2 bg-violet-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full">{percent}%</div>
@@ -823,7 +878,7 @@ const BentoFeatures = () => {
       icon: PenTool,
       gradient: "from-amber-50 to-orange-50",
       border: "border-amber-100",
-      iconColor: "text-amber-500",
+      iconColor: "text-amber-700",
       iconBg: "bg-amber-100",
       textColor: "text-amber-700",
     },
@@ -831,10 +886,10 @@ const BentoFeatures = () => {
 
   return (
     <section className="py-14 md:py-24 bg-white relative z-10 border-t border-slate-100/60">
-      <div className="container mx-auto px-4 md:px-6 max-w-5xl">
+      <div className="container mx-auto px-4 sm:px-5 md:px-6 max-w-5xl">
         <div className="mb-10 md:mb-16 text-center">
           <Reveal>
-            <span className="text-[11px] font-black tracking-[0.25em] text-pink-400 uppercase bg-pink-50 px-4 py-1.5 rounded-full inline-block mb-4">Features</span>
+            <span className="text-xs font-black tracking-[0.25em] text-pink-400 uppercase bg-pink-50 px-4 py-1.5 rounded-full inline-block mb-4">Features</span>
             <h2 className="text-2xl md:text-4xl lg:text-5xl font-black text-slate-800 tracking-tighter mt-2">
               面倒な裏方は、<br className="sm:hidden"/>すべてFLASTALに。
             </h2>
@@ -842,7 +897,7 @@ const BentoFeatures = () => {
           </Reveal>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-3.5 md:gap-4">
           {features.map((feat, i) => (
             <Reveal key={i} delay={i * 0.1} className={feat.span}>
               <motion.div
@@ -873,10 +928,10 @@ const BentoFeatures = () => {
 const CategoryGrid = () => {
   return (
     <section className="py-14 md:py-24 bg-[#FAF9FF] relative z-10 border-t border-slate-100/60">
-      <div className="container mx-auto px-4 md:px-6 max-w-5xl">
+      <div className="container mx-auto px-4 sm:px-5 md:px-6 max-w-5xl">
         <div className="text-center mb-8 md:mb-12">
           <Reveal>
-            <span className="text-[11px] font-black tracking-[0.25em] text-pink-400 uppercase bg-pink-50 px-4 py-1.5 rounded-full inline-block mb-4">Categories</span>
+            <span className="text-xs font-black tracking-[0.25em] text-pink-400 uppercase bg-pink-50 px-4 py-1.5 rounded-full inline-block mb-4">Categories</span>
             <h2 className="text-2xl md:text-4xl font-black text-slate-800 tracking-tighter mt-2">対応ジャンル</h2>
             <p className="text-sm text-slate-400 font-medium mt-2">様々なシーンのお祝いに対応しています。</p>
           </Reveal>
@@ -934,7 +989,7 @@ const ArticlesSection = () => (
     <div className="container mx-auto px-4 md:px-6 max-w-5xl">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-8 gap-4">
         <Reveal>
-          <span className="text-[11px] font-black tracking-[0.25em] text-pink-400 uppercase bg-pink-50 px-4 py-1.5 rounded-full inline-block mb-3">Tips</span>
+          <span className="text-xs font-black tracking-[0.25em] text-pink-400 uppercase bg-pink-50 px-4 py-1.5 rounded-full inline-block mb-3">Tips</span>
           <h2 className="text-2xl md:text-4xl font-black text-slate-800 tracking-tighter">お役立ち情報</h2>
         </Reveal>
         <Link href="/blog">
@@ -990,11 +1045,11 @@ const SocialProof = () => {
 
   return (
     <section className="py-14 md:py-24 bg-white relative z-10 border-t border-slate-100/60">
-      <div className="container mx-auto px-4 md:px-6 max-w-5xl">
+      <div className="container mx-auto px-4 sm:px-5 md:px-6 max-w-5xl">
 
         {/* Stats */}
         <Reveal>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-14 md:mb-20">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-3.5 md:gap-4 mb-14 md:mb-20">
             {stats.map((s, i) => (
               <motion.div
                 key={i}
@@ -1015,7 +1070,7 @@ const SocialProof = () => {
         {/* Testimonials */}
         <div className="text-center mb-8 md:mb-12">
           <Reveal>
-            <span className="text-[11px] font-black tracking-[0.25em] text-pink-400 uppercase bg-pink-50 px-4 py-1.5 rounded-full inline-block mb-4">Voice</span>
+            <span className="text-xs font-black tracking-[0.25em] text-pink-400 uppercase bg-pink-50 px-4 py-1.5 rounded-full inline-block mb-4">Voice</span>
             <h2 className="text-2xl md:text-4xl font-black text-slate-800 tracking-tighter mt-2">使ってみた感想</h2>
           </Reveal>
         </div>
@@ -1104,7 +1159,7 @@ const FAQ = () => {
       <div className="container mx-auto px-4 md:px-6 max-w-3xl">
         <div className="text-center mb-8 md:mb-12">
           <Reveal>
-            <span className="text-[11px] font-black tracking-[0.25em] text-pink-400 uppercase bg-pink-50 px-4 py-1.5 rounded-full inline-block mb-4">FAQ</span>
+            <span className="text-xs font-black tracking-[0.25em] text-pink-400 uppercase bg-pink-50 px-4 py-1.5 rounded-full inline-block mb-4">FAQ</span>
             <h2 className="text-2xl md:text-4xl font-black text-slate-800 tracking-tighter mt-2">よくある質問</h2>
           </Reveal>
         </div>
@@ -1189,7 +1244,7 @@ const GalleryHighlight = () => {
       <div className="container mx-auto px-4 md:px-6 max-w-5xl">
         <Reveal>
           <div className="text-center mb-10">
-            <span className="text-[11px] font-black tracking-[0.25em] text-rose-400 uppercase bg-rose-50 px-4 py-1.5 rounded-full inline-block mb-4">Gallery</span>
+            <span className="text-xs font-black tracking-[0.25em] text-rose-400 uppercase bg-rose-50 px-4 py-1.5 rounded-full inline-block mb-4">Gallery</span>
             <h2 className="text-2xl md:text-3xl font-black text-slate-900">みんなの達成フラスタ</h2>
             <p className="text-slate-500 mt-2 text-sm">完成したフラスタを写真でシェア</p>
           </div>
@@ -1248,7 +1303,7 @@ const TrustBadges = () => {
       <div className="container mx-auto px-4 md:px-6 max-w-5xl">
         <div className="text-center mb-8 md:mb-12">
           <Reveal>
-            <span className="text-[11px] font-black tracking-[0.25em] text-emerald-500 uppercase bg-emerald-50 px-4 py-1.5 rounded-full inline-block mb-4">Security</span>
+            <span className="text-xs font-black tracking-[0.25em] text-emerald-500 uppercase bg-emerald-50 px-4 py-1.5 rounded-full inline-block mb-4">Security</span>
             <h2 className="text-2xl md:text-4xl font-black text-slate-800 tracking-tighter mt-2">安心・安全の理由</h2>
             <p className="text-sm font-medium text-slate-400 mt-2">FLASTALはセキュリティと品質にこだわってサービスを提供しています。</p>
           </Reveal>
@@ -1282,7 +1337,7 @@ const PartnerCTA = () => (
     <div className="container mx-auto px-4 md:px-6 max-w-5xl relative z-10">
       <Reveal>
         <div className="text-center mb-8 md:mb-12">
-          <span className="text-[11px] font-black tracking-[0.25em] text-pink-400 uppercase bg-white/80 px-4 py-1.5 rounded-full inline-block mb-4">Partner</span>
+          <span className="text-xs font-black tracking-[0.25em] text-pink-400 uppercase bg-white/80 px-4 py-1.5 rounded-full inline-block mb-4">Partner</span>
           <h2 className="text-2xl md:text-4xl font-black text-slate-800 mb-3 tracking-tighter mt-2">法人・クリエイターの皆様へ</h2>
           <p className="text-slate-500 text-sm font-medium max-w-xl mx-auto leading-relaxed">
             お花屋さん・ライブ会場・イベント主催者・イラストレーターとファンを繋ぐサービスです。<br className="hidden md:block"/>初期費用・月額費用は一切かかりません。
@@ -1325,28 +1380,54 @@ const PartnerCTA = () => (
 // ==========================================
 // 📦 MAIN CONTENT
 // ==========================================
-const MainContent = () => (
-  <motion.div
-    initial={{ opacity: 0 }}
-    animate={{ opacity: 1 }}
-    transition={{ duration: 0.5, ease: "easeOut" }}
-  >
-    <SoftBackground />
-    <Hero />
-    <InfiniteMarquee />
-    <HowItWorks />
-    <TrendingProjects />
-    <PersonalizedFeed />
-    <BentoFeatures />
-    <CategoryGrid />
-    <SocialProof />
-    <GalleryHighlight />
-    <FAQ />
-    <TrustBadges />
-    <ArticlesSection />
-    <PartnerCTA />
-  </motion.div>
-);
+const MainContent = () => {
+  const { isAuthenticated, user } = useAuth();
+  const token = typeof window !== 'undefined'
+    ? localStorage.getItem('authToken')?.replace(/^"|"$/g, '') || null
+    : null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.5, ease: "easeOut" }}
+    >
+      <SoftBackground />
+      <Hero />
+      <InfiniteMarquee />
+      <HowItWorks />
+      {!user && (
+        <div className="container mx-auto px-4 md:px-6 max-w-6xl relative z-10 py-8">
+          <section className="bg-gradient-to-br from-pink-50 to-violet-50 rounded-3xl p-6 mb-8 text-center">
+            <p className="text-2xl font-black text-slate-800 mb-2">🌸 推しへフラスタを贈ろう</p>
+            <p className="text-sm text-slate-500 mb-4">会員登録無料・支援のたびポイント獲得</p>
+            <div className="flex gap-3 justify-center flex-wrap">
+              <a href="/auth/register" className="bg-pink-500 text-white font-black px-6 py-3 rounded-2xl hover:bg-pink-600 transition-colors shadow-lg shadow-pink-200">
+                無料で始める
+              </a>
+              <a href="/auth/login" className="bg-white text-slate-700 font-semibold px-6 py-3 rounded-2xl border border-slate-200 hover:bg-slate-50 transition-colors">
+                ログイン
+              </a>
+            </div>
+          </section>
+        </div>
+      )}
+      <TrendingProjects />
+      <div className="container mx-auto px-4 md:px-6 max-w-6xl relative z-10">
+        <RecommendedProjects token={isAuthenticated ? token : null} />
+      </div>
+      <PersonalizedFeed />
+      <BentoFeatures />
+      <CategoryGrid />
+      <SocialProof />
+      <GalleryHighlight />
+      <FAQ />
+      <TrustBadges />
+      <ArticlesSection />
+      <PartnerCTA />
+    </motion.div>
+  );
+};
 
 // ==========================================
 // 👑 MAIN EXPORT

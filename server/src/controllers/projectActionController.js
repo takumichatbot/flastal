@@ -1,6 +1,7 @@
 import prisma from '../config/prisma.js';
 import { sendEmail } from '../utils/email.js';
 import OpenAI from 'openai';
+import { logger } from '../utils/logger.js';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -41,7 +42,7 @@ export const createAnnouncement = async (req, res) => {
             if (p.userId && p.userId !== userId) {
                 await prisma.notification.create({ 
                     data: { recipientId: p.userId, type: 'NEW_ANNOUNCEMENT', message: `新しい活動報告: ${title}`, projectId } 
-                }).catch(err => console.error("Notification Error:", err));
+                }).catch(err => logger.error('Notification Error', { context: 'projectActionController', error: err.message }));
             }
         }
         res.status(201).json(announcement);
@@ -327,9 +328,9 @@ export const getGalleryFeed = async (req, res) => {
 
         res.json(feed);
 
-    } catch(e) { 
-        console.error(e);
-        res.status(500).json({ message: 'ギャラリーの取得に失敗しました' }); 
+    } catch(e) {
+        logger.error('ギャラリーの取得に失敗しました', { context: 'projectActionController', error: e.message });
+        res.status(500).json({ message: 'ギャラリーの取得に失敗しました' });
     }
 };
 
@@ -486,7 +487,7 @@ export const sendDigitalFlower = async (req, res) => {
             const { getIO } = await import('../config/socket.js');
             const io = getIO();
             io.to(id).emit('newDigitalFlower', flower);
-        } catch(e) { console.warn("Socket emit failed"); }
+        } catch(e) { logger.warn('Socket emit failed', { context: 'projectActionController', error: e.message }); }
 
         res.status(201).json(flower);
     } catch (error) {

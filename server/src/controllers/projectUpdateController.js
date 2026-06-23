@@ -1,6 +1,7 @@
 import prisma from '../config/prisma.js';
 import { createNotification } from '../utils/notification.js';
 import { queueEmail } from '../utils/email.js';
+import { logger } from '../utils/logger.js';
 
 // 企画アップデート一覧取得（誰でも）
 export const getUpdates = async (req, res) => {
@@ -64,19 +65,18 @@ export const createUpdate = async (req, res) => {
             ...supporters
                 .filter(p => p.user?.email)
                 .map(p =>
-                    queueEmail(p.user.email, 'PROJECT_UPDATE', {
+                    queueEmail(p.user.email, 'PROJECT_UPDATE_POSTED', {
                         projectTitle: project.title,
                         updateTitle: title,
-                        updateBody: body.slice(0, 200),
-                        projectUrl: `${process.env.NEXT_PUBLIC_APP_URL}/projects/${projectId}?tab=updates`,
-                        handleName: p.user.handleName,
+                        projectId,
+                        handleName: p.user.handleName || 'さん',
                     })
                 ),
         ]);
 
         res.status(201).json(update);
     } catch (err) {
-        console.error('createUpdate:', err);
+        logger.error('createUpdate', { context: 'projectUpdateController', error: err.message });
         res.status(500).json({ message: '投稿に失敗しました' });
     }
 };

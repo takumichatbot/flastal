@@ -1,5 +1,6 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 import { KeyboardResize, KeyboardStyle } from '@capacitor/keyboard';
+import { StatusBarStyle } from '@capacitor/status-bar';
 
 const isDev = process.env.NODE_ENV === 'development';
 
@@ -30,6 +31,8 @@ const config: CapacitorConfig = {
     scrollEnabled: true,
     allowsLinkPreview: false,
     // プッシュ通知用 entitlements は Xcode で設定
+    // Universal Links: Associated Domains は Xcode の Signing & Capabilities で
+    // "applinks:flastal.com" と "applinks:www.flastal.com" を追加すること
   },
   android: {
     backgroundColor: '#ffffff',
@@ -49,12 +52,12 @@ const config: CapacitorConfig = {
       spinnerColor: '#ec4899',
     },
     StatusBar: {
-      style: 'Dark',
+      style: StatusBarStyle.Default,  // Light/Dark を OS 設定に合わせて自動判定
       overlaysWebView: false,
-      backgroundColor: '#ffffff',
+      backgroundColor: '#FAF9FF',     // ライトモード基調色
     },
     Keyboard: {
-      resize: KeyboardResize.Body,
+      resize: KeyboardResize.Native,  // Body から変更（iPhone X でヘッダーズレ防止）
       style: KeyboardStyle.Light,
       resizeOnFullScreen: true,
     },

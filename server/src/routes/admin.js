@@ -26,6 +26,7 @@ router.get('/event-reports', (req, res) => { req.params.type = 'events'; adminCo
 
 router.get('/settings', adminController.getSystemSettings);
 router.get('/commissions', adminController.getCommissions);
+router.get('/payouts/csv', adminController.exportPayoutsCsv);
 router.get('/payouts', adminController.getAdminPayouts);
 router.get('/email-templates', adminController.getEmailTemplates);
 router.post('/email-templates', adminController.createEmailTemplate);
@@ -86,5 +87,11 @@ router.patch('/users/:userId/kyc', adminController.reviewKyc);
 // 不正フラグ
 router.get('/fraud-flags', adminController.getFraudFlags);
 router.patch('/fraud-flags/:id/review', adminController.reviewFraudFlag);
+
+// 監査ログ
+router.get('/audit-logs', adminController.getAuditLogs);
+
+// メール送信ログ
+router.get('/email-logs', adminController.getEmailLogs);
 
 export default router;

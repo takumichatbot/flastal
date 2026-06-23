@@ -13,13 +13,13 @@ import ApprovalPendingCard from '@/components/dashboard/ApprovalPendingCard';
 import FloristAppealPostForm from '@/components/dashboard/FloristAppealPostForm';
 import { motion, AnimatePresence } from 'framer-motion';
 
-// ★ 追加: XCircle アイコンを追加
-import { 
-  CheckCircle2, FileText, Calendar, MapPin, 
-  Clock, ChevronLeft, ChevronRight, Camera, User, 
+// ★ 追加: XCircle / TrendingUp アイコンを追加
+import {
+  CheckCircle2, FileText, Calendar, MapPin,
+  Clock, ChevronLeft, ChevronRight, Camera, User,
   Eye, EyeOff, Trash2, DollarSign, LogOut, ArrowRight,
-  Briefcase, AlertCircle, Loader2, Star, Image as ImageIcon, Send, Truck, MessageSquare, XCircle
-} from 'lucide-react'; 
+  Briefcase, AlertCircle, Loader2, Star, Image as ImageIcon, Send, Truck, MessageSquare, XCircle, TrendingUp
+} from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -59,6 +59,16 @@ const StatCard = ({ title, value, icon: Icon, color = "sky" }) => {
       </div>
     </div>
   );
+};
+
+const formatTimeRemaining = (expiresAt) => {
+  const diff = new Date(expiresAt) - new Date();
+  if (diff < 0) return '期限切れ';
+  const hours = Math.floor(diff / (1000 * 60 * 60));
+  const days = Math.floor(hours / 24);
+  if (days > 0) return `${days}日後`;
+  if (hours > 0) return `${hours}時間後`;
+  return '間もなく期限切れ';
 };
 
 const STATUS_LABELS = {
@@ -410,20 +420,32 @@ function DashboardContent() {
                   { id: 'schedule', label: 'スケジュール', icon: Calendar },
                   { id: 'delivery', label: '配送・回収設定', icon: Truck },
                   { id: 'payout', label: '売上・出金', icon: DollarSign },
-                  { id: 'appeal', label: '制作アピール', count: appealPosts.length, icon: Camera }
-                ].map(tab => (
-                  <button key={tab.id} onClick={() => setActiveTab(tab.id)} 
-                    className={cn(
-                      "px-5 py-3 rounded-full font-black text-xs md:text-sm flex items-center gap-2 transition-all shadow-sm border",
-                      activeTab === tab.id ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-500 border-slate-100 hover:border-pink-300 hover:text-pink-500'
-                    )}>
-                    <tab.icon size={16} className={activeTab === tab.id ? "text-pink-400" : ""}/>
-                    {tab.label}
-                    {tab.count !== undefined && (
-                      <span className={cn("px-2 py-0.5 rounded-full text-[10px]", activeTab === tab.id ? "bg-white/20" : "bg-slate-100 text-slate-400")}>{tab.count}</span>
-                    )}
-                  </button>
-                ))}
+                  { id: 'appeal', label: '制作アピール', count: appealPosts.length, icon: Camera },
+                  { id: 'analytics', label: 'アナリティクス', icon: TrendingUp, href: '/florists/dashboard/analytics' }
+                ].map(tab => {
+                  const tabClass = cn(
+                    "px-5 py-3 rounded-full font-black text-xs md:text-sm flex items-center gap-2 transition-all shadow-sm border",
+                    activeTab === tab.id ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-500 border-slate-100 hover:border-pink-300 hover:text-pink-500'
+                  );
+                  const tabContent = (
+                    <>
+                      <tab.icon size={16} className={activeTab === tab.id ? "text-pink-400" : ""} />
+                      {tab.label}
+                      {tab.count !== undefined && (
+                        <span className={cn("px-2 py-0.5 rounded-full text-[10px]", activeTab === tab.id ? "bg-white/20" : "bg-slate-100 text-slate-400")}>{tab.count}</span>
+                      )}
+                    </>
+                  );
+                  return tab.href ? (
+                    <Link key={tab.id} href={tab.href} className={tabClass}>
+                      {tabContent}
+                    </Link>
+                  ) : (
+                    <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={tabClass}>
+                      {tabContent}
+                    </button>
+                  );
+                })}
               </nav>
             </div>
 
@@ -440,6 +462,17 @@ function DashboardContent() {
                               <span className="text-[10px] bg-pink-500 text-white px-3 py-1 rounded-full font-black uppercase tracking-widest shadow-sm">New Offer</span>
                               <h3 className="font-black text-slate-800 text-lg mt-3 mb-1 line-clamp-1 group-hover:text-pink-600 transition-colors">{o?.project?.title || 'タイトル未設定'}</h3>
                               <p className="text-xs font-bold text-slate-400 flex items-center gap-1"><Clock size={12}/> 依頼日: {o?.createdAt ? new Date(o.createdAt).toLocaleDateString() : '不明'}</p>
+                              {o?.expiresAt && (
+                                <p className={cn(
+                                  'text-xs font-black flex items-center gap-1 mt-1',
+                                  new Date(o.expiresAt) < new Date(Date.now() + 24 * 60 * 60 * 1000)
+                                    ? 'text-red-500'
+                                    : 'text-amber-500'
+                                )}>
+                                  <Clock size={12} />
+                                  回答期限: {formatTimeRemaining(o.expiresAt)}
+                                </p>
+                              )}
                           </div>
                           
                           {/* ★ 修正: 直接受諾・辞退できるボタンに変更 */}

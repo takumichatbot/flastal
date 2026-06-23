@@ -3,26 +3,71 @@
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
 
-import { useEffect, Suspense } from 'react';
+import { useEffect, Suspense, useCallback } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { CheckCircle, ArrowRight, Search, Sparkles, Loader2 } from 'lucide-react';
-import confetti from 'canvas-confetti';
+import { triggerPaymentConfetti } from '@/app/utils/confetti';
 import FloatingParticles from '@/app/components/FloatingParticles';
+import { triggerHaptic } from '@/app/hooks/useHaptics';
 
 function SuccessPageInner() {
+  const router = useRouter();
+
   useEffect(() => {
+    // 決済完了後にルーターキャッシュを無効化し、マイページのポイント残高を最新化する
+    router.refresh();
+
+    // 決済成功の触覚フィードバック
+    triggerHaptic('success');
+
     if (typeof window !== 'undefined') {
-      setTimeout(() => {
-        confetti({ particleCount: 120, spread: 80, origin: { y: 0.55 }, colors: ['#ec4899', '#f43f5e', '#a855f7', '#fbbf24', '#fff'] });
-        setTimeout(() => confetti({ particleCount: 60, spread: 50, origin: { y: 0.55, x: 0.2 }, colors: ['#ec4899', '#a855f7'] }), 300);
-        setTimeout(() => confetti({ particleCount: 60, spread: 50, origin: { y: 0.55, x: 0.8 }, colors: ['#f43f5e', '#fbbf24'] }), 500);
+      const t1 = setTimeout(() => {
+        triggerPaymentConfetti();
       }, 400);
+      return () => clearTimeout(t1);
     }
-  }, []);
+  }, [router]);
+
+  const handleInstagramShare = () => {
+    // canvas で 9:16 のシェア画像を生成
+    const canvas = document.createElement('canvas');
+    canvas.width = 1080;
+    canvas.height = 1920;
+    const ctx = canvas.getContext('2d');
+
+    // グラデーション背景
+    const gradient = ctx.createLinearGradient(0, 0, 1080, 1920);
+    gradient.addColorStop(0, '#fce7f3');
+    gradient.addColorStop(0.5, '#fdf2f8');
+    gradient.addColorStop(1, '#ede9fe');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, 1080, 1920);
+
+    // テキスト
+    ctx.fillStyle = '#9d174d';
+    ctx.font = 'bold 72px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('💐 フラスタを贈りました！', 540, 700);
+
+    ctx.fillStyle = '#6b21a8';
+    ctx.font = '48px sans-serif';
+    ctx.fillText('FLASTAL', 540, 820);
+
+    ctx.fillStyle = '#be185d';
+    ctx.font = '40px sans-serif';
+    ctx.fillText('flastal.com', 540, 900);
+
+    // ダウンロード
+    const link = document.createElement('a');
+    link.download = 'flastal-share.png';
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 to-sky-50 flex items-center justify-center p-4 font-sans relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-pink-100 via-rose-50 to-purple-100 flex items-center justify-center p-4 font-sans relative overflow-hidden">
       <FloatingParticles />
 
       {/* 背景の光 */}
@@ -33,11 +78,11 @@ function SuccessPageInner() {
         initial={{ opacity: 0, y: 30, scale: 0.95 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-        className="max-w-md w-full bg-white/80 backdrop-blur-xl rounded-[3rem] shadow-[0_8px_40px_rgba(244,114,182,0.2)] border border-white p-8 md:p-12 text-center relative z-10 overflow-hidden"
+        className="max-w-md w-full bg-white shadow-lg shadow-pink-100/40 rounded-[3rem] shadow-[0_8px_40px_rgba(244,114,182,0.2)] border border-white p-8 md:p-12 text-center relative z-10 overflow-hidden"
       >
         {/* 背景装飾 */}
-        <div className="absolute -top-16 -right-16 w-48 h-48 bg-pink-100/60 rounded-full blur-2xl pointer-events-none" />
-        <div className="absolute -bottom-16 -left-16 w-48 h-48 bg-sky-100/60 rounded-full blur-2xl pointer-events-none" />
+        <div className="absolute -top-16 -right-16 w-48 h-48 bg-pink-200/30 rounded-full blur-2xl pointer-events-none" />
+        <div className="absolute -bottom-16 -left-16 w-48 h-48 bg-purple-200/30 rounded-full blur-2xl pointer-events-none" />
 
         <div className="relative z-10">
           {/* アイコン */}
@@ -95,6 +140,25 @@ function SuccessPageInner() {
               </motion.button>
             </Link>
           </motion.div>
+
+          {/* SNSシェアセクション */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}
+            className="mt-6 space-y-3"
+          >
+            <p className="text-sm text-slate-500 text-center">みんなにシェアしよう！</p>
+
+            {/* Instagram向けシェア画像ダウンロード */}
+            <button
+              onClick={handleInstagramShare}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold text-sm hover:shadow-lg hover:shadow-pink-200 transition-all duration-200"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+              </svg>
+              Instagramシェア用画像をダウンロード
+            </button>
+          </motion.div>
         </div>
       </motion.div>
     </div>
@@ -104,7 +168,7 @@ function SuccessPageInner() {
 export default function PaymentSuccessPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-gradient-to-br from-pink-50 to-sky-50 flex flex-col items-center justify-center gap-3">
+      <div className="min-h-screen bg-gradient-to-br from-pink-100 via-rose-50 to-purple-100 flex flex-col items-center justify-center gap-3">
         <Loader2 className="w-10 h-10 text-pink-500 animate-spin" />
         <p className="text-slate-400 text-sm font-bold tracking-widest">読み込み中...</p>
       </div>

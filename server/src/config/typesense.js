@@ -48,6 +48,17 @@ export async function indexProject(project) {
     }
 }
 
+export async function deleteProjectFromIndex(projectId) {
+    const ts = getTypesenseClient();
+    if (!ts) return;
+    try {
+        await ts.collections('projects').documents(projectId).delete();
+    } catch (err) {
+        // 404 はすでに存在しないため無視
+        if (err.httpStatus !== 404) throw err;
+    }
+}
+
 export async function searchProjects(query, options = {}) {
     const ts = getTypesenseClient();
     if (!ts) return null;

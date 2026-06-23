@@ -223,12 +223,8 @@ export default function Header() {
   }, [user, isLoading, fetchNotifications]);
 
   const handleLogout = () => {
-    logout();
     setIsUserMenuOpen(false);
-    localStorage.removeItem('flastal-venue');
-    localStorage.removeItem('flastal-token');
-    localStorage.removeItem('authToken');
-    window.location.href = '/';
+    logout(); // AuthContext.logout が localStorage クリア + router.push('/') を担う
   };
 
   useEffect(() => {
@@ -249,6 +245,7 @@ export default function Header() {
       { href: '/projects', label: '企画一覧', icon: <Heart size={16}/> },
       { href: '/matching', label: 'みんなで企画', icon: <Users size={16}/> },
       { href: '/events', label: 'イベント', icon: <Calendar size={16}/> },
+      { href: '/design', label: 'AIデザイン', icon: <Sparkles size={16}/> },
       { href: '/illustrators/recruitment', label: '絵師募集中', icon: <Star size={16}/> },
       { href: '/venues', label: '会場', icon: <MapPin size={16}/> },
       { href: '/florists', label: 'お花屋さん', icon: <Store size={16}/> },
@@ -269,6 +266,7 @@ export default function Header() {
       ];
       case 'ORGANIZER': return [
           { href: '/organizers/dashboard', label: '主催企画', icon: <LayoutDashboard size={16}/> },
+          { href: '/design', label: 'AIデザイン', icon: <Sparkles size={16}/> },
           { href: '/illustrators/recruitment', label: '絵師募集中', icon: <Star size={16}/> },
           { href: '/projects/create', label: '企画を立てる', icon: <Sparkles size={16}/> },
           { href: '/florists', label: '花屋を探す', icon: <Store size={16}/> },
@@ -348,19 +346,19 @@ export default function Header() {
         animate={isHidden ? "hidden" : "visible"}
         transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }} 
         className={cn(
-          "fixed inset-x-0 z-[100] transition-all duration-500",
+          "fixed inset-x-0 z-[100] transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)]",
           tickerOffset,
-          isScrolled 
-            ? "bg-transparent pointer-events-none border-transparent" 
+          isScrolled
+            ? "bg-white/0 pointer-events-none border-transparent"
             : "bg-white/95 backdrop-blur-md border-b border-slate-200/60 pointer-events-auto"
         )}
       >
-        <div 
+        <div
           className={cn(
-              "mx-auto flex items-center justify-between w-full max-w-7xl transition-all duration-500",
-              isScrolled 
-                ? "max-w-6xl h-14 md:h-16 mt-3 md:mt-5 bg-white/90 backdrop-blur-xl shadow-[0_10px_40px_rgba(0,0,0,0.08)] border border-slate-200/50 rounded-full px-5 md:px-8 pointer-events-auto"
-                : "h-16 md:h-20 px-4 sm:px-6 lg:px-8"
+              "mx-auto flex items-center justify-between w-full max-w-7xl transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)]",
+              isScrolled
+                ? "max-w-6xl h-14 md:h-16 mt-3 md:mt-5 bg-white/95 backdrop-blur-md shadow-sm border border-slate-200/50 rounded-full px-5 md:px-8 pointer-events-auto"
+                : "h-16 md:h-20 px-4 sm:px-6 lg:px-8 bg-white/0"
           )}
         >
             <div className="flex items-center gap-4 md:gap-6">
@@ -473,11 +471,16 @@ export default function Header() {
                 </>
               ) : (
                 <div className="flex items-center gap-2 md:gap-3">
-                  <Link href="/login" className="hidden md:flex items-center gap-2 px-5 py-2 text-sm font-bold text-slate-600 bg-white hover:bg-slate-50 rounded-full transition-all border border-slate-200">
+                  <Link href="/login" className="hidden md:flex items-center gap-2 px-5 py-2 text-sm font-bold text-slate-600 bg-white hover:bg-slate-50 rounded-full transition-all duration-150 border border-slate-200 hover:shadow-md hover:-translate-y-0.5 active:scale-95">
                     ログイン
                   </Link>
                   <Link href="/register">
-                      <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="flex items-center gap-2 px-5 py-2 text-sm font-bold text-white bg-gradient-to-r from-pink-500 to-rose-500 rounded-full shadow-lg shadow-pink-200 hover:brightness-105 transition-all">
+                      <motion.button
+                        whileHover={{ scale: 1.04, y: -1, boxShadow: "0 8px 20px rgba(236,72,153,0.25)" }}
+                        whileTap={{ scale: 0.97 }}
+                        transition={{ duration: 0.15 }}
+                        className="flex items-center gap-2 px-5 py-2 text-sm font-bold text-white bg-gradient-to-r from-pink-500 to-rose-500 rounded-full shadow-lg shadow-pink-200 hover:brightness-105 transition-all"
+                      >
                           <Sparkles size={14} className="text-white/80"/> 登録
                       </motion.button>
                   </Link>

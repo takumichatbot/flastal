@@ -30,7 +30,25 @@ export const authenticateToken = async (req, res, next) => {
         status: decoded.status || 'APPROVED'
     };
 
-    // 3. 権限補完ロジック (会場/花屋/主催者)
+    // 3. 停止ユーザーチェック（status === 'SUSPENDED' の場合は即時拒否）
+    try {
+        const dbUser = await prisma.user.findUnique({
+            where: { id: userId },
+            select: { id: true, status: true },
+        });
+        if (!dbUser) {
+            return res.status(401).json({ message: '認証に失敗しました。' });
+        }
+        if (dbUser.status === 'SUSPENDED') {
+            console.warn(`[Auth] Suspended user blocked: userId=${userId}`);
+            return res.status(403).json({ message: 'このアカウントは利用停止中です。' });
+        }
+    } catch (dbErr) {
+        console.error('[Auth] Suspend check failed:', dbErr.message);
+        // DB確認失敗時はフォールスルーして処理継続（可用性優先）
+    }
+
+    // 4. 権限補完ロジック (会場/花屋/主催者)
     try {
         const venueAccount = await prisma.venue.findUnique({ where: { id: userId } });
         if (venueAccount) {
@@ -47,7 +65,7 @@ export const authenticateToken = async (req, res, next) => {
             const illustratorAccount = await prisma.illustrator.findUnique({ where: { id: userId } });
             if (illustratorAccount) req.user.raw = illustratorAccount;
         }
-        
+
     } catch (dbErr) {
         console.error('[Middleware] DB check failed:', dbErr.message);
     }

@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Search, Star, CheckCircle2, Loader2, Music, Video, Users, MessageCircle, Command, Crown } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+import { EmptyState } from '../components/EmptyState';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -72,38 +73,49 @@ export default function ArtistsPage() {
                 {loading ? (
                     <div className="flex justify-center py-20"><Loader2 className="animate-spin text-pink-400" size={32} /></div>
                 ) : artists.length === 0 ? (
-                    <div className="text-center py-20 text-slate-400">
-                        <p className="font-bold">アーティストが見つかりません</p>
-                    </div>
+                    <EmptyState
+                        icon="🌸"
+                        title="アーティストが見つかりません"
+                        description="検索条件を変えて試してみてください"
+                    />
                 ) : (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                        {artists.map((artist, i) => (
-                            <motion.div key={artist.id}
-                                initial={{ opacity: 0, y: 16 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: i * 0.04 }}>
-                                <Link href={`/artists/${artist.slug}`}>
-                                    <div className="bg-white rounded-2xl overflow-hidden border border-slate-100 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer">
-                                        <div className="aspect-square bg-gradient-to-br from-pink-50 to-rose-50 relative overflow-hidden">
-                                            {artist.iconUrl
-                                                ? <img src={artist.iconUrl} alt={artist.name} className="w-full h-full object-cover" />
-                                                : <div className="w-full h-full flex items-center justify-center text-3xl font-black text-pink-200">{artist.name[0]}</div>
-                                            }
-                                            {artist.verified && (
-                                                <div className="absolute top-2 right-2 bg-white/90 rounded-full p-0.5 shadow">
-                                                    <CheckCircle2 size={14} className="text-sky-500" />
-                                                </div>
-                                            )}
+                    <AnimatePresence mode="wait">
+                        <motion.div
+                            key={q + category}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            transition={{ duration: 0.2 }}
+                            className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3"
+                        >
+                            {artists.map((artist, i) => (
+                                <motion.div key={artist.id}
+                                    initial={{ opacity: 0, y: 16 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: i * 0.04 }}>
+                                    <Link href={`/artists/${artist.slug}`}>
+                                        <div className="bg-white rounded-2xl overflow-hidden border border-slate-100 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer">
+                                            <div className="aspect-square bg-gradient-to-br from-pink-50 to-rose-50 relative overflow-hidden">
+                                                {artist.iconUrl
+                                                    ? <img src={artist.iconUrl} alt={artist.name} className="w-full h-full object-cover" />
+                                                    : <div className="w-full h-full flex items-center justify-center text-3xl font-black text-pink-200">{artist.name[0]}</div>
+                                                }
+                                                {artist.verified && (
+                                                    <div className="absolute top-2 right-2 bg-white/90 rounded-full p-0.5 shadow">
+                                                        <CheckCircle2 size={14} className="text-sky-500" />
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div className="p-3">
+                                                <p className="text-xs font-black text-slate-800 truncate">{artist.name}</p>
+                                                {artist.nameKana && <p className="text-[10px] text-slate-400 truncate">{artist.nameKana}</p>}
+                                            </div>
                                         </div>
-                                        <div className="p-3">
-                                            <p className="text-xs font-black text-slate-800 truncate">{artist.name}</p>
-                                            {artist.nameKana && <p className="text-[10px] text-slate-400 truncate">{artist.nameKana}</p>}
-                                        </div>
-                                    </div>
-                                </Link>
-                            </motion.div>
-                        ))}
-                    </div>
+                                    </Link>
+                                </motion.div>
+                            ))}
+                        </motion.div>
+                    </AnimatePresence>
                 )}
             </div>
         </div>

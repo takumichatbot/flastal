@@ -93,7 +93,7 @@ export default function AiPlanGenerator({ onGenerated, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
       <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl relative overflow-hidden border border-white/20">
         
         {/* ヘッダー */}

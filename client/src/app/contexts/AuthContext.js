@@ -21,6 +21,7 @@ const AuthContext = createContext({
   register: async () => {},
   updateUser: () => {},
   authenticatedFetch: async () => {},
+  refreshAccessToken: async () => null,
 });
 
 export function AuthProvider({ children }) {
@@ -67,7 +68,7 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
-  const setSession = useCallback((newToken, extraData = null) => {
+  const setSession = useCallback((newToken, extraData = null, newRefreshToken = null) => {
     const userData = parseUserFromToken(newToken, extraData);
     if (userData) {
       setUser(userData);
@@ -75,8 +76,10 @@ export function AuthProvider({ children }) {
       if (typeof window !== 'undefined') {
         localStorage.setItem('authToken', userData._token);
         localStorage.setItem('flastal-token', userData._token);
-        // ★修正: 最新のユーザー情報をキャッシュとして保存
         localStorage.setItem('flastal-user-cache', JSON.stringify(extraData || {}));
+        if (newRefreshToken) {
+          localStorage.setItem('flastal-refresh-token', newRefreshToken);
+        }
       }
       return true;
     } else {
@@ -87,12 +90,51 @@ export function AuthProvider({ children }) {
           localStorage.removeItem('authToken');
           localStorage.removeItem('flastal-token');
           localStorage.removeItem('flastal-user-cache');
+          localStorage.removeItem('flastal-refresh-token');
           localStorage.removeItem('userStatus');
         }
       }
       return false;
     }
   }, [parseUserFromToken]);
+
+  const refreshAccessToken = useCallback(async () => {
+    if (typeof window === 'undefined') return null;
+    const rt = localStorage.getItem('flastal-refresh-token');
+    if (!rt) return null;
+
+    try {
+      const res = await fetch(`${BASE_BACKEND_URL}/api/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken: rt }),
+      });
+
+      if (!res.ok) {
+        setUser(null);
+        setToken(null);
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('flastal-token');
+        localStorage.removeItem('flastal-user-cache');
+        localStorage.removeItem('flastal-refresh-token');
+        localStorage.removeItem('userStatus');
+        toast.error('セッションが切れました。再度ログインしてください。');
+        return null;
+      }
+
+      const data = await res.json();
+      const cleanToken = data.token.replace(/['"]+/g, '').trim();
+      localStorage.setItem('authToken', cleanToken);
+      localStorage.setItem('flastal-token', cleanToken);
+      if (data.refreshToken) {
+        localStorage.setItem('flastal-refresh-token', data.refreshToken);
+      }
+      setToken(cleanToken);
+      return cleanToken;
+    } catch {
+      return null;
+    }
+  }, []);
 
   const authenticatedFetch = useCallback(async (url, options = {}, retryCount = 0) => {
     let finalUrl = url;
@@ -128,15 +170,18 @@ export function AuthProvider({ children }) {
     }
 
     try {
-      const response = await fetch(finalUrl, { 
-        ...options, 
+      const response = await fetch(finalUrl, {
+        ...options,
         headers,
         mode: 'cors'
       });
-      
-      if (response.status === 401 && retryCount < 1 && !finalUrl.includes('/login')) {
-        await new Promise(resolve => setTimeout(resolve, 500));
-        return authenticatedFetch(url, options, retryCount + 1);
+
+      if (response.status === 401 && retryCount < 1 && !finalUrl.includes('/login') && !finalUrl.includes('/refresh')) {
+        const newToken = await refreshAccessToken();
+        if (newToken) {
+          return authenticatedFetch(url, options, retryCount + 1);
+        }
+        return response;
       }
       return response;
     } catch (e) {
@@ -146,7 +191,7 @@ export function AuthProvider({ children }) {
       }
       throw e;
     }
-  }, [token]);
+  }, [token, refreshAccessToken]);
 
   useEffect(() => {
     const initAuth = () => {
@@ -160,9 +205,25 @@ export function AuthProvider({ children }) {
             
             let extraData = {};
             if (storedCache) {
-                try { extraData = JSON.parse(storedCache); } catch(e){}
+                try {
+                    const raw = storedCache;
+                    extraData = raw ? JSON.parse(raw) : null;
+                    if (!extraData) extraData = {};
+                } catch(e) {
+                    console.warn('[AuthContext] キャッシュパースエラー:', e.message);
+                    localStorage.removeItem('flastal-user-cache');
+                    extraData = {};
+                }
             } else if (storedVenue) {
-                try { extraData = JSON.parse(storedVenue); } catch(e){}
+                try {
+                    const raw = storedVenue;
+                    extraData = raw ? JSON.parse(raw) : null;
+                    if (!extraData) extraData = {};
+                } catch(e) {
+                    console.warn('[AuthContext] キャッシュパースエラー:', e.message);
+                    localStorage.removeItem('flastal-venue');
+                    extraData = {};
+                }
             }
             
             setSession(storedToken, extraData);
@@ -178,9 +239,9 @@ export function AuthProvider({ children }) {
     initAuth();
   }, [setSession]);
 
-  const login = useCallback(async (newToken, extraData = null) => {
-    isInitializing.current = false; 
-    const res = setSession(newToken, extraData);
+  const login = useCallback(async (newToken, extraData = null, newRefreshToken = null) => {
+    isInitializing.current = false;
+    const res = setSession(newToken, extraData, newRefreshToken);
     if (res) setIsLoading(false);
     return res;
   }, [setSession]);
@@ -188,15 +249,24 @@ export function AuthProvider({ children }) {
   const logout = useCallback(() => {
     isInitializing.current = false;
     if (typeof window === 'undefined') return;
+    const rt = localStorage.getItem('flastal-refresh-token');
+    if (rt) {
+      fetch(`${BASE_BACKEND_URL}/api/auth/logout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken: rt }),
+      }).catch(() => {});
+    }
     localStorage.removeItem('authToken');
     localStorage.removeItem('flastal-token');
     localStorage.removeItem('flastal-user-cache');
+    localStorage.removeItem('flastal-refresh-token');
     localStorage.removeItem('flastal-venue');
     localStorage.removeItem('userStatus');
     setUser(null);
     setToken(null);
-    window.location.href = '/';
-  }, []);
+    router.push('/');
+  }, [router]);
 
   // ★修正: 更新時にローカルストレージも更新する
   const updateUser = useCallback((newUserData) => {
@@ -205,7 +275,15 @@ export function AuthProvider({ children }) {
         if (updated && typeof window !== 'undefined') {
              // 既存のキャッシュとマージして保存
              const currentCache = localStorage.getItem('flastal-user-cache');
-             const parsedCache = currentCache ? JSON.parse(currentCache) : {};
+             let parsedCache = {};
+             try {
+                 parsedCache = currentCache ? JSON.parse(currentCache) : null;
+                 if (!parsedCache) parsedCache = {};
+             } catch (e) {
+                 console.warn('[AuthContext] キャッシュパースエラー:', e.message);
+                 localStorage.removeItem('flastal-user-cache');
+                 parsedCache = {};
+             }
              localStorage.setItem('flastal-user-cache', JSON.stringify({ ...parsedCache, ...newUserData }));
         }
         return updated;
@@ -231,10 +309,10 @@ export function AuthProvider({ children }) {
       isAdmin: user?.role === 'ADMIN',
       isProfessional, isApproved: approved,
       isPending: user?.status === 'PENDING',
-      login, logout, updateUser, register, authenticatedFetch, 
-      fetchUser: async () => {} // 🌟 追加：エラー防止用関数
+      login, logout, updateUser, register, authenticatedFetch, refreshAccessToken,
+      fetchUser: async () => {}
     };
-  }, [user, token, isLoading, login, logout, updateUser, register, authenticatedFetch]);
+  }, [user, token, isLoading, login, logout, updateUser, register, authenticatedFetch, refreshAccessToken]);
 
   return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>;
 }

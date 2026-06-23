@@ -39,7 +39,9 @@ const JpText = ({ children }) => <span className="inline-block leading-relaxed">
 // 1. FLASTAL名義の納品書モーダル
 function DeliveryNoteModal({ project, onClose }) {
     const handlePrint = () => {
-        const printWindow = window.open('', '_blank');
+        const printWindow = window.open('', '_blank', 'noopener,noreferrer');
+        if (!printWindow) return;
+        printWindow.opener = null;
         const deliveryDateStr = project?.deliveryDateTime 
             ? new Date(project.deliveryDateTime).toLocaleString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) 
             : '未定';
@@ -263,7 +265,7 @@ function PhotoUploadArea({ urls = [], type, projectId, onUploadComplete }) {
     return (
         <div className="flex flex-wrap gap-3">
             {urls?.map((url, i) => (
-                <div key={i} className="relative w-20 h-20 md:w-24 md:h-24 rounded-xl overflow-hidden border border-slate-200 shadow-sm cursor-zoom-in hover:scale-105 transition-transform" onClick={()=>window.open(url,'_blank')}>
+                <div key={i} className="relative w-20 h-20 md:w-24 md:h-24 rounded-xl overflow-hidden border border-slate-200 shadow-sm cursor-zoom-in hover:scale-105 transition-transform" onClick={()=>{ const win = window.open(url,'_blank','noopener,noreferrer'); if(win) win.opener=null; }}>
                     <Image src={url} alt="" fill className="object-cover" />
                 </div>
             ))}
@@ -291,7 +293,10 @@ export default function FloristProjectDetailPage() {
     
     const [isQuotationModalOpen, setIsQuotationModalOpen] = useState(false);
     const [isDeliveryNoteModalOpen, setIsDeliveryNoteModalOpen] = useState(false);
-    const [isMaterialModalOpen, setIsMaterialModalOpen] = useState(false); 
+    const [isMaterialModalOpen, setIsMaterialModalOpen] = useState(false);
+    const [showDeclineModal, setShowDeclineModal] = useState(false);
+    const [declineReason, setDeclineReason] = useState('');
+    const [isOfferResponding, setIsOfferResponding] = useState(false);
 
     const fetchProjectDetails = useCallback(async () => {
         if (!id || !user) return;
@@ -322,24 +327,38 @@ export default function FloristProjectDetailPage() {
         }
     }, [authLoading, user, fetchProjectDetails, router]);
 
-    const handleRespondToOffer = async (status) => {
-        if (!offer) return;
-        const confirmMsg = status === 'ACCEPTED' ? 'このオファーを受諾して、チャットを開始しますか？' : '本当にこのオファーを辞退しますか？（取り消せません）';
-        if (!window.confirm(confirmMsg)) return;
+    const handleRespondToOffer = async (status, reason) => {
+        if (!offer || isOfferResponding) return;
+        if (status === 'REJECTED') {
+            // 辞退の場合はモーダルを開く（引数なし呼び出し時）
+            if (reason === undefined) {
+                setShowDeclineModal(true);
+                return;
+            }
+        } else {
+            if (!window.confirm('このオファーを受諾して、チャットを開始しますか？')) return;
+        }
 
+        setIsOfferResponding(true);
         const toastId = toast.loading('処理中...');
         try {
+            const body = { status };
+            if (status === 'REJECTED' && reason) body.reason = reason;
             const res = await authenticatedFetch(`${API_URL}/api/florists/offers/${offer.id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ status })
+                body: JSON.stringify(body)
             });
 
             if (!res.ok) throw new Error('エラーが発生しました');
+            setShowDeclineModal(false);
+            setDeclineReason('');
             toast.success(status === 'ACCEPTED' ? 'オファーを受諾しました！' : 'オファーを辞退しました', { id: toastId });
-            fetchProjectDetails(); 
+            fetchProjectDetails();
         } catch (error) {
             toast.error(error.message, { id: toastId });
+        } finally {
+            setIsOfferResponding(false);
         }
     };
 
@@ -443,10 +462,10 @@ export default function FloristProjectDetailPage() {
                         <div className="w-full md:w-auto">
                             {offer?.status === 'PENDING' && (
                                 <div className="flex gap-3">
-                                    <button onClick={() => handleRespondToOffer('REJECTED')} className="flex-1 md:flex-none px-6 py-3 bg-slate-800 text-slate-300 font-black rounded-xl hover:bg-rose-500 hover:text-white transition-colors text-sm">
+                                    <button onClick={() => handleRespondToOffer('REJECTED')} disabled={isOfferResponding} className="flex-1 md:flex-none px-6 py-3 bg-slate-800 text-slate-300 font-black rounded-xl hover:bg-rose-500 hover:text-white transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed">
                                         辞退する
                                     </button>
-                                    <button onClick={() => handleRespondToOffer('ACCEPTED')} className="flex-1 md:flex-none px-8 py-3 bg-sky-500 text-white font-black rounded-xl hover:bg-sky-400 shadow-lg shadow-sky-500/30 transition-all text-sm">
+                                    <button onClick={() => handleRespondToOffer('ACCEPTED')} disabled={isOfferResponding} className="flex-1 md:flex-none px-8 py-3 bg-sky-500 text-white font-black rounded-xl hover:bg-sky-400 shadow-lg shadow-sky-500/30 transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed">
                                         受諾してチャットへ
                                     </button>
                                 </div>
@@ -627,7 +646,7 @@ export default function FloristProjectDetailPage() {
                                     <div className="grid grid-cols-2 gap-3">
                                         {project?.designImageUrls?.length > 0 ? (
                                             project.designImageUrls.map((url, i) => (
-                                                <div key={i} className="aspect-square rounded-xl bg-slate-100 overflow-hidden relative border border-slate-200 cursor-zoom-in hover:scale-105 transition-transform" onClick={()=>window.open(url,'_blank')}>
+                                                <div key={i} className="aspect-square rounded-xl bg-slate-100 overflow-hidden relative border border-slate-200 cursor-zoom-in hover:scale-105 transition-transform" onClick={()=>{ const win = window.open(url,'_blank','noopener,noreferrer'); if(win) win.opener=null; }}>
                                                     <Image src={url} alt="Design" fill className="object-cover" />
                                                 </div>
                                             ))
@@ -674,12 +693,30 @@ export default function FloristProjectDetailPage() {
                     />
                 )}
                 {isMaterialModalOpen && (
-                    <FloristMaterialModal 
-                        isOpen={isMaterialModalOpen} 
-                        onClose={() => setIsMaterialModalOpen(false)} 
-                        project={project} 
-                        onUpdate={fetchProjectDetails} 
+                    <FloristMaterialModal
+                        isOpen={isMaterialModalOpen}
+                        onClose={() => setIsMaterialModalOpen(false)}
+                        project={project}
+                        onUpdate={fetchProjectDetails}
                     />
+                )}
+                {showDeclineModal && (
+                    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => setShowDeclineModal(false)}>
+                        <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl" onClick={e => e.stopPropagation()}>
+                            <h3 className="font-black text-slate-800 mb-1">オファーを辞退する</h3>
+                            <p className="text-xs text-slate-400 mb-4">辞退理由は企画者に通知されます（任意）</p>
+                            <textarea
+                                placeholder="例）スケジュールの都合上、対応が難しい状況です..."
+                                value={declineReason}
+                                onChange={e => setDeclineReason(e.target.value)}
+                                className="w-full border border-slate-200 rounded-xl p-3 text-sm h-24 resize-none focus:outline-none focus:ring-2 focus:ring-red-300 mb-4"
+                            />
+                            <div className="flex gap-3">
+                                <button onClick={() => { setShowDeclineModal(false); setDeclineReason(''); }} className="flex-1 bg-slate-100 text-slate-700 font-semibold py-2.5 rounded-xl text-sm">キャンセル</button>
+                                <button onClick={() => handleRespondToOffer('REJECTED', declineReason)} className="flex-1 bg-red-500 text-white font-black py-2.5 rounded-xl text-sm hover:bg-red-600 transition-colors">辞退する</button>
+                            </div>
+                        </div>
+                    </div>
                 )}
             </AnimatePresence>
         </div>

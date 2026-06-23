@@ -48,7 +48,7 @@ export default function VenueLoginPage() {
         throw new Error(data.message || 'ログインに失敗しました');
       }
 
-      await login(data.token, { ...data.venue, role: 'VENUE' });
+      await login(data.token, { ...data.venue, role: 'VENUE' }, data.refreshToken);
       
       toast.success('会場としてログインしました');
       router.push(`/venues/dashboard/${data.venue.id}`);

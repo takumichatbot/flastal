@@ -35,4 +35,8 @@ router.patch('/offers/:id/reject', authenticateToken, controller.rejectOffer); /
 router.get('/applications', authenticateToken, controller.getMyApplications); // 絵師の応募履歴
 router.post('/applications', authenticateToken, controller.applyForRecruitment); // 絵師が立候補する
 
+// 納品・承認フロー
+router.patch('/projects/:projectId/deliver', authenticateToken, controller.deliverIllustration); // 絵師が納品物を提出
+router.patch('/projects/:projectId/approve', authenticateToken, controller.approveIllustration); // 企画者が納品物を承認
+
 export default router;

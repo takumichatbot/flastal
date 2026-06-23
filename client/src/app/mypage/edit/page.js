@@ -7,7 +7,7 @@ import Image from 'next/image';
 import { useAuth } from '@/app/contexts/AuthContext';
 import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
-import { Save, Camera, ArrowLeft, User, Loader2 } from 'lucide-react';
+import { Save, Camera, ArrowLeft, User, Loader2, Lock, Mail } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -18,6 +18,15 @@ export default function FanProfileEditPage() {
   const { register, handleSubmit, setValue, formState: { isSubmitting, errors } } = useForm();
   const [iconUrl, setIconUrl] = useState('');
   const [isIconUploading, setIsIconUploading] = useState(false);
+
+  // パスワード変更
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [changingPassword, setChangingPassword] = useState(false);
+
+  // メールアドレス変更
+  const [newEmail, setNewEmail] = useState('');
+  const [requestingEmailChange, setRequestingEmailChange] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -48,6 +57,51 @@ export default function FanProfileEditPage() {
       toast.error('失敗しました', { id: toastId });
     } finally {
       setIsIconUploading(false);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (!currentPassword || !newPassword) return toast.error('全項目を入力してください');
+    setChangingPassword(true);
+    try {
+      const res = await authenticatedFetch(`${API_URL}/api/users/change-password`, {
+        method: 'POST',
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success('パスワードを変更しました');
+        setCurrentPassword('');
+        setNewPassword('');
+      } else {
+        toast.error(data.message || 'エラーが発生しました');
+      }
+    } catch {
+      toast.error('通信エラーが発生しました');
+    } finally {
+      setChangingPassword(false);
+    }
+  };
+
+  const handleRequestEmailChange = async () => {
+    if (!newEmail) return toast.error('新しいメールアドレスを入力してください');
+    setRequestingEmailChange(true);
+    try {
+      const res = await authenticatedFetch(`${API_URL}/api/users/request-email-change`, {
+        method: 'POST',
+        body: JSON.stringify({ newEmail }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success(data.message || '確認メールを送信しました');
+        setNewEmail('');
+      } else {
+        toast.error(data.message || 'エラーが発生しました');
+      }
+    } catch {
+      toast.error('通信エラーが発生しました');
+    } finally {
+      setRequestingEmailChange(false);
     }
   };
 
@@ -136,6 +190,64 @@ export default function FanProfileEditPage() {
             プロフィールを保存
           </button>
         </form>
+
+        {/* パスワード変更 */}
+        <div className="bg-white mt-6 p-8 rounded-[2.5rem] shadow-xl shadow-slate-200/50 border border-slate-100 space-y-4">
+          <div className="flex items-center gap-2 mb-2">
+            <Lock size={18} className="text-slate-500" />
+            <h2 className="text-base font-black text-slate-800">パスワード変更</h2>
+          </div>
+          <input
+            type="password"
+            placeholder="現在のパスワード"
+            value={currentPassword}
+            onChange={e => setCurrentPassword(e.target.value)}
+            autoComplete="current-password"
+            className="w-full p-4 bg-slate-50 border border-transparent rounded-2xl focus:ring-2 focus:ring-pink-400 focus:border-pink-400 outline-none font-medium text-slate-800 transition-all"
+          />
+          <input
+            type="password"
+            placeholder="新しいパスワード（8文字以上）"
+            value={newPassword}
+            onChange={e => setNewPassword(e.target.value)}
+            autoComplete="new-password"
+            className="w-full p-4 bg-slate-50 border border-transparent rounded-2xl focus:ring-2 focus:ring-pink-400 focus:border-pink-400 outline-none font-medium text-slate-800 transition-all"
+          />
+          <button
+            onClick={handleChangePassword}
+            disabled={changingPassword}
+            className="w-full py-4 bg-slate-800 text-white rounded-2xl font-black hover:bg-slate-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+          >
+            {changingPassword ? <Loader2 className="animate-spin" size={16} /> : <Lock size={16} />}
+            {changingPassword ? '変更中...' : 'パスワードを変更'}
+          </button>
+        </div>
+
+        {/* メールアドレス変更 */}
+        <div className="bg-white mt-6 p-8 rounded-[2.5rem] shadow-xl shadow-slate-200/50 border border-slate-100 space-y-4">
+          <div className="flex items-center gap-2 mb-2">
+            <Mail size={18} className="text-slate-500" />
+            <h2 className="text-base font-black text-slate-800">メールアドレス変更</h2>
+          </div>
+          <p className="text-xs text-slate-400 font-medium">現在: {user?.email}</p>
+          <input
+            type="email"
+            placeholder="新しいメールアドレス"
+            value={newEmail}
+            onChange={e => setNewEmail(e.target.value)}
+            autoComplete="email"
+            className="w-full p-4 bg-slate-50 border border-transparent rounded-2xl focus:ring-2 focus:ring-pink-400 focus:border-pink-400 outline-none font-medium text-slate-800 transition-all"
+          />
+          <button
+            onClick={handleRequestEmailChange}
+            disabled={requestingEmailChange}
+            className="w-full py-4 bg-slate-800 text-white rounded-2xl font-black hover:bg-slate-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+          >
+            {requestingEmailChange ? <Loader2 className="animate-spin" size={16} /> : <Mail size={16} />}
+            {requestingEmailChange ? '送信中...' : '確認メールを送信'}
+          </button>
+          <p className="text-[11px] text-slate-400 text-center">新しいメールアドレスに確認メールを送信します。リンクをクリックすると変更が確定されます。</p>
+        </div>
       </div>
     </div>
   );

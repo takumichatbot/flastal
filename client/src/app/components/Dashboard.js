@@ -184,7 +184,7 @@ export default function Dashboard() {
                 <div className="w-20 h-20 bg-slate-100 rounded-full mx-auto mb-4 flex items-center justify-center text-slate-300 overflow-hidden">
                     {user.iconUrl ? (
                         /* eslint-disable-next-line @next/next/no-img-element */
-                        <img src={user.iconUrl} alt="" className="w-full h-full object-cover" />
+                        <img src={user.iconUrl} alt={`${user.handleName}のアイコン`} className="w-full h-full object-cover" />
                     ) : (
                         <User size={40} />
                     )}

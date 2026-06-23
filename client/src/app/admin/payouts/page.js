@@ -92,6 +92,26 @@ export default function AdminPayoutsPage() {
     toast.success('コピーしました', { duration: 1000 });
   };
 
+  const handleExportCsv = async () => {
+    const toastId = toast.loading('CSVを生成中...');
+    try {
+      const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+      const url = `${API_URL}/api/admin/payouts/csv`;
+      const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) throw new Error('CSV生成に失敗しました');
+      const blob = await res.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = objectUrl;
+      a.download = `flastal-payouts-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(objectUrl);
+      toast.success('CSVをダウンロードしました', { id: toastId });
+    } catch (error) {
+      toast.error(error.message, { id: toastId });
+    }
+  };
+
   const filteredPayouts = useMemo(() => {
     let data = activeTab === 'PENDING' ? payouts.filter(p => p.status === 'PENDING') : payouts.filter(p => p.status !== 'PENDING');
     if (searchTerm) {
@@ -151,7 +171,7 @@ export default function AdminPayoutsPage() {
                         className="w-full pl-10 pr-4 py-3 bg-slate-50 border-2 border-transparent rounded-2xl text-sm font-bold focus:bg-white focus:border-emerald-200 outline-none transition-all placeholder:text-slate-300"
                     />
                 </div>
-                <button onClick={() => toast('CSVダウンロード機能は準備中です', { icon: '🚧' })} className="w-12 h-12 flex items-center justify-center bg-slate-900 text-white rounded-2xl hover:bg-slate-800 transition-colors shadow-md" title="CSVダウンロード"><Download size={18}/></button>
+                <button onClick={handleExportCsv} className="w-12 h-12 flex items-center justify-center bg-slate-900 text-white rounded-2xl hover:bg-slate-800 transition-colors shadow-md" title="CSVダウンロード"><Download size={18}/></button>
                 <button onClick={fetchPayouts} className="w-12 h-12 flex items-center justify-center bg-white border border-slate-200 text-slate-500 rounded-2xl hover:bg-slate-50 transition-colors shadow-sm" title="更新">
                     <RefreshCw size={18} className={loadingData ? "animate-spin" : ""}/>
                 </button>

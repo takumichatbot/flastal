@@ -47,7 +47,7 @@ function ProjectCard({ project, i }) {
         <div className="p-3">
           <div className="flex items-center gap-2 mb-1.5">
             {project.planner?.iconUrl ? (
-              <Image src={project.planner.iconUrl} alt="" width={20} height={20} className="rounded-full object-cover" />
+              <Image src={project.planner.iconUrl} alt={`${project.planner.handleName || 'プランナー'}のアイコン`} width={20} height={20} className="rounded-full object-cover" />
             ) : (
               <div className="w-5 h-5 rounded-full bg-pink-100 flex items-center justify-center">
                 <Users size={10} className="text-pink-400" />

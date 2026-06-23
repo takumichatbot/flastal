@@ -12,6 +12,8 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../contexts/AuthContext';
 import BadgeDisplay from '../../components/BadgeDisplay';
+import { Capacitor } from '@capacitor/core';
+import toast from 'react-hot-toast';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -235,11 +237,33 @@ export default function PublicUserProfile() {
 
   const handleShare = async () => {
     const url = window.location.href;
-    const text = `${profile?.handleName} さんのFLASTALプロフィール`;
-    if (navigator.share) {
-      await navigator.share({ title: text, url }).catch(() => {});
-    } else {
-      await navigator.clipboard.writeText(url).catch(() => {});
+    const shareData = {
+      title: `${profile?.handleName} | FLASTAL`,
+      text: `FLASTALで${profile?.handleName}さんを応援しよう！`,
+      url,
+    };
+    try {
+      if (Capacitor.isNativePlatform()) {
+        // ネイティブ共有シート
+        const { Share } = await import('@capacitor/share');
+        await Share.share({
+          title: shareData.title,
+          text: shareData.text,
+          url: shareData.url,
+          dialogTitle: 'シェア',
+        });
+      } else if (navigator.share) {
+        // Web Share API（モバイルブラウザ）
+        await navigator.share(shareData);
+      } else {
+        // フォールバック: URLをクリップボードコピー
+        await navigator.clipboard.writeText(url);
+        toast.success('URLをコピーしました！');
+      }
+    } catch (err) {
+      if (err?.name !== 'AbortError') {
+        toast.error('シェアできませんでした。');
+      }
     }
   };
 

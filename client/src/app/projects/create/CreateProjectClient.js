@@ -7,6 +7,7 @@ import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/app/contexts/AuthContext';
 import toast from 'react-hot-toast';
+import { triggerHaptic } from '@/app/hooks/useHaptics';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import AiPlanGenerator from '@/app/components/AiPlanGenerator';
@@ -15,11 +16,12 @@ import {
   Calendar, MapPin, X, Image as ImageIcon, Loader2, Plus,
   Award, Search, AlertTriangle, ZoomIn, Sparkles,
   Wand2, Lock, Globe, ArrowRight, Paintbrush, FileText,
-  Clock, UserPlus, ChevronLeft, ChevronRight, Check,
+  Clock, UserPlus, ChevronLeft, ChevronRight, Check, RotateCcw,
 } from 'lucide-react';
 import FloatingParticles from '@/app/components/FloatingParticles';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
+const DRAFT_KEY = 'flastal_project_draft';
 
 function cn(...classes) { return classes.filter(Boolean).join(' '); }
 
@@ -64,39 +66,47 @@ const GlassCard = ({ children, className }) => (
   </div>
 );
 
-const InputLabel = ({ icon: Icon, title, subtitle, required }) => (
+const InputLabel = ({ icon: Icon, title, subtitle, required, htmlFor }) => (
   <div className="flex items-end gap-2 mb-3 pl-1">
     {Icon && <Icon className="text-pink-400 mb-0.5 shrink-0" size={16} />}
-    <label className="block text-sm font-black text-slate-700 tracking-tight">
+    <label htmlFor={htmlFor} className="block text-sm font-black text-slate-700 tracking-tight">
       {title}{required && <span className="text-pink-500 ml-1">*</span>}
     </label>
     {subtitle && <span className="text-[10px] text-slate-400 font-bold mb-0.5 leading-none">{subtitle}</span>}
   </div>
 );
 
-const GlassInput = (props) => (
-  <input
-    {...props}
-    className={cn(
-      'w-full px-4 py-3.5 bg-white/60 backdrop-blur-sm border-2 border-slate-100 rounded-2xl',
-      'focus:outline-none focus:border-pink-300 focus:ring-4 focus:ring-pink-100/50',
-      'transition-all font-bold text-slate-800 placeholder:text-slate-300 text-[16px]',
-      props.className,
-    )}
-  />
-);
+const GlassInput = ({ id, ...props }) => {
+  const inputId = id || (props.name ? `glass-input-${props.name}` : undefined);
+  return (
+    <input
+      id={inputId}
+      {...props}
+      className={cn(
+        'w-full px-4 py-3.5 bg-white/60 backdrop-blur-sm border-2 border-slate-100 rounded-2xl',
+        'focus:outline-none focus:border-pink-300 focus:ring-4 focus:ring-pink-200/60',
+        'transition-all font-bold text-slate-800 placeholder:text-slate-300 text-[16px]',
+        props.className,
+      )}
+    />
+  );
+};
 
-const GlassTextarea = (props) => (
-  <textarea
-    {...props}
-    className={cn(
-      'w-full px-4 py-3.5 bg-white/60 backdrop-blur-sm border-2 border-slate-100 rounded-2xl resize-none',
-      'focus:outline-none focus:border-pink-300 focus:ring-4 focus:ring-pink-100/50',
-      'transition-all font-bold text-slate-800 placeholder:text-slate-300 leading-relaxed text-[16px]',
-      props.className,
-    )}
-  />
-);
+const GlassTextarea = ({ id, ...props }) => {
+  const textareaId = id || (props.name ? `glass-textarea-${props.name}` : undefined);
+  return (
+    <textarea
+      id={textareaId}
+      {...props}
+      className={cn(
+        'w-full px-4 py-3.5 bg-white/60 backdrop-blur-sm border-2 border-slate-100 rounded-2xl resize-none',
+        'focus:outline-none focus:border-pink-300 focus:ring-4 focus:ring-pink-200/60',
+        'transition-all font-bold text-slate-800 placeholder:text-slate-300 leading-relaxed text-[16px]',
+        props.className,
+      )}
+    />
+  );
+};
 
 // ── Modals ───────────────────────────────────────────────────
 function EventSelectionModal({ onClose, onSelect }) {
@@ -122,13 +132,14 @@ function EventSelectionModal({ onClose, onSelect }) {
   }, [q, events]);
 
   return (
-    <div className="fixed inset-0 bg-slate-900/60 flex justify-center items-end sm:items-center z-50 backdrop-blur-md">
+    <div className="fixed inset-0 bg-slate-900/60 flex justify-center items-end sm:items-center z-50 backdrop-blur-md" onClick={onClose}>
       <motion.div
         initial={{ y: '100%', opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: '100%', opacity: 0 }}
         transition={{ type: 'spring', damping: 28, stiffness: 300 }}
         className="bg-white rounded-t-[2.5rem] sm:rounded-[2.5rem] shadow-2xl w-full max-w-2xl max-h-[88vh] flex flex-col overflow-hidden"
+        onClick={e => e.stopPropagation()}
       >
         <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-gradient-to-r from-sky-50 to-white">
           <div>
@@ -145,7 +156,7 @@ function EventSelectionModal({ onClose, onSelect }) {
           <div className="relative">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
             <input type="text" placeholder="イベント名や会場名で検索..." value={q} onChange={e => setQ(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-4 focus:ring-sky-100 focus:border-sky-300 outline-none text-[16px] font-bold transition-all text-slate-700" />
+              className="w-full pl-10 pr-4 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-4 focus:ring-sky-200/60 focus:border-sky-300 outline-none text-[16px] font-bold transition-all text-slate-700" />
           </div>
         </div>
         <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50/50">
@@ -202,13 +213,14 @@ function VenueSelectionModal({ onClose, onSelect }) {
   }, [q, venues]);
 
   return (
-    <div className="fixed inset-0 bg-slate-900/60 flex justify-center items-end sm:items-center z-50 backdrop-blur-md">
+    <div className="fixed inset-0 bg-slate-900/60 flex justify-center items-end sm:items-center z-50 backdrop-blur-md" onClick={onClose}>
       <motion.div
         initial={{ y: '100%', opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: '100%', opacity: 0 }}
         transition={{ type: 'spring', damping: 28, stiffness: 300 }}
         className="bg-white rounded-t-[2.5rem] sm:rounded-[2.5rem] shadow-2xl w-full max-w-2xl max-h-[88vh] flex flex-col overflow-hidden"
+        onClick={e => e.stopPropagation()}
       >
         <div className="p-5 border-b border-emerald-100 flex justify-between items-center bg-gradient-to-r from-emerald-50 to-white">
           <div>
@@ -225,7 +237,7 @@ function VenueSelectionModal({ onClose, onSelect }) {
           <div className="relative">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
             <input type="text" placeholder="会場名や住所で検索..." value={q} onChange={e => setQ(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-4 focus:ring-emerald-100 focus:border-emerald-300 outline-none text-[16px] font-bold transition-all text-slate-700" />
+              className="w-full pl-10 pr-4 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-4 focus:ring-emerald-200/60 focus:border-emerald-300 outline-none text-[16px] font-bold transition-all text-slate-700" />
           </div>
         </div>
         <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50/50">
@@ -274,22 +286,31 @@ function ImageLightbox({ url, onClose }) {
 // ── Step Indicator ────────────────────────────────────────────
 function StepIndicator({ current }) {
   return (
-    <div className="flex items-center justify-center gap-0 py-2">
-      {STEPS.map((s, i) => (
-        <div key={s.id} className="flex items-center">
-          <div className={cn(
-            'rounded-full transition-all duration-300 ease-out',
-            s.id === current
-              ? 'w-8 h-2.5 bg-gradient-to-r from-pink-500 to-rose-500 shadow-sm shadow-pink-300'
-              : s.id < current
-              ? 'w-2.5 h-2.5 bg-pink-300'
-              : 'w-2.5 h-2.5 bg-slate-200',
-          )} />
-          {i < STEPS.length - 1 && (
-            <div className={cn('h-0.5 w-4 mx-1 rounded transition-colors duration-300', s.id < current ? 'bg-pink-300' : 'bg-slate-100')} />
-          )}
-        </div>
-      ))}
+    <div className="flex flex-col items-center gap-1 py-1">
+      <div className="flex items-center justify-center gap-0">
+        {STEPS.map((s, i) => (
+          <div key={s.id} className="flex items-center">
+            <div className={cn(
+              'rounded-full transition-all duration-300 ease-out',
+              s.id === current
+                ? 'w-8 h-2.5 bg-gradient-to-r from-pink-500 to-rose-500 shadow-sm shadow-pink-300'
+                : s.id < current
+                ? 'w-2.5 h-2.5 bg-pink-300'
+                : 'w-2.5 h-2.5 bg-slate-200',
+            )} />
+            {i < STEPS.length - 1 && (
+              <div className={cn('h-0.5 w-4 mx-1 rounded transition-colors duration-300', s.id < current ? 'bg-pink-300' : 'bg-slate-100')} />
+            )}
+          </div>
+        ))}
+      </div>
+      <div className="flex items-center gap-2 text-[10px] font-black text-slate-400">
+        <span className="text-pink-500">{current}</span>
+        <span>/</span>
+        <span>{STEPS.length}</span>
+        <span className="text-slate-300">—</span>
+        <span>{STEPS[current - 1]?.label || ''}</span>
+      </div>
     </div>
   );
 }
@@ -308,10 +329,15 @@ function CreateProjectForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [isDesignUploading, setIsDesignUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [designUploadProgress, setDesignUploadProgress] = useState(0);
 
   const [isVenueModalOpen, setIsVenueModalOpen] = useState(false);
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
   const [isAiPlanModalOpen, setIsAiPlanModalOpen] = useState(false);
+  const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
+  const [templates, setTemplates] = useState([]);
+  const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
   const [previewImageUrl, setPreviewImageUrl] = useState(null);
   const [isAiCoverGenerating, setIsAiCoverGenerating] = useState(false);
   const [aiCoverStyle, setAiCoverStyle] = useState('illustration');
@@ -329,7 +355,7 @@ function CreateProjectForm() {
   const [selectedTags, setSelectedTags] = useState([]);
   const [availableTags, setAvailableTags] = useState([]);
 
-  const [formData, setFormData] = useState({
+  const defaultFormData = {
     title: '',
     description: '',
     targetAmount: '',
@@ -348,6 +374,30 @@ function CreateProjectForm() {
     illustratorBudget: '',
     illustratorRequirements: '',
     isExpress: false,
+  };
+
+  const [hasDraft, setHasDraft] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    try {
+      const saved = localStorage.getItem(DRAFT_KEY);
+      if (!saved) return false;
+      const parsed = JSON.parse(saved);
+      return !!(parsed._savedAt && Date.now() - parsed._savedAt < 24 * 60 * 60 * 1000);
+    } catch { return false; }
+  });
+
+  const [formData, setFormData] = useState(() => {
+    if (typeof window === 'undefined') return defaultFormData;
+    try {
+      const saved = localStorage.getItem(DRAFT_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed._savedAt && Date.now() - parsed._savedAt < 24 * 60 * 60 * 1000) {
+          return parsed.formData || defaultFormData;
+        }
+      }
+    } catch {}
+    return defaultFormData;
   });
 
   useEffect(() => {
@@ -365,6 +415,58 @@ function CreateProjectForm() {
       .catch(() => {});
   }, []);
 
+  // ── ドラフト自動保存（30秒ごと）────────────────────────────
+  useEffect(() => {
+    const timer = setInterval(() => {
+      try {
+        localStorage.setItem(DRAFT_KEY, JSON.stringify({
+          formData,
+          step,
+          _savedAt: Date.now(),
+        }));
+      } catch {}
+    }, 30000);
+    return () => clearInterval(timer);
+  }, [formData, step]);
+
+  // ── ページ離脱時の警告 ──────────────────────────────────────
+  useEffect(() => {
+    const hasChanges = !!(formData.title || formData.description || formData.targetAmount);
+    if (!hasChanges) return;
+
+    const handleBeforeUnload = (e) => {
+      e.preventDefault();
+      e.returnValue = '入力中のデータが失われます。このページを離れますか？';
+      return e.returnValue;
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [formData]);
+
+  // ── ドラフト復元・削除ハンドラー ───────────────────────────
+  const restoreDraft = () => {
+    try {
+      const saved = localStorage.getItem(DRAFT_KEY);
+      if (!saved) return;
+      const parsed = JSON.parse(saved);
+      if (parsed.formData) setFormData(parsed.formData);
+      if (parsed.step) { setDir(1); setStep(parsed.step); }
+      setHasDraft(false);
+      toast.success('前回のドラフトを復元しました！');
+    } catch {
+      toast.error('ドラフトの復元に失敗しました');
+    }
+  };
+
+  const clearDraft = () => {
+    try {
+      localStorage.removeItem(DRAFT_KEY);
+      setHasDraft(false);
+      toast.success('ドラフトを削除しました');
+    } catch {}
+  };
+
   const rushFeeAlert = (() => {
     if (!deliveryDateObj) return null;
     const diff = Math.ceil((new Date(`${deliveryDateObj}T12:00:00+09:00`) - Date.now()) / 86400000);
@@ -374,7 +476,7 @@ function CreateProjectForm() {
     return null;
   })();
 
-  const uploadImageToS3 = async (file) => {
+  const uploadImageToS3 = async (file, onProgress) => {
     const res = await authenticatedFetch('/api/tools/s3-upload-url', {
       method: 'POST',
       body: JSON.stringify({ fileName: file.name, fileType: file.type }),
@@ -385,6 +487,11 @@ function CreateProjectForm() {
       const xhr = new XMLHttpRequest();
       xhr.open('PUT', uploadUrl);
       xhr.setRequestHeader('Content-Type', file.type);
+      if (onProgress) {
+        xhr.upload.addEventListener('progress', (e) => {
+          if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
+        });
+      }
       xhr.onload = () => xhr.status === 200 ? resolve(fileUrl) : reject(new Error('S3アップロード失敗'));
       xhr.onerror = () => reject(new Error('ネットワークエラー'));
       xhr.send(file);
@@ -395,26 +502,34 @@ function CreateProjectForm() {
     const file = e.target.files[0];
     if (!file) return;
     setIsUploading(true);
+    setUploadProgress(0);
     const tid = toast.loading('メイン画像をアップロード中...');
     try {
-      const url = await uploadImageToS3(file);
+      const url = await uploadImageToS3(file, (pct) => setUploadProgress(pct));
       setFormData(p => ({ ...p, imageUrl: url }));
       toast.success('画像をアップロードしました！', { id: tid });
     } catch { toast.error('アップロードに失敗しました', { id: tid }); }
-    finally { setIsUploading(false); }
+    finally { setIsUploading(false); setUploadProgress(0); }
   };
 
   const handleDesignImagesUpload = async (e) => {
     const files = Array.from(e.target.files);
     if (!files.length) return;
     setIsDesignUploading(true);
+    setDesignUploadProgress(0);
     const tid = toast.loading(`${files.length}枚アップロード中...`);
     try {
-      const urls = await Promise.all(files.map(f => uploadImageToS3(f)));
+      let completed = 0;
+      const urls = await Promise.all(files.map(async (f) => {
+        const url = await uploadImageToS3(f);
+        completed += 1;
+        setDesignUploadProgress(Math.round((completed / files.length) * 100));
+        return url;
+      }));
       setFormData(p => ({ ...p, designImageUrls: [...p.designImageUrls, ...urls] }));
       toast.success('デザイン画像をアップロードしました！', { id: tid });
     } catch { toast.error('一部のアップロードに失敗しました', { id: tid }); }
-    finally { setIsDesignUploading(false); e.target.value = ''; }
+    finally { setIsDesignUploading(false); setDesignUploadProgress(0); e.target.value = ''; }
   };
 
   const handleGenerateCoverImage = async () => {
@@ -491,6 +606,47 @@ function CreateProjectForm() {
     }
   }, [user, authLoading, router, eventIdFromUrl, venueIdFromUrl, fetchEventDetails]);
 
+  const handleOpenTemplateModal = async () => {
+    setIsTemplateModalOpen(true);
+    if (templates.length > 0) return; // キャッシュ済みなら再取得しない
+    setIsLoadingTemplates(true);
+    try {
+      const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+      const res = await fetch(`${API_URL}/api/templates`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      setTemplates(data);
+    } catch {
+      toast.error('テンプレートの読み込みに失敗しました');
+    } finally {
+      setIsLoadingTemplates(false);
+    }
+  };
+
+  const handleApplyTemplate = async (templateId) => {
+    try {
+      const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+      const res = await fetch(`${API_URL}/api/templates/${templateId}/use`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      setFormData(p => ({
+        ...p,
+        targetAmount: data.targetAmount?.toString() || p.targetAmount,
+        projectType: data.projectType || p.projectType,
+        description: data.coverMessage || p.description,
+      }));
+      if (data.tags && data.tags.length > 0) setSelectedTags(data.tags);
+      setIsTemplateModalOpen(false);
+      toast.success('テンプレートを適用しました！');
+    } catch {
+      toast.error('テンプレートの適用に失敗しました');
+    }
+  };
+
   const handleEventSelect = (event) => {
     if (!event) return;
     setSelectedEvent(event);
@@ -566,8 +722,8 @@ function CreateProjectForm() {
       return;
     }
 
+    const tid = toast.loading('企画を作成中...');
     setIsSubmitting(true);
-    const tid = toast.loading('企画を保存中...');
     try {
       const amount = parseInt(formData.targetAmount, 10);
       const payload = {
@@ -614,10 +770,13 @@ function CreateProjectForm() {
       }
 
       toast.success('企画を作成しました！', { id: tid });
+      await triggerHaptic('success');
+      try { localStorage.removeItem(DRAFT_KEY); } catch {}
       setTimeout(() => { window.location.href = '/mypage'; }, 1000);
     } catch (error) {
       setIsSubmitting(false);
-      toast.error(error.message, { id: tid });
+      toast.error(error.message || '作成に失敗しました。もう一度お試しください。', { id: tid });
+      await triggerHaptic('error');
     }
   };
 
@@ -642,6 +801,14 @@ function CreateProjectForm() {
             </div>
             <h2 className="text-2xl font-black text-slate-800 tracking-tight mb-1">推しへの想いを形にしよう</h2>
             <p className="text-sm font-bold text-slate-400">素敵なフラスタ企画を立ち上げましょう🌸</p>
+            <button
+              type="button"
+              onClick={handleOpenTemplateModal}
+              className="mt-4 inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-violet-500 to-purple-500 text-white font-black text-sm rounded-2xl shadow-md shadow-violet-200 hover:brightness-105 active:scale-95 transition-all"
+            >
+              <FileText size={15} />
+              テンプレートから始める
+            </button>
           </div>
 
           <GlassCard className="border-2 border-indigo-100 bg-gradient-to-br from-white/90 to-indigo-50/80">
@@ -715,8 +882,9 @@ function CreateProjectForm() {
                   initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
                   className="mt-4 overflow-hidden">
                   <div className="bg-purple-50/60 p-4 rounded-[1.5rem] border border-purple-100">
-                    <InputLabel icon={Lock} title="合言葉（パスワード）" subtitle="参加者に教える合言葉" required />
+                    <InputLabel icon={Lock} title="合言葉（パスワード）" subtitle="参加者に教える合言葉" required htmlFor="glass-input-password" />
                     <GlassInput type="text" name="password" value={formData.password} onChange={handleChange}
+                      required aria-required="true"
                       placeholder="例: oshi2026" className="!bg-white font-mono tracking-widest" />
                   </div>
                 </motion.div>
@@ -731,23 +899,26 @@ function CreateProjectForm() {
         <div className="space-y-5">
           <GlassCard>
             <div className="flex items-center justify-between mb-3">
-              <InputLabel icon={FileText} title="企画タイトル" required />
+              <InputLabel icon={FileText} title="企画タイトル" required htmlFor="glass-input-title" />
               <button type="button" onClick={() => setIsAiPlanModalOpen(true)}
                 className="flex items-center gap-1.5 text-xs bg-gradient-to-r from-pink-50 to-purple-50 text-purple-600 border border-purple-200 px-3 py-2 rounded-full font-black shadow-sm hover:shadow-md hover:scale-105 transition-all shrink-0">
                 <Wand2 size={12} /> AIで作成
               </button>
             </div>
             <GlassInput
-              type="text" name="title" required
+              type="text" name="title" required aria-required="true"
+              aria-label="企画タイトル"
               value={formData.title} onChange={handleChange}
               placeholder="例：○○さん出演祝いフラスタ企画"
             />
           </GlassCard>
 
           <GlassCard>
-            <InputLabel icon={FileText} title="企画の説明" subtitle="熱い想いを語りましょう！" required />
+            <InputLabel icon={FileText} title="企画の説明" subtitle="熱い想いを語りましょう！" required htmlFor="glass-textarea-description" />
             <GlassTextarea
-              name="description" required rows={8}
+              name="description" required aria-required="true"
+              aria-label="企画の説明"
+              rows={8}
               value={formData.description} onChange={handleChange}
               placeholder="趣旨や想いを熱く語ってください！参加者の心を動かします✨"
             />
@@ -762,19 +933,21 @@ function CreateProjectForm() {
       case 3: return (
         <div className="space-y-5">
           <GlassCard className="border-2 border-pink-100 bg-gradient-to-b from-white/90 to-pink-50/40">
-            <InputLabel icon={Award} title="目標金額" subtitle="お花の総予算を決めましょう" required />
+            <InputLabel icon={Award} title="目標金額" subtitle="お花の総予算を決めましょう" required htmlFor="input-targetAmount" />
             <div className="mt-3 flex items-center justify-center bg-white/80 p-6 rounded-[2rem] border border-pink-100 shadow-inner">
               <span className="text-2xl text-pink-400 font-black mr-3">¥</span>
-              <input type="number" name="targetAmount" required
+              <input id="input-targetAmount" type="number" name="targetAmount" required aria-required="true"
+                aria-label="目標金額（円）"
                 value={formData.targetAmount} onChange={handleChange}
                 className="text-5xl md:text-6xl font-black text-slate-800 bg-transparent border-none focus:ring-0 w-full max-w-[260px] text-center placeholder:text-slate-200 outline-none"
                 placeholder="30000" />
             </div>
             <div className="mt-5 pt-4 border-t border-pink-100/60">
-              <InputLabel title="一口あたりの最低参加額" subtitle="参加者が支援する最低金額" required />
+              <InputLabel title="一口あたりの最低参加額" subtitle="参加者が支援する最低金額" required htmlFor="glass-input-minContributionAmount" />
               <div className="flex items-center gap-2 max-w-xs">
                 <span className="text-lg text-pink-400 font-black">¥</span>
-                <GlassInput type="number" name="minContributionAmount" min="100" step="100" required
+                <GlassInput type="number" name="minContributionAmount" min="100" step="100" required aria-required="true"
+                  aria-label="一口あたりの最低参加額（円）"
                   value={formData.minContributionAmount} onChange={handleChange}
                   className="text-lg text-center" />
                 <span className="font-bold text-slate-400 shrink-0">から</span>
@@ -815,7 +988,7 @@ function CreateProjectForm() {
         <div className="space-y-5">
           <GlassCard>
             <div className="flex items-center justify-between mb-3">
-              <InputLabel icon={MapPin} title="お届け先" required />
+              <InputLabel icon={MapPin} title="お届け先" required htmlFor="glass-input-deliveryAddress" />
               <button type="button" onClick={() => setIsVenueModalOpen(true)}
                 className="text-xs bg-emerald-50 text-emerald-600 px-3 py-2 rounded-full font-bold border border-emerald-200 hover:bg-emerald-100 transition-colors flex items-center gap-1 shrink-0">
                 <Search size={11} /> 会場を検索
@@ -833,15 +1006,17 @@ function CreateProjectForm() {
                 </button>
               </div>
             ) : (
-              <GlassInput type="text" name="deliveryAddress" required value={formData.deliveryAddress}
+              <GlassInput type="text" name="deliveryAddress" required aria-required="true"
+                aria-label="お届け先住所"
+                value={formData.deliveryAddress}
                 onChange={handleChange} placeholder="例：東京都渋谷区○○..." />
             )}
           </GlassCard>
 
           <GlassCard>
-            <InputLabel icon={Clock} title="納品希望日・時間帯" required />
+            <InputLabel icon={Clock} title="納品希望日・時間帯" required htmlFor="glass-input-deliveryDate" />
             <div className="grid grid-cols-2 gap-3 mt-2">
-              <GlassInput type="date" required value={deliveryDateObj} onChange={e => setDeliveryDateObj(e.target.value)} />
+              <GlassInput id="glass-input-deliveryDate" type="date" required aria-required="true" aria-label="納品希望日" value={deliveryDateObj} onChange={e => setDeliveryDateObj(e.target.value)} />
               <div>
                 <GlassInput type="text" list="time-slots" required value={deliveryTimeText}
                   onChange={e => setDeliveryTimeText(e.target.value)} placeholder="例: 午前中" />
@@ -912,6 +1087,20 @@ function CreateProjectForm() {
                   </div>
                 )}
               </div>
+              {uploadProgress > 0 && uploadProgress < 100 && (
+                <div className="mt-2">
+                  <div className="flex justify-between text-xs text-slate-500 mb-1">
+                    <span>アップロード中...</span>
+                    <span>{uploadProgress}%</span>
+                  </div>
+                  <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                    <div
+                      className="h-2 bg-pink-500 rounded-full transition-all duration-300"
+                      style={{ width: `${uploadProgress}%` }}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* AI カバー画像生成 */}
@@ -992,7 +1181,9 @@ function CreateProjectForm() {
               <div className="flex flex-wrap gap-3">
                 {formData.designImageUrls.map((url, idx) => (
                   <div key={idx} className="relative w-24 h-24 group">
-                    <img src={url} alt="花材プレビュー" className="w-full h-full object-cover rounded-[1rem] border-2 border-white shadow-md cursor-zoom-in" onClick={() => setPreviewImageUrl(url)} />
+                    <div className="relative w-24 h-24 rounded-[1rem] border-2 border-white shadow-md cursor-zoom-in overflow-hidden" onClick={() => setPreviewImageUrl(url)}>
+                      <Image src={url} alt="花材プレビュー" fill className="object-cover" sizes="96px" />
+                    </div>
                     <div className="absolute inset-0 bg-slate-900/20 opacity-0 group-hover:opacity-100 flex items-center justify-center rounded-[1rem] pointer-events-none transition-opacity">
                       <ZoomIn className="text-white" size={20} />
                     </div>
@@ -1009,6 +1200,20 @@ function CreateProjectForm() {
                   <input type="file" multiple accept="image/*" onChange={handleDesignImagesUpload} disabled={isDesignUploading} className="hidden" />
                 </label>
               </div>
+              {designUploadProgress > 0 && designUploadProgress < 100 && (
+                <div className="mt-2">
+                  <div className="flex justify-between text-xs text-slate-500 mb-1">
+                    <span>アップロード中...</span>
+                    <span>{designUploadProgress}%</span>
+                  </div>
+                  <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                    <div
+                      className="h-2 bg-sky-500 rounded-full transition-all duration-300"
+                      style={{ width: `${designUploadProgress}%` }}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="mt-5 space-y-4">
@@ -1227,6 +1432,31 @@ function CreateProjectForm() {
           paddingBottom: 'calc(6rem + env(safe-area-inset-bottom))',
         }}
       >
+        {hasDraft && (
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-4 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <RotateCcw size={16} className="text-amber-600 shrink-0" />
+              <p className="text-sm text-amber-700 font-semibold">前回の入力データが保存されています</p>
+            </div>
+            <div className="flex gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={restoreDraft}
+                className="text-xs bg-amber-500 text-white px-3 py-1.5 rounded-lg font-bold whitespace-nowrap"
+              >
+                復元する
+              </button>
+              <button
+                type="button"
+                onClick={clearDraft}
+                className="text-xs bg-amber-100 text-amber-700 px-3 py-1.5 rounded-lg font-semibold whitespace-nowrap"
+              >
+                削除する
+              </button>
+            </div>
+          </div>
+        )}
+
         <AnimatePresence mode="wait" custom={dir}>
           <motion.div
             key={step}
@@ -1296,6 +1526,82 @@ function CreateProjectForm() {
               toast.success('AIドラフトを反映しました！ティア案はフォーム下部をご確認ください。', { duration: 4000 });
             }}
           />
+        )}
+
+        {isTemplateModalOpen && (
+          <div className="fixed inset-0 bg-slate-900/60 flex justify-center items-end sm:items-center z-50 backdrop-blur-md" onClick={() => setIsTemplateModalOpen(false)}>
+            <motion.div
+              initial={{ y: '100%', opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: '100%', opacity: 0 }}
+              transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+              className="bg-white rounded-t-[2.5rem] sm:rounded-[2.5rem] shadow-2xl w-full max-w-2xl max-h-[88vh] flex flex-col overflow-hidden"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-gradient-to-r from-violet-50 to-white">
+                <div>
+                  <span className="text-[10px] font-black text-violet-500 tracking-widest uppercase block mb-0.5">Templates</span>
+                  <h3 className="text-xl font-black text-slate-800 flex items-center gap-2">
+                    <FileText className="text-violet-500" size={20} /> テンプレートを選ぶ
+                  </h3>
+                </div>
+                <button
+                  onClick={() => setIsTemplateModalOpen(false)}
+                  className="w-9 h-9 bg-white rounded-full flex items-center justify-center text-slate-400 hover:text-slate-600 border border-slate-100 shadow-sm"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50/50">
+                {isLoadingTemplates ? (
+                  <div className="flex flex-col items-center justify-center py-16 text-slate-400">
+                    <Loader2 className="animate-spin text-violet-500 mb-2" size={28} />
+                    <span className="text-sm font-bold">読み込み中...</span>
+                  </div>
+                ) : templates.length === 0 ? (
+                  <div className="text-center py-16 text-slate-400">
+                    <div className="text-4xl mb-3 opacity-40">📋</div>
+                    <p className="font-bold text-sm">テンプレートがありません</p>
+                    <p className="text-xs mt-1">企画を作成後、テンプレートとして保存できます</p>
+                  </div>
+                ) : templates.map(tmpl => (
+                  <button
+                    key={tmpl.id}
+                    onClick={() => handleApplyTemplate(tmpl.id)}
+                    className="w-full text-left p-4 bg-white border border-slate-100 rounded-[1.5rem] hover:border-violet-300 hover:shadow-[0_4px_20px_rgba(139,92,246,0.12)] transition-all group"
+                  >
+                    <div className="flex justify-between items-start mb-2">
+                      <span className={cn(
+                        'text-[10px] px-2.5 py-0.5 rounded-full font-black border',
+                        tmpl.isOwner
+                          ? 'bg-violet-50 text-violet-600 border-violet-100'
+                          : 'bg-amber-50 text-amber-600 border-amber-100',
+                      )}>
+                        {tmpl.isOwner ? '自分のテンプレート' : `公開 by ${tmpl.user?.handleName}`}
+                      </span>
+                      {tmpl.usageCount > 0 && (
+                        <span className="text-[10px] text-slate-400 font-bold">{tmpl.usageCount}回使用</span>
+                      )}
+                    </div>
+                    <h4 className="text-base font-black text-slate-800 group-hover:text-violet-600 mb-1 leading-tight">{tmpl.name}</h4>
+                    <div className="text-xs font-bold text-slate-500 space-y-1 bg-slate-50 p-2.5 rounded-xl mt-2">
+                      <div>目標金額: <span className="text-slate-700">¥{tmpl.targetAmount.toLocaleString()}</span></div>
+                      {tmpl.targetArtist && <div>アーティスト: <span className="text-slate-700">{tmpl.targetArtist}</span></div>}
+                      {tmpl.tags?.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {tmpl.tags.slice(0, 4).map(tag => (
+                            <span key={tag} className="bg-white text-slate-500 border border-slate-200 px-2 py-0.5 rounded-full text-[10px] font-bold">
+                              #{tag}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </div>

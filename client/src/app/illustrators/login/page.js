@@ -51,10 +51,7 @@ export default function IllustratorLoginPage() {
       }
 
       // ログイン情報をAuthContextに保存
-      const success = await login(data.token, { 
-        ...data.illustrator, 
-        role: 'ILLUSTRATOR' 
-      });
+      const success = await login(data.token, { ...data.illustrator, role: 'ILLUSTRATOR' }, data.refreshToken);
       
       if (success) {
         toast.success('おかえりなさい！');

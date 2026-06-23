@@ -1,0 +1,1 @@
+ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "notificationSettings" JSONB NOT NULL DEFAULT '{"push_new_pledge":true,"push_project_complete":true,"push_live_start":true,"push_group_buy_funded":true,"email_pledge_received":true,"email_project_funded":true,"email_project_complete":true}';

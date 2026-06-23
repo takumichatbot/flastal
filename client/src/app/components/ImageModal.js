@@ -1,40 +1,70 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { X, ExternalLink } from 'lucide-react';
 
 export default function ImageModal({ src, alt, onClose }) {
   const [isLoaded, setIsLoaded] = useState(false);
+  const modalRef = useRef(null);
 
-  // マウント時にスクロールをロックし、Escキーのイベントを設定
+  // マウント時にスクロールをロックし、Escキー + フォーカストラップを設定
   useEffect(() => {
     // スクロールロック
     document.body.style.overflow = 'hidden';
 
+    // フォーカスをモーダルに移動
+    modalRef.current?.focus();
+
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
         onClose();
+        return;
+      }
+
+      // Tab キーのフォーカストラップ
+      if (e.key === 'Tab') {
+        const focusableElements = modalRef.current?.querySelectorAll(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        if (!focusableElements?.length) return;
+
+        const firstEl = focusableElements[0];
+        const lastEl = focusableElements[focusableElements.length - 1];
+
+        if (e.shiftKey && document.activeElement === firstEl) {
+          e.preventDefault();
+          lastEl.focus();
+        } else if (!e.shiftKey && document.activeElement === lastEl) {
+          e.preventDefault();
+          firstEl.focus();
+        }
       }
     };
-    window.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('keydown', handleKeyDown);
 
     // クリーンアップ
     return () => {
       document.body.style.overflow = 'unset';
-      window.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('keydown', handleKeyDown);
     };
   }, [onClose]);
 
   if (!src) return null;
 
-  // 画像を新しいタブで開く
+  // 画像を新しいタブで開く（noopener,noreferrer でセキュリティ対策）
   const handleOpenOriginal = () => {
-    window.open(src, '_blank');
+    const win = window.open(src, '_blank', 'noopener,noreferrer');
+    if (win) win.opener = null;
   };
 
   return (
-    <div 
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-sm transition-all duration-300 animate-fadeIn"
+    <div
+      ref={modalRef}
+      tabIndex={-1}
+      role="dialog"
+      aria-modal="true"
+      aria-label={alt || '画像プレビュー'}
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-sm transition-all duration-300 animate-fadeIn outline-none"
       onClick={onClose}
     >
       {/* ツールバー (右上) */}

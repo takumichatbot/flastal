@@ -11,15 +11,41 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onre
 function cn(...classes) { return classes.filter(Boolean).join(' '); }
 
 const inputClass = "w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:border-pink-400 focus:ring-4 focus:ring-pink-100 transition-all font-medium text-slate-700 placeholder:text-slate-300";
+const inputErrorClass = "w-full px-4 py-3.5 bg-red-50 border border-red-300 rounded-2xl focus:outline-none focus:border-red-400 focus:ring-4 focus:ring-red-100 transition-all font-medium text-slate-700 placeholder:text-slate-300";
 
 export default function ContactPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSent, setIsSent] = useState(false);
+  const [errors, setErrors] = useState({});
+
+  const validate = (data) => {
+    const errs = {};
+    if (!data.name || data.name.trim().length < 1) {
+      errs.name = 'お名前を入力してください。';
+    }
+    if (!data.email || !/^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/.test(data.email)) {
+      errs.email = '有効なメールアドレスを入力してください。';
+    }
+    if (!data.message || data.message.trim().length < 10) {
+      errs.message = 'お問い合わせ内容は10文字以上で入力してください。';
+    }
+    if (data.message && data.message.length > 1000) {
+      errs.message = 'お問い合わせ内容は1000文字以内で入力してください。';
+    }
+    return errs;
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setIsSubmitting(true);
     const data = Object.fromEntries(new FormData(e.target).entries());
+
+    const validationErrors = validate(data);
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors);
+      return;
+    }
+    setErrors({});
+    setIsSubmitting(true);
 
     try {
       const res = await fetch(`${API_URL}/api/contact`, {
@@ -104,24 +130,84 @@ export default function ContactPage() {
               exit={{ opacity: 0 }}
               transition={{ duration: 0.6, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
               onSubmit={handleSubmit}
+              noValidate
               className="bg-white/80 backdrop-blur-xl p-7 md:p-8 rounded-[2rem] shadow-sm border border-white space-y-5"
             >
+              {/* お名前 */}
               <div>
-                <label className="block text-xs font-black text-slate-500 mb-2 tracking-widest uppercase">お名前 <span className="text-pink-400">*</span></label>
-                <input type="text" name="name" required placeholder="推し活 太郎" className={inputClass} />
-              </div>
-              <div>
-                <label className="block text-xs font-black text-slate-500 mb-2 tracking-widest uppercase">メールアドレス <span className="text-pink-400">*</span></label>
-                <input type="email" name="email" required placeholder="example@flastal.com" className={inputClass} />
-              </div>
-              <div>
-                <label className="block text-xs font-black text-slate-500 mb-2 tracking-widest uppercase">お問い合わせ内容 <span className="text-pink-400">*</span></label>
-                <textarea
-                  name="message" rows={5} required
-                  placeholder="ご質問内容をご記入ください"
-                  className={cn(inputClass, "resize-none")}
+                <label htmlFor="contact-name" className="block text-xs font-black text-slate-500 mb-2 tracking-widest uppercase">
+                  お名前 <span className="text-pink-400">*</span>
+                </label>
+                <input
+                  id="contact-name"
+                  type="text"
+                  name="name"
+                  required
+                  minLength={1}
+                  maxLength={100}
+                  placeholder="推し活 太郎"
+                  aria-describedby={errors.name ? 'name-error' : undefined}
+                  aria-invalid={!!errors.name}
+                  className={errors.name ? inputErrorClass : inputClass}
                 />
+                {errors.name && (
+                  <p id="name-error" className="text-sm text-red-500 mt-1.5 ml-1 font-medium" role="alert">
+                    {errors.name}
+                  </p>
+                )}
               </div>
+
+              {/* メールアドレス */}
+              <div>
+                <label htmlFor="contact-email" className="block text-xs font-black text-slate-500 mb-2 tracking-widest uppercase">
+                  メールアドレス <span className="text-pink-400">*</span>
+                </label>
+                <input
+                  id="contact-email"
+                  type="email"
+                  name="email"
+                  required
+                  autoComplete="email"
+                  placeholder="example@flastal.com"
+                  aria-describedby={errors.email ? 'email-error' : undefined}
+                  aria-invalid={!!errors.email}
+                  className={errors.email ? inputErrorClass : inputClass}
+                />
+                {errors.email && (
+                  <p id="email-error" className="text-sm text-red-500 mt-1.5 ml-1 font-medium" role="alert">
+                    {errors.email}
+                  </p>
+                )}
+              </div>
+
+              {/* お問い合わせ内容 */}
+              <div>
+                <label htmlFor="contact-message" className="block text-xs font-black text-slate-500 mb-2 tracking-widest uppercase">
+                  お問い合わせ内容 <span className="text-pink-400">*</span>
+                </label>
+                <textarea
+                  id="contact-message"
+                  name="message"
+                  rows={5}
+                  required
+                  minLength={10}
+                  maxLength={1000}
+                  placeholder="ご質問内容をご記入ください（10〜1000文字）"
+                  aria-describedby={errors.message ? 'message-error' : 'message-hint'}
+                  aria-invalid={!!errors.message}
+                  className={cn(errors.message ? inputErrorClass : inputClass, "resize-none")}
+                />
+                {errors.message ? (
+                  <p id="message-error" className="text-sm text-red-500 mt-1.5 ml-1 font-medium" role="alert">
+                    {errors.message}
+                  </p>
+                ) : (
+                  <p id="message-hint" className="text-xs text-slate-400 mt-1.5 ml-1 font-medium">
+                    10〜1000文字で入力してください
+                  </p>
+                )}
+              </div>
+
               <motion.button
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}

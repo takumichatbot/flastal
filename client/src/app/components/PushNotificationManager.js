@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Bell, Loader2, Check, X } from 'lucide-react'; 
+import { Bell, Loader2, Check, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Capacitor } from '@capacitor/core';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 const PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
@@ -33,6 +34,8 @@ export default function PushNotificationManager() {
   const [isVisible, setIsVisible] = useState(true);
 
   useEffect(() => {
+    // Capacitorネイティブ環境（iOS/Android）ではWeb Pushをスキップ
+    if (Capacitor.isNativePlatform()) return;
     if (typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window) {
       setIsSupported(true);
       checkSubscription();

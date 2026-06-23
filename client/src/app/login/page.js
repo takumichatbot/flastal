@@ -22,15 +22,37 @@ function LoginForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [totpRequired, setTotpRequired] = useState(false);
   const [totpToken, setTotpToken] = useState('');
+  const [errors, setErrors] = useState({});
 
   const isNativeApp = Capacitor.isNativePlatform();
 
   const router = useRouter();
   const { login } = useAuth();
 
+  const validate = () => {
+    const errs = {};
+    if (!email || !/^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/.test(email)) {
+      errs.email = '有効なメールアドレスを入力してください。';
+    }
+    if (!password || password.length < 8) {
+      errs.password = 'パスワードは8文字以上で入力してください。';
+    }
+    return errs;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setShowResend(false);
+
+    if (!totpRequired) {
+      const validationErrors = validate();
+      if (Object.keys(validationErrors).length > 0) {
+        setErrors(validationErrors);
+        return;
+      }
+      setErrors({});
+    }
+
     setIsLoading(true);
     try {
       const body = totpRequired
@@ -53,7 +75,7 @@ function LoginForm() {
         }
         throw new Error(data.message || 'メールアドレスまたはパスワードが違います。');
       }
-      login(data.token, data.user);
+      login(data.token, data.user, data.refreshToken);
       toast.success('ログインしました！');
       router.push('/mypage');
     } catch (err) {
@@ -149,36 +171,50 @@ function LoginForm() {
 
           {/* Email */}
           <div>
-            <label className="block text-[11px] font-bold text-slate-500 mb-1 ml-1">メールアドレス</label>
-            <div className="relative flex items-center rounded-2xl border-2 border-transparent bg-slate-50 transition-all duration-200 focus-within:border-pink-400 focus-within:bg-white focus-within:shadow-[0_0_0_4px_rgba(244,114,182,0.1)]">
+            <label htmlFor="login-email" className="block text-[11px] font-bold text-slate-500 mb-1 ml-1">メールアドレス</label>
+            <div className={`relative flex items-center rounded-2xl border-2 transition-all duration-200 focus-within:shadow-[0_0_0_4px_rgba(244,114,182,0.1)] ${errors.email ? 'border-red-300 bg-red-50 focus-within:border-red-400' : 'border-transparent bg-slate-50 focus-within:border-pink-400 focus-within:bg-white'}`}>
               <Mail className="absolute left-3.5 text-slate-400" size={16} />
               <input
+                id="login-email"
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => { setEmail(e.target.value); if (errors.email) setErrors(prev => ({ ...prev, email: undefined })); }}
                 required
+                autoComplete="email"
                 placeholder="example@email.com"
+                aria-describedby={errors.email ? 'login-email-error' : undefined}
+                aria-invalid={!!errors.email}
                 className="w-full pl-10 pr-4 py-3.5 bg-transparent rounded-2xl outline-none font-medium text-slate-800 placeholder:text-slate-300 text-[16px]"
               />
             </div>
+            {errors.email && (
+              <p id="login-email-error" className="text-xs text-red-500 mt-1.5 ml-1 font-medium" role="alert">
+                {errors.email}
+              </p>
+            )}
           </div>
 
           {/* Password */}
           <div>
             <div className="flex justify-between items-center mb-1 ml-1">
-              <label className="text-[11px] font-bold text-slate-500">パスワード</label>
+              <label htmlFor="login-password" className="text-[11px] font-bold text-slate-500">パスワード</label>
               <Link href="/forgot-password?userType=USER" className="text-[11px] font-bold text-pink-500 hover:text-pink-600">
                 忘れた方はこちら
               </Link>
             </div>
-            <div className="relative flex items-center rounded-2xl border-2 border-transparent bg-slate-50 transition-all duration-200 focus-within:border-pink-400 focus-within:bg-white focus-within:shadow-[0_0_0_4px_rgba(244,114,182,0.1)]">
+            <div className={`relative flex items-center rounded-2xl border-2 transition-all duration-200 focus-within:shadow-[0_0_0_4px_rgba(244,114,182,0.1)] ${errors.password ? 'border-red-300 bg-red-50 focus-within:border-red-400' : 'border-transparent bg-slate-50 focus-within:border-pink-400 focus-within:bg-white'}`}>
               <Lock className="absolute left-3.5 text-slate-400" size={16} />
               <input
+                id="login-password"
                 type={showPassword ? 'text' : 'password'}
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => { setPassword(e.target.value); if (errors.password) setErrors(prev => ({ ...prev, password: undefined })); }}
                 required
+                minLength={8}
+                autoComplete="current-password"
                 placeholder="••••••••"
+                aria-describedby={errors.password ? 'login-password-error' : undefined}
+                aria-invalid={!!errors.password}
                 className="w-full pl-10 pr-11 py-3.5 bg-transparent rounded-2xl outline-none font-medium text-slate-800 placeholder:text-slate-300 text-[16px]"
               />
               <button type="button" onClick={() => setShowPassword(!showPassword)}
@@ -186,6 +222,11 @@ function LoginForm() {
                 {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
+            {errors.password && (
+              <p id="login-password-error" className="text-xs text-red-500 mt-1.5 ml-1 font-medium" role="alert">
+                {errors.password}
+              </p>
+            )}
           </div>
 
           {/* 2FA TOTP 入力（必要な場合のみ表示） */}

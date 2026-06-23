@@ -5,6 +5,7 @@ import { useState } from 'react';
 import ImageModal from './ImageModal';
 import ImageWithFallback from './ImageWithFallback';
 import { MapPin, Clock, ZoomIn, TrendingUp } from 'lucide-react';
+import { ProgressBar } from './ProgressBar';
 
 // 達成確率スコア算出
 function calcSuccessProbability(project) {
@@ -88,11 +89,11 @@ export default function ProjectCard({ project }) {
           <div className="relative aspect-video bg-slate-100 overflow-hidden">
             
             {/* ★修正: ImageWithFallback を使用 */}
-            <ImageWithFallback 
-                src={project.imageUrl} 
-                alt={project.title} 
-                fill 
-                sizes="(max-width: 768px) 100vw, 33vw"
+            <ImageWithFallback
+                src={project.imageUrl}
+                alt={project.title}
+                fill
+                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                 style={{ objectFit: 'cover' }}
                 className="transition-transform duration-700 group-hover:scale-110"
             />
@@ -152,16 +153,7 @@ export default function ProjectCard({ project }) {
                     </span>
                 </div>
                 
-                <div className="w-full bg-slate-100 rounded-full h-2 mb-4 overflow-hidden">
-                    <div 
-                        className={`h-full rounded-full transition-all duration-1000 ease-out ${
-                            rawPercentage >= 100 
-                            ? 'bg-gradient-to-r from-green-400 to-emerald-500' 
-                            : 'bg-gradient-to-r from-pink-400 to-rose-500'
-                        }`}
-                        style={{ width: `${progressPercentage}%` }}
-                    ></div>
-                </div>
+                <ProgressBar value={rawPercentage} className="mb-4" />
 
                 <div className="pt-3 border-t border-slate-50 flex items-center justify-between">
                     <div className="flex items-center gap-2">

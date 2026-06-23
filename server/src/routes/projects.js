@@ -13,6 +13,7 @@ router.get('/feed/personalized', optionalAuth, projectController.getPersonalized
 router.get('/featured', projectController.getFeaturedProjects); 
 router.get('/successful-templates', projectController.getSuccessfulTemplates); 
 router.get('/:id/stats', projectController.getProjectStats);
+router.get('/:id/qr', projectController.getProjectQR);
 router.get('/:id/analytics', authenticateToken, projectController.getProjectAnalytics);
 router.get('/:id/export/pledges', authenticateToken, projectController.exportPledgesCSV);
 router.get('/:id/florist-match', authenticateToken, projectController.matchFlorists);
@@ -55,9 +56,27 @@ router.post('/:projectId/illustration/accept', authenticateToken, projectControl
 // ==========================================
 router.post('/:projectId/posts', authenticateToken, projectController.createProjectPost);
 
+// ==========================================
+// ★ 参加証明書PDF
+// ==========================================
+router.get('/:id/certificate/:pledgeId', authenticateToken, projectController.generateCertificate);
+
+// ==========================================
+// ★ 一斉メッセージ送信
+// ==========================================
+router.post('/:id/broadcast', authenticateToken, projectController.broadcastMessage);
+
+// ==========================================
+// ★ 公式リアクション (OfficialReaction)
+// ==========================================
+router.post('/:id/official-react', authenticateToken, projectController.officialReact);
+router.get('/:id/official-status', authenticateToken, projectController.getOfficialStatus);
+
 // タグ
 import * as tagCtrl from '../controllers/tagController.js';
+router.get('/tags',                  tagCtrl.getUsedTags);   // GET /api/projects/tags → 公開企画で使われているタグ一覧
 router.get('/tags/all',              tagCtrl.getAllTags);
+router.get('/tags/used',             tagCtrl.getUsedTags);   // 公開企画で実際に使われているタグ
 router.get('/:projectId/tags',       tagCtrl.getProjectTags);
 router.put('/:projectId/tags',       authenticateToken, tagCtrl.setProjectTags);
 

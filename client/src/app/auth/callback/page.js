@@ -16,8 +16,8 @@ function AuthCallbackContent() {
     const error = searchParams.get('error');
 
     if (token) {
-      // JWTを AuthContext の login に渡してセッションを確立
-      login(token, null).then(() => {
+      const refreshToken = searchParams.get('refreshToken');
+      login(token, null, refreshToken).then(() => {
         router.push('/mypage');
       });
     } else {

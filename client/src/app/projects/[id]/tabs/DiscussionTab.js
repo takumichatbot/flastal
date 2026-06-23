@@ -5,6 +5,8 @@ import Image from 'next/image';
 import { MessageSquare, Send, Trash2, CornerDownRight, User } from 'lucide-react';
 import { useAuth } from '@/app/contexts/AuthContext';
 import { AppCard } from './shared.js';
+import { DeleteConfirmModal } from '@/app/components/DeleteConfirmModal';
+import { EmptyState } from '@/app/components/EmptyState';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -31,6 +33,8 @@ function DiscussionPost({ post, projectId, onRefresh, currentUserId, depth = 0 }
     const [showReply, setShowReply] = useState(false);
     const [replyBody, setReplyBody] = useState('');
     const [submitting, setSubmitting] = useState(false);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [deleting, setDeleting] = useState(false);
     const { authenticatedFetch } = useAuth();
 
     const handleReply = async () => {
@@ -50,15 +54,29 @@ function DiscussionPost({ post, projectId, onRefresh, currentUserId, depth = 0 }
         }
     };
 
-    const handleDelete = async () => {
-        if (!confirm('このコメントを削除しますか？')) return;
-        await authenticatedFetch(`${API_URL}/api/projects/${projectId}/discussions/${post.id}`, {
-            method: 'DELETE',
-        });
-        onRefresh();
+    const handleDeleteConfirm = async () => {
+        setDeleting(true);
+        try {
+            await authenticatedFetch(`${API_URL}/api/projects/${projectId}/discussions/${post.id}`, {
+                method: 'DELETE',
+            });
+            onRefresh();
+        } finally {
+            setDeleting(false);
+            setShowDeleteModal(false);
+        }
     };
 
     return (
+        <>
+        <DeleteConfirmModal
+            isOpen={showDeleteModal}
+            onClose={() => setShowDeleteModal(false)}
+            onConfirm={handleDeleteConfirm}
+            title="このコメントを削除しますか？"
+            description="削除したコメントは元に戻せません。"
+            isLoading={deleting}
+        />
         <div className={depth > 0 ? 'ml-8 mt-3' : ''}>
             <div className="flex gap-3">
                 <Avatar user={post.author} />
@@ -78,7 +96,7 @@ function DiscussionPost({ post, projectId, onRefresh, currentUserId, depth = 0 }
                             </button>
                         )}
                         {post.authorId === currentUserId && (
-                            <button onClick={handleDelete}
+                            <button onClick={() => setShowDeleteModal(true)}
                                 className="text-[11px] font-black text-slate-300 hover:text-red-400 flex items-center gap-1 transition-colors">
                                 <Trash2 size={11} /> 削除
                             </button>
@@ -102,6 +120,7 @@ function DiscussionPost({ post, projectId, onRefresh, currentUserId, depth = 0 }
                 </div>
             </div>
         </div>
+        </>
     );
 }
 
@@ -166,7 +185,12 @@ export default function DiscussionTab({ ctx }) {
                     <div className="w-6 h-6 border-2 border-pink-200 border-t-pink-500 rounded-full animate-spin" />
                 </div>
             ) : posts.length === 0 ? (
-                <p className="text-center text-slate-400 text-sm font-bold py-8">まだコメントはありません</p>
+                <EmptyState
+                    icon="message"
+                    title="まだコメントはありません"
+                    description="最初のコメントを投稿してみましょう！"
+                    className="py-8"
+                />
             ) : (
                 <div className="space-y-4">
                     {posts.map(p => (

@@ -39,7 +39,8 @@ export default function AddVenuePage() {
   const handleGoogleSearch = () => {
     if (!vName) return toast.error('会場名を入力してください');
     const query = encodeURIComponent(`${vName} 公式サイト フラスタ 規約`);
-    window.open(`https://www.google.com/search?q=${query}`, '_blank');
+    const win = window.open(`https://www.google.com/search?q=${query}`, '_blank', 'noopener,noreferrer');
+    if (win) win.opener = null;
   };
 
   const handleFinalSubmit = async () => {

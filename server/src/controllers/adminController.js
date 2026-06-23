@@ -1,5 +1,9 @@
 import prisma from '../config/prisma.js';
-import { sendEmail } from '../utils/email.js';
+import { sendEmail, queueEmail } from '../utils/email.js';
+import { createAuditLog } from '../utils/audit.js';
+import { deleteProjectFromIndex } from '../config/typesense.js';
+import { createNotification } from '../utils/notification.js';
+import { logger } from '../utils/logger.js';
 
 // ==========================================
 // ★★★ プロジェクトごとの全チャット履歴取得 ★★★
@@ -45,7 +49,7 @@ export const getProjectChatLogs = async (req, res) => {
 
         return res.json(allMessages);
     } catch (e) {
-        console.error('getProjectChatLogs Error:', e);
+        logger.error('getProjectChatLogs Error', { context: 'adminController', error: e.message });
         return res.status(200).json([]);
     }
 };
@@ -80,7 +84,7 @@ export const getReports = async (req, res) => {
 
 export const approveItem = async (req, res) => {
     const { type, id } = req.params;
-    const { status } = req.body; 
+    const { status } = req.body;
     try {
         const finalStatus = status === 'APPROVED' ? 'APPROVED' : (status === 'REJECTED' ? 'REJECTED' : 'PENDING');
         let updated;
@@ -90,6 +94,27 @@ export const approveItem = async (req, res) => {
         else if (type === 'illustrators') updated = await prisma.user.update({ where: { id }, data: { status: finalStatus } });
         else if (type === 'venues') updated = await prisma.venue.update({ where: { id }, data: { status: finalStatus } });
         else if (type === 'organizers') updated = await prisma.organizer.update({ where: { id }, data: { status: finalStatus } });
+
+        // 監査ログ
+        const actionMap = {
+            florists: finalStatus === 'APPROVED' ? 'FLORIST_APPROVE' : 'FLORIST_REJECT',
+            illustrators: finalStatus === 'APPROVED' ? 'ILLUSTRATOR_APPROVE' : 'ILLUSTRATOR_REJECT',
+            projects: status === 'APPROVED' ? 'PROJECT_APPROVE' : 'PROJECT_REJECT',
+            venues: finalStatus === 'APPROVED' ? 'VENUE_APPROVE' : 'VENUE_REJECT',
+            organizers: finalStatus === 'APPROVED' ? 'ORGANIZER_APPROVE' : 'ORGANIZER_REJECT',
+        };
+        const targetTypeMap = { florists: 'Florist', illustrators: 'User', projects: 'Project', venues: 'Venue', organizers: 'Organizer' };
+        if (actionMap[type]) {
+            await createAuditLog(
+                req.user.id,
+                actionMap[type],
+                targetTypeMap[type] || type,
+                id,
+                { newStatus: finalStatus },
+                req.ip || req.headers['x-forwarded-for'],
+            );
+        }
+
         return res.json(updated);
     } catch (e) { return res.status(500).json({ message: '更新に失敗しました' }); }
 };
@@ -166,7 +191,87 @@ export const getAdminPayouts = async (req, res) => {
 
 export const updateAdminPayoutStatus = async (req, res) => {
     try {
-        const r = req.body.type === 'user' ? await prisma.payout.update({ where: { id: req.params.id }, data: { status: req.body.status } }) : await prisma.payoutRequest.update({ where: { id: req.params.id }, data: { status: req.body.status } });
+        const { status, type, reason } = req.body;
+        const payoutId = req.params.id;
+
+        let r;
+        if (type === 'user') {
+            // ユーザー出金申請（Payoutモデル）
+            r = await prisma.payout.update({
+                where: { id: payoutId },
+                data: { status },
+                include: { user: { select: { id: true, email: true, handleName: true } } },
+            });
+        } else {
+            // 花屋出金申請（PayoutRequestモデル）
+            r = await prisma.payoutRequest.update({
+                where: { id: payoutId },
+                data: { status },
+                include: { florist: { select: { id: true, email: true, shopName: true, contactName: true } } },
+            });
+        }
+
+        // 監査ログ（承認時のみ）
+        if (status === 'COMPLETED' || status === 'APPROVED') {
+            await createAuditLog(
+                req.user.id,
+                'PAYOUT_APPROVE',
+                type === 'user' ? 'Payout' : 'PayoutRequest',
+                payoutId,
+                { status, payoutType: type || 'florist' },
+                req.ip || req.headers['x-forwarded-for'],
+            );
+        }
+
+        // 花屋・ユーザーへの通知とメール送信
+        const amountStr = r.amount?.toLocaleString() ?? '0';
+
+        if (type === 'user' && r.user) {
+            // ユーザー出金申請：通知DB + メール
+            const userName = r.user.handleName || 'さん';
+            if (status === 'COMPLETED' || status === 'APPROVED') {
+                await createNotification(
+                    r.user.id,
+                    'PROJECT_STATUS_UPDATE',
+                    `出金申請（${amountStr}円）が承認されました。`,
+                    null,
+                    '/mypage'
+                );
+                queueEmail(r.user.email, 'PAYOUT_APPROVED', {
+                    userName,
+                    amount: amountStr,
+                });
+            } else if (status === 'REJECTED') {
+                await createNotification(
+                    r.user.id,
+                    'PROJECT_STATUS_UPDATE',
+                    `出金申請（${amountStr}円）が却下されました。${reason ? '理由: ' + reason : ''}`,
+                    null,
+                    '/mypage'
+                );
+                queueEmail(r.user.email, 'PAYOUT_REJECTED', {
+                    userName,
+                    amount: amountStr,
+                    reason: reason || '詳細はダッシュボードをご確認ください。',
+                });
+            }
+        } else if (type !== 'user' && r.florist) {
+            // 花屋出金申請：メールのみ（FloristはUserとは別テーブルのため通知DBなし）
+            const floristName = r.florist.shopName || r.florist.contactName || 'さん';
+            if (status === 'COMPLETED' || status === 'APPROVED') {
+                queueEmail(r.florist.email, 'PAYOUT_APPROVED', {
+                    userName: floristName,
+                    amount: amountStr,
+                });
+            } else if (status === 'REJECTED') {
+                queueEmail(r.florist.email, 'PAYOUT_REJECTED', {
+                    userName: floristName,
+                    amount: amountStr,
+                    reason: reason || '詳細はダッシュボードをご確認ください。',
+                });
+            }
+        }
+
         return res.json(r);
     } catch (e) { return res.status(500).json({ message: 'Error' }); }
 };
@@ -204,7 +309,7 @@ export const createEmailTemplate = async (req, res) => {
         });
         return res.status(201).json(template);
     } catch (error) {
-        console.error(error);
+        logger.error('テンプレートの作成に失敗しました', { context: 'adminController', error: error.message });
         return res.status(500).json({ message: 'テンプレートの作成に失敗しました' });
     }
 };
@@ -218,7 +323,7 @@ export const updateEmailTemplate = async (req, res) => {
         });
         return res.json(template);
     } catch (error) {
-        console.error(error);
+        logger.error('テンプレートの更新に失敗しました', { context: 'adminController', error: error.message });
         return res.status(500).json({ message: 'テンプレートの更新に失敗しました' });
     }
 };
@@ -232,7 +337,7 @@ export const deleteEmailTemplate = async (req, res) => {
         await prisma.emailTemplate.delete({ where: { id: req.params.id } });
         return res.status(204).send();
     } catch (error) {
-        console.error(error);
+        logger.error('テンプレートの削除に失敗しました', { context: 'adminController', error: error.message });
         return res.status(500).json({ message: 'テンプレートの削除に失敗しました' });
     }
 };
@@ -325,7 +430,7 @@ export const searchAllUsers = async (req, res) => {
         return res.json(finalUsers);
 
     } catch (e) {
-        console.error("searchAllUsers API Error:", e);
+        logger.error('searchAllUsers API Error', { context: 'adminController', error: e.message });
         return res.status(500).json([]);
     }
 };
@@ -335,12 +440,17 @@ export const searchAllUsers = async (req, res) => {
 // ==========================================
 export const toggleUserStatus = async (req, res) => {
     const { userId } = req.params;
-    const { role, status } = req.body; // 例: status = 'SUSPENDED' または 'APPROVED' / 'ACTIVE'
+    const { role, status, reason } = req.body; // 例: status = 'SUSPENDED' または 'APPROVED' / 'ACTIVE'
+
+    const isSuspending = status === 'SUSPENDED';
+    const suspensionData = isSuspending
+        ? { suspendedAt: new Date(), suspendReason: reason || '管理者による停止' }
+        : { suspendedAt: null, suspendReason: null };
 
     try {
         let updated;
         if (role === 'FLORIST') {
-            updated = await prisma.florist.update({ where: { id: userId }, data: { status } });
+            updated = await prisma.florist.update({ where: { id: userId }, data: { status, ...suspensionData } });
         } else if (role === 'VENUE') {
             updated = await prisma.venue.update({ where: { id: userId }, data: { status } });
         } else if (role === 'ORGANIZER') {
@@ -350,11 +460,22 @@ export const toggleUserStatus = async (req, res) => {
             if (userId === req.user.id) {
                 return res.status(400).json({ message: '自身のアカウントのステータスは変更できません。' });
             }
-            updated = await prisma.user.update({ where: { id: userId }, data: { status } });
+            updated = await prisma.user.update({ where: { id: userId }, data: { status, ...suspensionData } });
         }
+        // 監査ログ
+        const auditAction = isSuspending ? 'USER_SUSPEND' : 'USER_UNSUSPEND';
+        await createAuditLog(
+            req.user.id,
+            auditAction,
+            role === 'FLORIST' ? 'Florist' : role === 'VENUE' ? 'Venue' : role === 'ORGANIZER' ? 'Organizer' : 'User',
+            userId,
+            { status, reason: reason || null },
+            req.ip || req.headers['x-forwarded-for'],
+        );
+
         res.status(200).json({ message: `ステータスを ${status} に更新しました。`, data: updated });
     } catch (error) {
-        console.error('Toggle User Status Error:', error);
+        logger.error('Toggle User Status Error', { context: 'adminController', error: error.message });
         res.status(500).json({ message: 'ステータスの更新に失敗しました。' });
     }
 };
@@ -380,29 +501,53 @@ export const deleteUserByAdmin = async (req, res) => {
                         const messages = await tx.chatMessage.findMany({ where: { chatRoomId: chatRoom.id } });
                         const msgIds = messages.map(m => m.id);
                         if (msgIds.length > 0) {
-                            await tx.chatMessageReport.deleteMany({ where: { messageId: { in: msgIds } } }).catch(()=>{});
+                            await tx.chatMessageReport.deleteMany({ where: { messageId: { in: msgIds } } }).catch(err =>
+                                logger.error('chatMessageReport削除失敗', { context: 'AdminDelete', error: err.message })
+                            );
                         }
-                        await tx.chatMessage.deleteMany({ where: { chatRoomId: chatRoom.id } }).catch(()=>{});
-                        await tx.chatRoom.delete({ where: { id: chatRoom.id } }).catch(()=>{});
+                        await tx.chatMessage.deleteMany({ where: { chatRoomId: chatRoom.id } }).catch(err =>
+                            logger.error('chatMessage削除失敗', { context: 'AdminDelete', error: err.message })
+                        );
+                        await tx.chatRoom.delete({ where: { id: chatRoom.id } }).catch(err =>
+                            logger.error('chatRoom削除失敗', { context: 'AdminDelete', error: err.message })
+                        );
                     }
-                    await tx.offer.delete({ where: { id: offer.id } }).catch(()=>{});
+                    await tx.offer.delete({ where: { id: offer.id } }).catch(err =>
+                        logger.error('offer削除失敗', { context: 'AdminDelete', error: err.message })
+                    );
                 }
 
                 // 2. アピール投稿関連をすべて削除
                 const posts = await tx.floristPost.findMany({ where: { floristId: userId } }).catch(()=>[]);
                 if (posts.length > 0) {
                     const postIds = posts.map(p => p.id);
-                    await tx.floristPostLike.deleteMany({ where: { floristPostId: { in: postIds } } }).catch(()=>{});
-                    await tx.floristPost.deleteMany({ where: { floristId: userId } }).catch(()=>{});
+                    await tx.floristPostLike.deleteMany({ where: { floristPostId: { in: postIds } } }).catch(err =>
+                        logger.error('floristPostLike削除失敗', { context: 'AdminDelete', error: err.message })
+                    );
+                    await tx.floristPost.deleteMany({ where: { floristId: userId } }).catch(err =>
+                        logger.error('floristPost削除失敗', { context: 'AdminDelete', error: err.message })
+                    );
                 }
 
                 // 3. その他の紐づきデータも安全に削除
-                await tx.floristDeal.deleteMany({ where: { floristId: userId } }).catch(()=>{});
-                await tx.payoutRequest.deleteMany({ where: { floristId: userId } }).catch(()=>{});
-                await tx.bankAccount.deleteMany({ where: { floristId: userId } }).catch(()=>{});
-                await tx.review.deleteMany({ where: { floristId: userId } }).catch(()=>{});
-                await tx.adminChatRoom.deleteMany({ where: { userId: userId, userRole: 'FLORIST' } }).catch(()=>{});
-                await tx.chatMessage.deleteMany({ where: { floristId: userId } }).catch(()=>{});
+                await tx.floristDeal.deleteMany({ where: { floristId: userId } }).catch(err =>
+                    logger.error('floristDeal削除失敗', { context: 'AdminDelete', error: err.message })
+                );
+                await tx.payoutRequest.deleteMany({ where: { floristId: userId } }).catch(err =>
+                    logger.error('payoutRequest削除失敗', { context: 'AdminDelete', error: err.message })
+                );
+                await tx.bankAccount.deleteMany({ where: { floristId: userId } }).catch(err =>
+                    logger.error('bankAccount削除失敗 (florist)', { context: 'AdminDelete', error: err.message })
+                );
+                await tx.review.deleteMany({ where: { floristId: userId } }).catch(err =>
+                    logger.error('review削除失敗', { context: 'AdminDelete', error: err.message })
+                );
+                await tx.adminChatRoom.deleteMany({ where: { userId: userId, userRole: 'FLORIST' } }).catch(err =>
+                    logger.error('adminChatRoom削除失敗', { context: 'AdminDelete', error: err.message })
+                );
+                await tx.chatMessage.deleteMany({ where: { floristId: userId } }).catch(err =>
+                    logger.error('chatMessage(florist)削除失敗', { context: 'AdminDelete', error: err.message })
+                );
 
                 // 最後に本体を削除
                 await tx.florist.delete({ where: { id: userId } });
@@ -411,8 +556,12 @@ export const deleteUserByAdmin = async (req, res) => {
                 const target = await tx.venue.findUnique({ where: { id: userId } });
                 if (!target) throw new Error('会場のデータが見つかりません。');
                 
-                await tx.event.deleteMany({ where: { venueId: userId } }).catch(()=>{});
-                await tx.venueLogisticsInfo.deleteMany({ where: { venueId: userId } }).catch(()=>{});
+                await tx.event.deleteMany({ where: { venueId: userId } }).catch(err =>
+                    logger.error('event(venue)削除失敗', { context: 'AdminDelete', error: err.message })
+                );
+                await tx.venueLogisticsInfo.deleteMany({ where: { venueId: userId } }).catch(err =>
+                    logger.error('venueLogisticsInfo削除失敗', { context: 'AdminDelete', error: err.message })
+                );
                 
                 await tx.venue.delete({ where: { id: userId } });
                 
@@ -420,7 +569,9 @@ export const deleteUserByAdmin = async (req, res) => {
                 const target = await tx.organizer.findUnique({ where: { id: userId } });
                 if (!target) throw new Error('主催者のデータが見つかりません。');
                 
-                await tx.event.deleteMany({ where: { organizerId: userId } }).catch(()=>{});
+                await tx.event.deleteMany({ where: { organizerId: userId } }).catch(err =>
+                    logger.error('event(organizer)削除失敗', { context: 'AdminDelete', error: err.message })
+                );
                 
                 await tx.organizer.delete({ where: { id: userId } });
                 
@@ -434,19 +585,39 @@ export const deleteUserByAdmin = async (req, res) => {
                 }
                 
                 // ファン・絵師の関連データ
-                await tx.illustratorProfile.deleteMany({ where: { userId: userId } }).catch(()=>{});
-                await tx.illustratorApplication.deleteMany({ where: { illustratorId: userId } }).catch(()=>{});
-                await tx.illustratorOffer.deleteMany({ where: { illustratorId: userId } }).catch(()=>{});
-                await tx.bankAccount.deleteMany({ where: { userId: userId } }).catch(()=>{});
-                await tx.payout.deleteMany({ where: { userId: userId } }).catch(()=>{});
+                await tx.illustratorProfile.deleteMany({ where: { userId: userId } }).catch(err =>
+                    logger.error('illustratorProfile削除失敗', { context: 'AdminDelete', error: err.message })
+                );
+                await tx.illustratorApplication.deleteMany({ where: { illustratorId: userId } }).catch(err =>
+                    logger.error('illustratorApplication削除失敗', { context: 'AdminDelete', error: err.message })
+                );
+                await tx.illustratorOffer.deleteMany({ where: { illustratorId: userId } }).catch(err =>
+                    logger.error('illustratorOffer削除失敗', { context: 'AdminDelete', error: err.message })
+                );
+                await tx.bankAccount.deleteMany({ where: { userId: userId } }).catch(err =>
+                    logger.error('bankAccount削除失敗 (user)', { context: 'AdminDelete', error: err.message })
+                );
+                await tx.payout.deleteMany({ where: { userId: userId } }).catch(err =>
+                    logger.error('payout削除失敗', { context: 'AdminDelete', error: err.message })
+                );
                 
                 await tx.user.delete({ where: { id: userId } });
             }
         });
 
+        // 監査ログ
+        await createAuditLog(
+            req.user.id,
+            'USER_DELETE',
+            role === 'FLORIST' ? 'Florist' : role === 'VENUE' ? 'Venue' : role === 'ORGANIZER' ? 'Organizer' : 'User',
+            userId,
+            { role: role || 'USER' },
+            req.ip || req.headers['x-forwarded-for'],
+        );
+
         res.status(200).json({ message: 'アカウントを強制削除しました。' });
     } catch (error) {
-        console.error('Admin User Delete Error:', error);
+        logger.error('Admin User Delete Error', { context: 'adminController', error: error.message });
         if (error.code === 'P2003') {
             return res.status(400).json({ message: '関連データが複雑すぎるため削除できませんでした。手動でのデータ整理が必要です。' });
         }
@@ -501,19 +672,120 @@ export const deleteProjectByAdmin = async (req, res) => {
         }
 
         await prisma.$transaction(async (tx) => {
-            await tx.project.delete({
-                where: { id: projectId }
+            // ============================================================
+            // CASCADE設定のないテーブルを深い階層から順に手動削除
+            // ============================================================
+
+            // 1. GroupChatMessage の子テーブル（Reactionは手動削除が必要）
+            const groupMessages = await tx.groupChatMessage.findMany({
+                where: { projectId },
+                select: { id: true },
             });
+            if (groupMessages.length > 0) {
+                const msgIds = groupMessages.map((m) => m.id);
+                await tx.groupChatMessageReaction.deleteMany({ where: { messageId: { in: msgIds } } });
+                // GroupChatMessageReport は GroupChatMessage に onDelete:Cascade 設定済みのため自動削除
+            }
+            await tx.groupChatMessage.deleteMany({ where: { projectId } });
+
+            // 2. ActivePoll の子テーブル（PollVote はCascadeなし）
+            const poll = await tx.activePoll.findUnique({
+                where: { projectId },
+                select: { id: true },
+            });
+            if (poll) {
+                await tx.pollVote.deleteMany({ where: { pollId: poll.id } });
+                await tx.activePoll.delete({ where: { projectId } });
+            }
+
+            // 3. MoodBoardItem（MoodBoardLike は onDelete:Cascade 設定済みのため自動削除）
+            await tx.moodBoardItem.deleteMany({ where: { projectId } });
+
+            // 4. Review（ReviewLike はCascadeなし）
+            const review = await tx.review.findUnique({
+                where: { projectId },
+                select: { id: true },
+            });
+            if (review) {
+                await tx.reviewLike.deleteMany({ where: { reviewId: review.id } });
+                await tx.review.delete({ where: { projectId } });
+            }
+
+            // 5. Quotation（QuotationItem はCascadeなし）
+            const quotation = await tx.quotation.findUnique({
+                where: { projectId },
+                select: { id: true },
+            });
+            if (quotation) {
+                await tx.quotationItem.deleteMany({ where: { quotationId: quotation.id } });
+                await tx.quotation.delete({ where: { projectId } });
+            }
+
+            // 6. PledgeTier（Pledge は onDelete:Cascade 設定済みだが PledgeTier 自体はCascadeなし）
+            //    先に Pledge を削除してから PledgeTier を削除
+            await tx.pledge.deleteMany({ where: { projectId } });
+            await tx.pledgeTier.deleteMany({ where: { projectId } });
+
+            // 7. Announcement（Cascadeなし）
+            await tx.announcement.deleteMany({ where: { projectId } });
+
+            // 8. Expense（Cascadeなし）
+            await tx.expense.deleteMany({ where: { projectId } });
+
+            // 9. Task（Cascadeなし）
+            await tx.task.deleteMany({ where: { projectId } });
+
+            // 10. Message（Cascadeなし）
+            await tx.message.deleteMany({ where: { projectId } });
+
+            // 11. ProjectReport（Cascadeなし）
+            await tx.projectReport.deleteMany({ where: { projectId } });
+
+            // 12. ProjectPost（Cascadeなし）
+            await tx.projectPost.deleteMany({ where: { projectId } });
+
+            // 13. OfficialReaction（Cascadeなし）
+            await tx.officialReaction.deleteMany({ where: { projectId } });
+
+            // 14. DigitalFlower（Cascadeなし）
+            await tx.digitalFlower.deleteMany({ where: { projectId } });
+
+            // ============================================================
+            // 以下は Prisma スキーマで onDelete:Cascade が設定済みのため
+            // Project 削除時に自動削除されるが、外部キー制約エラー回避のため
+            // 明示的に先に削除する
+            // ============================================================
+
+            // Offer → ChatRoom → ChatMessage（全てCascade設定済み）
+            // Discussion / DiscussionComment（Cascade設定済み）
+            // GroupBuy → GroupBuyEntry（Cascade設定済み）
+            // Cheer、CorporateSponsor、ProjectUpdate、StretchGoal（Cascade設定済み）
+            // ExclusiveContent、ProjectMember、ProjectTag（Cascade設定済み）
+            // CompletionPhoto、LiveSession、IllustratorOffer、IllustratorApplication（Cascade設定済み）
+            // Pledge（Cascade設定済み・上記で手動削除済み）
+
+            // 15. 最後にプロジェクト本体を削除（Cascade設定済みの関連は自動削除）
+            await tx.project.delete({ where: { id: projectId } });
         });
+
+        // Typesense インデックスから削除（非同期・失敗しても監査ログとレスポンスには影響させない）
+        deleteProjectFromIndex(projectId).catch(err =>
+            logger.error('Delete sync failed', { context: 'Typesense', error: err.message })
+        );
+
+        // 監査ログ
+        await createAuditLog(
+            req.user.id,
+            'PROJECT_DELETE',
+            'Project',
+            projectId,
+            { title: project.title, reason: req.body?.reason || null },
+            req.ip || req.headers['x-forwarded-for'],
+        );
 
         res.status(200).json({ message: '企画を削除しました。' });
     } catch (error) {
-        console.error('Admin Project Delete Error:', error);
-        
-        if (error.code === 'P2003') {
-            return res.status(400).json({ message: 'この企画に関連する決済データなどが存在するため、安全に削除できません。' });
-        }
-        
+        logger.error('Admin Project Delete Error', { context: 'adminController', error: error.message });
         res.status(500).json({ message: '企画の削除に失敗しました。' });
     }
 };
@@ -529,7 +801,7 @@ export const getBudgetReferences = async (req, res) => {
         });
         return res.json(refs);
     } catch (error) {
-        console.error('getBudgetReferences Error:', error);
+        logger.error('getBudgetReferences Error', { context: 'adminController', error: error.message });
         return res.status(500).json({ message: '取得に失敗しました' });
     }
 };
@@ -544,7 +816,7 @@ export const upsertBudgetReference = async (req, res) => {
         });
         return res.status(200).json(ref);
     } catch (error) {
-        console.error('upsertBudgetReference Error:', error);
+        logger.error('upsertBudgetReference Error', { context: 'adminController', error: error.message });
         return res.status(500).json({ message: '保存に失敗しました' });
     }
 };
@@ -557,7 +829,7 @@ export const deleteBudgetReference = async (req, res) => {
         });
         return res.status(204).send();
     } catch (error) {
-        console.error('deleteBudgetReference Error:', error);
+        logger.error('deleteBudgetReference Error', { context: 'adminController', error: error.message });
         return res.status(500).json({ message: '削除に失敗しました' });
     }
 };
@@ -648,7 +920,7 @@ export const getAnalytics = async (req, res) => {
             },
         });
     } catch (error) {
-        console.error('getAnalytics Error:', error);
+        logger.error('getAnalytics Error', { context: 'adminController', error: error.message });
         res.status(500).json({ message: 'アナリティクスの取得に失敗しました' });
     }
 };
@@ -710,7 +982,7 @@ export const exportCsv = async (req, res) => {
         res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
         res.send(bom + csv);
     } catch (error) {
-        console.error('exportCsv Error:', error);
+        logger.error('exportCsv Error', { context: 'adminController', error: error.message });
         res.status(500).json({ message: 'CSVエクスポートに失敗しました' });
     }
 };
@@ -731,7 +1003,7 @@ export const getWebhookLogs = async (req, res) => {
         ]);
         res.json({ logs, total, page: parseInt(page), limit: parseInt(limit) });
     } catch (err) {
-        console.error('getWebhookLogs Error:', err);
+        logger.error('getWebhookLogs Error', { context: 'adminController', error: err.message });
         res.status(500).json({ message: '取得に失敗しました' });
     }
 };
@@ -781,7 +1053,7 @@ export const sendBulkEmail = async (req, res) => {
 
         res.json({ message: `${sent}件のメールを送信しました` });
     } catch (error) {
-        console.error('sendBulkEmail Error:', error);
+        logger.error('sendBulkEmail Error', { context: 'adminController', error: error.message });
         res.status(500).json({ message: '送信に失敗しました' });
     }
 };
@@ -799,10 +1071,10 @@ export const adjustUserPoints = async (req, res) => {
             data: { points: { increment: delta } },
             select: { id: true, handleName: true, email: true, points: true },
         });
-        console.log(`[Admin] ポイント調整 userId=${userId} delta=${delta} reason=${reason || 'なし'} by adminId=${req.user?.id}`);
+        logger.info('ポイント調整', { context: 'adminController', userId, delta, reason: reason || 'なし', adminId: req.user?.id });
         res.json({ user: updated, message: `ポイントを ${delta > 0 ? '+' : ''}${delta} 調整しました` });
     } catch (error) {
-        console.error('adjustUserPoints Error:', error);
+        logger.error('adjustUserPoints Error', { context: 'adminController', error: error.message });
         res.status(500).json({ message: 'ポイント調整に失敗しました' });
     }
 };
@@ -826,9 +1098,19 @@ export const forceCloseProject = async (req, res) => {
                 reason: reason || '運営判断によりキャンセルされました',
             });
         }
+        // 監査ログ
+        await createAuditLog(
+            req.user.id,
+            'PROJECT_FORCE_CLOSE',
+            'Project',
+            projectId,
+            { title: project.title, reason: reason || null },
+            req.ip || req.headers['x-forwarded-for'],
+        );
+
         res.json({ message: `「${project.title}」を強制キャンセルしました` });
     } catch (error) {
-        console.error('forceCloseProject Error:', error);
+        logger.error('forceCloseProject Error', { context: 'adminController', error: error.message });
         res.status(500).json({ message: '強制キャンセルに失敗しました' });
     }
 };
@@ -856,7 +1138,7 @@ export const getFraudFlags = async (req, res) => {
         }));
         res.json(enriched);
     } catch (err) {
-        console.error('getFraudFlags:', err);
+        logger.error('getFraudFlags', { context: 'adminController', error: err.message });
         res.status(500).json({ message: '取得に失敗しました' });
     }
 };
@@ -882,5 +1164,115 @@ export const reviewKyc = async (req, res) => {
         res.json({ success: true });
     } catch (err) {
         res.status(500).json({ message: '更新に失敗しました' });
+    }
+};
+
+// ==========================================
+// ★★★ Payouts CSV エクスポート ★★★
+// ==========================================
+export const exportPayoutsCsv = async (req, res) => {
+    const { from, to } = req.query;
+    try {
+        const where = {};
+        if (from) where.createdAt = { ...where.createdAt, gte: new Date(from) };
+        if (to)   where.createdAt = { ...where.createdAt, lte: new Date(to) };
+
+        const commissions = await prisma.commission.findMany({
+            where,
+            include: {
+                project: {
+                    select: {
+                        id: true,
+                        title: true,
+                        planner: { select: { handleName: true, email: true } },
+                    },
+                },
+                florist: { select: { platformName: true } },
+            },
+            orderBy: { createdAt: 'desc' },
+        });
+
+        const rows = [
+            ['日付', 'プロジェクトID', 'プロジェクト名', '企画者名', '企画者メール', 'お花屋さん', '手数料金額'],
+            ...commissions.map(c => [
+                c.createdAt.toISOString().slice(0, 10),
+                c.projectId,
+                c.project?.title || '',
+                c.project?.planner?.handleName || '',
+                c.project?.planner?.email || '',
+                c.florist?.platformName || '',
+                c.amount,
+            ]),
+        ];
+
+        const csv = rows.map(r => r.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n');
+        const bom = '﻿'; // Excel対応BOM
+        res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+        res.setHeader('Content-Disposition', `attachment; filename="flastal-payouts-${Date.now()}.csv"`);
+        res.send(bom + csv);
+    } catch (error) {
+        logger.error('exportPayoutsCsv Error', { context: 'adminController', error: error.message });
+        res.status(500).json({ message: 'CSVエクスポートに失敗しました' });
+    }
+};
+
+// ==========================================
+// ★★★ 監査ログ閲覧 API ★★★
+// ==========================================
+
+// GET /api/admin/audit-logs?limit=50&offset=0&action=USER_SUSPEND&targetType=User
+export const getAuditLogs = async (req, res) => {
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 50));
+    const offset = Math.max(0, parseInt(req.query.offset) || 0);
+    const { action, targetType } = req.query;
+
+    const where = {};
+    if (action) where.action = action;
+    if (targetType) where.targetType = targetType;
+
+    try {
+        const [logs, total] = await Promise.all([
+            prisma.auditLog.findMany({
+                where,
+                include: { admin: { select: { id: true, handleName: true, email: true } } },
+                orderBy: { createdAt: 'desc' },
+                take: limit,
+                skip: offset,
+            }),
+            prisma.auditLog.count({ where }),
+        ]);
+
+        res.json({ logs, total, limit, offset });
+    } catch (error) {
+        logger.error('getAuditLogs Error', { context: 'adminController', error: error.message });
+        res.status(500).json({ message: '監査ログの取得に失敗しました' });
+    }
+};
+
+// ==========================================
+// ★★★ メール送信ログ API ★★★
+// ==========================================
+
+// GET /api/admin/email-logs?limit=50&offset=0&status=failed
+export const getEmailLogs = async (req, res) => {
+    const limit = Math.min(100, parseInt(req.query.limit) || 50);
+    const offset = Math.max(0, parseInt(req.query.offset) || 0);
+    const { status } = req.query;
+    const where = status ? { status } : {};
+
+    try {
+        const [logs, total] = await Promise.all([
+            prisma.emailLog.findMany({
+                where,
+                orderBy: { createdAt: 'desc' },
+                take: limit,
+                skip: offset,
+            }),
+            prisma.emailLog.count({ where }),
+        ]);
+        res.json({ logs, total, limit, offset });
+    } catch (error) {
+        logger.error('getEmailLogs Error', { context: 'adminController', error: error.message });
+        res.status(500).json({ message: 'メール送信ログの取得に失敗しました' });
     }
 };

@@ -1,4 +1,5 @@
 import prisma from '../config/prisma.js';
+import { logger } from '../utils/logger.js';
 
 export const getStretchGoals = async (req, res) => {
     const { projectId } = req.params;
@@ -68,5 +69,7 @@ export async function checkStretchGoalAchievements(projectId, collectedAmount) {
             where: { id: { in: goals.map(g => g.id) } },
             data: { achieved: true, achievedAt: new Date() },
         });
-    } catch { /* non-critical */ }
+    } catch (err) {
+        logger.error('Achievement check failed', { context: 'StretchGoal', error: err.message });
+    }
 }

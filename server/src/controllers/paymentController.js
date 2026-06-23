@@ -5,6 +5,7 @@ import { queueEmail } from '../utils/email.js';
 import { getIO } from '../config/socket.js';
 import { evaluateAndAwardBadges } from '../utils/badges.js';
 import { detectFraud } from '../utils/fraudDetection.js';
+import { logger } from '../utils/logger.js';
 
 const LEVEL_CONFIG = { 'Bronze': 10000, 'Silver': 50000, 'Gold': 100000 };
 
@@ -36,7 +37,7 @@ export const broadcastTicker = (type, text, href) => {
             createdAt: new Date()
         });
     } catch (e) {
-        console.warn('Socket emit failed:', e.message);
+        logger.warn('Socket emit failed', { context: 'paymentController', error: e.message });
     }
 };
 
@@ -77,7 +78,7 @@ export const createPointSession = async (req, res) => {
         });
         res.json({ url: session.url });
     } catch (error) {
-        console.error("Stripe Session Error (Points):", error);
+        logger.error('Stripe Session Error (Points)', { context: 'paymentController', error: error.message });
         res.status(500).json({ message: 'セッション作成に失敗しました: ' + error.message });
     }
 };
@@ -149,7 +150,7 @@ export const createCheckoutSession = async (req, res) => {
         const session = await stripe.checkout.sessions.create(sessionParams);
         res.json({ sessionUrl: session.url });
     } catch (error) {
-        console.error("Checkout Session Error:", error);
+        logger.error('Checkout Session Error', { context: 'paymentController', error: error.message });
         res.status(500).json({ message: 'セッション作成に失敗しました' });
     }
 };
@@ -180,11 +181,14 @@ export const createPledge = async (req, res) => {
             // 不正検知（非同期・ノンブロッキング）
             detectFraud(userId, projectId, pledgeAmount).catch(() => {});
 
-            // ポイント減算と合計支援額の加算
-            await tx.user.update({
-                where: { id: userId },
+            // ポイント減算と合計支援額の加算（アトミックな残高チェックで競合状態を防止）
+            const pointsUpdated = await tx.user.updateMany({
+                where: { id: userId, points: { gte: pledgeAmount } },
                 data: { points: { decrement: pledgeAmount }, totalPledgedAmount: { increment: pledgeAmount } },
             });
+            if (pointsUpdated.count === 0) {
+                throw new Error('ポイント残高が不足しています。');
+            }
 
             const newPledge = await tx.pledge.create({
                 data: { amount: pledgeAmount, projectId, userId, comment, pledgeTierId: tierId || null },
@@ -245,7 +249,7 @@ export const createPledge = async (req, res) => {
                     pledgeAmount,
                 });
             } catch (e) {
-                console.warn('pledgeUpdate emit failed:', e.message);
+                logger.warn('pledgeUpdate emit failed', { context: 'paymentController', error: e.message });
             }
             // ─────────────────────────────────────────────────────────────────────
 
@@ -344,7 +348,7 @@ export const getPaymentHistory = async (req, res) => {
 
         res.json(history);
     } catch (error) {
-        console.error("History Error:", error);
+        logger.error('History Error', { context: 'paymentController', error: error.message });
         res.status(500).json({ message: '履歴の取得に失敗しました' });
     }
 };
@@ -410,7 +414,7 @@ export const downloadReceipt = async (req, res) => {
 
         doc.end();
     } catch (err) {
-        console.error('downloadReceipt Error:', err);
+        logger.error('downloadReceipt Error', { context: 'paymentController', error: err.message });
         if (!res.headersSent) res.status(500).json({ message: 'PDF生成に失敗しました' });
     }
 };
@@ -479,7 +483,7 @@ export const downloadInvoice = async (req, res) => {
         );
         doc.end();
     } catch (err) {
-        console.error('downloadInvoice Error:', err);
+        logger.error('downloadInvoice Error', { context: 'paymentController', error: err.message });
         if (!res.headersSent) res.status(500).json({ message: 'インボイス生成に失敗しました' });
     }
 };
@@ -524,7 +528,7 @@ export const createSubscriptionSession = async (req, res) => {
 
         res.json({ sessionUrl: session.url });
     } catch (error) {
-        console.error('Subscription Session Error:', error);
+        logger.error('Subscription Session Error', { context: 'paymentController', error: error.message });
         res.status(500).json({ message: 'サブスクリプションセッション作成に失敗しました' });
     }
 };
@@ -609,7 +613,7 @@ export const getMySubscriptions = async (req, res) => {
         });
         res.json(subs);
     } catch (err) {
-        console.error('getMySubscriptions:', err);
+        logger.error('getMySubscriptions', { context: 'paymentController', error: err.message });
         res.status(500).json({ message: '取得に失敗しました' });
     }
 };
@@ -632,7 +636,7 @@ export const cancelSubscription = async (req, res) => {
 
         res.json({ message: '定期支援をキャンセルしました' });
     } catch (err) {
-        console.error('cancelSubscription:', err);
+        logger.error('cancelSubscription', { context: 'paymentController', error: err.message });
         res.status(500).json({ message: 'キャンセルに失敗しました' });
     }
 };
@@ -665,7 +669,7 @@ export const createPremiumSession = async (req, res) => {
         });
         res.json({ url: session.url });
     } catch (err) {
-        console.error('createPremiumSession:', err);
+        logger.error('createPremiumSession', { context: 'paymentController', error: err.message });
         res.status(500).json({ message: 'セッション作成に失敗しました' });
     }
 };

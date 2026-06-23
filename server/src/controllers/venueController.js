@@ -1,4 +1,6 @@
 import prisma from '../config/prisma.js';
+import crypto from 'crypto';
+import { logger } from '../utils/logger.js';
 
 // --- 会場一覧取得 ---
 export const getVenues = async (req, res) => {
@@ -18,7 +20,7 @@ export const getVenues = async (req, res) => {
         });
         res.json(venues || []);
     } catch (e) { 
-        console.error('getVenues Error:', e);
+        logger.error('getVenues Error', { context: 'venueController', error: e.message });
         res.status(500).json({ message: '会場情報の取得中にエラーが発生しました。' }); 
     }
 };
@@ -52,7 +54,7 @@ export const getVenueById = async (req, res) => {
 
         res.json(cleanVenue);
     } catch (e) { 
-        console.error('getVenueById Error:', e);
+        logger.error('getVenueById Error', { context: 'venueController', error: e.message });
         res.status(500).json({ message: '会場データの取得に失敗しました。' }); 
     }
 };
@@ -62,11 +64,12 @@ export const addVenueByUser = async (req, res) => {
     const { venueName, address, regulations } = req.body;
     try {
         const randomId = Math.random().toString(36).slice(-8);
+        const tempPassword = crypto.randomBytes(32).toString('hex');
         const newVenue = await prisma.venue.create({
             data: {
                 venueName, address, accessInfo: regulations,
                 email: `temp_${randomId}@flastal.user`,
-                password: 'temp_password_not_for_login',
+                password: tempPassword,
                 isOfficial: false,
                 isStandAllowed: true, isBowlAllowed: true, retrievalRequired: true,
                 addedById: req.user.id,
@@ -75,7 +78,7 @@ export const addVenueByUser = async (req, res) => {
         });
         res.status(201).json(newVenue);
     } catch (error) { 
-        console.error('addVenueByUser Error:', error);
+        logger.error('addVenueByUser Error', { context: 'venueController', error: error.message });
         res.status(500).json({ message: '会場の仮登録に失敗しました。' }); 
     }
 };
@@ -110,7 +113,7 @@ export const updateVenueProfile = async (req, res) => {
         });
         res.json(updated);
     } catch (e) { 
-        console.error('updateVenueProfile Error:', e);
+        logger.error('updateVenueProfile Error', { context: 'venueController', error: e.message });
         res.status(500).json({ message: '会場情報の更新に失敗しました。' }); 
     }
 };
@@ -128,7 +131,7 @@ export const deleteVenue = async (req, res) => {
         });
         res.status(204).send();
     } catch (e) {
-        console.error('deleteVenue Error:', e);
+        logger.error('deleteVenue Error', { context: 'venueController', error: e.message });
         res.status(500).json({ message: '会場の削除に失敗しました。' });
     }
 };
@@ -139,6 +142,10 @@ export const postLogisticsInfo = async (req, res) => {
     const { title, description, imageUrls } = req.body;
     const userId = req.user.id;
     const userRole = req.user.role;
+
+    if (userRole !== 'VENUE' && userRole !== 'ADMIN') {
+        return res.status(403).json({ message: '会場ロジスティクス情報はVENUEアカウントのみ投稿できます。' });
+    }
 
     try {
         if (userRole === 'VENUE') {
@@ -167,7 +174,7 @@ export const postLogisticsInfo = async (req, res) => {
         res.status(201).json(info);
 
     } catch (e) { 
-        console.error('postLogisticsInfo Critical Error:', e);
+        logger.error('postLogisticsInfo Critical Error', { context: 'venueController', error: e.message });
         res.status(500).json({ message: '情報の保存中にエラーが発生しました。' }); 
     }
 };
@@ -200,7 +207,7 @@ export const getLogisticsInfo = async (req, res) => {
         }
         res.json(results || []);
     } catch (e) {
-        console.error('getLogisticsInfo Error:', e);
+        logger.error('getLogisticsInfo Error', { context: 'venueController', error: e.message });
         res.status(500).json({ message: '物流情報の取得に失敗しました。' });
     }
 };

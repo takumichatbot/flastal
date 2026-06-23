@@ -73,7 +73,7 @@ export default function ProjectCancelModal({ isOpen, onClose, project, onCancelC
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-slate-900/80 flex justify-center items-center z-[150] p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 bg-slate-900/60 flex justify-center items-center z-[150] p-4 backdrop-blur-sm">
             <motion.div 
                 initial={{ opacity: 0, scale: 0.95, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}

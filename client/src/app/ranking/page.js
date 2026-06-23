@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { Trophy, TrendingUp, Users, Crown, Medal, Star, BarChart2 } from 'lucide-react';
+import { EmptyState } from '../components/EmptyState';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -36,20 +37,13 @@ function SkeletonCard() {
     );
 }
 
-function EmptyState({ tab }) {
+function RankingEmptyState({ tab }) {
     return (
-        <div className="text-center py-20">
-            <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-4">
-                {tab === 'projects'
-                    ? <BarChart2 size={28} className="text-slate-300" />
-                    : <Users size={28} className="text-slate-300" />
-                }
-            </div>
-            <p className="text-slate-500 font-black text-sm mb-1">
-                {tab === 'projects' ? '今月の企画ランキングはまだありません' : '今月の支援者ランキングはまだありません'}
-            </p>
-            <p className="text-slate-400 text-xs font-bold">月が始まったばかりかもしれません。しばらくしてから再度ご確認ください。</p>
-        </div>
+        <EmptyState
+            icon={tab === 'projects' ? 'project' : 'flower'}
+            title={tab === 'projects' ? '今月の企画ランキングはまだありません' : '今月の支援者ランキングはまだありません'}
+            description="月が始まったばかりかもしれません。しばらくしてから再度ご確認ください。"
+        />
     );
 }
 
@@ -66,7 +60,7 @@ export default function RankingPage() {
     }, []);
 
     return (
-        <div className="min-h-screen bg-slate-50 pb-24">
+        <div className="min-h-screen bg-[#F7F7FA] pb-24">
             {/* ヘッダー */}
             <div className="bg-gradient-to-br from-pink-500 to-violet-600 text-white px-4 pt-12 pb-8 text-center">
                 <div className="flex items-center justify-center gap-2 mb-2">
@@ -101,7 +95,7 @@ export default function RankingPage() {
                             {Array.from({ length: 5 }).map((_, i) => <SkeletonCard key={i} />)}
                         </div>
                     ) : !data?.topProjects?.length ? (
-                        <EmptyState tab="projects" />
+                        <RankingEmptyState tab="projects" />
                     ) : (
                         <div className="space-y-3">
                             {data.topProjects.map((p, i) => {
@@ -144,7 +138,7 @@ export default function RankingPage() {
                             {Array.from({ length: 5 }).map((_, i) => <SkeletonCard key={i} />)}
                         </div>
                     ) : !data?.topPledgers?.length ? (
-                        <EmptyState tab="pledgers" />
+                        <RankingEmptyState tab="pledgers" />
                     ) : (
                         <div className="space-y-3">
                             {data.topPledgers.map((u, i) => {

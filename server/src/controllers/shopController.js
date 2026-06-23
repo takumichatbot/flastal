@@ -1,5 +1,7 @@
 import prisma from '../config/prisma.js';
 import Stripe from 'stripe';
+import { queueEmail } from '../utils/email.js';
+import { logger } from '../utils/logger.js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const TAX_RATE = 0.10;
@@ -347,16 +349,145 @@ export const adminGetOrders = async (req, res) => {
 // ─────────────────────────────────────────
 // ★ ADMIN: 注文ステータス更新
 // ─────────────────────────────────────────
+
+// ステータス遷移ホワイトリスト（ShopOrderStatus enum に対応）
+const STATUS_TRANSITIONS = {
+  PENDING:    ['PAID', 'CANCELLED'],
+  PAID:       ['PROCESSING', 'CANCELLED', 'REFUNDED'],
+  PROCESSING: ['SHIPPED', 'CANCELLED'],
+  SHIPPED:    ['DELIVERED'],
+  DELIVERED:  [],
+  CANCELLED:  [],
+  REFUNDED:   [],
+};
+
 export const adminUpdateOrderStatus = async (req, res) => {
-  const { status, trackingNumber } = req.body;
-  const order = await prisma.shopOrder.update({
-    where: { id: req.params.id },
+  try {
+    const { status: newStatus, trackingNumber } = req.body;
+
+    // ステータス変更がある場合のみ遷移チェック
+    if (newStatus) {
+      const order = await prisma.shopOrder.findUnique({
+        where: { id: req.params.id },
+        select: { id: true, status: true },
+      });
+      if (!order) return res.status(404).json({ message: '注文が見つかりません。' });
+
+      const currentStatus = order.status;
+      const allowed = STATUS_TRANSITIONS[currentStatus] ?? [];
+      if (!allowed.includes(newStatus)) {
+        return res.status(400).json({
+          message: `${currentStatus} から ${newStatus} への遷移は許可されていません。`,
+          allowedTransitions: allowed,
+        });
+      }
+    }
+
+    const updated = await prisma.shopOrder.update({
+      where: { id: req.params.id },
+      data: {
+        ...(newStatus && { status: newStatus }),
+        ...(trackingNumber !== undefined && { trackingNumber }),
+      },
+    });
+    res.json(updated);
+  } catch (err) {
+    logger.error('adminUpdateOrderStatus error', { context: 'Shop', error: err.message });
+    res.status(500).json({ message: '注文ステータスの更新に失敗しました。' });
+  }
+};
+
+// ─────────────────────────────────────────
+// 定期購入：新規作成
+// ─────────────────────────────────────────
+export const createSubscription = async (req, res) => {
+  const floristId = req.user.id;
+  const { productId, quantity = 1 } = req.body;
+
+  const florist = await prisma.florist.findUnique({ where: { id: floristId } });
+  const product = await prisma.shopProduct.findUnique({ where: { id: productId } });
+  if (!florist || !product || !product.isActive) return res.status(404).json({ message: '商品が見つかりません。' });
+
+  const FRONTEND_URL = process.env.FRONTEND_URL || 'https://www.flastal.com';
+
+  // Stripe Product（月次）を動的作成
+  const stripeProduct = await stripe.products.create({
+    name: `${product.name} 定期購入 x${quantity}`,
+    metadata: { productId, floristId },
+  });
+  const stripePrice = await stripe.prices.create({
+    product: stripeProduct.id,
+    unit_amount: Math.round(product.price * (1 + TAX_RATE)) * Number(quantity),
+    currency: 'jpy',
+    recurring: { interval: 'month' },
+  });
+
+  const session = await stripe.checkout.sessions.create({
+    mode: 'subscription',
+    line_items: [{ price: stripePrice.id, quantity: 1 }],
+    customer_email: florist.email,
+    metadata: {
+      type: 'shop_subscription',
+      floristId,
+      productId,
+      quantity: String(quantity),
+      stripePriceId: stripePrice.id,
+    },
+    success_url: `${FRONTEND_URL}/shop/subscriptions?success=1`,
+    cancel_url: `${FRONTEND_URL}/shop/subscriptions`,
+  });
+
+  res.json({ url: session.url });
+};
+
+// ─────────────────────────────────────────
+// 定期購入：一覧取得
+// ─────────────────────────────────────────
+export const getSubscriptions = async (req, res) => {
+  const floristId = req.user.id;
+  const subs = await prisma.shopSubscription.findMany({
+    where: { floristId },
+    include: { product: { include: { category: true } } },
+    orderBy: { createdAt: 'desc' },
+  });
+  res.json(subs);
+};
+
+// ─────────────────────────────────────────
+// 定期購入：解約
+// ─────────────────────────────────────────
+export const cancelSubscription = async (req, res) => {
+  const floristId = req.user.id;
+  const sub = await prisma.shopSubscription.findFirst({
+    where: { id: req.params.id, floristId },
+  });
+  if (!sub) return res.status(404).json({ message: '定期購入が見つかりません。' });
+
+  await stripe.subscriptions.cancel(sub.stripeSubId);
+  await prisma.shopSubscription.update({
+    where: { id: sub.id },
+    data: { status: 'cancelled', cancelledAt: new Date() },
+  });
+  res.json({ message: '定期購入を解約しました。' });
+};
+
+// ─────────────────────────────────────────
+// Webhookから呼ぶ：定期購入 確定
+// ─────────────────────────────────────────
+export const fulfillShopSubscription = async (stripeSession) => {
+  const { floristId, productId, quantity, stripePriceId } = stripeSession.metadata;
+  const subId = stripeSession.subscription;
+
+  await prisma.shopSubscription.create({
     data: {
-      ...(status && { status }),
-      ...(trackingNumber !== undefined && { trackingNumber }),
+      floristId,
+      productId,
+      quantity: Number(quantity),
+      stripeSubId: subId,
+      stripePriceId,
+      status: 'active',
     },
   });
-  res.json(order);
 };
 
 // ─────────────────────────────────────────
@@ -376,8 +507,8 @@ export const fulfillShopOrder = async (session) => {
   const tax = Math.round(sub * TAX_RATE);
   const total = sub + tax + ship;
 
-  await prisma.$transaction(async (tx) => {
-    const order = await tx.shopOrder.create({
+  const order = await prisma.$transaction(async (tx) => {
+    const newOrder = await tx.shopOrder.create({
       data: {
         floristId,
         subtotal: sub,
@@ -398,17 +529,37 @@ export const fulfillShopOrder = async (session) => {
       },
     });
 
-    // 在庫減算
+    // 在庫減算（在庫不足ならロールバック）
     for (const item of cart.items) {
-      await tx.shopProduct.update({
-        where: { id: item.productId },
+      const updated = await tx.shopProduct.updateMany({
+        where: { id: item.productId, stock: { gte: item.quantity } },
         data: { stock: { decrement: item.quantity } },
       });
+      if (updated.count === 0) {
+        throw Object.assign(
+          new Error(`「${item.product.name}」の在庫が不足しています。`),
+          { code: 'INSUFFICIENT_STOCK', productId: item.productId, productName: item.product.name }
+        );
+      }
     }
 
     // カートをクリア
     await tx.shopCartItem.deleteMany({ where: { cartId: cart.id } });
 
-    return order;
+    return newOrder;
   });
+
+  // 花屋へ注文完了メールを送信
+  const florist = await prisma.florist.findUnique({
+    where: { id: floristId },
+    select: { email: true, shopName: true }
+  });
+  if (florist?.email) {
+    queueEmail(florist.email, 'SHOP_ORDER_CONFIRMED', {
+      shopName: florist.shopName || 'お花屋さん',
+      orderId: order.id.slice(-8).toUpperCase(),
+      total: total.toLocaleString(),
+      itemCount: cart.items.length,
+    });
+  }
 };

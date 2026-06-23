@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
 
 import { useState, useEffect, useCallback, Suspense, useRef } from 'react';
+import { useDebouncedCallback } from 'use-debounce';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -92,7 +93,7 @@ function FloristCard({ florist, projectId, onOffer, isOffering }) {
         )}
         <div className="absolute -bottom-5 left-4 w-12 h-12 rounded-[0.75rem] border-2 border-white shadow-lg overflow-hidden bg-white z-20">
           {florist.iconUrl ? (
-            <Image src={florist.iconUrl} alt="" fill className="object-cover" />
+            <Image src={florist.iconUrl} alt={`${florist.platformName || florist.shopName || 'フローリスト'}のアイコン`} fill className="object-cover" />
           ) : (
             <div className="w-full h-full bg-slate-50 flex items-center justify-center text-slate-300"><User size={20} /></div>
           )}
@@ -326,10 +327,13 @@ function FloristsListContent() {
     finally { setLoading(false); }
   }, [router, projectId]);
 
+  const debouncedFetchFlorists = useDebouncedCallback((f) => {
+    fetchFlorists(f);
+  }, 300);
+
   useEffect(() => {
-    const t = setTimeout(() => fetchFlorists(filters), 300);
-    return () => clearTimeout(t);
-  }, [filters, fetchFlorists]);
+    debouncedFetchFlorists(filters);
+  }, [filters]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // フィルター変更時に表示件数リセット
   useEffect(() => { setVisibleCount(20); }, [filters]);

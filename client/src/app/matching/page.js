@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Users, Search, Filter, Plus, Loader2, Calendar, MapPin, User, Sparkles, ChevronRight, X } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { EmptyState } from '../components/EmptyState';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -102,7 +103,7 @@ function ProjectCard({ project }) {
             <div className="flex items-center gap-2">
               <div className="w-6 h-6 rounded-full bg-gradient-to-br from-pink-200 to-rose-200 overflow-hidden border border-white shadow-sm shrink-0 flex items-center justify-center">
                 {project.planner?.iconUrl ? (
-                  <img src={project.planner.iconUrl} alt="" className="w-full h-full object-cover" />
+                  <img src={project.planner.iconUrl} alt={`${project.planner.handleName || 'プランナー'}のアイコン`} className="w-full h-full object-cover" />
                 ) : (
                   <User size={12} className="text-pink-500" />
                 )}
@@ -313,25 +314,12 @@ export default function MatchingPage() {
             <p className="text-sm font-bold text-slate-400">企画を探しています...</p>
           </div>
         ) : projects.length === 0 ? (
-          <div className="text-center py-20">
-            <div className="w-16 h-16 bg-pink-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-pink-100">
-              <Users size={28} className="text-pink-300" />
-            </div>
-            <p className="text-base font-black text-slate-600 mb-2">企画が見つかりませんでした</p>
-            <p className="text-sm font-bold text-slate-400 mb-6">
-              {keyword || genre
-                ? '条件を変えて再度お試しください'
-                : '最初のマッチングリクエストを投稿してみましょう！'}
-            </p>
-            {(keyword || genre) && (
-              <button
-                onClick={() => { setGenre(''); setKeyword(''); setInputValue(''); }}
-                className="px-5 py-2.5 bg-slate-100 text-slate-600 rounded-xl font-bold text-sm hover:bg-slate-200 transition-colors"
-              >
-                フィルターをリセット
-              </button>
-            )}
-          </div>
+          <EmptyState
+            icon="search"
+            title="企画が見つかりませんでした"
+            description={keyword || genre ? '条件を変えて再度お試しください' : '最初のマッチングリクエストを投稿してみましょう！'}
+            action={(keyword || genre) ? { label: 'フィルターをリセット', onClick: () => { setGenre(''); setKeyword(''); setInputValue(''); } } : undefined}
+          />
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {projects.map((project) => (

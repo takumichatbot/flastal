@@ -1,4 +1,4 @@
-import { Inter, Noto_Sans_JP } from 'next/font/google';
+import { Inter, Noto_Sans_JP, Zen_Kaku_Gothic_New, Plus_Jakarta_Sans, Parisienne } from 'next/font/google';
 import { AuthProvider } from './contexts/AuthContext';
 import { DarkModeProvider } from './contexts/DarkModeContext';
 import { GrowthBookProvider } from './contexts/GrowthBookContext';
@@ -14,9 +14,11 @@ import { Suspense } from 'react';
 import Header from './components/Header';
 import LiveTicker from './components/LiveTicker';
 import NativeTabBar from './components/NativeTabBar';
+import OfflineBanner from './components/OfflineBanner';
+import { WebVitals } from './components/WebVitals';
 
-const inter = Inter({ 
-  subsets: ['latin'], 
+const inter = Inter({
+  subsets: ['latin'],
   variable: '--font-inter',
   display: 'swap',
 });
@@ -25,6 +27,27 @@ const notoSansJP = Noto_Sans_JP({
   subsets: ['latin'],
   variable: '--font-noto-sans-jp',
   weight: ['400', '500', '700'],
+  display: 'swap',
+});
+
+const zenKaku = Zen_Kaku_Gothic_New({
+  subsets: ['latin'],
+  variable: '--font-zen-kaku',
+  weight: ['400', '500', '700'],
+  display: 'swap',
+});
+
+const plusJakarta = Plus_Jakarta_Sans({
+  subsets: ['latin'],
+  variable: '--font-plus-jakarta',
+  weight: ['400', '500', '600', '700'],
+  display: 'swap',
+});
+
+const parisienne = Parisienne({
+  subsets: ['latin'],
+  variable: '--font-parisienne',
+  weight: ['400'],
   display: 'swap',
 });
 
@@ -38,39 +61,30 @@ export const viewport = {
 };
 
 export const metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://www.flastal.com'),
+  metadataBase: new URL('https://www.flastal.com'),
   title: {
+    default: 'FLASTAL（フラスタル）- アイドル・VTuberへのフラワースタンドをみんなで',
     template: '%s | FLASTAL',
-    default: 'FLASTAL - 推しにフラスタを贈ろう',
   },
-  description: 'ファン有志で贈る「フラスタ企画」を安全・簡単・感動的に。FLASTAL（フラスタル）は推し活をアップデートするクラウドファンディング・プラットフォームです。',
-  keywords: ['フラスタ', 'フラワースタンド', '推し活', 'クラウドファンディング', 'VTuber', 'アイドル', '応援花'],
+  description: 'フラワースタンド（フラスタ）を推しのアイドル・VTuberへ贈るクラウドファンディングプラットフォーム。みんなで集めて、想いを花に込めよう。',
+  keywords: ['フラスタ', 'フラワースタンド', 'クラウドファンディング', 'アイドル', 'VTuber', 'フラスタル', 'FLASTAL'],
   openGraph: {
-    title: 'FLASTAL - 推しにフラスタを贈ろう',
-    description: 'ファン有志で贈る「フラスタ企画」を安全・簡単・感動的に。',
-    url: '/',
-    siteName: 'FLASTAL',
-    locale: 'ja_JP',
     type: 'website',
-    images: [
-      {
-        url: '/opengraph-image.png',
-        width: 1200,
-        height: 630,
-        alt: 'FLASTAL - 推しにフラスタを贈ろう',
-      },
-    ],
+    locale: 'ja_JP',
+    url: 'https://www.flastal.com',
+    siteName: 'FLASTAL',
+    title: 'FLASTAL - アイドル・VTuberへのフラワースタンドをみんなで',
+    description: 'フラワースタンドを推しへ贈るクラウドファンディング',
+    images: [{ url: '/og-default.png', width: 1200, height: 630, alt: 'FLASTAL' }],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'FLASTAL - 推しにフラスタを贈ろう',
-    description: 'ファン有志で贈る「フラスタ企画」を安全・簡単・感動的に。',
-    images: ['/opengraph-image.png'],
+    site: '@flastal_jp',
+    title: 'FLASTAL - フラワースタンドをみんなで',
+    description: 'フラワースタンドを推しへ贈るクラウドファンディング',
+    images: ['/og-default.png'],
   },
-  alternates: {
-    canonical: '/',
-  },
-
+  robots: { index: true, follow: true },
   icons: {
     icon: '/favicon.ico',
     apple: [
@@ -93,7 +107,7 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="ja" className={`${inter.variable} ${notoSansJP.variable}`}>
+    <html lang="ja" className={`${inter.variable} ${notoSansJP.variable} ${zenKaku.variable} ${plusJakarta.variable} ${parisienne.variable}`}>
       <head>
         {/* ネイティブアプリ判定: React 描画前にクラスを付与してフラッシュを防ぐ */}
         <script dangerouslySetInnerHTML={{ __html: `
@@ -121,7 +135,8 @@ export default function RootLayout({ children }) {
           })();
         `}} />
       </head>
-      <body className="font-sans antialiased text-slate-900 bg-white min-h-screen flex flex-col m-0 p-0 overflow-x-hidden">
+      <body className="font-[family-name:var(--font-zen-kaku)] antialiased text-slate-900 bg-white min-h-screen flex flex-col m-0 p-0 overflow-x-hidden">
+        <WebVitals />
         <ThemeController />
         <GrowthBookProvider>
         <DarkModeProvider>
@@ -141,6 +156,7 @@ export default function RootLayout({ children }) {
 
           <div className="web-only"><Footer /></div>
           <Suspense fallback={null}><NativeTabBar /></Suspense>
+          <Suspense fallback={null}><OfflineBanner /></Suspense>
           <Toaster position="top-center" />
           <PushNotificationManager />
         </AuthProvider>

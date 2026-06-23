@@ -13,9 +13,10 @@ datasource db {
 // --- Enums ---
 
 enum ApprovalStatus {
-  PENDING   // 承認待ち
-  APPROVED  // 承認済み
-  REJECTED  // 却下
+  PENDING    // 承認待ち
+  APPROVED   // 承認済み
+  REJECTED   // 却下
+  SUSPENDED  // 利用停止中
 }
 
 enum ProductionStatus {
@@ -46,11 +47,13 @@ enum NotificationType {
   NEW_ANNOUNCEMENT
   OFFER_STATUS_UPDATE
   OFFER_ACCEPTED      // ★追加: お花屋さんがオファーを受諾したとき
+  OFFER_EXPIRED       // ★追加: オファーが期限切れになったとき
   QUOTATION_RECEIVED  // ★追加: お花屋さんから見積もりが届いたとき
   QUOTATION_APPROVED
   TASK_ASSIGNED
   PROJECT_STATUS_UPDATE
   PROJECT_APPROVED
+  OFFER_REJECTED       // ★追加: お花屋さんがオファーを拒否したとき
 }
 
 enum ProjectStatus {
@@ -68,6 +71,7 @@ enum OfferStatus {
   PENDING
   ACCEPTED
   REJECTED
+  EXPIRED
 }
 
 enum RefundStatus {
@@ -92,6 +96,7 @@ enum FloristStatus {
   PENDING
   APPROVED
   REJECTED
+  SUSPENDED  // 利用停止中
 }
 
 enum MessageSenderType {
@@ -177,7 +182,9 @@ model User {
   role                 UserRole           @default(USER)
   
   // ★ クリエイター（絵師）審査用のステータス（Userテーブルに持たせる）
-  status               ApprovalStatus @default(APPROVED) 
+  status               ApprovalStatus @default(APPROVED)
+  suspendedAt          DateTime?
+  suspendReason        String?
 
   iconUrl              String?
   referralCode         String             @unique @default(cuid())
@@ -202,6 +209,9 @@ model User {
   isPremium            Boolean  @default(false)
   premiumUntil         DateTime?
   premiumStripeSubId   String?
+  pendingEmail         String?
+  emailChangeToken     String?
+  emailChangeExpires   DateTime?
   eventInterests       EventInterest[] 
   
   // Relations
@@ -219,6 +229,7 @@ model User {
   assignedTasks        Task[]                     @relation("AssignedTasks")
   notifications        Notification[]             @relation("UserNotifications")
   chatReactions        GroupChatMessageReaction[]
+  groupBuyEntries      GroupBuyEntry[]
 
   eventReports            EventReport[]
   groupChatMessageReports GroupChatMessageReport[]
@@ -242,6 +253,9 @@ model User {
   following Follow[] @relation("Follower")
   followers Follow[] @relation("Following")
 
+  // アーティストページフォロー
+  artistPageFollows ArtistPageFollow[]
+
   discussions Discussion[]
 
   // ⑤ チームプランナー
@@ -252,6 +266,35 @@ model User {
   // ⑮ アフィリエイト変換ログ
   affiliateConversions AffiliateConversion[]
   completionPhotos     CompletionPhoto[]
+  superchats           Superchat[]
+  // ★ プロジェクトテンプレート
+  projectTemplates     ProjectTemplate[]
+
+  // 不正フラグ
+  fraudFlags           FraudFlag[]
+
+  // 監査ログ（管理者として実行した操作）
+  auditLogs            AuditLog[]
+
+  // 通知設定
+  notificationSettings Json @default("{\"push_new_pledge\":true,\"push_project_complete\":true,\"push_live_start\":true,\"push_group_buy_funded\":true,\"email_pledge_received\":true,\"email_project_funded\":true,\"email_project_complete\":true,\"email_digest\":true}")
+
+  refreshTokens        RefreshToken[]
+  pointTransactions    PointTransaction[]
+}
+
+model PointTransaction {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount    Int      // 正: 加算, 負: 減算
+  type      String   // "PLEDGE_USED" | "PLEDGE_REFUND" | "REFERRAL_BONUS" | "ADMIN_GRANT" | "POINT_CHARGE" | "BADGE_REWARD"
+  note      String?
+  projectId String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
 }
 
 model Project {
@@ -332,10 +375,14 @@ model Project {
   artistPageId            String?
   artistPageSlug          String?
   completionPhotos        CompletionPhoto[]
+  liveSessions            LiveSession[]
 
   // ▼ 新規追加（自動計算される締切日とお急ぎ便フラグ）
-  deadline         DateTime? 
+  deadline         DateTime?
   isExpress        Boolean   @default(false)
+
+  // グループ購入
+  groupBuys        GroupBuy[]
 
   // ★ 絵師用のフィールド・リレーション追加
   needsIllustrator        Boolean   @default(false)
@@ -394,7 +441,7 @@ model Pledge {
   guestEmail String?
 
   projectId String
-  project   Project @relation(fields: [projectId], references: [id])
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   pledgeTierId String?
   pledgeTier   PledgeTier? @relation(fields: [pledgeTierId], references: [id])
@@ -404,6 +451,8 @@ model Pledge {
   // Stripe Subscription 月次サポーター
   subscriptionId     String?
   subscriptionStatus String? // active / canceled / past_due
+
+  receivedAt DateTime?  // フラワースタンド受け取り確認日時
 
   @@index([projectId, createdAt])
   @@index([userId, createdAt])
@@ -434,7 +483,9 @@ model Florist {
   shopName          String
   platformName      String        @unique
   status            FloristStatus @default(PENDING)
-  customFeeRate     Float? 
+  suspendedAt       DateTime?
+  suspendReason     String?
+  customFeeRate     Float?
   
   posts             FloristPost[]
   offers            Offer[]
@@ -460,6 +511,8 @@ model Florist {
   favorites         FloristFavorite[]
   shopCart          ShopCart?
   shopOrders        ShopOrder[]
+  shopSubscriptions ShopSubscription[]
+  liveSessions      LiveSession[]
 }
 
 model FloristDeal {
@@ -474,15 +527,17 @@ model FloristDeal {
 }
 
 model Offer {
-  id        String      @id @default(cuid())
-  status    OfferStatus @default(PENDING)
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
+  id                String      @id @default(cuid())
+  status            OfferStatus @default(PENDING)
+  declinationReason String?
+  expiresAt         DateTime?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
 
   projectId String
-  project   Project   @relation(fields: [projectId], references: [id])
+  project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
   floristId String
-  florist   Florist   @relation(fields: [floristId], references: [id])
+  florist   Florist   @relation(fields: [floristId], references: [id], onDelete: Cascade)
   chatRoom  ChatRoom?
 
   @@index([projectId, status])
@@ -494,7 +549,7 @@ model ChatRoom {
   createdAt DateTime @default(now())
 
   offerId  String        @unique
-  offer    Offer         @relation(fields: [offerId], references: [id])
+  offer    Offer         @relation(fields: [offerId], references: [id], onDelete: Cascade)
   messages ChatMessage[]
 }
 
@@ -509,7 +564,7 @@ model ChatMessage {
   createdAt      DateTime          @default(now())
 
   chatRoomId String
-  chatRoom   ChatRoom @relation(fields: [chatRoomId], references: [id])
+  chatRoom   ChatRoom @relation(fields: [chatRoomId], references: [id], onDelete: Cascade)
   userId     String?
   user       User?    @relation("UserChatMessages", fields: [userId], references: [id])
   floristId  String?
@@ -1181,15 +1236,17 @@ model WebhookLog {
   id          String    @id @default(cuid())
   eventId     String?   @unique
   eventType   String
-  status      String    // 'success' | 'error'
+  status      String    // 'success' | 'error' | 'dead_letter'
   metadata    Json?
   error       String?   @db.Text
   retryCount  Int       @default(0)
   lastRetryAt DateTime?
+  dlqAt       DateTime? // DLQ（デッドレターキュー）移行日時
   createdAt   DateTime  @default(now())
   @@index([status])
   @@index([createdAt])
   @@index([status, retryCount])
+  @@index([dlqAt])
 }
 
 // フォロー（企画者フォロー）
@@ -1222,6 +1279,24 @@ model Discussion {
   @@index([parentId])
 }
 
+// 管理者操作監査ログ
+model AuditLog {
+  id          String   @id @default(cuid())
+  adminId     String
+  action      String   // "USER_SUSPEND", "PROJECT_DELETE", "FLORIST_APPROVE" etc.
+  targetType  String   // "User", "Project", "Florist" etc.
+  targetId    String
+  detail      Json?    // 追加情報（理由、変更前後の値など）
+  ipAddress   String?
+  createdAt   DateTime @default(now())
+
+  admin       User     @relation(fields: [adminId], references: [id])
+
+  @@index([adminId])
+  @@index([targetType, targetId])
+  @@index([createdAt])
+}
+
 // 不正支援フラグ
 model FraudFlag {
   id        String   @id @default(cuid())
@@ -1231,6 +1306,7 @@ model FraudFlag {
   details   String   @db.Text
   reviewed  Boolean  @default(false)
   createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@index([userId])
   @@index([reviewed, createdAt])
 }
@@ -1339,8 +1415,25 @@ model ArtistPage {
   verified    Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  // アーティストページフォロー
+  artistPageFollows ArtistPageFollow[]
+
   @@index([slug])
   @@index([category])
+}
+
+// アーティストページフォロー
+model ArtistPageFollow {
+  id           String     @id @default(cuid())
+  userId       String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  artistPageId String
+  artistPage   ArtistPage @relation(fields: [artistPageId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now())
+
+  @@unique([userId, artistPageId])
+  @@index([userId])
 }
 
 // ⑭ ギフトカード
@@ -1385,6 +1478,42 @@ model CompletionPhoto {
 }
 
 // ===================================================
+// リアルタイム制作中継
+// ===================================================
+
+model LiveSession {
+  id           String       @id @default(cuid())
+  projectId    String
+  project      Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  floristId    String
+  florist      Florist      @relation(fields: [floristId], references: [id])
+  title        String
+  youtubeUrl   String?      // YouTube Live URL
+  isLive       Boolean      @default(false)
+  startedAt    DateTime?
+  endedAt      DateTime?
+  createdAt    DateTime     @default(now())
+  superchats   Superchat[]
+
+  @@index([projectId])
+  @@index([isLive])
+}
+
+model Superchat {
+  id            String      @id @default(cuid())
+  liveSessionId String
+  liveSession   LiveSession @relation(fields: [liveSessionId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User        @relation(fields: [userId], references: [id])
+  amount        Int         // 円
+  message       String?
+  displayName   String      // 表示名
+  createdAt     DateTime    @default(now())
+
+  @@index([liveSessionId, createdAt])
+}
+
+// ===================================================
 // 花屋向け資材・花材ショップ
 // ===================================================
 
@@ -1415,8 +1544,9 @@ model ShopProduct {
   tags         String[]
   createdAt    DateTime            @default(now())
   updatedAt    DateTime            @updatedAt
-  cartItems    ShopCartItem[]
-  orderItems   ShopOrderItem[]
+  cartItems         ShopCartItem[]
+  orderItems        ShopOrderItem[]
+  shopSubscriptions ShopSubscription[]
 
   @@index([categoryId])
   @@index([isActive, isFeatured])
@@ -1446,6 +1576,7 @@ model ShopOrder {
   floristId       String
   florist         Florist         @relation(fields: [floristId], references: [id])
   items           ShopOrderItem[]
+  messages        OrderMessage[]
   subtotal        Int             // 小計（税抜）
   tax             Int             // 消費税（10%）
   shippingFee     Int             @default(0)
@@ -1462,6 +1593,19 @@ model ShopOrder {
   @@index([status])
 }
 
+model OrderMessage {
+  id          String    @id @default(cuid())
+  orderId     String
+  order       ShopOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  senderType  String    // 'FLORIST' or 'ADMIN'
+  senderId    String    // floristId or adminUserId
+  content     String    @db.Text
+  isRead      Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+
+  @@index([orderId, createdAt])
+}
+
 model ShopOrderItem {
   id          String      @id @default(cuid())
   orderId     String
@@ -1471,4 +1615,114 @@ model ShopOrderItem {
   productName String      // 注文時の商品名スナップショット
   price       Int         // 注文時の価格スナップショット（税抜）
   quantity    Int
+}
+
+// ===================================================
+// グループ購入
+// ===================================================
+
+model GroupBuy {
+  id           String          @id @default(cuid())
+  projectId    String
+  project      Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title        String
+  description  String?         @db.Text
+  pricePerSlot Int             // 一口の金額（円）
+  targetSlots  Int             // 目標口数
+  maxSlots     Int?            // 上限口数（nullなら無制限）
+  status       String          @default("OPEN") // OPEN / FUNDED / CANCELLED / REFUNDED
+  deadline     DateTime
+  createdAt    DateTime        @default(now())
+  entries      GroupBuyEntry[]
+
+  @@index([projectId])
+  @@index([status])
+}
+
+model GroupBuyEntry {
+  id              String    @id @default(cuid())
+  groupBuyId      String
+  groupBuy        GroupBuy  @relation(fields: [groupBuyId], references: [id], onDelete: Cascade)
+  userId          String?
+  user            User?     @relation(fields: [userId], references: [id])
+  slots           Int       @default(1)
+  amount          Int       // slots * pricePerSlot
+  stripeSessionId String    @unique
+  stripePaymentId String?
+  status          String    @default("PENDING") // PENDING / PAID / REFUNDED
+  createdAt       DateTime  @default(now())
+
+  @@index([groupBuyId])
+}
+
+// ===================================================
+// 花屋向け資材ショップ 定期購入（月次自動発注）
+// ===================================================
+
+model ShopSubscription {
+  id              String      @id @default(cuid())
+  floristId       String
+  florist         Florist     @relation(fields: [floristId], references: [id], onDelete: Cascade)
+  productId       String
+  product         ShopProduct @relation(fields: [productId], references: [id])
+  quantity        Int         @default(1)
+  stripeSubId     String      @unique
+  stripePriceId   String
+  status          String      @default("active") // active / cancelled / past_due
+  nextBillingDate DateTime?
+  createdAt       DateTime    @default(now())
+  cancelledAt     DateTime?
+
+  @@index([floristId])
+}
+
+// ===================================================
+// ★ プロジェクトテンプレート
+// ===================================================
+
+model ProjectTemplate {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name         String
+  description  String?  @db.Text
+  targetAmount Int
+  targetArtist String?
+  projectType  String   @default("PUBLIC")
+  tags         String[]
+  coverMessage String?  @db.Text
+  isPublic     Boolean  @default(false)
+  usageCount   Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  @@index([userId])
+  @@index([isPublic])
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+}
+
+// メール送信ログ
+model EmailLog {
+  id        String    @id @default(cuid())
+  to        String
+  template  String
+  status    String    @default("queued") // queued | sent | failed
+  error     String?
+  messageId String?
+  createdAt DateTime  @default(now())
+  sentAt    DateTime?
+
+  @@index([to])
+  @@index([status])
+  @@index([createdAt])
 }

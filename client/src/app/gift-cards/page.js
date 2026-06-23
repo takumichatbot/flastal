@@ -56,8 +56,11 @@ function IssueForm({ token, onIssued }) {
             </div>
             <button type="submit" disabled={loading}
                 className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 text-white text-sm font-black shadow-sm hover:shadow-md transition-all disabled:opacity-50">
-                {loading ? <Loader2 size={16} className="animate-spin" /> : <Gift size={16} />}
-                発行する（{Number(points).toLocaleString()}pt）
+                {loading ? (
+                    <><Loader2 size={16} className="animate-spin mr-1" />処理中...</>
+                ) : (
+                    <><Gift size={16} />発行する（{Number(points).toLocaleString()}pt）</>
+                )}
             </button>
         </form>
     );
@@ -99,8 +102,11 @@ function RedeemForm({ token, onRedeemed }) {
             </div>
             <button type="submit" disabled={loading || !code}
                 className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-sm font-black shadow-sm hover:shadow-md transition-all disabled:opacity-50">
-                {loading ? <Loader2 size={16} className="animate-spin" /> : <Gift size={16} />}
-                ポイントを受け取る
+                {loading ? (
+                    <><Loader2 size={16} className="animate-spin mr-1" />処理中...</>
+                ) : (
+                    <><Gift size={16} />ポイントを受け取る</>
+                )}
             </button>
         </form>
     );

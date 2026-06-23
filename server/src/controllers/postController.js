@@ -1,4 +1,5 @@
 import prisma from '../config/prisma.js';
+import { logger } from '../utils/logger.js';
 
 const postSelect = {
   id: true,
@@ -61,7 +62,7 @@ export const getPublicFeed = async (req, res) => {
 
     res.json({ posts: enriched, total, page, pages: Math.ceil(total / limit) });
   } catch (error) {
-    console.error('getPublicFeed error:', error);
+    logger.error('getPublicFeed error', { context: 'postController', error: error.message });
     res.status(500).json({ message: 'フィードの取得に失敗しました' });
   }
 };
@@ -84,7 +85,7 @@ export const getMyPosts = async (req, res) => {
     }));
     res.json(enriched);
   } catch (error) {
-    console.error('getMyPosts error:', error);
+    logger.error('getMyPosts error', { context: 'postController', error: error.message });
     res.status(500).json({ message: '投稿の取得に失敗しました' });
   }
 };
@@ -113,7 +114,7 @@ export const createPost = async (req, res) => {
 
     res.status(201).json({ ...post, likedByMe: false });
   } catch (error) {
-    console.error('createPost error:', error);
+    logger.error('createPost error', { context: 'postController', error: error.message });
     res.status(500).json({ message: '投稿の保存に失敗しました' });
   }
 };
@@ -137,7 +138,7 @@ export const toggleLike = async (req, res) => {
     const count = await prisma.postLike.count({ where: { postId: id } });
     res.json({ liked: !existing, count });
   } catch (error) {
-    console.error('toggleLike error:', error);
+    logger.error('toggleLike error', { context: 'postController', error: error.message });
     res.status(500).json({ message: 'いいねの処理に失敗しました' });
   }
 };

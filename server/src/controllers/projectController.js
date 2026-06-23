@@ -2,10 +2,13 @@ import { Prisma } from '@prisma/client';
 import prisma from '../config/prisma.js';
 import stripe from '../config/stripe.js';
 import { sendDynamicEmail, queueEmail } from '../utils/email.js';
-import { createNotification } from '../utils/notification.js';
+import { createNotification, sendPushNotification } from '../utils/notification.js';
 import { getIO } from '../config/socket.js';
 import { withCache, cache } from '../utils/cache.js';
-import { searchProjects } from '../config/typesense.js';
+import { searchProjects, indexProject, deleteProjectFromIndex } from '../config/typesense.js';
+import QRCode from 'qrcode';
+import PDFDocument from 'pdfkit';
+import { logger } from '../utils/logger.js';
 
 // ==========================================
 // ★★★ 1. 取得系 (Public) ★★★
@@ -14,7 +17,13 @@ import { searchProjects } from '../config/typesense.js';
 // 全ての企画を取得 (検索・フィルタ付き)
 export const getProjects = async (req, res) => {
     try {
-        const { keyword, prefecture, myProjects, status } = req.query;
+        const {
+            keyword, prefecture, myProjects, status,
+            search, tags, minAmount, maxAmount, sort, page, limit,
+        } = req.query;
+
+        // search はキーワード検索の別名（keyword と統合）
+        const kw = (search || keyword)?.trim();
 
         const whereClause = {
             NOT: { status: 'CANCELED' },
@@ -26,17 +35,63 @@ export const getProjects = async (req, res) => {
             whereClause.plannerId = req.user.id;
             whereClause.visibility = 'PUBLIC';
             if (status) whereClause.status = status;
+        } else if (status) {
+            // 明示的なステータス指定（DRAFT は除外）
+            if (status !== 'DRAFT') {
+                whereClause.status = status;
+                whereClause.projectType = 'PUBLIC';
+            }
         } else {
             whereClause.status = 'FUNDRAISING';
             whereClause.projectType = 'PUBLIC';
         }
 
-        const kw = keyword?.trim();
+        // タグフィルター（ProjectTag リレーション経由）
+        if (tags) {
+            const tagList = tags.split(',').map(t => t.trim()).filter(Boolean);
+            if (tagList.length > 0) {
+                whereClause.tags = {
+                    some: {
+                        tag: { slug: { in: tagList } },
+                    },
+                };
+            }
+        }
 
+        // 目標金額フィルター
+        if (minAmount || maxAmount) {
+            whereClause.targetAmount = {};
+            if (minAmount) whereClause.targetAmount.gte = parseInt(minAmount, 10);
+            if (maxAmount) whereClause.targetAmount.lte = parseInt(maxAmount, 10);
+        }
+
+        // ソート順
+        let orderBy = { createdAt: 'desc' };
+        if (sort === 'popular') orderBy = { collectedAmount: 'desc' };
+        if (sort === 'deadline') orderBy = { deadline: 'asc' };
+        if (sort === 'percent') orderBy = { collectedAmount: 'desc' }; // クライアント側で達成率計算
+
+        // ページネーション
+        const pageNum = parseInt(page || 1, 10);
+        const take = parseInt(limit || 12, 10);
+        const skip = (pageNum - 1) * take;
+
+        // テキスト検索ありの場合
         if (kw) {
             // Typesense で検索 → 失敗時は pg_trgm にフォールバック
             const tsHits = await searchProjects(kw, { limit: 100, filterBy: prefecture?.trim() ? `deliveryAddress:=${prefecture.trim()}` : '' });
-            if (tsHits !== null) return res.status(200).json(tsHits);
+            if (tsHits !== null) {
+                if (page || limit) {
+                    const sliced = tsHits.slice(skip, skip + take);
+                    return res.status(200).json({
+                        projects: sliced,
+                        total: tsHits.length,
+                        page: pageNum,
+                        totalPages: Math.ceil(tsHits.length / take),
+                    });
+                }
+                return res.status(200).json(tsHits);
+            }
 
             // pg_trgm トライグラム類似度 + ILIKE で日本語を正確にカバー
             const kwLike = `%${kw}%`;
@@ -44,6 +99,12 @@ export const getProjects = async (req, res) => {
                 ? Prisma.sql`AND p."deliveryAddress" ILIKE ${`%${prefecture.trim()}%`}`
                 : Prisma.empty;
 
+            // pg_trgm による日本語ファジー検索クエリ
+            // Typesense フォールバック用: similarity()でスコアリングし、% 演算子(トライグラム一致)とILIKEを組み合わせる
+            // - GREATEST(): title/description それぞれの類似度から最高スコアを選択
+            // - % 演算子: pg_trgm のトライグラム類似度マッチ（pg_trgm拡張必須）
+            // - ILIKE: 部分文字列一致（日本語のようにトライグラムが弱い言語を補完）
+            // - prefClause: 都道府県フィルターをオプションで付与（Prisma.empty の場合はスキップ）
             const results = await prisma.$queryRaw(Prisma.sql`
                 SELECT p.id, p.title, p.description, p."imageUrl", p."targetAmount",
                        p."collectedAmount", p.status, p."projectType", p."createdAt", p.deadline,
@@ -69,6 +130,15 @@ export const getProjects = async (req, res) => {
                 LIMIT 100
             `);
 
+            if (page || limit) {
+                const sliced = results.slice(skip, skip + take);
+                return res.status(200).json({
+                    projects: sliced,
+                    total: results.length,
+                    page: pageNum,
+                    totalPages: Math.ceil(results.length / take),
+                });
+            }
             return res.status(200).json(results);
         }
 
@@ -76,20 +146,54 @@ export const getProjects = async (req, res) => {
             whereClause.deliveryAddress = { contains: prefecture.trim() };
         }
 
-        // 検索・個人クエリはキャッシュしない。公開一覧のみ60秒キャッシュ
-        const cacheKey = (!kw && !prefecture && myProjects !== 'true')
-            ? `projects:public`
-            : null;
+        // フィルターなしの公開一覧のみキャッシュ
+        const isDefaultQuery = !kw && !prefecture && myProjects !== 'true' && !tags && !minAmount && !maxAmount && !status && !page && !limit;
+        const cacheKey = isDefaultQuery ? `projects:public` : null;
+
+        // ページネーション付きクエリ
+        if (page || limit || tags || minAmount || maxAmount || sort || status) {
+            const [projects, total] = await Promise.all([
+                prisma.project.findMany({
+                    where: whereClause,
+                    include: {
+                        planner: { select: { handleName: true, iconUrl: true } },
+                        tags: { include: { tag: { select: { name: true, slug: true, color: true } } } },
+                        venue: { select: { venueName: true } },
+                    },
+                    orderBy,
+                    skip,
+                    take,
+                }),
+                prisma.project.count({ where: whereClause }),
+            ]);
+
+            return res.status(200).json({
+                projects,
+                total,
+                page: pageNum,
+                totalPages: Math.ceil(total / take),
+            });
+        }
 
         const projects = await withCache(cacheKey, () => prisma.project.findMany({
             where: whereClause,
-            include: { planner: { select: { handleName: true, iconUrl: true } } },
-            orderBy: { createdAt: 'desc' },
+            include: {
+                planner: { select: { handleName: true, iconUrl: true } },
+                tags: { include: { tag: { select: { name: true, slug: true, color: true } } } },
+                venue: { select: { venueName: true } },
+            },
+            orderBy,
         }), 60);
 
+        // デフォルトの公開一覧のみプロキシ・ブラウザキャッシュを許可
+        if (isDefaultQuery) {
+            res.set('Cache-Control', 'public, s-maxage=60, max-age=30, stale-while-revalidate=120');
+        } else {
+            res.set('Cache-Control', 'no-store');
+        }
         res.status(200).json(projects);
     } catch (error) {
-        console.error('企画一覧取得エラー:', error);
+        logger.error('企画一覧取得エラー', { context: 'projectController', error: error.message });
         res.status(500).json({ message: '企画の取得中にエラーが発生しました。' });
     }
 };
@@ -104,7 +208,15 @@ export const getFeaturedProjects = async (req, res) => {
             },
             take: 4,
             orderBy: { createdAt: 'desc' },
-            include: { planner: true },
+            include: {
+                planner: {
+                    select: {
+                        id: true,
+                        handleName: true,
+                        iconUrl: true,
+                    }
+                }
+            },
         });
         res.status(200).json(projects);
     } catch (error) {
@@ -230,7 +342,7 @@ export const getProjectAnalytics = async (req, res) => {
                 : 0,
         });
     } catch (err) {
-        console.error('getProjectAnalytics:', err);
+        logger.error('getProjectAnalytics', { context: 'projectController', error: err.message });
         res.status(500).json({ message: 'エラーが発生しました' });
     }
 };
@@ -257,6 +369,7 @@ export const getProjectById = async (req, res) => {
                 pledgeTiers: { orderBy: { amount: 'asc' } },
                 pledges: {
                     orderBy: { createdAt: 'desc' },
+                    take: 50, // 直近50件のみ取得
                     include: {
                         user: { select: { id: true, handleName: true, iconUrl: true } }
                     }
@@ -275,14 +388,17 @@ export const getProjectById = async (req, res) => {
                     include: { user: { select: { id: true, handleName: true } } }
                 },
                 offers: {
+                    where: { status: { in: ['PENDING', 'ACCEPTED', 'NEGOTIATING'] } },
                     include: {
                         florist: { select: { id: true, platformName: true, shopName: true, iconUrl: true } },
                         chatRoom: {
-                            include: {
+                            select: {
+                                id: true,
                                 messages: {
                                     orderBy: { createdAt: 'asc' },
-                                    take: 100, // 直近100件のみ取得
-                                    include: {
+                                    take: 50, // 直近50件のみ取得
+                                    select: {
+                                        id: true, content: true, createdAt: true, isRead: true,
                                         user: { select: { id: true, handleName: true, iconUrl: true } },
                                         florist: { select: { id: true, platformName: true, shopName: true, iconUrl: true } }
                                     }
@@ -315,12 +431,14 @@ export const getProjectById = async (req, res) => {
         });
 
         if (project) {
+            // pledges・offers・tasks 等ユーザー固有データを含むため private キャッシュのみ許可
+            res.set('Cache-Control', 'private, max-age=10, stale-while-revalidate=30');
             res.status(200).json(project);
         } else {
             res.status(404).json({ message: '企画が見つかりません。' });
         }
     } catch (error) {
-        console.error('企画詳細取得エラー:', error);
+        logger.error('企画詳細取得エラー', { context: 'projectController', error: error.message });
         res.status(500).json({ message: '企画の取得中にエラーが発生しました。' });
     }
 };
@@ -449,13 +567,16 @@ export const createProject = async (req, res) => {
         cache.del('projects:public');
         res.status(201).json({ project: newProject, message: '企画の作成申請が完了しました。' });
     } catch (error) {
-        console.error('--- [CRITICAL: PROJECT CREATE ERROR] ---');
-        console.error('Code:', error.code);
-        console.error('Message:', error.message);
-        
-        res.status(500).json({ 
-            message: 'サーバー側のバリデーションエラーです。入力形式や必須項目を確認してください。',
-            details: error.message 
+        logger.error('PROJECT CREATE ERROR', { context: 'projectController', code: error.code, error: error.message });
+        if (error.code === 'P2002') {
+            return res.status(409).json({ message: 'すでに同じ内容の企画が登録されています。' });
+        }
+        if (error.code === 'P2003') {
+            return res.status(400).json({ message: '関連するデータが見つかりません。入力内容を確認してください。' });
+        }
+        res.status(500).json({
+            message: '入力内容を確認してください。',
+            ...(process.env.NODE_ENV === 'development' && { details: error.message }),
         });
     }
 };
@@ -481,9 +602,20 @@ export const updateProject = async (req, res) => {
                 designDetails, size, flowerTypes,
                 minContributionAmount: minContributionAmount ? parseInt(minContributionAmount, 10) : undefined
             },
+            include: { planner: { select: { handleName: true } } },
         });
+
+        // Typesense インデックスを非同期で同期（失敗してもレスポンスには影響させない）
+        indexProject(updatedProject).catch(err =>
+            logger.error('Update sync failed', { context: 'Typesense', error: err.message })
+        );
+
         res.status(200).json(updatedProject);
     } catch (error) {
+        if (error.code === 'P2025') {
+            return res.status(404).json({ message: '企画が見つかりません。' });
+        }
+        logger.error('updateProject error', { context: 'projectController', error: error.message });
         res.status(500).json({ message: '企画の更新中にエラーが発生しました。' });
     }
 };
@@ -504,24 +636,46 @@ export const updateTargetAmount = async (req, res) => {
             return res.status(400).json({ message: '現在の支援額以上の金額を設定してください。' });
         }
 
-        const updatedProject = await prisma.project.update({
-            where: { id: projectId },
-            data: {
-                targetAmount: parsedAmount,
-                status: (project.collectedAmount >= parsedAmount) ? 'SUCCESSFUL' : project.status,
-            },
-        });
+        // トランザクション: project更新 + 支援者への通知を一括処理
+        const updatedProject = await prisma.$transaction(async (tx) => {
+            const updated = await tx.project.update({
+                where: { id: projectId },
+                data: {
+                    targetAmount: parsedAmount,
+                    status: (project.collectedAmount >= parsedAmount) ? 'SUCCESSFUL' : project.status,
+                },
+            });
 
-        const pledges = await prisma.pledge.findMany({ where: { projectId }, select: { userId: true } });
-        const uniqueUserIds = [...new Set(pledges.map(p => p.userId))];
-        for (const id of uniqueUserIds) {
-            if (id && id !== userId) {
-                await createNotification(id, 'PROJECT_STATUS_UPDATE', `企画「${project.title}」の目標金額が変更されました。`, projectId, `/projects/${projectId}`);
-            }
-        }
+            const pledges = await tx.pledge.findMany({
+                where: { projectId },
+                select: { userId: true },
+            });
+            const uniqueUserIds = [...new Set(pledges.map(p => p.userId))].filter(id => id && id !== userId).slice(0, 100);
+
+            await Promise.all(
+                uniqueUserIds.map(id =>
+                    createNotification(id, 'PROJECT_STATUS_UPDATE', `企画「${project.title}」の目標金額が${parsedAmount.toLocaleString()}円に変更されました。`, projectId, `/projects/${projectId}`)
+                )
+            );
+
+            // プッシュ通知はトランザクション外副作用なのでノンブロッキング送信
+            uniqueUserIds.forEach(id => {
+                sendPushNotification(id, {
+                    title: '📢 企画の目標金額が変更されました',
+                    body: `「${project.title}」の目標金額が${parsedAmount.toLocaleString()}円に変更されました`,
+                    url: `/projects/${projectId}`,
+                }).catch(() => {});
+            });
+
+            return updated;
+        });
 
         res.status(200).json(updatedProject);
     } catch (error) {
+        if (error.code === 'P2025') {
+            return res.status(404).json({ message: '対象の企画が見つかりません。' });
+        }
+        logger.error('updateTargetAmount error', { context: 'projectController', error: error.message });
         res.status(500).json({ message: 'エラーが発生しました。' });
     }
 };
@@ -622,14 +776,30 @@ export const cancelProject = async (req, res) => {
                             where: { id: pledge.userId },
                             data: { points: { increment: refundForPledge } }
                         });
-                        
+
+                        await tx.pointTransaction.create({
+                            data: {
+                                userId: pledge.userId,
+                                amount: refundForPledge,
+                                type: 'PLEDGE_REFUND',
+                                note: `企画キャンセル返金: ${project.title}`,
+                                projectId: project.id,
+                            },
+                        }).catch(err => logger.error('refund record failed', { context: 'PointTransaction', error: err.message }));
+
                         await createNotification(
-                            pledge.userId, 
-                            'PROJECT_STATUS_UPDATE', 
-                            `企画「${project.title}」が中止となりました。規定に基づき、${refundForPledge.toLocaleString()}ptが返還されました。`, 
-                            projectId, 
+                            pledge.userId,
+                            'PROJECT_STATUS_UPDATE',
+                            `企画「${project.title}」が中止となりました。規定に基づき、${refundForPledge.toLocaleString()}ptが返還されました。`,
+                            projectId,
                             `/projects/${projectId}`
                         );
+
+                        sendPushNotification(pledge.userId, {
+                            title: '😔 企画がキャンセルされました',
+                            body: `「${project.title}」がキャンセルされました。ポイントが返却されます`,
+                            url: `/projects/${project.id}`,
+                        }).catch(() => {});
                     }
                 }
             }
@@ -693,12 +863,38 @@ export const completeProject = async (req, res) => {
             },
         });
 
-        const pledges = await prisma.pledge.findMany({ where: { projectId }, distinct: ['userId'], include: { user: true } });
-        for (const pledge of pledges) {
-            if (pledge.user?.email) {
-                sendDynamicEmail(pledge.user.email, 'PROJECT_COMPLETED', { userName: pledge.user.handleName || 'さん', projectTitle: project.title, projectId });
-            }
-        }
+        const pledges = await prisma.pledge.findMany({
+            where: { projectId, userId: { not: null } },
+            distinct: ['userId'],
+            include: { user: { select: { id: true, email: true, handleName: true } } },
+        });
+        // N+1修正: 通知・メール送信を Promise.all でバッチ処理
+        await Promise.all(
+            pledges
+                .filter(p => p.userId)
+                .map(pledge => {
+                    const tasks = [
+                        createNotification(
+                            pledge.userId,
+                            'PROJECT_STATUS_UPDATE',
+                            `「${project.title}」が完成しました！🌸 証明書をダウンロードできます`,
+                            projectId,
+                            `/projects/${projectId}?completed=1`
+                        ),
+                    ];
+                    if (pledge.user?.email) {
+                        tasks.push(
+                            queueEmail(pledge.user.email, 'PROJECT_COMPLETED_BACKER', {
+                                userName: pledge.user.handleName || 'さん',
+                                projectTitle: project.title,
+                                projectId,
+                                pledgeId: pledge.id,
+                            })
+                        );
+                    }
+                    return Promise.all(tasks);
+                })
+        );
 
         res.status(200).json(completedProject);
     } catch (error) {
@@ -933,7 +1129,7 @@ export const updateProjectStatus = async (req, res) => {
         res.json(updated);
         
     } catch (error) {
-        console.error('Status Update Error:', error);
+        logger.error('Status Update Error', { context: 'projectController', error: error.message });
         res.status(500).json({ message: 'エラーが発生しました。' });
     }
 };
@@ -947,7 +1143,10 @@ export const getInstructionSheet = async (req, res) => {
     try {
         const project = await prisma.project.findUnique({
             where: { id: projectId },
-            include: { venue: true, planner: true }
+            include: {
+                venue: { select: { venueName: true } },
+                planner: { select: { handleName: true } }
+            }
         });
         if (!project) return res.status(404).json({ message: '企画なし' });
 
@@ -1009,9 +1208,7 @@ export const getProjectPosts = async (req, res) => {
 // 追加メモリ実装機能 (Mocks/Temporary)
 // ==========================================
 
-let MOOD_BOARDS = [];
-let OFFICIAL_REACTIONS = {};
-let DIGITAL_FLOWERS = [];
+// OFFICIAL_REACTIONS メモリ変数は削除 → Prisma (OfficialReaction) に移行
 
 export const getChatRoomInfo = async (req, res) => {
     const { roomId } = req.params;
@@ -1020,7 +1217,17 @@ export const getChatRoomInfo = async (req, res) => {
             where: { id: roomId },
             include: {
                 messages: { orderBy: { createdAt: 'asc' } },
-                offer: { include: { project: { include: { planner: true, quotation: { include: { items: true } } } }, florist: true } }
+                offer: {
+                    include: {
+                        project: {
+                            include: {
+                                planner: { select: { id: true, handleName: true, iconUrl: true } },
+                                quotation: { include: { items: true } }
+                            }
+                        },
+                        florist: { select: { id: true, platformName: true, iconUrl: true } }
+                    }
+                }
             }
         });
         if (!room) return res.status(404).json({ message: 'Room not found' });
@@ -1048,50 +1255,100 @@ export const getGalleryFeed = async (req, res) => {
     } catch(e) { res.status(500).json({ message: 'Error' }); }
 };
 
-export const addToMoodBoard = (req, res) => {
-    const { id } = req.params;
+export const addToMoodBoard = async (req, res) => {
+    const { id: projectId } = req.params;
     const { imageUrl, comment } = req.body;
-    const item = { id: Date.now().toString(), projectId: id, userId: req.user.id, userName: req.user.handleName, userIcon: req.user.iconUrl, imageUrl, comment, likes: 0, likedBy: [] };
-    MOOD_BOARDS.push(item);
-    res.status(201).json(item);
+    try {
+        const item = await prisma.moodBoardItem.create({
+            data: { projectId, userId: req.user.id, imageUrl, comment: comment || null },
+            include: { user: { select: { handleName: true, iconUrl: true } }, likes: true },
+        });
+        res.status(201).json(item);
+    } catch (e) { res.status(500).json({ message: 'Error' }); }
 };
-export const getMoodBoard = (req, res) => {
-    res.json(MOOD_BOARDS.filter(i => i.projectId === req.params.id));
+export const getMoodBoard = async (req, res) => {
+    try {
+        const items = await prisma.moodBoardItem.findMany({
+            where: { projectId: req.params.id },
+            include: { user: { select: { handleName: true, iconUrl: true } }, likes: true },
+            orderBy: { createdAt: 'desc' },
+        });
+        res.json(items);
+    } catch (e) { res.status(500).json({ message: 'Error' }); }
 };
-export const likeMoodBoardItem = (req, res) => {
+export const likeMoodBoardItem = async (req, res) => {
     const { itemId } = req.params;
-    const item = MOOD_BOARDS.find(i => i.id === itemId);
-    if(!item) return res.status(404).send();
-    const idx = item.likedBy.indexOf(req.user.id);
-    if(idx === -1) { item.likedBy.push(req.user.id); item.likes++; }
-    else { item.likedBy.splice(idx, 1); item.likes--; }
-    res.json(item);
+    const userId = req.user.id;
+    try {
+        const existing = await prisma.moodBoardLike.findUnique({
+            where: { moodBoardItemId_userId: { moodBoardItemId: itemId, userId } },
+        });
+        if (existing) {
+            await prisma.moodBoardLike.delete({ where: { moodBoardItemId_userId: { moodBoardItemId: itemId, userId } } });
+        } else {
+            await prisma.moodBoardLike.create({ data: { moodBoardItemId: itemId, userId } });
+        }
+        const item = await prisma.moodBoardItem.findUnique({
+            where: { id: itemId },
+            include: { user: { select: { handleName: true, iconUrl: true } }, likes: true },
+        });
+        if (!item) return res.status(404).send();
+        res.json(item);
+    } catch (e) { res.status(500).json({ message: 'Error' }); }
 };
-export const deleteMoodBoardItem = (req, res) => {
+export const deleteMoodBoardItem = async (req, res) => {
     const { itemId } = req.params;
-    const idx = MOOD_BOARDS.findIndex(i => i.id === itemId);
-    if(idx !== -1) MOOD_BOARDS.splice(idx, 1);
-    res.status(204).send();
+    try {
+        await prisma.moodBoardItem.delete({ where: { id: itemId } });
+        res.status(204).send();
+    } catch (e) { res.status(500).json({ message: 'Error' }); }
 };
 
-export const officialReact = (req, res) => {
-    const { id } = req.params;
-    OFFICIAL_REACTIONS[id] = { timestamp: new Date(), comment: "Thank you!!" };
-    res.json({ success: true });
-};
-export const getOfficialStatus = (req, res) => {
-    res.json(OFFICIAL_REACTIONS[req.params.id] || null);
+export const officialReact = async (req, res) => {
+    try {
+        const { id: projectId } = req.params;
+        const { comment } = req.body;
+        const result = await prisma.officialReaction.upsert({
+            where: { projectId },
+            update: { comment: comment ?? 'Thank you!!' },
+            create: { projectId, comment: comment ?? 'Thank you!!' },
+        });
+        res.json(result);
+    } catch (err) {
+        logger.error('upsert error', { context: 'OfficialReaction', error: err.message });
+        res.status(500).json({ message: 'リアクションの保存に失敗しました。' });
+    }
 };
 
-export const sendDigitalFlower = (req, res) => {
-    const { id } = req.params;
-    const { senderName, color, message, style } = req.body;
-    const flower = { id: Date.now().toString(), projectId: id, senderName, color, message, style, createdAt: new Date() };
-    DIGITAL_FLOWERS.push(flower);
-    res.status(201).json(flower);
+export const getOfficialStatus = async (req, res) => {
+    try {
+        const { id: projectId } = req.params;
+        const reaction = await prisma.officialReaction.findUnique({ where: { projectId } });
+        res.json(reaction || null);
+    } catch (err) {
+        logger.error('find error', { context: 'OfficialReaction', error: err.message });
+        res.status(500).json({ message: 'リアクションの取得に失敗しました。' });
+    }
 };
-export const getDigitalFlowers = (req, res) => {
-    res.json(DIGITAL_FLOWERS.filter(f => f.projectId === req.params.id));
+
+export const sendDigitalFlower = async (req, res) => {
+    const { id: projectId } = req.params;
+    const { senderName, color, message } = req.body;
+    try {
+        const flower = await prisma.digitalFlower.create({
+            data: { projectId, senderName, color, message: message || null },
+        });
+        res.status(201).json(flower);
+    } catch (e) { res.status(500).json({ message: 'Error' }); }
+};
+export const getDigitalFlowers = async (req, res) => {
+    try {
+        const flowers = await prisma.digitalFlower.findMany({
+            where: { projectId: req.params.id },
+            orderBy: { createdAt: 'desc' },
+        });
+        res.json(flowers);
+    } catch (e) { res.status(500).json({ message: 'Error' }); }
 };
 
 
@@ -1154,7 +1411,7 @@ export const acceptIllustratorApplication = async (req, res) => {
 
         res.status(200).json({ message: '採用と仮払いが完了しました。' });
     } catch (error) {
-        console.error(error);
+        logger.error('acceptIllustratorApplication', { context: 'projectController', error: error.message });
         res.status(400).json({ message: error.message || '採用処理に失敗しました。' });
     }
 };
@@ -1203,7 +1460,7 @@ export const acceptIllustrationDelivery = async (req, res) => {
 
         res.status(200).json({ message: '検収が完了し、クリエイターにポイントが支払われました。' });
     } catch (error) {
-        console.error(error);
+        logger.error('acceptIllustrationDelivery', { context: 'projectController', error: error.message });
         res.status(500).json({ message: '検収処理に失敗しました。' });
     }
 };
@@ -1249,7 +1506,7 @@ export const updateLogisticsStatus = async (req, res) => {
 
         res.json(updatedProject);
     } catch (error) {
-        console.error('Logistics Update Error:', error);
+        logger.error('Logistics Update Error', { context: 'projectController', error: error.message });
         res.status(500).json({ message: 'ステータスの更新に失敗しました。' });
     }
 };
@@ -1280,12 +1537,15 @@ export const updateProjectDeadlineAdmin = async (req, res) => {
             data: { deadline: parsedDate }
         });
 
-        res.status(200).json({ 
-            message: '締切日を強制更新しました。', 
-            project: updatedProject 
+        res.status(200).json({
+            message: '締切日を強制更新しました。',
+            project: updatedProject
         });
     } catch (error) {
-        console.error('Deadline Update Error:', error);
+        logger.error('Deadline Update Error', { context: 'projectController', error: error.message });
+        if (error.code === 'P2025') {
+            return res.status(404).json({ message: '対象の企画が見つかりません。' });
+        }
         res.status(500).json({ message: '締切の更新に失敗しました。' });
     }
 };
@@ -1329,7 +1589,7 @@ export const exportPledgesCSV = async (req, res) => {
         res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${filename}`);
         res.send(csv);
     } catch (err) {
-        console.error('exportPledgesCSV:', err);
+        logger.error('exportPledgesCSV', { context: 'projectController', error: err.message });
         res.status(500).json({ message: 'エクスポートに失敗しました' });
     }
 };
@@ -1341,25 +1601,39 @@ export const getMonthlyRanking = async (req, res) => {
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
+    // ページネーションパラメータ（既存クライアントは limit/offset を送らないので後方互換）
+    const limit = Math.min(48, Math.max(1, parseInt(req.query.limit) || 12));
+    const offset = Math.max(0, parseInt(req.query.offset) || 0);
+
+    const projectWhere = {
+        status: { in: ['FUNDRAISING', 'SUCCESSFUL', 'COMPLETED'] },
+        projectType: 'PUBLIC',
+        createdAt: { gte: startOfMonth },
+    };
+
     try {
-        // 今月の支援額トップ企画
-        const topProjects = await prisma.project.findMany({
-            where: {
-                status: { in: ['FUNDRAISING', 'SUCCESSFUL', 'COMPLETED'] },
-                projectType: 'PUBLIC',
-                createdAt: { gte: startOfMonth },
-            },
-            select: {
-                id: true, title: true, imageUrl: true,
-                collectedAmount: true, targetAmount: true,
-                planner: { select: { handleName: true, iconUrl: true } },
-                _count: { select: { pledges: true } },
-            },
-            orderBy: { collectedAmount: 'desc' },
-            take: 10,
-        });
+        // 今月の支援額トップ企画（ページネーション対応）
+        const [topProjects, projectTotal] = await Promise.all([
+            prisma.project.findMany({
+                where: projectWhere,
+                select: {
+                    id: true, title: true, imageUrl: true,
+                    collectedAmount: true, targetAmount: true,
+                    planner: { select: { handleName: true, iconUrl: true } },
+                    _count: { select: { pledges: true } },
+                },
+                orderBy: { collectedAmount: 'desc' },
+                take: limit,
+                skip: offset,
+            }),
+            prisma.project.count({ where: projectWhere }),
+        ]);
 
         // 今月の支援額トップユーザー
+        // Prisma ORM では GROUP BY + SUM の集計が困難なため $queryRaw を使用
+        // - SUM(p.amount)::int: Pledgeテーブルの支援額合計をint型にキャスト（BigInt回避）
+        // - createdAt >= startOfMonth: 当月1日0時以降の支援のみ集計
+        // - userId IS NOT NULL: ゲスト支援（userId=null）を除外
         const topPledgers = await prisma.$queryRaw`
             SELECT u.id, u."handleName", u."iconUrl", SUM(p.amount)::int AS total
             FROM "Pledge" p
@@ -1373,8 +1647,13 @@ export const getMonthlyRanking = async (req, res) => {
 
         res.json({
             month: `${now.getFullYear()}年${now.getMonth() + 1}月`,
+            // ページネーションメタ（既存フィールドはそのまま）
+            total: projectTotal,
+            limit,
+            offset,
+            hasMore: offset + limit < projectTotal,
             topProjects: topProjects.map((p, i) => ({
-                rank: i + 1,
+                rank: offset + i + 1,
                 id: p.id,
                 title: p.title,
                 imageUrl: p.imageUrl,
@@ -1392,7 +1671,7 @@ export const getMonthlyRanking = async (req, res) => {
             })),
         });
     } catch (err) {
-        console.error('getMonthlyRanking:', err);
+        logger.error('getMonthlyRanking', { context: 'projectController', error: err.message });
         res.status(500).json({ message: 'ランキング取得に失敗しました' });
     }
 };
@@ -1424,7 +1703,7 @@ export const applyAsSponsor = async (req, res) => {
         });
         res.status(201).json(sponsor);
     } catch (err) {
-        console.error('applyAsSponsor:', err);
+        logger.error('applyAsSponsor', { context: 'projectController', error: err.message });
         res.status(500).json({ message: '申請に失敗しました' });
     }
 };
@@ -1485,7 +1764,7 @@ export const getPersonalizedFeed = async (req, res) => {
 
         res.json({ projects: recommended, personalized: regions.length > 0 });
     } catch (err) {
-        console.error('getPersonalizedFeed:', err);
+        logger.error('getPersonalizedFeed', { context: 'projectController', error: err.message });
         res.status(500).json({ message: 'フィード取得に失敗しました' });
     }
 };
@@ -1554,7 +1833,259 @@ ${florists.map(f => `ID:${f.id} 店名:${f.shopName} 住所:${f.address} 価格�
 
         res.json({ florists: result, explanation: 'AIがあなたの企画に最適な花屋を選びました' });
     } catch (err) {
-        console.error('matchFlorists:', err);
+        logger.error('matchFlorists', { context: 'projectController', error: err.message });
         res.status(500).json({ message: 'マッチングに失敗しました' });
+    }
+};
+
+// ==========================================
+// QRコード生成
+// ==========================================
+
+// GET /api/projects/:id/qr → QRコード PNG を返す（認証不要・公開）
+export const getProjectQR = async (req, res) => {
+    const { id } = req.params;
+    try {
+        const project = await prisma.project.findUnique({
+            where: { id },
+            select: { id: true, title: true },
+        });
+
+        if (!project) {
+            return res.status(404).json({ message: '企画が見つかりません。' });
+        }
+
+        const qrUrl = `https://www.flastal.com/qr/${project.id}`;
+
+        const pngBuffer = await QRCode.toBuffer(qrUrl, {
+            type: 'png',
+            width: 400,
+            margin: 2,
+            color: {
+                dark: '#1a1a2e',
+                light: '#ffffff',
+            },
+        });
+
+        res.setHeader('Content-Type', 'image/png');
+        res.setHeader('Content-Disposition', `inline; filename="flastal-qr-${project.id}.png"`);
+        res.setHeader('Cache-Control', 'public, max-age=86400');
+        res.end(pngBuffer);
+    } catch (err) {
+        logger.error('getProjectQR', { context: 'projectController', error: err.message });
+        res.status(500).json({ message: 'QRコードの生成に失敗しました' });
+    }
+};
+
+// ==========================================
+// ★ 参加証明書PDF生成
+// ==========================================
+export const generateCertificate = async (req, res) => {
+    try {
+        const { id: projectId, pledgeId } = req.params;
+        const userId = req.user.id;
+
+        // pledgeの検証
+        const pledge = await prisma.pledge.findUnique({
+            where: { id: pledgeId },
+            include: {
+                user: { select: { handleName: true } },
+                project: { select: { id: true, title: true, status: true, targetArtist: true, updatedAt: true } },
+            },
+        });
+
+        if (!pledge) {
+            return res.status(404).json({ message: '支援情報が見つかりません。' });
+        }
+        if (pledge.projectId !== projectId) {
+            return res.status(400).json({ message: '不正なリクエストです。' });
+        }
+        if (pledge.userId !== userId) {
+            return res.status(403).json({ message: 'この証明書を取得する権限がありません。' });
+        }
+
+        const project = pledge.project;
+        if (project.status !== 'COMPLETED') {
+            return res.status(400).json({ message: 'プロジェクトがまだ完了していません。' });
+        }
+
+        const backerName = pledge.user?.handleName || pledge.guestName || '支援者';
+        const completionDate = new Date(project.updatedAt).toLocaleDateString('ja-JP', {
+            year: 'numeric', month: 'long', day: 'numeric'
+        });
+
+        // PDFKit でPDF生成
+        const doc = new PDFDocument({
+            size: 'A4',
+            margin: 60,
+        });
+
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="flastal-certificate-${pledgeId}.pdf"`);
+        doc.pipe(res);
+
+        // 背景装飾（薄いピンク枠）
+        doc.rect(30, 30, doc.page.width - 60, doc.page.height - 60)
+           .lineWidth(2)
+           .strokeColor('#f472b6')
+           .stroke();
+
+        doc.rect(36, 36, doc.page.width - 72, doc.page.height - 72)
+           .lineWidth(0.5)
+           .strokeColor('#fda4af')
+           .stroke();
+
+        // ヘッダー: FLASTALロゴテキスト
+        doc.font('Helvetica-Bold')
+           .fontSize(28)
+           .fillColor('#ec4899')
+           .text('FLASTAL', { align: 'center' });
+
+        doc.moveDown(0.3);
+        doc.font('Helvetica')
+           .fontSize(10)
+           .fillColor('#9ca3af')
+           .text('フラスタ クラウドファンディングプラットフォーム', { align: 'center' });
+
+        // 区切り線
+        doc.moveDown(1);
+        const lineY = doc.y;
+        doc.moveTo(80, lineY).lineTo(doc.page.width - 80, lineY)
+           .lineWidth(1).strokeColor('#f9a8d4').stroke();
+
+        // タイトル
+        doc.moveDown(1.5);
+        doc.font('Helvetica-Bold')
+           .fontSize(22)
+           .fillColor('#1e293b')
+           .text('フラスタ参加証明書', { align: 'center' });
+
+        doc.moveDown(0.3);
+        doc.font('Helvetica')
+           .fontSize(11)
+           .fillColor('#6b7280')
+           .text('Certificate of Participation', { align: 'center' });
+
+        // 本文
+        doc.moveDown(2);
+        const contentX = 100;
+        const labelWidth = 140;
+        const valueX = contentX + labelWidth;
+
+        const rows = [
+            { label: '支援者名', value: backerName },
+            { label: 'プロジェクト名', value: project.title },
+            { label: '贈り先アーティスト', value: project.targetArtist || '未設定' },
+            { label: '支援金額', value: `¥${pledge.amount.toLocaleString()}` },
+            { label: '完成日', value: completionDate },
+        ];
+
+        rows.forEach((row) => {
+            const rowY = doc.y;
+            doc.font('Helvetica-Bold')
+               .fontSize(10)
+               .fillColor('#9ca3af')
+               .text(row.label, contentX, rowY, { width: labelWidth - 10 });
+            doc.font('Helvetica')
+               .fontSize(11)
+               .fillColor('#1e293b')
+               .text(row.value, valueX, rowY, { width: doc.page.width - valueX - 80 });
+            doc.moveDown(1.2);
+        });
+
+        // メッセージ
+        doc.moveDown(1.5);
+        const msgLineY = doc.y;
+        doc.moveTo(80, msgLineY).lineTo(doc.page.width - 80, msgLineY)
+           .lineWidth(0.5).strokeColor('#f9a8d4').stroke();
+
+        doc.moveDown(1.5);
+        doc.font('Helvetica')
+           .fontSize(12)
+           .fillColor('#374151')
+           .text('このフラスタの制作にご参加いただきありがとうございました。', { align: 'center' });
+
+        doc.moveDown(0.5);
+        doc.font('Helvetica')
+           .fontSize(10)
+           .fillColor('#9ca3af')
+           .text('あなたの応援がアーティストの笑顔をつくりました。🌸', { align: 'center' });
+
+        // フッター
+        doc.moveDown(3);
+        doc.font('Helvetica')
+           .fontSize(9)
+           .fillColor('#d1d5db')
+           .text(`証明書ID: ${pledgeId}`, { align: 'center' });
+
+        doc.end();
+    } catch (err) {
+        logger.error('generateCertificate', { context: 'projectController', error: err.message });
+        res.status(500).json({ message: '証明書の生成に失敗しました。' });
+    }
+};
+
+// ==========================================
+// POST /api/projects/:id/broadcast
+// 企画者から全支援者への一斉メッセージ送信
+// ==========================================
+export const broadcastMessage = async (req, res) => {
+    try {
+        const { id: projectId } = req.params;
+        const { subject, message, tierId } = req.body;
+        const userId = req.user.id;
+
+        if (!subject || !message) {
+            return res.status(400).json({ message: '件名とメッセージを入力してください。' });
+        }
+        if (message.length > 2000) {
+            return res.status(400).json({ message: 'メッセージは2000文字以内で入力してください。' });
+        }
+
+        const project = await prisma.project.findUnique({
+            where: { id: projectId },
+            select: { title: true, plannerId: true },
+        });
+        if (!project) return res.status(404).json({ message: '企画が見つかりません。' });
+        if (project.plannerId !== userId) return res.status(403).json({ message: '権限がありません。' });
+
+        const pledgeWhere = { projectId, userId: { not: null } };
+        if (tierId) pledgeWhere.pledgeTierId = tierId;
+
+        const pledgers = await prisma.pledge.findMany({
+            where: pledgeWhere,
+            include: { user: { select: { id: true, email: true, handleName: true } } },
+            distinct: ['userId'],
+        });
+
+        const { createNotification } = await import('../utils/notification.js');
+        const { queueEmail } = await import('../utils/email.js');
+
+        let sent = 0;
+        for (const pledge of pledgers) {
+            if (!pledge.userId || !pledge.user) continue;
+            await createNotification(
+                pledge.userId,
+                'PROJECT_STATUS_UPDATE',
+                `【${project.title}】${subject}`,
+                projectId,
+                `/projects/${projectId}`
+            );
+            if (pledge.user.email) {
+                queueEmail(pledge.user.email, 'BROADCAST_MESSAGE', {
+                    userName: pledge.user.handleName || 'さん',
+                    projectTitle: project.title,
+                    subject,
+                    message: message.replace(/\n/g, '<br>'),
+                    projectId,
+                });
+                sent++;
+            }
+        }
+
+        res.json({ message: `${sent}人の支援者にメッセージを送信しました。`, sent });
+    } catch (err) {
+        logger.error('broadcastMessage', { context: 'projectController', error: err.message });
+        res.status(500).json({ message: 'エラーが発生しました。' });
     }
 };

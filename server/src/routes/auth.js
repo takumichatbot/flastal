@@ -1,8 +1,10 @@
 import express from 'express';
+import crypto from 'crypto';
 import * as authController from '../controllers/authController.js';
 import { validate, loginSchema, registerSchema } from '../middleware/validate.js';
 import * as totpController from '../controllers/totpController.js';
 import { authenticateToken } from '../middleware/auth.js';
+import { authLimiter } from '../middleware/rateLimiter.js';
 import prisma from '../config/prisma.js';
 import jwt from 'jsonwebtoken';
 
@@ -35,10 +37,12 @@ router.post('/organizers/login', authController.loginOrganizer);
 // ==========================================
 // 5. 共通認証機能
 // ==========================================
+router.post('/auth/refresh', authController.refreshAccessToken);
+router.post('/auth/logout', authController.revokeRefreshToken);
 router.post('/auth/verify', authController.verifyEmail);
 router.post('/auth/resend-verification', authController.resendVerification);
-router.post('/forgot-password', authController.forgotPassword);
-router.post('/reset-password', authController.resetPassword);
+router.post('/forgot-password', authLimiter, authController.forgotPassword);
+router.post('/reset-password', authLimiter, authController.resetPassword);
 
 // ==========================================
 // 6. 管理者 (Admin) 
@@ -57,17 +61,36 @@ router.post('/auth/totp/disable', authenticateToken, totpController.disableTotp)
 // 8. Google OAuth
 // ==========================================
 router.get('/auth/google', (req, res) => {
-  const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
-    `client_id=${process.env.GOOGLE_CLIENT_ID}` +
-    `&redirect_uri=${encodeURIComponent(process.env.GOOGLE_REDIRECT_URI || 'https://flastal-backend.onrender.com/api/auth/google/callback')}` +
-    `&response_type=code` +
-    `&scope=openid%20email%20profile`;
-  res.redirect(googleAuthUrl);
+  // CSRF対策: stateトークンを生成してHttpOnly Cookieに保存（10分有効）
+  const state = crypto.randomBytes(16).toString('hex');
+  res.cookie('oauth_state', state, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: 10 * 60 * 1000, // 10分
+  });
+
+  const params = new URLSearchParams({
+    client_id: process.env.GOOGLE_CLIENT_ID,
+    redirect_uri: process.env.GOOGLE_REDIRECT_URI || 'https://flastal-backend.onrender.com/api/auth/google/callback',
+    response_type: 'code',
+    scope: 'openid email profile',
+    state,
+  });
+  res.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params}`);
 });
 
 router.get('/auth/google/callback', async (req, res) => {
-  const { code } = req.query;
+  const { code, state } = req.query;
   const frontendUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://flastal.com';
+
+  // CSRF検証: リクエストのstateとCookieのstateが一致するか確認
+  const savedState = req.cookies?.oauth_state;
+  if (!state || !savedState || state !== savedState) {
+    return res.redirect(`${frontendUrl}/login?error=csrf_verification_failed`);
+  }
+  // 使用済みstateを削除
+  res.clearCookie('oauth_state');
 
   try {
     // code でアクセストークン取得
@@ -116,14 +139,11 @@ router.get('/auth/google/callback', async (req, res) => {
       });
     }
 
-    const token = jwt.sign(
-      { id: user.id, email: user.email, handleName: user.handleName, role: user.role, status: 'APPROVED' },
-      process.env.JWT_SECRET,
-      { expiresIn: '30d' }
-    );
+    const { accessToken, refreshToken: googleRefreshToken } = await authController.generateTokensForOAuth({
+      id: user.id, email: user.email, handleName: user.handleName, role: user.role, status: 'APPROVED'
+    });
 
-    // フロントエンドにリダイレクト（token を URL で渡す）
-    res.redirect(`${frontendUrl}/auth/callback?token=${token}`);
+    res.redirect(`${frontendUrl}/auth/callback?token=${accessToken}&refreshToken=${googleRefreshToken}`);
   } catch (err) {
     console.error('Google OAuth error:', err);
     res.redirect(`${frontendUrl}/login?error=google_auth_failed`);

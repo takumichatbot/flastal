@@ -21,23 +21,39 @@ const RULES = [
     },
 ];
 
+function getSeverity(flags) {
+    if (flags.some(f => f.reason === 'LARGE_AMOUNT') && flags.length >= 2) return 'HIGH';
+    if (flags.some(f => f.reason === 'HIGH_VELOCITY') || flags.some(f => f.reason === 'LARGE_AMOUNT')) return 'MEDIUM';
+    return 'LOW';
+}
+
 export async function detectFraud(userId, projectId, amount) {
     const results = await Promise.all(RULES.map(r => r(userId, projectId, amount)));
     const flags = results.filter(Boolean);
     if (flags.length === 0) return null;
 
-    // FraudFlag レコードを作成（テーブルがなければスキップ）
-    try {
-        await prisma.fraudFlag.create({
-            data: {
-                userId,
-                projectId,
-                reasons: flags.map(f => f.reason),
-                details: flags.map(f => f.detail).join(' / '),
-            },
-        });
-    } catch (_) {
-        // テーブル未作成の場合は無視（schema.prisma に後で追加）
+    const severity = getSeverity(flags);
+
+    // FraudFlag レコードを作成
+    await prisma.fraudFlag.create({
+        data: {
+            userId,
+            projectId,
+            reasons: flags.map(f => f.reason),
+            details: flags.map(f => f.detail).join(' / '),
+        },
+    }).catch(err => console.error('[FraudDetection] Failed to save flag:', err.message));
+
+    // HIGH レベルは管理者にメール通知
+    if (severity === 'HIGH') {
+        import('./email.js').then(({ queueEmail }) => {
+            queueEmail('admin@flastal.com', 'FRAUD_ALERT', {
+                type: flags.map(f => f.reason).join(', '),
+                description: flags.map(f => f.detail).join(' / '),
+                userId: userId || '不明',
+                projectId: projectId || '不明',
+            });
+        }).catch(() => {});
     }
 
     return flags;

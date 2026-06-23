@@ -28,20 +28,21 @@ export default function socketHandler(io) {
   // ★ 1. Socket.IO用 JWT認証ミドルウェア
   // ===================================
   io.use((socket, next) => {
-    const token = socket.handshake.auth.token; // クライアント側は { auth: { token: "Bearer ..." } } で接続
+    const token = socket.handshake.auth.token;
 
+    // トークンなし → ゲスト扱いで接続許可（live視聴など認証不要の機能向け）
     if (!token) {
-      return next(new Error('認証エラー: トークンがありません。'));
+      socket.user = { id: 'guest', role: 'GUEST' };
+      return next();
     }
 
-    // "Bearer " を除去して検証
     const tokenString = token.startsWith('Bearer ') ? token.split(' ')[1] : token;
 
     jwt.verify(tokenString, process.env.JWT_SECRET, (err, decoded) => {
       if (err) {
-        return next(new Error('認証エラー: トークンが無効です。'));
+        socket.user = { id: 'guest', role: 'GUEST' };
+        return next();
       }
-      // socketオブジェクトにユーザー情報を保存 (id, role, handleName等)
       socket.user = decoded;
       next();
     });
@@ -55,17 +56,20 @@ export default function socketHandler(io) {
 
     // --- ルーム参加 ---
     socket.on('joinRoom', (roomId) => {
+      if (socket.user.role === 'GUEST') return;
       socket.join(roomId);
       console.log(`User ${socket.user.id} joined room ${roomId}`);
     });
 
     socket.on('joinProjectRoom', (projectId) => {
+      if (socket.user.role === 'GUEST') return;
       socket.join(projectId);
       console.log(`User ${socket.user.id} joined project room ${projectId}`);
     });
 
     // --- 1対1チャット (お花屋さん vs ユーザー) ---
     socket.on('sendMessage', async ({ roomId, content, messageType, fileUrl, fileName }) => {
+      if (socket.user.role === 'GUEST') return;
       try {
         const userId = socket.user.id;
         const userRole = socket.user.role;
@@ -163,6 +167,7 @@ export default function socketHandler(io) {
 
     // --- グループチャット (企画ごとの掲示板) ---
     socket.on('sendGroupChatMessage', async ({ projectId, templateId, content, messageType, fileUrl, fileName }) => {
+      if (socket.user.role === 'GUEST') return;
       try {
         const userId = socket.user.id;
         const userRole = socket.user.role;
@@ -254,6 +259,7 @@ export default function socketHandler(io) {
 
     // --- 管理者個別チャット ---
     socket.on('sendAdminMessage', async ({ roomId, content }) => {
+      if (socket.user.role === 'GUEST') return;
       const senderId = socket.user.id;
       const senderRole = socket.user.role;
 
@@ -328,6 +334,7 @@ export default function socketHandler(io) {
 
     // --- リアクション機能 (DB直接操作版) ---
     socket.on('handleReaction', async ({ messageId, emoji }) => {
+      if (socket.user.role === 'GUEST') return;
       const userId = socket.user.id;
 
       if (!messageId || !emoji) return;
@@ -377,9 +384,39 @@ export default function socketHandler(io) {
       }
     });
 
+    // --- ライブ配信ルーム参加（認証不要で参加できるよう未認証でも処理） ---
+    socket.on('join_live', (sessionId) => {
+      socket.join(`live:${sessionId}`);
+    });
+
+    // --- 受発注チャットルーム参加 ---
+    socket.on('join_order_chat', (orderId) => {
+      if (socket.user.role === 'GUEST') return;
+      socket.join(`order-chat:${orderId}`);
+      console.log(`User ${socket.user.id} joined order-chat room: order-chat:${orderId}`);
+    });
+
     // --- 切断 ---
-    socket.on('disconnect', () => {
-      console.log('user disconnected:', socket.user.id);
+    socket.on('disconnect', (reason) => {
+      const userId = socket.user?.id;
+      console.log(`[Socket] Disconnected: userId=${userId}, reason=${reason}`);
+
+      // 参加していたルームを取得し（socket.id 自身を除く）、各ルームに退出通知を送る
+      // ※ Socket.IO は disconnect 時に自動で全ルームを leave するが、
+      //   他メンバーへの通知は手動で行う必要がある
+      const rooms = Array.from(socket.rooms).filter(r => r !== socket.id);
+      rooms.forEach(room => {
+        socket.to(room).emit('userLeft', { userId, socketId: socket.id });
+      });
+
+      // 認証済みユーザーの場合、全体にオフライン状態をブロードキャスト
+      if (userId && userId !== 'guest') {
+        socket.broadcast.emit('userOffline', { userId });
+      }
+
+      // メモリリーク防止: 全イベントリスナーをクリーンアップ
+      // ※ 上記の切断処理がすべて完了した後に呼び出すこと
+      socket.removeAllListeners();
     });
   });
 }

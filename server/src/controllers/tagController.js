@@ -1,4 +1,5 @@
 import prisma from '../config/prisma.js';
+import { logger } from '../utils/logger.js';
 
 const DEFAULT_TAGS = [
     { name: 'アイドル・アーティスト', slug: 'idol',        color: '#ec4899' },
@@ -39,6 +40,29 @@ export const getProjectTags = async (req, res) => {
         });
         res.json(rows.map(r => r.tag));
     } catch {
+        res.status(500).json({ message: '取得に失敗しました' });
+    }
+};
+
+// GET /api/projects/tags/used - 公開企画で実際に使用されているタグ一覧
+export const getUsedTags = async (req, res) => {
+    try {
+        const rows = await prisma.projectTag.findMany({
+            where: {
+                project: {
+                    status: { not: 'DRAFT' },
+                    projectType: 'PUBLIC',
+                },
+            },
+            include: {
+                tag: { select: { id: true, name: true, slug: true, color: true } },
+            },
+            distinct: ['tagId'],
+        });
+        const tags = rows.map(r => r.tag).sort((a, b) => a.name.localeCompare(b.name, 'ja'));
+        res.json(tags);
+    } catch (err) {
+        logger.error('使用タグ取得エラー', { context: 'tagController', error: err.message });
         res.status(500).json({ message: '取得に失敗しました' });
     }
 };

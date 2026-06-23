@@ -1,5 +1,6 @@
 import { Resend } from 'resend';
 import prisma from '../config/prisma.js';
+import { logger } from './logger.js';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const FROM_EMAIL = process.env.EMAIL_FROM || 'FLASTAL <noreply@flastal.com>';
@@ -176,12 +177,13 @@ const DEFAULT_TEMPLATES = {
     subject: '【FLASTAL】😔 オファーが辞退されました',
     body: createBaseHtml('オファー辞退のお知らせ', `
       <p class="greeting">{{plannerName}} 様</p>
-      <p class="message">残念ながら、お花屋さんがオファーを辞退しました。他のお花屋さんへオファーを出してみましょう。</p>
+      <p class="message">残念ながら、<strong>{{floristName}}</strong>がオファーを辞退しました。他のお花屋さんへオファーを出してみましょう。</p>
       <div class="highlight">
         <div class="highlight-label">企画</div>
         <div class="highlight-value">{{projectTitle}}</div>
       </div>
-      <div class="cta"><a href="${APP_URL}/florists" class="btn">他のお花屋さんを探す</a></div>
+      {{declinationReasonBlock}}
+      <div class="cta"><a href="{{searchUrl}}" class="btn">他のお花屋さんを探す</a></div>
     `),
   },
   'PROJECT_COMPLETED': {
@@ -194,6 +196,21 @@ const DEFAULT_TEMPLATES = {
         <div class="highlight-value">{{projectTitle}}</div>
       </div>
       <div class="cta"><a href="${APP_URL}/projects/{{projectId}}" class="btn">完了レポートを見る</a></div>
+    `),
+  },
+  'PROJECT_COMPLETED_BACKER': {
+    subject: '🌸【FLASTAL】フラスタが完成しました！参加証明書のご案内',
+    body: createBaseHtml('フラスタが完成しました！ 🌸', `
+      <p class="greeting">{{userName}} 様</p>
+      <p class="message">あなたが支援してくださったフラスタ企画が、無事に完成しました！<br>温かいご支援、本当にありがとうございました。</p>
+      <div class="highlight">
+        <div class="highlight-label">企画</div>
+        <div class="highlight-value">{{projectTitle}}</div>
+      </div>
+      <p class="message">完成写真や企画者からのメッセージは、企画ページよりご確認いただけます。<br>また、あなたの参加を証明する<strong>「参加証明書」</strong>をダウンロードすることができます。</p>
+      <div class="cta"><a href="${APP_URL}/projects/{{projectId}}?completed=1&pledgeId={{pledgeId}}" class="btn">参加証明書をダウンロード</a></div>
+      <div class="divider"></div>
+      <p class="message" style="font-size:12px;color:#94a3b8;text-align:center;">このメールはFLASTALから自動送信されています。</p>
     `),
   },
   'POINTS_CHARGED': {
@@ -217,33 +234,324 @@ const DEFAULT_TEMPLATES = {
       <p class="message" style="font-size:12px;color:#94a3b8;text-align:center;">リンクの有効期限は24時間です。このリクエストに心当たりがない場合は無視してください。</p>
     `),
   },
+  'GROUP_BUY_REFUNDED': {
+    subject: '【FLASTAL】グループ購入が成立しませんでした（返金のお知らせ）',
+    body: createBaseHtml('グループ購入 返金のお知らせ', `
+      <p class="greeting">{{userName}} 様</p>
+      <p class="message">参加いただいたグループ購入が、締切までに目標口数に達しなかったため不成立となりました。</p>
+      <div class="highlight">
+        <div class="highlight-label">グループ購入</div>
+        <div class="highlight-value">{{groupBuyTitle}}</div>
+      </div>
+      <div class="highlight">
+        <div class="highlight-label">対象企画</div>
+        <div class="highlight-value">{{projectTitle}}</div>
+      </div>
+      <div class="highlight">
+        <div class="highlight-label">返金金額</div>
+        <div class="highlight-value">¥{{amount}}</div>
+      </div>
+      <p class="message">ご参加の決済分は全額返金いたします。通常2〜5営業日以内にカード会社を通じて返金されますので、今しばらくお待ちください。</p>
+      <p class="message">ご不明な点はFLASTALサポートまでお問い合わせください。引き続きFLASTALをよろしくお願いいたします。</p>
+      <div class="cta"><a href="${APP_URL}/projects" class="btn">他の企画を見る</a></div>
+    `),
+  },
+  'FRAUD_ALERT': {
+    subject: '【FLASTAL緊急】不正検出アラート',
+    body: createBaseHtml('不正検出アラート', `
+      <p class="greeting">FLASTAL 管理者様</p>
+      <p class="message" style="color:#dc2626;font-weight:700;">不正行為の疑いがある支援が検出されました。管理画面で確認してください。</p>
+      <div class="highlight">
+        <div class="highlight-label">検出タイプ</div>
+        <div class="highlight-value">{{type}}</div>
+      </div>
+      <div class="highlight">
+        <div class="highlight-label">詳細</div>
+        <div class="highlight-value">{{description}}</div>
+      </div>
+      <div class="highlight">
+        <div class="highlight-label">ユーザーID</div>
+        <div class="highlight-value">{{userId}}</div>
+      </div>
+      <div class="highlight">
+        <div class="highlight-label">企画ID</div>
+        <div class="highlight-value">{{projectId}}</div>
+      </div>
+      <div class="cta"><a href="${APP_URL}/admin/fraud" class="btn">管理画面で確認する</a></div>
+    `),
+  },
+  'SHOP_ORDER_CONFIRMED': {
+    subject: '【FLASTAL Shop】ご注文を受け付けました（注文番号: {{orderId}}）',
+    body: createBaseHtml('ご注文を受け付けました', `
+      <p class="greeting">{{shopName}} 様</p>
+      <p class="message">FLASTAL Shopにてご注文を受け付けました。内容をご確認ください。</p>
+      <div class="highlight">
+        <div class="highlight-label">注文番号</div>
+        <div class="highlight-value">#{{orderId}}</div>
+      </div>
+      <div class="highlight">
+        <div class="highlight-label">合計金額（税・送料込）</div>
+        <div class="highlight-value">¥{{total}}</div>
+      </div>
+      <div class="highlight">
+        <div class="highlight-label">商品点数</div>
+        <div class="highlight-value">{{itemCount}} 点</div>
+      </div>
+      <p class="message">発送準備が整い次第、発送通知をお送りします。ご不明な点はFLASTALサポートまでお問い合わせください。</p>
+      <div class="cta"><a href="${APP_URL}/shop/orders" class="btn">注文履歴を確認する</a></div>
+    `),
+  },
+  'EMAIL_CHANGE_CONFIRM': {
+    subject: '【FLASTAL】メールアドレス変更の確認',
+    body: createBaseHtml('メールアドレス変更の確認', `
+      <p class="greeting">FLASTALをご利用いただきありがとうございます。</p>
+      <p class="message">以下のメールアドレスへの変更リクエストを受け付けました。</p>
+      <div class="highlight">
+        <div class="highlight-label">新しいメールアドレス</div>
+        <div class="highlight-value">{{newEmail}}</div>
+      </div>
+      <p class="message">以下のボタンをクリックして、メールアドレスの変更を確定してください。</p>
+      <div class="cta"><a href="{{confirmUrl}}" class="btn">メールアドレスを確認する</a></div>
+      <p class="message" style="font-size:12px;color:#94a3b8;text-align:center;">このリンクの有効期限は24時間です。心当たりがない場合はこのメールを無視してください。</p>
+    `),
+  },
+  'PROJECT_UPDATE_POSTED': {
+    subject: '【FLASTAL】「{{projectTitle}}」に新しい制作レポートが届きました',
+    body: createBaseHtml('新着制作レポート 📣', `
+      <p class="greeting">{{handleName}} さん</p>
+      <p class="message">あなたが支援している企画に新しいアップデートが投稿されました！</p>
+      <div class="highlight">
+        <div class="highlight-label">企画</div>
+        <div class="highlight-value">{{projectTitle}}</div>
+      </div>
+      <div class="highlight">
+        <div class="highlight-label">アップデート</div>
+        <div class="highlight-value">{{updateTitle}}</div>
+      </div>
+      <div class="cta"><a href="${APP_URL}/projects/{{projectId}}?tab=updates" class="btn">詳細を見る</a></div>
+      <div class="divider"></div>
+      <p class="message" style="font-size:12px;color:#94a3b8;text-align:center;">このメールはFLASTALから自動送信されています。</p>
+    `),
+  },
+  'NOTIFICATION_DIGEST': {
+    subject: '【FLASTAL】昨日の未読通知まとめ ({{count}}件)',
+    body: createBaseHtml('未読通知ダイジェスト', `
+      <p class="greeting">{{userName}} 様</p>
+      <p class="message">昨日の未読通知が <strong>{{count}}件</strong> あります。以下をご確認ください。</p>
+      {{notificationList}}
+      <div class="divider"></div>
+      <p class="message" style="font-size:12px;color:#94a3b8;text-align:center;">
+        通知設定は <a href="${APP_URL}/mypage/settings" style="color:#ec4899;text-decoration:none;font-weight:700;">こちらから変更できます</a>
+      </p>
+      <div class="cta"><a href="${APP_URL}/notifications" class="btn">全ての通知を見る</a></div>
+    `),
+  },
+  'PROJECT_STATUS_UPDATE': {
+    subject: '【FLASTAL】「{{projectTitle}}」の制作進捗が更新されました',
+    body: createBaseHtml('制作進捗アップデート 📣', `
+      <p class="greeting">{{userName}} 様</p>
+      <p class="message">あなたが支援したプロジェクト「<strong>{{projectTitle}}</strong>」の制作進捗が更新されました。</p>
+      <div class="highlight">
+        <div class="highlight-label">現在の状況</div>
+        <div class="highlight-value">{{statusLabel}}</div>
+      </div>
+      <div class="cta"><a href="${APP_URL}/projects/{{projectId}}" class="btn">詳細を確認する</a></div>
+      <div class="divider"></div>
+      <p class="message" style="font-size:12px;color:#94a3b8;text-align:center;">このメールはFLASTALから自動送信されています。</p>
+    `),
+  },
+  'PAYOUT_APPROVED': {
+    subject: '【FLASTAL】出金申請が承認されました',
+    body: createBaseHtml('出金申請 承認のお知らせ 💰', `
+      <p class="greeting">{{userName}} 様</p>
+      <p class="message">出金申請が承認されました。振込は3〜5営業日以内に処理されます。</p>
+      <div class="highlight">
+        <div class="highlight-label">承認金額</div>
+        <div class="highlight-value">¥{{amount}}</div>
+      </div>
+      <p class="message">ご不明な点はFLASTALサポートまでお問い合わせください。</p>
+      <div class="cta"><a href="${APP_URL}/florists/dashboard" class="btn">ダッシュボードを確認する</a></div>
+    `),
+  },
+  'PAYOUT_REJECTED': {
+    subject: '【FLASTAL】出金申請が却下されました',
+    body: createBaseHtml('出金申請 却下のお知らせ', `
+      <p class="greeting">{{userName}} 様</p>
+      <p class="message">出金申請が却下されました。内容をご確認ください。</p>
+      <div class="highlight">
+        <div class="highlight-label">対象金額</div>
+        <div class="highlight-value">¥{{amount}}</div>
+      </div>
+      <div class="highlight">
+        <div class="highlight-label">却下理由</div>
+        <div class="highlight-value">{{reason}}</div>
+      </div>
+      <p class="message">ご不明な点はFLASTALサポートまでお問い合わせください。</p>
+      <div class="cta"><a href="${APP_URL}/florists/dashboard" class="btn">ダッシュボードを確認する</a></div>
+    `),
+  },
+  'BROADCAST_MESSAGE': {
+    subject: '【{{projectTitle}}】{{subject}}',
+    body: createBaseHtml('{{subject}}', `
+      <p class="greeting">{{userName}} 様</p>
+      <p class="message">支援いただいている企画「{{projectTitle}}」の企画者からメッセージが届いています。</p>
+      <div class="highlight">
+        <div class="highlight-label">メッセージ</div>
+        <div style="font-size:14px;line-height:1.85;color:#374151;margin-top:8px;">{{message}}</div>
+      </div>
+      <div class="cta"><a href="${APP_URL}/projects/{{projectId}}" class="btn">企画ページを見る</a></div>
+      <div class="divider"></div>
+      <p class="message" style="font-size:12px;color:#94a3b8;text-align:center;">
+        このメールは「{{projectTitle}}」の支援者向けにお送りしています。
+      </p>
+    `),
+  },
+  'PLEDGE_COMPLETED_GUEST': {
+    subject: '【FLASTAL】🌸 {{projectTitle}} への支援ありがとうございます！',
+    body: createBaseHtml('支援ありがとうございます 🌸', `
+      <p class="greeting">{{userName}} 様</p>
+      <p class="message">以下の企画への支援が完了しました。ありがとうございます！</p>
+      <div class="highlight">
+        <div class="highlight-label">企画</div>
+        <div class="highlight-value">{{projectTitle}}</div>
+      </div>
+      <div class="highlight">
+        <div class="highlight-label">支援金額</div>
+        <div class="highlight-value">¥{{amount}}</div>
+      </div>
+      <div class="cta"><a href="${APP_URL}/projects/{{projectId}}" class="btn">企画の進捗を見る</a></div>
+      <div class="divider"></div>
+      <div style="background:#fff0f6;border-radius:12px;padding:20px;margin-top:8px;">
+        <h3 style="color:#e05080;font-size:15px;margin:0 0 8px;">アカウント登録でもっとお得に！</h3>
+        <ul style="color:#555;font-size:13px;margin:0;padding-left:18px;line-height:2;">
+          <li>支援するたびにポイントが貯まる</li>
+          <li>お気に入りのプロジェクトをフォロー</li>
+          <li>新着プロジェクトを通知で受け取る</li>
+        </ul>
+        <div style="text-align:center;margin-top:14px;">
+          <a href="{{registerUrl}}" style="display:inline-block;background:#e05080;color:#fff;padding:10px 24px;border-radius:24px;font-weight:bold;text-decoration:none;font-size:13px;">
+            無料でアカウント作成 →
+          </a>
+        </div>
+      </div>
+    `),
+  },
+  'WEBHOOK_DLQ_ALERT': {
+    subject: '【FLASTAL緊急】Webhookの処理に繰り返し失敗しています',
+    body: createBaseHtml('Webhook DLQ アラート', `
+      <p class="greeting">FLASTAL 管理者様</p>
+      <p class="message" style="color:#dc2626;font-weight:700;">Webhookイベントが最大リトライ回数に達し、デッドレターキュー（DLQ）に移行されました。手動での確認・対応が必要です。</p>
+      <div class="highlight">
+        <div class="highlight-label">イベントID</div>
+        <div class="highlight-value">{{eventId}}</div>
+      </div>
+      <div class="highlight">
+        <div class="highlight-label">イベントタイプ</div>
+        <div class="highlight-value">{{eventType}}</div>
+      </div>
+      <div class="highlight">
+        <div class="highlight-label">エラー内容</div>
+        <div class="highlight-value" style="font-size:13px;word-break:break-all;">{{error}}</div>
+      </div>
+      <div class="highlight">
+        <div class="highlight-label">リトライ回数</div>
+        <div class="highlight-value">{{retryCount}} 回</div>
+      </div>
+      <div class="highlight">
+        <div class="highlight-label">発生日時</div>
+        <div class="highlight-value">{{createdAt}}</div>
+      </div>
+      <div class="cta"><a href="${APP_URL}/admin" class="btn">管理画面で確認する</a></div>
+      <div class="divider"></div>
+      <p class="message" style="font-size:12px;color:#94a3b8;text-align:center;">
+        このアラートはFLASTALシステムから自動送信されています。
+      </p>
+    `),
+  },
 };
 
 // ── Core send functions ───────────────────────────────────────
+
+/**
+ * 指数バックオフ付きリトライでメール送信する内部ヘルパー。
+ * 最大 retries 回までリトライし、全試行失敗時は err を throw する。
+ * @param {string} cleanTo   - 送信先アドレス（trim済み）
+ * @param {string} subject   - 件名
+ * @param {string} html      - HTML本文
+ * @param {number} retries   - 最大リトライ回数（デフォルト: 2）
+ */
+async function sendEmailWithRetry(cleanTo, subject, html, retries = 2) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const { data, error } = await resend.emails.send({
+        from: FROM_EMAIL,
+        to: [cleanTo],
+        subject,
+        html,
+      });
+      if (error) {
+        // Resend が API エラーを例外ではなくエラーオブジェクトで返す場合
+        throw Object.assign(new Error(JSON.stringify(error)), { resendError: error });
+      }
+      return { data, error: null };
+    } catch (err) {
+      const isLastAttempt = attempt === retries;
+      if (isLastAttempt) {
+        logger.error('Email send failed after retries', {
+          to: cleanTo,
+          subject,
+          attempt: attempt + 1,
+          error: err.message,
+        });
+        throw err;
+      }
+      // 指数バックオフ: 1s → 2s
+      const delay = Math.pow(2, attempt) * 1000;
+      logger.warn('Email send failed, retrying', {
+        to: cleanTo,
+        attempt: attempt + 1,
+        delay,
+        error: err.message,
+      });
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+}
+
 export async function sendEmail(to, subject, htmlContent) {
   const cleanTo = to?.trim();
   if (!cleanTo) return { error: 'No recipient email provided' };
   try {
-    const { data, error } = await resend.emails.send({
-      from: FROM_EMAIL,
-      to: [cleanTo],
-      subject,
-      html: htmlContent,
-    });
-    if (error) console.error('[Email Error]', error);
-    else console.log(`[Email] Sent to ${cleanTo}: ${subject}`);
-    return { data, error };
+    const result = await sendEmailWithRetry(cleanTo, subject, htmlContent);
+    logger.info(`[Email] Sent to ${cleanTo}: ${subject}`);
+    return result;
   } catch (err) {
-    console.error('[Email Exception]', err);
     return { error: err };
   }
 }
+
+// HTMLエスケープ関数（XSS対策）
+function escapeHtml(str) {
+  if (typeof str !== 'string') return String(str ?? '');
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// URLを含む変数名のパターン（href属性に埋め込まれるため、エスケープ不要）
+const URL_VAR_PATTERN = /url|link|href/i;
 
 function applyVariables(content, variables) {
   let result = content;
   Object.keys(variables).forEach(key => {
     const regex = new RegExp(`{{${key}}}`, 'g');
-    result = result.replace(regex, variables[key] !== undefined ? variables[key] : '');
+    const rawValue = variables[key] !== undefined ? variables[key] : '';
+    // URL系変数はエスケープしない（href属性を破壊しないため）
+    const value = URL_VAR_PATTERN.test(key) ? rawValue : escapeHtml(String(rawValue));
+    result = result.replace(regex, value);
   });
   result = result.replace(/\{current_date\}/g, new Date().toLocaleDateString('ja-JP'));
   return result;
@@ -252,36 +560,69 @@ function applyVariables(content, variables) {
 export async function sendDynamicEmail(toEmail, templateKey, variables = {}) {
   const cleanTo = toEmail?.trim();
   if (!cleanTo) {
-    console.warn(`[Email] Empty address for template: ${templateKey}`);
+    logger.warn('[Email] Empty address for template', { templateKey });
     return false;
   }
+
+  // 送信前に queued レコードを作成
+  const emailLog = await prisma.emailLog.create({
+    data: { to: cleanTo, template: templateKey, status: 'queued' },
+  }).catch(() => null);
+
   try {
     const template = await prisma.emailTemplate.findUnique({ where: { key: templateKey } });
     const tpl = template || DEFAULT_TEMPLATES[templateKey];
 
     if (!tpl) {
-      console.warn(`[Email] No template found for key: ${templateKey}`);
+      logger.warn('[Email] No template found', { templateKey });
+      if (emailLog) {
+        prisma.emailLog.update({
+          where: { id: emailLog.id },
+          data: { status: 'failed', error: `No template found for key: ${templateKey}` },
+        }).catch(() => {});
+      }
       return false;
     }
 
     const finalSubject = applyVariables(tpl.subject, variables);
     const finalBody = applyVariables(tpl.body, variables);
 
-    const { error } = await resend.emails.send({
-      from: FROM_EMAIL,
-      to: [cleanTo],
-      subject: finalSubject,
-      html: finalBody,
-    });
-
-    if (error) {
-      console.error(`[Email Error] ${templateKey} → ${cleanTo}:`, error);
+    try {
+      const { data } = await sendEmailWithRetry(cleanTo, finalSubject, finalBody);
+      logger.info('[Email] Sent via sendDynamicEmail', { templateKey, to: cleanTo });
+      if (emailLog) {
+        prisma.emailLog.update({
+          where: { id: emailLog.id },
+          data: { status: 'sent', messageId: data?.id ?? null, sentAt: new Date() },
+        }).catch(() => {});
+      }
+      return true;
+    } catch (sendErr) {
+      logger.error('[Email] sendDynamicEmail failed after retries', {
+        templateKey,
+        to: cleanTo,
+        error: sendErr.message,
+      });
+      if (emailLog) {
+        prisma.emailLog.update({
+          where: { id: emailLog.id },
+          data: { status: 'failed', error: sendErr.message || String(sendErr) },
+        }).catch(() => {});
+      }
       return false;
     }
-    console.log(`[Email] ${templateKey} → ${cleanTo}`);
-    return true;
   } catch (err) {
-    console.error(`[Email Exception] ${templateKey} → ${cleanTo}:`, err);
+    logger.error('[Email Exception] sendDynamicEmail unexpected error', {
+      templateKey,
+      to: cleanTo,
+      error: err?.message || String(err),
+    });
+    if (emailLog) {
+      prisma.emailLog.update({
+        where: { id: emailLog.id },
+        data: { status: 'failed', error: err?.message || String(err) },
+      }).catch(() => {});
+    }
     return false;
   }
 }
@@ -353,7 +694,11 @@ export async function queueEmail(toEmail, templateKey, variables = {}) {
   }
   setImmediate(() => {
     sendDynamicEmail(toEmail, templateKey, variables).catch(err => {
-      console.error(`[Email Queue Error] ${templateKey} → ${toEmail}:`, err?.message || err);
+      logger.error('[Email Queue Error] in-process fallback failed', {
+        templateKey,
+        to: toEmail,
+        error: err?.message || String(err),
+      });
     });
   });
 }

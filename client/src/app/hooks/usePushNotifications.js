@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react';
 import { useAuth } from '@/app/contexts/AuthContext';
 import toast from 'react-hot-toast';
+import { Capacitor } from '@capacitor/core';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -13,6 +14,8 @@ export function usePushNotifications() {
   const listenersAdded = useRef(false);
 
   useEffect(() => {
+    // WebブラウザではCapacitor Pushをスキップ（Web Pushはブラウザネイティブで処理）
+    if (!Capacitor.isNativePlatform()) return;
     if (!user || registered) return;
 
     const register = async () => {
@@ -22,7 +25,13 @@ export function usePushNotifications() {
         const perm = await PushNotifications.checkPermissions();
         let status = perm.receive;
 
-        if (status === 'prompt') {
+        if (status === 'denied') {
+          // ユーザーが明示的に拒否している場合は何もしない（OS設定で変更が必要なため）
+          console.warn('[Push] 通知パーミッションがユーザーによって拒否されています。');
+          return;
+        }
+
+        if (status === 'prompt' || status === 'prompt-with-rationale') {
           const req = await PushNotifications.requestPermissions();
           status = req.receive;
         }

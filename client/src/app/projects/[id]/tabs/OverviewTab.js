@@ -4,6 +4,7 @@ import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Book, ImageIcon, MessageCircle, User, PenTool, Send, Loader2, Building2, Target, CheckCircle2, Plus, Trash2 } from 'lucide-react';
 import { AppCard, JpText } from './shared.js';
+import { ProgressBar } from '@/app/components/ProgressBar';
 import VideoEmbed from '@/app/components/VideoEmbed';
 import { useAuth } from '@/app/contexts/AuthContext';
 import toast from 'react-hot-toast';
@@ -132,9 +133,7 @@ function StretchGoalsSection({ project, isPlanner }) {
                     <span>{collectedAmount.toLocaleString()} / {g.targetAmount.toLocaleString()} pt</span>
                     <span>{percent}%</span>
                   </div>
-                  <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
-                    <div className="h-full bg-gradient-to-r from-emerald-400 to-teal-400 rounded-full" style={{ width: `${percent}%` }} />
-                  </div>
+                  <ProgressBar value={percent} />
                 </div>
               )}
               {g.description && <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">{g.description}</p>}

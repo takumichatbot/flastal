@@ -19,7 +19,7 @@ import ShareButtons from '@/app/components/ShareButtons';
 import { 
   Clock, MapPin, User, Heart, Share2, MessageCircle, 
   CheckCircle2, AlertTriangle, DollarSign, Calendar, 
-  ChevronLeft, Send, Image as ImageIcon, 
+  ChevronLeft, ChevronRight, Home, Send, Image as ImageIcon,
   Award, Plus, Search, Loader2, X,
   FileText, Printer, Info, Lock, PenTool, Check, Wand2,
   MessageSquare, Trash2, Box, UploadCloud, RefreshCw, Pen, Book, Users, Sparkles, Edit3, UserPlus, Zap, Brush, Download, Star, BarChart2, Rss
@@ -94,11 +94,11 @@ const AppCard = ({ children, className, id }) => (
 function ImageLightbox({ url, onClose }) {
  return (
    <div className="fixed inset-0 bg-slate-900/95 flex justify-center items-center z-[100] p-4 backdrop-blur-md" onClick={onClose}>
-     <button onClick={onClose} className="absolute top-6 right-6 w-12 h-12 bg-white/10 rounded-full flex items-center justify-center text-white hover:bg-white/20 transition-colors z-[110] border border-white/20">
+     <button onClick={onClose} aria-label="閉じる" className="absolute top-6 right-6 w-12 h-12 bg-white/10 rounded-full flex items-center justify-center text-white hover:bg-white/20 transition-colors z-[110] border border-white/20">
        <X size={24} />
      </button>
      <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="relative w-full h-full flex items-center justify-center pointer-events-none">
-       <img src={url} alt="Enlarged" className="max-w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl" />
+       <Image src={url} alt="拡大画像" width={1200} height={900} className="max-w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl" unoptimized />
      </motion.div>
    </div>
  );
@@ -144,17 +144,19 @@ function InstructionSheetModal({ project, onClose }) {
   const contentHtml = generateContentHTML();
 
   const handlePrint = () => {
-    const printWindow = window.open('', '_blank');
+    const printWindow = window.open('', '_blank', 'noopener,noreferrer');
+    if (!printWindow) return;
+    printWindow.opener = null;
     printWindow.document.write(`<html><body>${contentHtml}<script>window.print();</script></body></html>`);
     printWindow.document.close();
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900/60 flex justify-center items-center z-50 p-4 backdrop-blur-sm">
-      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-2xl flex flex-col max-h-[90vh] overflow-hidden border border-white">
+    <div className="fixed inset-0 bg-slate-900/60 flex justify-center items-center z-50 p-4 backdrop-blur-sm" onClick={onClose}>
+      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-2xl flex flex-col max-h-[90vh] overflow-hidden border border-white" onClick={e => e.stopPropagation()}>
         <div className="p-4 md:p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50">
           <h3 className="text-lg md:text-xl font-black flex items-center text-slate-800"><FileText className="mr-2 text-pink-500"/> 制作指示書プレビュー</h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 bg-white p-2 rounded-full shadow-sm"><X size={20}/></button>
+          <button onClick={onClose} aria-label="閉じる" className="text-slate-400 hover:text-slate-600 bg-white p-2.5 min-h-[40px] min-w-[40px] rounded-full shadow-sm flex items-center justify-center"><X size={20}/></button>
         </div>
         <div className="flex-grow p-4 md:p-8 bg-white text-sm overflow-y-auto prose prose-sm">
              <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(contentHtml) }} />
@@ -211,25 +213,25 @@ function QuotationApprovalModal({ project, user, onClose, onUpdate }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900/80 flex justify-center items-center z-[100] p-4 backdrop-blur-sm">
-      <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-[2rem] shadow-2xl w-full max-w-xl overflow-hidden flex flex-col max-h-[95vh] border border-white">
+    <div className="fixed inset-0 bg-slate-900/80 flex justify-center items-center z-[100] p-4 backdrop-blur-sm" onClick={onClose}>
+      <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-[2rem] shadow-2xl w-full max-w-xl overflow-hidden flex flex-col max-h-[95vh] border border-white" onClick={e => e.stopPropagation()}>
         <div className="p-5 md:p-6 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
           <div>
             <h2 className="text-lg md:text-xl font-black text-slate-800 flex items-center gap-2"><FileText className="text-pink-500" size={24}/> 見積もりの承認・発注</h2>
-            <p className="text-[10px] md:text-xs font-bold text-slate-500 mt-1">お花屋さんの制作を開始するために支払い方法を選んでください</p>
+            <p className="text-xs font-bold text-slate-500 mt-1">お花屋さんの制作を開始するために支払い方法を選んでください</p>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 bg-white p-2 rounded-full shadow-sm"><X size={20}/></button>
+          <button onClick={onClose} aria-label="閉じる" className="text-slate-400 hover:text-slate-600 bg-white p-2.5 min-h-[40px] min-w-[40px] rounded-full shadow-sm flex items-center justify-center"><X size={20}/></button>
         </div>
-        
+
         <div className="p-5 md:p-8 overflow-y-auto bg-slate-50/50 space-y-5">
             <div className="bg-white p-5 md:p-6 rounded-2xl border border-slate-200 shadow-sm flex justify-between items-center relative overflow-hidden">
                 <div className="absolute top-0 left-0 w-1 h-full bg-pink-500"></div>
                 <div>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">お見積り総額</p>
+                    <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">お見積り総額</p>
                     <p className="text-3xl font-black text-slate-800 tracking-tight">{quotationAmount.toLocaleString()} <span className="text-sm font-bold text-slate-500">pt</span></p>
                 </div>
                 <div className="text-right">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">現在の支援額</p>
+                    <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">現在の支援額</p>
                     <p className="text-xl font-black text-pink-500 tracking-tight">{collectedAmount.toLocaleString()} <span className="text-sm font-bold text-pink-300">pt</span></p>
                 </div>
             </div>
@@ -243,7 +245,7 @@ function QuotationApprovalModal({ project, user, onClose, onUpdate }) {
                         <div>
                             <p className="font-black text-slate-800 text-sm md:text-base flex items-center gap-2"><CheckCircle2 size={18} className={approvalMethod === 'FULL' ? 'text-pink-500' : 'text-slate-300'}/> 見積り通りに発注</p>
                             <p className="text-xs text-slate-500 mt-1.5 font-medium leading-relaxed">集まった支援額から全額支払います。</p>
-                            {!canFull && <p className="text-[10px] text-rose-500 font-bold mt-2 flex items-center gap-1"><AlertTriangle size={12}/>支援額が {shortfall.toLocaleString()} pt不足しています</p>}
+                            {!canFull && <p className="text-xs text-rose-500 font-bold mt-2 flex items-center gap-1"><AlertTriangle size={12}/>支援額が {shortfall.toLocaleString()} pt不足しています</p>}
                         </div>
                     </div>
                 </label>
@@ -253,9 +255,9 @@ function QuotationApprovalModal({ project, user, onClose, onUpdate }) {
                         <input type="radio" value="GUARANTEE" disabled={!canGuarantee} checked={approvalMethod === 'GUARANTEE'} onChange={(e)=>setApprovalMethod(e.target.value)} className="hidden" />
                         <div className="flex justify-between items-start">
                             <div>
-                                <p className="font-black text-slate-800 text-sm md:text-base flex items-center gap-2"><CheckCircle2 size={18} className={approvalMethod === 'GUARANTEE' ? 'text-pink-500' : 'text-slate-300'}/> 不足分を立て替える <span className="bg-pink-100 text-pink-600 px-2 py-0.5 rounded-md text-[10px] tracking-wider ml-1">推奨</span></p>
+                                <p className="font-black text-slate-800 text-sm md:text-base flex items-center gap-2"><CheckCircle2 size={18} className={approvalMethod === 'GUARANTEE' ? 'text-pink-500' : 'text-slate-300'}/> 不足分を立て替える <span className="bg-pink-100 text-pink-600 px-2 py-0.5 rounded-md text-xs tracking-wider ml-1">推奨</span></p>
                                 <p className="text-xs text-slate-500 mt-1.5 font-medium leading-relaxed">あなたの所持ポイントから不足分 <b className="text-pink-500">{shortfall.toLocaleString()} pt</b> を支払って今すぐ発注します。※募集はイベント直前まで継続できます。</p>
-                                {!canGuarantee && <p className="text-[10px] text-rose-500 font-bold mt-2 flex items-center gap-1"><AlertTriangle size={12}/>所持ポイントが不足しています (所持: {userPoints.toLocaleString()} pt)</p>}
+                                {!canGuarantee && <p className="text-xs text-rose-500 font-bold mt-2 flex items-center gap-1"><AlertTriangle size={12}/>所持ポイントが不足しています (所持: {userPoints.toLocaleString()} pt)</p>}
                             </div>
                         </div>
                     </label>
@@ -268,7 +270,7 @@ function QuotationApprovalModal({ project, user, onClose, onUpdate }) {
                             <div>
                                 <p className="font-black text-slate-800 text-sm md:text-base flex items-center gap-2"><CheckCircle2 size={18} className={approvalMethod === 'FLEXIBLE' ? 'text-emerald-500' : 'text-slate-300'}/> おまかせ発注 (金額に合わせて作成)</p>
                                 <p className="text-xs text-slate-500 mt-1.5 font-medium leading-relaxed">現在の支援総額 <b className="text-emerald-500">{collectedAmount.toLocaleString()} pt</b> に合わせて、お花屋さんにデザインと予算を調整して作ってもらいます。</p>
-                                {!canFlexible && <p className="text-[10px] text-rose-500 font-bold mt-2 flex items-center gap-1"><AlertTriangle size={12}/>おまかせプランは1,000 pt以上集まっている必要があります</p>}
+                                {!canFlexible && <p className="text-xs text-rose-500 font-bold mt-2 flex items-center gap-1"><AlertTriangle size={12}/>おまかせプランは1,000 pt以上集まっている必要があります</p>}
                             </div>
                         </div>
                     </label>
@@ -277,7 +279,7 @@ function QuotationApprovalModal({ project, user, onClose, onUpdate }) {
         </div>
 
         <div className="p-5 md:p-6 bg-white border-t border-slate-100">
-            <button type="submit" form="approvalForm" disabled={!approvalMethod || isSubmitting} className="w-full py-4 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-xl font-black shadow-lg shadow-pink-200 disabled:opacity-50 disabled:cursor-not-allowed hover:brightness-105 transition-all flex items-center justify-center gap-2">
+            <button type="submit" form="approvalForm" disabled={!approvalMethod || isSubmitting} className="w-full py-4 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-xl font-black shadow-lg shadow-pink-200 disabled:from-slate-200 disabled:to-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed disabled:shadow-none hover:brightness-105 transition-all flex items-center justify-center gap-2">
                 {isSubmitting ? <Loader2 size={18} className="animate-spin"/> : <Send size={18}/>}
                 この内容で発注を確定する
             </button>
@@ -411,7 +413,7 @@ function PledgeForm({ project, user, onPledgeSubmit, isPledger }) {
                   {/* ティア画像 */}
                   {tier.imageUrl && (
                     <div className="relative h-24 w-full overflow-hidden rounded-t-xl">
-                      <img src={tier.imageUrl} alt={tier.title} className="w-full h-full object-cover" />
+                      <Image src={tier.imageUrl} alt={tier.title} width={400} height={96} className="w-full h-full object-cover" unoptimized={tier.imageUrl?.startsWith('http') && !tier.imageUrl?.includes('amazonaws')} />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
                     </div>
                   )}
@@ -420,14 +422,14 @@ function PledgeForm({ project, user, onPledgeSubmit, isPledger }) {
                     <div className="flex justify-between items-start mb-1">
                       <div>
                         <span className="font-black text-xl md:text-2xl text-slate-800 tracking-tight">{tier.amount.toLocaleString()} <span className="text-xs font-bold text-slate-400">pt(円)</span></span>
-                        {tier.badge && <span className="ml-2 text-[10px] font-black px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full border border-amber-200">{tier.badge}</span>}
+                        {tier.badge && <span className="ml-2 text-xs font-black px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full border border-amber-200">{tier.badge}</span>}
                       </div>
                       {selectedTierId === tier.id ? <CheckCircle2 className="text-pink-500 fill-pink-100 shrink-0" size={20}/> : <div className="w-5 h-5 rounded-full border-2 border-slate-200 shrink-0"/>}
                     </div>
                     <span className="text-xs md:text-sm font-bold text-pink-500 block mb-1">{tier.title}</span>
-                    <p className="text-[10px] md:text-xs text-slate-500 font-medium leading-relaxed">{tier.description}</p>
+                    <p className="text-xs text-slate-500 font-medium leading-relaxed">{tier.description}</p>
                     {tier.maxBackers != null && (
-                      <p className="text-[10px] font-black mt-2 text-slate-400">
+                      <p className="text-xs font-black mt-2 text-slate-400">
                         {isSoldOut ? '🔒 定員に達しました' : `残り ${tier.maxBackers - backerCount} 枠`}
                       </p>
                     )}
@@ -447,7 +449,7 @@ function PledgeForm({ project, user, onPledgeSubmit, isPledger }) {
         {pledgeType === 'free' && (
           <div className="space-y-5 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
             <div>
-              <label className="block text-[10px] md:text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">
+              <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">
                 支援口数 (1口 {minAmount.toLocaleString()}pt〜)
               </label>
               <div className="flex items-center justify-between bg-slate-50 p-2 rounded-xl border border-slate-200">
@@ -458,20 +460,23 @@ function PledgeForm({ project, user, onPledgeSubmit, isPledger }) {
             </div>
 
             <div>
-              <label className="block text-[10px] md:text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">
+              <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">
                 合計支援金額 (pt/円)
               </label>
               <div className="relative">
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-pink-400 font-black text-xl">¥</span>
                   <input
+                    id="pledge-amount-input"
                     type="number"
                     {...register('pledgeAmount', { valueAsNumber: true })}
                     min={minAmount}
-                    className="w-full pl-10 pr-4 py-3.5 bg-slate-50 border-2 border-slate-100 rounded-xl text-xl font-black text-slate-800 focus:bg-white focus:border-pink-400 focus:ring-4 focus:ring-pink-50 outline-none transition-all"
+                    aria-label={`合計支援金額（${minAmount.toLocaleString()}円以上）`}
+                    aria-required="true"
+                    className="w-full pl-10 pr-4 py-3.5 bg-slate-50 border-2 border-slate-100 rounded-xl text-xl font-black text-slate-800 focus:bg-white focus:border-pink-400 focus:ring-4 focus:ring-pink-200/60 outline-none transition-all"
                     placeholder={`例: ${minAmount}`}
                   />
               </div>
-              <p className="text-[10px] text-slate-400 font-bold mt-1.5 ml-1">※金額を手入力で上乗せすることも可能です</p>
+              <p className="text-xs text-slate-400 font-bold mt-1.5 ml-1">※金額を手入力で上乗せすることも可能です</p>
             </div>
           </div>
         )}
@@ -482,7 +487,7 @@ function PledgeForm({ project, user, onPledgeSubmit, isPledger }) {
               animate={{ opacity: 1, y: 0 }}
               className="bg-gradient-to-br from-pink-50 to-rose-50 rounded-2xl p-4 border border-pink-100"
             >
-              <p className="text-[10px] font-black text-pink-400 uppercase tracking-widest mb-3">お支払い内訳</p>
+              <p className="text-xs font-black text-pink-400 uppercase tracking-widest mb-3">お支払い内訳</p>
               <div className="space-y-2">
                 <div className="flex justify-between items-center text-sm font-bold text-slate-600">
                   <span>支援金額</span>
@@ -509,16 +514,16 @@ function PledgeForm({ project, user, onPledgeSubmit, isPledger }) {
 
         {!user && (
             <div className="pt-3 space-y-2 border-t border-slate-100">
-              <p className="text-[10px] md:text-xs font-black text-slate-400 uppercase tracking-widest ml-1">ゲスト情報</p>
-              <input type="text" {...register('guestName')} className="w-full p-3.5 bg-slate-50 border-transparent rounded-xl text-[16px] font-bold focus:bg-white focus:border-pink-400 focus:ring-4 focus:ring-pink-50 outline-none transition-all" placeholder="お名前 (ハンドルネーム)"/>
-              <input type="email" {...register('guestEmail')} className="w-full p-3.5 bg-slate-50 border-transparent rounded-xl text-[16px] font-bold focus:bg-white focus:border-pink-400 focus:ring-4 focus:ring-pink-50 outline-none transition-all" placeholder="メールアドレス"/>
+              <p className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">ゲスト情報</p>
+              <input id="guest-name-input" type="text" {...register('guestName')} aria-label="お名前（ハンドルネーム）" className="w-full p-3.5 bg-slate-50 border-transparent rounded-xl text-[16px] font-bold focus:bg-white focus:border-pink-400 focus:ring-4 focus:ring-pink-200/60 outline-none transition-all" placeholder="お名前 (ハンドルネーム)"/>
+              <input id="guest-email-input" type="email" {...register('guestEmail')} aria-label="メールアドレス" className="w-full p-3.5 bg-slate-50 border-transparent rounded-xl text-[16px] font-bold focus:bg-white focus:border-pink-400 focus:ring-4 focus:ring-pink-200/60 outline-none transition-all" placeholder="メールアドレス"/>
             </div>
         )}
 
         {/* 支払い方法選択（カード決済がある場合のみ） */}
         {cardAmount > 0 && (
           <div className="pt-3 space-y-2 border-t border-slate-100">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">お支払い方法</p>
+            <p className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">お支払い方法</p>
             <div className="grid grid-cols-3 gap-2">
               {[
                 { id: 'card',    label: 'クレジットカード', icon: '💳' },
@@ -541,7 +546,7 @@ function PledgeForm({ project, user, onPledgeSubmit, isPledger }) {
               ))}
             </div>
             {paymentMethod === 'konbini' && (
-              <p className="text-[10px] text-slate-400 font-medium px-1">
+              <p className="text-xs text-slate-400 font-medium px-1">
                 ※ 支払い期限は3日間です。ローソン・ファミリーマート・セブンイレブン等でお支払いいただけます。
               </p>
             )}
@@ -552,7 +557,7 @@ function PledgeForm({ project, user, onPledgeSubmit, isPledger }) {
             <motion.button 
                 whileTap={{ scale: 0.98 }}
                 type="submit" disabled={isSubmitting || finalAmount <= 0} 
-                className="w-full py-3.5 md:py-4 font-black text-white bg-gradient-to-r from-pink-500 to-rose-500 hover:brightness-105 rounded-xl md:rounded-2xl disabled:opacity-50 flex justify-center items-center gap-2 text-sm md:text-base transition-all shadow-lg shadow-pink-200"
+                className="w-full py-3.5 md:py-4 font-black text-white bg-gradient-to-r from-pink-500 to-rose-500 hover:brightness-105 rounded-xl md:rounded-2xl disabled:from-slate-200 disabled:to-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed disabled:shadow-none flex justify-center items-center gap-2 text-sm md:text-base transition-all shadow-lg shadow-pink-200"
             >
                 {isSubmitting ? <Loader2 className="animate-spin" size={16}/> : (cardAmount === 0 ? <Sparkles size={16} className="text-pink-400"/> : <DollarSign size={16}/>)}
                 {isSubmitting ? '処理中...' : (cardAmount === 0 ? 'ポイントだけで支援を完了する' : 'カード決済へ進む')}
@@ -563,6 +568,12 @@ function PledgeForm({ project, user, onPledgeSubmit, isPledger }) {
                     <Zap size={14} className="text-amber-400" />
                     事前にポイントをチャージしておく
                 </Link>
+            )}
+            {!user && (
+              <p className="text-xs text-center text-slate-400 mt-2">
+                <a href="/auth/login" className="text-pink-500 font-semibold hover:underline">ログイン</a>
+                {' '}するとポイントが貯まります ✨
+              </p>
             )}
         </div>
       </form>
@@ -587,8 +598,8 @@ function TargetAmountModal({ project, user, onClose, onUpdate }) {
     } catch(e) { toast.error('エラー'); } finally { setIsSubmitting(false); }
   };
   return (
-    <div className="fixed inset-0 bg-slate-900/60 flex justify-center items-center z-[100] p-4 backdrop-blur-sm">
-      <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white p-6 md:p-8 rounded-[2rem] shadow-2xl w-full max-w-md border border-white">
+    <div className="fixed inset-0 bg-slate-900/60 flex justify-center items-center z-[100] p-4 backdrop-blur-sm" onClick={onClose}>
+      <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white p-6 md:p-8 rounded-[2rem] shadow-2xl w-full max-w-md border border-white" onClick={e => e.stopPropagation()}>
         <form onSubmit={handleSubmit}>
           <h2 className="text-lg md:text-xl font-black text-slate-800 mb-6 flex items-center gap-2"><DollarSign className="text-pink-500"/> 目標金額の変更</h2>
           <input type="number" value={newAmount} onChange={(e) => setNewAmount(e.target.value)} min={project.collectedAmount} required className="w-full p-4 border-2 border-slate-100 rounded-xl font-black text-xl md:text-2xl text-slate-800 focus:border-pink-400 outline-none mb-6 transition-colors" />
@@ -634,9 +645,9 @@ function DeadlineEditModal({ project, onClose, onUpdate, authenticatedFetch }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center z-[200] p-4 backdrop-blur-sm">
-      <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-[2rem] p-8 w-full max-w-md shadow-2xl relative border border-white">
-        <button onClick={onClose} className="absolute top-6 right-6 text-slate-400 hover:text-slate-600"><X size={20}/></button>
+    <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center z-[200] p-4 backdrop-blur-sm" onClick={onClose}>
+      <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-[2rem] p-8 w-full max-w-md shadow-2xl relative border border-white" onClick={e => e.stopPropagation()}>
+        <button onClick={onClose} aria-label="閉じる" className="absolute top-6 right-6 text-slate-400 hover:text-slate-600 p-2 min-h-[40px] min-w-[40px] flex items-center justify-center rounded-full hover:bg-slate-100 transition-colors"><X size={20}/></button>
         <h3 className="text-xl font-black mb-2 text-slate-800 flex items-center gap-2">
           <Clock className="text-rose-500"/> 締切日の強制変更
         </h3>
@@ -695,6 +706,28 @@ export default function ProjectDetailClient() {
     }
   }, [searchParams, router]);
 
+  // ゲストユーザーが支援完了後にアカウント転換バナーを表示
+  useEffect(() => {
+    const isSuccess = searchParams?.get('pledge') === 'success' || searchParams?.get('payment') === 'success';
+    if (isSuccess && !user) {
+      setShowGuestBanner(true);
+    }
+  }, [searchParams, user]);
+
+  // 完了通知メールからの遷移 (?completed=1) を検知してトースト表示
+  useEffect(() => {
+    if (searchParams.get('completed') !== '1') return;
+    if (!project) return;
+    const hasPledge = user ? (project.pledges || []).some(p => p.userId === user.id) : false;
+    if (!hasPledge) return;
+    // URLパラメータをクリア（1回だけ表示）
+    const url = new URL(window.location.href);
+    url.searchParams.delete('completed');
+    url.searchParams.delete('pledgeId');
+    router.replace(url.pathname, { scroll: false });
+    toast.success('🌸 フラスタが完成しました！ご参加ありがとうございました！', { duration: 5000 });
+  }, [searchParams, project, user, router]);
+
   const [activeTab, setActiveTab] = useState('overview');
   const [collabTab, setCollabTab] = useState('chat');
 
@@ -726,6 +759,7 @@ export default function ProjectDetailClient() {
   const [arHeight, setArHeight] = useState(200); 
   const [arGenLoading, setArGenLoading] = useState(false);
 
+  const [showGuestBanner, setShowGuestBanner] = useState(false);
   const [showAnnouncementForm, setShowAnnouncementForm] = useState(false);
   const [announcementTitle, setAnnouncementTitle] = useState('');
   const [announcementContent, setAnnouncementContent] = useState('');
@@ -1175,11 +1209,13 @@ export default function ProjectDetailClient() {
           window.URL.revokeObjectURL(downloadUrl);
       } catch (error) {
           toast.error("ダウンロードに失敗しました。直接画像を開いて保存してください。");
-          window.open(url, '_blank');
+          const win = window.open(url, '_blank', 'noopener,noreferrer');
+          if (win) win.opener = null;
       }
   };
 
-  const isPledger = user && (project?.pledges || []).some(p => p.userId === user.id);
+  const myPledge = user ? (project?.pledges || []).find(p => p.userId === user.id) : null;
+  const isPledger = !!myPledge;
   const isPlanner = user && user.id === project?.planner?.id;
   const isFlorist = user && user.role === 'FLORIST';
   const isAssignedIllustrator = user && user.role === 'ILLUSTRATOR' && project?.illustratorId === user.id;
@@ -1293,7 +1329,7 @@ export default function ProjectDetailClient() {
             <div className="p-6 md:p-16 bg-gradient-to-br from-amber-400 to-orange-500 md:rounded-[2.5rem] shadow-lg text-center relative overflow-hidden text-white">
                 <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-20 mix-blend-overlay" />
                 <div className="relative z-10">
-                    <span className="inline-block bg-white/20 backdrop-blur px-3 py-1 rounded-full text-[10px] md:text-xs font-black uppercase tracking-widest mb-4 md:mb-6 shadow-sm border border-white/20">Project Completed</span>
+                    <span className="inline-block bg-white/20 backdrop-blur px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest mb-4 md:mb-6 shadow-sm border border-white/20">Project Completed</span>
                     <h2 className="text-2xl md:text-5xl font-black tracking-tighter mb-6 md:mb-8 drop-shadow-md">🎉 企画完了 🎉</h2>
                     <div className="bg-white/10 backdrop-blur-md p-5 md:p-8 rounded-[1.5rem] md:rounded-[2rem] border border-white/20 text-left max-w-3xl mx-auto">
                         <h4 className="font-black mb-2 md:mb-3 text-xs md:text-sm flex items-center gap-2"><MessageCircle size={16}/> 企画者からのメッセージ</h4>
@@ -1301,16 +1337,51 @@ export default function ProjectDetailClient() {
                         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 border-t border-white/20 mt-4">
                             <p className="text-xs md:text-sm font-black text-white/90">完成したフラスタをみんなに報告しよう！</p>
                             <div className="bg-white/20 backdrop-blur-md px-4 py-2 rounded-2xl border border-white/30 shadow-sm inline-flex">
-                                <ShareButtons 
-                                  text={`${project.title} のフラスタ企画が無事に完了しました！ご支援いただいた皆様、ありがとうございました✨`} 
+                                <ShareButtons
+                                  text={`${project.title} のフラスタ企画が無事に完了しました！ご支援いただいた皆様、ありがとうございました✨`}
                                 />
                             </div>
+                        </div>
+                        <div className="mt-4 pt-4 border-t border-white/20 flex flex-wrap justify-center gap-3">
+                          {myPledge && (
+                            <a
+                              href={`${API_URL}/api/projects/${project.id}/certificate/${myPledge.id}`}
+                              download={`flastal-certificate-${project.id}.pdf`}
+                              className="inline-flex items-center gap-2 px-5 py-3 bg-white text-amber-600 font-black text-sm rounded-2xl shadow-lg hover:bg-amber-50 active:scale-95 transition-all"
+                            >
+                              <Download size={16} />
+                              参加証明書をDL
+                            </a>
+                          )}
+                          <Link
+                            href={`/qr/${project.id}`}
+                            className="inline-flex items-center gap-2 px-5 py-3 bg-white/20 backdrop-blur text-white font-black text-sm rounded-2xl border border-white/30 hover:bg-white/30 active:scale-95 transition-all"
+                          >
+                            <ImageIcon size={16} />
+                            完成ギャラリーを見る
+                          </Link>
                         </div>
                     </div>
                 </div>
             </div>
         )}
       </div>
+
+      {/* パンくずリスト */}
+      <nav aria-label="パンくずリスト" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center gap-1 text-xs text-slate-400 mb-4">
+        <Link href="/" className="hover:text-slate-600 transition-colors flex items-center gap-0.5">
+          <Home size={12} />
+          <span>ホーム</span>
+        </Link>
+        <ChevronRight size={12} className="flex-shrink-0" />
+        <Link href="/projects" className="hover:text-slate-600 transition-colors">
+          企画一覧
+        </Link>
+        <ChevronRight size={12} className="flex-shrink-0" />
+        <span className="text-slate-600 truncate max-w-[200px]" aria-current="page">
+          {project?.title || '企画詳細'}
+        </span>
+      </nav>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8 lg:gap-12 relative z-10">
         
@@ -1334,7 +1405,7 @@ export default function ProjectDetailClient() {
                 </div>
               </Link>
               <span className={cn(
-                "px-3 py-1.5 rounded-full text-[10px] font-black tracking-wider border",
+                "px-3 py-1.5 rounded-full text-xs font-black tracking-wider border",
                 project.status === 'FUNDRAISING' ? 'bg-pink-50 text-pink-600 border-pink-200' :
                 project.status === 'SUCCESSFUL' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' :
                 project.status === 'COMPLETED' ? 'bg-amber-50 text-amber-600 border-amber-200' :
@@ -1446,7 +1517,7 @@ export default function ProjectDetailClient() {
                       {pledge.user?.iconUrl
                         ? <Image src={pledge.user.iconUrl} alt={pledge.user?.nickname || 'サポーター'} width={32} height={32} className="object-cover w-8 h-8"/>
                         : <div className="w-8 h-8 bg-gradient-to-br from-pink-200 to-rose-200 flex items-center justify-center">
-                            <span className="text-[10px] font-black text-pink-600">
+                            <span className="text-xs font-black text-pink-600">
                               {(pledge.user?.handleName || '?')[0]}
                             </span>
                           </div>
@@ -1478,17 +1549,17 @@ export default function ProjectDetailClient() {
                           : '締切日未定'}
                       </span>
                       {user?.role === 'ADMIN' && (
-                        <button onClick={() => setShowDeadlineModal(true)} className="p-1 bg-white text-slate-400 hover:text-rose-500 border border-slate-200 rounded-full transition-all shadow-sm">
+                        <button onClick={() => setShowDeadlineModal(true)} aria-label="締切日を編集" className="p-2 bg-white text-slate-400 hover:text-rose-500 border border-slate-200 rounded-full transition-all shadow-sm">
                           <PenTool size={11}/>
                         </button>
                       )}
                     </div>
                     <ul className="space-y-1">
-                      <li className="text-[10px] font-bold text-rose-700 flex items-start gap-1">
+                      <li className="text-xs font-bold text-rose-700 flex items-start gap-1">
                         <span className="shrink-0">※</span>
                         <span>目標達成時点で即時締め切り・発注確定します</span>
                       </li>
-                      <li className="text-[10px] font-bold text-rose-700 flex items-start gap-1">
+                      <li className="text-xs font-bold text-rose-700 flex items-start gap-1">
                         <span className="shrink-0">※</span>
                         <span>未達の場合は自動中止・<strong>支援額全額返還</strong>されます</span>
                       </li>
@@ -1501,13 +1572,41 @@ export default function ProjectDetailClient() {
             {/* シェア */}
             <div className="px-5 sm:px-6 py-4 border-t border-slate-50">
               <div className="flex items-center gap-3 bg-slate-50 px-4 py-3 rounded-2xl border border-slate-100 w-full">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5 shrink-0">
+                <span className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5 shrink-0">
                   <Share2 size={13}/> Share
                 </span>
                 <ShareButtons text={`${project.title} のフラスタ企画が進行中！一緒に参加しませんか？🌸`}/>
               </div>
             </div>
           </AppCard>
+
+          {showGuestBanner && (
+            <div className="bg-gradient-to-r from-pink-500 to-violet-500 text-white rounded-2xl p-5 mb-4 relative">
+              <button
+                onClick={() => setShowGuestBanner(false)}
+                aria-label="バナーを閉じる"
+                className="absolute top-3 right-3 text-white/70 hover:text-white text-lg leading-none"
+              >✕</button>
+              <p className="text-lg font-black mb-1">🎉 支援ありがとうございます！</p>
+              <p className="text-sm text-white/90 mb-3">
+                アカウントを作ると支援履歴の確認・ポイント獲得・完成通知の受け取りができます。
+              </p>
+              <div className="flex gap-2">
+                <a
+                  href="/auth/register"
+                  className="flex-1 bg-white text-pink-600 font-black text-sm py-2 rounded-xl text-center hover:bg-pink-50 transition-colors"
+                >
+                  無料でアカウント作成
+                </a>
+                <a
+                  href="/auth/login"
+                  className="px-4 bg-white/20 text-white font-semibold text-sm py-2 rounded-xl hover:bg-white/30 transition-colors"
+                >
+                  ログイン
+                </a>
+              </div>
+            </div>
+          )}
 
           <div className="bg-white p-1 rounded-xl shadow-sm border border-slate-100 flex overflow-x-auto w-full mb-2 md:mb-4 no-scrollbar sticky top-[60px] md:top-[80px] z-30">
               {TABS.map(tab => (
@@ -1580,7 +1679,24 @@ export default function ProjectDetailClient() {
                                  <p className="text-xs text-slate-400">閲覧数・CVR・日別推移</p>
                               </div>
                           </Link>
-                          
+
+                          {/* QRコードダウンロード（企画者・FLORIST・ADMIN向け） */}
+                          {(isPlanner || user?.role === 'FLORIST' || user?.role === 'ADMIN') && (
+                              <a
+                                  href={`${API_URL}/api/projects/${project.id}/qr`}
+                                  download="flastal-qr.png"
+                                  className="w-full text-left p-4 bg-white hover:bg-slate-100 border border-slate-200 rounded-2xl transition-all flex items-center group shadow-sm"
+                              >
+                                  <div className="w-8 h-8 rounded-lg bg-violet-50 flex items-center justify-center mr-3 group-hover:scale-110 transition-transform">
+                                      <Download className="text-violet-500" size={16}/>
+                                  </div>
+                                  <div>
+                                      <p className="text-sm font-bold text-slate-800">QRコードをダウンロード</p>
+                                      <p className="text-xs text-slate-400">シールに貼って支援者が見られます</p>
+                                  </div>
+                              </a>
+                          )}
+
                           {/* ▼▼▼ ここから条件分岐を修正 ▼▼▼ */}
                           {project?.quotation && project.quotation.isApproved === false ? (
                               // 1. 見積もりが届いて未承認の場合
@@ -1595,7 +1711,7 @@ export default function ProjectDetailClient() {
                                   </div>
                                   <div>
                                       <p className="text-sm font-black text-white">{floristName} と相談</p>
-                                      <p className="text-[10px] font-bold text-pink-100">
+                                      <p className="text-xs font-bold text-pink-100">
                                           {activeOffer.status === 'PENDING' ? '※お花屋さんの返答・見積り待ち' : '※機密チャット（支援者には非公開）'}
                                       </p>
                                   </div>
@@ -1633,7 +1749,7 @@ export default function ProjectDetailClient() {
                             <div className="mt-4 pt-4 border-t border-slate-100">
                               {project.review ? (
                                 <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4">
-                                  <p className="text-[10px] font-black text-emerald-600 mb-1.5 flex items-center gap-1.5">
+                                  <p className="text-xs font-black text-emerald-600 mb-1.5 flex items-center gap-1.5">
                                     <CheckCircle2 size={12}/> レビュー投稿済み
                                   </p>
                                   <p className="text-xs text-slate-600 font-medium leading-relaxed">{project.review.comment}</p>
@@ -1652,7 +1768,7 @@ export default function ProjectDetailClient() {
                   </AppCard>
               )}
               <div className="text-center pt-1 md:pt-2">
-                <button onClick={() => setReportModalOpen(true)} className="text-[9px] md:text-[10px] font-bold text-slate-400 hover:text-slate-600 flex items-center justify-center gap-1 mx-auto transition-colors">
+                <button onClick={() => setReportModalOpen(true)} className="text-xs font-bold text-slate-400 hover:text-slate-600 flex items-center justify-center gap-1 mx-auto transition-colors">
                   <AlertTriangle size={10} className="md:w-3 md:h-3"/> 問題を報告する
                 </button>
               </div>
@@ -1668,6 +1784,7 @@ export default function ProjectDetailClient() {
                   onClick={handleQuickCheer}
                   className={`px-4 py-3.5 rounded-xl font-black border text-sm active:scale-95 transition-all flex items-center gap-1.5 ${quickCheerSent ? 'bg-pink-50 border-pink-200 text-pink-500' : 'bg-slate-50 border-slate-200 text-slate-500'}`}
                   title="応援する"
+                  aria-label="応援する"
                 >
                   <Heart size={16} className={quickCheerSent ? 'fill-pink-400 text-pink-400' : ''} />
                   {cheers?.length ?? 0}
@@ -1713,7 +1830,7 @@ export default function ProjectDetailClient() {
                 </div>
                 <div>
                   <h2 className="text-base font-black text-slate-900">{floristName} をレビュー</h2>
-                  <p className="text-[10px] font-bold text-slate-400">企画を通じた感想を書きましょう</p>
+                  <p className="text-xs font-bold text-slate-400">企画を通じた感想を書きましょう</p>
                 </div>
               </div>
               <textarea
@@ -1818,11 +1935,11 @@ export default function ProjectDetailClient() {
              />
         )}
         {isArModalOpen && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/80 flex justify-center items-center z-[100] p-4 backdrop-blur-md">
-            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="bg-white rounded-[3rem] w-full max-w-lg overflow-hidden relative shadow-2xl flex flex-col max-h-[90vh] border border-white">
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/80 flex justify-center items-center z-[100] p-4 backdrop-blur-md" onClick={() => setIsArModalOpen(false)}>
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="bg-white rounded-[3rem] w-full max-w-lg overflow-hidden relative shadow-2xl flex flex-col max-h-[90vh] border border-white" onClick={e => e.stopPropagation()}>
               <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
                   <h3 className="font-black text-lg text-slate-800 flex items-center"><Box className="mr-2 text-slate-500"/> ARシミュレーター</h3>
-                  <button onClick={() => setIsArModalOpen(false)} className="bg-white hover:bg-slate-100 rounded-full p-2 transition-colors shadow-sm"><X size={20}/></button>
+                  <button onClick={() => setIsArModalOpen(false)} aria-label="閉じる" className="bg-white hover:bg-slate-100 rounded-full p-2.5 min-h-[40px] min-w-[40px] flex items-center justify-center transition-colors shadow-sm"><X size={20}/></button>
               </div>
               <div className="p-8 overflow-y-auto">
                 {!arSrc ? (

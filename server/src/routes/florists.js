@@ -22,6 +22,9 @@ router.get('/schedule', authenticateToken, floristController.getSchedule);
 // ダッシュボード
 router.get('/dashboard', authenticateToken, floristController.getFloristProfile);
 
+// アナリティクス
+router.get('/analytics', authenticateToken, floristController.getFloristAnalytics);
+
 // マッチングAI
 router.post('/match-ai', authenticateToken, floristController.matchFloristsByAi);
 

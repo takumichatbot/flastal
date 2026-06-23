@@ -6,6 +6,7 @@ import { useAuth } from '@/app/contexts/AuthContext';
 import { Home, Heart, MessageCircle, Bell, Settings, Compass } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePushNotifications } from '@/app/hooks/usePushNotifications';
+import { triggerHaptic } from '@/app/hooks/useHaptics';
 
 const TABS = [
   { id: 'home',          label: 'ホーム',   icon: Home,          href: '/mypage' },
@@ -59,6 +60,35 @@ export default function NativeTabBar() {
     return () => clearInterval(t);
   }, [isNative, user, fetchUnread]);
 
+  // Android バックボタンハンドリング
+  // NOTE: @capacitor/app が必要です。未インストールの場合は `npm install @capacitor/app` を実行してください。
+  useEffect(() => {
+    if (!isNative) return;
+    let backHandler;
+
+    const setupBackButton = async () => {
+      try {
+        const { App } = await import('@capacitor/app');
+        backHandler = await App.addListener('backButton', ({ canGoBack }) => {
+          if (canGoBack) {
+            window.history.back();
+          } else {
+            // 最初のページではアプリを最小化（終了はしない）
+            App.minimizeApp();
+          }
+        });
+      } catch (e) {
+        // Web ブラウザ、または @capacitor/app 未インストール時は無視
+      }
+    };
+
+    setupBackButton();
+
+    return () => {
+      backHandler?.remove();
+    };
+  }, [isNative]);
+
   const AUTH_PAGES = ['/login', '/register', '/forgot-password', '/reset-password', '/verify', '/app'];
   if (!isNative || AUTH_PAGES.some(p => pathname?.startsWith(p))) return null;
 
@@ -78,7 +108,10 @@ export default function NativeTabBar() {
           return (
             <button
               key={t.id}
-              onClick={() => router.push(t.href)}
+              onClick={async () => {
+                await triggerHaptic('light');
+                router.push(t.href);
+              }}
               className="relative flex flex-col items-center justify-center w-full h-full pb-1.5 pt-1 transition-all"
             >
               {isActive && (

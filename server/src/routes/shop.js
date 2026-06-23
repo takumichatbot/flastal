@@ -24,6 +24,11 @@ router.post('/checkout', authenticateToken, requireFlorist, shopController.creat
 router.get('/orders', authenticateToken, requireFlorist, shopController.getMyOrders);
 router.get('/orders/:id', authenticateToken, requireFlorist, shopController.getMyOrder);
 
+// ─── 花屋向けAPI（定期購入） ──────────────────────────────
+router.get('/subscriptions', authenticateToken, requireFlorist, shopController.getSubscriptions);
+router.post('/subscriptions', authenticateToken, requireFlorist, shopController.createSubscription);
+router.delete('/subscriptions/:id', authenticateToken, requireFlorist, shopController.cancelSubscription);
+
 // ─── 管理者API ─────────────────────────────────────────
 router.get('/admin/products', authenticateToken, requireAdmin, shopController.adminGetProducts);
 router.post('/admin/products', authenticateToken, requireAdmin, shopController.adminCreateProduct);

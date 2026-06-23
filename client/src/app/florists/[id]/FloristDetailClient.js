@@ -124,7 +124,8 @@ function OfferModal({ floristId, floristName, onClose }) {
                                 <CheckCircle2 className="text-emerald-500" size={32} />
                             </div>
                             <p className="font-black text-slate-800 mb-1">オファーを送信しました！</p>
-                            <p className="text-xs text-slate-500 font-medium mb-6">お花屋さんからの返答をお待ちください。</p>
+                            <p className="text-xs text-slate-500 font-medium mb-1">お花屋さんからの返答をお待ちください。</p>
+                            <p className="text-xs text-amber-600 font-black mb-6">※ 回答期限は3日間です。期限を過ぎると自動的に期限切れになります。</p>
                             <button onClick={onClose} className="px-8 py-3 bg-slate-900 text-white font-black rounded-full text-sm">閉じる</button>
                         </div>
                     ) : (

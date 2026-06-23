@@ -71,7 +71,7 @@ function IllustratorCard({ illustrator, projectId, index }) {
           {/* Avatar overlap */}
           <div className="absolute -bottom-5 left-3 w-11 h-11 rounded-[0.75rem] border-2 border-white shadow-md overflow-hidden bg-white z-10">
             {illustrator.iconUrl || illustrator.user?.iconUrl ? (
-              <Image src={illustrator.iconUrl || illustrator.user.iconUrl} alt="" fill className="object-cover" />
+              <Image src={illustrator.iconUrl || illustrator.user.iconUrl} alt={`${illustrator.name || illustrator.user?.handleName || 'クリエイター'}のアイコン`} fill className="object-cover" />
             ) : (
               <div className="w-full h-full bg-slate-50 flex items-center justify-center">
                 <User size={18} className="text-slate-300" />

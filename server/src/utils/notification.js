@@ -4,6 +4,39 @@ import webpush from 'web-push';
 import apn from 'apn';
 
 /**
+ * Web Push のみを送信するシンプルな専用関数
+ * title・body・url を指定できる。期限切れサブスクリプションは自動削除。
+ */
+export async function sendPushNotification(userId, { title, body, url = '/' }) {
+  if (!userId) return;
+  if (!process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) return;
+
+  const subscriptions = await prisma.pushSubscription.findMany({
+    where: {
+      userId,
+      endpoint: { not: { startsWith: 'apns:' } },
+    },
+  });
+
+  const payload = JSON.stringify({ title, body, url });
+
+  await Promise.allSettled(
+    subscriptions.map((sub) =>
+      webpush
+        .sendNotification(
+          { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+          payload
+        )
+        .catch(async (err) => {
+          if (err.statusCode === 410 || err.statusCode === 404) {
+            await prisma.pushSubscription.delete({ where: { id: sub.id } }).catch(() => {});
+          }
+        })
+    )
+  );
+}
+
+/**
  * 共通通知作成関数
  * DBへの保存 + Socket.IO + Web Push (VAPID) を同時に行います
  */
@@ -60,7 +93,7 @@ export async function createNotification(recipientId, type, message, projectId =
                         ).catch(async (err) => {
                             // 購読が無効 (410 Gone) の場合は削除
                             if (err.statusCode === 410) {
-                                await prisma.pushSubscription.delete({ where: { endpoint: sub.endpoint } }).catch(() => {});
+                                await prisma.pushSubscription.delete({ where: { id: sub.id } }).catch(() => {});
                             }
                         })
                     )

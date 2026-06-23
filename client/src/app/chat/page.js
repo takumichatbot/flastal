@@ -8,6 +8,7 @@ import { useAuth } from '@/app/contexts/AuthContext';
 import { ChevronLeft, ChevronRight, MessageCircle, User, Loader2, Search } from 'lucide-react';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
+import { EmptyState } from '@/app/components/EmptyState';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -108,27 +109,13 @@ export default function ChatInboxPage() {
             <Loader2 className="animate-spin text-pink-400" size={28} />
           </div>
         ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-24 text-center px-6">
-            <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mb-4 border border-slate-100 shadow-sm">
-              <MessageCircle size={32} className="text-slate-300" />
-            </div>
-            <h3 className="text-base font-black text-slate-700 mb-2">
-              {search ? '一致するチャットなし' : 'まだチャットがありません'}
-            </h3>
-            <p className="text-xs font-bold text-slate-400 mb-6 leading-relaxed">
-              {search
-                ? '別のキーワードで検索してみてください'
-                : 'お花屋さんにオファーを送ると\nここでチャットできます'}
-            </p>
-            {!search && (
-              <Link
-                href="/florists"
-                className="px-6 py-3 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-full font-black text-sm shadow-lg shadow-pink-200 active:scale-95 transition-transform"
-              >
-                お花屋さんを探す
-              </Link>
-            )}
-          </div>
+          <EmptyState
+            icon="message"
+            title={search ? '一致するチャットなし' : 'まだチャットがありません'}
+            description={search ? '別のキーワードで検索してみてください' : 'お花屋さんにオファーを送るとここでチャットできます'}
+            action={!search ? { label: 'お花屋さんを探す', href: '/florists' } : undefined}
+            className="py-24"
+          />
         ) : (
           <div className="bg-white divide-y divide-slate-50 mt-1 rounded-b-none">
             {filtered.map((room, i) => {

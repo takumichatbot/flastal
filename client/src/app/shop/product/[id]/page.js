@@ -7,7 +7,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useAuth } from '@/app/contexts/AuthContext';
 import toast from 'react-hot-toast';
-import { ShoppingCart, ChevronLeft, Plus, Minus, Package, Truck, Star, Tag } from 'lucide-react';
+import { ShoppingCart, ChevronLeft, Plus, Minus, Package, Truck, Star, Tag, RefreshCw } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 const FREE_SHIPPING_THRESHOLD = 10000;
@@ -23,6 +23,7 @@ export default function ProductDetailPage() {
   const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
   const [adding, setAdding] = useState(false);
+  const [subscribing, setSubscribing] = useState(false);
   const [activeImg, setActiveImg] = useState(0);
 
   useEffect(() => {
@@ -64,6 +65,34 @@ export default function ProductDetailPage() {
       toast.error(err.message || 'エラーが発生しました');
     } finally {
       setAdding(false);
+    }
+  };
+
+  const handleSubscribe = async () => {
+    if (!isFlorist) {
+      toast.error('花屋アカウントでログインしてください。');
+      router.push('/florists/login');
+      return;
+    }
+    if (quantity < product.minOrder) {
+      toast.error(`最低注文数は${product.minOrder}${product.unit}です`);
+      return;
+    }
+    setSubscribing(true);
+    try {
+      const res = await fetch(`${API_URL}/api/shop/subscriptions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ productId: product.id, quantity }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message);
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    } catch (err) {
+      toast.error(err.message || 'エラーが発生しました');
+      setSubscribing(false);
     }
   };
 
@@ -233,6 +262,22 @@ export default function ProductDetailPage() {
               )}
               {product.stock === 0 ? '在庫切れ' : 'カートに追加'}
             </button>
+
+            {/* 定期購入ボタン */}
+            {product.stock > 0 && (
+              <button
+                onClick={handleSubscribe}
+                disabled={subscribing}
+                className="mt-3 py-4 rounded-2xl font-black text-base flex items-center justify-center gap-2 transition-all border-2 border-sky-400 text-sky-600 hover:bg-sky-50 active:scale-95"
+              >
+                {subscribing ? (
+                  <span className="w-5 h-5 border-2 border-sky-400/40 border-t-sky-500 rounded-full animate-spin" />
+                ) : (
+                  <RefreshCw size={18} />
+                )}
+                毎月自動発注する（定期購入）
+              </button>
+            )}
 
             {isFlorist && (
               <Link

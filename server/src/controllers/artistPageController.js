@@ -52,13 +52,45 @@ export const getArtistProjects = async (req, res) => {
 
 export const upsertArtistPage = async (req, res) => {
     const { slug } = req.params;
-    const data = req.body;
     if (req.user.role !== 'ADMIN') return res.status(403).json({ message: '管理者のみ操作可能です' });
+
+    // スキーマに存在するフィールドのみ許可（スキーマ汚染防止）
+    const {
+        name,
+        nameKana,
+        category,
+        description,
+        coverImageUrl,
+        iconUrl,
+        twitterUrl,
+        youtubeUrl,
+        officialUrl,
+        verified,
+    } = req.body;
+
+    const payload = {
+        name,
+        nameKana,
+        category,
+        description: description?.slice(0, 2000) ?? undefined,
+        coverImageUrl,
+        iconUrl,
+        twitterUrl,
+        youtubeUrl,
+        officialUrl,
+        verified,
+    };
+
+    // undefined のキーを除去して Prisma に余分な null を渡さない
+    Object.keys(payload).forEach(
+        (k) => payload[k] === undefined && delete payload[k]
+    );
+
     try {
         const page = await prisma.artistPage.upsert({
             where: { slug },
-            update: { ...data, slug },
-            create: { ...data, slug },
+            update: { ...payload, slug },
+            create: { ...payload, slug },
         });
         res.json(page);
     } catch {

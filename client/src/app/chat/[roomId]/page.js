@@ -8,6 +8,7 @@ import { useAuth } from '@/app/contexts/AuthContext';
 import { Send, ChevronLeft, User, Loader2, ExternalLink, Check, CheckCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
+import { Capacitor } from '@capacitor/core';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -87,6 +88,14 @@ export default function ChatRoomPage() {
     setNewMessage('');
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
 
+    // iOSキーボードを閉じる
+    if (Capacitor.isNativePlatform()) {
+      try {
+        const { Keyboard } = await import('@capacitor/keyboard');
+        await Keyboard.hide();
+      } catch { /* ignore */ }
+    }
+
     const optimisticMsg = {
       id: `opt-${Date.now()}`,
       content: text,
@@ -134,7 +143,7 @@ export default function ChatRoomPage() {
 
   if (authLoading || (isLoading && !room)) {
     return (
-      <div className="flex items-center justify-center bg-slate-50 font-sans" style={{ height: '100dvh' }}>
+      <div className="flex items-center justify-center bg-[#F7F7FA] font-sans" style={{ height: '100dvh' }}>
         <div className="w-8 h-8 border-2 border-pink-200 border-t-pink-500 rounded-full animate-spin" />
       </div>
     );
@@ -158,7 +167,7 @@ export default function ChatRoomPage() {
 
   return (
     <div
-      className="flex flex-col bg-[#F2F1F6] font-sans overflow-hidden"
+      className="flex flex-col bg-[#F7F7FA] font-sans overflow-hidden"
       style={{ height: '100dvh' }}
     >
       {/* ── ヘッダー ── */}
@@ -218,7 +227,7 @@ export default function ChatRoomPage() {
               return (
                 <div key={item.key} className="flex items-center gap-3 py-3 select-none">
                   <div className="flex-1 h-px bg-slate-200/60" />
-                  <span className="text-[10px] font-bold text-slate-400 bg-[#F2F1F6] px-2">{item.label}</span>
+                  <span className="text-[10px] font-bold text-slate-400 bg-[#F7F7FA] px-2">{item.label}</span>
                   <div className="flex-1 h-px bg-slate-200/60" />
                 </div>
               );
@@ -227,9 +236,7 @@ export default function ChatRoomPage() {
             const { msg, isFirst, isLast } = item;
             const isMe = msg.senderType === 'USER';
 
-            const bubbleRadius = isMe
-              ? `rounded-[20px] ${isLast ? 'rounded-br-[6px]' : 'rounded-br-[20px]'} ${!isFirst ? 'rounded-tr-[8px]' : ''}`
-              : `rounded-[20px] ${isLast ? 'rounded-bl-[6px]' : 'rounded-bl-[20px]'} ${!isFirst ? 'rounded-tl-[8px]' : ''}`;
+            const bubbleRadius = 'rounded-2xl';
 
             return (
               <motion.div
@@ -289,7 +296,7 @@ export default function ChatRoomPage() {
         style={{ paddingBottom: 'calc(0.5rem + env(safe-area-inset-bottom))' }}
       >
         <div className="flex items-end gap-2">
-          <div className="flex-1 bg-[#F2F1F6] rounded-[22px] border-2 border-transparent focus-within:border-pink-300 focus-within:bg-white transition-all flex items-end px-4 py-2.5 min-h-[44px]">
+          <div className="flex-1 flex flex-col bg-[#F7F7FA] rounded-[22px] border-2 border-transparent focus-within:border-pink-300 focus-within:bg-white transition-all px-4 py-2.5 min-h-[44px]">
             <textarea
               ref={textareaRef}
               value={newMessage}
@@ -297,8 +304,14 @@ export default function ChatRoomPage() {
               onKeyDown={handleKeyDown}
               placeholder="メッセージ..."
               rows={1}
+              maxLength={500}
               className="w-full bg-transparent outline-none text-[16px] text-slate-800 placeholder:text-slate-400 resize-none max-h-[120px] font-medium leading-relaxed"
             />
+            {newMessage.length > 0 && (
+              <div className={`text-right text-[10px] font-medium mt-0.5 ${newMessage.length >= 480 ? 'text-rose-400' : 'text-slate-400'}`}>
+                {newMessage.length}/500
+              </div>
+            )}
           </div>
 
           <AnimatePresence>

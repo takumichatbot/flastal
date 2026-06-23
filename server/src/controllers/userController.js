@@ -1,4 +1,7 @@
 import prisma from '../config/prisma.js';
+import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
+import { logger } from '../utils/logger.js';
 
 // ==========================================
 // ★★★ 取得系 (Public & Private) ★★★
@@ -122,7 +125,7 @@ export const updateProfile = async (req, res) => {
         const { password, ...userWithoutPassword } = updatedUser;
         res.json(userWithoutPassword);
     } catch (error) {
-        console.error("プロフィール更新エラー:", error);
+        logger.error('プロフィール更新エラー', { context: 'userController', error: error.message });
         res.status(500).json({ message: 'プロフィールの更新に失敗しました。' });
     }
 };
@@ -309,6 +312,79 @@ export const getPointHistory = async (req, res) => {
 };
 
 // ==========================================
+// GET /api/users/point-history
+// ポイント取引履歴（総合：チャージ・支援使用・返金など）
+// ==========================================
+export const getPointTransactionHistory = async (req, res) => {
+    const userId = req.user.id;
+    const { page = 1, limit = 20 } = req.query;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    try {
+        // PointTransactionモデルが存在する場合はそちらを優先
+        let transactions = [];
+        let total = 0;
+        let currentBalance = 0;
+
+        try {
+            [transactions, total] = await Promise.all([
+                prisma.pointTransaction.findMany({
+                    where: { userId },
+                    orderBy: { createdAt: 'desc' },
+                    skip,
+                    take: parseInt(limit),
+                }),
+                prisma.pointTransaction.count({ where: { userId } }),
+            ]);
+        } catch (_) {
+            // PointTransactionテーブルが存在しない場合はWebhookLogからチャージ分のみ返す
+            const logs = await prisma.webhookLog.findMany({
+                where: {
+                    eventType: 'checkout.session.completed',
+                    status: 'success',
+                    metadata: { path: ['userId'], equals: userId },
+                },
+                orderBy: { createdAt: 'desc' },
+                skip,
+                take: parseInt(limit),
+            });
+            const countLogs = await prisma.webhookLog.count({
+                where: {
+                    eventType: 'checkout.session.completed',
+                    status: 'success',
+                    metadata: { path: ['userId'], equals: userId },
+                },
+            });
+            transactions = logs.map(l => ({
+                id: l.id,
+                type: 'POINT_CHARGE',
+                amount: l.metadata?.points || 0,
+                note: 'ポイントチャージ',
+                createdAt: l.createdAt,
+            }));
+            total = countLogs;
+        }
+
+        const user = await prisma.user.findUnique({
+            where: { id: userId },
+            select: { points: true },
+        });
+        currentBalance = user?.points ?? 0;
+
+        res.json({
+            transactions,
+            total,
+            currentBalance,
+            page: parseInt(page),
+            totalPages: Math.ceil(total / parseInt(limit)),
+        });
+    } catch (err) {
+        logger.error('error', { context: 'PointHistory', error: err.message });
+        const user = await prisma.user.findUnique({ where: { id: userId }, select: { points: true } }).catch(() => null);
+        res.json({ transactions: [], total: 0, currentBalance: user?.points ?? 0, page: 1, totalPages: 0 });
+    }
+};
+
+// ==========================================
 // フォロー / アンフォロー
 // ==========================================
 export const followUser = async (req, res) => {
@@ -425,7 +501,7 @@ export const submitKyc = async (req, res) => {
 
         res.json({ message: '本人確認書類を受け付けました。審査には1〜3営業日かかります。' });
     } catch (err) {
-        console.error('submitKyc:', err);
+        logger.error('submitKyc', { context: 'userController', error: err.message });
         res.status(500).json({ message: 'KYC申請に失敗しました' });
     }
 };
@@ -433,6 +509,134 @@ export const submitKyc = async (req, res) => {
 // ==========================================
 // 紹介/アフィリエイト統計
 // ==========================================
+// ==========================================
+// 通知設定
+// ==========================================
+
+// GET /api/users/notification-settings
+export const getNotificationSettings = async (req, res) => {
+    try {
+        const user = await prisma.user.findUnique({
+            where: { id: req.user.id },
+            select: { notificationSettings: true },
+        });
+        const defaults = {
+            push_new_pledge: true,
+            push_project_complete: true,
+            push_live_start: true,
+            push_group_buy_funded: true,
+            email_pledge_received: true,
+            email_project_funded: true,
+            email_project_complete: true,
+        };
+        res.json({ ...defaults, ...(user?.notificationSettings || {}) });
+    } catch (error) {
+        res.status(500).json({ message: '通知設定の取得に失敗しました' });
+    }
+};
+
+// PUT /api/users/notification-settings
+export const updateNotificationSettings = async (req, res) => {
+    try {
+        const settings = req.body;
+        const updated = await prisma.user.update({
+            where: { id: req.user.id },
+            data: { notificationSettings: settings },
+            select: { notificationSettings: true },
+        });
+        res.json(updated.notificationSettings);
+    } catch (error) {
+        res.status(500).json({ message: '通知設定の保存に失敗しました' });
+    }
+};
+
+// ==========================================
+// ★ パスワード変更（ログイン中）
+// ==========================================
+export const changePassword = async (req, res) => {
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword) {
+        return res.status(400).json({ message: '現在のパスワードと新しいパスワードを入力してください。' });
+    }
+    if (newPassword.length < 8) {
+        return res.status(400).json({ message: 'パスワードは8文字以上で設定してください。' });
+    }
+    try {
+        const user = await prisma.user.findUnique({ where: { id: req.user.id }, select: { password: true } });
+        const isValid = await bcrypt.compare(currentPassword, user.password);
+        if (!isValid) return res.status(400).json({ message: '現在のパスワードが正しくありません。' });
+        const hashed = await bcrypt.hash(newPassword, 12);
+        await prisma.user.update({ where: { id: req.user.id }, data: { password: hashed } });
+        res.json({ message: 'パスワードを変更しました。' });
+    } catch (err) {
+        logger.error('changePassword', { context: 'userController', error: err.message });
+        res.status(500).json({ message: 'パスワードの変更に失敗しました。' });
+    }
+};
+
+// ==========================================
+// ★ メールアドレス変更リクエスト
+// ==========================================
+export const requestEmailChange = async (req, res) => {
+    const { newEmail } = req.body;
+    if (!newEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)) {
+        return res.status(400).json({ message: '有効なメールアドレスを入力してください。' });
+    }
+    try {
+        const existing = await prisma.user.findUnique({ where: { email: newEmail } });
+        if (existing) return res.status(400).json({ message: 'このメールアドレスは既に使用されています。' });
+
+        const token = crypto.randomBytes(32).toString('hex');
+        const expires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24時間
+
+        await prisma.user.update({
+            where: { id: req.user.id },
+            data: { pendingEmail: newEmail, emailChangeToken: token, emailChangeExpires: expires },
+        });
+
+        const { queueEmail } = await import('../utils/email.js');
+        const frontendUrl = process.env.FRONTEND_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://www.flastal.com';
+        queueEmail(newEmail, 'EMAIL_CHANGE_CONFIRM', {
+            newEmail,
+            confirmUrl: `${frontendUrl}/auth/confirm-email-change?token=${token}`,
+        });
+
+        res.json({ message: `${newEmail} に確認メールを送信しました。24時間以内にご確認ください。` });
+    } catch (err) {
+        logger.error('requestEmailChange', { context: 'userController', error: err.message });
+        res.status(500).json({ message: 'メールアドレス変更の申請に失敗しました。' });
+    }
+};
+
+// ==========================================
+// ★ メールアドレス変更確認（トークン検証）
+// ==========================================
+export const confirmEmailChange = async (req, res) => {
+    const { token } = req.query;
+    if (!token) return res.status(400).json({ message: 'トークンが指定されていません。' });
+    try {
+        const user = await prisma.user.findFirst({
+            where: { emailChangeToken: token, emailChangeExpires: { gt: new Date() } },
+        });
+        if (!user || !user.pendingEmail) {
+            return res.status(400).json({ message: 'トークンが無効または期限切れです。' });
+        }
+        await prisma.user.update({
+            where: { id: user.id },
+            data: {
+                email: user.pendingEmail,
+                pendingEmail: null,
+                emailChangeToken: null,
+                emailChangeExpires: null,
+            },
+        });
+        res.json({ message: 'メールアドレスを変更しました。' });
+    } catch (err) {
+        logger.error('confirmEmailChange', { context: 'userController', error: err.message });
+        res.status(500).json({ message: 'メールアドレスの変更に失敗しました。' });
+    }
+};
+
 export const getReferralStats = async (req, res) => {
     const userId = req.user.id;
     try {
@@ -478,7 +682,133 @@ export const getReferralStats = async (req, res) => {
             conversions,
         });
     } catch (err) {
-        console.error('getReferralStats:', err);
+        logger.error('getReferralStats', { context: 'userController', error: err.message });
+        res.status(500).json({ message: 'エラーが発生しました' });
+    }
+};
+
+// ==========================================
+// PATCH /api/users/pledges/:pledgeId/confirm-received
+// フラワースタンド受け取り確認
+// ==========================================
+export const confirmPledgeReceived = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { pledgeId } = req.params;
+
+        const pledge = await prisma.pledge.findUnique({
+            where: { id: pledgeId },
+            include: { project: { select: { id: true, title: true, plannerId: true } } },
+        });
+
+        if (!pledge) return res.status(404).json({ message: '支援記録が見つかりません。' });
+        if (pledge.userId !== userId) return res.status(403).json({ message: '権限がありません。' });
+        if (pledge.receivedAt) return res.status(400).json({ message: 'すでに受け取り確認済みです。' });
+
+        const updated = await prisma.pledge.update({
+            where: { id: pledgeId },
+            data: { receivedAt: new Date() },
+        });
+
+        // 企画者へ受け取り確認の通知を送信
+        if (pledge.project?.plannerId) {
+            const { createNotification } = await import('../utils/notification.js');
+            createNotification(
+                pledge.project.plannerId,
+                'PROJECT_STATUS_UPDATE',
+                `${req.user.handleName || 'サポーター'}さんがフラワースタンドの受け取りを確認しました`,
+                pledge.project.id,
+                `/projects/${pledge.project.id}`
+            ).catch(() => {});
+        }
+
+        res.json({ message: '受け取り確認が完了しました。', receivedAt: updated.receivedAt });
+    } catch (err) {
+        logger.error('confirmReceived error', { context: 'Pledge', error: err.message });
+        res.status(500).json({ message: '受け取り確認に失敗しました。' });
+    }
+};
+
+// ==========================================
+// GET /api/users/push-subscriptions
+// 登録済みプッシュ通知デバイス一覧
+// ==========================================
+export const getPushSubscriptions = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const subs = await prisma.pushSubscription.findMany({
+            where: { userId },
+            select: { id: true, createdAt: true, endpoint: true },
+            orderBy: { createdAt: 'desc' },
+        });
+        const devices = subs.map(s => ({
+            id: s.id,
+            createdAt: s.createdAt,
+            label: s.endpoint.includes('fcm.googleapis.com') ? 'Android/Chrome' :
+                   s.endpoint.includes('push.apple.com') ? 'Safari/iPhone' : 'ブラウザ',
+            endpointSuffix: s.endpoint.slice(-8),
+        }));
+        res.json(devices);
+    } catch (err) {
+        logger.error('getSubscriptions error', { context: 'PushSubscription', error: err.message });
+        res.status(500).json({ message: 'デバイス一覧の取得に失敗しました。' });
+    }
+};
+
+// ==========================================
+// DELETE /api/users/push-subscriptions/:id
+// プッシュ通知デバイス削除
+// ==========================================
+export const deletePushSubscription = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { id } = req.params;
+        await prisma.pushSubscription.deleteMany({ where: { id, userId } });
+        res.json({ message: 'デバイスの登録を解除しました。' });
+    } catch (err) {
+        logger.error('deleteSubscription error', { context: 'PushSubscription', error: err.message });
+        res.status(500).json({ message: '解除に失敗しました。' });
+    }
+};
+
+// ==========================================
+// GET /api/users/badges
+// ユーザーのバッジ一覧（獲得済み・未獲得）を返す
+// ==========================================
+export const getUserBadges = async (req, res) => {
+    const userId = req.user.id;
+    try {
+        const { BADGE_DEFS } = await import('../utils/badges.js');
+
+        const user = await prisma.user.findUnique({
+            where: { id: userId },
+            select: { badgeIds: true },
+        });
+
+        const earnedIds = new Set(user?.badgeIds || []);
+
+        const earned = Object.values(BADGE_DEFS)
+            .filter(b => earnedIds.has(b.id))
+            .map(b => ({
+                id: b.id,
+                name: b.label,
+                icon: b.emoji,
+                description: b.description,
+            }));
+
+        const locked = Object.values(BADGE_DEFS)
+            .filter(b => !earnedIds.has(b.id))
+            .map(b => ({
+                id: b.id,
+                name: b.label,
+                icon: b.emoji,
+                description: b.description,
+                condition: b.description,
+            }));
+
+        res.json({ earned, locked });
+    } catch (err) {
+        logger.error('getUserBadges', { context: 'userController', error: err.message });
         res.status(500).json({ message: 'エラーが発生しました' });
     }
 };

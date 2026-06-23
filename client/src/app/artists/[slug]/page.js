@@ -6,15 +6,26 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onre
 export async function generateMetadata({ params }) {
     const { slug } = await params;
     try {
-        const res = await fetch(`${API_URL}/api/artists/${slug}`, { next: { revalidate: 3600 } });
+        const res = await fetch(`${API_URL}/api/artists/${slug}`, { next: { revalidate: 300 } });
         if (!res.ok) return { title: 'アーティスト | FLASTAL' };
         const artist = await res.json();
+        const title = `${artist.artistName || artist.name} | FLASTAL`;
+        const description = artist.description || `${artist.artistName || artist.name}のフラスタ企画一覧。FLASTALでフラワースタンドを贈ろう。`;
+        const image = artist.coverImageUrl || artist.iconUrl || 'https://www.flastal.com/og-default.png';
         return {
-            title: `${artist.name} | FLASTAL`,
-            description: artist.description || `${artist.name}への応援フラスタ企画一覧`,
+            title,
+            description,
             openGraph: {
-                title: `${artist.name} | FLASTAL`,
-                images: artist.coverImageUrl ? [{ url: artist.coverImageUrl }] : [],
+                title,
+                description,
+                url: `https://www.flastal.com/artists/${slug}`,
+                images: [{ url: image, width: 1200, height: 630, alt: artist.artistName || artist.name }],
+            },
+            twitter: {
+                card: 'summary_large_image',
+                title,
+                description,
+                images: [image],
             },
         };
     } catch {

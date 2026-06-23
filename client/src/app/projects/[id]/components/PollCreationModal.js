@@ -100,7 +100,7 @@ export default function PollCreationModal({ projectId, onClose, onPollCreated })
             <h2 className="text-lg font-bold text-purple-900 flex items-center gap-2">
                 <BarChart2 className="text-xl"/> アンケートを作成
             </h2>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-white transition-colors">
+            <button onClick={onClose} aria-label="閉じる" className="text-gray-400 hover:text-gray-600 p-2 rounded-full hover:bg-white transition-colors">
                 <X size={24}/>
             </button>
         </div>

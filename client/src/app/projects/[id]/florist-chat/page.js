@@ -98,7 +98,10 @@ export default function PlannerFloristChatPage() {
         try {
             const saved = localStorage.getItem(`florist-memo-${chatRoom.id}`);
             if (saved) setMemoItems(JSON.parse(saved));
-        } catch {}
+        } catch (e) {
+            console.error('[florist-chat] メモの読み込みに失敗しました。破損データを削除します:', e);
+            localStorage.removeItem(`florist-memo-${chatRoom.id}`);
+        }
     }, [chatRoom?.id]);
 
     // メモをlocalStorageへ保存
@@ -327,7 +330,7 @@ export default function PlannerFloristChatPage() {
                                                     <div className="relative">
                                                         <div className={`px-4 py-2.5 rounded-2xl relative text-sm leading-relaxed whitespace-pre-wrap break-words font-medium ${isOwn ? 'bg-gradient-to-br from-sky-500 to-indigo-500 text-white rounded-br-sm shadow-md shadow-sky-200/50' : 'bg-white text-slate-800 border border-slate-100 rounded-bl-sm shadow-sm'}`}>
                                                             {msg.messageType === 'IMAGE' ? (
-                                                                <img src={msg.fileUrl} alt="画像" className="max-w-full h-auto rounded-xl my-1 cursor-zoom-in hover:opacity-90 transition-opacity border border-black/5" onClick={()=>window.open(msg.fileUrl,'_blank')}/>
+                                                                <img src={msg.fileUrl} alt="画像" className="max-w-full h-auto rounded-xl my-1 cursor-zoom-in hover:opacity-90 transition-opacity border border-black/5" onClick={()=>{ const win = window.open(msg.fileUrl,'_blank','noopener,noreferrer'); if(win) win.opener=null; }}/>
                                                             ) : msg.messageType === 'FILE' ? (
                                                                 <a href={msg.fileUrl} target="_blank" rel="noopener noreferrer" className={`flex items-center gap-2 font-bold hover:underline p-2 rounded-xl ${isOwn ? 'bg-black/10' : 'bg-slate-50 text-sky-600'}`}>📎 {msg.fileName}</a>
                                                             ) : (

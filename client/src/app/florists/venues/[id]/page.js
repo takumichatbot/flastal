@@ -40,7 +40,7 @@ const GlassCard = ({ children, className }) => (
 const SimpleImageModal = ({ src, onClose }) => {
   if (!src) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/90 backdrop-blur-sm p-4 animate-fadeIn" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fadeIn" onClick={onClose}>
       <div className="relative max-w-4xl max-h-screen w-full h-full flex items-center justify-center">
         <button onClick={onClose} className="absolute top-4 right-4 text-white p-3 rounded-full bg-white/10 hover:bg-white/20 transition-colors border border-white/20 backdrop-blur-md">
           <X size={24} />

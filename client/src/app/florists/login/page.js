@@ -50,7 +50,7 @@ export default function FloristLoginPage() {
         throw new Error(data.message || 'ログインに失敗しました');
       }
 
-      const success = await login(data.token, data.florist);
+      const success = await login(data.token, data.florist, data.refreshToken);
       
       if (success) {
         toast.success('おかえりなさい！');

@@ -8,6 +8,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onre
 export default function GuestPledgeForm({ projectId, projectTitle, onCancel, onSuccess }) {
   const [loading, setLoading] = useState(false);
   const [agreed, setAgreed] = useState(false);
+  const [guestEmailConfirm, setGuestEmailConfirm] = useState('');
   const [formData, setFormData] = useState({
     guestName: '',
     guestEmail: '',
@@ -34,6 +35,9 @@ export default function GuestPledgeForm({ projectId, projectTitle, onCancel, onS
     }
     if (!formData.guestName || !formData.guestEmail || formData.amount < 500) {
       return toast.error('入力内容を確認してください（金額は500円以上）');
+    }
+    if (formData.guestEmail !== guestEmailConfirm) {
+      return toast.error('メールアドレスが一致しません');
     }
 
     setLoading(true);
@@ -93,8 +97,8 @@ export default function GuestPledgeForm({ projectId, projectTitle, onCancel, onS
         
         {/* 1. 支援金額 */}
         <div>
-          <label className="block text-sm font-bold text-gray-700 mb-2">支援金額 (円)</label>
-          
+          <label htmlFor="guest-amount" className="block text-sm font-bold text-gray-700 mb-2">支援金額 (円)</label>
+
           <div className="flex flex-wrap gap-2 mb-3">
             {PRESET_AMOUNTS.map(amount => (
                 <button
@@ -102,8 +106,8 @@ export default function GuestPledgeForm({ projectId, projectTitle, onCancel, onS
                     type="button"
                     onClick={() => handleAmountPreset(amount)}
                     className={`px-4 py-2.5 text-xs font-bold rounded-full border transition-all ${
-                        formData.amount === amount 
-                        ? 'bg-pink-500 border-pink-500 text-white shadow-md' 
+                        formData.amount === amount
+                        ? 'bg-pink-500 border-pink-500 text-white shadow-md'
                         : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
                     }`}
                 >
@@ -115,6 +119,7 @@ export default function GuestPledgeForm({ projectId, projectTitle, onCancel, onS
           <div className="relative group">
             <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-lg">¥</span>
             <input
+              id="guest-amount"
               type="number"
               name="amount"
               min="500"
@@ -132,15 +137,17 @@ export default function GuestPledgeForm({ projectId, projectTitle, onCancel, onS
         {/* 2. ゲスト情報 */}
         <div className="grid grid-cols-1 gap-4">
             <div>
-            <label className="block text-xs font-bold text-gray-500 mb-1 ml-1">お名前 (ニックネーム可) <span className="text-red-500">*</span></label>
+            <label htmlFor="guest-name" className="block text-xs font-bold text-gray-500 mb-1 ml-1">お名前 (ニックネーム可) <span className="text-red-500">*</span></label>
             <div className="relative">
                 <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                 <input
+                id="guest-name"
                 type="text"
                 name="guestName"
                 placeholder="推し活 太郎"
                 value={formData.guestName}
                 onChange={handleChange}
+                autoComplete="name"
                 className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:border-pink-500 focus:ring-2 focus:ring-pink-200 outline-none transition-all"
                 required
                 />
@@ -148,29 +155,56 @@ export default function GuestPledgeForm({ projectId, projectTitle, onCancel, onS
             </div>
 
             <div>
-            <label className="block text-xs font-bold text-gray-500 mb-1 ml-1">メールアドレス <span className="text-red-500">*</span></label>
+            <label htmlFor="guest-email" className="block text-xs font-bold text-gray-500 mb-1 ml-1">メールアドレス <span className="text-red-500">*</span></label>
             <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                 <input
+                id="guest-email"
                 type="email"
                 name="guestEmail"
                 placeholder="example@flastal.com"
                 value={formData.guestEmail}
                 onChange={handleChange}
+                autoComplete="email"
                 className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:border-pink-500 focus:ring-2 focus:ring-pink-200 outline-none transition-all"
                 required
                 />
             </div>
             <p className="text-[10px] text-gray-400 mt-1 ml-1">※決済完了メールをお送りします</p>
             </div>
+
+            <div>
+            <label htmlFor="guest-email-confirm" className="block text-xs font-bold text-gray-500 mb-1 ml-1">メールアドレス（確認） <span className="text-red-500">*</span></label>
+            <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                id="guest-email-confirm"
+                type="email"
+                placeholder="もう一度入力してください"
+                value={guestEmailConfirm}
+                onChange={e => setGuestEmailConfirm(e.target.value)}
+                autoComplete="email"
+                className={`w-full pl-10 pr-4 py-3 bg-gray-50 border rounded-lg focus:bg-white focus:ring-2 outline-none transition-all ${
+                    guestEmailConfirm && formData.guestEmail !== guestEmailConfirm
+                    ? 'border-red-400 focus:border-red-500 focus:ring-red-200'
+                    : 'border-gray-200 focus:border-pink-500 focus:ring-pink-200'
+                }`}
+                required
+                />
+            </div>
+            {guestEmailConfirm && formData.guestEmail !== guestEmailConfirm && (
+                <p className="text-[10px] text-red-500 mt-1 ml-1">メールアドレスが一致しません</p>
+            )}
+            </div>
         </div>
 
         {/* 3. 応援コメント */}
         <div>
-          <label className="block text-xs font-bold text-gray-500 mb-1 ml-1">応援コメント (任意)</label>
+          <label htmlFor="guest-comment" className="block text-xs font-bold text-gray-500 mb-1 ml-1">応援コメント (任意)</label>
           <div className="relative">
             <MessageSquare className="absolute left-3 top-3 text-gray-400" />
             <textarea
+              id="guest-comment"
               name="comment"
               rows="3"
               placeholder="企画成功を祈っています！"

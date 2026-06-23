@@ -29,10 +29,6 @@ export default function LiveTicker() {
       reconnectionAttempts: 3
     });
 
-    socket.on('connect', () => {
-      console.log('Ticker connected to socket');
-    });
-
     socket.on('publicTickerUpdate', (newLog) => {
       setLogs((prevLogs) => {
         const updated = [newLog, ...prevLogs].slice(0, 20);

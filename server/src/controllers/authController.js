@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { sendDynamicEmail, queueEmail } from '../utils/email.js';
+import { logger } from '../utils/logger.js';
 
 const REFERRAL_BONUS_POINTS = parseInt(process.env.REFERRAL_BONUS_POINTS || '200');
 
@@ -10,13 +11,34 @@ const REFERRAL_BONUS_POINTS = parseInt(process.env.REFERRAL_BONUS_POINTS || '200
 // ★★★ 共通ヘルパー: トークン発行 ★★★
 // ==========================================
 const generateToken = (payload) => {
-    // ペイロード内の ID 関連をすべて文字列に強制変換（不整合防止）
     const cleanPayload = {
         ...payload,
         id: payload.id ? String(payload.id) : undefined,
         sub: payload.sub ? String(payload.sub) : (payload.id ? String(payload.id) : undefined)
     };
-    return jwt.sign(cleanPayload, process.env.JWT_SECRET, { expiresIn: '7d' });
+    return jwt.sign(cleanPayload, process.env.JWT_SECRET, { expiresIn: '15m' });
+};
+
+export const generateTokensForOAuth = async (payload) => {
+    return generateTokens(payload);
+};
+
+const generateTokens = async (payload) => {
+    const accessToken = generateToken(payload);
+
+    const refreshTokenValue = crypto.randomBytes(64).toString('hex');
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+    const userId = String(payload.id);
+    await prisma.refreshToken.create({
+        data: {
+            token: refreshTokenValue,
+            userId,
+            expiresAt,
+        },
+    });
+
+    return { accessToken, refreshToken: refreshTokenValue };
 };
 
 // ==========================================
@@ -71,7 +93,7 @@ export const registerUser = async (req, res) => {
 
         res.status(201).json({ message: '確認メールを送信しました。' });
     } catch (error) {
-        console.error('User登録エラー:', error);
+        logger.error('User登録エラー', { context: 'authController', error: error.message });
         res.status(500).json({ message: '登録処理中にエラーが発生しました。' });
     }
 };
@@ -91,6 +113,10 @@ export const loginUser = async (req, res) => {
             return res.status(403).json({ message: 'メールアドレスの認証が完了していません。' });
         }
 
+        if (user.status === 'SUSPENDED') {
+            return res.status(403).json({ message: 'このアカウントは利用停止中です。お問い合わせください。' });
+        }
+
         let userRole = user.role;
         const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
         if (ADMIN_EMAILS.length > 0 && ADMIN_EMAILS.includes(lowerEmail)) {
@@ -108,7 +134,7 @@ export const loginUser = async (req, res) => {
             if (!valid) return res.status(401).json({ message: '認証コードが正しくありません' });
         }
 
-        const token = generateToken({
+        const { accessToken, refreshToken } = await generateTokens({
             id: user.id,
             email: user.email,
             handleName: user.handleName,
@@ -116,12 +142,11 @@ export const loginUser = async (req, res) => {
             status: 'APPROVED'
         });
 
-        // 🌟 追加：パスワードを隠して、ポイント等のユーザー情報を一緒に返す
         const { password: _, ...userData } = user;
 
-        res.status(200).json({ message: 'ログインに成功しました。', token, user: userData });
+        res.status(200).json({ message: 'ログインに成功しました。', token: accessToken, refreshToken, user: userData });
     } catch (error) {
-        console.error('Login Error:', error);
+        logger.error('User login failed', { error: error.message });
         res.status(500).json({ message: 'サーバーエラーが発生しました。' });
     }
 };
@@ -158,7 +183,7 @@ export const registerFlorist = async (req, res) => {
         await sendDynamicEmail(lowerEmail, 'VERIFICATION_EMAIL', { userName: platformName, verificationUrl });
         res.status(201).json({ message: '確認メールを送信しました。' });
     } catch (error) {
-        console.error('Florist Register Error:', error);
+        logger.error('Florist Register Error', { context: 'authController', error: error.message });
         res.status(500).json({ message: '登録中にエラーが発生しました。' });
     }
 };
@@ -173,24 +198,31 @@ export const loginFlorist = async (req, res) => {
             return res.status(401).json({ message: '認証に失敗しました。' });
         }
         
-        if (!florist.isVerified || florist.status !== 'APPROVED') {
-            return res.status(403).json({ message: 'アカウントが承認されていないか、未認証です。' });
+        if (!florist.isVerified) {
+            return res.status(403).json({ message: 'メールアドレスの認証が完了していません。' });
+        }
+
+        if (florist.status === 'SUSPENDED') {
+            return res.status(403).json({ message: 'このアカウントは利用停止中です。お問い合わせください。' });
+        }
+
+        if (florist.status !== 'APPROVED') {
+            return res.status(403).json({ message: 'アカウントが承認されていません。審査完了までお待ちください。' });
         }
         
-        // ★最重要修正: ミドルウェアが迷わないよう id と role を明確にセット
-        const token = generateToken({ 
-            id: florist.id, 
-            email: florist.email, 
-            role: 'FLORIST', 
-            status: florist.status, 
+        const { accessToken, refreshToken } = await generateTokens({
+            id: florist.id,
+            email: florist.email,
+            role: 'FLORIST',
+            status: florist.status,
             shopName: florist.shopName,
             handleName: florist.platformName
         });
 
         const { password: _, ...data } = florist;
-        res.status(200).json({ message: 'ログインに成功しました。', token, florist: data });
+        res.status(200).json({ message: 'ログインに成功しました。', token: accessToken, refreshToken, florist: data });
     } catch (error) {
-        console.error('Florist Login Error:', error);
+        logger.error('Florist login failed', { error: error.message });
         res.status(500).json({ message: 'エラーが発生しました。' });
     }
 };
@@ -217,7 +249,7 @@ export const registerVenue = async (req, res) => {
         await sendDynamicEmail(lowerEmail, 'VERIFICATION_EMAIL', { userName: venueName, verificationUrl });
         res.status(201).json({ message: 'メールを送信しました。' });
     } catch (error) { 
-        console.error('Venue Register Error:', error);
+        logger.error('Venue Register Error', { context: 'authController', error: error.message });
         res.status(500).json({ message: '登録エラーが発生しました。' }); 
     }
 };
@@ -230,18 +262,18 @@ export const loginVenue = async (req, res) => {
         if (!venue || !(await bcrypt.compare(password, venue.password))) return res.status(401).json({ message: '認証失敗' });
         if (!venue.isVerified || venue.status !== 'APPROVED') return res.status(403).json({ message: 'アカウントが承認されていません。' });
         
-        const token = generateToken({ 
-            id: venue.id, 
-            email: venue.email, 
-            role: 'VENUE', 
+        const { accessToken, refreshToken } = await generateTokens({
+            id: venue.id,
+            email: venue.email,
+            role: 'VENUE',
             status: venue.status,
             venueName: venue.venueName
         });
 
         const { password: _, ...data } = venue;
-        res.status(200).json({ message: '成功', token, venue: data });
+        res.status(200).json({ message: '成功', token: accessToken, refreshToken, venue: data });
     } catch (error) { 
-        console.error('Venue Login Error:', error);
+        logger.error('Venue Login Error', { context: 'authController', error: error.message });
         res.status(500).json({ message: 'エラーが発生しました。' }); 
     }
 };
@@ -268,7 +300,7 @@ export const registerOrganizer = async (req, res) => {
         await sendDynamicEmail(lowerEmail, 'VERIFICATION_EMAIL', { userName: name, verificationUrl });
         res.status(201).json({ message: '登録完了メールを送信しました。' });
     } catch (error) { 
-        console.error('Organizer Register Error:', error);
+        logger.error('Organizer Register Error', { context: 'authController', error: error.message });
         res.status(500).json({ message: 'エラーが発生しました。' }); 
     }
 };
@@ -281,16 +313,16 @@ export const loginOrganizer = async (req, res) => {
         if (!org || !(await bcrypt.compare(password, org.password))) return res.status(401).json({ message: '認証失敗' });
         if (!org.isVerified || org.status !== 'APPROVED') return res.status(403).json({ message: '未承認のアカウントです。' });
         
-        const token = generateToken({ 
-            id: org.id, 
-            email: org.email, 
-            role: 'ORGANIZER', 
+        const { accessToken, refreshToken } = await generateTokens({
+            id: org.id,
+            email: org.email,
+            role: 'ORGANIZER',
             status: org.status,
             name: org.name
         });
-        res.status(200).json({ message: '成功', token });
+        res.status(200).json({ message: '成功', token: accessToken, refreshToken });
     } catch (error) { 
-        console.error('Organizer Login Error:', error);
+        logger.error('Organizer Login Error', { context: 'authController', error: error.message });
         res.status(500).json({ message: 'エラーが発生しました。' }); 
     }
 };
@@ -337,7 +369,7 @@ export const verifyEmail = async (req, res) => {
 
         res.json({ message: 'メール認証が成功しました。' });
     } catch (error) { 
-        console.error('Verify Email Error:', error);
+        logger.error('Verify Email Error', { context: 'authController', error: error.message });
         res.status(500).json({ message: '認証処理中にエラーが発生しました。' }); 
     }
 };
@@ -362,7 +394,7 @@ export const resendVerification = async (req, res) => {
         
         res.status(200).json({ message: '認証メールを再送信しました。' });
     } catch (error) { 
-        console.error('Resend Verification Error:', error);
+        logger.error('Resend Verification Error', { context: 'authController', error: error.message });
         res.status(500).json({ message: '再送信中にエラーが発生しました。' }); 
     }
 };
@@ -375,13 +407,13 @@ export const forgotPassword = async (req, res) => {
         
         const user = await prisma[modelName].findUnique({ where: { email: email.toLowerCase() } });
         if (user) {
-            const token = jwt.sign({ id: user.id, type: userType }, process.env.JWT_SECRET, { expiresIn: '1h' });
+            const token = jwt.sign({ id: user.id, type: userType }, process.env.JWT_SECRET, { expiresIn: '15m' });
             const resetLink = `${process.env.FRONTEND_URL}/reset-password/${token}`;
             await sendDynamicEmail(email, 'PASSWORD_RESET', { userName: user.handleName || user.platformName || 'お客様', resetLink });
         }
         res.status(200).json({ message: 'ご入力いただいたアドレスが登録されている場合、再設定メールを送信しました。' });
     } catch (error) { 
-        console.error('Forgot Password Error:', error);
+        logger.error('Forgot Password Error', { context: 'authController', error: error.message });
         res.status(500).json({ message: '処理中にエラーが発生しました。' }); 
     }
 };
@@ -399,10 +431,60 @@ export const resetPassword = async (req, res) => {
         });
         
         res.status(200).json({ message: 'パスワードを更新しました。新しいパスワードでログインしてください。' });
-    } catch (error) { 
-        console.error('Reset Password Error:', error);
-        res.status(500).json({ message: 'トークンの有効期限が切れているか、無効です。' }); 
+    } catch (error) {
+        logger.error('Reset Password Error', { context: 'authController', error: error.message });
+        res.status(500).json({ message: 'トークンの有効期限が切れているか、無効です。' });
     }
+};
+
+export const refreshAccessToken = async (req, res) => {
+    const { refreshToken } = req.body;
+    if (!refreshToken) {
+        return res.status(401).json({ message: 'リフレッシュトークンが必要です。' });
+    }
+
+    try {
+        const stored = await prisma.refreshToken.findUnique({
+            where: { token: refreshToken },
+            include: { user: { select: { id: true, status: true, email: true, handleName: true, role: true } } },
+        });
+
+        if (!stored) {
+            return res.status(401).json({ message: 'リフレッシュトークンが無効です。' });
+        }
+
+        if (new Date() > stored.expiresAt) {
+            await prisma.refreshToken.delete({ where: { id: stored.id } });
+            return res.status(401).json({ message: 'リフレッシュトークンの有効期限が切れています。再ログインしてください。' });
+        }
+
+        if (stored.user.status === 'SUSPENDED') {
+            return res.status(403).json({ message: 'このアカウントは利用停止中です。' });
+        }
+
+        await prisma.refreshToken.delete({ where: { id: stored.id } });
+
+        const { accessToken, refreshToken: newRefreshToken } = await generateTokens({
+            id: stored.user.id,
+            email: stored.user.email,
+            handleName: stored.user.handleName,
+            role: stored.user.role,
+            status: stored.user.status,
+        });
+
+        res.json({ token: accessToken, refreshToken: newRefreshToken });
+    } catch (error) {
+        logger.error('Refresh Token Error', { context: 'authController', error: error.message });
+        res.status(500).json({ message: 'サーバーエラーが発生しました。' });
+    }
+};
+
+export const revokeRefreshToken = async (req, res) => {
+    const { refreshToken } = req.body;
+    if (refreshToken) {
+        await prisma.refreshToken.deleteMany({ where: { token: refreshToken } }).catch(() => {});
+    }
+    res.json({ message: 'ログアウトしました。' });
 };
 
 // ==========================================
@@ -430,19 +512,20 @@ export const loginAdmin = async (req, res) => {
             return res.status(401).json({ message: 'パスワードが間違っています。' });
         }
 
-        const token = generateToken({ 
-            id: adminUser.id, 
-            email: adminUser.email, 
+        const { accessToken, refreshToken } = await generateTokens({
+            id: adminUser.id,
+            email: adminUser.email,
             role: 'ADMIN',
             status: 'APPROVED'
         });
 
         res.status(200).json({
             message: '管理者として認証されました。',
-            token: token
+            token: accessToken,
+            refreshToken,
         });
     } catch (error) {
-        console.error("Admin login error:", error);
+        logger.error('Admin login error', { context: 'authController', error: error.message });
         res.status(500).json({ message: 'ログイン処理中にエラーが発生しました。' });
     }
 };

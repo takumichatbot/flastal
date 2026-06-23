@@ -33,6 +33,13 @@ router.patch('/notifications/:notificationId/read', authenticateToken, userContr
 // ★ ポイント履歴
 // ==========================================
 router.get('/points/history', authenticateToken, userController.getPointHistory);
+// ポイント取引履歴（総合）
+router.get('/point-history', authenticateToken, userController.getPointTransactionHistory);
+
+// ==========================================
+// ★ 支援受け取り確認
+// ==========================================
+router.patch('/pledges/:pledgeId/confirm-received', authenticateToken, userController.confirmPledgeReceived);
 
 // ==========================================
 // ★ 銀行口座関連
@@ -61,5 +68,33 @@ router.post('/kyc/submit', authenticateToken, userController.submitKyc);
 
 // 紹介/アフィリエイト統計
 router.get('/referral/stats', authenticateToken, userController.getReferralStats);
+
+// ==========================================
+// ★ 通知設定
+// ==========================================
+router.get('/notification-settings', authenticateToken, userController.getNotificationSettings);
+router.put('/notification-settings', authenticateToken, userController.updateNotificationSettings);
+
+// ==========================================
+// ★ パスワード変更（ログイン中）
+// ==========================================
+router.post('/change-password', authenticateToken, userController.changePassword);
+
+// ==========================================
+// ★ メールアドレス変更フロー
+// ==========================================
+router.post('/request-email-change', authenticateToken, userController.requestEmailChange);
+router.get('/confirm-email-change', userController.confirmEmailChange);
+
+// ==========================================
+// ★ バッジギャラリー
+// ==========================================
+router.get('/badges', authenticateToken, userController.getUserBadges);
+
+// ==========================================
+// ★ プッシュ通知デバイス管理
+// ==========================================
+router.get('/push-subscriptions', authenticateToken, userController.getPushSubscriptions);
+router.delete('/push-subscriptions/:id', authenticateToken, userController.deletePushSubscription);
 
 export default router;

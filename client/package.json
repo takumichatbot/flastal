@@ -23,12 +23,18 @@
     "@aws-sdk/client-s3": "^3.946.0",
     "@aws-sdk/s3-request-presigner": "^3.946.0",
     "@capacitor/android": "^8.4.1",
+    "@capacitor/app": "^8.0.1",
+    "@capacitor/camera": "^8.0.1",
     "@capacitor/cli": "^8.4.0",
+    "@capacitor/clipboard": "^8.0.1",
     "@capacitor/core": "^8.4.0",
     "@capacitor/ios": "^8.4.0",
     "@capacitor/keyboard": "^8.0.3",
+    "@capacitor/network": "^8.0.1",
     "@capacitor/push-notifications": "^8.1.1",
+    "@capacitor/share": "^8.0.1",
     "@capacitor/splash-screen": "^8.0.1",
+    "@capacitor/haptics": "^8.0.1",
     "@capacitor/status-bar": "^8.0.2",
     "@google/model-viewer": "^4.1.0",
     "@growthbook/growthbook": "^1.6.5",
@@ -53,7 +59,8 @@
     "react-to-print": "^3.2.0",
     "recharts": "^3.8.1",
     "socket.io-client": "^4.8.1",
-    "three": "^0.184.0"
+    "three": "^0.184.0",
+    "use-debounce": "^10.0.4"
   },
   "devDependencies": {
     "@capacitor/assets": "^3.0.5",
