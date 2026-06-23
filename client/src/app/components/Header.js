@@ -8,9 +8,8 @@ import {
   Bell, ChevronDown, User, LogOut, Heart, CheckCircle2, Menu, X,
   Calendar, MapPin, LayoutDashboard, Settings, Sparkles, Store, ShieldCheck, Briefcase, FileText,
   UserCheck, ClipboardList, BarChart3, Building2, Package, Truck, Search, PlusCircle, Star, Rss,
-  Sun, Moon, Gift, Users
+  Gift, Users
 } from 'lucide-react';
-import { useDarkMode } from '@/app/contexts/DarkModeContext';
 import { motion, AnimatePresence, useScroll, useMotionValueEvent } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { usePathname } from 'next/navigation';
@@ -133,7 +132,6 @@ function NotificationDropdown({ notifications, fetchNotifications, unreadCount, 
 // ==========================================
 export default function Header() {
   const { user, logout, isLoading, authenticatedFetch } = useAuth();
-  const { dark, toggle: toggleDark } = useDarkMode();
   const [notifications, setNotifications] = useState([]);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -371,14 +369,14 @@ export default function Header() {
                 </span>
               </Link>
 
-              <nav className="hidden lg:flex items-center relative" onMouseLeave={() => setHoveredNav(null)}>
-                
+              <nav className="hidden xl:flex items-center relative" onMouseLeave={() => setHoveredNav(null)}>
+
                 {navLinks.map((link) => (
-                  <Link 
-                    key={link.href} 
+                  <Link
+                    key={link.href}
                     href={link.href}
                     onMouseEnter={() => setHoveredNav(link.href)}
-                    className="relative px-4 py-2 text-sm font-bold flex items-center gap-2 group z-10"
+                    className="relative px-3 py-2 text-[13px] font-bold flex items-center gap-1.5 group z-10 whitespace-nowrap"
                   >
                     {hoveredNav === link.href && (
                       <motion.div
@@ -387,9 +385,9 @@ export default function Header() {
                         transition={{ type: "spring", bounce: 0.15, duration: 0.5 }}
                       />
                     )}
-                    <span className={cn("transition-colors flex items-center gap-2", link.highlight ? 'text-rose-500' : 'text-slate-600 group-hover:text-slate-900')}>
-                      <span className={cn("transition-colors inline-block group-hover:scale-110 duration-300", link.highlight ? 'text-rose-400' : 'text-slate-400 group-hover:text-pink-500')}>
-                        {link.highlight ? <Star size={16} className="fill-rose-400" /> : link.icon}
+                    <span className={cn("transition-colors flex items-center gap-1.5", link.highlight ? 'text-rose-500' : 'text-slate-600 group-hover:text-slate-900')}>
+                      <span className={cn("transition-colors inline-block group-hover:scale-110 duration-300 shrink-0", link.highlight ? 'text-rose-400' : 'text-slate-400 group-hover:text-pink-500')}>
+                        {link.highlight ? <Star size={14} className="fill-rose-400" /> : link.icon}
                       </span>
                       {link.label}
                     </span>
@@ -399,10 +397,6 @@ export default function Header() {
             </div>
             
             <div className="flex items-center space-x-1 md:space-x-3">
-              <button onClick={toggleDark} aria-label="ダークモード切替"
-                  className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-500 hover:text-slate-700 transition-colors">
-                  {dark ? <Sun size={17} /> : <Moon size={17} />}
-              </button>
               {user ? (
                 <>
                   <NotificationDropdown
@@ -487,8 +481,8 @@ export default function Header() {
                 </div>
               )}
 
-              <button 
-                  className="lg:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
+              <button
+                  className="xl:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
                   onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                   aria-label="Toggle menu"
               >
@@ -502,7 +496,7 @@ export default function Header() {
           {isMobileMenuOpen && (
               <motion.div
                   initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 200 }}
-                  className="lg:hidden fixed inset-0 top-0 left-0 w-full h-[100dvh] bg-white/95 backdrop-blur-2xl z-[200] overflow-y-auto pointer-events-auto"
+                  className="xl:hidden fixed inset-0 top-0 left-0 w-full h-[100dvh] bg-white/95 backdrop-blur-2xl z-[200] overflow-y-auto pointer-events-auto"
               >
                   <div className="p-4 flex justify-between items-center border-b border-slate-100 bg-white sticky top-0 z-10">
                       <Link href="/" onClick={() => setIsMobileMenuOpen(false)} className="text-xl font-black text-slate-900 tracking-tighter hover:text-pink-500 transition-colors">
