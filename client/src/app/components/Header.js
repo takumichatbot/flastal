@@ -271,7 +271,7 @@ export default function Header() {
       ];
       case 'ADMIN': return [
           { href: '/admin', label: '管理ホーム', icon: <BarChart3 size={16}/> },
-          { href: '/admin/project-approval', label: '企画審査', icon: <UserCheck size={16}/> },
+          { href: '/admin/approval', label: '企画審査', icon: <UserCheck size={16}/> },
           { href: '/admin/settings', label: 'システム設定', icon: <Settings size={16}/> },
       ];
       default: return [
@@ -331,7 +331,7 @@ export default function Header() {
   const pathname = usePathname();
   if (isNative) return null;
 
-  const AUTH_PAGES = ['/login', '/register', '/forgot-password', '/reset-password', '/verify'];
+  const AUTH_PAGES = ['/login', '/register', '/forgot-password', '/reset-password', '/verify', '/onboarding', '/auth'];
   if (AUTH_PAGES.some(p => pathname?.startsWith(p))) return null;
 
   return (

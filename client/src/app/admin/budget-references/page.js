@@ -1,11 +1,13 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
-import { 
-    Image as ImageIcon, UploadCloud, Save, X, Edit3, Trash2, 
+import {
+    Image as ImageIcon, UploadCloud, Save, X, Edit3, Trash2,
     CheckCircle2, Plus, Loader2, ImagePlus
 } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -14,9 +16,18 @@ function cn(...classes) {
 }
 
 const BudgetReferenceManager = () => {
+    const router = useRouter();
+    const { user, loading: authLoading } = useAuth();
+
+    useEffect(() => {
+        if (!authLoading && (!user || user.role !== 'ADMIN')) {
+            router.replace('/');
+        }
+    }, [user, authLoading, router]);
+
     const [references, setReferences] = useState([]);
     const [loading, setLoading] = useState(false);
-    const [isEditing, setIsEditing] = useState(false); // 編集モードかどうかの判定
+    const [isEditing, setIsEditing] = useState(false);
     const [uploadingImage, setUploadingImage] = useState(false);
 
     // フォームの初期状態

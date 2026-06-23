@@ -5,15 +5,17 @@ export const fetchCache = 'force-no-store';
 
 import { useEffect, Suspense, useCallback } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { CheckCircle, ArrowRight, Search, Sparkles, Loader2 } from 'lucide-react';
+import { CheckCircle, ArrowRight, Search, Sparkles, Loader2, ArrowLeft } from 'lucide-react';
 import { triggerPaymentConfetti } from '@/app/utils/confetti';
 import FloatingParticles from '@/app/components/FloatingParticles';
 import { triggerHaptic } from '@/app/hooks/useHaptics';
 
 function SuccessPageInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const projectId = searchParams.get('projectId');
 
   useEffect(() => {
     // 決済完了後にルーターキャッシュを無効化し、マイページのポイント残高を最新化する
@@ -72,7 +74,7 @@ function SuccessPageInner() {
 
       {/* 背景の光 */}
       <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-pink-200/40 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/3 pointer-events-none" />
-      <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-sky-200/30 rounded-full blur-[100px] translate-y-1/3 -translate-x-1/3 pointer-events-none" />
+      <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-rose-200/30 rounded-full blur-[100px] translate-y-1/3 -translate-x-1/3 pointer-events-none" />
 
       <motion.div
         initial={{ opacity: 0, y: 30, scale: 0.95 }}
@@ -129,6 +131,18 @@ function SuccessPageInner() {
                 マイページで確認する <ArrowRight size={18} />
               </motion.button>
             </Link>
+
+            {projectId && (
+              <Link href={`/projects/${projectId}`}>
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="w-full flex items-center justify-center gap-2 py-4 bg-pink-50 text-pink-600 font-black rounded-2xl border-2 border-pink-100 hover:border-pink-300 hover:bg-pink-100 transition-colors"
+                >
+                  <ArrowLeft size={16} /> 企画ページに戻る
+                </motion.button>
+              </Link>
+            )}
 
             <Link href="/projects">
               <motion.button

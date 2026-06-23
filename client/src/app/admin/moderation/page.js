@@ -108,7 +108,7 @@ export default function ModerationProjectListPage() {
             { name: '出金管理', path: '/admin/payouts' },
             { name: 'チャット監視', path: '/admin/moderation', active: true },
             { name: '花屋審査', path: '/admin/florist-approval' },
-            { name: '企画審査', path: '/admin/project-approval' },
+            { name: '企画審査', path: '/admin/approval' },
           ].map((nav) => (
             <Link 
               key={nav.path}
