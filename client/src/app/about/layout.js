@@ -1,8 +1,8 @@
 export const metadata = {
-  title: 'FLASTALとは | FLASTAL - フラワースタンドで推しを応援するプラットフォーム',
+  title: 'FLASTALとは - フラワースタンドで推しを応援するプラットフォーム',
   description: 'FLASTALはフラワースタンド（フラスタ）の企画・資金調達・お花屋さんとのマッチングを一括サポートするプラットフォームです。推し活をもっと楽しく、かんたんに。',
   openGraph: {
-    title: 'FLASTALとは | FLASTAL',
+    title: 'FLASTALとは',
     description: 'フラワースタンドの企画・資金調達・お花屋さんとのマッチングを一括サポートするプラットフォーム。',
     url: 'https://www.flastal.com/about',
     siteName: 'FLASTAL',
@@ -19,7 +19,7 @@ export const metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'FLASTALとは | FLASTAL',
+    title: 'FLASTALとは',
     description: 'フラワースタンドの企画・資金調達・お花屋さんとのマッチングを一括サポート。',
     images: ['https://www.flastal.com/opengraph-image.png'],
   },

@@ -300,7 +300,7 @@ export default function AiDesignPageClient() {
           {/* アーティスト名（必須） */}
           <div>
             <label className="block text-xs font-black text-slate-700 uppercase tracking-widest mb-2">
-              アーティスト名 <span className="text-rose-500">*</span>
+              アーティスト名 <span className="text-red-600">*</span>
             </label>
             <input
               type="text"
@@ -309,7 +309,7 @@ export default function AiDesignPageClient() {
               onChange={handleChange}
               placeholder="例: 〇〇（グループ名・ソロ名）"
               required
-              className="w-full px-4 py-3 rounded-2xl border border-slate-200 text-slate-800 font-medium placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-pink-300 focus:border-pink-300 transition-all"
+              className="w-full px-4 py-3 rounded-2xl border border-slate-200 text-slate-800 font-medium placeholder:text-slate-300 focus:outline-none focus:ring-4 focus:ring-pink-300/50 focus:ring-offset-1 focus:border-pink-300 transition-all"
             />
           </div>
 
@@ -324,7 +324,7 @@ export default function AiDesignPageClient() {
               value={formData.imageColors}
               onChange={handleChange}
               placeholder="例: ピンク・白・ゴールド"
-              className="w-full px-4 py-3 rounded-2xl border border-slate-200 text-slate-800 font-medium placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-pink-300 focus:border-pink-300 transition-all"
+              className="w-full px-4 py-3 rounded-2xl border border-slate-200 text-slate-800 font-medium placeholder:text-slate-300 focus:outline-none focus:ring-4 focus:ring-pink-300/50 focus:ring-offset-1 focus:border-pink-300 transition-all"
             />
           </div>
 
@@ -342,7 +342,7 @@ export default function AiDesignPageClient() {
                 onChange={handleChange}
                 placeholder="例: 50000"
                 min="0"
-                className="w-full pl-8 pr-4 py-3 rounded-2xl border border-slate-200 text-slate-800 font-medium placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-pink-300 focus:border-pink-300 transition-all"
+                className="w-full pl-8 pr-4 py-3 rounded-2xl border border-slate-200 text-slate-800 font-medium placeholder:text-slate-300 focus:outline-none focus:ring-4 focus:ring-pink-300/50 focus:ring-offset-1 focus:border-pink-300 transition-all"
               />
             </div>
           </div>
@@ -358,7 +358,7 @@ export default function AiDesignPageClient() {
               value={formData.venue}
               onChange={handleChange}
               placeholder="例: 〇〇アリーナ、Zepp Tokyo"
-              className="w-full px-4 py-3 rounded-2xl border border-slate-200 text-slate-800 font-medium placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-pink-300 focus:border-pink-300 transition-all"
+              className="w-full px-4 py-3 rounded-2xl border border-slate-200 text-slate-800 font-medium placeholder:text-slate-300 focus:outline-none focus:ring-4 focus:ring-pink-300/50 focus:ring-offset-1 focus:border-pink-300 transition-all"
             />
           </div>
 
@@ -373,7 +373,7 @@ export default function AiDesignPageClient() {
               value={formData.mood}
               onChange={handleChange}
               placeholder="例: 清楚・華やか、クール・かっこいい"
-              className="w-full px-4 py-3 rounded-2xl border border-slate-200 text-slate-800 font-medium placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-pink-300 focus:border-pink-300 transition-all"
+              className="w-full px-4 py-3 rounded-2xl border border-slate-200 text-slate-800 font-medium placeholder:text-slate-300 focus:outline-none focus:ring-4 focus:ring-pink-300/50 focus:ring-offset-1 focus:border-pink-300 transition-all"
             />
           </div>
 
@@ -388,7 +388,7 @@ export default function AiDesignPageClient() {
               value={formData.existingTheme}
               onChange={handleChange}
               placeholder="例: 〇〇のライブビジュアル、妖精・ファンタジー"
-              className="w-full px-4 py-3 rounded-2xl border border-slate-200 text-slate-800 font-medium placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-pink-300 focus:border-pink-300 transition-all"
+              className="w-full px-4 py-3 rounded-2xl border border-slate-200 text-slate-800 font-medium placeholder:text-slate-300 focus:outline-none focus:ring-4 focus:ring-pink-300/50 focus:ring-offset-1 focus:border-pink-300 transition-all"
             />
           </div>
 

@@ -1,5 +1,5 @@
 export const metadata = {
-  title: 'お問い合わせ | FLASTAL',
+  title: 'お問い合わせ',
   description: 'FLASTALへのお問い合わせ。サービスに関するご質問・ご意見・不具合報告などはこちらからお送りください。',
   openGraph: {
     title: 'お問い合わせ | FLASTAL',
@@ -19,7 +19,7 @@ export const metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'お問い合わせ | FLASTAL',
+    title: 'お問い合わせ',
     description: 'FLASTALへのご質問・ご意見はこちらからお送りください。',
     images: ['https://www.flastal.com/opengraph-image.png'],
   },

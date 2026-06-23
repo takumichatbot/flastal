@@ -672,6 +672,7 @@ export default function AnnexPage() {
                     </label>
                     <input
                       type="email"
+                      autoComplete="email"
                       required
                       value={formData.email}
                       onChange={e => setFormData(p => ({ ...p, email: e.target.value }))}

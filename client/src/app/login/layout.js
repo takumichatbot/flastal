@@ -1,8 +1,8 @@
 export const metadata = {
-    title: 'ログイン | FLASTAL',
+    title: 'ログイン',
     description: 'FLASTALにログインして推し活を続けよう。アイドル・VTuberへのフラスタ企画に参加・支援できます。',
     openGraph: {
-        title: 'ログイン | FLASTAL',
+        title: 'ログイン',
         description: 'FLASTALにログインして推し活を続けよう。',
         url: 'https://www.flastal.com/login',
         siteName: 'FLASTAL',
@@ -19,7 +19,7 @@ export const metadata = {
     },
     twitter: {
         card: 'summary',
-        title: 'ログイン | FLASTAL',
+        title: 'ログイン',
         description: 'FLASTALにログインして推し活を続けよう。',
     },
     alternates: {

@@ -25,7 +25,7 @@ export async function generateMetadata({ params }) {
   const project = await getProject(id);
 
   if (!project) {
-    return { title: '企画が見つかりません | FLASTAL' };
+    return { title: '企画が見つかりません' };
   }
 
   // 進捗率の計算
@@ -47,7 +47,7 @@ export async function generateMetadata({ params }) {
   const description = project.description?.substring(0, 120).replace(/\n/g, ' ') + '...';
 
   return {
-    title: `${project.title} | FLASTAL`,
+    title: project.title,
     description: description,
     openGraph: {
       title: project.title,

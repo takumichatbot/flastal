@@ -53,7 +53,7 @@ export async function generateMetadata({ params }) {
     const ogImageUrl = `https://www.flastal.com/api/og?title=${encodeURIComponent(project.title)}&progress=${progress}&collected=${project.collectedAmount || 0}&target=${project.targetAmount || 0}&user=${encodeURIComponent(project.planner?.handleName || '')}&image=${encodeURIComponent(project.imageUrl || '')}`;
 
     return {
-      title: `${project.title} | FLASTAL`,
+      title: project.title,
       description: description,
       openGraph: {
         title: project.title,
@@ -76,10 +76,10 @@ export async function generateMetadata({ params }) {
     
     // ★ 修正3: エラー時（URLを間違えた場合など）でも、確実にデフォルト画像を表示させる
     return {
-      title: '企画詳細 | FLASTAL',
+      title: '企画詳細',
       description: 'みんなで贈る、想いの結晶。',
       openGraph: {
-        title: '企画詳細 | FLASTAL',
+        title: '企画詳細',
         description: 'みんなで贈る、想いの結晶。',
         images: [{ url: DEFAULT_IMAGE_URL, width: 1200, height: 630 }],
       },

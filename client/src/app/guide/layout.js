@@ -1,5 +1,5 @@
 export const metadata = {
-  title: '使い方ガイド | FLASTAL',
+  title: '使い方ガイド',
   description: 'FLASTALの使い方ガイド。フラスタ企画の始め方・支援方法・お花屋さんとのやり取りまで、はじめての方でも安心のステップバイステップ解説。',
   openGraph: {
     title: '使い方ガイド | FLASTAL',
@@ -19,7 +19,7 @@ export const metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: '使い方ガイド | FLASTAL',
+    title: '使い方ガイド',
     description: 'フラスタ企画の始め方から完成まで、はじめての方でも安心のステップバイステップ解説。',
     images: ['https://www.flastal.com/opengraph-image.png'],
   },

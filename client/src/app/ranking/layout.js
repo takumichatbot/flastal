@@ -1,5 +1,5 @@
 export const metadata = {
-    title: '人気企画ランキング | FLASTAL',
+    title: '人気企画ランキング',
     description: '今注目のフラスタ企画をランキングで紹介。支援額・支援者数・達成率で話題のプロジェクトをチェックしよう。',
     openGraph: {
         title: '人気企画ランキング | FLASTAL',
@@ -19,7 +19,7 @@ export const metadata = {
     },
     twitter: {
         card: 'summary_large_image',
-        title: '人気企画ランキング | FLASTAL',
+        title: '人気企画ランキング',
         description: '今注目のフラスタ企画をランキングで紹介。',
         images: ['https://www.flastal.com/opengraph-image.png'],
     },

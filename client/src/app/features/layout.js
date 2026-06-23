@@ -1,5 +1,5 @@
 export const metadata = {
-  title: '機能紹介 | FLASTAL',
+  title: '機能紹介',
   description: 'FLASTALの機能一覧。企画作成・クラウドファンディング・お花屋さんマッチング・ギャラリー・アーティストページなど、推し活を支えるすべての機能を紹介。',
   openGraph: {
     title: '機能紹介 | FLASTAL',
@@ -19,7 +19,7 @@ export const metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: '機能紹介 | FLASTAL',
+    title: '機能紹介',
     description: 'FLASTALの機能一覧。推し活を支えるすべての機能を紹介。',
     images: ['https://www.flastal.com/opengraph-image.png'],
   },

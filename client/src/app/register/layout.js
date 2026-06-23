@@ -1,5 +1,5 @@
 export const metadata = {
-    title: '新規会員登録 | FLASTAL',
+    title: '新規会員登録',
     description: '無料でアカウントを作成',
 };
 

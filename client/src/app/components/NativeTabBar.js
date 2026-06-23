@@ -112,7 +112,7 @@ export default function NativeTabBar() {
                 await triggerHaptic('light');
                 router.push(t.href);
               }}
-              className="relative flex flex-col items-center justify-center w-full h-full pb-1.5 pt-1 transition-all"
+              className="relative flex flex-col items-center justify-center w-full h-full pb-1.5 pt-1 transition-all duration-150 active:scale-95 active:opacity-70"
             >
               {isActive && (
                 <motion.div
@@ -120,7 +120,7 @@ export default function NativeTabBar() {
                   className="absolute inset-x-2 -top-2 bottom-1 bg-pink-50 rounded-xl -z-10"
                 />
               )}
-              <div className="relative mb-1">
+              <div className="relative mb-1 active:bg-pink-100/50 rounded-xl">
                 <Icon
                   size={22}
                   strokeWidth={isActive ? 2.5 : 1.8}

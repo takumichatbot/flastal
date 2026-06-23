@@ -10,8 +10,8 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onre
 
 function cn(...classes) { return classes.filter(Boolean).join(' '); }
 
-const inputClass = "w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:border-pink-400 focus:ring-4 focus:ring-pink-100 transition-all font-medium text-slate-700 placeholder:text-slate-300";
-const inputErrorClass = "w-full px-4 py-3.5 bg-red-50 border border-red-300 rounded-2xl focus:outline-none focus:border-red-400 focus:ring-4 focus:ring-red-100 transition-all font-medium text-slate-700 placeholder:text-slate-300";
+const inputClass = "w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:border-pink-400 focus:ring-4 focus:ring-pink-300/50 focus:ring-offset-1 transition-all font-medium text-slate-700 placeholder:text-slate-300";
+const inputErrorClass = "w-full px-4 py-3.5 bg-red-50 border border-red-300 rounded-2xl focus:outline-none focus:border-red-400 focus:ring-4 focus:ring-red-300/50 focus:ring-offset-1 transition-all font-medium text-slate-700 placeholder:text-slate-300";
 
 export default function ContactPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -151,7 +151,7 @@ export default function ContactPage() {
                   className={errors.name ? inputErrorClass : inputClass}
                 />
                 {errors.name && (
-                  <p id="name-error" className="text-sm text-red-500 mt-1.5 ml-1 font-medium" role="alert">
+                  <p id="name-error" className="text-sm text-red-600 mt-1.5 ml-1 font-medium" role="alert">
                     {errors.name}
                   </p>
                 )}
@@ -174,7 +174,7 @@ export default function ContactPage() {
                   className={errors.email ? inputErrorClass : inputClass}
                 />
                 {errors.email && (
-                  <p id="email-error" className="text-sm text-red-500 mt-1.5 ml-1 font-medium" role="alert">
+                  <p id="email-error" className="text-sm text-red-600 mt-1.5 ml-1 font-medium" role="alert">
                     {errors.email}
                   </p>
                 )}
@@ -198,7 +198,7 @@ export default function ContactPage() {
                   className={cn(errors.message ? inputErrorClass : inputClass, "resize-none")}
                 />
                 {errors.message ? (
-                  <p id="message-error" className="text-sm text-red-500 mt-1.5 ml-1 font-medium" role="alert">
+                  <p id="message-error" className="text-sm text-red-600 mt-1.5 ml-1 font-medium" role="alert">
                     {errors.message}
                   </p>
                 ) : (

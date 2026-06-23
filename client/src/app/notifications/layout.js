@@ -1,5 +1,5 @@
 export const metadata = {
-    title: '通知 | FLASTAL',
+    title: '通知',
     description: '通知一覧',
 };
 

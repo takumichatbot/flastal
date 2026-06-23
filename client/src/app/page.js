@@ -263,7 +263,7 @@ const SoftBackground = () => {
   const y2 = useTransform(scrollY, [0, 2000], [0, 80]);
 
   return (
-    <div className="fixed inset-0 overflow-hidden pointer-events-none z-0 bg-[#FFFDFE]">
+    <div className="fixed inset-0 overflow-hidden pointer-events-none z-0 bg-pink-50/10">
       <motion.div style={{ y: y1 }} className="absolute -top-[10%] -left-[5%] w-[90vw] h-[90vw] md:w-[70vw] md:h-[70vw] rounded-full bg-pink-100/60 blur-[100px]" />
       <motion.div style={{ y: y2 }} className="absolute top-[40%] -right-[10%] w-[70vw] h-[70vw] md:w-[50vw] md:h-[50vw] rounded-full bg-amber-50/60 blur-[80px]" />
       {BACKGROUND_BUTTERFLIES.map((bf, i) => (
@@ -427,7 +427,7 @@ const Hero = () => {
                   >
                     <div className="w-12 h-12 rounded-xl bg-pink-50 flex-shrink-0 overflow-hidden">
                       {project.imageUrl ? (
-                        <img src={project.imageUrl} alt="" className="w-full h-full object-cover" />
+                        <img src={project.imageUrl} alt={project?.title || '企画画像'} className="w-full h-full object-cover" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-xl">💐</div>
                       )}
@@ -668,7 +668,7 @@ const TrendingProjects = () => {
   }, []);
 
   return (
-    <section className="py-14 md:py-24 bg-[#FAF9FF] relative z-10 border-t border-slate-100/60">
+    <section className="py-14 md:py-24 bg-violet-50/30 relative z-10 border-t border-slate-100/60">
       <div className="container mx-auto px-4 md:px-6 max-w-6xl">
 
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-8 md:mb-12 gap-4">
@@ -758,7 +758,7 @@ const TrendingProjects = () => {
         )}
 
         <Link href="/projects" className="sm:hidden flex justify-center mt-5">
-          <button className="w-full px-6 py-3.5 rounded-2xl border border-slate-200 text-sm font-black text-slate-600 bg-white shadow-sm">
+          <button className="w-full px-6 py-3.5 rounded-2xl border border-slate-200 text-sm font-black text-slate-600 bg-white shadow-sm active:opacity-70 transition-opacity">
             すべての企画を見る
           </button>
         </Link>
@@ -927,7 +927,7 @@ const BentoFeatures = () => {
 // ==========================================
 const CategoryGrid = () => {
   return (
-    <section className="py-14 md:py-24 bg-[#FAF9FF] relative z-10 border-t border-slate-100/60">
+    <section className="py-14 md:py-24 bg-violet-50/30 relative z-10 border-t border-slate-100/60">
       <div className="container mx-auto px-4 sm:px-5 md:px-6 max-w-5xl">
         <div className="text-center mb-8 md:mb-12">
           <Reveal>
@@ -1003,7 +1003,7 @@ const ArticlesSection = () => (
         </Link>
       </div>
       <Reveal>
-        <div className="bg-[#FAF9FF] p-5 md:p-8 rounded-3xl border border-slate-100">
+        <div className="bg-violet-50/30 p-5 md:p-8 rounded-3xl border border-slate-100">
           <LaruSeoEmbed />
         </div>
       </Reveal>
@@ -1155,7 +1155,7 @@ const FAQ = () => {
   ];
 
   return (
-    <section className="py-14 md:py-24 bg-[#FAF9FF] relative z-10 border-t border-slate-100/60">
+    <section className="py-14 md:py-24 bg-violet-50/30 relative z-10 border-t border-slate-100/60">
       <div className="container mx-auto px-4 md:px-6 max-w-3xl">
         <div className="text-center mb-8 md:mb-12">
           <Reveal>
@@ -1261,7 +1261,7 @@ const GalleryHighlight = () => {
             ))}
           </div>
           <div className="text-center mt-6">
-            <Link href="/gallery" className="inline-flex items-center gap-2 text-sm font-black text-rose-500 hover:text-rose-700 transition-colors">
+            <Link href="/gallery" className="inline-flex items-center gap-2 text-sm font-black text-rose-500 hover:text-rose-700 active:opacity-70 transition-colors transition-opacity">
               もっと見る <ArrowRight size={14} />
             </Link>
           </div>
@@ -1396,16 +1396,17 @@ const MainContent = () => {
       <Hero />
       <InfiniteMarquee />
       <HowItWorks />
+      <div className="h-px bg-gradient-to-r from-transparent via-pink-200/40 to-transparent mx-4 md:mx-8" />
       {!user && (
         <div className="container mx-auto px-4 md:px-6 max-w-6xl relative z-10 py-8">
           <section className="bg-gradient-to-br from-pink-50 to-violet-50 rounded-3xl p-6 mb-8 text-center">
             <p className="text-2xl font-black text-slate-800 mb-2">🌸 推しへフラスタを贈ろう</p>
             <p className="text-sm text-slate-500 mb-4">会員登録無料・支援のたびポイント獲得</p>
             <div className="flex gap-3 justify-center flex-wrap">
-              <a href="/auth/register" className="bg-pink-500 text-white font-black px-6 py-3 rounded-2xl hover:bg-pink-600 transition-colors shadow-lg shadow-pink-200">
+              <a href="/auth/register" className="bg-pink-500 text-white font-black px-6 py-3 rounded-2xl hover:bg-pink-600 active:opacity-70 transition-colors shadow-lg shadow-pink-200">
                 無料で始める
               </a>
-              <a href="/auth/login" className="bg-white text-slate-700 font-semibold px-6 py-3 rounded-2xl border border-slate-200 hover:bg-slate-50 transition-colors">
+              <a href="/auth/login" className="bg-white text-slate-700 font-semibold px-6 py-3 rounded-2xl border border-slate-200 hover:bg-slate-50 active:opacity-70 transition-colors">
                 ログイン
               </a>
             </div>
@@ -1419,6 +1420,7 @@ const MainContent = () => {
       <PersonalizedFeed />
       <BentoFeatures />
       <CategoryGrid />
+      <div className="h-px bg-gradient-to-r from-transparent via-pink-200/40 to-transparent mx-4 md:mx-8" />
       <SocialProof />
       <GalleryHighlight />
       <FAQ />
@@ -1441,7 +1443,7 @@ export default function HomePage() {
   if (!isMounted) return null;
 
   return (
-    <main className="bg-[#FFFDFE] min-h-screen text-slate-800 font-sans selection:bg-pink-100 selection:text-pink-500 relative">
+    <main className="bg-pink-50/10 min-h-screen text-slate-800 font-sans selection:bg-pink-100 selection:text-pink-500 relative">
       <AnimatePresence mode="wait">
         {!introFinished ? (
           <IntroLoader key="loader" onComplete={() => setIntroFinished(true)} />

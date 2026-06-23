@@ -1,8 +1,8 @@
 export const metadata = {
-  title: 'フィード | FLASTAL',
+  title: 'フィード',
   description: '支援しているフラスタ企画の最新情報をフィードで確認しよう。進捗報告・アップデートをリアルタイムでキャッチ。',
   openGraph: {
-    title: 'フィード | FLASTAL',
+    title: 'フィード',
     description: '支援しているフラスタ企画の最新情報をフィードで確認しよう。',
     url: 'https://www.flastal.com/feed',
     siteName: 'FLASTAL',
@@ -11,7 +11,7 @@ export const metadata = {
   },
   twitter: {
     card: 'summary',
-    title: 'フィード | FLASTAL',
+    title: 'フィード',
     description: '支援しているフラスタ企画の最新情報をフィードで確認しよう。',
   },
 };

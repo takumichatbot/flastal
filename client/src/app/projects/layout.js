@@ -1,8 +1,8 @@
 export const metadata = {
-  title: 'フラスタ企画一覧 | FLASTAL',
+  title: 'フラスタ企画一覧',
   description: '推しへのフラワースタンド（フラスタ）企画を探そう。アイドル・VTuber・舞台・アニメ・声優など多彩なジャンルの企画が集まるFLASTAL。',
   openGraph: {
-    title: 'フラスタ企画一覧 | FLASTAL',
+    title: 'フラスタ企画一覧',
     description: '推しへのフラスタ企画を探そう。FLASTAL（フラスタル）で一緒に応援しよう。',
     url: 'https://www.flastal.com/projects',
     siteName: 'FLASTAL',
@@ -19,7 +19,7 @@ export const metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'フラスタ企画一覧 | FLASTAL',
+    title: 'フラスタ企画一覧',
     description: '推しへのフラスタ企画を探そう。FLASTAL（フラスタル）で一緒に応援しよう。',
     images: ['https://www.flastal.com/opengraph-image.png'],
   },

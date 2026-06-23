@@ -157,7 +157,50 @@ export default function RootLayout({ children }) {
           <div className="web-only"><Footer /></div>
           <Suspense fallback={null}><NativeTabBar /></Suspense>
           <Suspense fallback={null}><OfflineBanner /></Suspense>
-          <Toaster position="top-center" />
+          <Toaster
+            position="top-center"
+            toastOptions={{
+              duration: 3000,
+              style: {
+                borderRadius: '12px',
+                fontFamily: 'var(--font-zen-kaku), sans-serif',
+                fontSize: '14px',
+                fontWeight: '600',
+                padding: '12px 16px',
+                maxWidth: '360px',
+              },
+              success: {
+                style: {
+                  background: '#fff1f7',
+                  color: '#9d174d',
+                  border: '1px solid #fbcfe8',
+                },
+                iconTheme: {
+                  primary: '#ec4899',
+                  secondary: '#fff',
+                },
+              },
+              error: {
+                duration: 4000,
+                style: {
+                  background: '#fff1f2',
+                  color: '#9f1239',
+                  border: '1px solid #fecdd3',
+                },
+                iconTheme: {
+                  primary: '#f43f5e',
+                  secondary: '#fff',
+                },
+              },
+              loading: {
+                style: {
+                  background: '#fdf4ff',
+                  color: '#6b21a8',
+                  border: '1px solid #e9d5ff',
+                },
+              },
+            }}
+          />
           <PushNotificationManager />
         </AuthProvider>
         </DarkModeProvider>

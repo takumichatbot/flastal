@@ -1,5 +1,5 @@
 export const metadata = {
-  title: '企業スポンサー | FLASTAL',
+  title: '企業スポンサー',
   description: 'FLASTALの企業スポンサープログラム。フラスタ企画への法人協賛・ブランド露出・ファンとの共創機会についてご案内します。',
   openGraph: {
     title: '企業スポンサー | FLASTAL',
@@ -19,7 +19,7 @@ export const metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: '企業スポンサー | FLASTAL',
+    title: '企業スポンサー',
     description: 'FLASTALの企業スポンサープログラムについてご案内します。',
     images: ['https://www.flastal.com/opengraph-image.png'],
   },

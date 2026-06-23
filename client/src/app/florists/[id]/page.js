@@ -37,7 +37,7 @@ export async function generateMetadata({ params }) {
     const ogImage = `https://www.flastal.com/api/og/florist?${ogParams}`;
 
     return {
-      title: `${name} | お花屋さん | FLASTAL`,
+      title: `${name} | お花屋さん`,
       description: desc,
       openGraph: {
         title: `${name} | FLASTAL`,
@@ -57,7 +57,7 @@ export async function generateMetadata({ params }) {
     };
   } catch {
     return {
-      title: 'お花屋さん | FLASTAL',
+      title: 'お花屋さん',
       description: 'FLASTALのお花屋さんパートナーページ。フラスタ制作をオファーしよう。',
     };
   }

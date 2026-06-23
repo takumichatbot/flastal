@@ -1,5 +1,5 @@
 export const metadata = {
-  title: 'クリエイター（絵師）一覧 | FLASTAL',
+  title: 'クリエイター（絵師）一覧',
   description: 'フラスタのイラストパネルを手掛けるクリエイター（絵師）一覧。あなたの推し活に合ったクリエイターを見つけよう。',
   openGraph: {
     title: 'クリエイター（絵師）一覧 | FLASTAL',
@@ -19,7 +19,7 @@ export const metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'クリエイター（絵師）一覧 | FLASTAL',
+    title: 'クリエイター（絵師）一覧',
     description: 'フラスタのイラストパネルを手掛けるクリエイター一覧。',
     images: ['https://www.flastal.com/opengraph-image.png'],
   },

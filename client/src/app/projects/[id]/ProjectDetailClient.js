@@ -25,6 +25,9 @@ import {
   MessageSquare, Trash2, Box, UploadCloud, RefreshCw, Pen, Book, Users, Sparkles, Edit3, UserPlus, Zap, Brush, Download, Star, BarChart2, Rss
 } from 'lucide-react';
 
+// --- Utils ---
+import { formatAmount } from '@/app/utils/formatPrice';
+
 // --- Components ---
 import OfficialBadge from '@/app/components/OfficialBadge';
 import UpsellAlert from '@/app/components/UpsellAlert';
@@ -468,6 +471,8 @@ function PledgeForm({ project, user, onPledgeSubmit, isPledger }) {
                   <input
                     id="pledge-amount-input"
                     type="number"
+                    inputMode="numeric"
+                    autoComplete="off"
                     {...register('pledgeAmount', { valueAsNumber: true })}
                     min={minAmount}
                     aria-label={`合計支援金額（${minAmount.toLocaleString()}円以上）`}
@@ -491,7 +496,7 @@ function PledgeForm({ project, user, onPledgeSubmit, isPledger }) {
               <div className="space-y-2">
                 <div className="flex justify-between items-center text-sm font-bold text-slate-600">
                   <span>支援金額</span>
-                  <span>{finalAmount.toLocaleString()} 円</span>
+                  <span>{formatAmount(finalAmount)} 円</span>
                 </div>
                 {pointsToUse > 0 && (
                   <div className="flex justify-between items-center text-sm font-bold text-pink-500">
@@ -504,8 +509,8 @@ function PledgeForm({ project, user, onPledgeSubmit, isPledger }) {
                   <span className="text-sm font-black text-slate-800">
                     {cardAmount === 0 ? 'ポイントで全額決済' : 'カード決済額'}
                   </span>
-                  <span className="text-xl font-black text-slate-800">
-                    {cardAmount.toLocaleString()} <span className="text-xs font-bold text-slate-400">円</span>
+                  <span className="text-xl font-black text-slate-800 tabular-nums">
+                    {formatAmount(cardAmount)} <span className="text-xs font-bold text-slate-400">円</span>
                   </span>
                 </div>
               </div>
@@ -516,7 +521,7 @@ function PledgeForm({ project, user, onPledgeSubmit, isPledger }) {
             <div className="pt-3 space-y-2 border-t border-slate-100">
               <p className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">ゲスト情報</p>
               <input id="guest-name-input" type="text" {...register('guestName')} aria-label="お名前（ハンドルネーム）" className="w-full p-3.5 bg-slate-50 border-transparent rounded-xl text-[16px] font-bold focus:bg-white focus:border-pink-400 focus:ring-4 focus:ring-pink-200/60 outline-none transition-all" placeholder="お名前 (ハンドルネーム)"/>
-              <input id="guest-email-input" type="email" {...register('guestEmail')} aria-label="メールアドレス" className="w-full p-3.5 bg-slate-50 border-transparent rounded-xl text-[16px] font-bold focus:bg-white focus:border-pink-400 focus:ring-4 focus:ring-pink-200/60 outline-none transition-all" placeholder="メールアドレス"/>
+              <input id="guest-email-input" type="email" autoComplete="email" {...register('guestEmail')} aria-label="メールアドレス" className="w-full p-3.5 bg-slate-50 border-transparent rounded-xl text-[16px] font-bold focus:bg-white focus:border-pink-400 focus:ring-4 focus:ring-pink-200/60 outline-none transition-all" placeholder="メールアドレス"/>
             </div>
         )}
 
@@ -602,7 +607,7 @@ function TargetAmountModal({ project, user, onClose, onUpdate }) {
       <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white p-6 md:p-8 rounded-[2rem] shadow-2xl w-full max-w-md border border-white" onClick={e => e.stopPropagation()}>
         <form onSubmit={handleSubmit}>
           <h2 className="text-lg md:text-xl font-black text-slate-800 mb-6 flex items-center gap-2"><DollarSign className="text-pink-500"/> 目標金額の変更</h2>
-          <input type="number" value={newAmount} onChange={(e) => setNewAmount(e.target.value)} min={project.collectedAmount} required className="w-full p-4 border-2 border-slate-100 rounded-xl font-black text-xl md:text-2xl text-slate-800 focus:border-pink-400 outline-none mb-6 transition-colors" />
+          <input type="number" inputMode="numeric" autoComplete="off" value={newAmount} onChange={(e) => setNewAmount(e.target.value)} min={project.collectedAmount} required className="w-full p-4 border-2 border-slate-100 rounded-xl font-black text-xl md:text-2xl text-slate-800 focus:border-pink-400 outline-none mb-6 transition-colors" />
           <div className="flex justify-end gap-2 md:gap-3">
               <button type="button" onClick={onClose} className="px-5 py-2.5 text-sm bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-slate-200 transition-colors">キャンセル</button>
               <button type="submit" disabled={isSubmitting} className="px-6 py-2.5 text-sm bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-xl font-black shadow-md shadow-pink-100 hover:brightness-105 transition-all">保存</button>

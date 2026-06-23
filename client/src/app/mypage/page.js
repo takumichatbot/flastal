@@ -3,7 +3,7 @@ import { Suspense } from 'react';
 import MyPageClient from './MyPageClient';
 
 export const metadata = {
-  title: 'マイページ | FLASTAL',
+  title: 'マイページ',
 };
 
 export const viewport = {

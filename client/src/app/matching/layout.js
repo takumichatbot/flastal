@@ -1,5 +1,5 @@
 export const metadata = {
-  title: 'お花屋さんマッチング | FLASTAL',
+  title: 'お花屋さんマッチング',
   description: 'フラスタ制作に最適なお花屋さんを自動マッチング。エリア・予算・イベント日程に合わせて最適なパートナーを見つけよう。',
   openGraph: {
     title: 'お花屋さんマッチング | FLASTAL',
@@ -19,7 +19,7 @@ export const metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'お花屋さんマッチング | FLASTAL',
+    title: 'お花屋さんマッチング',
     description: 'フラスタ制作に最適なお花屋さんを自動マッチング。',
     images: ['https://www.flastal.com/opengraph-image.png'],
   },

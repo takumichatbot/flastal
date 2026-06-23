@@ -1,8 +1,8 @@
 export const metadata = {
-  title: 'ブログ | FLASTAL',
+  title: 'ブログ',
   description: 'FLASTALブログ。フラスタの作り方・推し活のヒント・成功事例・新機能のお知らせなど役立つ情報を発信中。',
   openGraph: {
-    title: 'ブログ | FLASTAL',
+    title: 'ブログ',
     description: 'フラスタの作り方・推し活のヒント・成功事例・新機能のお知らせなど役立つ情報を発信中。',
     url: 'https://www.flastal.com/blog',
     siteName: 'FLASTAL',
@@ -19,7 +19,7 @@ export const metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'ブログ | FLASTAL',
+    title: 'ブログ',
     description: 'フラスタの作り方・推し活のヒント・成功事例を発信中。',
     images: ['https://www.flastal.com/opengraph-image.png'],
   },

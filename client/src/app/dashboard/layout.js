@@ -1,5 +1,5 @@
 export const metadata = {
-    title: 'ダッシュボード | FLASTAL',
+    title: 'ダッシュボード',
     description: 'プロジェクト管理ダッシュボード',
 };
 

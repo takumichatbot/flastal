@@ -11,7 +11,7 @@ export async function generateMetadata({ params }) {
     );
     if (!res.ok) throw new Error('not found');
     const gb = await res.json();
-    const title = `${gb.title} | FLASTAL`;
+    const title = gb.title;
     const description = gb.description
       ? gb.description.substring(0, 120) + (gb.description.length > 120 ? '...' : '')
       : `一口${Number(gb.pricePerSlot || 0).toLocaleString()}円・目標${gb.targetSlots || 0}口のグループ購入企画。`;
@@ -32,7 +32,7 @@ export async function generateMetadata({ params }) {
       },
     };
   } catch {
-    return { title: 'グループ購入 | FLASTAL' };
+    return { title: 'グループ購入' };
   }
 }
 

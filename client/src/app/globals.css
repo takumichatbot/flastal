@@ -177,6 +177,36 @@ body {
     line-height: 1.4;
     letter-spacing: -0.01em;
   }
+
+  /* グラスモーフィズム 3段階 */
+  .glass-light {
+    background: rgba(255, 255, 255, 0.90);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.40);
+  }
+
+  .glass-dim {
+    background: rgba(255, 255, 255, 0.50);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.20);
+  }
+
+  .glass-subtle {
+    background: rgba(255, 255, 255, 0.25);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+  }
+
+  /* ピンク系グラスパネル（推し活ブランド） */
+  .glass-pink {
+    background: rgba(253, 242, 248, 0.85);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(251, 207, 232, 0.40);
+  }
 }
 
 /* iOS WebView: 選択ハイライト・コールアウト無効化 */

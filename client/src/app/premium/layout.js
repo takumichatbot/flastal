@@ -1,5 +1,5 @@
 export const metadata = {
-  title: 'プレミアムプラン | FLASTAL',
+  title: 'プレミアムプラン',
   description: 'FLASTALプレミアムプランの詳細。限定バッジ・優先マッチング・特別ポイント還元など、推し活をさらに充実させる特典が盛りだくさん。',
   openGraph: {
     title: 'プレミアムプラン | FLASTAL',
@@ -19,7 +19,7 @@ export const metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'プレミアムプラン | FLASTAL',
+    title: 'プレミアムプラン',
     description: 'FLASTALプレミアムプランで推し活をさらに充実させよう。',
     images: ['https://www.flastal.com/opengraph-image.png'],
   },

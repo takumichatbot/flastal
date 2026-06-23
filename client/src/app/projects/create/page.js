@@ -2,7 +2,7 @@ import { Suspense } from 'react';
 import CreateProjectClient from './CreateProjectClient';
 
 export const metadata = {
-  title: '企画を立ち上げる | FLASTAL',
+  title: '企画を立ち上げる',
 };
 
 export default function Page() {

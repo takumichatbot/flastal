@@ -7,29 +7,30 @@ export async function generateMetadata({ params }) {
     const { slug } = await params;
     try {
         const res = await fetch(`${API_URL}/api/artists/${slug}`, { next: { revalidate: 300 } });
-        if (!res.ok) return { title: 'アーティスト | FLASTAL' };
+        if (!res.ok) return { title: 'アーティスト' };
         const artist = await res.json();
-        const title = `${artist.artistName || artist.name} | FLASTAL`;
-        const description = artist.description || `${artist.artistName || artist.name}のフラスタ企画一覧。FLASTALでフラワースタンドを贈ろう。`;
+        const artistName = artist.artistName || artist.name;
+        const ogTitle = `${artistName} | FLASTAL`;
+        const description = artist.description || `${artistName}のフラスタ企画一覧。FLASTALでフラワースタンドを贈ろう。`;
         const image = artist.coverImageUrl || artist.iconUrl || 'https://www.flastal.com/og-default.png';
         return {
-            title,
+            title: artistName,
             description,
             openGraph: {
-                title,
+                title: ogTitle,
                 description,
                 url: `https://www.flastal.com/artists/${slug}`,
-                images: [{ url: image, width: 1200, height: 630, alt: artist.artistName || artist.name }],
+                images: [{ url: image, width: 1200, height: 630, alt: artistName }],
             },
             twitter: {
                 card: 'summary_large_image',
-                title,
+                title: ogTitle,
                 description,
                 images: [image],
             },
         };
     } catch {
-        return { title: 'アーティスト | FLASTAL' };
+        return { title: 'アーティスト' };
     }
 }
 

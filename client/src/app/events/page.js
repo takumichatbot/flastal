@@ -3,7 +3,7 @@ import EventListClient from './EventListClient';
 
 // --- メタデータ設定 (SEO向上) ---
 export const metadata = {
-  title: 'イベント情報局 | FLASTAL',
+  title: 'イベント情報局',
   description: '推しのイベントを探してフラスタを贈ろう。AIによる自動解析機能で、最新のライブ・コンサート・イベント情報を網羅。',
   openGraph: {
     title: 'イベント情報局 | FLASTAL',
@@ -14,7 +14,7 @@ export const metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'イベント情報局 | FLASTAL',
+    title: 'イベント情報局',
     description: '推しのイベントを探してフラスタを贈ろう。',
   },
 };

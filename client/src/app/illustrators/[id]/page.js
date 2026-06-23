@@ -7,13 +7,13 @@ export async function generateMetadata({ params }) {
   const { id } = await params;
   try {
     const res = await fetch(`${API_URL}/api/illustrators/${id}`, { next: { revalidate: 60 } });
-    if (!res.ok) return { title: 'クリエイター | FLASTAL' };
+    if (!res.ok) return { title: 'クリエイター' };
     const illustrator = await res.json();
     const name = illustrator.name || illustrator.user?.handleName || 'クリエイター';
     const bio = illustrator.bio ? illustrator.bio.slice(0, 120) : 'FLASTALのイラストクリエイターです。';
     const image = illustrator.portfolioUrls?.[0] || illustrator.iconUrl || illustrator.user?.iconUrl || DEFAULT_IMAGE;
     return {
-      title: `${name} | イラストクリエイター | FLASTAL`,
+      title: `${name} | イラストクリエイター`,
       description: bio,
       openGraph: {
         title: `${name} | FLASTAL`,
@@ -29,7 +29,7 @@ export async function generateMetadata({ params }) {
       },
     };
   } catch {
-    return { title: 'クリエイター | FLASTAL' };
+    return { title: 'クリエイター' };
   }
 }
 

@@ -127,7 +127,7 @@ function ProjectCard({ project }) {
             </div>
             <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
               <div
-                className="h-full rounded-full bg-gradient-to-r from-pink-400 to-rose-400 transition-all duration-1000"
+                className="h-full rounded-full bg-gradient-to-r from-pink-400 to-rose-400 transition-all duration-500"
                 style={{ width: `${percent}%` }}
               />
             </div>
