@@ -37,10 +37,12 @@ export default function ChatRoomPage() {
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
 
   const bottomRef = useRef(null);
   const textareaRef = useRef(null);
   const prevMsgCountRef = useRef(0);
+  const typingTimeoutRef = useRef(null);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -86,6 +88,8 @@ export default function ChatRoomPage() {
 
     setIsSending(true);
     setNewMessage('');
+    setIsTyping(false);
+    clearTimeout(typingTimeoutRef.current);
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
 
     // iOSキーボードを閉じる
@@ -135,6 +139,16 @@ export default function ChatRoomPage() {
     el.style.height = 'auto';
     el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
     setNewMessage(el.value);
+
+    // タイピングインジケーター: 入力中は表示、1.5秒無入力で非表示
+    if (el.value.trim()) {
+      setIsTyping(true);
+      clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = setTimeout(() => setIsTyping(false), 1500);
+    } else {
+      setIsTyping(false);
+      clearTimeout(typingTimeoutRef.current);
+    }
   };
 
   const florist = room?.offer?.florist;
@@ -287,6 +301,26 @@ export default function ChatRoomPage() {
             );
           })
         )}
+        {/* タイピングインジケーター */}
+        <AnimatePresence>
+          {isTyping && (
+            <motion.div
+              key="typing"
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 4 }}
+              transition={{ duration: 0.15 }}
+              className="flex items-center gap-1.5 px-2 py-1 text-xs text-slate-400"
+            >
+              <span className="flex gap-0.5 items-center">
+                <span className="w-1.5 h-1.5 bg-slate-300 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                <span className="w-1.5 h-1.5 bg-slate-300 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                <span className="w-1.5 h-1.5 bg-slate-300 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+              </span>
+              <span>入力中...</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
         <div ref={bottomRef} className="h-2" />
       </div>
 

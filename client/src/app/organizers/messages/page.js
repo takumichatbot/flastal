@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Send, AlertCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -14,6 +14,7 @@ export default function OrganizerMessagesPage() {
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [token, setToken] = useState(null);
+  const messageTextareaRef = useRef(null);
 
   useEffect(() => {
     const t = localStorage.getItem('token');
@@ -42,6 +43,13 @@ export default function OrganizerMessagesPage() {
       })
       .catch(() => {});
   }, [selectedProject, token]);
+
+  const handleMessageResize = (e) => {
+    const el = e.target;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, 320)}px`;
+    setMessage(el.value);
+  };
 
   const handleSend = async () => {
     if (!selectedProject) return toast.error('送信先の企画を選択してください');
@@ -129,12 +137,14 @@ export default function OrganizerMessagesPage() {
         <div>
           <label className="text-xs font-bold text-slate-500 mb-1.5 block">メッセージ（2000文字以内）</label>
           <textarea
+            ref={messageTextareaRef}
             value={message}
-            onChange={e => setMessage(e.target.value)}
+            onChange={handleMessageResize}
             placeholder="支援者へのメッセージを入力..."
             maxLength={2000}
             rows={8}
-            className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-pink-300 resize-none"
+            style={{ resize: 'none', overflow: 'hidden' }}
+            className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-pink-300"
           />
           <p className="text-xs text-slate-400 text-right mt-1">{message.length}/2000</p>
         </div>

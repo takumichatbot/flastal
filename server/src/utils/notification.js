@@ -2,14 +2,36 @@ import prisma from '../config/prisma.js';
 import { getIO } from '../config/socket.js';
 import webpush from 'web-push';
 import apn from 'apn';
+import { logger } from './logger.js';
+
+// ─── 深夜時間帯チェック (JST 23:00〜8:00) ───────────────────────────────────
+function getJSTHour() {
+  return new Date(Date.now() + 9 * 60 * 60 * 1000).getUTCHours();
+}
+
+function isQuietHours() {
+  const hour = getJSTHour();
+  return hour >= 23 || hour < 8;
+}
 
 /**
  * Web Push のみを送信するシンプルな専用関数
  * title・body・url を指定できる。期限切れサブスクリプションは自動削除。
+ * 深夜時間帯 (JST 23:00〜8:00) はサイレント抑制。
  */
 export async function sendPushNotification(userId, { title, body, url = '/' }) {
   if (!userId) return;
   if (!process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) return;
+
+  // 深夜時間帯チェック
+  if (isQuietHours()) {
+    logger.info('push_notification_suppressed_quiet_hours', {
+      event: 'push_notification_suppressed_quiet_hours',
+      userId,
+      jstHour: getJSTHour(),
+    });
+    return;
+  }
 
   const subscriptions = await prisma.pushSubscription.findMany({
     where: {
@@ -71,35 +93,44 @@ export async function createNotification(recipientId, type, message, projectId =
 
         // 3. Web Push 通知 (ブラウザ購読者向け)
         if (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
-            try {
-                const subscriptions = await prisma.pushSubscription.findMany({
-                    where: {
-                        userId: recipientId,
-                        endpoint: { not: { startsWith: 'apns:' } },
-                    },
+            // 深夜時間帯 (JST 23:00〜8:00) はプッシュ通知を送信しない
+            if (isQuietHours()) {
+                logger.info('push_notification_suppressed_quiet_hours', {
+                    event: 'push_notification_suppressed_quiet_hours',
+                    recipientId,
+                    jstHour: getJSTHour(),
                 });
+            } else {
+                try {
+                    const subscriptions = await prisma.pushSubscription.findMany({
+                        where: {
+                            userId: recipientId,
+                            endpoint: { not: { startsWith: 'apns:' } },
+                        },
+                    });
 
-                const payload = JSON.stringify({
-                    title: 'FLASTAL',
-                    body: message,
-                    url: linkUrl || '/mypage',
-                });
+                    const payload = JSON.stringify({
+                        title: 'FLASTAL',
+                        body: message,
+                        url: linkUrl || '/mypage',
+                    });
 
-                await Promise.allSettled(
-                    subscriptions.map(sub =>
-                        webpush.sendNotification(
-                            { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-                            payload
-                        ).catch(async (err) => {
-                            // 購読が無効 (410 Gone) の場合は削除
-                            if (err.statusCode === 410) {
-                                await prisma.pushSubscription.delete({ where: { id: sub.id } }).catch(() => {});
-                            }
-                        })
-                    )
-                );
-            } catch (pushError) {
-                console.warn('[WebPush Warning]', pushError.message);
+                    await Promise.allSettled(
+                        subscriptions.map(sub =>
+                            webpush.sendNotification(
+                                { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+                                payload
+                            ).catch(async (err) => {
+                                // 購読が無効 (410 Gone) の場合は削除
+                                if (err.statusCode === 410) {
+                                    await prisma.pushSubscription.delete({ where: { id: sub.id } }).catch(() => {});
+                                }
+                            })
+                        )
+                    );
+                } catch (pushError) {
+                    console.warn('[WebPush Warning]', pushError.message);
+                }
             }
         }
 

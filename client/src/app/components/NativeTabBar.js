@@ -89,6 +89,31 @@ export default function NativeTabBar() {
     };
   }, [isNative]);
 
+  // Deep Links ハンドリング（appUrlOpen）
+  useEffect(() => {
+    if (!isNative) return;
+    let deepLinkListener;
+
+    const setupDeepLink = async () => {
+      try {
+        const { App } = await import('@capacitor/app');
+        deepLinkListener = App.addListener('appUrlOpen', ({ url }) => {
+          try {
+            const parsed = new URL(url);
+            const path = parsed.pathname + parsed.search;
+            if (path && path !== '/') router.push(path);
+          } catch { /* 無効なURLは無視 */ }
+        });
+      } catch (e) {
+        // Web ブラウザ、または @capacitor/app 未インストール時は無視
+      }
+    };
+
+    setupDeepLink();
+
+    return () => { deepLinkListener?.then(l => l.remove()); };
+  }, [isNative, router]);
+
   const AUTH_PAGES = ['/login', '/register', '/forgot-password', '/reset-password', '/verify', '/app'];
   if (!isNative || AUTH_PAGES.some(p => pathname?.startsWith(p))) return null;
 

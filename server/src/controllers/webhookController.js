@@ -105,8 +105,11 @@ export const handleStripeWebhook = async (req, res) => {
                     const backerCountBefore = await tx.pledge.count({ where: { projectId } });
                     const isEarlyBacker = backerCountBefore < 10;
 
-                    const newPledge = await tx.pledge.create({
-                        data: {
+                    const newPledge = await tx.pledge.upsert({
+                        where: { stripeSessionId: session.id },
+                        update: {}, // 既に存在する場合は何もしない（べき等性確保）
+                        create: {
+                            stripeSessionId: session.id,
                             projectId: projectId,
                             userId: userId === 'guest' ? null : userId,
                             amount: parseInt(totalAmount),
@@ -115,7 +118,7 @@ export const handleStripeWebhook = async (req, res) => {
                             guestName: userId === 'guest' ? guestName : null,
                             guestEmail: userId === 'guest' ? guestEmail : null,
                             isEarlyBacker,
-                        }
+                        },
                     });
 
                     // 3. プロジェクトの集計金額を更新

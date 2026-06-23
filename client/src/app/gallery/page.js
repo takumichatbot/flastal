@@ -9,6 +9,7 @@ import { EmptyState } from '../components/EmptyState';
 import { DeleteConfirmModal } from '../components/DeleteConfirmModal';
 import { Capacitor } from '@capacitor/core';
 import toast from 'react-hot-toast';
+import { compressImage } from '../utils/compressImage';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -134,15 +135,19 @@ function UploadModal({ onClose, onSuccess, token }) {
     const [projectId, setProjectId] = useState('');
     const [imageUrl, setImageUrl] = useState('');
     const [caption, setCaption] = useState('');
+    const [captionCount, setCaptionCount] = useState(0);
     const [uploading, setUploading] = useState(false);
     const [preview, setPreview] = useState('');
     const fileInputRef = useRef(null);
+    const CAPTION_MAX = 200;
 
     const uploadFile = async (f) => {
-        setPreview(URL.createObjectURL(f));
+        // Canvas APIで圧縮（最大1920px / WebP 80%品質）
+        const compressed = await compressImage(f, { maxWidth: 1920, maxHeight: 1920, quality: 0.8 }).catch(() => f);
+        setPreview(URL.createObjectURL(compressed));
         setUploading(true);
         const fd = new FormData();
-        fd.append('image', f);
+        fd.append('image', compressed);
         try {
             const res = await fetch(`${API_URL}/api/upload`, {
                 method: 'POST',
@@ -162,10 +167,11 @@ function UploadModal({ onClose, onSuccess, token }) {
             try {
                 const { Camera, CameraResultType, CameraSource } = await import('@capacitor/camera');
                 const image = await Camera.getPhoto({
-                    quality: 85,
+                    quality: 80,
                     allowEditing: false,
                     resultType: CameraResultType.DataUrl,
                     source: CameraSource.Photos,
+                    width: 1920,
                 });
                 const response = await fetch(image.dataUrl);
                 const blob = await response.blob();
@@ -233,14 +239,23 @@ function UploadModal({ onClose, onSuccess, token }) {
                         onChange={e => e.target.files?.[0] && uploadFile(e.target.files[0])}
                     />
 
-                    <input
-                        type="text"
-                        value={caption}
-                        onChange={e => setCaption(e.target.value)}
-                        placeholder="コメント（任意）"
-                        className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 outline-none focus:border-pink-300 focus:ring-2 focus:ring-pink-200/60"
-                        maxLength={200}
-                    />
+                    <div>
+                        <input
+                            type="text"
+                            value={caption}
+                            onChange={e => { setCaption(e.target.value); setCaptionCount(e.target.value.length); }}
+                            placeholder="コメント（任意）"
+                            className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 outline-none focus:border-pink-300 focus:ring-2 focus:ring-pink-200/60"
+                            maxLength={CAPTION_MAX}
+                        />
+                        <p className={`text-xs text-right mt-1 ${
+                            captionCount > CAPTION_MAX * 0.9 ? 'text-red-500' :
+                            captionCount > CAPTION_MAX * 0.7 ? 'text-amber-500' :
+                            'text-slate-400'
+                        }`}>
+                            {captionCount}/{CAPTION_MAX}
+                        </p>
+                    </div>
                     <button
                         onClick={submit}
                         disabled={uploading || !imageUrl || !projectId}

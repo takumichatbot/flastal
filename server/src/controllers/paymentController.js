@@ -54,28 +54,32 @@ export const createPointSession = async (req, res) => {
     }
 
     try {
-        const session = await stripe.checkout.sessions.create({
-            payment_method_types: ['card'],
-            line_items: [{ 
-                price_data: { 
-                    currency: 'jpy', 
-                    product_data: { 
-                        name: `FLASTAL ${points.toLocaleString()} ポイント`,
-                        description: '企画の支援に使用できる専用ポイントです。'
-                    }, 
-                    unit_amount: parseInt(amount, 10), 
-                }, 
-                quantity: 1, 
-            }],
-            mode: 'payment',
-            success_url: `${frontendUrl}/points?status=success`,
-            cancel_url: `${frontendUrl}/points?status=cancel`,
-            client_reference_id: userId,
-            metadata: { 
-                points: points.toString(),
-                type: 'point_charge' // webhook側で判定するため
+        const idempotencyKey = `point-charge-${userId}-${amount}-${points}`;
+        const session = await stripe.checkout.sessions.create(
+            {
+                payment_method_types: ['card'],
+                line_items: [{
+                    price_data: {
+                        currency: 'jpy',
+                        product_data: {
+                            name: `FLASTAL ${points.toLocaleString()} ポイント`,
+                            description: '企画の支援に使用できる専用ポイントです。'
+                        },
+                        unit_amount: parseInt(amount, 10),
+                    },
+                    quantity: 1,
+                }],
+                mode: 'payment',
+                success_url: `${frontendUrl}/points?status=success`,
+                cancel_url: `${frontendUrl}/points?status=cancel`,
+                client_reference_id: userId,
+                metadata: {
+                    points: points.toString(),
+                    type: 'point_charge' // webhook側で判定するため
+                },
             },
-        });
+            { idempotencyKey }
+        );
         res.json({ url: session.url });
     } catch (error) {
         logger.error('Stripe Session Error (Points)', { context: 'paymentController', error: error.message });
@@ -147,7 +151,8 @@ export const createCheckoutSession = async (req, res) => {
                 : {}),
         };
 
-        const session = await stripe.checkout.sessions.create(sessionParams);
+        const idempotencyKey = `checkout-${userId || 'guest'}-${projectId}-${cardAmount}-${paymentMethod}`;
+        const session = await stripe.checkout.sessions.create(sessionParams, { idempotencyKey });
         res.json({ sessionUrl: session.url });
     } catch (error) {
         logger.error('Checkout Session Error', { context: 'paymentController', error: error.message });
@@ -502,29 +507,37 @@ export const createSubscriptionSession = async (req, res) => {
         if (!project) return res.status(404).json({ message: '企画が見つかりません' });
 
         // Stripe に都度 Price を作成（recurring monthly）
-        const price = await stripe.prices.create({
-            currency: 'jpy',
-            unit_amount: parseInt(amount),
-            recurring: { interval: 'month' },
-            product_data: { name: `月次サポーター: ${project.title}` },
-        });
-
-        const session = await stripe.checkout.sessions.create({
-            payment_method_types: ['card'],
-            line_items: [{ price: price.id, quantity: 1 }],
-            mode: 'subscription',
-            success_url: successUrl,
-            cancel_url: cancelUrl,
-            customer_email: req.user.email,
-            client_reference_id: userId,
-            metadata: {
-                type: 'subscription',
-                projectId,
-                userId,
-                tierId: tierId || 'none',
-                amount: String(amount),
+        const priceIdempotencyKey = `sub-price-${userId}-${projectId}-${amount}`;
+        const price = await stripe.prices.create(
+            {
+                currency: 'jpy',
+                unit_amount: parseInt(amount),
+                recurring: { interval: 'month' },
+                product_data: { name: `月次サポーター: ${project.title}` },
             },
-        });
+            { idempotencyKey: priceIdempotencyKey }
+        );
+
+        const sessionIdempotencyKey = `sub-session-${userId}-${projectId}-${amount}`;
+        const session = await stripe.checkout.sessions.create(
+            {
+                payment_method_types: ['card'],
+                line_items: [{ price: price.id, quantity: 1 }],
+                mode: 'subscription',
+                success_url: successUrl,
+                cancel_url: cancelUrl,
+                customer_email: req.user.email,
+                client_reference_id: userId,
+                metadata: {
+                    type: 'subscription',
+                    projectId,
+                    userId,
+                    tierId: tierId || 'none',
+                    amount: String(amount),
+                },
+            },
+            { idempotencyKey: sessionIdempotencyKey }
+        );
 
         res.json({ sessionUrl: session.url });
     } catch (error) {
@@ -650,23 +663,27 @@ export const createPremiumSession = async (req, res) => {
     const userId = req.user.id;
     const frontendUrl = req.headers.origin || process.env.FRONTEND_URL || 'https://www.flastal.com';
     try {
-        const session = await stripe.checkout.sessions.create({
-            payment_method_types: ['card'],
-            line_items: [{
-                price_data: {
-                    currency: 'jpy',
-                    product_data: { name: 'FLASTAL プレミアムプラン', description: '詳細アナリティクス・優先掲載・AIカバー無制限' },
-                    unit_amount: PREMIUM_PRICE_JPY,
-                    recurring: { interval: 'month' },
-                },
-                quantity: 1,
-            }],
-            mode: 'subscription',
-            success_url: `${frontendUrl}/mypage?premium=success`,
-            cancel_url:  `${frontendUrl}/premium`,
-            client_reference_id: userId,
-            metadata: { type: 'premium_subscription', userId },
-        });
+        const idempotencyKey = `premium-session-${userId}`;
+        const session = await stripe.checkout.sessions.create(
+            {
+                payment_method_types: ['card'],
+                line_items: [{
+                    price_data: {
+                        currency: 'jpy',
+                        product_data: { name: 'FLASTAL プレミアムプラン', description: '詳細アナリティクス・優先掲載・AIカバー無制限' },
+                        unit_amount: PREMIUM_PRICE_JPY,
+                        recurring: { interval: 'month' },
+                    },
+                    quantity: 1,
+                }],
+                mode: 'subscription',
+                success_url: `${frontendUrl}/mypage?premium=success`,
+                cancel_url:  `${frontendUrl}/premium`,
+                client_reference_id: userId,
+                metadata: { type: 'premium_subscription', userId },
+            },
+            { idempotencyKey }
+        );
         res.json({ url: session.url });
     } catch (err) {
         logger.error('createPremiumSession', { context: 'paymentController', error: err.message });

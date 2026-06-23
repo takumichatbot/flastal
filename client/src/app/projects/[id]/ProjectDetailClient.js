@@ -13,7 +13,10 @@ import Markdown from 'react-markdown';
 import { useReactToPrint } from 'react-to-print';
 import { motion, AnimatePresence } from 'framer-motion';
 import ShareButtons from '@/app/components/ShareButtons';
-
+import { useConfirm } from '@/app/hooks/useConfirm';
+import { ConfirmDialog } from '@/app/components/ConfirmDialog';
+import { ProgressBar } from '@/app/components/ProgressBar';
+import { useKeyboardAwareScroll } from '@/app/hooks/useKeyboardAwareScroll';
 
 // --- Icons ---
 import { 
@@ -776,6 +779,10 @@ export default function ProjectDetailClient() {
 
   const [isDeliveryNoteModalOpen, setIsDeliveryNoteModalOpen] = useState(false);
   const [isIllustrationUploading, setIsIllustrationUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+
+  const { confirm, confirmState, handleConfirm, handleCancel } = useConfirm();
+  useKeyboardAwareScroll();
 
   const [cheers, setCheers] = useState(null);
   const [cheerMessage, setCheerMessage] = useState('');
@@ -961,7 +968,7 @@ export default function ProjectDetailClient() {
   };
 
   const handleDeleteExpense = async (expenseId) => {
-      if (!window.confirm('この支出を削除しますか？')) return;
+      if (!await confirm('この支出を削除しますか？')) return;
       try {
           const res = await authenticatedFetch(`${API_URL}/api/project-details/expenses/${expenseId}`, { method: 'DELETE' });
           if (!res.ok) throw new Error('削除失敗');
@@ -1006,7 +1013,7 @@ export default function ProjectDetailClient() {
   };
 
   const handleDeleteTask = async (taskId) => {
-      if (!window.confirm('このタスクを削除しますか？')) return;
+      if (!await confirm('このタスクを削除しますか？')) return;
       try {
           const res = await authenticatedFetch(`${API_URL}/api/project-details/tasks/${taskId}`, { method: 'DELETE' });
           if (!res.ok) throw new Error('削除失敗');
@@ -1065,11 +1072,17 @@ export default function ProjectDetailClient() {
               const xhr = new XMLHttpRequest();
               xhr.open('PUT', uploadUrl);
               xhr.setRequestHeader('Content-Type', file.type);
+              xhr.upload.addEventListener('progress', (e) => {
+                  if (e.lengthComputable) {
+                      setUploadProgress(Math.round((e.loaded / e.total) * 100));
+                  }
+              });
               xhr.onload = () => {
+                  setUploadProgress(0);
                   if (xhr.status === 200) resolve(fileUrl);
                   else reject(new Error('S3へのアップロードに失敗しました'));
               };
-              xhr.onerror = () => reject(new Error('ネットワークエラーが発生しました'));
+              xhr.onerror = () => { setUploadProgress(0); reject(new Error('ネットワークエラーが発生しました')); };
               xhr.send(file);
           });
 
@@ -1127,7 +1140,7 @@ export default function ProjectDetailClient() {
           toast.error(`ポイントが不足しています。(不足分: ${amount - user.points}pt) チャージしてください。`);
           return;
       }
-      const isConfirmed = window.confirm(`本当にこのクリエイターを採用し、${amount.toLocaleString()}pt を支払いますか？\n※ポイントはシステムに一時的に預けられ、納品完了後にクリエイターへ支払われます。`);
+      const isConfirmed = await confirm(`本当にこのクリエイターを採用し、${amount.toLocaleString()}pt を支払いますか？\n※ポイントはシステムに一時的に預けられ、納品完了後にクリエイターへ支払われます。`);
       if (!isConfirmed) return;
 
       const toastId = toast.loading('採用処理中...');
@@ -1140,7 +1153,7 @@ export default function ProjectDetailClient() {
   };
 
   const handleAcceptIllustration = async () => {
-      if (!window.confirm('イラストを検収し、報酬のポイントをクリエイターに支払いますか？\n※この操作は取り消せません。')) return;
+      if (!await confirm('イラストを検収し、報酬のポイントをクリエイターに支払いますか？\n※この操作は取り消せません。')) return;
       
       const toastId = toast.loading('検収・支払い処理中...');
       try {
@@ -1155,7 +1168,7 @@ export default function ProjectDetailClient() {
   };
 
   const handleRejectIllustration = async () => {
-      if (!window.confirm('イラストを差し戻しますか？（※修正要望はチャットでお伝えください）')) return;
+      if (!await confirm('イラストを差し戻しますか？（※修正要望はチャットでお伝えください）')) return;
       
       const toastId = toast.loading('差し戻し中...');
       try {
@@ -1983,6 +1996,22 @@ export default function ProjectDetailClient() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* アップロード進捗バー */}
+      {uploadProgress > 0 && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 w-72 bg-white rounded-2xl shadow-xl border border-slate-100 p-4">
+          <p className="text-xs font-black text-slate-500 mb-2">アップロード中... {uploadProgress}%</p>
+          <ProgressBar value={uploadProgress} animate={false} />
+        </div>
+      )}
+
+      {/* 確認ダイアログ */}
+      <ConfirmDialog
+        open={confirmState.open}
+        message={confirmState.message}
+        onConfirm={handleConfirm}
+        onCancel={handleCancel}
+      />
     </div>
   );
 }

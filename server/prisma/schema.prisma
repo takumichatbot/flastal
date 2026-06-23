@@ -82,6 +82,21 @@ enum RefundStatus {
   FAILED      // 返金失敗
 }
 
+enum KycStatus {
+  NONE
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum PayoutStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
 enum ShopOrderStatus {
   PENDING     // 支払い待ち
   PAID        // 支払い完了
@@ -204,7 +219,7 @@ model User {
   badgeIds             String[]
   totpSecret           String?
   totpEnabled          Boolean @default(false)
-  kycStatus            String  @default("NONE")  // NONE | PENDING | APPROVED | REJECTED
+  kycStatus            KycStatus @default(NONE)
   kycDocumentUrl       String?
   isPremium            Boolean  @default(false)
   premiumUntil         DateTime?
@@ -405,12 +420,16 @@ model Project {
   actualPrice      Int?
   deliveredImageUrl String?
 
+  // ソフトデリート
+  deletedAt  DateTime?
+
   @@index([status, createdAt])
   @@index([plannerId, status])
   @@index([visibility, status, createdAt])
   @@index([eventId])
   @@index([venueId])
   @@index([deadline])
+  @@index([deletedAt])
 }
 
 model PledgeTier {
@@ -453,6 +472,9 @@ model Pledge {
   subscriptionStatus String? // active / canceled / past_due
 
   receivedAt DateTime?  // フラワースタンド受け取り確認日時
+
+  // べき等性確保: StripeセッションIDの一意制約
+  stripeSessionId String? @unique
 
   @@index([projectId, createdAt])
   @@index([userId, createdAt])
@@ -676,12 +698,12 @@ model Announcement {
 }
 
 model PayoutRequest {
-  id          String   @id @default(cuid())
+  id          String      @id @default(cuid())
   amount      Int
-  accountInfo String   @db.Text
-  status      String   @default("PENDING")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  accountInfo String      @db.Text
+  status      PayoutStatus @default(PENDING)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
 
   floristId String
   florist   Florist @relation(fields: [floristId], references: [id])
@@ -1095,18 +1117,18 @@ model BankAccount {
 }
 
 model Payout {
-  id           String   @id @default(cuid())
+  id           String       @id @default(cuid())
   userId       String
-  amount       Int      
-  fee          Int      
-  finalAmount  Int      
-  
-  status       String   @default("PENDING") 
-  adminComment String?  
-  
+  amount       Int
+  fee          Int
+  finalAmount  Int
+
+  status       PayoutStatus @default(PENDING)
+  adminComment String?
+
   requestedAt  DateTime @default(now())
-  completedAt  DateTime? 
-  
+  completedAt  DateTime?
+
   user         User     @relation(fields: [userId], references: [id])
 }
 
@@ -1709,6 +1731,7 @@ model RefreshToken {
 
   @@index([userId])
   @@index([token])
+  @@index([expiresAt])
 }
 
 // メール送信ログ

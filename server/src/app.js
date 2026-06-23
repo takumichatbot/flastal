@@ -295,6 +295,11 @@ import('./queues/emailQueue.js')
     logger.warn('BullMQ email worker not started (REDIS_URL may be unset)');
   });
 
+// 期限切れリフレッシュトークン削除 cron（毎日4:00 JST = UTC 19:00）
+import('./cron/cleanupExpiredTokens.js')
+  .then(() => logger.info('Cron job loaded', { job: 'cleanupExpiredTokens', schedule: 'daily UTC 19:00 (JST 04:00)' }))
+  .catch((err) => logger.error('Failed to load cleanupExpiredTokens cron', { error: err.message }));
+
 // Typesense定期同期（毎朝UTC 17時 = JST 2時）
 import('./cron/typesenseSync.js').then(({ runTypesenseSyncJob }) => {
   const scheduleDaily = () => {

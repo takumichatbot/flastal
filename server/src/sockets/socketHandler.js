@@ -384,6 +384,17 @@ export default function socketHandler(io) {
       }
     });
 
+    // --- タイピングインジケーター ---
+    socket.on('typing', ({ roomId, userId, userName }) => {
+      if (socket.user.role === 'GUEST') return;
+      socket.to(roomId).emit('userTyping', { userId, userName });
+    });
+
+    socket.on('stopTyping', ({ roomId, userId }) => {
+      if (socket.user.role === 'GUEST') return;
+      socket.to(roomId).emit('userStopTyping', { userId });
+    });
+
     // --- ライブ配信ルーム参加（認証不要で参加できるよう未認証でも処理） ---
     socket.on('join_live', (sessionId) => {
       socket.join(`live:${sessionId}`);

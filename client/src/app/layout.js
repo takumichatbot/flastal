@@ -8,6 +8,7 @@ import { Toaster } from 'react-hot-toast';
 import PushNotificationManager from './components/PushNotificationManager';
 import ThemeController from './components/ThemeController';
 import FloatingMenu from './components/FloatingMenu';
+import ErrorBoundary from './components/ErrorBoundary';
 import { Suspense } from 'react';
 import Script from 'next/script';
 import { MotionConfig } from 'framer-motion';
@@ -188,7 +189,9 @@ export default function RootLayout({ children }) {
 
             <Suspense fallback={null}>
               <main id="main-content" className="flex-grow w-full m-0 p-0 relative">
-                {children}
+                <ErrorBoundary>
+                  {children}
+                </ErrorBoundary>
               </main>
               <div className="web-only"><FloatingMenu /></div>
             </Suspense>
