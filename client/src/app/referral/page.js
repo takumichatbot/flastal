@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import Image from 'next/image';
 import { useAuth } from '../contexts/AuthContext';
 import { motion } from 'framer-motion';
 import {
@@ -288,9 +289,9 @@ export default function ReferralPage() {
                                     {stats.referredUsers.map((u, i) => (
                                         <motion.div key={u.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.04 }}
                                             className="flex items-center gap-3 py-2.5">
-                                            <div className="w-8 h-8 rounded-full bg-slate-100 overflow-hidden shrink-0">
+                                            <div className="w-8 h-8 rounded-full bg-slate-100 overflow-hidden shrink-0 relative">
                                                 {u.iconUrl
-                                                    ? <img src={u.iconUrl} alt={u.handleName} className="w-full h-full object-cover" />
+                                                    ? <Image src={u.iconUrl} alt={u.handleName} fill className="object-cover" />
                                                     : <div className="w-full h-full flex items-center justify-center text-slate-300 text-xs font-black">{u.handleName?.[0]}</div>
                                                 }
                                             </div>

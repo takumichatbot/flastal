@@ -76,12 +76,17 @@ export const addTask = async (req, res) => {
     try {
         const project = await prisma.project.findUnique({ where: { id: projectId } });
         if (!project || project.plannerId !== req.user.id) return res.status(403).json({ message: '権限がありません' });
-        const task = await prisma.task.create({ data: { title, projectId, assignedUserId } });
-        if (assignedUserId && assignedUserId !== req.user.id) {
-            await prisma.notification.create({ 
-                data: { recipientId: assignedUserId, type: 'TASK_ASSIGNED', message: `新しいタスク: ${title}`, projectId } 
-            }).catch(() => {});
-        }
+
+        const task = await prisma.$transaction(async (tx) => {
+            const newTask = await tx.task.create({ data: { title, projectId, assignedUserId } });
+            if (assignedUserId && assignedUserId !== req.user.id) {
+                await tx.notification.create({
+                    data: { recipientId: assignedUserId, type: 'TASK_ASSIGNED', message: `新しいタスク: ${title}`, projectId }
+                });
+            }
+            return newTask;
+        });
+
         res.status(201).json(task);
     } catch (e) { res.status(500).json({ message: 'タスク追加に失敗しました' }); }
 };
@@ -610,23 +615,27 @@ export const postCheer = async (req, res) => {
         const project = await prisma.project.findUnique({ where: { id: projectId }, select: { id: true, plannerId: true, title: true } });
         if (!project) return res.status(404).json({ message: '企画が見つかりません' });
 
-        const cheer = await prisma.cheer.create({
-            data: { message: message.trim(), projectId, userId, guestName: guestName?.trim() || null },
-            include: { user: { select: { id: true, handleName: true, iconUrl: true } } },
-        });
-
-        // プランナーへ通知
-        if (project.plannerId) {
-            await prisma.notification.create({
-                data: {
-                    recipientId: project.plannerId,
-                    type: 'NEW_ANNOUNCEMENT',
-                    message: `応援メッセージが届きました！`,
-                    projectId,
-                    linkUrl: `/projects/${projectId}`,
-                },
+        const cheer = await prisma.$transaction(async (tx) => {
+            const newCheer = await tx.cheer.create({
+                data: { message: message.trim(), projectId, userId, guestName: guestName?.trim() || null },
+                include: { user: { select: { id: true, handleName: true, iconUrl: true } } },
             });
-        }
+
+            // プランナーへ通知（cheerとセットでアトミックに作成）
+            if (project.plannerId) {
+                await tx.notification.create({
+                    data: {
+                        recipientId: project.plannerId,
+                        type: 'NEW_ANNOUNCEMENT',
+                        message: `応援メッセージが届きました！`,
+                        projectId,
+                        linkUrl: `/projects/${projectId}`,
+                    },
+                });
+            }
+
+            return newCheer;
+        });
 
         res.status(201).json(cheer);
     } catch (e) {

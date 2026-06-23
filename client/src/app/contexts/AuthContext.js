@@ -72,10 +72,9 @@ export function AuthProvider({ children }) {
     const userData = parseUserFromToken(newToken, extraData);
     if (userData) {
       setUser(userData);
+      // アクセストークンはメモリ（state）のみに保存。localStorageには書かない
       setToken(userData._token);
       if (typeof window !== 'undefined') {
-        localStorage.setItem('authToken', userData._token);
-        localStorage.setItem('flastal-token', userData._token);
         localStorage.setItem('flastal-user-cache', JSON.stringify(extraData || {}));
         if (newRefreshToken) {
           localStorage.setItem('flastal-refresh-token', newRefreshToken);
@@ -87,8 +86,6 @@ export function AuthProvider({ children }) {
         setUser(null);
         setToken(null);
         if (typeof window !== 'undefined') {
-          localStorage.removeItem('authToken');
-          localStorage.removeItem('flastal-token');
           localStorage.removeItem('flastal-user-cache');
           localStorage.removeItem('flastal-refresh-token');
           localStorage.removeItem('userStatus');
@@ -113,8 +110,6 @@ export function AuthProvider({ children }) {
       if (!res.ok) {
         setUser(null);
         setToken(null);
-        localStorage.removeItem('authToken');
-        localStorage.removeItem('flastal-token');
         localStorage.removeItem('flastal-user-cache');
         localStorage.removeItem('flastal-refresh-token');
         localStorage.removeItem('userStatus');
@@ -124,8 +119,7 @@ export function AuthProvider({ children }) {
 
       const data = await res.json();
       const cleanToken = data.token.replace(/['"]+/g, '').trim();
-      localStorage.setItem('authToken', cleanToken);
-      localStorage.setItem('flastal-token', cleanToken);
+      // アクセストークンはメモリ（state）のみに保存
       if (data.refreshToken) {
         localStorage.setItem('flastal-refresh-token', data.refreshToken);
       }
@@ -155,10 +149,8 @@ export function AuthProvider({ children }) {
     }
     requestDebounce.current[requestKey] = now;
 
+    // アクセストークンはメモリ（state）から取得。localStorageには保存しない
     let currentToken = token;
-    if (!currentToken && typeof window !== 'undefined') {
-      currentToken = localStorage.getItem('flastal-token') || localStorage.getItem('authToken');
-    }
 
     const headers = { ...options.headers };
     if (!(options.body instanceof FormData)) {
@@ -194,41 +186,60 @@ export function AuthProvider({ children }) {
   }, [token, refreshAccessToken]);
 
   useEffect(() => {
-    const initAuth = () => {
+    // アクセストークンはメモリ管理のためページリロード時は再取得が必要。
+    // リフレッシュトークンが残っていれば /api/auth/refresh でサイレント再取得する。
+    const initAuth = async () => {
       try {
-        if (typeof window !== 'undefined') {
-          const storedToken = localStorage.getItem('flastal-token') || localStorage.getItem('authToken');
-          if (storedToken && storedToken !== 'null') {
-            // ★修正: キャッシュされたユーザー情報を読み込む
-            const storedCache = localStorage.getItem('flastal-user-cache');
-            const storedVenue = localStorage.getItem('flastal-venue'); // 互換性維持
-            
-            let extraData = {};
-            if (storedCache) {
-                try {
-                    const raw = storedCache;
-                    extraData = raw ? JSON.parse(raw) : null;
-                    if (!extraData) extraData = {};
-                } catch(e) {
-                    console.warn('[AuthContext] キャッシュパースエラー:', e.message);
-                    localStorage.removeItem('flastal-user-cache');
-                    extraData = {};
-                }
-            } else if (storedVenue) {
-                try {
-                    const raw = storedVenue;
-                    extraData = raw ? JSON.parse(raw) : null;
-                    if (!extraData) extraData = {};
-                } catch(e) {
-                    console.warn('[AuthContext] キャッシュパースエラー:', e.message);
-                    localStorage.removeItem('flastal-venue');
-                    extraData = {};
-                }
-            }
-            
-            setSession(storedToken, extraData);
+        if (typeof window === 'undefined') return;
+
+        // 旧バージョンの localStorage に残ったアクセストークンを削除（移行クリーンアップ）
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('flastal-token');
+
+        const storedRefreshToken = localStorage.getItem('flastal-refresh-token');
+        if (!storedRefreshToken) return;
+
+        // リフレッシュトークンを使ってアクセストークンをサイレント取得
+        const res = await fetch(`${BASE_BACKEND_URL}/api/auth/refresh`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refreshToken: storedRefreshToken }),
+        });
+
+        if (!res.ok) {
+          localStorage.removeItem('flastal-user-cache');
+          localStorage.removeItem('flastal-refresh-token');
+          localStorage.removeItem('userStatus');
+          return;
+        }
+
+        const data = await res.json();
+        const cleanToken = data.token.replace(/['"]+/g, '').trim();
+        if (data.refreshToken) {
+          localStorage.setItem('flastal-refresh-token', data.refreshToken);
+        }
+
+        // キャッシュされたユーザー情報を読み込んで state に反映
+        const storedCache = localStorage.getItem('flastal-user-cache');
+        const storedVenue = localStorage.getItem('flastal-venue'); // 互換性維持
+        let extraData = {};
+        if (storedCache) {
+          try {
+            extraData = JSON.parse(storedCache) || {};
+          } catch (e) {
+            console.warn('[AuthContext] キャッシュパースエラー:', e.message);
+            localStorage.removeItem('flastal-user-cache');
+          }
+        } else if (storedVenue) {
+          try {
+            extraData = JSON.parse(storedVenue) || {};
+          } catch (e) {
+            console.warn('[AuthContext] キャッシュパースエラー:', e.message);
+            localStorage.removeItem('flastal-venue');
           }
         }
+
+        setSession(cleanToken, extraData, null);
       } finally {
         setTimeout(() => {
           setIsLoading(false);
@@ -257,8 +268,6 @@ export function AuthProvider({ children }) {
         body: JSON.stringify({ refreshToken: rt }),
       }).catch(() => {});
     }
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('flastal-token');
     localStorage.removeItem('flastal-user-cache');
     localStorage.removeItem('flastal-refresh-token');
     localStorage.removeItem('flastal-venue');

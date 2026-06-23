@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { Home, Search } from 'lucide-react';
 
@@ -21,7 +22,7 @@ export default function NotFound() {
           transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
           className="mb-6 flex justify-center select-none"
         >
-          <img src="/icon-512x512.png" alt="FLASTAL" width={80} height={80} style={{ borderRadius: '22px', boxShadow: '0 8px 24px rgba(236,72,153,0.2)' }} />
+          <Image src="/icon-512x512.png" alt="FLASTAL" width={80} height={80} style={{ borderRadius: '22px', boxShadow: '0 8px 24px rgba(236,72,153,0.2)' }} />
         </motion.div>
 
         <h1 className="text-7xl font-black text-pink-500 tracking-tighter mb-2">404</h1>

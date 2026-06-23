@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { Users, Search, Filter, Plus, Loader2, Calendar, MapPin, User, Sparkles, ChevronRight, X } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -46,10 +47,11 @@ function ProjectCard({ project }) {
         {/* サムネイル */}
         <div className="relative h-36 bg-gradient-to-br from-pink-100 to-rose-100 overflow-hidden">
           {project.imageUrl ? (
-            <img
+            <Image
               src={project.imageUrl}
               alt={project.title}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              fill
+              className="object-cover group-hover:scale-105 transition-transform duration-500"
             />
           ) : (
             <div className="w-full h-full flex flex-col items-center justify-center">
@@ -101,9 +103,9 @@ function ProjectCard({ project }) {
           {/* プランナー */}
           <div className="flex items-center justify-between pt-3 border-t border-slate-50">
             <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-full bg-gradient-to-br from-pink-200 to-rose-200 overflow-hidden border border-white shadow-sm shrink-0 flex items-center justify-center">
+              <div className="w-6 h-6 rounded-full bg-gradient-to-br from-pink-200 to-rose-200 overflow-hidden border border-white shadow-sm shrink-0 flex items-center justify-center relative">
                 {project.planner?.iconUrl ? (
-                  <img src={project.planner.iconUrl} alt={`${project.planner.handleName || 'プランナー'}のアイコン`} className="w-full h-full object-cover" />
+                  <Image src={project.planner.iconUrl} alt={`${project.planner.handleName || 'プランナー'}のアイコン`} fill className="object-cover" />
                 ) : (
                   <User size={12} className="text-pink-500" />
                 )}

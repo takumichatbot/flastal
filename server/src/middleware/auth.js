@@ -48,24 +48,21 @@ export const authenticateToken = async (req, res, next) => {
         // DB確認失敗時はフォールスルーして処理継続（可用性優先）
     }
 
-    // 4. 権限補完ロジック (会場/花屋/主催者)
+    // 4. 権限補完ロジック (会場のみDBチェック)
+    // VENUEはJWTにroleが含まれないため引き続きDBで確認する。
+    // FLORIST/ORGANIZER/ILLUSTRATORはJWTのroleで判断可能なため、
+    // 使用されていないreq.user.raw取得クエリを省略してDBアクセスを削減する。
     try {
-        const venueAccount = await prisma.venue.findUnique({ where: { id: userId } });
-        if (venueAccount) {
-            req.user.role = 'VENUE';
-            req.user.status = venueAccount.status;
-            req.user.raw = venueAccount;
-        } else if (userRole === 'FLORIST') {
-            const floristAccount = await prisma.florist.findUnique({ where: { id: userId } });
-            if (floristAccount) req.user.raw = floristAccount;
-        } else if (userRole === 'ORGANIZER') {
-            const organizerAccount = await prisma.organizer.findUnique({ where: { id: userId } });
-            if (organizerAccount) req.user.raw = organizerAccount;
-        } else if (userRole === 'ILLUSTRATOR') { // ★追加
-            const illustratorAccount = await prisma.illustrator.findUnique({ where: { id: userId } });
-            if (illustratorAccount) req.user.raw = illustratorAccount;
+        if (userRole !== 'FLORIST' && userRole !== 'ORGANIZER' && userRole !== 'ILLUSTRATOR') {
+            const venueAccount = await prisma.venue.findUnique({
+                where: { id: userId },
+                select: { id: true, status: true },
+            });
+            if (venueAccount) {
+                req.user.role = 'VENUE';
+                req.user.status = venueAccount.status;
+            }
         }
-
     } catch (dbErr) {
         console.error('[Middleware] DB check failed:', dbErr.message);
     }

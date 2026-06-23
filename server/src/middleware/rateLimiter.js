@@ -1,8 +1,26 @@
 import rateLimit from 'express-rate-limit';
+import { RedisStore } from 'rate-limit-redis';
+import { getRedis } from '../config/redis.js';
 
 const jsonHandler = (res, message) => {
   res.status(429).json({ message });
 };
+
+/**
+ * REDIS_URL が設定されている場合は RedisStore を使用し、
+ * 複数サーバーインスタンス間でレート制限カウンターを共有する。
+ * 未設定の場合はデフォルトのメモリストアにフォールバック。
+ */
+function buildStore(prefix) {
+  const redisClient = getRedis();
+  if (!redisClient) return undefined; // メモリストア（フォールバック）
+
+  return new RedisStore({
+    // ioredis の sendCommand を rate-limit-redis の sendCommand インターフェースに適合させる
+    sendCommand: (...args) => redisClient.call(...args),
+    prefix: `rl:${prefix}:`,
+  });
+}
 
 // 一般APIリクエスト: 15分に200回
 export const generalLimiter = rateLimit({
@@ -10,6 +28,7 @@ export const generalLimiter = rateLimit({
   max: 200,
   standardHeaders: true,
   legacyHeaders: false,
+  store: buildStore('general'),
   handler: (req, res) => jsonHandler(res, 'リクエストが多すぎます。しばらくしてから再試行してください。'),
 });
 
@@ -19,6 +38,7 @@ export const authLimiter = rateLimit({
   max: 10,
   standardHeaders: true,
   legacyHeaders: false,
+  store: buildStore('auth'),
   handler: (req, res) => jsonHandler(res, 'ログイン試行が多すぎます。15分後に再試行してください。'),
 });
 
@@ -28,6 +48,7 @@ export const uploadLimiter = rateLimit({
   max: 30,
   standardHeaders: true,
   legacyHeaders: false,
+  store: buildStore('upload'),
   handler: (req, res) => jsonHandler(res, 'アップロード回数の上限に達しました。1時間後に再試行してください。'),
 });
 
@@ -37,6 +58,7 @@ export const paymentLimiter = rateLimit({
   max: 20,
   standardHeaders: true,
   legacyHeaders: false,
+  store: buildStore('payment'),
   handler: (req, res) => jsonHandler(res, '決済リクエストが多すぎます。しばらくしてから再試行してください。'),
 });
 
@@ -46,5 +68,6 @@ export const aiLimiter = rateLimit({
   max: 10,
   standardHeaders: true,
   legacyHeaders: false,
+  store: buildStore('ai'),
   handler: (req, res) => jsonHandler(res, 'AI機能の利用上限に達しました。1時間後に再試行してください。'),
 });

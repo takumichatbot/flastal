@@ -425,9 +425,9 @@ const Hero = () => {
                     transition={{ delay: 0.3 + i * 0.1, duration: 0.5 }}
                     className="bg-white/90 backdrop-blur-sm rounded-2xl p-3 shadow-sm border border-pink-100/50 flex items-center gap-3"
                   >
-                    <div className="w-12 h-12 rounded-xl bg-pink-50 flex-shrink-0 overflow-hidden">
+                    <div className="w-12 h-12 rounded-xl bg-pink-50 flex-shrink-0 overflow-hidden relative">
                       {project.imageUrl ? (
-                        <img src={project.imageUrl} alt={project?.title || '企画画像'} className="w-full h-full object-cover" />
+                        <Image src={project.imageUrl} alt={project?.title || '企画画像'} fill className="object-cover" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-xl">💐</div>
                       )}
@@ -1443,7 +1443,7 @@ export default function HomePage() {
   if (!isMounted) return null;
 
   return (
-    <main className="bg-pink-50/10 min-h-screen text-slate-800 font-sans selection:bg-pink-100 selection:text-pink-500 relative">
+    <div id="main-content" className="bg-pink-50/10 min-h-screen text-slate-800 font-sans selection:bg-pink-100 selection:text-pink-500 relative">
       <AnimatePresence mode="wait">
         {!introFinished ? (
           <IntroLoader key="loader" onComplete={() => setIntroFinished(true)} />
@@ -1472,6 +1472,6 @@ export default function HomePage() {
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
       `}</style>
-    </main>
+    </div>
   );
 }

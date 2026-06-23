@@ -1,4 +1,4 @@
-import { Inter, Noto_Sans_JP, Zen_Kaku_Gothic_New, Plus_Jakarta_Sans, Parisienne } from 'next/font/google';
+import { Inter, Noto_Sans_JP, Zen_Kaku_Gothic_New, Parisienne } from 'next/font/google';
 import { AuthProvider } from './contexts/AuthContext';
 import { DarkModeProvider } from './contexts/DarkModeContext';
 import { GrowthBookProvider } from './contexts/GrowthBookContext';
@@ -9,6 +9,8 @@ import PushNotificationManager from './components/PushNotificationManager';
 import ThemeController from './components/ThemeController';
 import FloatingMenu from './components/FloatingMenu';
 import { Suspense } from 'react';
+import Script from 'next/script';
+import { MotionConfig } from 'framer-motion';
 
 // コンポーネントをインポート
 import Header from './components/Header';
@@ -27,20 +29,13 @@ const notoSansJP = Noto_Sans_JP({
   subsets: ['latin'],
   variable: '--font-noto-sans-jp',
   weight: ['400', '500', '700'],
-  display: 'swap',
+  display: 'optional',
 });
 
 const zenKaku = Zen_Kaku_Gothic_New({
   subsets: ['latin'],
   variable: '--font-zen-kaku',
   weight: ['400', '500', '700'],
-  display: 'swap',
-});
-
-const plusJakarta = Plus_Jakarta_Sans({
-  subsets: ['latin'],
-  variable: '--font-plus-jakarta',
-  weight: ['400', '500', '600', '700'],
   display: 'swap',
 });
 
@@ -107,7 +102,7 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="ja" className={`${inter.variable} ${notoSansJP.variable} ${zenKaku.variable} ${plusJakarta.variable} ${parisienne.variable}`}>
+    <html lang="ja" className={`${inter.variable} ${notoSansJP.variable} ${zenKaku.variable} ${parisienne.variable}`}>
       <head>
         {/* ネイティブアプリ判定: React 描画前にクラスを付与してフラッシュを防ぐ */}
         <script dangerouslySetInnerHTML={{ __html: `
@@ -136,75 +131,120 @@ export default function RootLayout({ children }) {
         `}} />
       </head>
       <body className="font-[family-name:var(--font-zen-kaku)] antialiased text-slate-900 bg-white min-h-screen flex flex-col m-0 p-0 overflow-x-hidden">
+        {/* GA4 */}
+        {process.env.NEXT_PUBLIC_GA_ID && (
+          <>
+            <Script
+              src={`https://www.googletagmanager.com/gtag/js?id=${process.env.NEXT_PUBLIC_GA_ID}`}
+              strategy="afterInteractive"
+            />
+            <Script id="ga4-init" strategy="afterInteractive">{`
+              window.dataLayer = window.dataLayer || [];
+              function gtag(){dataLayer.push(arguments);}
+              gtag('js', new Date());
+              gtag('config', '${process.env.NEXT_PUBLIC_GA_ID}', { page_path: window.location.pathname });
+            `}</Script>
+          </>
+        )}
+
+        {/* JSON-LD 構造化データ: WebSite + SearchAction */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "WebSite",
+              "name": "FLASTAL",
+              "description": "アイドル・VTuber向けフラワースタンドクラウドファンディング",
+              "url": "https://www.flastal.com",
+              "potentialAction": {
+                "@type": "SearchAction",
+                "target": "https://www.flastal.com/projects?q={search_term_string}",
+                "query-input": "required name=search_term_string"
+              }
+            })
+          }}
+        />
+
+        {/* スキップナビゲーション（アクセシビリティ） */}
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[9999] focus:bg-pink-500 focus:text-white focus:px-4 focus:py-2 focus:rounded-lg focus:text-sm focus:font-bold"
+        >
+          コンテンツへスキップ
+        </a>
+
         <WebVitals />
         <ThemeController />
-        <GrowthBookProvider>
-        <DarkModeProvider>
-        <AuthProvider>
-          <header className="web-only w-full flex flex-col m-0 p-0 border-none bg-white relative z-[100] isolate">
-            <Header />
-            <LiveTicker />
-            <div className="absolute bottom-0 left-0 w-full h-[1px] bg-white translate-y-[0.5px] z-[101]" aria-hidden="true" />
-          </header>
+        <MotionConfig reducedMotion="user">
+          <GrowthBookProvider>
+          <DarkModeProvider>
+          <AuthProvider>
+            <header className="web-only w-full flex flex-col m-0 p-0 border-none bg-white relative z-[100] isolate">
+              <Header />
+              <LiveTicker />
+              <div className="absolute bottom-0 left-0 w-full h-[1px] bg-white translate-y-[0.5px] z-[101]" aria-hidden="true" />
+            </header>
 
-          <Suspense fallback={null}>
-            <main className="flex-grow w-full m-0 p-0 relative">
-              {children}
-            </main>
-            <div className="web-only"><FloatingMenu /></div>
-          </Suspense>
+            <Suspense fallback={null}>
+              <main id="main-content" className="flex-grow w-full m-0 p-0 relative">
+                {children}
+              </main>
+              <div className="web-only"><FloatingMenu /></div>
+            </Suspense>
 
-          <div className="web-only"><Footer /></div>
-          <Suspense fallback={null}><NativeTabBar /></Suspense>
-          <Suspense fallback={null}><OfflineBanner /></Suspense>
-          <Toaster
-            position="top-center"
-            toastOptions={{
-              duration: 3000,
-              style: {
-                borderRadius: '12px',
-                fontFamily: 'var(--font-zen-kaku), sans-serif',
-                fontSize: '14px',
-                fontWeight: '600',
-                padding: '12px 16px',
-                maxWidth: '360px',
-              },
-              success: {
+            <div className="web-only"><Footer /></div>
+            <Suspense fallback={null}><NativeTabBar /></Suspense>
+            <Suspense fallback={null}><OfflineBanner /></Suspense>
+            <Toaster
+              position="top-center"
+              toastOptions={{
+                duration: 3000,
                 style: {
-                  background: '#fff1f7',
-                  color: '#9d174d',
-                  border: '1px solid #fbcfe8',
+                  borderRadius: '12px',
+                  fontFamily: 'var(--font-zen-kaku), sans-serif',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  padding: '12px 16px',
+                  maxWidth: '360px',
                 },
-                iconTheme: {
-                  primary: '#ec4899',
-                  secondary: '#fff',
+                success: {
+                  style: {
+                    background: '#fff1f7',
+                    color: '#9d174d',
+                    border: '1px solid #fbcfe8',
+                  },
+                  iconTheme: {
+                    primary: '#ec4899',
+                    secondary: '#fff',
+                  },
                 },
-              },
-              error: {
-                duration: 4000,
-                style: {
-                  background: '#fff1f2',
-                  color: '#9f1239',
-                  border: '1px solid #fecdd3',
+                error: {
+                  duration: 4000,
+                  style: {
+                    background: '#fff1f2',
+                    color: '#9f1239',
+                    border: '1px solid #fecdd3',
+                  },
+                  iconTheme: {
+                    primary: '#f43f5e',
+                    secondary: '#fff',
+                  },
                 },
-                iconTheme: {
-                  primary: '#f43f5e',
-                  secondary: '#fff',
+                loading: {
+                  style: {
+                    background: '#fdf4ff',
+                    color: '#6b21a8',
+                    border: '1px solid #e9d5ff',
+                  },
                 },
-              },
-              loading: {
-                style: {
-                  background: '#fdf4ff',
-                  color: '#6b21a8',
-                  border: '1px solid #e9d5ff',
-                },
-              },
-            }}
-          />
-          <PushNotificationManager />
-        </AuthProvider>
-        </DarkModeProvider>
-        </GrowthBookProvider>
+              }}
+            />
+            <PushNotificationManager />
+          </AuthProvider>
+          </DarkModeProvider>
+          </GrowthBookProvider>
+        </MotionConfig>
       </body>
     </html>
   );

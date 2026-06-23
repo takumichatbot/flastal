@@ -29,5 +29,21 @@ export const metadata = {
 };
 
 export default function FloristsLayout({ children }) {
-  return children;
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "ItemList",
+            "name": "フラワースタンド対応お花屋さん一覧",
+            "description": "アイドル・VTuber向けフラワースタンドに対応したお花屋さん一覧",
+            "url": "https://www.flastal.com/florists"
+          })
+        }}
+      />
+      {children}
+    </>
+  );
 }
