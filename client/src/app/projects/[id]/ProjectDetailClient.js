@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/app/contexts/AuthContext';
 import { useForm } from 'react-hook-form';
@@ -305,7 +305,8 @@ function PledgeForm({ project, user, onPledgeSubmit, isPledger }) {
   const finalAmount = pledgeType === 'tier' && selectedTier ? selectedTier.amount : parseInt(watch('pledgeAmount')) || 0;
 
   const userPoints = user?.points || 0;
-  const pointsToUse = user ? Math.min(userPoints, finalAmount) : 0;
+  const [pointsToUse, setPointsToUse] = useState(0);
+  const maxPoints = useMemo(() => Math.min(userPoints, finalAmount), [userPoints, finalAmount]);
   const cardAmount = finalAmount - pointsToUse;
 
   const minAmount = project.minContributionAmount || 1000;
@@ -486,6 +487,39 @@ function PledgeForm({ project, user, onPledgeSubmit, isPledger }) {
               </div>
               <p className="text-xs text-slate-400 font-bold mt-1.5 ml-1">※金額を手入力で上乗せすることも可能です</p>
             </div>
+          </div>
+        )}
+
+        {user && userPoints > 0 && finalAmount > 0 && (
+          <div className="bg-pink-50 border border-pink-100 rounded-xl p-4 space-y-3">
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-bold text-slate-700">
+                🌸 ポイントを使う
+              </span>
+              <span className="text-xs text-pink-600 font-bold">
+                保有: {formatAmount(userPoints)}pt
+              </span>
+            </div>
+            <input
+              type="range"
+              min={0}
+              max={maxPoints}
+              step={100}
+              value={pointsToUse}
+              onChange={(e) => setPointsToUse(Number(e.target.value))}
+              className="w-full accent-pink-500"
+              inputMode="numeric"
+            />
+            <div className="flex justify-between text-xs text-slate-500">
+              <span>0pt</span>
+              <span className="font-bold text-pink-600">{formatAmount(pointsToUse)}pt 使用</span>
+              <span>{formatAmount(maxPoints)}pt</span>
+            </div>
+            {pointsToUse > 0 && (
+              <p className="text-xs text-slate-500">
+                差引後: <span className="font-bold text-slate-700">¥{formatAmount(finalAmount - pointsToUse)}</span>
+              </p>
+            )}
           </div>
         )}
 
@@ -801,7 +835,7 @@ export default function ProjectDetailClient() {
     } catch { /* silent */ }
   }, [id]);
 
-  const handlePostCheer = async () => {
+  const handlePostCheer = useCallback(async () => {
     if (!cheerMessage.trim()) return;
     if (!user && !cheerGuestName.trim()) return toast.error('お名前を入力してください');
     setIsPostingCheer(true);
@@ -824,9 +858,9 @@ export default function ProjectDetailClient() {
     } finally {
       setIsPostingCheer(false);
     }
-  };
+  }, [user, cheerMessage, cheerGuestName, id, fetchCheers]);
 
-  const handleQuickCheer = async () => {
+  const handleQuickCheer = useCallback(async () => {
     if (quickCheerSent) return;
     try {
       const cheerToken = getAuthToken();
@@ -843,7 +877,7 @@ export default function ProjectDetailClient() {
         setTimeout(() => setQuickCheerSent(false), 3000);
       }
     } catch { /* silent */ }
-  };
+  }, [quickCheerSent, user, id, fetchCheers]);
 
   const handlePrint = useReactToPrint({
     content: () => componentRef.current,
@@ -918,15 +952,15 @@ export default function ProjectDetailClient() {
     return () => newSocket.disconnect();
   }, [id, user]);
 
-  const handlePostAnnouncement = async (e) => {
-    e.preventDefault(); 
+  const handlePostAnnouncement = useCallback(async (e) => {
+    e.preventDefault();
     if (!announcementTitle.trim() || !announcementContent.trim()) {
         return toast.error('タイトルと本文を入力してください');
     }
-    
-    setIsPostingAnnouncement(true); 
+
+    setIsPostingAnnouncement(true);
     const toastId = toast.loading('投稿中...');
-    
+
     try {
         const res = await authenticatedFetch(`${API_URL}/api/project-details/announcements`, {
             method: 'POST',
@@ -934,18 +968,18 @@ export default function ProjectDetailClient() {
             body: JSON.stringify({ title: announcementTitle, content: announcementContent, projectId: id })
         });
         if (!res.ok) throw new Error('投稿に失敗しました');
-        
+
         toast.success('活動報告を投稿しました！', { id: toastId });
         setShowAnnouncementForm(false);
         setAnnouncementTitle('');
         setAnnouncementContent('');
-        fetchProject(); 
+        fetchProject();
     } catch (error) {
         toast.error(error.message, { id: toastId });
     } finally {
-        setIsPostingAnnouncement(false); 
+        setIsPostingAnnouncement(false);
     }
-  };
+  }, [announcementTitle, announcementContent, id, authenticatedFetch, fetchProject]);
 
   const handleAddExpense = async (e) => {
       e.preventDefault();
@@ -1023,7 +1057,7 @@ export default function ProjectDetailClient() {
       }
   };
 
-  const onPledgeSubmit = async (data) => {
+  const onPledgeSubmit = useCallback(async (data) => {
       const toastId = toast.loading('決済処理中...');
       try {
           const res = await authenticatedFetch(`${API_URL}/api/payment/pledges`, {
@@ -1036,16 +1070,16 @@ export default function ProjectDetailClient() {
                   tierId: data.tierId
               })
           });
-          
+
           const result = await res.json();
           if (!res.ok) throw new Error(result.message || '支援に失敗しました');
-          
+
           toast.success('支援が完了しました！ありがとうございます🎉', { id: toastId, duration: 5000 });
           fetchProject();
       } catch (err) {
           toast.error(err.message, { id: toastId, duration: 5000 });
       }
-  };
+  }, [authenticatedFetch, fetchProject]);
 
   const handleUpload = async (e, type) => {
       const file = e.target?.files?.[0];
@@ -1135,7 +1169,7 @@ export default function ProjectDetailClient() {
       }
   };
 
-  const handleAcceptApplication = async (applicationId, amount) => {
+  const handleAcceptApplication = useCallback(async (applicationId, amount) => {
       if (user.points < amount) {
           toast.error(`ポイントが不足しています。(不足分: ${amount - user.points}pt) チャージしてください。`);
           return;
@@ -1148,28 +1182,28 @@ export default function ProjectDetailClient() {
           const res = await authenticatedFetch(`${API_URL}/api/projects/${id}/applications/${applicationId}/accept`, { method: 'PATCH' });
           if (!res.ok) throw new Error('採用処理に失敗しました');
           toast.success('クリエイターを採用しました！🎉 チャットから挨拶しましょう！', { id: toastId });
-          fetchProject(); 
+          fetchProject();
       } catch (e) { toast.error(e.message, { id: toastId }); }
-  };
+  }, [user, confirm, authenticatedFetch, id, fetchProject]);
 
-  const handleAcceptIllustration = async () => {
+  const handleAcceptIllustration = useCallback(async () => {
       if (!await confirm('イラストを検収し、報酬のポイントをクリエイターに支払いますか？\n※この操作は取り消せません。')) return;
-      
+
       const toastId = toast.loading('検収・支払い処理中...');
       try {
           const res = await authenticatedFetch(`${API_URL}/api/projects/${id}/illustration/accept`, { method: 'POST' });
           if (!res.ok) throw new Error('検収処理に失敗しました');
-          
+
           setProject(prev => ({ ...prev, isIllustrationAccepted: true }));
           toast.success('検収が完了し、クリエイターにポイントが支払われました！🎉', { id: toastId });
       } catch (e) {
           toast.error(e.message, { id: toastId });
       }
-  };
+  }, [confirm, authenticatedFetch, id]);
 
-  const handleRejectIllustration = async () => {
+  const handleRejectIllustration = useCallback(async () => {
       if (!await confirm('イラストを差し戻しますか？（※修正要望はチャットでお伝えください）')) return;
-      
+
       const toastId = toast.loading('差し戻し中...');
       try {
           const res = await authenticatedFetch(`${API_URL}/api/projects/${id}`, {
@@ -1178,13 +1212,13 @@ export default function ProjectDetailClient() {
               body: JSON.stringify({ illustrationDataUrl: null, isIllustrationAccepted: false })
           });
           if (!res.ok) throw new Error('処理に失敗しました');
-          
+
           setProject(prev => ({ ...prev, illustrationDataUrl: null, isIllustrationAccepted: false }));
           toast.success('イラストを差し戻しました。チャットで修正内容をお伝えください。', { id: toastId });
       } catch (e) {
           toast.error(e.message, { id: toastId });
       }
-  };
+  }, [confirm, authenticatedFetch, id]);
 
   const handleSubmitReview = async () => {
     if (!reviewComment.trim()) return;
@@ -1232,20 +1266,29 @@ export default function ProjectDetailClient() {
       }
   };
 
-  const myPledge = user ? (project?.pledges || []).find(p => p.userId === user.id) : null;
+  const myPledge = useMemo(
+    () => user ? (project?.pledges || []).find(p => p.userId === user.id) : null,
+    [user, project?.pledges]
+  );
   const isPledger = !!myPledge;
   const isPlanner = user && user.id === project?.planner?.id;
   const isFlorist = user && user.role === 'FLORIST';
   const isAssignedIllustrator = user && user.role === 'ILLUSTRATOR' && project?.illustratorId === user.id;
 
-  // ▼▼▼ 修正 ▼▼▼
   // オファー中（PENDING）または受諾済み（ACCEPTED）のお花屋さんを探す
-  const activeOffer = project?.offers?.find(o => o.status === 'ACCEPTED' || o.status === 'PENDING');
+  const activeOffer = useMemo(
+    () => project?.offers?.find(o => o.status === 'ACCEPTED' || o.status === 'PENDING'),
+    [project?.offers]
+  );
   const floristName = activeOffer?.florist?.shopName || activeOffer?.florist?.platformName || '担当のお花屋さん';
-  // ▲▲▲ 修正 ▲▲▲
+
+  const progressPercent = useMemo(
+    () => project ? Math.min(100, Math.round((project.collectedAmount / project.targetAmount) * 100)) : 0,
+    [project?.collectedAmount, project?.targetAmount]
+  );
 
   const isMounted = useIsMounted();
-  
+
   if (!isMounted) return null;
   if (loading) return (
     <div className="min-h-[100dvh] bg-slate-50 animate-pulse px-4 py-8 max-w-5xl mx-auto space-y-4">
@@ -1266,8 +1309,14 @@ export default function ProjectDetailClient() {
   );
   if (!project) return <div className="text-center py-32 text-slate-400 font-bold text-lg bg-slate-50 min-h-screen">企画が見つかりませんでした。</div>;
 
-  const totalExpense = (project.expenses || []).reduce((sum, exp) => sum + exp.amount, 0);
-  const balance = project.collectedAmount - totalExpense;
+  const totalExpense = useMemo(
+    () => (project.expenses || []).reduce((sum, exp) => sum + exp.amount, 0),
+    [project.expenses]
+  );
+  const balance = useMemo(
+    () => project.collectedAmount - totalExpense,
+    [project.collectedAmount, totalExpense]
+  );
 
   // タブコンポーネントに渡す共有コンテキスト
   const tabCtx = {

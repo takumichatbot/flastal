@@ -99,7 +99,7 @@ function OfferModal({ floristId, floristName, onClose }) {
                 throw new Error(d.message || 'オファーに失敗しました');
             }
             setSent(true);
-            toast.success('オファーを送信しました！🎉');
+            toast.success('オファーを送信しました！');
         } catch (err) {
             toast.error(err.message);
         } finally {
@@ -519,6 +519,12 @@ export default function FloristDetailPage() {
                     {activeTab === 'profile' && (
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                             <div className="lg:col-span-2 space-y-8">
+                               <motion.div
+                                 initial={{ opacity: 0, y: 24 }}
+                                 whileInView={{ opacity: 1, y: 0 }}
+                                 viewport={{ once: true, margin: '-60px' }}
+                                 transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
+                               >
                                <GlassCard className="relative overflow-hidden">
                                   <h2 className="text-xl font-black text-slate-800 mb-6 flex items-center gap-2">
                                       <User className="text-pink-500" size={20}/> 自己紹介 / コンセプト
@@ -542,12 +548,26 @@ export default function FloristDetailPage() {
 
                                   <Award className="absolute -bottom-10 -right-10 text-slate-900 opacity-[0.03] pointer-events-none" size={200}/>
                                </GlassCard>
+                               </motion.div>
 
                                {florist.deliverySettings && (
+                                   <motion.div
+                                     initial={{ opacity: 0, y: 24 }}
+                                     whileInView={{ opacity: 1, y: 0 }}
+                                     viewport={{ once: true, margin: '-60px' }}
+                                     transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1], delay: 0.1 }}
+                                   >
                                    <FloristDeliveryInfo deliverySettings={florist.deliverySettings} />
+                                   </motion.div>
                                )}
                             </div>
 
+                            <motion.div
+                              initial={{ opacity: 0, y: 24 }}
+                              whileInView={{ opacity: 1, y: 0 }}
+                              viewport={{ once: true, margin: '-60px' }}
+                              transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1], delay: 0.15 }}
+                            >
                             <GlassCard className="h-fit space-y-8">
                               <h2 className="text-sm font-black text-slate-400 uppercase tracking-widest mb-4">FLASTAL Info</h2>
                               
@@ -569,9 +589,10 @@ export default function FloristDetailPage() {
                                   </p>
                               </div>
                             </GlassCard>
+                            </motion.div>
                         </div>
                     )}
-                    
+
                     {activeTab === 'appeal' && (
                         <div>
                             {availableTags.length > 0 && (
@@ -588,7 +609,13 @@ export default function FloristDetailPage() {
                             )}
 
                             {filteredPosts.length > 0 ? (
-                                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
+                                <motion.div
+                                  className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6"
+                                  initial={{ opacity: 0, y: 24 }}
+                                  whileInView={{ opacity: 1, y: 0 }}
+                                  viewport={{ once: true, margin: '-60px' }}
+                                  transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
+                                >
                                     {filteredPosts.map(post => {
                                         const isLiked = user && post.likes?.some(l => l.userId === user.id);
                                         return (
@@ -607,7 +634,7 @@ export default function FloristDetailPage() {
                                             </div>
                                         );
                                     })}
-                                </div>
+                                </motion.div>
                             ) : (
                                 <GlassCard className="flex flex-col items-center justify-center py-24 text-center">
                                     <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-4"><Camera className="text-slate-300" size={32} /></div>
@@ -619,8 +646,15 @@ export default function FloristDetailPage() {
                     
                     {activeTab === 'reviews' && (
                         <div className="max-w-3xl mx-auto space-y-4">
-                            {reviews.length > 0 ? reviews.map(review => (
-                                <GlassCard key={review.id} className="!p-6 transition-all hover:border-pink-200">
+                            {reviews.length > 0 ? reviews.map((review, idx) => (
+                                <motion.div
+                                  key={review.id}
+                                  initial={{ opacity: 0, y: 24 }}
+                                  whileInView={{ opacity: 1, y: 0 }}
+                                  viewport={{ once: true, margin: '-60px' }}
+                                  transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1], delay: idx * 0.05 }}
+                                >
+                                <GlassCard className="!p-6 transition-all hover:border-pink-200">
                                     <div className="flex items-start gap-4 mb-4">
                                         <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 border border-slate-200 shrink-0 overflow-hidden">
                                             {review.user?.iconUrl
@@ -642,6 +676,7 @@ export default function FloristDetailPage() {
                                         <p className="text-slate-600 text-sm leading-relaxed font-medium relative z-10 pt-1"><JpText>{review.comment || '（コメントなし）'}</JpText></p>
                                     </div>
                                 </GlassCard>
+                                </motion.div>
                             )) : (
                                 <GlassCard className="text-center py-16">
                                     <div className="text-4xl mb-3">🌸</div>

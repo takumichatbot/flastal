@@ -34,6 +34,9 @@ export default async function sitemap() {
     { url: `${BASE}/status`,                   changeFrequency: 'hourly',  priority: 0.5 },
     { url: `${BASE}/terms`,                    changeFrequency: 'yearly',  priority: 0.3 },
     { url: `${BASE}/privacy`,                  changeFrequency: 'yearly',  priority: 0.3 },
+    { url: `${BASE}/tokushoho`,                changeFrequency: 'yearly',  priority: 0.3 },
+    { url: `${BASE}/legal/cancel`,             changeFrequency: 'yearly',  priority: 0.3 },
+    { url: `${BASE}/contact`,                  changeFrequency: 'monthly', priority: 0.4 },
   ].map(p => ({ ...p, lastModified: now }));
 
   // 動的: 公開プロジェクト

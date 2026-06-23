@@ -359,11 +359,11 @@ function ProjectsContent() {
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
 
-  // フィルター状態
+  // フィルター状態（sort・statusFilter は URL から初期値を取得）
   const [keyword, setKeyword] = useState('');
   const [prefecture, setPrefecture] = useState('');
-  const [sort, setSort] = useState('newest');
-  const [statusFilter, setStatusFilter] = useState('');
+  const [sort, setSort] = useState(searchParams.get('sort') || 'newest');
+  const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || '');
   const [selectedTags, setSelectedTags] = useState([]); // slug[]
   const [minAmount, setMinAmount] = useState('');
   const [maxAmount, setMaxAmount] = useState('');
@@ -383,6 +383,24 @@ function ProjectsContent() {
     router.push(`${pathname}?${params.toString()}`, { scroll: false });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [router, pathname, searchParams]);
+
+  // sort 変更時に URL を更新
+  const handleSortChange = useCallback((newSort) => {
+    setSort(newSort);
+    const params = new URLSearchParams(searchParams.toString());
+    if (newSort === 'newest') params.delete('sort');
+    else params.set('sort', newSort);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  }, [searchParams, router, pathname]);
+
+  // statusFilter 変更時に URL を更新
+  const handleStatusChange = useCallback((newStatus) => {
+    setStatusFilter(newStatus);
+    const params = new URLSearchParams(searchParams.toString());
+    if (!newStatus) params.delete('status');
+    else params.set('status', newStatus);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  }, [searchParams, router, pathname]);
 
   // アクティブなフィルター数（バッジ用）
   const activeFilterCount = [
@@ -522,7 +540,7 @@ function ProjectsContent() {
 
   const handleReset = () => {
     setPrefecture('');
-    setSort('newest');
+    handleSortChange('newest');
     setSelectedTags([]);
     setMinAmount('');
     setMaxAmount('');
@@ -602,7 +620,7 @@ function ProjectsContent() {
               const Icon = s.icon;
               const active = sort === s.id;
               return (
-                <button key={s.id} onClick={() => setSort(s.id)}
+                <button key={s.id} onClick={() => handleSortChange(s.id)}
                   className={cn(
                     'shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full font-black text-xs transition-all border',
                     active
@@ -623,7 +641,7 @@ function ProjectsContent() {
               { id: 'SUCCESSFUL',  label: '✅ 達成',   color: 'bg-emerald-500 text-white border-emerald-500', inactive: 'bg-emerald-50 text-emerald-600 border-emerald-100' },
               { id: 'COMPLETED',   label: '🎉 完了',   color: 'bg-purple-500 text-white border-purple-500',  inactive: 'bg-purple-50 text-purple-600 border-purple-100' },
             ].map(s => (
-              <button key={s.id} onClick={() => setStatusFilter(s.id)}
+              <button key={s.id} onClick={() => handleStatusChange(s.id)}
                 className={cn(
                   'shrink-0 px-3 py-1.5 rounded-full font-black text-xs transition-all border',
                   statusFilter === s.id ? s.color : s.inactive,
@@ -733,7 +751,7 @@ function ProjectsContent() {
         prefecture={prefecture}
         setPrefecture={setPrefecture}
         sort={sort}
-        setSort={setSort}
+        setSort={handleSortChange}
         selectedTags={selectedTags}
         toggleTag={toggleTag}
         availableTags={availableTags}

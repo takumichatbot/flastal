@@ -4,13 +4,16 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
-import {
-    AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
-} from 'recharts';
+import dynamic from 'next/dynamic';
 import {
     TrendingUp, Eye, Users, Heart, Target, BarChart2,
     ChevronRight, Loader2, ArrowUpRight, Percent, Download,
 } from 'lucide-react';
+
+const DashboardAreaChart = dynamic(() => import('./DashboardAreaChart'), {
+    ssr: false,
+    loading: () => <div className="h-[160px] bg-slate-100 animate-pulse rounded-xl" />,
+});
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -27,15 +30,6 @@ function StatCard({ icon: Icon, label, value, sub, color = 'text-pink-500', bg =
     );
 }
 
-function CustomTooltip({ active, payload, label }) {
-    if (!active || !payload?.length) return null;
-    return (
-        <div className="bg-white border border-slate-100 rounded-xl shadow-lg px-4 py-3 text-sm">
-            <p className="text-slate-500 text-xs mb-1">{label}</p>
-            <p className="font-black text-pink-600">¥{payload[0].value.toLocaleString()}</p>
-        </div>
-    );
-}
 
 function ProjectAnalyticsCard({ project, token }) {
     const [data, setData] = useState(null);
@@ -100,24 +94,7 @@ function ProjectAnalyticsCard({ project, token }) {
                                     <p className="text-xs font-black text-slate-500 mb-3 flex items-center gap-1">
                                         <BarChart2 size={12} /> 累積支援額の推移
                                     </p>
-                                    <ResponsiveContainer width="100%" height={160}>
-                                        <AreaChart data={data.dailyProgress} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
-                                            <defs>
-                                                <linearGradient id={`grad-${project.id}`} x1="0" y1="0" x2="0" y2="1">
-                                                    <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.2} />
-                                                    <stop offset="95%" stopColor="#f43f5e" stopOpacity={0} />
-                                                </linearGradient>
-                                            </defs>
-                                            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                                            <XAxis dataKey="date" tick={{ fontSize: 9, fill: '#94a3b8' }} tickLine={false} axisLine={false}
-                                                tickFormatter={d => d.slice(5)} />
-                                            <YAxis tick={{ fontSize: 9, fill: '#94a3b8' }} tickLine={false} axisLine={false}
-                                                tickFormatter={v => `¥${(v / 1000).toFixed(0)}k`} width={40} />
-                                            <Tooltip content={<CustomTooltip />} />
-                                            <Area type="monotone" dataKey="total" stroke="#f43f5e" strokeWidth={2}
-                                                fill={`url(#grad-${project.id})`} dot={false} activeDot={{ r: 4, fill: '#f43f5e' }} />
-                                        </AreaChart>
-                                    </ResponsiveContainer>
+                                    <DashboardAreaChart data={data.dailyProgress} projectId={project.id} />
                                 </div>
                             )}
 

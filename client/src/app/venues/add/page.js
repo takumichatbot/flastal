@@ -91,9 +91,8 @@ export default function AddVenuePage() {
             throw new Error(`エラー (${response.status})`);
         }
 
-        toast.success('会場情報を送信しました！運営の承認をお待ちください🎉', {
+        toast.success('会場情報を送信しました！運営の承認をお待ちください', {
             duration: 6000,
-            icon: '📩'
         });
         
         setTimeout(() => {

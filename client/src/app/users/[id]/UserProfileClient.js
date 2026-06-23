@@ -173,6 +173,7 @@ export default function PublicUserProfile() {
   const [activeTab, setActiveTab] = useState('created');
   const [followStatus, setFollowStatus] = useState({ following: false, followersCount: 0, followingCount: 0 });
   const [followLoading, setFollowLoading] = useState(false);
+  const [statusAnnouncement, setStatusAnnouncement] = useState('');
 
   useEffect(() => {
     const load = async () => {
@@ -215,6 +216,7 @@ export default function PublicUserProfile() {
           following: data.following,
           followersCount: prev.followersCount + (data.following ? 1 : -1),
         }));
+        setStatusAnnouncement(data.following ? 'フォローしました' : 'フォローを解除しました');
       }
     } finally {
       setFollowLoading(false);
@@ -547,6 +549,7 @@ export default function PublicUserProfile() {
           )}
         </AnimatePresence>
       </div>
+      <span className="sr-only" aria-live="polite" aria-atomic="true">{statusAnnouncement}</span>
     </div>
   );
 }

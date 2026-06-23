@@ -56,7 +56,7 @@ function OfferModal({ illustratorId, illustratorName, basePrice, onClose, onOffe
         body: JSON.stringify({ projectId: selectedProjectId, illustratorId, amount: parseInt(offerAmount), message }),
       });
       if (!res.ok) { const e = await res.json(); throw new Error(e.message || 'オファーの送信に失敗しました'); }
-      toast.success('オファーを送信しました！🎉', { id: toastId, duration: 6000 });
+      toast.success('オファーを送信しました！', { id: toastId, duration: 6000 });
       onOfferSuccess();
       onClose();
     } catch (error) {

@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 
 import { useAuth } from '../contexts/AuthContext';
+import { EmptyState } from '../components/EmptyState';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -393,7 +394,7 @@ function FloristsListContent() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'オファーの送信に失敗しました');
-      toast.success('オファーを送信しました！🎉\nお花屋さんからの返答をお待ちください。', { id: tid, duration: 6000 });
+      toast.success('オファーを送信しました！\nお花屋さんからの返答をお待ちください。', { id: tid, duration: 6000 });
       router.push('/mypage');
     } catch (err) {
       toast.error(err.message, { id: tid, duration: 5000 });
@@ -549,16 +550,13 @@ function FloristsListContent() {
           </>
         ) : (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-            className="bg-white/60 backdrop-blur-md rounded-[2.5rem] border border-white shadow-sm p-16 text-center mt-8">
-            <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-300">
-              <Search size={28} />
-            </div>
-            <p className="text-base font-black text-slate-800 mb-2">条件に合うお花屋さんが見つかりませんでした</p>
-            <p className="text-sm font-bold text-slate-500 mb-6">別のキーワードやエリアで検索してみてください🌸</p>
-            <button onClick={handleReset}
-              className="px-6 py-3 bg-slate-900 text-white font-black rounded-full text-sm">
-              条件をリセット
-            </button>
+            className="bg-white/60 backdrop-blur-md rounded-[2.5rem] border border-white shadow-sm mt-8">
+            <EmptyState
+              icon="🌸"
+              title="お花屋さんが見つかりません"
+              description="条件を変えて検索してみてください"
+              action={{ label: '条件をリセット', onClick: handleReset }}
+            />
           </motion.div>
         )}
       </div>

@@ -22,13 +22,20 @@ export async function generateMetadata({ params }) {
         title,
         description,
         url: `https://www.flastal.com/group-buy/${id}`,
-        images: [{ url: '/og-default.png', width: 1200, height: 630, alt: gb.title }],
+        images: [
+          {
+            url: `https://www.flastal.com/api/og?title=${encodeURIComponent(title)}&description=${encodeURIComponent(description || '')}`,
+            width: 1200,
+            height: 630,
+            alt: gb.title,
+          },
+        ],
       },
       twitter: {
         card: 'summary_large_image',
         title,
         description,
-        images: ['/og-default.png'],
+        images: [`https://www.flastal.com/api/og?title=${encodeURIComponent(title)}`],
       },
     };
   } catch {

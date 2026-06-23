@@ -107,7 +107,7 @@ export default function UploadForm({ onUploadSuccess }) {
       });
       if (!saveRes.ok) throw new Error('保存失敗');
 
-      toast.success('投稿しました！🌸');
+      toast.success('投稿しました！');
       reset();
       onUploadSuccess?.();
     } catch (err) {

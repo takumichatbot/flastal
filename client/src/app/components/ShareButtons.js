@@ -21,7 +21,7 @@ export default function ShareButtons({ url, text, hashtags = 'FLASTAL,フラス�
   const encodedHashtags = encodeURIComponent(hashtags);
 
   const twitterUrl = `https://twitter.com/intent/tweet?url=${encodedUrl}&text=${encodedText}&hashtags=${encodedHashtags}`;
-  const lineUrl = `https://line.me/R/msg/text/?${encodedText}%20${encodedUrl}`;
+  const lineUrl = `https://social-plugins.line.me/lineit/share?url=${encodedUrl}&text=${encodedText}`;
 
   const copyToClipboard = async () => {
     try {

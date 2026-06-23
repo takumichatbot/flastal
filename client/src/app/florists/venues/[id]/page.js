@@ -144,7 +144,7 @@ export default function VenueLogisticsPage() {
       
       if (!res.ok) throw new Error('投稿失敗');
       
-      toast.success('情報を共有しました！ご協力ありがとうございます🌸');
+      toast.success('情報を共有しました！ご協力ありがとうございます');
       setShowForm(false);
       setFormData({ title: '', description: '', imageUrls: [] });
       fetchData(); 

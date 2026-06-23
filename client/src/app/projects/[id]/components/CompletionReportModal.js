@@ -93,7 +93,7 @@ export default function CompletionReportModal({ project, user, onClose, onReport
             throw new Error(data.message || '送信に失敗しました');
         }
 
-        toast.success('企画の完了を報告しました！お疲れ様でした🎉', { id: toastId });
+        toast.success('企画の完了を報告しました！お疲れ様でした', { id: toastId });
         onReportSubmitted();
         onClose();
 

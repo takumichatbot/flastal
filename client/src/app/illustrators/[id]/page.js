@@ -18,14 +18,20 @@ export async function generateMetadata({ params }) {
       openGraph: {
         title: `${name} | FLASTAL`,
         description: bio,
-        images: [{ url: image, width: 1200, height: 630 }],
+        images: [
+          {
+            url: `https://www.flastal.com/api/og?title=${encodeURIComponent(`${name} | FLASTAL`)}&description=${encodeURIComponent(bio)}`,
+            width: 1200,
+            height: 630,
+          },
+        ],
         type: 'profile',
       },
       twitter: {
         card: 'summary_large_image',
         title: `${name} | FLASTAL`,
         description: bio,
-        images: [image],
+        images: [`https://www.flastal.com/api/og?title=${encodeURIComponent(`${name} | FLASTAL`)}`],
       },
     };
   } catch {

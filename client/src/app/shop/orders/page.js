@@ -139,7 +139,7 @@ export default function OrdersPage() {
 
   useEffect(() => {
     if (success) {
-      toast.success('ご注文ありがとうございます！', { duration: 5000, icon: '🎉' });
+      toast.success('ご注文ありがとうございます！', { duration: 5000 });
     }
   }, [success]);
 

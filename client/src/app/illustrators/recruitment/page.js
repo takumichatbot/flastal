@@ -36,7 +36,7 @@ function ApplicationModal({ event, onClose, onSuccess }) {
         body: JSON.stringify({ eventId: event.id, proposedAmount: parseInt(proposedAmount), message }),
       });
       if (!res.ok) { const e = await res.json(); throw new Error(e.message || '立候補の送信に失敗しました'); }
-      toast.success('立候補が完了しました！🎉', { id: toastId, duration: 6000 });
+      toast.success('立候補が完了しました！', { id: toastId, duration: 6000 });
       onSuccess();
       onClose();
     } catch (error) {

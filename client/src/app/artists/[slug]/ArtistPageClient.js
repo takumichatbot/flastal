@@ -112,6 +112,7 @@ export default function ArtistPageClient({ artist, projects, events = [] }) {
     const { user, authenticatedFetch } = useAuth();
     const [following, setFollowing] = useState(false);
     const [followLoading, setFollowLoading] = useState(false);
+    const [statusAnnouncement, setStatusAnnouncement] = useState('');
 
     // フォロー状態を取得
     useEffect(() => {
@@ -136,6 +137,7 @@ export default function ArtistPageClient({ artist, projects, events = [] }) {
             if (!res.ok) throw new Error();
             const d = await res.json();
             setFollowing(d.following);
+            setStatusAnnouncement(d.following ? `${artist.name} をフォローしました` : 'フォローを解除しました');
             toast.success(d.following ? `${artist.name} をフォローしました` : 'フォローを解除しました');
         } catch {
             toast.error('操作に失敗しました');
@@ -145,6 +147,7 @@ export default function ArtistPageClient({ artist, projects, events = [] }) {
     };
 
     return (
+        <>
         <div className="min-h-screen bg-white font-sans">
             {/* ヒーロー */}
             <div className="relative h-56 md:h-72 bg-gradient-to-br from-pink-400 via-rose-400 to-pink-600 overflow-hidden">
@@ -190,7 +193,13 @@ export default function ArtistPageClient({ artist, projects, events = [] }) {
             <div className="max-w-4xl mx-auto px-4 py-8">
                 {/* プロフィール */}
                 {(artist.description || artist.twitterUrl || artist.youtubeUrl || artist.officialUrl) && (
-                    <div className="bg-slate-50 rounded-2xl p-5 mb-8 border border-slate-100">
+                    <motion.div
+                      initial={{ opacity: 0, y: 24 }}
+                      whileInView={{ opacity: 1, y: 0 }}
+                      viewport={{ once: true, margin: '-60px' }}
+                      transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
+                      className="bg-slate-50 rounded-2xl p-5 mb-8 border border-slate-100"
+                    >
                         {artist.description && (
                             <p className="text-sm text-slate-600 leading-relaxed mb-4">{artist.description}</p>
                         )}
@@ -214,11 +223,17 @@ export default function ArtistPageClient({ artist, projects, events = [] }) {
                                 </a>
                             )}
                         </div>
-                    </div>
+                    </motion.div>
                 )}
 
                 {/* 開催予定のイベント */}
-                <div className="mb-10">
+                <motion.div
+                  className="mb-10"
+                  initial={{ opacity: 0, y: 24 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, margin: '-60px' }}
+                  transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
+                >
                     <div className="flex items-center gap-2 mb-4">
                         <Calendar size={16} className="text-pink-500" />
                         <h2 className="text-lg font-black text-slate-800">開催予定のイベント</h2>
@@ -233,9 +248,15 @@ export default function ArtistPageClient({ artist, projects, events = [] }) {
                             {events.map((ev, i) => <EventCard key={ev.id} event={ev} index={i} />)}
                         </div>
                     )}
-                </div>
+                </motion.div>
 
                 {/* 企画一覧 */}
+                <motion.div
+                  initial={{ opacity: 0, y: 24 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, margin: '-60px' }}
+                  transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1], delay: 0.1 }}
+                >
                 <div className="flex items-center justify-between mb-5">
                     <h2 className="text-lg font-black text-slate-800">
                         {artist.name}への応援企画
@@ -259,7 +280,10 @@ export default function ArtistPageClient({ artist, projects, events = [] }) {
                         {projects.map((p, i) => <ProjectCard key={p.id} project={p} index={i} />)}
                     </div>
                 )}
+                </motion.div>
             </div>
         </div>
+        <span className="sr-only" aria-live="polite" aria-atomic="true">{statusAnnouncement}</span>
+        </>
     );
 }

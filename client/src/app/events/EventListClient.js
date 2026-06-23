@@ -11,6 +11,7 @@ import {
   ArrowRight, Megaphone, Shield, ArrowLeft
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { EmptyState } from '@/app/components/EmptyState';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -234,11 +235,13 @@ function EventListContent() {
              ))}
           </div>
         ) : events.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-32 bg-white rounded-[3rem] border-2 border-dashed border-gray-100 text-center">
-            <Search size={48} className="text-slate-200 mb-4"/>
-            <p className="text-gray-400 font-black text-lg uppercase tracking-widest">見つかりませんでした</p>
-            <p className="text-gray-400 text-sm mt-2">条件を変更するか、新しいイベントを教えてください</p>
-            <button onClick={() => {setSearchTerm(''); setSelectedGenre('ALL');}} className="mt-6 text-pink-600 font-black text-sm underline decoration-dotted">すべて表示する</button>
+          <div className="bg-white rounded-[3rem] border-2 border-dashed border-gray-100">
+            <EmptyState
+              icon="📅"
+              title="イベントが見つかりません"
+              description="条件を変更するか、新しいイベントを教えてください"
+              action={{ label: 'すべて表示する', onClick: () => { setSearchTerm(''); setSelectedGenre('ALL'); } }}
+            />
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 animate-fadeIn">

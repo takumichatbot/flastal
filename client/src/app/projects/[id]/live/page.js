@@ -117,7 +117,7 @@ export default function LivePage() {
     if (searchParams.get('superchat') === 'success') {
       const amount = searchParams.get('amount');
       const amountLabel = amount ? `¥${Number(amount).toLocaleString()}` : '';
-      toast.success(`🎉 スーパーチャット ${amountLabel}を送りました！ありがとうございます`, {
+      toast.success(`スーパーチャット ${amountLabel}を送りました！ありがとうございます`, {
         duration: 5000,
       });
       // URLからクエリパラメータを除去

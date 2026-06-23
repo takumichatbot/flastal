@@ -6,10 +6,16 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '../contexts/AuthContext';
 import { motion } from 'framer-motion';
-import {
-    LineChart, Line, BarChart, Bar,
-    XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-} from 'recharts';
+import dynamic from 'next/dynamic';
+
+const AdminLineChart = dynamic(
+    () => import('./AdminCharts').then(m => ({ default: m.AdminLineChart })),
+    { ssr: false, loading: () => <div className="h-full bg-slate-100 animate-pulse rounded-xl" /> }
+);
+const AdminBarChart = dynamic(
+    () => import('./AdminCharts').then(m => ({ default: m.AdminBarChart })),
+    { ssr: false, loading: () => <div className="h-full bg-slate-100 animate-pulse rounded-xl" /> }
+);
 
 import {
     MessageSquare, AlertTriangle, RefreshCw, DollarSign,
@@ -302,15 +308,7 @@ export default function AdminPage() {
                     {/* 支援金額 折れ線グラフ */}
                     <div className="h-52">
                         {salesChart.length > 0 ? (
-                            <ResponsiveContainer width="100%" height="100%">
-                                <LineChart data={salesChart} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                                    <XAxis dataKey="label" tick={{ fontSize: 10, fontWeight: 700, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-                                    <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} tickFormatter={v => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v} width={36} />
-                                    <Tooltip formatter={(v) => [`¥${v.toLocaleString()}`, '支援額']} contentStyle={{ borderRadius: 12, border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)', fontSize: 12, fontWeight: 700 }} />
-                                    <Line type="monotone" dataKey="amount" stroke="#38bdf8" strokeWidth={2.5} dot={{ fill: '#38bdf8', r: 4 }} activeDot={{ r: 6 }} />
-                                </LineChart>
-                            </ResponsiveContainer>
+                            <AdminLineChart data={salesChart} />
                         ) : (
                             <div className="h-full flex items-center justify-center text-slate-300 text-xs font-black">データを読み込み中...</div>
                         )}
@@ -321,15 +319,7 @@ export default function AdminPage() {
                         <p className="text-xs font-black text-slate-400 mb-3 flex items-center gap-2"><Users size={13}/> 月別ユニーク支援者数</p>
                         <div className="h-32">
                             {supportersChart.length > 0 ? (
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <BarChart data={supportersChart} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
-                                        <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                                        <XAxis dataKey="label" tick={{ fontSize: 10, fontWeight: 700, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-                                        <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} width={28} />
-                                        <Tooltip formatter={(v) => [`${v}人`, '支援者数']} contentStyle={{ borderRadius: 12, border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)', fontSize: 12, fontWeight: 700 }} />
-                                        <Bar dataKey="count" fill="#f9a8d4" radius={[6, 6, 0, 0]} />
-                                    </BarChart>
-                                </ResponsiveContainer>
+                                <AdminBarChart data={supportersChart} />
                             ) : (
                                 <div className="h-full flex items-center justify-center text-slate-300 text-xs font-black">データなし</div>
                             )}
