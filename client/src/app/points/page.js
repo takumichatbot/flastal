@@ -10,8 +10,9 @@ import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Loader2, Zap, Star, Gem, Sparkles, Gift, CreditCard,
-  ChevronLeft, History, ArrowRight,
+  ChevronLeft, History, ArrowRight, Smartphone,
 } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -51,7 +52,8 @@ const POINT_PACKAGES = [
 function PointsPageContent() {
   const { user, isLoading: authLoading, authenticatedFetch, fetchUser } = useAuth();
   const [processingId, setProcessingId] = useState(null);
-  const [activeTab, setActiveTab] = useState('buy');
+  const isNativeApp = Capacitor.isNativePlatform();
+  const [activeTab, setActiveTab] = useState(isNativeApp ? 'history' : 'buy');
   const [transactions, setTransactions] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const router = useRouter();
@@ -139,9 +141,9 @@ function PointsPageContent() {
         {/* Tab bar */}
         <div className="max-w-2xl mx-auto px-4 pb-3 flex gap-2">
           {[
-            { id: 'buy',     label: 'チャージする', icon: CreditCard },
-            { id: 'history', label: '利用履歴',     icon: History },
-          ].map(t => {
+            !isNativeApp && { id: 'buy', label: 'チャージする', icon: CreditCard },
+            { id: 'history', label: '利用履歴', icon: History },
+          ].filter(Boolean).map(t => {
             const Icon = t.icon;
             const isActive = activeTab === t.id;
             return (
@@ -188,7 +190,7 @@ function PointsPageContent() {
             transition={{ duration: 0.25 }}>
 
             {/* ── BUY TAB ────────────────────────────── */}
-            {activeTab === 'buy' && (
+            {activeTab === 'buy' && !isNativeApp && (
               <div className="space-y-4">
                 <div className="flex items-center gap-2 mb-2">
                   <h2 className="font-black text-slate-800">パッケージを選択</h2>

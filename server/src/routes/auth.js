@@ -60,6 +60,80 @@ router.post('/auth/totp/disable', authenticateToken, totpController.disableTotp)
 // ==========================================
 // 8. Google OAuth
 // ==========================================
+// ==========================================
+// Apple Sign In (Capacitor ネイティブ)
+// ==========================================
+router.post('/auth/apple', async (req, res) => {
+  const { identityToken, displayName } = req.body;
+  const frontendUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://flastal.com';
+
+  if (!identityToken) {
+    return res.status(400).json({ message: 'identityToken が必要です' });
+  }
+
+  try {
+    // Apple の公開鍵を取得して JWT を検証
+    const keysRes = await fetch('https://appleid.apple.com/auth/keys');
+    const { keys } = await keysRes.json();
+
+    const [headerB64] = identityToken.split('.');
+    const header = JSON.parse(Buffer.from(headerB64, 'base64url').toString());
+
+    const jwk = keys.find(k => k.kid === header.kid);
+    if (!jwk) throw new Error('対応する Apple 公開鍵が見つかりません');
+
+    const publicKey = crypto.createPublicKey({ key: jwk, format: 'jwk' });
+    const pem = publicKey.export({ type: 'spki', format: 'pem' });
+
+    const payload = jwt.verify(identityToken, pem, {
+      algorithms: ['RS256'],
+      issuer: 'https://appleid.apple.com',
+    });
+
+    const appleUserId = payload.sub;
+    const email = payload.email
+      ? payload.email.toLowerCase()
+      : `apple_${appleUserId}@privaterelay.appleid.com`;
+
+    let user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { appleUserId },
+          { email },
+        ],
+      },
+    });
+
+    if (!user) {
+      const name = displayName || email.split('@')[0];
+      user = await prisma.user.create({
+        data: {
+          email,
+          handleName: name,
+          appleUserId,
+          isVerified: true,
+          password: `apple_oauth_${appleUserId}`,
+        },
+      });
+    } else if (!user.appleUserId) {
+      // 既存ユーザーに appleUserId を紐付け
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: { appleUserId },
+      });
+    }
+
+    const { accessToken, refreshToken: appleRefreshToken } = await authController.generateTokensForOAuth({
+      id: user.id, email: user.email, handleName: user.handleName, role: user.role, status: 'APPROVED',
+    });
+
+    res.json({ token: accessToken, refreshToken: appleRefreshToken, user: { id: user.id, email: user.email, handleName: user.handleName, role: user.role } });
+  } catch (err) {
+    console.error('Apple Sign In error:', err);
+    res.status(401).json({ message: 'Apple 認証に失敗しました' });
+  }
+});
+
 router.get('/auth/google', (req, res) => {
   // CSRF対策: stateトークンを生成してHttpOnly Cookieに保存（10分有効）
   const state = crypto.randomBytes(16).toString('hex');

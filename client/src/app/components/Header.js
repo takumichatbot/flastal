@@ -247,7 +247,6 @@ export default function Header() {
       { href: '/illustrators/recruitment', label: '絵師募集中', icon: <Star size={16}/> },
       { href: '/venues', label: '会場', icon: <MapPin size={16}/> },
       { href: '/florists', label: 'お花屋さん', icon: <Store size={16}/> },
-      { href: '/corporate', label: '法人の方へ', icon: <Building2 size={16}/> },
     ];
     if (!user) return baseLinks;
 

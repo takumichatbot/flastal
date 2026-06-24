@@ -227,7 +227,8 @@ model User {
   pendingEmail         String?
   emailChangeToken     String?
   emailChangeExpires   DateTime?
-  eventInterests       EventInterest[] 
+  appleUserId          String?   @unique
+  eventInterests       EventInterest[]
   
   // Relations
   referrer             User?                      @relation("Referrals", fields: [referredById], references: [id])

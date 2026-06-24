@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/app/contexts/AuthContext';
+import { Capacitor } from '@capacitor/core';
 import { useForm } from 'react-hook-form';
 import { io } from 'socket.io-client';
 import toast from 'react-hot-toast';
@@ -306,6 +307,7 @@ function QuotationApprovalModal({ project, user, onClose, onUpdate }) {
 }
 
 function PledgeForm({ project, user, onPledgeSubmit, isPledger }) {
+  const isNativeApp = Capacitor.isNativePlatform();
   const { register, handleSubmit, formState: { isSubmitting }, reset, watch, setValue } = useForm({
     defaultValues: { pledgeType: 'tier', selectedTierId: project.pledgeTiers?.[0]?.id || '', pledgeAmount: project.minContributionAmount || 1000, comment: '', guestName: '', guestEmail: '' }
   });
@@ -606,16 +608,29 @@ function PledgeForm({ project, user, onPledgeSubmit, isPledger }) {
         )}
 
         <div className="space-y-3">
-            <motion.button 
-                whileTap={{ scale: 0.98 }}
-                type="submit" disabled={isSubmitting || finalAmount <= 0} 
-                className="w-full py-3.5 md:py-4 font-black text-white bg-gradient-to-r from-pink-500 to-rose-500 hover:brightness-105 rounded-xl md:rounded-2xl disabled:from-slate-200 disabled:to-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed disabled:shadow-none flex justify-center items-center gap-2 text-sm md:text-base transition-all shadow-lg shadow-pink-200"
-            >
-                {isSubmitting ? <Loader2 className="animate-spin" size={16}/> : (cardAmount === 0 ? <Sparkles size={16} className="text-pink-400"/> : <DollarSign size={16}/>)}
-                {isSubmitting ? '処理中...' : (cardAmount === 0 ? 'ポイントだけで支援を完了する' : 'カード決済へ進む')}
-            </motion.button>
-            
-            {user && userPoints < finalAmount && (
+            {isNativeApp && cardAmount > 0 ? (
+              <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 text-center">
+                <p className="text-xs font-black text-amber-700 mb-1">カード決済はWebからご利用ください</p>
+                <p className="text-[11px] text-amber-600 font-medium leading-relaxed">
+                  ポイントをチャージしてから支援するか、<br />
+                  ブラウザで <span className="font-black">flastal.com</span> を開いてください。
+                </p>
+                <Link href="/points" className="mt-3 inline-flex items-center gap-1.5 bg-amber-500 text-white text-xs font-black px-4 py-2 rounded-xl shadow-sm active:scale-95 transition-transform">
+                  <Zap size={12} /> ポイントを使う
+                </Link>
+              </div>
+            ) : (
+              <motion.button
+                  whileTap={{ scale: 0.98 }}
+                  type="submit" disabled={isSubmitting || finalAmount <= 0}
+                  className="w-full py-3.5 md:py-4 font-black text-white bg-gradient-to-r from-pink-500 to-rose-500 hover:brightness-105 rounded-xl md:rounded-2xl disabled:from-slate-200 disabled:to-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed disabled:shadow-none flex justify-center items-center gap-2 text-sm md:text-base transition-all shadow-lg shadow-pink-200"
+              >
+                  {isSubmitting ? <Loader2 className="animate-spin" size={16}/> : (cardAmount === 0 ? <Sparkles size={16} className="text-pink-400"/> : <DollarSign size={16}/>)}
+                  {isSubmitting ? '処理中...' : (cardAmount === 0 ? 'ポイントだけで支援を完了する' : 'カード決済へ進む')}
+              </motion.button>
+            )}
+
+            {user && userPoints < finalAmount && !isNativeApp && (
                 <Link href="/points" className="w-full py-3 bg-white border border-slate-200 text-slate-600 rounded-xl font-bold flex justify-center items-center gap-2 text-xs hover:bg-slate-50 hover:text-amber-500 transition-colors shadow-sm">
                     <Zap size={14} className="text-amber-400" />
                     事前にポイントをチャージしておく

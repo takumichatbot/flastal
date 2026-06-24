@@ -519,9 +519,11 @@ function DashboardContent() {
                   {(user.points || 0).toLocaleString()} <span className="text-sm text-slate-400">pt</span>
                 </p>
               </div>
-              <Link href="/points" className="bg-gradient-to-r from-amber-400 to-orange-400 hover:from-amber-300 hover:to-orange-300 text-white font-black text-sm px-5 py-3 rounded-2xl shadow-lg flex items-center gap-2 transition-all group-hover:scale-105 active:scale-95">
-                チャージ <ArrowRight size={16} />
-              </Link>
+              {!isNative && (
+                <Link href="/points" className="bg-gradient-to-r from-amber-400 to-orange-400 hover:from-amber-300 hover:to-orange-300 text-white font-black text-sm px-5 py-3 rounded-2xl shadow-lg flex items-center gap-2 transition-all group-hover:scale-105 active:scale-95">
+                  チャージ <ArrowRight size={16} />
+                </Link>
+              )}
             </div>
           </div>
         </div>
@@ -631,12 +633,14 @@ function DashboardContent() {
                     </div>
                     <span className="text-[11px] font-black text-slate-700 leading-tight">企画を<br />探す</span>
                   </Link>
-                  <Link href="/points" className="bg-white rounded-2xl p-4 flex flex-col items-center gap-2 shadow-sm border border-slate-100 active:scale-95 transition-transform text-center">
-                    <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center">
-                      <Zap size={20} className="text-amber-500" />
-                    </div>
-                    <span className="text-[11px] font-black text-slate-700 leading-tight">ポイント<br />チャージ</span>
-                  </Link>
+                  {!isNative && (
+                    <Link href="/points" className="bg-white rounded-2xl p-4 flex flex-col items-center gap-2 shadow-sm border border-slate-100 active:scale-95 transition-transform text-center">
+                      <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center">
+                        <Zap size={20} className="text-amber-500" />
+                      </div>
+                      <span className="text-[11px] font-black text-slate-700 leading-tight">ポイント<br />チャージ</span>
+                    </Link>
+                  )}
                 </div>
 
 

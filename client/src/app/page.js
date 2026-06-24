@@ -1,8 +1,6 @@
 // src/app/page.js
 'use client';
 
-export const revalidate = 60;
-
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
