@@ -812,3 +812,47 @@ export const getUserBadges = async (req, res) => {
         res.status(500).json({ message: 'エラーが発生しました' });
     }
 };
+
+
+// ==========================================
+// DELETE /api/users/me
+// アカウント削除 (Guideline 5.1.1(v))
+// ==========================================
+export const deleteMyAccount = async (req, res) => {
+    const userId = req.user.id;
+    try {
+        const activeProject = await prisma.project.findFirst({
+            where: { plannerId: userId, status: { in: ['FUNDRAISING', 'SHIPPED'] } },
+            select: { id: true },
+        });
+        if (activeProject) {
+            return res.status(400).json({ message: '進行中の企画があるためアカウントを削除できません。企画を終了または中止してから再度お試しください。' });
+        }
+
+        await prisma.$transaction([
+            prisma.notification.deleteMany({ where: { userId } }),
+            prisma.pushSubscription.deleteMany({ where: { userId } }),
+            prisma.follow.deleteMany({ where: { OR: [{ followerId: userId }, { followingId: userId }] } }),
+            prisma.postLike.deleteMany({ where: { userId } }),
+            prisma.postComment.deleteMany({ where: { userId } }),
+            prisma.pollVote.deleteMany({ where: { userId } }),
+            prisma.groupChatMessage.deleteMany({ where: { userId } }),
+            prisma.chatMessage.deleteMany({ where: { senderId: userId } }),
+            prisma.groupChatMessageReaction.deleteMany({ where: { userId } }),
+            prisma.moodBoardLike.deleteMany({ where: { userId } }),
+            prisma.floristFavorite.deleteMany({ where: { userId } }),
+            prisma.cheer.deleteMany({ where: { userId } }),
+            prisma.artistPageFollow.deleteMany({ where: { userId } }),
+            prisma.eventInterest.deleteMany({ where: { userId } }),
+            prisma.groupBuyEntry.deleteMany({ where: { userId } }),
+            prisma.pledge.updateMany({ where: { userId }, data: { userId: null } }),
+            prisma.user.delete({ where: { id: userId } }),
+        ]);
+
+        logger.info('deleteMyAccount: account deleted', { userId });
+        res.json({ message: 'アカウントを削除しました。ご利用ありがとうございました。' });
+    } catch (err) {
+        logger.error('deleteMyAccount error', { context: 'userController', error: err.message, userId });
+        res.status(500).json({ message: 'アカウントの削除に失敗しました。' });
+    }
+};

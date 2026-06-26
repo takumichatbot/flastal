@@ -11,6 +11,7 @@ import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Mail, Lock, Eye, EyeOff, Loader2, Sparkles, ArrowRight, ShieldCheck } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
+import { SignInWithApple } from '@capacitor-community/apple-sign-in';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -110,12 +111,9 @@ function LoginForm() {
     if (isAppleLoading) return;
     setIsAppleLoading(true);
     try {
-      const { SignInWithApple } = await import('@capacitor-community/apple-sign-in');
       const result = await SignInWithApple.authorize({
-        clientId: 'com.flastal.app',
-        redirectURI: 'https://flastal.com/auth/callback',
         scopes: 'email name',
-        state: '',
+        state: Math.random().toString(36).slice(2),
         nonce: Math.random().toString(36).slice(2),
       });
       const { identityToken, givenName, familyName } = result.response;

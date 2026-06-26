@@ -7,12 +7,12 @@ import Image from 'next/image';
 import { useAuth } from '@/app/contexts/AuthContext';
 import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
-import { Save, Camera, ArrowLeft, User, Loader2, Lock, Mail } from 'lucide-react';
+import { Save, Camera, ArrowLeft, User, Loader2, Lock, Mail, Trash2, AlertTriangle } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
 export default function FanProfileEditPage() {
-  const { user, isLoading: authLoading, authenticatedFetch, updateUser } = useAuth();
+  const { user, isLoading: authLoading, authenticatedFetch, updateUser, logout } = useAuth();
   const router = useRouter();
 
   const { register, handleSubmit, setValue, formState: { isSubmitting, errors } } = useForm();
@@ -27,6 +27,11 @@ export default function FanProfileEditPage() {
   // メールアドレス変更
   const [newEmail, setNewEmail] = useState('');
   const [requestingEmailChange, setRequestingEmailChange] = useState(false);
+
+  // アカウント削除
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -102,6 +107,22 @@ export default function FanProfileEditPage() {
       toast.error('通信エラーが発生しました');
     } finally {
       setRequestingEmailChange(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmText !== '削除する') return;
+    setIsDeletingAccount(true);
+    try {
+      const res = await authenticatedFetch(`${API_URL}/api/users/me`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message);
+      toast.success('アカウントを削除しました');
+      logout();
+      router.push('/');
+    } catch (err) {
+      toast.error(err.message || 'アカウントの削除に失敗しました');
+      setIsDeletingAccount(false);
     }
   };
 
@@ -247,6 +268,58 @@ export default function FanProfileEditPage() {
             {requestingEmailChange ? '送信中...' : '確認メールを送信'}
           </button>
           <p className="text-[11px] text-slate-400 text-center">新しいメールアドレスに確認メールを送信します。リンクをクリックすると変更が確定されます。</p>
+        </div>
+
+        {/* アカウント削除 */}
+        <div className="bg-white mt-6 p-8 rounded-[2.5rem] border-2 border-red-100 space-y-4">
+          <div className="flex items-center gap-2 mb-2">
+            <AlertTriangle size={18} className="text-red-500" />
+            <h2 className="text-base font-black text-red-600">アカウントの削除</h2>
+          </div>
+          <p className="text-xs text-slate-500 font-medium leading-relaxed">
+            アカウントを削除すると、すべてのデータが完全に削除されます。この操作は取り消せません。
+          </p>
+
+          {!showDeleteConfirm ? (
+            <button
+              type="button"
+              onClick={() => setShowDeleteConfirm(true)}
+              className="w-full py-3.5 border-2 border-red-200 text-red-500 rounded-2xl font-black text-sm flex items-center justify-center gap-2 hover:bg-red-50 transition-colors"
+            >
+              <Trash2 size={16} /> アカウントを削除する
+            </button>
+          ) : (
+            <div className="space-y-3 bg-red-50 p-5 rounded-2xl border border-red-100">
+              <p className="text-xs font-black text-red-600">
+                確認のため「<span className="underline">削除する</span>」と入力してください
+              </p>
+              <input
+                type="text"
+                value={deleteConfirmText}
+                onChange={e => setDeleteConfirmText(e.target.value)}
+                placeholder="削除する"
+                className="w-full p-3.5 bg-white border-2 border-red-200 rounded-2xl outline-none font-medium text-slate-800 focus:border-red-400 text-[16px]"
+              />
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => { setShowDeleteConfirm(false); setDeleteConfirmText(''); }}
+                  className="flex-1 py-3 bg-white border border-slate-200 text-slate-600 rounded-2xl font-black text-sm"
+                >
+                  キャンセル
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDeleteAccount}
+                  disabled={deleteConfirmText !== '削除する' || isDeletingAccount}
+                  className="flex-1 py-3 bg-red-500 text-white rounded-2xl font-black text-sm disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {isDeletingAccount ? <Loader2 className="animate-spin" size={14} /> : <Trash2 size={14} />}
+                  {isDeletingAccount ? '削除中...' : '完全に削除する'}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

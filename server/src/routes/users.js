@@ -97,4 +97,9 @@ router.get('/badges', authenticateToken, userController.getUserBadges);
 router.get('/push-subscriptions', authenticateToken, userController.getPushSubscriptions);
 router.delete('/push-subscriptions/:id', authenticateToken, userController.deletePushSubscription);
 
+// ==========================================
+// ★ アカウント削除 (Guideline 5.1.1(v))
+// ==========================================
+router.delete('/me', authenticateToken, userController.deleteMyAccount);
+
 export default router;
