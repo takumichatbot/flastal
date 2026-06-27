@@ -77,8 +77,10 @@ function PointsPageContent() {
     try {
       const res = await authenticatedFetch(`${API_URL}/api/payment/history`);
       if (res.ok) setTransactions(await res.json() || []);
-    } catch { /* ignore */ }
-    finally { setLoadingHistory(false); }
+      else toast.error('履歴の読み込みに失敗しました');
+    } catch {
+      toast.error('通信エラーが発生しました');
+    } finally { setLoadingHistory(false); }
   }, [user, authenticatedFetch]);
 
   useEffect(() => {

@@ -333,6 +333,8 @@ function PledgeForm({ project, user, onPledgeSubmit, isPledger }) {
   const onSubmit = async (data) => {
     const minAmount = project.minContributionAmount || 1000;
     if (finalAmount < minAmount) return toast.error(`支援金額は ${minAmount.toLocaleString()} pt以上に設定してください。`);
+    if (!user && !data.guestName?.trim()) return toast.error('お名前を入力してください');
+    if (!user && !data.guestEmail?.trim()) return toast.error('メールアドレスを入力してください');
     
     if (user && cardAmount === 0) {
         onPledgeSubmit({

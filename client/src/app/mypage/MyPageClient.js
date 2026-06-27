@@ -214,7 +214,7 @@ function DashboardContent() {
 
   const displayProjects = useMemo(() => {
     const created = createdProjects.map(p => ({ ...p, _role: 'owner' }));
-    const pledged = pledgedProjects.map(p => ({ ...p?.project, _role: 'backer' })).filter(p => p?.id);
+    const pledged = pledgedProjects.map(p => p?.project ? { ...p.project, _role: 'backer' } : null).filter(p => p?.id);
     const all = [...created, ...pledged].reduce((acc, current) => {
       const x = acc.find(item => item.id === current.id);
       if (!x) return acc.concat([current]);
