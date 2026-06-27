@@ -82,6 +82,7 @@ export default function Footer() {
           <div>
             <h3 className="text-white font-bold mb-4">FLASTALについて</h3>
             <ul className="space-y-3">
+              <li><Link href="/features" className="hover:text-white transition-colors">機能について</Link></li>
               <li><Link href="/about" className="hover:text-white transition-colors">運営会社</Link></li>
               <li><Link href="/contact" className="hover:text-white transition-colors">お問い合わせ</Link></li>
               <li><Link href="/terms" className="hover:text-white transition-colors">利用規約</Link></li>
