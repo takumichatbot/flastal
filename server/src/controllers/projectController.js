@@ -388,7 +388,7 @@ export const getProjectById = async (req, res) => {
                     include: { user: { select: { id: true, handleName: true } } }
                 },
                 offers: {
-                    where: { status: { in: ['PENDING', 'ACCEPTED', 'NEGOTIATING'] } },
+                    where: { status: { in: ['PENDING', 'ACCEPTED'] } },
                     include: {
                         florist: { select: { id: true, platformName: true, shopName: true, iconUrl: true } },
                         chatRoom: {
