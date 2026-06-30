@@ -28,23 +28,12 @@ export const registerIllustrator = async (req, res) => {
       if (existing.role === 'ILLUSTRATOR') {
         return res.status(409).json({ message: 'このメールアドレスは既にイラストレーターとして登録されています。' });
       }
-      // 一般ユーザーのアカウントをイラストレーターに切り替え
-      const hashedPassword = await bcrypt.hash(password, 10);
-      const verificationToken = crypto.randomBytes(32).toString('hex');
+      // 一般ユーザーのアカウント → パスワード・認証状態はそのままでイラストレーターに追加
       await prisma.user.update({
         where: { id: existing.id },
-        data: {
-          password: hashedPassword,
-          handleName: activityName,
-          role: 'ILLUSTRATOR',
-          verificationToken,
-          isVerified: false,
-          status: 'PENDING',
-        }
+        data: { role: 'ILLUSTRATOR', handleName: activityName },
       });
-      const verificationUrl = `${process.env.FRONTEND_URL}/verify?token=${verificationToken}`;
-      await sendDynamicEmail({ to: lowerEmail, templateType: 'VERIFICATION', dynamicData: { verificationUrl } });
-      return res.status(201).json({ message: 'イラストレーターとして登録しました。確認メールをご確認ください。' });
+      return res.status(201).json({ message: 'イラストレーターとして登録しました。今まで使っていたメールアドレスとパスワードでログインできます。' });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
