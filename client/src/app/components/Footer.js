@@ -74,6 +74,8 @@ export default function Footer() {
               <li><Link href="/register" className="hover:text-white transition-colors">ファン登録（無料）</Link></li>
               <li><Link href="/florists/register" className="hover:text-white transition-colors">お花屋さん登録</Link></li>
               <li><Link href="/venues/register" className="hover:text-white transition-colors">会場・運営登録</Link></li>
+              <li><Link href="/organizers/register" className="hover:text-white transition-colors">主催者登録</Link></li>
+              <li><Link href="/illustrators/register" className="hover:text-white transition-colors">イラストレーター登録</Link></li>
               <li><Link href="/referral" className="hover:text-white transition-colors">紹介プログラム</Link></li>
               <li><Link href="/gift-cards" className="hover:text-white transition-colors">ギフトカード</Link></li>
             </ul>

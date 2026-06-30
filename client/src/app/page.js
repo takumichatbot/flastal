@@ -1004,6 +1004,16 @@ const BUSINESS_CARDS = [
     border: 'border-violet-100',
   },
   {
+    emoji: '🎪',
+    title: '主催者',
+    desc: 'フラスタ企画の主催者として登録。イベント管理からメッセージ送信まで一括管理。',
+    register: { label: '新規登録', href: '/organizers/register' },
+    login:    { label: 'ログイン',   href: '/organizers/login' },
+    color: 'from-amber-400 to-orange-500',
+    bg: 'bg-amber-50',
+    border: 'border-amber-100',
+  },
+  {
     emoji: '🎨',
     title: 'イラストレーター',
     desc: 'ファンからのイラスト依頼を受けてみませんか？あなたの作品を推し活に。',
@@ -1025,7 +1035,7 @@ const BusinessSection = () => (
           <p className="text-sm text-slate-500 font-medium mt-2">FLASTALのパートナーとして一緒に推し活を盛り上げましょう</p>
         </div>
       </Reveal>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {BUSINESS_CARDS.map(({ emoji, title, desc, register, login, color, bg, border }, i) => (
           <Reveal key={title} delay={i * 0.1}>
             <div className={`bg-white rounded-3xl border ${border} p-6 shadow-sm flex flex-col gap-4 h-full`}>
