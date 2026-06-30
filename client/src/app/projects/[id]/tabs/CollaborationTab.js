@@ -16,12 +16,11 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onre
 
 // ⑤ チームメンバー管理
 function TeamSection({ project }) {
-  const { user } = useAuth();
+  const { user, authenticatedFetch } = useAuth();
   const [members, setMembers] = useState([]);
   const [inviteEmail, setInviteEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const isOwner = user?.id === project.plannerId;
-  const token = () => localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
 
   const fetchMembers = useCallback(async () => {
     const res = await fetch(`${API_URL}/api/projects/${project.id}/team/members`);
@@ -34,9 +33,8 @@ function TeamSection({ project }) {
     if (!inviteEmail.trim()) return;
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/api/projects/${project.id}/team/members`, {
+      const res = await authenticatedFetch(`${API_URL}/api/projects/${project.id}/team/members`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
         body: JSON.stringify({ email: inviteEmail }),
       });
       const data = await res.json();
@@ -49,8 +47,8 @@ function TeamSection({ project }) {
   };
 
   const handleRemove = async (memberId) => {
-    const res = await fetch(`${API_URL}/api/projects/${project.id}/team/members/${memberId}`, {
-      method: 'DELETE', headers: { Authorization: `Bearer ${token()}` },
+    const res = await authenticatedFetch(`${API_URL}/api/projects/${project.id}/team/members/${memberId}`, {
+      method: 'DELETE',
     });
     if (res.ok) { toast.success('削除しました'); fetchMembers(); }
   };
@@ -103,7 +101,7 @@ function TeamSection({ project }) {
 
 // ④ 達成メッセージ一斉送信
 function BroadcastSection({ project }) {
-  const { user } = useAuth();
+  const { user, authenticatedFetch } = useAuth();
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
@@ -116,10 +114,8 @@ function BroadcastSection({ project }) {
     if (!subject.trim() || !message.trim()) return;
     setSending(true);
     try {
-      const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
-      const res = await fetch(`${API_URL}/api/projects/${project.id}/team/broadcast`, {
+      const res = await authenticatedFetch(`${API_URL}/api/projects/${project.id}/team/broadcast`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ subject, message }),
       });
       const data = await res.json();
@@ -160,36 +156,33 @@ function BroadcastSection({ project }) {
 
 // ③ 支援者限定コンテンツ
 function ExclusiveSection({ project, isPlanner, isPledger }) {
+  const { authenticatedFetch } = useAuth();
   const [contents, setContents] = useState([]);
   const [locked, setLocked] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ title: '', body: '', contentType: 'TEXT' });
-  const token = () => localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
 
   const fetchContents = useCallback(async () => {
-    const res = await fetch(`${API_URL}/api/projects/${project.id}/team/exclusive`, {
-      headers: token() ? { Authorization: `Bearer ${token()}` } : {},
-    });
+    const res = await authenticatedFetch(`${API_URL}/api/projects/${project.id}/team/exclusive`);
     if (res.status === 403) { setLocked(true); return; }
     if (res.ok) setContents(await res.json());
-  }, [project.id]);
+  }, [project.id, authenticatedFetch]);
 
   useEffect(() => { if (isPlanner || isPledger) fetchContents(); }, [fetchContents, isPlanner, isPledger]);
 
   if (!isPlanner && !isPledger) return null;
 
   const handleCreate = async () => {
-    const res = await fetch(`${API_URL}/api/projects/${project.id}/team/exclusive`, {
+    const res = await authenticatedFetch(`${API_URL}/api/projects/${project.id}/team/exclusive`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
       body: JSON.stringify(form),
     });
     if (res.ok) { const c = await res.json(); setContents(p => [c, ...p]); setShowForm(false); setForm({ title: '', body: '', contentType: 'TEXT' }); toast.success('追加しました'); }
   };
 
   const handleDelete = async (id) => {
-    const res = await fetch(`${API_URL}/api/projects/${project.id}/team/exclusive/${id}`, {
-      method: 'DELETE', headers: { Authorization: `Bearer ${token()}` },
+    const res = await authenticatedFetch(`${API_URL}/api/projects/${project.id}/team/exclusive/${id}`, {
+      method: 'DELETE',
     });
     if (res.ok) setContents(p => p.filter(c => c.id !== id));
   };

@@ -54,7 +54,7 @@ export default function EditProjectPage() {
   const router = useRouter();
   const params = useParams();
   const { id: projectId } = params; 
-  const { user, loading: authLoading } = useAuth(); 
+  const { user, loading: authLoading, authenticatedFetch } = useAuth();
 
   const [formData, setFormData] = useState({
     title: '',
@@ -129,14 +129,9 @@ export default function EditProjectPage() {
     const toastId = toast.loading('画像をアップロード中...');
 
     try {
-      const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
-      const urlRes = await fetch(`${API_URL}/api/tools/s3-upload-url`, {
+      const urlRes = await authenticatedFetch(`${API_URL}/api/tools/s3-upload-url`, {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}` 
-        },
-        body: JSON.stringify({ fileName: file.name, fileType: file.type })
+        body: JSON.stringify({ fileName: file.name, fileType: file.type }),
       });
       
       if (!urlRes.ok) throw new Error('署名付きURLの取得に失敗しました');
@@ -170,21 +165,16 @@ export default function EditProjectPage() {
 
     setIsSubmitting(true);
     const toastId = toast.loading('保存中...');
-    const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
-    
+
     try {
         const payload = { ...formData };
         if (payload.deliveryDateTime) {
             payload.deliveryDateTime = new Date(payload.deliveryDateTime).toISOString();
         }
 
-        const res = await fetch(`${API_URL}/api/projects/${projectId}`, { 
+        const res = await authenticatedFetch(`${API_URL}/api/projects/${projectId}`, {
             method: 'PATCH',
-            headers: { 
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}` 
-            },
-            body: JSON.stringify(payload), 
+            body: JSON.stringify(payload),
         });
 
         if (!res.ok) {

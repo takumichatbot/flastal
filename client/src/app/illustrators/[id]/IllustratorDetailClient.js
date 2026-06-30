@@ -218,17 +218,31 @@ function IllustratorDetailContent() {
   }
 
   if (!illustrator) {
+    const isOwnProfile = user && (user.role === 'ILLUSTRATOR' || user.roles?.includes('ILLUSTRATOR')) && user.id === id;
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 text-center p-6">
         <div className="w-20 h-20 bg-white rounded-3xl shadow-sm flex items-center justify-center mb-5">
-          <AlertCircle size={36} className="text-slate-300" />
+          <AlertCircle size={36} className={isOwnProfile ? 'text-amber-400' : 'text-slate-300'} />
         </div>
-        <h2 className="text-lg font-black text-slate-800 mb-1">クリエイターが見つかりませんでした</h2>
-        <p className="text-sm font-bold text-slate-400 mb-8">お探しのページは存在しないか、削除されました。</p>
-        <button onClick={() => router.push('/illustrators')}
-          className="px-6 py-3 bg-slate-900 text-white font-black rounded-full text-sm flex items-center gap-2">
-          <ChevronLeft size={16} /> 一覧へ戻る
-        </button>
+        {isOwnProfile ? (
+          <>
+            <h2 className="text-lg font-black text-slate-800 mb-1">プロフィールが未設定です</h2>
+            <p className="text-sm font-bold text-slate-400 mb-8">絵師プロフィールを作成して案件を受け付けましょう。</p>
+            <button onClick={() => router.push('/illustrators/profile/edit')}
+              className="px-6 py-3 bg-amber-500 text-white font-black rounded-full text-sm flex items-center gap-2">
+              <PenTool size={16} /> プロフィールを作成する
+            </button>
+          </>
+        ) : (
+          <>
+            <h2 className="text-lg font-black text-slate-800 mb-1">クリエイターが見つかりませんでした</h2>
+            <p className="text-sm font-bold text-slate-400 mb-8">お探しのページは存在しないか、削除されました。</p>
+            <button onClick={() => router.push('/illustrators')}
+              className="px-6 py-3 bg-slate-900 text-white font-black rounded-full text-sm flex items-center gap-2">
+              <ChevronLeft size={16} /> 一覧へ戻る
+            </button>
+          </>
+        )}
       </div>
     );
   }
