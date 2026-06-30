@@ -962,15 +962,19 @@ const CategoryGrid = () => {
 // ==========================================
 // 7. ARTICLES
 // ==========================================
-const LaruSeoEmbed = () => (
-  <div className="w-full min-h-[240px]">
-    <Script
-      src="https://larubot.tokyo/embed/blog.js"
-      data-id="0d0f2602-f7d7-4bd7-a356-06472c372d12"
-      strategy="afterInteractive"
-    />
-  </div>
-);
+const LaruSeoEmbed = () => {
+  const containerRef = useRef(null);
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el || el.querySelector('script[data-id]')) return;
+    const script = document.createElement('script');
+    script.src = 'https://larubot.tokyo/embed/blog.js';
+    script.setAttribute('data-id', '0d0f2602-f7d7-4bd7-a356-06472c372d12');
+    script.async = false;
+    el.appendChild(script);
+  }, []);
+  return <div ref={containerRef} className="w-full min-h-[240px]" />;
+};
 
 // ==========================================
 // 8. BUSINESS SECTION
