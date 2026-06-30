@@ -271,6 +271,7 @@ export default function Header() {
       case 'ADMIN': return [
           { href: '/admin', label: '管理ホーム', icon: <BarChart3 size={16}/> },
           { href: '/admin/approval', label: '企画審査', icon: <UserCheck size={16}/> },
+          { href: '/projects/create', label: '企画を立てる', icon: <PlusCircle size={16}/>, highlight: true },
           { href: '/admin/settings', label: 'システム設定', icon: <Settings size={16}/> },
       ];
       default: return [
@@ -521,8 +522,8 @@ export default function Header() {
                           </div>
                       )}
 
-                      <div className={`grid gap-4 ${user && ['FLORIST', 'VENUE', 'ADMIN'].includes(user.role) ? 'grid-cols-1' : 'grid-cols-2'}`}>
-                          {(!user || !['FLORIST', 'VENUE', 'ADMIN'].includes(user.role)) && (
+                      <div className={`grid gap-4 ${user && ['FLORIST', 'VENUE'].includes(user.role) ? 'grid-cols-1' : 'grid-cols-2'}`}>
+                          {(!user || !['FLORIST', 'VENUE'].includes(user.role)) && (
                             <Link href="/projects/create" onClick={() => setIsMobileMenuOpen(false)} className="flex flex-col items-center justify-center gap-2 py-6 bg-gradient-to-br from-pink-500 to-rose-500 text-white rounded-[2rem] font-black shadow-lg shadow-pink-200 transition-transform active:scale-95">
                                 <PlusCircle size={28} /> 企画を立てる
                             </Link>

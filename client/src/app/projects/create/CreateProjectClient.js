@@ -685,6 +685,9 @@ function CreateProjectForm() {
       case 3: {
         const amount = parseInt(formData.targetAmount, 10);
         if (isNaN(amount) || amount < 1000) return '目標金額は1,000円以上で設定してください';
+        const minContrib = parseInt(formData.minContributionAmount, 10);
+        if (!isNaN(minContrib) && minContrib > amount)
+          return '一口あたりの最低参加額は目標金額以下に設定してください';
         return null;
       }
       case 4:

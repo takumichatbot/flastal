@@ -139,18 +139,33 @@ export const loginUser = async (req, res) => {
             ? ['ADMIN']
             : (user.roles?.length ? user.roles : [userRole]);
 
-        const { accessToken, refreshToken } = await generateTokens({
-            id: user.id,
-            email: user.email,
-            handleName: user.handleName,
-            role: userRole,
-            roles: userRoles,
-            status: 'APPROVED'
-        });
+        // ADMINは7日間有効のビジネストークンを使用（DBリフレッシュ不要でコールドスタートに強い）
+        let accessToken, refreshToken;
+        if (userRole === 'ADMIN') {
+            ({ accessToken, refreshToken } = generateBusinessToken({
+                id: user.id,
+                email: user.email,
+                handleName: user.handleName,
+                role: 'ADMIN',
+                roles: ['ADMIN'],
+                status: 'APPROVED',
+            }));
+        } else {
+            ({ accessToken, refreshToken } = await generateTokens({
+                id: user.id,
+                email: user.email,
+                handleName: user.handleName,
+                role: userRole,
+                roles: userRoles,
+                status: 'APPROVED',
+            }));
+        }
 
         const { password: _, ...userData } = user;
+        // ADMINはDB roleに関わらずフロントへ正しいroleを渡す
+        const responseUser = { ...userData, role: userRole };
 
-        res.status(200).json({ message: 'ログインに成功しました。', token: accessToken, refreshToken, user: userData });
+        res.status(200).json({ message: 'ログインに成功しました。', token: accessToken, refreshToken, user: responseUser });
     } catch (error) {
         logger.error('User login failed', { error: error.message });
         res.status(500).json({ message: 'サーバーエラーが発生しました。' });
@@ -452,10 +467,10 @@ export const refreshAccessToken = async (req, res) => {
         return res.status(401).json({ message: 'リフレッシュトークンが必要です。' });
     }
 
-    // ビジネスロール・ILLUSTRATORは7日JWTをrefreshTokenとして使用
+    // ビジネスロール・ADMIN・ILLUSTRATORは7日JWTをrefreshTokenとして使用
     try {
         const decoded = jwt.verify(refreshToken, process.env.JWT_SECRET);
-        const businessRoles = ['FLORIST', 'VENUE', 'ORGANIZER', 'ILLUSTRATOR'];
+        const businessRoles = ['FLORIST', 'VENUE', 'ORGANIZER', 'ILLUSTRATOR', 'ADMIN'];
         if (decoded && businessRoles.includes(decoded.role)) {
             const { iat, exp, ...payload } = decoded;
             const newToken = generateBusinessToken(payload);

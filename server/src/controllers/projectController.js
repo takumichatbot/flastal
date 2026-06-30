@@ -40,10 +40,12 @@ export const getProjects = async (req, res) => {
             if (status !== 'DRAFT') {
                 whereClause.status = status;
                 whereClause.projectType = 'PUBLIC';
+                whereClause.visibility = 'PUBLIC';
             }
         } else {
             whereClause.status = 'FUNDRAISING';
             whereClause.projectType = 'PUBLIC';
+            whereClause.visibility = 'PUBLIC';
         }
 
         // タグフィルター（ProjectTag リレーション経由）
