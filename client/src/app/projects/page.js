@@ -445,17 +445,14 @@ function ProjectsContent() {
       const data = await res.json();
 
       if (data && typeof data === 'object' && 'projects' in data) {
-        // ページネーション付きレスポンス
-        const arr = (data.projects || []).filter(
-          p => p.visibility !== 'UNLISTED' && p.status !== 'REJECTED' && p.status !== 'CANCELED'
-        );
+        // ページネーション付きレスポンス（サーバー側でフィルター済み）
+        const arr = data.projects || [];
         setProjects(arr);
-        setTotal(data.total || arr.length);
+        setTotal(data.total ?? arr.length);
         setTotalPages(data.totalPages || 1);
       } else {
         // 配列レスポンス（後方互換）
         let arr = Array.isArray(data) ? data : [];
-        arr = arr.filter(p => p.visibility !== 'UNLISTED' && p.status !== 'REJECTED' && p.status !== 'CANCELED');
         // クライアント側フィルタリング（ステータス・ソート）
         if (statusFilter) {
           arr = arr.filter(p => {
