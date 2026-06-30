@@ -969,7 +969,7 @@ const LaruSeoEmbed = () => {
       if (!el || el.querySelector('script')) return;
       const script = document.createElement('script');
       script.src = `https://larubot.tokyo/embed/blog.js?t=${Date.now()}`;
-      script.setAttribute("data-id", "e19ed703-6238-49a5-ac83-c92c522a44cd");
+      script.setAttribute("data-id", "0d0f2602-f7d7-4bd7-a356-06472c372d12");
       script.setAttribute("data-limit", "3");
       script.async = true;
       el.appendChild(script);
