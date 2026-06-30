@@ -979,6 +979,83 @@ const LaruSeoEmbed = () => {
   return <div ref={containerRef} className="w-full min-h-[240px]" />;
 };
 
+// ==========================================
+// 8. BUSINESS SECTION
+// ==========================================
+const BUSINESS_CARDS = [
+  {
+    emoji: '💐',
+    title: 'お花屋さん',
+    desc: 'フラスタ制作の依頼を受けて活躍しませんか？審査通過後すぐに掲載されます。',
+    register: { label: '新規登録', href: '/florists/register' },
+    login:    { label: 'ログイン',   href: '/florists/login' },
+    color: 'from-rose-400 to-pink-500',
+    bg: 'bg-rose-50',
+    border: 'border-rose-100',
+  },
+  {
+    emoji: '🏛️',
+    title: '会場・運営',
+    desc: 'ライブ・イベント会場としてFLASTALと連携。フラスタ搬入をスムーズに。',
+    register: { label: '新規登録', href: '/venues/register' },
+    login:    { label: 'ログイン',   href: '/venues/login' },
+    color: 'from-violet-400 to-purple-500',
+    bg: 'bg-violet-50',
+    border: 'border-violet-100',
+  },
+  {
+    emoji: '🎨',
+    title: 'イラストレーター',
+    desc: 'ファンからのイラスト依頼を受けてみませんか？あなたの作品を推し活に。',
+    register: { label: '新規登録', href: '/illustrators/register' },
+    login:    { label: 'ログイン',   href: '/illustrators/login' },
+    color: 'from-sky-400 to-blue-500',
+    bg: 'bg-sky-50',
+    border: 'border-sky-100',
+  },
+];
+
+const BusinessSection = () => (
+  <section className="py-16 md:py-24 bg-slate-50/60 relative z-10 border-t border-slate-100/60">
+    <div className="container mx-auto px-4 md:px-6 max-w-5xl">
+      <Reveal>
+        <div className="text-center mb-10">
+          <span className="text-xs font-black tracking-[0.25em] text-slate-500 uppercase bg-white px-4 py-1.5 rounded-full inline-block mb-3 border border-slate-100 shadow-sm">For Business</span>
+          <h2 className="text-2xl md:text-4xl font-black text-slate-800 tracking-tighter">ビジネスの方はこちら</h2>
+          <p className="text-sm text-slate-500 font-medium mt-2">FLASTALのパートナーとして一緒に推し活を盛り上げましょう</p>
+        </div>
+      </Reveal>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {BUSINESS_CARDS.map(({ emoji, title, desc, register, login, color, bg, border }, i) => (
+          <Reveal key={title} delay={i * 0.1}>
+            <div className={`bg-white rounded-3xl border ${border} p-6 shadow-sm flex flex-col gap-4 h-full`}>
+              <div className={`w-12 h-12 rounded-2xl ${bg} flex items-center justify-center text-2xl`}>{emoji}</div>
+              <div className="flex-1">
+                <h3 className="font-black text-slate-800 text-base mb-1">{title}</h3>
+                <p className="text-xs text-slate-500 font-medium leading-relaxed">{desc}</p>
+              </div>
+              <div className="flex gap-2">
+                <Link href={register.href} className="flex-1">
+                  <motion.button
+                    whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+                    className={`w-full py-2.5 rounded-2xl text-white font-black text-xs bg-gradient-to-r ${color} shadow-sm`}
+                  >{register.label}</motion.button>
+                </Link>
+                <Link href={login.href} className="flex-1">
+                  <motion.button
+                    whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+                    className={`w-full py-2.5 rounded-2xl font-black text-xs ${bg} border ${border} text-slate-600`}
+                  >{login.label}</motion.button>
+                </Link>
+              </div>
+            </div>
+          </Reveal>
+        ))}
+      </div>
+    </div>
+  </section>
+);
+
 const ArticlesSection = () => (
   <section className="py-16 md:py-24 bg-white relative z-10 border-t border-slate-100/60">
     <div className="container mx-auto px-4 md:px-6 max-w-5xl">
@@ -1277,6 +1354,7 @@ const MainContent = () => {
       <FAQ />
       <TrustBadges />
       <ArticlesSection />
+      <BusinessSection />
     </motion.div>
   );
 };
