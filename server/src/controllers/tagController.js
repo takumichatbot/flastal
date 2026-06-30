@@ -50,7 +50,7 @@ export const getUsedTags = async (req, res) => {
         const rows = await prisma.projectTag.findMany({
             where: {
                 project: {
-                    status: { notIn: ['DRAFT'] },
+                    status: { notIn: ['PENDING_APPROVAL', 'CANCELED', 'REJECTED'] },
                     projectType: 'PUBLIC',
                 },
             },

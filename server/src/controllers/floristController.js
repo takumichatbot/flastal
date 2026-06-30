@@ -1093,7 +1093,7 @@ export const getMyFavorites = async (req, res) => {
                     select: {
                         id: true, platformName: true, iconUrl: true,
                         portfolioImages: true, specialties: true,
-                        baseDeliveryArea: true, reviewCount: false,
+                        baseDeliveryArea: true,
                         _count: { select: { reviews: true } },
                     },
                 },

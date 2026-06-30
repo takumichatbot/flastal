@@ -12,8 +12,7 @@ export const getRecommendedProjects = async (req, res) => {
         where: { status: 'FUNDRAISING' },
         include: {
           _count: { select: { pledges: true } },
-          florist: { select: { shopName: true } },
-          venue: { select: { venueName: true } },
+          planner: { select: { handleName: true } },
         },
         orderBy: { pledges: { _count: 'desc' } },
         take: limit,
@@ -39,8 +38,7 @@ export const getRecommendedProjects = async (req, res) => {
         where: { status: 'FUNDRAISING' },
         include: {
           _count: { select: { pledges: true } },
-          florist: { select: { shopName: true } },
-          venue: { select: { venueName: true } },
+          planner: { select: { handleName: true } },
         },
         orderBy: { pledges: { _count: 'desc' } },
         take: limit,
@@ -88,8 +86,7 @@ export const getRecommendedProjects = async (req, res) => {
         },
         include: {
           _count: { select: { pledges: true } },
-          florist: { select: { shopName: true } },
-          venue: { select: { venueName: true } },
+          planner: { select: { handleName: true } },
         },
         orderBy: { pledges: { _count: 'desc' } },
         take: limit - recommended.length,
