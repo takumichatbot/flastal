@@ -444,10 +444,10 @@ export const refreshAccessToken = async (req, res) => {
         return res.status(401).json({ message: 'リフレッシュトークンが必要です。' });
     }
 
-    // ビジネスロール（FLORIST/VENUE/ORGANIZER）は7日JWTをrefreshTokenとして使用
+    // ビジネスロール・ILLUSTRATORは7日JWTをrefreshTokenとして使用
     try {
         const decoded = jwt.verify(refreshToken, process.env.JWT_SECRET);
-        const businessRoles = ['FLORIST', 'VENUE', 'ORGANIZER'];
+        const businessRoles = ['FLORIST', 'VENUE', 'ORGANIZER', 'ILLUSTRATOR'];
         if (decoded && businessRoles.includes(decoded.role)) {
             const { iat, exp, ...payload } = decoded;
             const newToken = generateBusinessToken(payload);

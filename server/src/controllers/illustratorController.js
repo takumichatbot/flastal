@@ -64,7 +64,8 @@ export const loginIllustrator = async (req, res) => {
     );
 
     const { password: _, ...cleanData } = user;
-    res.json({ token, illustrator: cleanData });
+    // refreshTokenにもtokenを使い、/auth/refreshでセッション維持
+    res.json({ token, refreshToken: token, illustrator: cleanData });
   } catch (error) {
     logger.error('Login Error', { context: 'illustratorController', error: error.message });
     res.status(500).json({ message: 'ログイン処理に失敗しました。' });
