@@ -87,12 +87,20 @@ export const approveItem = async (req, res) => {
     const { type, id } = req.params;
     const { status } = req.body;
     try {
-        const finalStatus = status === 'APPROVED' ? 'APPROVED' : (status === 'REJECTED' ? 'REJECTED' : 'PENDING');
+        const validStatuses = ['APPROVED', 'REJECTED', 'SUSPENDED', 'PENDING'];
+        const finalStatus = validStatuses.includes(status) ? status : 'PENDING';
         let updated;
         const fm = prisma.florist || prisma['florist'];
         if (type === 'projects') updated = await prisma.project.update({ where: { id }, data: { status: status === 'APPROVED' ? 'FUNDRAISING' : 'REJECTED' } });
         else if (type === 'florists') updated = await fm.update({ where: { id }, data: { status: finalStatus } });
-        else if (type === 'illustrators') updated = await prisma.user.update({ where: { id }, data: { status: finalStatus } });
+        else if (type === 'illustrators') updated = await prisma.user.update({
+            where: { id },
+            data: {
+                status: finalStatus,
+                // 承認時はメール未認証でもログインできるよう isVerified を true にする
+                ...(finalStatus === 'APPROVED' && { isVerified: true }),
+            },
+        });
         else if (type === 'venues') updated = await prisma.venue.update({ where: { id }, data: { status: finalStatus } });
         else if (type === 'organizers') updated = await prisma.organizer.update({ where: { id }, data: { status: finalStatus } });
 
@@ -127,12 +135,19 @@ export const getPendingItems = async (req, res) => {
         const fm = prisma.florist || prisma['florist'];
         if (type === 'projects') data = await prisma.project.findMany({ where: { status: 'PENDING_APPROVAL' }, include: { planner: true } });
         else if (type === 'florists') data = await fm.findMany({ where: { status: 'PENDING' } });
-        else if (type === 'illustrators') data = await prisma.user.findMany({
-            where: {
-                status: 'PENDING',
-                OR: [{ role: 'ILLUSTRATOR' }, { roles: { has: 'ILLUSTRATOR' } }]
+        else if (type === 'illustrators') {
+            try {
+                data = await prisma.user.findMany({
+                    where: {
+                        status: 'PENDING',
+                        OR: [{ role: 'ILLUSTRATOR' }, { roles: { has: 'ILLUSTRATOR' } }],
+                    },
+                });
+            } catch {
+                // roles列未対応の場合のフォールバック
+                data = await prisma.user.findMany({ where: { status: 'PENDING', role: 'ILLUSTRATOR' } });
             }
-        });
+        }
         else if (type === 'venues') data = await prisma.venue.findMany({ where: { status: 'PENDING' } });
         else if (type === 'organizers') data = await prisma.organizer.findMany({ where: { status: 'PENDING' } });
         return res.json(data || []);
@@ -147,18 +162,25 @@ export const getAllFloristsAdmin = async (req, res) => {
 };
 
 export const getAllIllustratorsAdmin = async (req, res) => {
+    const select = {
+        id: true, email: true, handleName: true, status: true,
+        role: true, roles: true, isVerified: true, createdAt: true,
+        illustratorProfile: { select: { penName: true, portfolio: true } },
+    };
     try {
         const data = await prisma.user.findMany({
             where: { OR: [{ role: 'ILLUSTRATOR' }, { roles: { has: 'ILLUSTRATOR' } }] },
-            select: {
-                id: true, email: true, handleName: true, status: true,
-                role: true, roles: true, isVerified: true, createdAt: true,
-                illustratorProfile: { select: { penName: true, portfolio: true } },
-            },
+            select,
             orderBy: { createdAt: 'desc' },
         });
         return res.json(data || []);
-    } catch (e) { return res.status(200).json([]); }
+    } catch {
+        // roles列未対応フォールバック
+        try {
+            const data = await prisma.user.findMany({ where: { role: 'ILLUSTRATOR' }, select, orderBy: { createdAt: 'desc' } });
+            return res.json(data || []);
+        } catch (e2) { return res.status(200).json([]); }
+    }
 };
 
 export const getFloristByIdAdmin = async (req, res) => {

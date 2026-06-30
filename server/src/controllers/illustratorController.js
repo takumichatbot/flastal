@@ -25,7 +25,7 @@ export const registerIllustrator = async (req, res) => {
         const newToken = crypto.randomBytes(32).toString('hex');
         await prisma.user.update({ where: { id: existing.id }, data: { verificationToken: newToken } });
         const verificationUrl = `${process.env.FRONTEND_URL}/verify?token=${newToken}`;
-        await sendDynamicEmail({ to: lowerEmail, templateType: 'VERIFICATION', dynamicData: { verificationUrl } });
+        await sendDynamicEmail(lowerEmail, 'VERIFICATION_EMAIL', { userName: existing.handleName || 'クリエイター', verificationUrl });
         return res.status(409).json({ message: 'このメールアドレスは登録済みですが未認証です。確認メールを再送しました。受信箱をご確認ください。' });
       }
       if (alreadyIllustrator) {
@@ -81,7 +81,8 @@ export const loginIllustrator = async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(401).json({ message: 'メールアドレスまたはパスワードが間違っています。' });
 
-    if (!user.isVerified) return res.status(403).json({ message: 'メール認証が完了していません。' });
+    if (user.status === 'SUSPENDED') return res.status(403).json({ message: 'このアカウントは停止されています。' });
+    if (!user.isVerified && user.status !== 'APPROVED') return res.status(403).json({ message: 'メール認証が完了していません。確認メールをご確認ください。' });
 
     // JWTにrolesも含める（マルチロール対応）
     const token = jwt.sign(
