@@ -105,7 +105,7 @@ export default function IllustratorProfileEdit() {
         const loadProfile = async () => {
             try {
                 // ※バックエンドのAPI仕様に合わせて取得（存在しない場合はUser情報から埋める）
-                const res = await authenticatedFetch(`${API_URL}/api/illustrators/profile`);
+                const res = await authenticatedFetch(`${API_URL}/api/illustrators/profile/me`);
                 if (res.ok) {
                     const profileData = await res.json();
                     setFormData({

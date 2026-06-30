@@ -96,6 +96,7 @@ export default function IllustratorDashboard() {
   const [activeProjects, setActiveProjects] = useState([]);
   const [applications, setApplications] = useState([]);
   const [loadingData, setLoadingData] = useState(true);
+  const [hasProfile, setHasProfile] = useState(null);
 
   // データの取得
   const fetchDashboardData = useCallback(async () => {
@@ -103,17 +104,19 @@ export default function IllustratorDashboard() {
       setLoadingData(true);
       try {
           // ※バックエンドのAPIを並列で叩く想定
-          const [statsRes, offersRes, activeRes, appsRes] = await Promise.all([
+          const [statsRes, offersRes, activeRes, appsRes, profileRes] = await Promise.all([
               authenticatedFetch(`${API_URL}/api/illustrators/dashboard/stats`),
               authenticatedFetch(`${API_URL}/api/illustrators/offers?status=PENDING`),
               authenticatedFetch(`${API_URL}/api/illustrators/projects?status=ACTIVE`),
-              authenticatedFetch(`${API_URL}/api/illustrators/applications`)
+              authenticatedFetch(`${API_URL}/api/illustrators/applications`),
+              authenticatedFetch(`${API_URL}/api/illustrators/profile/me`)
           ]);
 
           if (statsRes.ok) setStats(await statsRes.json());
           if (offersRes.ok) setOffers(await offersRes.json());
           if (activeRes.ok) setActiveProjects(await activeRes.json());
           if (appsRes.ok) setApplications(await appsRes.json());
+          setHasProfile(profileRes.ok);
           
       } catch (error) {
           console.error('Failed to fetch dashboard data:', error);
@@ -187,6 +190,23 @@ export default function IllustratorDashboard() {
                 <Settings size={14}/> プロフィールを編集
             </Link>
         </div>
+
+        {hasProfile === false && (
+          <div className="mb-6 bg-amber-50 border border-amber-200 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 bg-amber-100 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5">
+                <User size={16} className="text-amber-600" />
+              </div>
+              <div>
+                <p className="text-sm font-black text-amber-800">絵師プロフィールが未設定です</p>
+                <p className="text-xs font-bold text-amber-600 mt-0.5">プロフィールを作成すると企画者から依頼が届くようになります。</p>
+              </div>
+            </div>
+            <Link href="/illustrators/profile/edit" className="flex-shrink-0 px-4 py-2 bg-amber-500 text-white text-xs font-black rounded-full hover:bg-amber-600 transition-colors shadow-sm">
+              プロフィールを作成する
+            </Link>
+          </div>
+        )}
 
         {/* Status Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-8">

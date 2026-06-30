@@ -11,7 +11,6 @@ const router = express.Router();
 router.post('/register', controller.registerIllustrator);
 router.post('/login', controller.loginIllustrator);
 router.get('/', controller.getIllustratorsList); // 絵師一覧の取得
-router.get('/:id', controller.getIllustratorDetail); // 絵師の詳細取得
 
 // ==========================
 // 認証が必要なルート (絵師・企画者用)
@@ -38,5 +37,8 @@ router.post('/applications', authenticateToken, controller.applyForRecruitment);
 // 納品・承認フロー
 router.patch('/projects/:projectId/deliver', authenticateToken, controller.deliverIllustration); // 絵師が納品物を提出
 router.patch('/projects/:projectId/approve', authenticateToken, controller.approveIllustration); // 企画者が納品物を承認
+
+// 公開プロフィール取得 (/:id は動的なので最後に置く)
+router.get('/:id', controller.getIllustratorDetail); // 絵師の詳細取得
 
 export default router;
