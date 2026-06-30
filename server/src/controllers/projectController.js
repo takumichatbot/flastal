@@ -398,7 +398,7 @@ export const getProjectById = async (req, res) => {
                                     orderBy: { createdAt: 'asc' },
                                     take: 50, // 直近50件のみ取得
                                     select: {
-                                        id: true, content: true, createdAt: true, isRead: true,
+                                        id: true, content: true, createdAt: true,
                                         user: { select: { id: true, handleName: true, iconUrl: true } },
                                         florist: { select: { id: true, platformName: true, shopName: true, iconUrl: true } }
                                     }
