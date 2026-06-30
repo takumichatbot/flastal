@@ -23,20 +23,18 @@ export const generateTokensForOAuth = async (payload) => {
     return generateTokens(payload);
 };
 
-const generateTokens = async (payload) => {
+const generateTokens = async (payload, { skipRefreshToken = false } = {}) => {
     const accessToken = generateToken(payload);
 
     const refreshTokenValue = crypto.randomBytes(64).toString('hex');
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
-    const userId = String(payload.id);
-    await prisma.refreshToken.create({
-        data: {
-            token: refreshTokenValue,
-            userId,
-            expiresAt,
-        },
-    });
+    if (!skipRefreshToken) {
+        const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+        const userId = String(payload.id);
+        await prisma.refreshToken.create({
+            data: { token: refreshTokenValue, userId, expiresAt },
+        });
+    }
 
     return { accessToken, refreshToken: refreshTokenValue };
 };
@@ -217,7 +215,7 @@ export const loginFlorist = async (req, res) => {
             status: florist.status,
             shopName: florist.shopName,
             handleName: florist.platformName
-        });
+        }, { skipRefreshToken: true });
 
         const { password: _, ...data } = florist;
         res.status(200).json({ message: 'ログインに成功しました。', token: accessToken, refreshToken, florist: data });
@@ -268,7 +266,7 @@ export const loginVenue = async (req, res) => {
             role: 'VENUE',
             status: venue.status,
             venueName: venue.venueName
-        });
+        }, { skipRefreshToken: true });
 
         const { password: _, ...data } = venue;
         res.status(200).json({ message: '成功', token: accessToken, refreshToken, venue: data });
@@ -319,7 +317,7 @@ export const loginOrganizer = async (req, res) => {
             role: 'ORGANIZER',
             status: org.status,
             name: org.name
-        });
+        }, { skipRefreshToken: true });
         res.status(200).json({ message: '成功', token: accessToken, refreshToken });
     } catch (error) { 
         logger.error('Organizer Login Error', { context: 'authController', error: error.message });
