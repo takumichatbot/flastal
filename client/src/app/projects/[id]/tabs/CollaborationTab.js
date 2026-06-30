@@ -567,12 +567,26 @@ export default function CollaborationTab({ ctx }) {
                       ))}
                     </div>
                   ) : (
-                    <div className="text-center py-16 bg-white rounded-2xl border border-dashed border-slate-200">
+                    <div className="text-center py-10 bg-white rounded-2xl border border-dashed border-slate-200">
                       <UserPlus className="mx-auto text-slate-300 mb-3" size={32} />
                       <p className="text-sm font-bold text-slate-500 mb-1">まだ立候補はありません</p>
-                      <p className="text-xs text-slate-400 font-medium">掲示板に掲載して、クリエイターからの応募を待ちましょう！</p>
+                      <p className="text-xs text-slate-400 font-medium mb-4">掲示板に掲載して、クリエイターからの応募を待ちましょう！</p>
                     </div>
                   )}
+
+                  {/* 絵師を直接探してオファー */}
+                  <div className="mt-6 pt-5 border-t border-slate-100">
+                    <p className="text-xs font-black text-slate-500 mb-3 flex items-center gap-1.5">
+                      <Brush size={12} /> 自分で絵師を探してオファーする
+                    </p>
+                    <Link
+                      href={`/illustrators?projectId=${project.id}`}
+                      className="w-full flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-amber-400 to-orange-400 hover:brightness-105 text-white text-sm font-black rounded-xl transition-all shadow-md shadow-amber-100"
+                    >
+                      <Brush size={16} /> 絵師ボードから探す
+                    </Link>
+                    <p className="text-[10px] text-slate-400 text-center mt-2">絵師のプロフィールページから直接オファーを送ることができます</p>
+                  </div>
                 </AppCard>
               )}
 

@@ -89,8 +89,12 @@ function OrganizerDashboardContent() {
 
   useEffect(() => {
     if (!isMounted || loading) return;
-    if (!isAuthenticated || (user?.role !== 'ORGANIZER' && user?.role !== 'ADMIN')) {
+    if (!isAuthenticated) {
       router.push('/organizers/login');
+      return;
+    }
+    if (user?.role !== 'ORGANIZER' && user?.role !== 'ADMIN') {
+      router.push('/organizers/register');
       return;
     }
     fetchEvents();

@@ -281,13 +281,27 @@ function DashboardContent() {
   }
 
   if (!user || user.role !== 'FLORIST' || errorInfo) {
+    const isWrongRole = user && user.role !== 'FLORIST';
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 p-4">
-        <div className="bg-white p-10 rounded-[3rem] border border-red-100 flex flex-col items-center max-w-md w-full shadow-2xl">
-          <div className="w-20 h-20 bg-red-50 text-red-500 rounded-[1.5rem] flex items-center justify-center mb-6 shadow-inner"><AlertCircle size={40} /></div>
-          <h1 className="text-2xl font-black text-slate-800 mb-2 text-center tracking-tighter">セッションエラー</h1>
-          <p className="text-xs font-bold text-slate-400 mb-8 text-center leading-relaxed">認証情報が確認できませんでした。<br/>再度ログインをお試しください。</p>
-          <button onClick={() => logout()} className="w-full py-4 bg-slate-900 text-white rounded-full font-black hover:bg-slate-800 transition-colors shadow-lg">再ログインする</button>
+        <div className="bg-white p-10 rounded-[3rem] border border-slate-100 flex flex-col items-center max-w-md w-full shadow-2xl">
+          <div className={`w-20 h-20 ${isWrongRole ? 'bg-amber-50 text-amber-500' : 'bg-red-50 text-red-500'} rounded-[1.5rem] flex items-center justify-center mb-6 shadow-inner`}>
+            <AlertCircle size={40} />
+          </div>
+          {isWrongRole ? (
+            <>
+              <h1 className="text-xl font-black text-slate-800 mb-2 text-center tracking-tighter">フローリスト専用ページです</h1>
+              <p className="text-xs font-bold text-slate-400 mb-8 text-center leading-relaxed">このダッシュボードはお花屋さん向けのページです。<br/>フローリストとして登録するとご利用いただけます。</p>
+              <Link href="/florists/register" className="w-full py-4 bg-pink-500 text-white rounded-full font-black hover:bg-pink-600 transition-colors shadow-lg text-center block mb-3">フローリスト登録はこちら</Link>
+              <button onClick={() => router.back()} className="w-full py-4 bg-slate-100 text-slate-600 rounded-full font-black hover:bg-slate-200 transition-colors">戻る</button>
+            </>
+          ) : (
+            <>
+              <h1 className="text-2xl font-black text-slate-800 mb-2 text-center tracking-tighter">セッションエラー</h1>
+              <p className="text-xs font-bold text-slate-400 mb-8 text-center leading-relaxed">認証情報が確認できませんでした。<br/>再度ログインをお試しください。</p>
+              <button onClick={() => logout()} className="w-full py-4 bg-slate-900 text-white rounded-full font-black hover:bg-slate-800 transition-colors shadow-lg">再ログインする</button>
+            </>
+          )}
         </div>
       </div>
     );

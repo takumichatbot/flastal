@@ -99,19 +99,22 @@ export default function IllustratorMyPage() {
   const [stats, setStats] = useState(null);
   const [projects, setProjects] = useState([]);
   const [offers, setOffers] = useState([]);
+  const [hasProfile, setHasProfile] = useState(null);
   const [dataLoading, setDataLoading] = useState(true);
 
   const load = useCallback(async () => {
     setDataLoading(true);
     try {
-      const [statsRes, projectsRes, offersRes] = await Promise.all([
+      const [statsRes, projectsRes, offersRes, profileRes] = await Promise.all([
         authenticatedFetch(`${API_URL}/api/illustrators/dashboard/stats`),
         authenticatedFetch(`${API_URL}/api/illustrators/projects`),
         authenticatedFetch(`${API_URL}/api/illustrators/offers`),
+        authenticatedFetch(`${API_URL}/api/illustrators/profile/me`),
       ]);
       if (statsRes.ok) setStats(await statsRes.json());
       if (projectsRes.ok) setProjects(await projectsRes.json());
       if (offersRes.ok) setOffers(await offersRes.json());
+      setHasProfile(profileRes.ok);
     } catch {
       toast.error('データの取得に失敗しました');
     } finally {
@@ -180,6 +183,20 @@ export default function IllustratorMyPage() {
           <StatCard label="進行中の案件" value={stats?.activeOrders} icon={Clock} color="bg-pink-400" />
           <StatCard label="完了した案件" value={stats?.completedOrders} icon={CheckCircle2} color="bg-emerald-400" />
         </div>
+
+        {/* Profile setup banner */}
+        {hasProfile === false && (
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3">
+            <AlertCircle size={18} className="text-amber-500 shrink-0 mt-0.5" />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-black text-amber-700">プロフィールが未設定です</p>
+              <p className="text-xs text-amber-600 mt-0.5 mb-3">プロフィールを作成すると案件ボードに掲載され、企画者からオファーを受け取れます。</p>
+              <Link href="/illustrators/profile/edit" className="inline-flex items-center gap-1.5 px-4 py-2 bg-amber-500 text-white text-xs font-black rounded-xl hover:bg-amber-600 transition-colors">
+                プロフィールを作成する
+              </Link>
+            </div>
+          </div>
+        )}
 
         {/* Pending offers */}
         {offers.length > 0 && (
