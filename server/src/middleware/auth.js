@@ -22,11 +22,13 @@ export const authenticateToken = async (req, res, next) => {
     const userId = decoded.id || decoded.sub;
     let userRole = (decoded.role || 'USER').toUpperCase();
 
-    // 2. 基本情報セット
+    // 2. 基本情報セット（rolesはJWT内の配列、なければroleから生成）
+    const userRoles = Array.isArray(decoded.roles) ? decoded.roles : [userRole];
     req.user = {
         id: userId,
         email: decoded.email,
         role: userRole,
+        roles: userRoles,
         status: decoded.status || 'APPROVED'
     };
 
@@ -67,7 +69,7 @@ export const authenticateToken = async (req, res, next) => {
  * 管理者権限チェック
  */
 export const requireAdmin = (req, res, next) => {
-  if (req.user && req.user.role === 'ADMIN') {
+  if (req.user && (req.user.role === 'ADMIN' || req.user.roles?.includes('ADMIN'))) {
       next();
   } else {
       res.status(403).json({ message: '管理者権限が必要です。' });

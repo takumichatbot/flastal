@@ -134,11 +134,17 @@ export const loginUser = async (req, res) => {
             if (!valid) return res.status(401).json({ message: '認証コードが正しくありません' });
         }
 
+        // ADMINメールの場合はrolesにも反映
+        const userRoles = userRole === 'ADMIN'
+            ? ['ADMIN']
+            : (user.roles?.length ? user.roles : [userRole]);
+
         const { accessToken, refreshToken } = await generateTokens({
             id: user.id,
             email: user.email,
             handleName: user.handleName,
             role: userRole,
+            roles: userRoles,
             status: 'APPROVED'
         });
 

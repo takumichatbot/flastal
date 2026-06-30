@@ -1300,7 +1300,7 @@ export default function ProjectDetailClient() {
   const isPledger = !!myPledge;
   const isPlanner = user && user.id === project?.planner?.id;
   const isFlorist = user && user.role === 'FLORIST';
-  const isAssignedIllustrator = user && user.role === 'ILLUSTRATOR' && project?.illustratorId === user.id;
+  const isAssignedIllustrator = user && user?.roles?.includes('ILLUSTRATOR') || user?.role === 'ILLUSTRATOR' && project?.illustratorId === user.id;
 
   // オファー中（PENDING）または受諾済み（ACCEPTED）のお花屋さんを探す
   const activeOffer = useMemo(

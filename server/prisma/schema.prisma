@@ -195,6 +195,7 @@ model User {
   points               Int                @default(0)
   reviewLikes          ReviewLike[]
   role                 UserRole           @default(USER)
+  roles                UserRole[]         @default([USER])
   
   // ★ クリエイター（絵師）審査用のステータス（Userテーブルに持たせる）
   status               ApprovalStatus @default(APPROVED)

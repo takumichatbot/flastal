@@ -84,7 +84,7 @@ export default function IllustratorProjectDetailPage() {
 
     useEffect(() => {
         if (!authLoading) {
-            if (!user || user.role !== 'ILLUSTRATOR') {
+            if (!user || !(user?.roles?.includes('ILLUSTRATOR') || user?.role === 'ILLUSTRATOR')) {
                 router.push('/illustrators/login');
                 return;
             }

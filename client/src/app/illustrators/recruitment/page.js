@@ -129,7 +129,7 @@ function RecruitmentContent() {
 
   const handleApply = (event) => {
     if (!user) { toast.error('立候補するにはログインが必要です'); return router.push('/illustrators/login'); }
-    if (user.role !== 'ILLUSTRATOR') { toast.error('クリエイターとして登録したユーザーのみ立候補できます。'); return; }
+    if (!(user?.roles?.includes('ILLUSTRATOR') || user?.role === 'ILLUSTRATOR')) { toast.error('クリエイターとして登録したユーザーのみ立候補できます。'); return; }
     setSelectedEvent(event);
   };
 

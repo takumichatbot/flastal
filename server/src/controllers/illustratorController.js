@@ -17,21 +17,25 @@ export const registerIllustrator = async (req, res) => {
 
     const existing = await prisma.user.findUnique({ where: { email: lowerEmail } });
     if (existing) {
-      if (existing.role === 'ILLUSTRATOR' && !existing.isVerified) {
-        // 未認証のイラストレーターアカウント → 認証メールを再送
+      const existingRoles = existing.roles ?? [existing.role];
+      const alreadyIllustrator = existingRoles.includes('ILLUSTRATOR');
+
+      if (alreadyIllustrator && !existing.isVerified) {
+        // 未認証のイラストレーター → 認証メールを再送
         const newToken = crypto.randomBytes(32).toString('hex');
         await prisma.user.update({ where: { id: existing.id }, data: { verificationToken: newToken } });
         const verificationUrl = `${process.env.FRONTEND_URL}/verify?token=${newToken}`;
         await sendDynamicEmail({ to: lowerEmail, templateType: 'VERIFICATION', dynamicData: { verificationUrl } });
         return res.status(409).json({ message: 'このメールアドレスは登録済みですが未認証です。確認メールを再送しました。受信箱をご確認ください。' });
       }
-      if (existing.role === 'ILLUSTRATOR') {
+      if (alreadyIllustrator) {
         return res.status(409).json({ message: 'このメールアドレスは既にイラストレーターとして登録されています。' });
       }
-      // 一般ユーザーのアカウント → パスワード・認証状態はそのままでイラストレーターに追加
+      // 一般ユーザー → rolesにILLUSTRATORを追加（roleはUSERのまま維持、パスワード変更なし）
+      const newRoles = [...new Set([...existingRoles, 'ILLUSTRATOR'])];
       await prisma.user.update({
         where: { id: existing.id },
-        data: { role: 'ILLUSTRATOR', handleName: activityName },
+        data: { roles: newRoles },
       });
       return res.status(201).json({ message: 'イラストレーターとして登録しました。今まで使っていたメールアドレスとパスワードでログインできます。' });
     }
@@ -45,8 +49,9 @@ export const registerIllustrator = async (req, res) => {
         password: hashedPassword,
         handleName: activityName,
         role: 'ILLUSTRATOR',
+        roles: ['ILLUSTRATOR'],
         verificationToken,
-        status: 'PENDING', 
+        status: 'PENDING',
       }
     });
 
@@ -66,7 +71,9 @@ export const loginIllustrator = async (req, res) => {
     const lowerEmail = email.toLowerCase();
 
     const user = await prisma.user.findUnique({ where: { email: lowerEmail } });
-    if (!user || user.role !== 'ILLUSTRATOR') {
+    const userRoles = user?.roles?.length ? user.roles : (user ? [user.role] : []);
+    const isIllustrator = userRoles.includes('ILLUSTRATOR');
+    if (!user || !isIllustrator) {
         return res.status(401).json({ message: 'メールアドレスまたはパスワードが間違っています。' });
     }
 
@@ -74,9 +81,10 @@ export const loginIllustrator = async (req, res) => {
     if (!isMatch) return res.status(401).json({ message: 'メールアドレスまたはパスワードが間違っています。' });
 
     if (!user.isVerified) return res.status(403).json({ message: 'メール認証が完了していません。' });
-    
+
+    // JWTにrolesも含める（マルチロール対応）
     const token = jwt.sign(
-      { id: user.id, email: user.email, role: user.role, status: user.status },
+      { id: user.id, email: user.email, role: 'ILLUSTRATOR', roles: userRoles, status: user.status },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );

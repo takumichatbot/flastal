@@ -123,7 +123,7 @@ export default function IllustratorDashboard() {
   }, [user, authenticatedFetch]);
 
   useEffect(() => {
-    if (!isLoading && (!user || user.role !== 'ILLUSTRATOR')) {
+    if (!isLoading && (!user || !(user?.roles?.includes('ILLUSTRATOR') || user?.role === 'ILLUSTRATOR'))) {
       router.push('/illustrators/login');
     } else if (user && !isLoading) {
       fetchDashboardData();

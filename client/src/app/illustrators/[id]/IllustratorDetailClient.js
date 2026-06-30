@@ -233,8 +233,8 @@ function IllustratorDetailContent() {
     );
   }
 
-  const isMyProfile = user?.role === 'ILLUSTRATOR' && user?.id === illustrator.userId;
-  const canOffer = !user || user.role !== 'ILLUSTRATOR';
+  const isMyProfile = user?.roles?.includes('ILLUSTRATOR') || user?.role === 'ILLUSTRATOR' && user?.id === illustrator.userId;
+  const canOffer = !user || !(user?.roles?.includes('ILLUSTRATOR') || user?.role === 'ILLUSTRATOR');
   const displayName = illustrator.name || illustrator.user?.handleName || 'クリエイター';
   const iconSrc = illustrator.iconUrl || illustrator.user?.iconUrl;
 

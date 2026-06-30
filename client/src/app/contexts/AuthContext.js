@@ -41,6 +41,8 @@ export function AuthProvider({ children }) {
 
       // extraData (最新のプロフィール情報) を優先
       const role = extraData?.role || decoded.role;
+      // マルチロール対応: rolesはJWTから取得、なければ[role]にフォールバック
+      const roles = decoded.roles?.length ? decoded.roles : [role];
       const venueName = extraData?.venueName || decoded.venueName;
       const shopName = extraData?.shopName || decoded.shopName;
       const platformName = extraData?.platformName || decoded.platformName; // 追加
@@ -51,6 +53,7 @@ export function AuthProvider({ children }) {
         id: extraData?.id || decoded.id,
         email: extraData?.email || decoded.email,
         role: role,
+        roles: roles,
         handleName: handleName,
         platformName: platformName, 
         iconUrl: iconUrl,
