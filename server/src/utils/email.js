@@ -570,8 +570,9 @@ export async function sendDynamicEmail(toEmail, templateKey, variables = {}) {
   }).catch(() => null);
 
   try {
-    const template = await prisma.emailTemplate.findUnique({ where: { key: templateKey } });
-    const tpl = template || DEFAULT_TEMPLATES[templateKey];
+    const dbTemplate = await prisma.emailTemplate.findUnique({ where: { key: templateKey } });
+    // DBテンプレートが空bodyの場合はデフォルトにフォールバック
+    const tpl = (dbTemplate?.body?.trim() ? dbTemplate : null) || DEFAULT_TEMPLATES[templateKey];
 
     if (!tpl) {
       logger.warn('[Email] No template found', { templateKey });
