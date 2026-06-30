@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { highlightText } from '@/app/utils/highlight';
 import { usePullToRefresh } from '@/app/hooks/usePullToRefresh';
+import { Capacitor } from '@capacitor/core';
 
 const PREFECTURES = [
   '北海道','青森県','岩手県','宮城県','秋田県','山形県','福島県',
@@ -353,6 +354,7 @@ function ProjectsContent() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { authenticatedFetch, isLoading: authLoading } = useAuth();
+  const isNativeApp = Capacitor.isNativePlatform();
 
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -568,8 +570,11 @@ function ProjectsContent() {
 
       {/* ── Fixed Header ── */}
       <div
-        className="fixed top-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-xl border-b border-slate-100 shadow-sm"
-        style={{ paddingTop: 'env(safe-area-inset-top)' }}
+        className={cn(
+          "fixed left-0 right-0 z-40 bg-white/95 backdrop-blur-xl border-b border-slate-100 shadow-sm",
+          isNativeApp ? "top-0" : "top-[104px] md:top-[120px]"
+        )}
+        style={isNativeApp ? { paddingTop: 'env(safe-area-inset-top)' } : undefined}
       >
         <div className="max-w-6xl mx-auto px-4">
           {/* Top row */}
@@ -677,7 +682,9 @@ function ProjectsContent() {
       <div
         className="flex-1 overflow-y-auto max-w-6xl mx-auto w-full px-4"
         style={{
-          paddingTop: `calc(${selectedTags.length > 0 ? '12.5rem' : '10.5rem'} + env(safe-area-inset-top))`,
+          paddingTop: isNativeApp
+            ? `calc(${selectedTags.length > 0 ? '12.5rem' : '10.5rem'} + env(safe-area-inset-top))`
+            : `calc(${selectedTags.length > 0 ? '12.5rem' : '10.5rem'} + 104px)`,
           paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))',
         }}
       >
