@@ -41,8 +41,13 @@ export function AuthProvider({ children }) {
 
       // extraData (最新のプロフィール情報) を優先
       const role = extraData?.role || decoded.role;
-      // マルチロール対応: rolesはJWTから取得、なければ[role]にフォールバック
-      const roles = decoded.roles?.length ? decoded.roles : [role];
+      // マルチロール対応: JWTのrolesとextraData.roles(DB値)をマージ
+      // ADMINユーザーはJWTにroles:['ADMIN']しか入らないが、DBにはILLUSTRATOR等が入るため両方を合成する
+      const jwtRoles = decoded.roles?.length ? decoded.roles : [role];
+      const extraRoles = Array.isArray(extraData?.roles) ? extraData.roles : [];
+      const roles = extraRoles.length
+        ? Array.from(new Set([...jwtRoles, ...extraRoles]))
+        : jwtRoles;
       const venueName = extraData?.venueName || decoded.venueName;
       const shopName = extraData?.shopName || decoded.shopName;
       const platformName = extraData?.platformName || decoded.platformName; // 追加
