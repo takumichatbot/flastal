@@ -355,7 +355,8 @@ export default function AdminPage() {
                         <div className="my-3 border-t border-slate-100/50"></div>
                         <QuickLink href="/admin/approval?tab=projects" icon={<Award/>} label="プロジェクト審査" />
                         <QuickLink href="/admin/approval?tab=florists" icon={<Flower2/>} label="花屋審査管理" />
-                        <QuickLink href="/admin/approval?tab=illustrators" icon={<Palette/>} label="絵師審査管理" />
+                        <QuickLink href="/admin/illustrators" icon={<Palette/>} label="イラストレーター管理" />
+                        <QuickLink href="/admin/approval?tab=illustrators" icon={<Palette/>} label="イラストレーター審査管理" />
                         <QuickLink href="/admin/approval?tab=venues" icon={<Building2/>} label="会場審査管理" />
                         <QuickLink href="/admin/approval?tab=organizers" icon={<ShieldCheck/>} label="主催者審査管理" />
                         <div className="my-3 border-t border-slate-100/50"></div>

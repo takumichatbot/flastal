@@ -17,6 +17,7 @@ router.get('/organizers/pending', (req, res) => { req.params.type = 'organizers'
 
 router.get('/projects', adminController.getAllProjectsAdmin);
 router.get('/florists/all', adminController.getAllFloristsAdmin);
+router.get('/illustrators/all', adminController.getAllIllustratorsAdmin);
 
 // ★ 追加: 全イベントの取得
 router.get('/events', eventController.getEvents);

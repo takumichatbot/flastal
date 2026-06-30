@@ -146,6 +146,21 @@ export const getAllFloristsAdmin = async (req, res) => {
     } catch (e) { return res.status(200).json([]); }
 };
 
+export const getAllIllustratorsAdmin = async (req, res) => {
+    try {
+        const data = await prisma.user.findMany({
+            where: { OR: [{ role: 'ILLUSTRATOR' }, { roles: { has: 'ILLUSTRATOR' } }] },
+            select: {
+                id: true, email: true, handleName: true, status: true,
+                role: true, roles: true, isVerified: true, createdAt: true,
+                illustratorProfile: { select: { penName: true, portfolio: true } },
+            },
+            orderBy: { createdAt: 'desc' },
+        });
+        return res.json(data || []);
+    } catch (e) { return res.status(200).json([]); }
+};
+
 export const getFloristByIdAdmin = async (req, res) => {
     try {
         const fm = prisma.florist || prisma['florist'];
