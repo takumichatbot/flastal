@@ -986,9 +986,10 @@ const BUSINESS_CARDS = [
     desc: 'フラスタ制作の依頼を受けて活躍しませんか？審査通過後すぐに掲載されます。',
     register: { label: '新規登録', href: '/florists/register' },
     login:    { label: 'ログイン',   href: '/florists/login' },
-    color: 'from-rose-400 to-pink-500',
-    bg: 'bg-rose-50',
-    border: 'border-rose-100',
+    color: 'from-pink-500 to-rose-500',
+    bg: 'bg-pink-50',
+    border: 'border-pink-100',
+    text: 'text-pink-600',
   },
   {
     emoji: '🏛️',
@@ -996,9 +997,10 @@ const BUSINESS_CARDS = [
     desc: 'ライブ・コンサート会場としてFLASTALと連携。フラスタ搬入の受付をスムーズに。',
     register: { label: '新規登録', href: '/venues/register' },
     login:    { label: 'ログイン',   href: '/venues/login' },
-    color: 'from-violet-400 to-purple-500',
-    bg: 'bg-violet-50',
-    border: 'border-violet-100',
+    color: 'from-emerald-500 to-teal-500',
+    bg: 'bg-emerald-50',
+    border: 'border-emerald-100',
+    text: 'text-emerald-600',
   },
   {
     emoji: '🎪',
@@ -1006,9 +1008,10 @@ const BUSINESS_CARDS = [
     desc: 'イベント主催会社として登録。企画管理・会場調整・ファンへの連絡が一括でできます。',
     register: { label: '新規登録', href: '/organizers/register' },
     login:    { label: 'ログイン',   href: '/organizers/login' },
-    color: 'from-amber-400 to-orange-500',
-    bg: 'bg-amber-50',
-    border: 'border-amber-100',
+    color: 'from-indigo-500 to-purple-500',
+    bg: 'bg-indigo-50',
+    border: 'border-indigo-100',
+    text: 'text-indigo-600',
   },
   {
     emoji: '🎨',
@@ -1016,9 +1019,10 @@ const BUSINESS_CARDS = [
     desc: 'ファンからのイラスト依頼を受けてみませんか？あなたの作品を推し活に。',
     register: { label: '新規登録', href: '/illustrators/register' },
     login:    { label: 'ログイン',   href: '/illustrators/login' },
-    color: 'from-sky-400 to-blue-500',
-    bg: 'bg-sky-50',
-    border: 'border-sky-100',
+    color: 'from-amber-400 to-orange-500',
+    bg: 'bg-amber-50',
+    border: 'border-amber-100',
+    text: 'text-amber-600',
   },
 ];
 
@@ -1033,7 +1037,7 @@ const BusinessSection = () => (
         </div>
       </Reveal>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {BUSINESS_CARDS.map(({ emoji, title, desc, register, login, color, bg, border }, i) => (
+        {BUSINESS_CARDS.map(({ emoji, title, desc, register, login, color, bg, border, text }, i) => (
           <Reveal key={title} delay={i * 0.1}>
             <div className={`bg-white rounded-3xl border ${border} p-6 shadow-sm flex flex-col gap-4 h-full`}>
               <div className={`w-12 h-12 rounded-2xl ${bg} flex items-center justify-center text-2xl`}>{emoji}</div>
@@ -1051,7 +1055,7 @@ const BusinessSection = () => (
                 <Link href={login.href} className="flex-1">
                   <motion.button
                     whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
-                    className={`w-full py-2.5 rounded-2xl font-black text-xs ${bg} border ${border} text-slate-600`}
+                    className={`w-full py-2.5 rounded-2xl font-black text-xs ${bg} border ${border} ${text}`}
                   >{login.label}</motion.button>
                 </Link>
               </div>
