@@ -3,20 +3,8 @@ import ProjectDetailClient from './ProjectDetailClient';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
-// ページ単位の ISR — 60秒ごとに再検証
-export const revalidate = 60;
-
-// 人気上位プロジェクトをビルド時に静的生成
-export async function generateStaticParams() {
-  try {
-    const res = await fetch(`${API_URL}/api/projects?limit=50`, { next: { revalidate: 3600 } });
-    if (!res.ok) return [];
-    const projects = await res.json();
-    return (Array.isArray(projects) ? projects : []).map(p => ({ id: p.id }));
-  } catch {
-    return [];
-  }
-}
+// クライアント側データフェッチがno-storeを使うため常にdynamic
+export const dynamic = 'force-dynamic';
 
 // ✅ ビューポート設定
 export const viewport = {
