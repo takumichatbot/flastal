@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
-const getAuthToken = () => localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+const getAuthToken = () => window.__flastalToken || ''|window.__flastalToken;
 
 function cn(...classes) { return classes.filter(Boolean).join(' '); }
 

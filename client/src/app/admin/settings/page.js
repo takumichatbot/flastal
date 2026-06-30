@@ -11,7 +11,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onre
 
 const getAuthToken = () => {
     if (typeof window === 'undefined') return '';
-    return localStorage.getItem('authToken')?.replace(/^"|"$/g, '') || '';
+    return window.__flastalToken || ''|window.__flastalToken || '';
 };
 
 // --- サブコンポーネント (修正済み) ---

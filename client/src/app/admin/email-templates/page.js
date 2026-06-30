@@ -12,7 +12,7 @@ import Link from 'next/link';
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 const getAuthToken = () => {
     if (typeof window === 'undefined') return '';
-    return localStorage.getItem('authToken')?.replace(/^"|"$/g, '') || '';
+    return window.__flastalToken || ''|window.__flastalToken || '';
 };
 
 // 空のテンプレートの初期状態

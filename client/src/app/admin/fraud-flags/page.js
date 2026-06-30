@@ -24,7 +24,7 @@ export default function AdminFraudFlagsPage() {
     const fetchFlags = useCallback(async () => {
         setFetching(true);
         try {
-            const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+            const token = window.__flastalToken || ''|window.__flastalToken;
             const res = await fetch(`${API_URL}/api/admin/fraud-flags`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
@@ -41,7 +41,7 @@ export default function AdminFraudFlagsPage() {
     useEffect(() => { fetchFlags(); }, [fetchFlags]);
 
     const handleReview = async (id) => {
-        const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+        const token = window.__flastalToken || ''|window.__flastalToken;
         const res = await fetch(`${API_URL}/api/admin/fraud-flags/${id}/review`, {
             method: 'PATCH',
             headers: { Authorization: `Bearer ${token}` },

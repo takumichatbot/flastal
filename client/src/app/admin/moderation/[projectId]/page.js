@@ -24,7 +24,7 @@ export default function ChatModerationPage() {
     if (!projectId) return;
     setLoadingData(true);
     try {
-      const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+      const token = window.__flastalToken || ''|window.__flastalToken;
       if (!token) throw new Error('認証トークンがありません。');
 
       const res = await fetch(`${API_URL}/api/admin/projects/${projectId}/chats`, {
@@ -78,7 +78,7 @@ export default function ChatModerationPage() {
       ? `${API_URL}/api/admin/group-chat/${messageId}`
       : `${API_URL}/api/admin/florist-chat/${messageId}`;
       
-    const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+    const token = window.__flastalToken || ''|window.__flastalToken;
 
     const promise = fetch(url, {
       method: 'DELETE',

@@ -33,7 +33,7 @@ export default function AdminKycPage() {
     const fetchUsers = useCallback(async () => {
         setFetching(true);
         try {
-            const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+            const token = window.__flastalToken || ''|window.__flastalToken;
             const res = await fetch(`${API_URL}/api/admin/users?kycStatus=${filter}&limit=100`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
@@ -51,7 +51,7 @@ export default function AdminKycPage() {
     useEffect(() => { fetchUsers(); }, [fetchUsers]);
 
     const handleReview = async (userId, status) => {
-        const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+        const token = window.__flastalToken || ''|window.__flastalToken;
         const res = await fetch(`${API_URL}/api/admin/users/${userId}/kyc`, {
             method: 'PATCH',
             headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },

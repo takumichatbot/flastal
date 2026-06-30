@@ -71,7 +71,7 @@ export default function AdminShopPage() {
     // ---- Fetch ----
     const getToken = useCallback(() => {
         if (token) return token;
-        return localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+        return window.__flastalToken || ''|window.__flastalToken;
     }, [token]);
 
     const fetchAll = useCallback(async () => {

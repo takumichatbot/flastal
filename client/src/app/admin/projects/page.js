@@ -132,13 +132,8 @@ export default function AdminProjectsPage() {
     const fetchProjects = async () => {
         setIsLoadingData(true);
         try {
-            const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
-            // 🌟 キャッシュを無効化して確実に最新のデータを取得する
-            const res = await fetch(`${API_URL}/api/admin/projects?t=${Date.now()}`, {
-                headers: { 
-                    'Authorization': `Bearer ${token}`,
-                    'Cache-Control': 'no-cache'
-                }
+            const res = await authenticatedFetch(`${API_URL}/api/admin/projects?t=${Date.now()}`, {
+                headers: { 'Cache-Control': 'no-cache' }
             });
             
             if (!res.ok) throw new Error('企画一覧の取得に失敗しました');
@@ -238,10 +233,9 @@ export default function AdminProjectsPage() {
         if (reason === null) return; // キャンセルボタン押下
         const toastId = toast.loading('強制キャンセル中...');
         try {
-            const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
-            const res = await fetch(`${API_URL}/api/admin/projects/${projectId}/force-close`, {
+            const res = await authenticatedFetch(`${API_URL}/api/admin/projects/${projectId}/force-close`, {
                 method: 'PATCH',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ reason }),
             });
             if (!res.ok) throw new Error((await res.json()).message || '失敗しました');

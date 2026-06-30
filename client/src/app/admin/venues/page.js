@@ -107,7 +107,7 @@ export default function AdminVenuesPage() {
 
   const getCleanToken = useCallback(() => {
     if (typeof window === 'undefined') return null;
-    const t = localStorage.getItem('authToken');
+    const t = window.__flastalToken;
     if (!t) return null;
     return t.replace(/"/g, '').trim();
   }, []);

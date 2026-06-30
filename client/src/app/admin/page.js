@@ -56,7 +56,7 @@ export default function AdminPage() {
   const fetchAdminData = useCallback(async () => { 
     setLoadingData(true);
     try {
-      const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+      const token = window.__flastalToken || ''|window.__flastalToken;
       const headers = { 'Authorization': `Bearer ${token}` };
       
       // ★ Promise.allSettled に変更し、1つのエラーで全体が止まらないようにする
@@ -383,7 +383,7 @@ export default function AdminPage() {
                                 href={`${API_URL}/api/admin/export/csv?type=${type}`}
                                 onClick={e => {
                                     e.preventDefault();
-                                    const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+                                    const token = window.__flastalToken || ''|window.__flastalToken;
                                     fetch(`${API_URL}/api/admin/export/csv?type=${type}`, { headers: { Authorization: `Bearer ${token}` } })
                                         .then(r => r.blob())
                                         .then(blob => {
@@ -468,7 +468,7 @@ function BulkEmailCard({ apiUrl }) {
         if (!confirm(`${targetRole === 'ALL' ? '全ユーザー・全花屋' : targetRole === 'USER' ? '全ユーザー' : '全花屋'}に送信します。よろしいですか？`)) return;
         setSending(true);
         try {
-            const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+            const token = window.__flastalToken || ''|window.__flastalToken;
             const res = await fetch(`${apiUrl}/api/admin/bulk-email`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -514,7 +514,7 @@ function WebhookLogViewer({ apiUrl }) {
     const fetchLogs = async (f = filter, p = page) => {
         setLoading(true);
         try {
-            const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+            const token = window.__flastalToken || ''|window.__flastalToken;
             const params = new URLSearchParams({ page: p, limit: 20 });
             if (f !== 'all') params.set('status', f);
             const res = await fetch(`${apiUrl}/api/admin/webhook-logs?${params}`, {
@@ -531,7 +531,7 @@ function WebhookLogViewer({ apiUrl }) {
 
     const handleRetry = async (id) => {
         try {
-            const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+            const token = window.__flastalToken || ''|window.__flastalToken;
             const res = await fetch(`${apiUrl}/api/admin/webhook-logs/${id}/retry`, {
                 method: 'POST',
                 headers: { Authorization: `Bearer ${token}` },

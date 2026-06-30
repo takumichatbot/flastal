@@ -74,6 +74,8 @@ export function AuthProvider({ children }) {
       setUser(userData);
       // アクセストークンはメモリ（state）のみに保存。localStorageには書かない
       setToken(userData._token);
+      // セッション内アクセス用（管理画面などのレガシーgetToken関数向け）
+      if (typeof window !== 'undefined') window.__flastalToken = userData._token;
       if (typeof window !== 'undefined') {
         localStorage.setItem('flastal-user-cache', JSON.stringify(extraData || {}));
         if (newRefreshToken) {
@@ -89,6 +91,7 @@ export function AuthProvider({ children }) {
           localStorage.removeItem('flastal-user-cache');
           localStorage.removeItem('flastal-refresh-token');
           localStorage.removeItem('userStatus');
+          window.__flastalToken = null;
         }
       }
       return false;

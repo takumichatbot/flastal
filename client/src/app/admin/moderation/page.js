@@ -37,7 +37,7 @@ export default function ModerationProjectListPage() {
     const fetchProjects = async () => {
       setLoadingData(true); 
       try {
-        const token = localStorage.getItem('authToken');
+        const token = window.__flastalToken;
         // チャットルームが存在するプロジェクトのみを取得するのが理想的
         // 現状は全プロジェクトを取得してクライアント側で表示
         const res = await fetch(`${API_URL}/api/admin/projects`, {

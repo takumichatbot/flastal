@@ -192,7 +192,7 @@ function ApprovalHubContent() {
 
   const fetchCounts = useCallback(async () => {
     try {
-      const token = localStorage.getItem('authToken');
+      const token = window.__flastalToken;
       const headers = { 'Authorization': `Bearer ${token}` };
       const [projRes, floRes, illRes, venRes, orgRes] = await Promise.all([
         fetch(`${API_URL}/api/admin/projects/pending`, { headers }),
@@ -221,7 +221,7 @@ function ApprovalHubContent() {
     setLoadingData(true);
     setSelectedItem(null); 
     try {
-      const token = localStorage.getItem('authToken');
+      const token = window.__flastalToken;
       const res = await fetch(`${API_URL}/api/admin/${activeTab}/pending`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -247,7 +247,7 @@ function ApprovalHubContent() {
     setIsProcessing(true);
     const toastId = toast.loading('処理中...');
     try {
-      const token = localStorage.getItem('authToken');
+      const token = window.__flastalToken;
       const res = await fetch(`${API_URL}/api/admin/${activeTab}/${id}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },

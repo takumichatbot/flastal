@@ -154,7 +154,7 @@ export default function AdminEventsPage() {
     const fetchEvents = async () => {
         setIsLoading(true);
         try {
-            const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+            const token = window.__flastalToken || ''|window.__flastalToken;
             const headers = { 
                 'Authorization': `Bearer ${token}`,
                 'Cache-Control': 'no-cache'

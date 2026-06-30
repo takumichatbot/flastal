@@ -47,7 +47,7 @@ const BudgetReferenceManager = () => {
 
     const fetchReferences = async () => {
         try {
-            const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+            const token = window.__flastalToken || ''|window.__flastalToken;
             const res = await fetch(`${API_URL}/api/admin/budget-references`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
@@ -69,7 +69,7 @@ const BudgetReferenceManager = () => {
         const toastId = toast.loading('画像をアップロード中...');
 
         try {
-            const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+            const token = window.__flastalToken || ''|window.__flastalToken;
             
             // 1. S3署名付きURLを取得
             const urlRes = await fetch(`${API_URL}/api/tools/s3-upload-url`, {
@@ -116,7 +116,7 @@ const BudgetReferenceManager = () => {
         const toastId = toast.loading('保存中...');
 
         try {
-            const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+            const token = window.__flastalToken || ''|window.__flastalToken;
             const res = await fetch(`${API_URL}/api/admin/budget-references`, {
                 method: 'POST', // upsertなのでPOSTまたはPATCHで対応
                 headers: { 
@@ -158,7 +158,7 @@ const BudgetReferenceManager = () => {
         
         const toastId = toast.loading('削除中...');
         try {
-            const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+            const token = window.__flastalToken || ''|window.__flastalToken;
             const res = await fetch(`${API_URL}/api/admin/budget-references/${priceRange}`, {
                 method: 'DELETE',
                 headers: { 'Authorization': `Bearer ${token}` }

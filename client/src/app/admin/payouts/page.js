@@ -45,7 +45,7 @@ export default function AdminPayoutsPage() {
   const fetchPayouts = async () => {
     setLoadingData(true);
     try {
-      const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+      const token = window.__flastalToken || ''|window.__flastalToken;
       const res = await fetch(`${API_URL}/api/admin/payouts`, { headers: { 'Authorization': `Bearer ${token}` } });
       if (res.status === 401) { router.push('/login'); return; }
       if (!res.ok) throw new Error('データ取得に失敗しました');
@@ -71,7 +71,7 @@ export default function AdminPayoutsPage() {
     setProcessingId(payoutId);
     const toastId = toast.loading('処理中...');
     try {
-        const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+        const token = window.__flastalToken || ''|window.__flastalToken;
         const res = await fetch(`${API_URL}/api/admin/payouts/${payoutId}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
@@ -95,7 +95,7 @@ export default function AdminPayoutsPage() {
   const handleExportCsv = async () => {
     const toastId = toast.loading('CSVを生成中...');
     try {
-      const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+      const token = window.__flastalToken || ''|window.__flastalToken;
       const url = `${API_URL}/api/admin/payouts/csv`;
       const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
       if (!res.ok) throw new Error('CSV生成に失敗しました');

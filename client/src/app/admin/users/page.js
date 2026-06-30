@@ -55,7 +55,7 @@ export default function AdminUsersPage() {
     const fetchUsers = async () => {
         setIsLoadingData(true);
         try {
-            const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+            const token = window.__flastalToken || ''|window.__flastalToken;
             const params = new URLSearchParams();
             if (searchKeyword) params.append('keyword', searchKeyword);
 
@@ -132,7 +132,7 @@ export default function AdminUsersPage() {
     };
 
     const handleStartChat = async (targetUser) => {
-        const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+        const token = window.__flastalToken || ''|window.__flastalToken;
         if (!token) return;
 
         const toastId = toast.loading('チャットルームを準備中...');
@@ -183,7 +183,7 @@ export default function AdminUsersPage() {
     const execToggleStatus = async (targetUserId, targetRole, newStatus, reason, actionName) => {
         const toastId = toast.loading('更新中...');
         try {
-            const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+            const token = window.__flastalToken || ''|window.__flastalToken;
             const res = await fetch(`${API_URL}/api/admin/users/${targetUserId}/status`, {
                 method: 'PATCH',
                 headers: {
@@ -211,7 +211,7 @@ export default function AdminUsersPage() {
         if (!pointModal || isNaN(delta) || delta === 0) return;
         const toastId = toast.loading('ポイントを更新中...');
         try {
-            const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+            const token = window.__flastalToken || ''|window.__flastalToken;
             const res = await fetch(`${API_URL}/api/admin/users/${pointModal.id}/points`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },

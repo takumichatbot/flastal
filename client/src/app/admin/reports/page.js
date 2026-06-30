@@ -113,7 +113,7 @@ function AdminReportsInner() {
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('authToken');
+      const token = window.__flastalToken;
       if (!token) return;
 
       const headers = { 'Authorization': `Bearer ${token}` };
@@ -151,7 +151,7 @@ function AdminReportsInner() {
 
   const handleReportAction = async (report, action) => {
     if (!report) return;
-    const token = localStorage.getItem('authToken');
+    const token = window.__flastalToken;
     const headers = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
     
     let endpoint = '';
