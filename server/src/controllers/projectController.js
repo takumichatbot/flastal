@@ -36,8 +36,9 @@ export const getProjects = async (req, res) => {
             whereClause.visibility = 'PUBLIC';
             if (status) whereClause.status = status;
         } else if (status) {
-            // 明示的なステータス指定（DRAFT は除外）
-            if (status !== 'DRAFT') {
+            // 明示的なステータス指定（DRAFT・不正値は除外）
+            const validStatuses = ['PENDING_APPROVAL', 'FUNDRAISING', 'SUCCESSFUL', 'PROCESSING', 'READY_FOR_DELIVERY', 'COMPLETED', 'CANCELED', 'REJECTED'];
+            if (validStatuses.includes(status)) {
                 whereClause.status = status;
                 whereClause.projectType = 'PUBLIC';
             }

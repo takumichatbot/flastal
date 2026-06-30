@@ -246,12 +246,11 @@ const Hero = () => {
   const [featuredProjects, setFeaturedProjects] = useState([]);
 
   useEffect(() => {
-    fetch(`${API_URL}/api/projects?limit=3&status=active`)
+    fetch(`${API_URL}/api/projects?limit=3&status=FUNDRAISING`)
       .then(r => r.ok ? r.json() : Promise.reject())
       .then(data => {
         const arr = Array.isArray(data) ? data : (data?.projects || []);
-        const active = arr.filter(p => p?.status === 'FUNDRAISING' || p?.status === 'active' || p?.status === 'ACTIVE');
-        setFeaturedProjects(active.slice(0, 3));
+        setFeaturedProjects(arr.slice(0, 3));
       })
       .catch(() => {});
   }, []);
