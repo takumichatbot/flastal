@@ -122,7 +122,8 @@ export default function IllustratorMyPage() {
   useEffect(() => {
     if (authLoading) return;
     if (!user) { router.replace('/login'); return; }
-    if (user.role !== 'ILLUSTRATOR') { router.replace('/mypage'); return; }
+    const hasIllustrator = user.role === 'ILLUSTRATOR' || (Array.isArray(user.roles) && user.roles.includes('ILLUSTRATOR'));
+    if (!hasIllustrator) { router.replace('/mypage'); return; }
     load();
   }, [authLoading, user, router, load]);
 
