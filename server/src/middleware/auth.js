@@ -30,41 +30,27 @@ export const authenticateToken = async (req, res, next) => {
         status: decoded.status || 'APPROVED'
     };
 
-    // 3. 停止ユーザーチェック（status === 'SUSPENDED' の場合は即時拒否）
+    // 3. 停止ユーザーチェック（ロールに応じた正しいテーブルを参照）
     try {
-        const dbUser = await prisma.user.findUnique({
-            where: { id: userId },
-            select: { id: true, status: true },
-        });
-        if (!dbUser) {
+        let dbRecord = null;
+        if (userRole === 'FLORIST') {
+            dbRecord = await prisma.florist.findUnique({ where: { id: userId }, select: { id: true, status: true } });
+        } else if (userRole === 'VENUE') {
+            dbRecord = await prisma.venue.findUnique({ where: { id: userId }, select: { id: true, status: true } });
+        } else if (userRole === 'ORGANIZER') {
+            dbRecord = await prisma.organizer.findUnique({ where: { id: userId }, select: { id: true, status: true } });
+        } else {
+            dbRecord = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, status: true } });
+        }
+        if (!dbRecord) {
             return res.status(401).json({ message: '認証に失敗しました。' });
         }
-        if (dbUser.status === 'SUSPENDED') {
-            console.warn(`[Auth] Suspended user blocked: userId=${userId}`);
+        if (dbRecord.status === 'SUSPENDED') {
             return res.status(403).json({ message: 'このアカウントは利用停止中です。' });
         }
     } catch (dbErr) {
         console.error('[Auth] Suspend check failed:', dbErr.message);
         // DB確認失敗時はフォールスルーして処理継続（可用性優先）
-    }
-
-    // 4. 権限補完ロジック (会場のみDBチェック)
-    // VENUEはJWTにroleが含まれないため引き続きDBで確認する。
-    // FLORIST/ORGANIZER/ILLUSTRATORはJWTのroleで判断可能なため、
-    // 使用されていないreq.user.raw取得クエリを省略してDBアクセスを削減する。
-    try {
-        if (userRole !== 'FLORIST' && userRole !== 'ORGANIZER' && userRole !== 'ILLUSTRATOR') {
-            const venueAccount = await prisma.venue.findUnique({
-                where: { id: userId },
-                select: { id: true, status: true },
-            });
-            if (venueAccount) {
-                req.user.role = 'VENUE';
-                req.user.status = venueAccount.status;
-            }
-        }
-    } catch (dbErr) {
-        console.error('[Middleware] DB check failed:', dbErr.message);
     }
 
     next();
