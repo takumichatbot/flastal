@@ -55,12 +55,13 @@ const ArViewer = dynamic(() => import('@/app/components/ArViewer'), { ssr: false
 const OshiAvatarUpload = dynamic(() => import('./components/OshiAvatarUpload'), { ssr: false });
 
 // Tab components (dynamic to keep main bundle small)
-const OverviewTab      = dynamic(() => import('./tabs/OverviewTab'),      { ssr: false });
-const BackersTab       = dynamic(() => import('./tabs/BackersTab'),       { ssr: false });
-const CollaborationTab = dynamic(() => import('./tabs/CollaborationTab'), { ssr: false });
-const FinanceTab       = dynamic(() => import('./tabs/FinanceTab'),       { ssr: false });
-const DiscussionTab    = dynamic(() => import('./tabs/DiscussionTab'),    { ssr: false });
-const UpdatesTab       = dynamic(() => import('./tabs/UpdatesTab'),       { ssr: false });
+const TabLoader = () => <div className="min-h-[200px]" />;
+const OverviewTab      = dynamic(() => import('./tabs/OverviewTab'),      { ssr: false, loading: TabLoader });
+const BackersTab       = dynamic(() => import('./tabs/BackersTab'),       { ssr: false, loading: TabLoader });
+const CollaborationTab = dynamic(() => import('./tabs/CollaborationTab'), { ssr: false, loading: TabLoader });
+const FinanceTab       = dynamic(() => import('./tabs/FinanceTab'),       { ssr: false, loading: TabLoader });
+const DiscussionTab    = dynamic(() => import('./tabs/DiscussionTab'),    { ssr: false, loading: TabLoader });
+const UpdatesTab       = dynamic(() => import('./tabs/UpdatesTab'),       { ssr: false, loading: TabLoader });
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 

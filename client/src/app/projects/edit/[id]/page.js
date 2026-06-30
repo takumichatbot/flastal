@@ -54,7 +54,7 @@ export default function EditProjectPage() {
   const router = useRouter();
   const params = useParams();
   const { id: projectId } = params; 
-  const { user, loading: authLoading, authenticatedFetch } = useAuth();
+  const { user, isLoading: authLoading, authenticatedFetch } = useAuth();
 
   const [formData, setFormData] = useState({
     title: '',

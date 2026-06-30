@@ -183,7 +183,7 @@ function StatChip({ icon, label, value, color = 'amber' }) {
 // ── Main ────────────────────────────────────────────────────────
 function IllustratorDetailContent() {
   const { id } = useParams();
-  const { user, authenticatedFetch } = useAuth();
+  const { user, isLoading: authLoading, authenticatedFetch } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const projectIdFromUrl = searchParams.get('projectId');
@@ -209,7 +209,7 @@ function IllustratorDetailContent() {
 
   useEffect(() => { fetchIllustrator(); }, [fetchIllustrator]);
 
-  if (loading) {
+  if (loading || authLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-[#FAF8F5]">
         <Loader2 className="animate-spin text-amber-500" size={40} />
