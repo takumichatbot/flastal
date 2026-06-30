@@ -69,10 +69,11 @@ export default function EditProjectPage() {
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [accessDenied, setAccessDenied] = useState(false);
 
   useEffect(() => {
     if (!projectId || authLoading) return;
-    
+
     if (!user) {
       toast.error('ログインが必要です');
       router.push('/login');
@@ -84,10 +85,12 @@ export default function EditProjectPage() {
         const res = await fetch(`${API_URL}/api/projects/${projectId}`);
         if (!res.ok) throw new Error('企画情報の読み込みに失敗しました');
         const data = await res.json();
-        
-        if (String(data.plannerId) !== String(user.id)) {
-          toast.error('編集権限がありません');
-          router.push(`/projects/${projectId}`);
+
+        const isAdmin = user.role === 'ADMIN' || user.roles?.includes('ADMIN');
+        const isPlanner = String(data.plannerId) === String(user.id);
+        if (!isAdmin && !isPlanner) {
+          setAccessDenied(true);
+          setLoading(false);
           return;
         }
 
@@ -198,6 +201,21 @@ export default function EditProjectPage() {
         <div className="flex justify-center items-center min-h-screen bg-pink-50/50">
             <Loader2 className="animate-spin text-pink-500 w-12 h-12" />
         </div>
+    );
+  }
+
+  if (accessDenied) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-pink-50/50 p-4">
+        <div className="bg-white rounded-[2rem] p-10 shadow-xl text-center max-w-sm w-full">
+          <p className="text-4xl mb-4">🚫</p>
+          <h2 className="text-lg font-black text-slate-800 mb-2">編集権限がありません</h2>
+          <p className="text-sm text-slate-400 font-bold mb-6">この企画を編集できるのは企画者のみです。</p>
+          <Link href={`/projects/${projectId}`} className="block w-full py-3 bg-pink-500 text-white rounded-full font-black text-sm text-center">
+            企画ページへ戻る
+          </Link>
+        </div>
+      </div>
     );
   }
 

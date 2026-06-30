@@ -218,7 +218,7 @@ function IllustratorDetailContent() {
   }
 
   if (!illustrator) {
-    const isOwnProfile = user && (user.role === 'ILLUSTRATOR' || user.roles?.includes('ILLUSTRATOR')) && user.id === id;
+    const isOwnProfile = user?.id === id;
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 text-center p-6">
         <div className="w-20 h-20 bg-white rounded-3xl shadow-sm flex items-center justify-center mb-5">
