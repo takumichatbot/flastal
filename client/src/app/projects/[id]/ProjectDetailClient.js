@@ -751,52 +751,6 @@ export default function ProjectDetailClient() {
   const searchParams = useSearchParams();
   const { id } = params;
 
-  // Stripe決済完了 / キャンセルの検出
-  useEffect(() => {
-    const payment = searchParams.get('payment');
-    if (!payment) return;
-    // URLパラメータをクリア
-    const url = new URL(window.location.href);
-    url.searchParams.delete('payment');
-    router.replace(url.pathname, { scroll: false });
-
-    if (payment === 'success') {
-      import('canvas-confetti').then(({ default: confetti }) => {
-        setTimeout(() => {
-          confetti({ particleCount: 150, spread: 80, origin: { y: 0.5 }, colors: ['#ec4899', '#f43f5e', '#a855f7', '#fbbf24'] });
-        }, 200);
-        setTimeout(() => {
-          confetti({ particleCount: 80, spread: 120, origin: { y: 0.4 }, angle: 60, colors: ['#ec4899', '#fbbf24', '#34d399'] });
-        }, 600);
-      }).catch(() => {});
-      setShowSuccessModal(true);
-    } else if (payment === 'cancelled') {
-      toast('決済がキャンセルされました', { icon: 'ℹ️' });
-    }
-  }, [searchParams, router]);
-
-  // ゲストユーザーが支援完了後にアカウント転換バナーを表示
-  useEffect(() => {
-    const isSuccess = searchParams?.get('pledge') === 'success' || searchParams?.get('payment') === 'success';
-    if (isSuccess && !user) {
-      setShowGuestBanner(true);
-    }
-  }, [searchParams, user]);
-
-  // 完了通知メールからの遷移 (?completed=1) を検知してトースト表示
-  useEffect(() => {
-    if (searchParams.get('completed') !== '1') return;
-    if (!project) return;
-    const hasPledge = user ? (project.pledges || []).some(p => p.userId === user.id) : false;
-    if (!hasPledge) return;
-    // URLパラメータをクリア（1回だけ表示）
-    const url = new URL(window.location.href);
-    url.searchParams.delete('completed');
-    url.searchParams.delete('pledgeId');
-    router.replace(url.pathname, { scroll: false });
-    toast.success('🌸 フラスタが完成しました！ご参加ありがとうございました！', { duration: 5000 });
-  }, [searchParams, project, user, router]);
-
   const [activeTab, setActiveTab] = useState('overview');
   const [collabTab, setCollabTab] = useState('chat');
 
@@ -850,6 +804,50 @@ export default function ProjectDetailClient() {
   const [cheerGuestName, setCheerGuestName] = useState('');
   const [isPostingCheer, setIsPostingCheer] = useState(false);
   const [quickCheerSent, setQuickCheerSent] = useState(false);
+
+  // Stripe決済完了 / キャンセルの検出（state宣言後に配置してTDZを回避）
+  useEffect(() => {
+    const payment = searchParams.get('payment');
+    if (!payment) return;
+    const url = new URL(window.location.href);
+    url.searchParams.delete('payment');
+    router.replace(url.pathname, { scroll: false });
+
+    if (payment === 'success') {
+      import('canvas-confetti').then(({ default: confetti }) => {
+        setTimeout(() => {
+          confetti({ particleCount: 150, spread: 80, origin: { y: 0.5 }, colors: ['#ec4899', '#f43f5e', '#a855f7', '#fbbf24'] });
+        }, 200);
+        setTimeout(() => {
+          confetti({ particleCount: 80, spread: 120, origin: { y: 0.4 }, angle: 60, colors: ['#ec4899', '#fbbf24', '#34d399'] });
+        }, 600);
+      }).catch(() => {});
+      setShowSuccessModal(true);
+    } else if (payment === 'cancelled') {
+      toast('決済がキャンセルされました', { icon: 'ℹ️' });
+    }
+  }, [searchParams, router]);
+
+  // ゲストユーザーが支援完了後にアカウント転換バナーを表示
+  useEffect(() => {
+    const isSuccess = searchParams?.get('pledge') === 'success' || searchParams?.get('payment') === 'success';
+    if (isSuccess && !user) {
+      setShowGuestBanner(true);
+    }
+  }, [searchParams, user]);
+
+  // 完了通知メールからの遷移 (?completed=1) を検知してトースト表示
+  useEffect(() => {
+    if (searchParams.get('completed') !== '1') return;
+    if (!project) return;
+    const hasPledge = user ? (project.pledges || []).some(p => p.userId === user.id) : false;
+    if (!hasPledge) return;
+    const url = new URL(window.location.href);
+    url.searchParams.delete('completed');
+    url.searchParams.delete('pledgeId');
+    router.replace(url.pathname, { scroll: false });
+    toast.success('🌸 フラスタが完成しました！ご参加ありがとうございました！', { duration: 5000 });
+  }, [searchParams, project, user, router]);
 
   const fetchCheers = useCallback(async () => {
     if (!id) return;
