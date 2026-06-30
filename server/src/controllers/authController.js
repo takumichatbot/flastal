@@ -402,9 +402,10 @@ export const resendVerification = async (req, res) => {
 export const forgotPassword = async (req, res) => {
     const { email, userType } = req.body;
     try {
-        const models = { USER: 'user', FLORIST: 'florist', VENUE: 'venue', ORGANIZER: 'organizer', ILLUSTRATOR: 'illustrator' };
+        // ILLUSTRATORはUserテーブルに統合されているためuserモデルを使用
+        const models = { USER: 'user', FLORIST: 'florist', VENUE: 'venue', ORGANIZER: 'organizer', ILLUSTRATOR: 'user' };
         const modelName = models[userType] || 'user';
-        
+
         const user = await prisma[modelName].findUnique({ where: { email: email.toLowerCase() } });
         if (user) {
             const token = jwt.sign({ id: user.id, type: userType }, process.env.JWT_SECRET, { expiresIn: '15m' });
@@ -423,9 +424,9 @@ export const resetPassword = async (req, res) => {
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         const hashedPassword = await bcrypt.hash(password, 10);
-        const models = { USER: 'user', FLORIST: 'florist', VENUE: 'venue', ORGANIZER: 'organizer', ILLUSTRATOR: 'illustrator' };
-        
-        await prisma[models[decoded.type]].update({ 
+        const models = { USER: 'user', FLORIST: 'florist', VENUE: 'venue', ORGANIZER: 'organizer', ILLUSTRATOR: 'user' };
+
+        await prisma[models[decoded.type]].update({
             where: { id: decoded.id }, 
             data: { password: hashedPassword } 
         });
