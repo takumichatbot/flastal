@@ -305,7 +305,7 @@ const Hero = () => {
                   className="w-28 h-32 bg-white p-2 pb-6 rounded-xl shadow-xl border border-slate-100 shrink-0"
                 >
                   <div className="w-full h-full rounded-lg overflow-hidden relative">
-                    <Image src="/IMG_0272.JPG" alt="フラスタ" fill className="object-cover" />
+                    <Image src="/IMG_0272.JPG" alt="フラスタ" fill className="object-contain" />
                   </div>
                   <p className="font-calligraphy text-center mt-2 text-slate-400 text-[10px]">Anniversary</p>
                 </motion.div>
@@ -317,7 +317,7 @@ const Hero = () => {
                   className="w-32 h-36 bg-white p-2 pb-6 rounded-xl shadow-2xl border border-slate-100 shrink-0 z-10"
                 >
                   <div className="w-full h-full rounded-lg overflow-hidden relative">
-                    <Image src="/IMG_0273.JPG" alt="フラスタ" fill className="object-cover" />
+                    <Image src="/IMG_0273.JPG" alt="フラスタ" fill className="object-contain" />
                   </div>
                   <p className="font-calligraphy text-center mt-2 text-pink-400 text-xs">Thank you</p>
                 </motion.div>
@@ -329,7 +329,7 @@ const Hero = () => {
                   className="w-28 h-32 bg-white p-2 pb-6 rounded-xl shadow-xl border border-slate-100 shrink-0"
                 >
                   <div className="w-full h-full rounded-lg overflow-hidden relative">
-                    <Image src="/IMG_0274.JPG" alt="フラスタ" fill className="object-cover" />
+                    <Image src="/IMG_0274.JPG" alt="フラスタ" fill className="object-contain" />
                   </div>
                   <p className="font-calligraphy text-center mt-2 text-pink-400 text-[10px]">Congratulations</p>
                 </motion.div>
@@ -420,7 +420,7 @@ const Hero = () => {
                   whileHover={{ scale: 1.05, rotate: 0 }}
                 >
                   <div className="w-full h-full rounded-xl overflow-hidden relative">
-                    <Image src="/IMG_0272.JPG" alt="フラスタ" fill className="object-cover" />
+                    <Image src="/IMG_0272.JPG" alt="フラスタ" fill className="object-contain" />
                   </div>
                   <p className="font-calligraphy text-center mt-2.5 text-slate-400 text-xs">Happy Anniversary!</p>
                 </motion.div>
@@ -433,7 +433,7 @@ const Hero = () => {
                   whileHover={{ scale: 1.05, rotate: 0 }}
                 >
                   <div className="w-full h-full rounded-xl overflow-hidden relative">
-                    <Image src="/IMG_0273.JPG" alt="フラスタ" fill className="object-cover" />
+                    <Image src="/IMG_0273.JPG" alt="フラスタ" fill className="object-contain" />
                   </div>
                   <p className="font-calligraphy text-center mt-3 text-pink-400 text-base">Thank you</p>
                 </motion.div>
@@ -446,7 +446,7 @@ const Hero = () => {
                   whileHover={{ scale: 1.04, y: -4 }}
                 >
                   <div className="w-full h-full rounded-xl overflow-hidden relative">
-                    <Image src="/IMG_0274.JPG" alt="フラスタ" fill className="object-cover" />
+                    <Image src="/IMG_0274.JPG" alt="フラスタ" fill className="object-contain" />
                   </div>
                   <p className="font-calligraphy text-center mt-2.5 text-pink-400 text-xs">Congratulations!</p>
                 </motion.div>
@@ -685,7 +685,7 @@ const TrendingProjects = () => {
                         <Image src={project.imageUrl} alt={project?.title || "企画画像"} fill className="object-cover group-hover:scale-105 transition-transform duration-700" />
                       ) : (
                         <div className="absolute inset-0">
-                          <Image src="/IMG_0275.JPG" alt="フラスタ" fill className="object-cover" />
+                          <Image src="/IMG_0275.JPG" alt="フラスタ" fill className="object-contain" />
                         </div>
                       )}
                       <div className="absolute top-2.5 left-2.5">
