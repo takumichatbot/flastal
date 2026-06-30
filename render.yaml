@@ -6,7 +6,7 @@ services:
     name: flastal-backend
     runtime: node
     rootDir: server
-    buildCommand: "npm ci && npx prisma generate --schema=prisma/schema.prisma"
+    buildCommand: "npm ci && npx prisma generate --schema=prisma/schema.prisma && npx prisma db push --schema=prisma/schema.prisma --accept-data-loss"
     startCommand: "node index.js"
     healthCheckPath: /
     envVars:
