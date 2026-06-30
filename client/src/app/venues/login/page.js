@@ -42,7 +42,7 @@ export default function VenueLoginPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        if (res.status === 403 && (data.message.includes('認証') || data.message.includes('Verification'))) {
+        if (res.status === 403 && (data.code === 'EMAIL_UNVERIFIED' || data.message.includes('認証') || data.message.includes('Verification'))) {
             setShowResend(true);
         }
         throw new Error(data.message || 'ログインに失敗しました');

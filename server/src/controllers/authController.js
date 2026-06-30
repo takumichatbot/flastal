@@ -266,7 +266,8 @@ export const loginVenue = async (req, res) => {
         const venue = await prisma.venue.findUnique({ where: { email: email.toLowerCase() } });
         
         if (!venue || !(await bcrypt.compare(password, venue.password))) return res.status(401).json({ message: '認証失敗' });
-        if (!venue.isVerified || venue.status !== 'APPROVED') return res.status(403).json({ message: 'アカウントが承認されていません。' });
+        if (!venue.isVerified) return res.status(403).json({ message: 'メール認証が完了していません。確認メールをご確認ください。', code: 'EMAIL_UNVERIFIED' });
+        if (venue.status !== 'APPROVED') return res.status(403).json({ message: '現在審査中です。承認後にログインできます。', code: 'PENDING_APPROVAL' });
         
         const { accessToken, refreshToken } = generateBusinessToken({
             id: venue.id,
@@ -317,7 +318,8 @@ export const loginOrganizer = async (req, res) => {
         const org = await prisma.organizer.findUnique({ where: { email: email.toLowerCase() } });
         
         if (!org || !(await bcrypt.compare(password, org.password))) return res.status(401).json({ message: '認証失敗' });
-        if (!org.isVerified || org.status !== 'APPROVED') return res.status(403).json({ message: '未承認のアカウントです。' });
+        if (!org.isVerified) return res.status(403).json({ message: 'メール認証が完了していません。確認メールをご確認ください。', code: 'EMAIL_UNVERIFIED' });
+        if (org.status !== 'APPROVED') return res.status(403).json({ message: '現在審査中です。承認後にログインできます。', code: 'PENDING_APPROVAL' });
         
         const { accessToken, refreshToken } = generateBusinessToken({
             id: org.id,

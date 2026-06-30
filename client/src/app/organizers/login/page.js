@@ -40,7 +40,7 @@ function OrganizerLoginContent() {
       const result = await res.json();
 
       if (!res.ok) {
-        if (res.status === 403 && (result.message.includes('認証') || result.message.includes('Verification'))) {
+        if (res.status === 403 && (result.code === 'EMAIL_UNVERIFIED' || result.message.includes('認証') || result.message.includes('Verification'))) {
             setShowResend(true);
         }
         throw new Error(result.message || 'ログインに失敗しました。');
