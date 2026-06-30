@@ -968,7 +968,7 @@ const LaruSeoEmbed = () => {
       const el = containerRef.current;
       if (!el || el.querySelector('script')) return;
       const script = document.createElement('script');
-      script.src = `https://larubot.tokyo/embed/blog.js?t=${Date.now()}`;
+      script.src = 'https://larubot.tokyo/embed/blog.js';
       script.setAttribute("data-id", "0d0f2602-f7d7-4bd7-a356-06472c372d12");
       script.setAttribute("data-limit", "3");
       script.async = true;
@@ -995,8 +995,8 @@ const BUSINESS_CARDS = [
   },
   {
     emoji: '🏛️',
-    title: '会場・運営',
-    desc: 'ライブ・イベント会場としてFLASTALと連携。フラスタ搬入をスムーズに。',
+    title: '会場',
+    desc: 'ライブ・コンサート会場としてFLASTALと連携。フラスタ搬入の受付をスムーズに。',
     register: { label: '新規登録', href: '/venues/register' },
     login:    { label: 'ログイン',   href: '/venues/login' },
     color: 'from-violet-400 to-purple-500',
@@ -1005,8 +1005,8 @@ const BUSINESS_CARDS = [
   },
   {
     emoji: '🎪',
-    title: '主催者',
-    desc: 'フラスタ企画の主催者として登録。イベント管理からメッセージ送信まで一括管理。',
+    title: 'イベント会社',
+    desc: 'イベント主催会社として登録。企画管理・会場調整・ファンへの連絡が一括でできます。',
     register: { label: '新規登録', href: '/organizers/register' },
     login:    { label: 'ログイン',   href: '/organizers/login' },
     color: 'from-amber-400 to-orange-500',
