@@ -24,10 +24,10 @@ export const generateTokensForOAuth = async (payload) => {
 };
 
 // ビジネスロール（Florist/Venue/Organizer）向け: 7日間有効、DB保存不要
+// refreshTokenにもJWT自体を使い、/auth/refreshで再検証して返す
 export const generateBusinessToken = (payload) => {
     const token = generateToken(payload, '7d');
-    const refreshToken = crypto.randomBytes(64).toString('hex');
-    return { accessToken: token, refreshToken };
+    return { accessToken: token, refreshToken: token };
 };
 
 const generateTokens = async (payload) => {
@@ -441,6 +441,19 @@ export const refreshAccessToken = async (req, res) => {
     const { refreshToken } = req.body;
     if (!refreshToken) {
         return res.status(401).json({ message: 'リフレッシュトークンが必要です。' });
+    }
+
+    // ビジネスロール（FLORIST/VENUE/ORGANIZER）は7日JWTをrefreshTokenとして使用
+    try {
+        const decoded = jwt.verify(refreshToken, process.env.JWT_SECRET);
+        const businessRoles = ['FLORIST', 'VENUE', 'ORGANIZER'];
+        if (decoded && businessRoles.includes(decoded.role)) {
+            const { iat, exp, ...payload } = decoded;
+            const newToken = generateBusinessToken(payload);
+            return res.json({ token: newToken.accessToken, refreshToken: newToken.refreshToken });
+        }
+    } catch (_) {
+        // JWTでなければ通常のrefreshToken処理へ
     }
 
     try {
