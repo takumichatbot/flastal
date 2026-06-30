@@ -8,7 +8,7 @@ import {
   Bell, ChevronDown, User, LogOut, Heart, CheckCircle2, Menu, X,
   Calendar, MapPin, LayoutDashboard, Settings, Sparkles, Store, ShieldCheck, Briefcase, FileText,
   UserCheck, ClipboardList, BarChart3, Building2, Package, Truck, Search, PlusCircle, Star, Rss,
-  Gift, Users
+  Gift, Users, Palette
 } from 'lucide-react';
 import { motion, AnimatePresence, useScroll, useMotionValueEvent } from 'framer-motion';
 import toast from 'react-hot-toast';
@@ -288,6 +288,7 @@ export default function Header() {
       case 'FLORIST': return `/florists/${user.id}`; 
       case 'VENUE': return `/venues/dashboard/${user.id}`;
       case 'ORGANIZER': return '/organizers/dashboard';
+      case 'ILLUSTRATOR': return '/mypage/illustrator';
       default: return '/mypage';
     }
   }, [user]);
@@ -315,6 +316,11 @@ export default function Header() {
           { href: '/organizers/dashboard', label: '企画管理ホーム', icon: <LayoutDashboard size={14} /> },
           { href: '/organizers/profile', label: '主催者情報設定', icon: <User size={14} /> },
           { href: '/organizers/messages', label: '参加者メッセージ', icon: <Bell size={14} /> },
+      ];
+      case 'ILLUSTRATOR': return [
+          { href: '/mypage/illustrator', label: '絵師ダッシュボード', icon: <Palette size={14} /> },
+          { href: '/illustrators/recruitment', label: '案件ボード', icon: <Briefcase size={14} /> },
+          { href: '/mypage/edit', label: 'プロフィール設定', icon: <Settings size={14} /> },
       ];
       default: return [
           { href: '/feed', label: 'フォローフィード', icon: <Rss size={14} /> },

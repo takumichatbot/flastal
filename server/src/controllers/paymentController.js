@@ -108,7 +108,10 @@ export const createCheckoutSession = async (req, res) => {
     const paymentMethodTypes = PM_TYPES[paymentMethod] || ['card'];
 
     try {
-        const project = await prisma.project.findUnique({ where: { id: projectId } });
+        const [project, userRecord] = await Promise.all([
+            prisma.project.findUnique({ where: { id: projectId } }),
+            userId ? prisma.user.findUnique({ where: { id: userId }, select: { handleName: true } }) : Promise.resolve(null),
+        ]);
         if (!project) return res.status(404).json({ message: '企画が見つかりません' });
 
         const sessionParams = {
@@ -119,7 +122,7 @@ export const createCheckoutSession = async (req, res) => {
                     product_data: {
                         name: `企画支援: ${project.title}`,
                         description: userId
-                            ? `支援総額 ${amount}円 (ポイント充当: ${pointsToUse || 0}pt)`
+                            ? `${userRecord?.handleName || 'ユーザー'}様 支援総額 ${amount}円 (ポイント充当: ${pointsToUse || 0}pt)`
                             : guestName ? `ゲスト支援: ${guestName}様` : 'ゲスト支援',
                     },
                     unit_amount: parseInt(cardAmount),

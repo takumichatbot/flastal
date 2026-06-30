@@ -308,6 +308,7 @@ function QuotationApprovalModal({ project, user, onClose, onUpdate }) {
 
 function PledgeForm({ project, user, onPledgeSubmit, isPledger }) {
   const isNativeApp = Capacitor.isNativePlatform();
+  const { authenticatedFetch } = useAuth();
   const { register, handleSubmit, formState: { isSubmitting }, reset, watch, setValue } = useForm({
     defaultValues: { pledgeType: 'tier', selectedTierId: project.pledgeTiers?.[0]?.id || '', pledgeAmount: project.minContributionAmount || 1000, comment: '', guestName: '', guestEmail: '' }
   });
@@ -347,22 +348,16 @@ function PledgeForm({ project, user, onPledgeSubmit, isPledger }) {
     else {
         const loadingToast = toast.loading('Stripe決済ページへ移動中...');
         try {
-            const rawToken = typeof window !== 'undefined' ? localStorage.getItem('authToken') : null;
-            const token = rawToken ? rawToken.replace(/^"|"$/g, '').trim() : null;
-            const headers = { 'Content-Type': 'application/json' };
-            if (token && token !== 'null' && token !== 'undefined') headers['Authorization'] = `Bearer ${token}`;
-
-            const res = await fetch(`${API_URL}/api/payment/checkout/create-checkout-session`, {
+            const res = await authenticatedFetch(`${API_URL}/api/payment/checkout/create-checkout-session`, {
                 method: 'POST',
-                headers: headers,
                 body: JSON.stringify({
-                    projectId: project.id, 
+                    projectId: project.id,
                     amount: finalAmount,
                     pointsToUse: pointsToUse,
                     cardAmount: cardAmount,
                     comment: data.comment,
                     tierId: pledgeType === 'tier' ? data.selectedTierId : undefined,
-                    guestName: !user ? data.guestName : undefined, 
+                    guestName: !user ? data.guestName : undefined,
                     guestEmail: !user ? data.guestEmail : undefined,
                     paymentMethod,
                     successUrl: `${window.location.origin}/projects/${project.id}?payment=success`,
