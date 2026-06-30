@@ -422,7 +422,6 @@ function ProjectsContent() {
   }, [authenticatedFetch]);
 
   const fetchProjects = useCallback(async (overridePage) => {
-    if (authLoading) return;
     setLoading(true);
     try {
       const params = new URLSearchParams();
@@ -513,10 +512,11 @@ function ProjectsContent() {
     window.scrollTo({ top: 0, behavior: 'instant' });
   }, [prefecture, sort, statusFilter, selectedTags, minAmount, maxAmount]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // currentPage（URL）またはその他フィルターが変わったらデータ取得
+  // currentPage（URL）・authLoading が変わったらデータ取得
   useEffect(() => {
+    if (authLoading) return;
     fetchProjects(currentPage);
-  }, [currentPage, searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [currentPage, searchParams, authLoading]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const toggleTag = useCallback((slug) => {
     setSelectedTags(prev =>
