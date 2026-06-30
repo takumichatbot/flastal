@@ -18,17 +18,33 @@ export const registerIllustrator = async (req, res) => {
     const existing = await prisma.user.findUnique({ where: { email: lowerEmail } });
     if (existing) {
       if (existing.role === 'ILLUSTRATOR' && !existing.isVerified) {
-        // 未認証のイラストレーターアカウントが既存 → 認証メールを再送
+        // 未認証のイラストレーターアカウント → 認証メールを再送
         const newToken = crypto.randomBytes(32).toString('hex');
         await prisma.user.update({ where: { id: existing.id }, data: { verificationToken: newToken } });
         const verificationUrl = `${process.env.FRONTEND_URL}/verify?token=${newToken}`;
         await sendDynamicEmail({ to: lowerEmail, templateType: 'VERIFICATION', dynamicData: { verificationUrl } });
         return res.status(409).json({ message: 'このメールアドレスは登録済みですが未認証です。確認メールを再送しました。受信箱をご確認ください。' });
       }
-      if (existing.role !== 'ILLUSTRATOR') {
-        return res.status(409).json({ message: 'このメールアドレスは別のアカウント（一般ユーザー等）で使用されています。別のメールアドレスをご使用ください。' });
+      if (existing.role === 'ILLUSTRATOR') {
+        return res.status(409).json({ message: 'このメールアドレスは既にイラストレーターとして登録されています。' });
       }
-      return res.status(409).json({ message: 'このメールアドレスは既に使用されています。' });
+      // 一般ユーザーのアカウントをイラストレーターに切り替え
+      const hashedPassword = await bcrypt.hash(password, 10);
+      const verificationToken = crypto.randomBytes(32).toString('hex');
+      await prisma.user.update({
+        where: { id: existing.id },
+        data: {
+          password: hashedPassword,
+          handleName: activityName,
+          role: 'ILLUSTRATOR',
+          verificationToken,
+          isVerified: false,
+          status: 'PENDING',
+        }
+      });
+      const verificationUrl = `${process.env.FRONTEND_URL}/verify?token=${verificationToken}`;
+      await sendDynamicEmail({ to: lowerEmail, templateType: 'VERIFICATION', dynamicData: { verificationUrl } });
+      return res.status(201).json({ message: 'イラストレーターとして登録しました。確認メールをご確認ください。' });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
