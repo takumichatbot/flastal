@@ -304,8 +304,8 @@ const Hero = () => {
                   transition={{ duration: 0.8, delay: 0.3, type: "spring", bounce: 0.4 }}
                   className="w-28 h-32 bg-white p-2 pb-6 rounded-xl shadow-xl border border-slate-100 shrink-0"
                 >
-                  <div className="w-full h-full bg-rose-50 rounded-lg flex items-center justify-center border border-rose-100">
-                    <span className="text-4xl">💐</span>
+                  <div className="w-full h-full rounded-lg overflow-hidden relative">
+                    <Image src="/IMG_0272.JPG" alt="フラスタ" fill className="object-cover" />
                   </div>
                   <p className="font-calligraphy text-center mt-2 text-slate-400 text-[10px]">Anniversary</p>
                 </motion.div>
@@ -316,8 +316,8 @@ const Hero = () => {
                   transition={{ duration: 0.8, delay: 0.4, type: "spring", bounce: 0.4 }}
                   className="w-32 h-36 bg-white p-2 pb-6 rounded-xl shadow-2xl border border-slate-100 shrink-0 z-10"
                 >
-                  <div className="w-full h-full bg-pink-50 rounded-lg flex items-center justify-center border border-pink-100">
-                    <span className="text-5xl">💖</span>
+                  <div className="w-full h-full rounded-lg overflow-hidden relative">
+                    <Image src="/IMG_0273.JPG" alt="フラスタ" fill className="object-cover" />
                   </div>
                   <p className="font-calligraphy text-center mt-2 text-pink-400 text-xs">Thank you</p>
                 </motion.div>
@@ -328,8 +328,8 @@ const Hero = () => {
                   transition={{ duration: 0.8, delay: 0.5, type: "spring", bounce: 0.4 }}
                   className="w-28 h-32 bg-white p-2 pb-6 rounded-xl shadow-xl border border-slate-100 shrink-0"
                 >
-                  <div className="w-full h-full bg-pink-50 rounded-lg flex items-center justify-center border border-pink-100">
-                    <span className="text-4xl">🌟</span>
+                  <div className="w-full h-full rounded-lg overflow-hidden relative">
+                    <Image src="/IMG_0274.JPG" alt="フラスタ" fill className="object-cover" />
                   </div>
                   <p className="font-calligraphy text-center mt-2 text-pink-400 text-[10px]">Congratulations</p>
                 </motion.div>
@@ -419,8 +419,8 @@ const Hero = () => {
                   className="w-48 h-56 bg-white p-3 pb-8 rounded-2xl shadow-xl border border-slate-100 cursor-pointer self-start"
                   whileHover={{ scale: 1.05, rotate: 0 }}
                 >
-                  <div className="w-full h-full bg-rose-50 rounded-xl flex items-center justify-center border border-rose-100">
-                    <span className="text-5xl drop-shadow-md">💐</span>
+                  <div className="w-full h-full rounded-xl overflow-hidden relative">
+                    <Image src="/IMG_0272.JPG" alt="フラスタ" fill className="object-cover" />
                   </div>
                   <p className="font-calligraphy text-center mt-2.5 text-slate-400 text-xs">Happy Anniversary!</p>
                 </motion.div>
@@ -432,8 +432,8 @@ const Hero = () => {
                   className="w-56 h-64 bg-white p-3 pb-10 rounded-2xl shadow-2xl border border-slate-100 cursor-pointer self-end"
                   whileHover={{ scale: 1.05, rotate: 0 }}
                 >
-                  <div className="w-full h-full bg-pink-50 rounded-xl flex items-center justify-center border border-pink-100">
-                    <span className="text-6xl drop-shadow-md">💖</span>
+                  <div className="w-full h-full rounded-xl overflow-hidden relative">
+                    <Image src="/IMG_0273.JPG" alt="フラスタ" fill className="object-cover" />
                   </div>
                   <p className="font-calligraphy text-center mt-3 text-pink-400 text-base">Thank you</p>
                 </motion.div>
@@ -442,16 +442,13 @@ const Hero = () => {
                   initial={{ opacity: 0, y: 30 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.8, delay: 0.4, type: "spring", bounce: 0.35 }}
-                  className="w-64 h-24 bg-gradient-to-r from-pink-50 to-rose-50 rounded-2xl shadow-lg border border-pink-100 flex items-center p-4 cursor-pointer self-start"
+                  className="w-56 h-40 bg-white p-3 pb-8 rounded-2xl shadow-lg border border-slate-100 cursor-pointer self-start"
                   whileHover={{ scale: 1.04, y: -4 }}
                 >
-                  <div className="border-r-2 border-dashed border-pink-200 pr-4 mr-4">
-                    <Ticket className="text-pink-400" size={28} />
+                  <div className="w-full h-full rounded-xl overflow-hidden relative">
+                    <Image src="/IMG_0274.JPG" alt="フラスタ" fill className="object-cover" />
                   </div>
-                  <div>
-                    <p className="text-[10px] font-black tracking-widest uppercase text-pink-400 mb-0.5">Live Event</p>
-                    <p className="font-black text-slate-800 text-sm">フラスタ受付完了 🎉</p>
-                  </div>
+                  <p className="font-calligraphy text-center mt-2.5 text-pink-400 text-xs">Congratulations!</p>
                 </motion.div>
               </>
             )}
@@ -687,7 +684,9 @@ const TrendingProjects = () => {
                       {project?.imageUrl ? (
                         <Image src={project.imageUrl} alt={project?.title || "企画画像"} fill className="object-cover group-hover:scale-105 transition-transform duration-700" />
                       ) : (
-                        <div className="absolute inset-0 bg-pink-50 flex items-center justify-center text-4xl">💐</div>
+                        <div className="absolute inset-0">
+                          <Image src="/IMG_0275.JPG" alt="フラスタ" fill className="object-cover" />
+                        </div>
                       )}
                       <div className="absolute top-2.5 left-2.5">
                         <span className={cn("px-2.5 py-1 rounded-full text-[9px] font-black text-white uppercase tracking-wider shadow-sm", badgeColor)}>
