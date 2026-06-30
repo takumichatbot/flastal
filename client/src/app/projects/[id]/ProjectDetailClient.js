@@ -1312,6 +1312,16 @@ export default function ProjectDetailClient() {
     [project?.collectedAmount, project?.targetAmount]
   );
 
+  // early return より前に宣言（hooks は条件分岐をまたいで呼べないため）
+  const totalExpense = useMemo(
+    () => (project?.expenses || []).reduce((sum, exp) => sum + exp.amount, 0),
+    [project?.expenses]
+  );
+  const balance = useMemo(
+    () => (project?.collectedAmount ?? 0) - totalExpense,
+    [project?.collectedAmount, totalExpense]
+  );
+
   const isMounted = useIsMounted();
 
   if (!isMounted) return null;
@@ -1333,15 +1343,6 @@ export default function ProjectDetailClient() {
     </div>
   );
   if (!project) return <div className="text-center py-32 text-slate-400 font-bold text-lg bg-slate-50 min-h-screen">企画が見つかりませんでした。</div>;
-
-  const totalExpense = useMemo(
-    () => (project.expenses || []).reduce((sum, exp) => sum + exp.amount, 0),
-    [project.expenses]
-  );
-  const balance = useMemo(
-    () => project.collectedAmount - totalExpense,
-    [project.collectedAmount, totalExpense]
-  );
 
   // タブコンポーネントに渡す共有コンテキスト
   const tabCtx = {
