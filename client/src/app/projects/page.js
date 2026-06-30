@@ -571,7 +571,7 @@ function ProjectsContent() {
         className="fixed top-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-xl border-b border-slate-100 shadow-sm"
         style={{ paddingTop: 'env(safe-area-inset-top)' }}
       >
-        <div className="max-w-2xl mx-auto px-4">
+        <div className="max-w-6xl mx-auto px-4">
           {/* Top row */}
           <div className="h-14 flex items-center gap-3">
             <button onClick={() => router.back()}
@@ -675,7 +675,7 @@ function ProjectsContent() {
 
       {/* ── Content ── */}
       <div
-        className="flex-1 overflow-y-auto max-w-2xl mx-auto w-full px-4"
+        className="flex-1 overflow-y-auto max-w-6xl mx-auto w-full px-4"
         style={{
           paddingTop: `calc(${selectedTags.length > 0 ? '12.5rem' : '10.5rem'} + env(safe-area-inset-top))`,
           paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))',
@@ -702,7 +702,7 @@ function ProjectsContent() {
         </div>
 
         {loading ? (
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
             {[...Array(6)].map((_, i) => (
               <div key={i} className="bg-white rounded-[1.5rem] overflow-hidden animate-pulse border border-slate-100">
                 <div className="aspect-video bg-slate-100" />
@@ -723,7 +723,7 @@ function ProjectsContent() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -8 }}
                 transition={{ duration: 0.25, ease: 'easeOut' }}
-                className="grid grid-cols-2 gap-3"
+                className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3"
               >
                 {projects.map((p, i) => <ProjectCard key={p.id} project={p} index={i} searchQuery={keyword} />)}
               </motion.div>

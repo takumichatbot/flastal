@@ -302,7 +302,7 @@ const Hero = () => {
                   initial={{ opacity: 0, rotate: -8, y: 10 }}
                   animate={{ opacity: 1, rotate: -6, y: 0 }}
                   transition={{ duration: 0.8, delay: 0.3, type: "spring", bounce: 0.4 }}
-                  className="w-28 h-32 bg-white p-2 pb-6 rounded-xl shadow-xl border border-slate-100 shrink-0"
+                  className="w-28 h-32 bg-white p-1 pb-5 rounded-xl shadow-xl border border-slate-100 shrink-0"
                 >
                   <div className="w-full h-full rounded-lg overflow-hidden relative">
                     <Image src="/IMG_0272.JPG" alt="フラスタ" fill className="object-contain" />
@@ -314,7 +314,7 @@ const Hero = () => {
                   initial={{ opacity: 0, rotate: 10, y: -10 }}
                   animate={{ opacity: 1, rotate: 6, y: 0 }}
                   transition={{ duration: 0.8, delay: 0.4, type: "spring", bounce: 0.4 }}
-                  className="w-32 h-36 bg-white p-2 pb-6 rounded-xl shadow-2xl border border-slate-100 shrink-0 z-10"
+                  className="w-32 h-36 bg-white p-1 pb-5 rounded-xl shadow-2xl border border-slate-100 shrink-0 z-10"
                 >
                   <div className="w-full h-full rounded-lg overflow-hidden relative">
                     <Image src="/IMG_0273.JPG" alt="フラスタ" fill className="object-contain" />
@@ -326,7 +326,7 @@ const Hero = () => {
                   initial={{ opacity: 0, rotate: -6, y: 8 }}
                   animate={{ opacity: 1, rotate: 4, y: 0 }}
                   transition={{ duration: 0.8, delay: 0.5, type: "spring", bounce: 0.4 }}
-                  className="w-28 h-32 bg-white p-2 pb-6 rounded-xl shadow-xl border border-slate-100 shrink-0"
+                  className="w-28 h-32 bg-white p-1 pb-5 rounded-xl shadow-xl border border-slate-100 shrink-0"
                 >
                   <div className="w-full h-full rounded-lg overflow-hidden relative">
                     <Image src="/IMG_0274.JPG" alt="フラスタ" fill className="object-contain" />
@@ -416,7 +416,7 @@ const Hero = () => {
                   initial={{ opacity: 0, rotate: -15, x: -30, y: 30 }}
                   animate={{ opacity: 1, rotate: -8, x: 0, y: 0 }}
                   transition={{ duration: 0.8, delay: 0.2, type: "spring", bounce: 0.35 }}
-                  className="w-48 h-56 bg-white p-3 pb-8 rounded-2xl shadow-xl border border-slate-100 cursor-pointer self-start"
+                  className="w-48 h-56 bg-white p-1.5 pb-6 rounded-2xl shadow-xl border border-slate-100 cursor-pointer self-start"
                   whileHover={{ scale: 1.05, rotate: 0 }}
                 >
                   <div className="w-full h-full rounded-xl overflow-hidden relative">
@@ -429,7 +429,7 @@ const Hero = () => {
                   initial={{ opacity: 0, rotate: 20, x: 30, y: -30 }}
                   animate={{ opacity: 1, rotate: 10, x: 0, y: 0 }}
                   transition={{ duration: 0.8, delay: 0.3, type: "spring", bounce: 0.35 }}
-                  className="w-56 h-64 bg-white p-3 pb-10 rounded-2xl shadow-2xl border border-slate-100 cursor-pointer self-end"
+                  className="w-56 h-64 bg-white p-1.5 pb-7 rounded-2xl shadow-2xl border border-slate-100 cursor-pointer self-end"
                   whileHover={{ scale: 1.05, rotate: 0 }}
                 >
                   <div className="w-full h-full rounded-xl overflow-hidden relative">
@@ -442,7 +442,7 @@ const Hero = () => {
                   initial={{ opacity: 0, y: 30 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.8, delay: 0.4, type: "spring", bounce: 0.35 }}
-                  className="w-56 h-40 bg-white p-3 pb-8 rounded-2xl shadow-lg border border-slate-100 cursor-pointer self-start"
+                  className="w-56 h-40 bg-white p-1.5 pb-6 rounded-2xl shadow-lg border border-slate-100 cursor-pointer self-start"
                   whileHover={{ scale: 1.04, y: -4 }}
                 >
                   <div className="w-full h-full rounded-xl overflow-hidden relative">
