@@ -3,7 +3,7 @@ import compression from 'compression';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import webpush from 'web-push';
-import { generalLimiter, authLimiter, uploadLimiter, paymentLimiter, aiLimiter } from './middleware/rateLimiter.js';
+import { generalLimiter, uploadLimiter, paymentLimiter, aiLimiter } from './middleware/rateLimiter.js';
 import postRoutes from './routes/posts.js';
 import { sendEmail } from './utils/email.js';
 import { startWebhookRetryJob } from './jobs/webhookRetry.js';
@@ -187,7 +187,7 @@ app.get('/api/readiness', async (_req, res) => {
 // ==========================================
 // ★★★ ルーティングのマウント ★★★
 // ==========================================
-app.use('/api', authLimiter, authRoutes);       // ログイン・登録は厳しく制限
+app.use('/api', authRoutes);
 app.use('/api/users', generalLimiter, userRoutes);
 app.use('/api/florists', generalLimiter, floristRoutes);
 app.use('/api/venues', generalLimiter, venueRoutes);

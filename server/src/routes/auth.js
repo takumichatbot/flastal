@@ -4,7 +4,6 @@ import * as authController from '../controllers/authController.js';
 import { validate, loginSchema, registerSchema } from '../middleware/validate.js';
 import * as totpController from '../controllers/totpController.js';
 import { authenticateToken } from '../middleware/auth.js';
-import { authLimiter } from '../middleware/rateLimiter.js';
 import prisma from '../config/prisma.js';
 import jwt from 'jsonwebtoken';
 
@@ -41,8 +40,8 @@ router.post('/auth/refresh', authController.refreshAccessToken);
 router.post('/auth/logout', authController.revokeRefreshToken);
 router.post('/auth/verify', authController.verifyEmail);
 router.post('/auth/resend-verification', authController.resendVerification);
-router.post('/forgot-password', authLimiter, authController.forgotPassword);
-router.post('/reset-password', authLimiter, authController.resetPassword);
+router.post('/forgot-password', authController.forgotPassword);
+router.post('/reset-password', authController.resetPassword);
 
 // ==========================================
 // 6. 管理者 (Admin) 
