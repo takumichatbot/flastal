@@ -295,44 +295,29 @@ const Hero = () => {
               </p>
             </Reveal>
 
-            {/* モバイル専用ミニビジュアル */}
+            {/* モバイル専用フォトグリッド */}
             <Reveal delay={0.25} className="lg:hidden w-full mb-8">
-              <div className="flex items-center justify-center gap-3">
-                <motion.div
-                  initial={{ opacity: 0, rotate: -8, y: 10 }}
-                  animate={{ opacity: 1, rotate: -6, y: 0 }}
-                  transition={{ duration: 0.8, delay: 0.3, type: "spring", bounce: 0.4 }}
-                  className="w-28 h-32 bg-white p-1 pb-5 rounded-xl shadow-xl border border-slate-100 shrink-0"
-                >
-                  <div className="w-full h-full rounded-lg overflow-hidden relative">
-                    <Image src="/IMG_0272.JPG" alt="フラスタ" fill className="object-contain" />
-                  </div>
-                  <p className="font-calligraphy text-center mt-2 text-slate-400 text-[10px]">Anniversary</p>
-                </motion.div>
-
-                <motion.div
-                  initial={{ opacity: 0, rotate: 10, y: -10 }}
-                  animate={{ opacity: 1, rotate: 6, y: 0 }}
-                  transition={{ duration: 0.8, delay: 0.4, type: "spring", bounce: 0.4 }}
-                  className="w-32 h-36 bg-white p-1 pb-5 rounded-xl shadow-2xl border border-slate-100 shrink-0 z-10"
-                >
-                  <div className="w-full h-full rounded-lg overflow-hidden relative">
-                    <Image src="/IMG_0273.JPG" alt="フラスタ" fill className="object-contain" />
-                  </div>
-                  <p className="font-calligraphy text-center mt-2 text-pink-400 text-xs">Thank you</p>
-                </motion.div>
-
-                <motion.div
-                  initial={{ opacity: 0, rotate: -6, y: 8 }}
-                  animate={{ opacity: 1, rotate: 4, y: 0 }}
-                  transition={{ duration: 0.8, delay: 0.5, type: "spring", bounce: 0.4 }}
-                  className="w-28 h-32 bg-white p-1 pb-5 rounded-xl shadow-xl border border-slate-100 shrink-0"
-                >
-                  <div className="w-full h-full rounded-lg overflow-hidden relative">
-                    <Image src="/IMG_0274.JPG" alt="フラスタ" fill className="object-contain" />
-                  </div>
-                  <p className="font-calligraphy text-center mt-2 text-pink-400 text-[10px]">Congratulations</p>
-                </motion.div>
+              <div className="grid grid-cols-2 gap-3 max-w-xs mx-auto">
+                {[
+                  { src: '/IMG_0272.JPG', caption: 'Anniversary', rotate: '-rotate-3', delay: 0.3, color: 'text-slate-500' },
+                  { src: '/IMG_0273.JPG', caption: 'Thank you♡',  rotate: 'rotate-2',  delay: 0.4, color: 'text-pink-400' },
+                  { src: '/IMG_0274.JPG', caption: 'With Love',   rotate: 'rotate-3',  delay: 0.5, color: 'text-rose-400' },
+                  { src: '/IMG_0275.JPG', caption: 'Congrats!',   rotate: '-rotate-2', delay: 0.6, color: 'text-pink-500' },
+                ].map(({ src, caption, rotate, delay, color }) => (
+                  <motion.div
+                    key={src}
+                    initial={{ opacity: 0, scale: 0.85, y: 16 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    transition={{ duration: 0.7, delay, type: 'spring', bounce: 0.35 }}
+                    className={`bg-white p-2 pb-7 rounded-2xl shadow-lg border border-slate-100 ${rotate}`}
+                    whileHover={{ scale: 1.05, rotate: '0deg' }}
+                  >
+                    <div className="w-full aspect-square rounded-xl overflow-hidden relative bg-rose-50">
+                      <Image src={src} alt="フラスタ" fill className="object-contain" />
+                    </div>
+                    <p className={`font-calligraphy text-center mt-2 text-[10px] ${color}`}>{caption}</p>
+                  </motion.div>
+                ))}
               </div>
             </Reveal>
 
@@ -377,79 +362,119 @@ const Hero = () => {
             </Reveal>
           </div>
 
-          {/* ===== デスクトップ：コラージュビジュアル ===== */}
-          <div className="lg:col-span-5 relative w-full hidden lg:flex flex-col justify-center mt-6 lg:mt-0 gap-3">
+          {/* ===== デスクトップ：4枚フォトコラージュ ===== */}
+          <div className="lg:col-span-5 relative w-full hidden lg:block mt-6 lg:mt-0" style={{ height: '480px' }}>
             {featuredProjects.length > 0 ? (
-              featuredProjects.map((project, i) => {
-                const percent = Math.min(Math.round(((project?.collectedAmount || project?.currentAmount || 0) / (project?.targetAmount || 1)) * 100), 100);
-                return (
-                  <motion.div
-                    key={project.id}
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.3 + i * 0.1, duration: 0.5 }}
-                    className="bg-white/90 backdrop-blur-sm rounded-2xl p-3 shadow-sm border border-pink-100/50 flex items-center gap-3"
-                  >
-                    <div className="w-12 h-12 rounded-xl bg-pink-50 flex-shrink-0 overflow-hidden relative">
-                      {project.imageUrl ? (
-                        <Image src={project.imageUrl} alt={project?.title || '企画画像'} fill className="object-cover" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-xl">💐</div>
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-bold text-slate-800 truncate">{project.title}</p>
-                      <div className="mt-1 h-1 bg-slate-100 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-gradient-to-r from-pink-400 to-rose-400 rounded-full"
-                          style={{ width: `${percent}%` }}
-                        />
+              <div className="flex flex-col gap-3 justify-center h-full">
+                {featuredProjects.map((project, i) => {
+                  const percent = Math.min(Math.round(((project?.collectedAmount || project?.currentAmount || 0) / (project?.targetAmount || 1)) * 100), 100);
+                  return (
+                    <motion.div
+                      key={project.id}
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.3 + i * 0.1, duration: 0.5 }}
+                      className="bg-white/90 backdrop-blur-sm rounded-2xl p-3 shadow-sm border border-pink-100/50 flex items-center gap-3"
+                    >
+                      <div className="w-12 h-12 rounded-xl bg-pink-50 flex-shrink-0 overflow-hidden relative">
+                        {project.imageUrl ? (
+                          <Image src={project.imageUrl} alt={project?.title || '企画画像'} fill className="object-cover" />
+                        ) : (
+                          <Image src="/IMG_0272.JPG" alt="フラスタ" fill className="object-contain" />
+                        )}
                       </div>
-                      <p className="text-[10px] text-slate-400 mt-0.5">{percent}% 達成</p>
-                    </div>
-                  </motion.div>
-                );
-              })
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-bold text-slate-800 truncate">{project.title}</p>
+                        <div className="mt-1 h-1 bg-slate-100 rounded-full overflow-hidden">
+                          <div className="h-full bg-gradient-to-r from-pink-400 to-rose-400 rounded-full" style={{ width: `${percent}%` }} />
+                        </div>
+                        <p className="text-[10px] text-slate-400 mt-0.5">{percent}% 達成</p>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
             ) : (
               <>
+                {/* 左上 */}
                 <motion.div
-                  initial={{ opacity: 0, rotate: -15, x: -30, y: 30 }}
-                  animate={{ opacity: 1, rotate: -8, x: 0, y: 0 }}
-                  transition={{ duration: 0.8, delay: 0.2, type: "spring", bounce: 0.35 }}
-                  className="w-48 h-56 bg-white p-1.5 pb-6 rounded-2xl shadow-xl border border-slate-100 cursor-pointer self-start"
-                  whileHover={{ scale: 1.05, rotate: 0 }}
+                  initial={{ opacity: 0, rotate: -18, x: -40, y: 20 }}
+                  animate={{ opacity: 1, rotate: -7, x: 0, y: 0 }}
+                  transition={{ duration: 0.9, delay: 0.15, type: 'spring', bounce: 0.3 }}
+                  whileHover={{ scale: 1.06, rotate: 0, zIndex: 20 }}
+                  className="absolute top-0 left-0 w-[190px] bg-white p-2.5 pb-9 rounded-3xl shadow-2xl border border-slate-100 cursor-pointer"
+                  style={{ zIndex: 3 }}
                 >
-                  <div className="w-full h-full rounded-xl overflow-hidden relative">
+                  <div className="w-full aspect-[4/5] rounded-2xl overflow-hidden relative bg-rose-50">
                     <Image src="/IMG_0272.JPG" alt="フラスタ" fill className="object-contain" />
                   </div>
-                  <p className="font-calligraphy text-center mt-2.5 text-slate-400 text-xs">Happy Anniversary!</p>
+                  <p className="font-calligraphy text-center mt-2 text-slate-400 text-[11px]">Happy Anniversary!</p>
                 </motion.div>
 
+                {/* 右上 */}
                 <motion.div
-                  initial={{ opacity: 0, rotate: 20, x: 30, y: -30 }}
-                  animate={{ opacity: 1, rotate: 10, x: 0, y: 0 }}
-                  transition={{ duration: 0.8, delay: 0.3, type: "spring", bounce: 0.35 }}
-                  className="w-56 h-64 bg-white p-1.5 pb-7 rounded-2xl shadow-2xl border border-slate-100 cursor-pointer self-end"
-                  whileHover={{ scale: 1.05, rotate: 0 }}
+                  initial={{ opacity: 0, rotate: 18, x: 40, y: -20 }}
+                  animate={{ opacity: 1, rotate: 8, x: 0, y: 0 }}
+                  transition={{ duration: 0.9, delay: 0.25, type: 'spring', bounce: 0.3 }}
+                  whileHover={{ scale: 1.06, rotate: 0, zIndex: 20 }}
+                  className="absolute top-4 right-0 w-[175px] bg-white p-2.5 pb-9 rounded-3xl shadow-2xl border border-slate-100 cursor-pointer"
+                  style={{ zIndex: 2 }}
                 >
-                  <div className="w-full h-full rounded-xl overflow-hidden relative">
+                  <div className="w-full aspect-[4/5] rounded-2xl overflow-hidden relative bg-pink-50">
                     <Image src="/IMG_0273.JPG" alt="フラスタ" fill className="object-contain" />
                   </div>
-                  <p className="font-calligraphy text-center mt-3 text-pink-400 text-base">Thank you</p>
+                  <p className="font-calligraphy text-center mt-2 text-pink-400 text-[11px]">Thank you♡</p>
                 </motion.div>
 
+                {/* 中央（一番大きく・最前面） */}
                 <motion.div
-                  initial={{ opacity: 0, y: 30 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.8, delay: 0.4, type: "spring", bounce: 0.35 }}
-                  className="w-56 h-40 bg-white p-1.5 pb-6 rounded-2xl shadow-lg border border-slate-100 cursor-pointer self-start"
-                  whileHover={{ scale: 1.04, y: -4 }}
+                  initial={{ opacity: 0, scale: 0.75, y: 60 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  transition={{ duration: 1.0, delay: 0.35, type: 'spring', bounce: 0.25 }}
+                  whileHover={{ scale: 1.05, zIndex: 20 }}
+                  className="absolute top-[110px] left-1/2 -translate-x-1/2 w-[210px] bg-white p-2.5 pb-10 rounded-3xl shadow-[0_20px_60px_rgba(244,114,182,0.25)] border border-pink-100 cursor-pointer"
+                  style={{ zIndex: 10 }}
                 >
-                  <div className="w-full h-full rounded-xl overflow-hidden relative">
+                  <div className="w-full aspect-[4/5] rounded-2xl overflow-hidden relative bg-rose-50">
                     <Image src="/IMG_0274.JPG" alt="フラスタ" fill className="object-contain" />
                   </div>
-                  <p className="font-calligraphy text-center mt-2.5 text-pink-400 text-xs">Congratulations!</p>
+                  <p className="font-calligraphy text-center mt-2.5 text-rose-400 text-xs">With Love 💖</p>
                 </motion.div>
+
+                {/* 右下 */}
+                <motion.div
+                  initial={{ opacity: 0, rotate: 14, x: 30, y: 40 }}
+                  animate={{ opacity: 1, rotate: 6, x: 0, y: 0 }}
+                  transition={{ duration: 0.9, delay: 0.45, type: 'spring', bounce: 0.3 }}
+                  whileHover={{ scale: 1.06, rotate: 0, zIndex: 20 }}
+                  className="absolute bottom-0 right-2 w-[165px] bg-white p-2.5 pb-9 rounded-3xl shadow-xl border border-slate-100 cursor-pointer"
+                  style={{ zIndex: 4 }}
+                >
+                  <div className="w-full aspect-[4/5] rounded-2xl overflow-hidden relative bg-pink-50">
+                    <Image src="/IMG_0275.JPG" alt="フラスタ" fill className="object-contain" />
+                  </div>
+                  <p className="font-calligraphy text-center mt-2 text-pink-500 text-[11px]">Congratulations!</p>
+                </motion.div>
+
+                {/* 浮遊デコ */}
+                <motion.span
+                  animate={{ y: [-6, 6, -6], rotate: [-8, 8, -8] }}
+                  transition={{ duration: 3.5, repeat: Infinity, ease: 'easeInOut' }}
+                  className="absolute top-6 right-[42%] text-2xl pointer-events-none select-none"
+                  style={{ zIndex: 15 }}
+                >💖</motion.span>
+                <motion.span
+                  animate={{ y: [5, -5, 5], rotate: [6, -6, 6] }}
+                  transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
+                  className="absolute bottom-10 left-[38%] text-xl pointer-events-none select-none"
+                  style={{ zIndex: 15 }}
+                >🌸</motion.span>
+                <motion.span
+                  animate={{ y: [-4, 4, -4] }}
+                  transition={{ duration: 2.8, repeat: Infinity, ease: 'easeInOut', delay: 0.5 }}
+                  className="absolute top-[55%] left-4 text-lg pointer-events-none select-none opacity-70"
+                  style={{ zIndex: 15 }}
+                >✨</motion.span>
               </>
             )}
           </div>
