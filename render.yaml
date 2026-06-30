@@ -56,7 +56,7 @@ services:
     name: flastal-frontend
     runtime: node
     rootDir: client
-    buildCommand: "npm ci --legacy-peer-deps && npm run build"
+    buildCommand: "npm ci --legacy-peer-deps && rm -rf .next && npm run build"
     startCommand: "npm start"
     envVars:
       - key: NODE_VERSION

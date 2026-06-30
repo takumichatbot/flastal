@@ -40,6 +40,12 @@ const nextConfig = {
     ],
   },
 
+  async redirects() {
+    return [
+      { source: '/ai-design', destination: '/design', permanent: true },
+    ];
+  },
+
   async headers() {
     return [
       {

@@ -347,9 +347,10 @@ function PledgeForm({ project, user, onPledgeSubmit, isPledger }) {
     else {
         const loadingToast = toast.loading('Stripe決済ページへ移動中...');
         try {
-            const token = typeof window !== 'undefined' ? localStorage.getItem('authToken')?.replace(/^"|"$/g, '') : null;
+            const rawToken = typeof window !== 'undefined' ? localStorage.getItem('authToken') : null;
+            const token = rawToken ? rawToken.replace(/^"|"$/g, '').trim() : null;
             const headers = { 'Content-Type': 'application/json' };
-            if (token) headers['Authorization'] = `Bearer ${token}`;
+            if (token && token !== 'null' && token !== 'undefined') headers['Authorization'] = `Bearer ${token}`;
 
             const res = await fetch(`${API_URL}/api/payment/checkout/create-checkout-session`, {
                 method: 'POST',
@@ -905,7 +906,7 @@ export default function ProjectDetailClient() {
   }, [quickCheerSent, user, id, fetchCheers]);
 
   const handlePrint = useReactToPrint({
-    content: () => componentRef.current,
+    contentRef: componentRef,
     documentTitle: `収支報告書_${project?.title || '企画'}`,
   });
 

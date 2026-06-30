@@ -320,7 +320,7 @@ export default function CollaborationTab({ ctx }) {
         <AppCard className="text-center py-16 bg-slate-50">
           <Lock size={32} className="mx-auto text-slate-300 mb-4" />
           <h3 className="text-lg font-black text-slate-700 mb-2">参加者限定スペース</h3>
-          <p className="text-slate-500 font-bold text-sm">共同作業は、支援者と関係者のみ利用できます。</p>
+          <p className="text-slate-500 font-bold text-sm">このスペースは企画の支援者と関係者のみ利用できます。</p>
         </AppCard>
       )}
 

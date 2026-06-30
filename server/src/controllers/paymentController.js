@@ -120,7 +120,7 @@ export const createCheckoutSession = async (req, res) => {
                         name: `企画支援: ${project.title}`,
                         description: userId
                             ? `支援総額 ${amount}円 (ポイント充当: ${pointsToUse || 0}pt)`
-                            : `ゲスト支援: ${guestName}様`,
+                            : guestName ? `ゲスト支援: ${guestName}様` : 'ゲスト支援',
                     },
                     unit_amount: parseInt(cardAmount),
                 },
