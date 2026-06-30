@@ -10,32 +10,34 @@ const REFERRAL_BONUS_POINTS = parseInt(process.env.REFERRAL_BONUS_POINTS || '200
 // ==========================================
 // ★★★ 共通ヘルパー: トークン発行 ★★★
 // ==========================================
-const generateToken = (payload) => {
+const generateToken = (payload, expiresIn = '15m') => {
     const cleanPayload = {
         ...payload,
         id: payload.id ? String(payload.id) : undefined,
         sub: payload.sub ? String(payload.sub) : (payload.id ? String(payload.id) : undefined)
     };
-    return jwt.sign(cleanPayload, process.env.JWT_SECRET, { expiresIn: '15m' });
+    return jwt.sign(cleanPayload, process.env.JWT_SECRET, { expiresIn });
 };
 
 export const generateTokensForOAuth = async (payload) => {
     return generateTokens(payload);
 };
 
-const generateTokens = async (payload, { skipRefreshToken = false } = {}) => {
+// ビジネスロール（Florist/Venue/Organizer）向け: 7日間有効、DB保存不要
+export const generateBusinessToken = (payload) => {
+    const token = generateToken(payload, '7d');
+    const refreshToken = crypto.randomBytes(64).toString('hex');
+    return { accessToken: token, refreshToken };
+};
+
+const generateTokens = async (payload) => {
     const accessToken = generateToken(payload);
-
     const refreshTokenValue = crypto.randomBytes(64).toString('hex');
-
-    if (!skipRefreshToken) {
-        const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-        const userId = String(payload.id);
-        await prisma.refreshToken.create({
-            data: { token: refreshTokenValue, userId, expiresAt },
-        });
-    }
-
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    const userId = String(payload.id);
+    await prisma.refreshToken.create({
+        data: { token: refreshTokenValue, userId, expiresAt },
+    });
     return { accessToken, refreshToken: refreshTokenValue };
 };
 
@@ -208,14 +210,14 @@ export const loginFlorist = async (req, res) => {
             return res.status(403).json({ message: 'アカウントが承認されていません。審査完了までお待ちください。' });
         }
         
-        const { accessToken, refreshToken } = await generateTokens({
+        const { accessToken, refreshToken } = generateBusinessToken({
             id: florist.id,
             email: florist.email,
             role: 'FLORIST',
             status: florist.status,
             shopName: florist.shopName,
             handleName: florist.platformName
-        }, { skipRefreshToken: true });
+        });
 
         const { password: _, ...data } = florist;
         res.status(200).json({ message: 'ログインに成功しました。', token: accessToken, refreshToken, florist: data });
@@ -260,13 +262,13 @@ export const loginVenue = async (req, res) => {
         if (!venue || !(await bcrypt.compare(password, venue.password))) return res.status(401).json({ message: '認証失敗' });
         if (!venue.isVerified || venue.status !== 'APPROVED') return res.status(403).json({ message: 'アカウントが承認されていません。' });
         
-        const { accessToken, refreshToken } = await generateTokens({
+        const { accessToken, refreshToken } = generateBusinessToken({
             id: venue.id,
             email: venue.email,
             role: 'VENUE',
             status: venue.status,
             venueName: venue.venueName
-        }, { skipRefreshToken: true });
+        });
 
         const { password: _, ...data } = venue;
         res.status(200).json({ message: '成功', token: accessToken, refreshToken, venue: data });
@@ -311,13 +313,13 @@ export const loginOrganizer = async (req, res) => {
         if (!org || !(await bcrypt.compare(password, org.password))) return res.status(401).json({ message: '認証失敗' });
         if (!org.isVerified || org.status !== 'APPROVED') return res.status(403).json({ message: '未承認のアカウントです。' });
         
-        const { accessToken, refreshToken } = await generateTokens({
+        const { accessToken, refreshToken } = generateBusinessToken({
             id: org.id,
             email: org.email,
             role: 'ORGANIZER',
             status: org.status,
             name: org.name
-        }, { skipRefreshToken: true });
+        });
         res.status(200).json({ message: '成功', token: accessToken, refreshToken });
     } catch (error) { 
         logger.error('Organizer Login Error', { context: 'authController', error: error.message });
