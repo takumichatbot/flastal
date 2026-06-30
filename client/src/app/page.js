@@ -4,6 +4,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import Script from 'next/script';
 import { useRouter } from 'next/navigation';
 import {
   motion,
@@ -961,23 +962,15 @@ const CategoryGrid = () => {
 // ==========================================
 // 7. ARTICLES
 // ==========================================
-const LaruSeoEmbed = () => {
-  const containerRef = useRef(null);
-  useEffect(() => {
-    const t = setTimeout(() => {
-      const el = containerRef.current;
-      if (!el || el.querySelector('script')) return;
-      const script = document.createElement('script');
-      script.src = 'https://larubot.tokyo/embed/blog.js';
-      script.setAttribute("data-id", "0d0f2602-f7d7-4bd7-a356-06472c372d12");
-      script.setAttribute("data-limit", "3");
-      script.async = true;
-      el.appendChild(script);
-    }, 100);
-    return () => clearTimeout(t);
-  }, []);
-  return <div ref={containerRef} className="w-full min-h-[240px]" />;
-};
+const LaruSeoEmbed = () => (
+  <div className="w-full min-h-[240px]">
+    <Script
+      src="https://larubot.tokyo/embed/blog.js"
+      data-id="0d0f2602-f7d7-4bd7-a356-06472c372d12"
+      strategy="afterInteractive"
+    />
+  </div>
+);
 
 // ==========================================
 // 8. BUSINESS SECTION
