@@ -164,7 +164,9 @@ export function AuthProvider({ children }) {
     }
     if (currentToken) {
       const cleanToken = currentToken.replace(/['"]+/g, '').trim();
-      headers['Authorization'] = `Bearer ${cleanToken}`;
+      if (cleanToken && cleanToken !== 'null' && cleanToken !== 'undefined') {
+        headers['Authorization'] = `Bearer ${cleanToken}`;
+      }
     }
 
     try {

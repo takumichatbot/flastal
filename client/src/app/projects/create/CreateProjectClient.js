@@ -332,6 +332,8 @@ function CreateProjectForm() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [designUploadProgress, setDesignUploadProgress] = useState(0);
 
+  const [submitSuccess, setSubmitSuccess] = useState(false);
+
   const [isVenueModalOpen, setIsVenueModalOpen] = useState(false);
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
   const [isAiPlanModalOpen, setIsAiPlanModalOpen] = useState(false);
@@ -429,8 +431,9 @@ function CreateProjectForm() {
     return () => clearInterval(timer);
   }, [formData, step]);
 
-  // ── ページ離脱時の警告 ──────────────────────────────────────
+  // ── ページ離脱時の警告（送信成功後は解除）──────────────────────────────────────
   useEffect(() => {
+    if (submitSuccess) return; // 送信成功後はbeforeunloadを無効化
     const hasChanges = !!(formData.title || formData.description || formData.targetAmount);
     if (!hasChanges) return;
 
@@ -442,7 +445,7 @@ function CreateProjectForm() {
 
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [formData]);
+  }, [formData, submitSuccess]);
 
   // ── ドラフト復元・削除ハンドラー ───────────────────────────
   const restoreDraft = () => {
@@ -772,7 +775,9 @@ function CreateProjectForm() {
       toast.success('企画を作成しました！', { id: tid });
       await triggerHaptic('success');
       try { localStorage.removeItem(DRAFT_KEY); } catch {}
-      setTimeout(() => { router.push('/mypage'); }, 1000);
+      setSubmitSuccess(true);   // beforeunloadを解除
+      setIsSubmitting(false);   // ボタンのフリーズを解除
+      router.push('/mypage');
     } catch (error) {
       setIsSubmitting(false);
       toast.error(error.message || '作成に失敗しました。もう一度お試しください。', { id: tid });
