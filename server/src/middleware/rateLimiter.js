@@ -22,10 +22,10 @@ function buildStore(prefix) {
   });
 }
 
-// 一般APIリクエスト: 15分に200回
+// 一般APIリクエスト: 15分に2000回
 export const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 200,
+  max: 2000,
   standardHeaders: true,
   legacyHeaders: false,
   store: buildStore('general'),
