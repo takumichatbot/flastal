@@ -127,7 +127,12 @@ export const getPendingItems = async (req, res) => {
         const fm = prisma.florist || prisma['florist'];
         if (type === 'projects') data = await prisma.project.findMany({ where: { status: 'PENDING_APPROVAL' }, include: { planner: true } });
         else if (type === 'florists') data = await fm.findMany({ where: { status: 'PENDING' } });
-        else if (type === 'illustrators') data = await prisma.user.findMany({ where: { role: 'ILLUSTRATOR', status: 'PENDING' } });
+        else if (type === 'illustrators') data = await prisma.user.findMany({
+            where: {
+                status: 'PENDING',
+                OR: [{ role: 'ILLUSTRATOR' }, { roles: { has: 'ILLUSTRATOR' } }]
+            }
+        });
         else if (type === 'venues') data = await prisma.venue.findMany({ where: { status: 'PENDING' } });
         else if (type === 'organizers') data = await prisma.organizer.findMany({ where: { status: 'PENDING' } });
         return res.json(data || []);

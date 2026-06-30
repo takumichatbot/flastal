@@ -32,12 +32,13 @@ export const registerIllustrator = async (req, res) => {
         return res.status(409).json({ message: 'このメールアドレスは既にイラストレーターとして登録されています。' });
       }
       // 一般ユーザー → rolesにILLUSTRATORを追加（roleはUSERのまま維持、パスワード変更なし）
+      // statusをPENDINGにして管理者の承認フローに乗せる（SUSPENDED以外はログイン可）
       const newRoles = [...new Set([...existingRoles, 'ILLUSTRATOR'])];
       await prisma.user.update({
         where: { id: existing.id },
-        data: { roles: newRoles },
+        data: { roles: newRoles, status: 'PENDING' },
       });
-      return res.status(201).json({ message: 'イラストレーターとして登録しました。今まで使っていたメールアドレスとパスワードでログインできます。' });
+      return res.status(201).json({ message: 'イラストレーターとして申請しました。管理者の承認後に利用できます。今まで使っていたメールアドレスとパスワードでログインできます。' });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);

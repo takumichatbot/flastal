@@ -466,7 +466,7 @@ export const refreshAccessToken = async (req, res) => {
     try {
         const stored = await prisma.refreshToken.findUnique({
             where: { token: refreshToken },
-            include: { user: { select: { id: true, status: true, email: true, handleName: true, role: true } } },
+            include: { user: { select: { id: true, status: true, email: true, handleName: true, role: true, roles: true } } },
         });
 
         if (!stored) {
@@ -484,11 +484,13 @@ export const refreshAccessToken = async (req, res) => {
 
         await prisma.refreshToken.delete({ where: { id: stored.id } });
 
+        const refreshedRoles = stored.user.roles?.length ? stored.user.roles : [stored.user.role];
         const { accessToken, refreshToken: newRefreshToken } = await generateTokens({
             id: stored.user.id,
             email: stored.user.email,
             handleName: stored.user.handleName,
             role: stored.user.role,
+            roles: refreshedRoles,
             status: stored.user.status,
         });
 
