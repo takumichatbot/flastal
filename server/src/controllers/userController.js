@@ -7,6 +7,20 @@ import { logger } from '../utils/logger.js';
 // ★★★ 取得系 (Public & Private) ★★★
 // ==========================================
 
+// 自分の最新情報取得（ロール確認用）
+export const getMe = async (req, res) => {
+    try {
+        const user = await prisma.user.findUnique({
+            where: { id: req.user.id },
+            select: { id: true, email: true, handleName: true, role: true, roles: true, iconUrl: true, status: true, points: true, supportLevel: true, referralCode: true },
+        });
+        if (!user) return res.status(404).json({ message: 'ユーザーが見つかりません' });
+        res.json(user);
+    } catch (error) {
+        res.status(500).json({ message: 'サーバーエラー' });
+    }
+};
+
 // 公開プロフィール取得
 export const getPublicProfile = async (req, res) => {
     const { id } = req.params;

@@ -232,23 +232,30 @@ export function AuthProvider({ children }) {
           localStorage.setItem('flastal-refresh-token', data.refreshToken);
         }
 
-        // キャッシュされたユーザー情報を読み込んで state に反映
-        const storedCache = localStorage.getItem('flastal-user-cache');
-        const storedVenue = localStorage.getItem('flastal-venue'); // 互換性維持
+        // サーバーから最新のユーザー情報（roles等）を取得してキャッシュより優先する
         let extraData = {};
-        if (storedCache) {
-          try {
-            extraData = JSON.parse(storedCache) || {};
-          } catch (e) {
-            console.warn('[AuthContext] キャッシュパースエラー:', e.message);
-            localStorage.removeItem('flastal-user-cache');
+        try {
+          const meRes = await fetch(`${BASE_BACKEND_URL}/api/users/me`, {
+            headers: { Authorization: `Bearer ${cleanToken}` },
+          });
+          if (meRes.ok) {
+            extraData = await meRes.json();
+            localStorage.setItem('flastal-user-cache', JSON.stringify(extraData));
+          } else {
+            // APIが失敗した場合はキャッシュにフォールバック
+            const storedCache = localStorage.getItem('flastal-user-cache');
+            const storedVenue = localStorage.getItem('flastal-venue');
+            if (storedCache) {
+              try { extraData = JSON.parse(storedCache) || {}; } catch (e) { localStorage.removeItem('flastal-user-cache'); }
+            } else if (storedVenue) {
+              try { extraData = JSON.parse(storedVenue) || {}; } catch (e) { localStorage.removeItem('flastal-venue'); }
+            }
           }
-        } else if (storedVenue) {
-          try {
-            extraData = JSON.parse(storedVenue) || {};
-          } catch (e) {
-            console.warn('[AuthContext] キャッシュパースエラー:', e.message);
-            localStorage.removeItem('flastal-venue');
+        } catch (e) {
+          // ネットワークエラー時はキャッシュにフォールバック
+          const storedCache = localStorage.getItem('flastal-user-cache');
+          if (storedCache) {
+            try { extraData = JSON.parse(storedCache) || {}; } catch (_) { localStorage.removeItem('flastal-user-cache'); }
           }
         }
 

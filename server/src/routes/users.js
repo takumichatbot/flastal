@@ -8,7 +8,10 @@ const router = express.Router();
 // プロフィール関連 ( /api/users... )
 // ==========================================
 // 公開プロフィール取得
-router.get('/:id/profile', userController.getPublicProfile); 
+router.get('/:id/profile', userController.getPublicProfile);
+
+// 自分の最新情報取得（ロール確認用）
+router.get('/me', authenticateToken, userController.getMe);
 
 // 自分のプロフィール更新 (複数のパスパターンに対応させて404を回避)
 router.patch('/profile', authenticateToken, userController.updateProfile); 
