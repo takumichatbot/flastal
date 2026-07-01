@@ -10,8 +10,8 @@ const config: CapacitorConfig = {
   webDir: 'out',
   server: isDev
     ? {
-        // 開発時: ローカル Next.js サーバーへライブリロード
-        url: 'http://localhost:3000',
+        // 開発時: スプラッシュから始まるよう /app に直接接続
+        url: 'http://localhost:3000/app',
         cleartext: true,
       }
     : {
