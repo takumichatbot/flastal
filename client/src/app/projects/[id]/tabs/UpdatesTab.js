@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import Image from 'next/image';
-import { Rss, Plus, Trash2, Image as ImageIcon, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Rss, Plus, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 import { useAuth } from '@/app/contexts/AuthContext';
 import { AppCard } from './shared.js';
 import toast from 'react-hot-toast';
@@ -17,7 +17,7 @@ function timeAgo(dateStr) {
     return new Date(dateStr).toLocaleDateString('ja-JP');
 }
 
-function UpdateCard({ update, canDelete, onDelete }) {
+function UpdateCard({ update }) {
     const [open, setOpen] = useState(false);
     return (
         <div className="border border-slate-100 rounded-2xl overflow-hidden">
@@ -34,7 +34,7 @@ function UpdateCard({ update, canDelete, onDelete }) {
             </button>
             {open && (
                 <div className="px-4 pb-4 border-t border-slate-50">
-                    <p className="text-sm text-slate-700 whitespace-pre-wrap mt-3 leading-relaxed">{update.body}</p>
+                    <p className="text-sm text-slate-700 whitespace-pre-wrap mt-3 leading-relaxed">{update.content}</p>
                     {update.imageUrls?.length > 0 && (
                         <div className="flex gap-2 mt-3 flex-wrap">
                             {update.imageUrls.map((url, i) => (
@@ -43,14 +43,6 @@ function UpdateCard({ update, canDelete, onDelete }) {
                                 </div>
                             ))}
                         </div>
-                    )}
-                    {canDelete && (
-                        <button
-                            onClick={() => onDelete(update.id)}
-                            className="mt-3 flex items-center gap-1 text-xs text-rose-400 hover:text-rose-600 font-bold transition-colors"
-                        >
-                            <Trash2 size={12} /> 削除
-                        </button>
                     )}
                 </div>
             )}
@@ -62,24 +54,24 @@ function PostForm({ projectId, onPosted }) {
     const [title, setTitle] = useState('');
     const [body, setBody] = useState('');
     const [loading, setLoading] = useState(false);
-    const token = typeof window !== 'undefined' ? localStorage.getItem('authToken')?.replace(/^"|"$/g, '') : '';
+    const { authenticatedFetch } = useAuth();
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!title.trim() || !body.trim()) return;
         setLoading(true);
         try {
-            const res = await fetch(`${API_URL}/api/projects/${projectId}/updates`, {
+            const res = await authenticatedFetch(`${API_URL}/api/project-details/announcements`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                body: JSON.stringify({ title, body }),
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title, content: body, projectId }),
             });
             if (!res.ok) throw new Error((await res.json()).message);
             toast.success('アップデートを投稿しました');
             setTitle(''); setBody('');
             onPosted();
         } catch (err) {
-            toast.error(err.message);
+            toast.error(err.message || '投稿に失敗しました');
         } finally {
             setLoading(false);
         }
@@ -114,35 +106,14 @@ function PostForm({ projectId, onPosted }) {
 }
 
 export default function UpdatesTab({ ctx }) {
-    const { project } = ctx;
+    const { project, isPlanner, fetchProject } = ctx;
     const { user } = useAuth();
-    const [updates, setUpdates] = useState([]);
-    const [loading, setLoading] = useState(true);
+
+    const updates = project.announcements || [];
 
     const isAuthorized =
-        user?.id === project.plannerId ||
+        isPlanner ||
         project.members?.some(m => m.userId === user?.id);
-
-    const fetchUpdates = useCallback(async () => {
-        try {
-            const res = await fetch(`${API_URL}/api/projects/${project.id}/updates`);
-            if (res.ok) setUpdates(await res.json());
-        } finally {
-            setLoading(false);
-        }
-    }, [project.id]);
-
-    useEffect(() => { fetchUpdates(); }, [fetchUpdates]);
-
-    const handleDelete = async (id) => {
-        const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
-        const res = await fetch(`${API_URL}/api/projects/${project.id}/updates/${id}`, {
-            method: 'DELETE',
-            headers: { Authorization: `Bearer ${token}` },
-        });
-        if (res.ok) { toast.success('削除しました'); fetchUpdates(); }
-        else toast.error('削除に失敗しました');
-    };
 
     return (
         <AppCard>
@@ -154,13 +125,11 @@ export default function UpdatesTab({ ctx }) {
 
             {isAuthorized && (
                 <div className="mb-5">
-                    <PostForm projectId={project.id} onPosted={fetchUpdates} />
+                    <PostForm projectId={project.id} onPosted={fetchProject} />
                 </div>
             )}
 
-            {loading ? (
-                <div className="flex justify-center py-10"><Loader2 className="animate-spin text-pink-400" size={28} /></div>
-            ) : updates.length === 0 ? (
+            {updates.length === 0 ? (
                 <div className="text-center py-10 text-slate-400">
                     <Rss size={32} className="mx-auto mb-2 opacity-30" />
                     <p className="text-sm font-bold">まだアップデートはありません</p>
@@ -168,12 +137,7 @@ export default function UpdatesTab({ ctx }) {
             ) : (
                 <div className="space-y-2">
                     {updates.map(u => (
-                        <UpdateCard
-                            key={u.id}
-                            update={u}
-                            canDelete={isAuthorized || user?.role === 'ADMIN'}
-                            onDelete={handleDelete}
-                        />
+                        <UpdateCard key={u.id} update={u} />
                     ))}
                 </div>
             )}
