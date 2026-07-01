@@ -5,6 +5,7 @@ import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { sendDynamicEmail } from '../utils/email.js';
 import { logger } from '../utils/logger.js';
+import { createNotification } from '../utils/notification.js';
 
 // ==========================================
 // 🎨 絵師の登録・ログイン (Userテーブル統合版)
@@ -344,13 +345,26 @@ export const acceptOffer = async (req, res) => {
 export const rejectOffer = async (req, res) => {
     try {
         const { id } = req.params;
-        const offer = await prisma.illustratorOffer.findUnique({ where: { id } });
+        const offer = await prisma.illustratorOffer.findUnique({
+            where: { id },
+            include: { project: { select: { id: true, plannerId: true, title: true } } }
+        });
         if (!offer || offer.illustratorId !== req.user.id) return res.status(403).json({ message: '権限がありません。' });
 
         await prisma.illustratorOffer.update({
             where: { id },
             data: { status: 'REJECTED' }
         });
+
+        const illustratorName = req.user.handleName || '絵師';
+        createNotification(
+            offer.project.plannerId,
+            'OFFER_REJECTED',
+            `${illustratorName}がオファーを辞退しました。別の絵師を探しましょう。`,
+            offer.project.id,
+            `/projects/${offer.project.id}`
+        ).catch(() => {});
+
         res.json({ message: '辞退しました。' });
     } catch (error) {
         res.status(500).json({ message: '辞退処理に失敗しました。' });

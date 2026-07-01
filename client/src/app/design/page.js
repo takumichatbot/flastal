@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useAuth } from '@/app/contexts/AuthContext';
 import {
   Sparkles, Loader2, Flower2, Palette, AlignLeft, MessageSquare,
   LayoutPanelLeft, CheckSquare, Copy, Check, ChevronRight, Leaf
@@ -246,6 +247,7 @@ function DesignResult({ design, artistName }) {
 
 // ─── メインページ ─────────────────────────────────────────────────
 export default function AiDesignPage() {
+  const { authenticatedFetch } = useAuth();
   const [formData, setFormData] = useState({
     artistName: '',
     imageColors: '',
@@ -274,13 +276,8 @@ export default function AiDesignPage() {
     setRawResult(null);
 
     try {
-      const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
-      const res = await fetch(`${API_URL}/api/tools/design/generate`, {
+      const res = await authenticatedFetch(`${API_URL}/api/tools/design/generate`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
         body: JSON.stringify(formData),
       });
 

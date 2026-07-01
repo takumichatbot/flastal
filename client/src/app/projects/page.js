@@ -395,14 +395,10 @@ function ProjectsContent() {
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   }, [searchParams, router, pathname]);
 
-  // statusFilter 変更時に URL を更新
+  // statusFilter 変更時は状態のみ更新 (URL同期は useEffect に委譲)
   const handleStatusChange = useCallback((newStatus) => {
     setStatusFilter(newStatus);
-    const params = new URLSearchParams(searchParams.toString());
-    if (!newStatus) params.delete('status');
-    else params.set('status', newStatus);
-    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
-  }, [searchParams, router, pathname]);
+  }, []);
 
   // アクティブなフィルター数（バッジ用）
   const activeFilterCount = [
@@ -432,7 +428,8 @@ function ProjectsContent() {
       if (kw) params.append('keyword', kw);
       if (pref) params.append('prefecture', pref);
       if (sort && sort !== 'newest') params.append('sort', sort);
-      if (statusFilter) params.append('status', statusFilter.toUpperCase());
+      const resolvedStatus = searchParams.get('status') || statusFilter;
+      if (resolvedStatus) params.append('status', resolvedStatus.toUpperCase());
       if (selectedTags.length > 0) params.append('tags', selectedTags.join(','));
       if (minAmount) params.append('minAmount', minAmount);
       if (maxAmount) params.append('maxAmount', maxAmount);
@@ -491,8 +488,10 @@ function ProjectsContent() {
 
   // テキスト検索は300msデバウンス（use-debounce で統一）
   const handleKeywordDebounce = useDebouncedCallback(() => {
-    // page=1 にリセットして URL 更新 → currentPage 変化 → fetchProjects が走る
+    // keyword を URL に含めて page=1 にリセット → searchParams 変化 → fetchProjects が走る
     const params = new URLSearchParams(searchParams.toString());
+    if (keyword.trim()) params.set('keyword', keyword.trim());
+    else params.delete('keyword');
     params.set('page', '1');
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   }, 300);
@@ -501,19 +500,21 @@ function ProjectsContent() {
     handleKeywordDebounce();
   }, [keyword]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // その他フィルター変更時は即時取得（page=1にリセット、トップへスクロール）
+  // フィルター変更時: statusFilter を URL に同期しつつ page=1 にリセット
   useEffect(() => {
     const params = new URLSearchParams(searchParams.toString());
+    if (statusFilter) params.set('status', statusFilter.toUpperCase());
+    else params.delete('status');
     params.set('page', '1');
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
     window.scrollTo({ top: 0, behavior: 'instant' });
   }, [prefecture, sort, statusFilter, selectedTags, minAmount, maxAmount]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // currentPage（URL）・authLoading が変わったらデータ取得
+  // currentPage・searchParams・フィルター状態が変わったらデータ取得
   useEffect(() => {
     if (authLoading) return;
     fetchProjects(currentPage);
-  }, [currentPage, searchParams, authLoading]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [currentPage, searchParams, authLoading, statusFilter, keyword]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const toggleTag = useCallback((slug) => {
     setSelectedTags(prev =>
@@ -720,7 +721,7 @@ function ProjectsContent() {
           </div>
         ) : projects.length > 0 ? (
           <>
-            <AnimatePresence mode="wait">
+            <AnimatePresence mode="sync">
               <motion.div
                 key={`${keyword}-${prefecture}-${sort}-${statusFilter}-${selectedTags.join(',')}-${minAmount}-${maxAmount}-${currentPage}`}
                 initial={{ opacity: 0, y: 8 }}
