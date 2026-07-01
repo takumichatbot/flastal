@@ -125,7 +125,7 @@ export default function RootLayout({ children }) {
           })();
         `}} />
       </head>
-      <body className="font-[family-name:var(--font-zen-kaku)] antialiased text-slate-900 bg-white min-h-screen flex flex-col m-0 p-0 overflow-x-hidden">
+      <body className="font-[family-name:var(--font-zen-kaku)] antialiased text-slate-900 bg-white min-h-screen flex flex-col m-0 p-0 overflow-x-hidden" style={{ '--splash-bg': '#0c0008' }}>
         {/* GA4 */}
         {process.env.NEXT_PUBLIC_GA_ID && (
           <>

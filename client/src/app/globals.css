@@ -209,6 +209,14 @@ body {
   }
 }
 
+/* ネイティブアプリ: スプラッシュ遷移時の白フラッシュ防止 */
+html.native-app {
+  background-color: #0c0008;
+}
+html.native-app body {
+  background-color: #0c0008;
+}
+
 /* iOS WebView: 選択ハイライト・コールアウト無効化 */
 * {
   -webkit-tap-highlight-color: transparent;

@@ -16,7 +16,7 @@ export default function AppEntryPage() {
   const [phase, setPhase] = useState('in'); // 'in' | 'hold' | 'out'
 
   useEffect(() => {
-    SplashScreen.hide({ fadeOutDuration: 300 }).catch(() => {});
+    SplashScreen.hide({ fadeOutDuration: 0 }).catch(() => {});
     sessionStorage.setItem('nativeApp', '1');
 
     const onboardingDone = localStorage.getItem('onboardingDone');
@@ -39,7 +39,7 @@ export default function AppEntryPage() {
   return (
     <div
       className="fixed inset-0 flex items-center justify-center overflow-hidden"
-      style={{ background: 'linear-gradient(160deg, #0c0008 0%, #1a0012 40%, #0a0006 70%, #130008 100%)' }}
+      style={{ background: 'linear-gradient(160deg, #0c0008 0%, #1a0012 40%, #0a0006 70%, #130008 100%)', zIndex: 9999 }}
     >
       {/* グロー: 背景の光のリング */}
       <motion.div
