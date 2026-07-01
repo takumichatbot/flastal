@@ -286,13 +286,15 @@ export const sendOffer = async (req, res) => {
         }
 
         const planner = await prisma.user.findUnique({ where: { id: req.user.id } });
-        if (planner.points < amount) return res.status(400).json({ message: 'ポイントが不足しています。' });
+        if (!planner) return res.status(403).json({ message: 'ユーザー情報が見つかりません。' });
+        if (planner.points < parsedAmount) return res.status(400).json({ message: 'ポイントが不足しています。' });
 
         const project = await prisma.project.findUnique({ where: { id: projectId } });
+        if (!project) return res.status(404).json({ message: '企画が見つかりません。' });
         if (project.plannerId !== req.user.id) return res.status(403).json({ message: '権限がありません。' });
 
         const offer = await prisma.illustratorOffer.create({
-            data: { projectId, illustratorId, amount, message }
+            data: { projectId, illustratorId, amount: parsedAmount, message }
         });
 
         res.status(201).json(offer);

@@ -455,7 +455,7 @@ function IllustratorDetailContent() {
       <AnimatePresence>
         {isModalOpen && (
           <OfferModal
-            illustratorId={illustrator.id}
+            illustratorId={illustrator.userId}
             illustratorName={displayName}
             basePrice={illustrator.basePrice}
             onClose={() => setIsModalOpen(false)}

@@ -94,7 +94,7 @@ function ProjectRow({ project }) {
 
 export default function IllustratorMyPage() {
   const router = useRouter();
-  const { user, authenticatedFetch, loading: authLoading } = useAuth();
+  const { user, authenticatedFetch, isLoading: authLoading } = useAuth();
 
   const [stats, setStats] = useState(null);
   const [projects, setProjects] = useState([]);
