@@ -2,17 +2,15 @@
 
 set -e
 
-echo "=== ci_pre_xcodebuild: Installing Node.js dependencies ==="
+echo "=== ci_pre_xcodebuild: Verifying node_modules ==="
 
-# Xcode Cloud には Homebrew 経由で Node を使う
-export HOMEBREW_NO_AUTO_UPDATE=1
-brew install node || true
+NODE_MODULES_PATH="$CI_PRIMARY_REPOSITORY_PATH/client/node_modules"
 
-echo "Node: $(node --version)"
-echo "npm:  $(npm --version)"
+if [ ! -d "$NODE_MODULES_PATH" ]; then
+    echo "ERROR: node_modules not found at $NODE_MODULES_PATH"
+    echo "This should have been created by ci_post_clone.sh"
+    exit 1
+fi
 
-# client ディレクトリで npm ci を実行
-cd "$CI_PRIMARY_REPOSITORY_PATH/client"
-npm ci
-
-echo "=== npm ci complete ==="
+echo "node_modules OK: $NODE_MODULES_PATH"
+echo "=== Verification complete ==="
