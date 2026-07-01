@@ -22,8 +22,8 @@ export default function AppEntryPage() {
     const onboardingDone = localStorage.getItem('onboardingDone');
     let destination = onboardingDone ? '/login' : '/onboarding';
     try {
-      const raw = localStorage.getItem('authToken');
-      const token = raw ? raw.replace(/['"]+/g, '').trim() : null;
+      // window.__flastalToken は AuthContext が in-memory で管理するトークン
+      const token = window.__flastalToken || null;
       if (token) {
         const decoded = jwtDecode(token);
         if (decoded.exp * 1000 > Date.now()) destination = '/mypage';

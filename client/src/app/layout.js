@@ -115,15 +115,11 @@ export default function RootLayout({ children }) {
                 document.documentElement.classList.add('native-app');
               }
             } catch(e) {}
-            // Capacitor ネイティブ起動時: / からのリダイレクト
+            // Capacitor ネイティブ起動時: / → /app（スプラッシュ）経由でルーティング
             if (window.location.pathname === '/') {
               var cap = window.Capacitor;
               if (cap && cap.isNativePlatform && cap.isNativePlatform()) {
-                try {
-                  var raw = localStorage.getItem('authToken');
-                  var token = raw ? raw.replace(/['"]+/g, '').trim() : '';
-                  window.location.replace(token ? '/mypage' : '/login');
-                } catch(e) { window.location.replace('/login'); }
+                window.location.replace('/app');
               }
             }
           })();
