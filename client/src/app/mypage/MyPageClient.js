@@ -1370,6 +1370,12 @@ function DashboardContent() {
                     label="ポイント取引履歴"
                     href="/mypage/points"
                   />
+                  <SettingsRow
+                    icon={<Trash2 size={16} />}
+                    label="アカウントを削除する"
+                    onClick={() => router.push('/mypage/edit#delete')}
+                    danger
+                  />
                 </div>
 
                 {/* 2FA */}

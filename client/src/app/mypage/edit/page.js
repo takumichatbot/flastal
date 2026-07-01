@@ -271,7 +271,7 @@ export default function FanProfileEditPage() {
         </div>
 
         {/* アカウント削除 */}
-        <div className="bg-white mt-6 p-8 rounded-[2.5rem] border-2 border-red-100 space-y-4">
+        <div id="delete" className="bg-white mt-6 p-8 rounded-[2.5rem] border-2 border-red-100 space-y-4">
           <div className="flex items-center gap-2 mb-2">
             <AlertTriangle size={18} className="text-red-500" />
             <h2 className="text-base font-black text-red-600">アカウントの削除</h2>
