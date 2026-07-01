@@ -17,7 +17,8 @@
     "cap:dev:ios": "NODE_ENV=development npx cap run ios",
     "cap:build:prod": "NODE_ENV=production next build && npx cap sync",
     "cap:release:android": "npm run cap:build:prod && cd android && ./gradlew bundleRelease",
-    "cap:release:ios": "npm run cap:build:prod && npx cap build ios --scheme App --configuration Release"
+    "cap:release:ios": "npm run cap:build:prod && npx cap build ios --scheme App --configuration Release",
+    "postinstall": "node scripts/patch-capacitor.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.946.0",
