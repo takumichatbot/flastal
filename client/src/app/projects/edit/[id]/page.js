@@ -86,9 +86,8 @@ export default function EditProjectPage() {
         if (!res.ok) throw new Error('企画情報の読み込みに失敗しました');
         const data = await res.json();
 
-        const isAdmin = user.role === 'ADMIN' || user.roles?.includes('ADMIN');
         const isPlanner = String(data.plannerId) === String(user.id);
-        if (!isAdmin && !isPlanner) {
+        if (!isPlanner) {
           setAccessDenied(true);
           setLoading(false);
           return;
