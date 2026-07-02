@@ -84,12 +84,17 @@ const allowedOrigins = [
     process.env.FRONTEND_URL,
     'https://www.flastal.com',
     'https://flastal.com',
-    'https://flastal-frontend.onrender.com'
+    'https://flastal-frontend.onrender.com',
+    'capacitor://localhost',  // iOS 本番ネイティブアプリ
+    'ionic://localhost',      // Android ネイティブアプリ
 ].filter(Boolean);
 
 app.use(cors({
     origin: (origin, callback) => {
         if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else if (/^http:\/\/10\.\d+\.\d+\.\d+:\d+$/.test(origin)) {
+            // ローカルネットワーク（開発用実機テスト）を許可
             callback(null, true);
         } else {
             if (process.env.NODE_ENV !== 'production') {
