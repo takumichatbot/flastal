@@ -53,4 +53,8 @@ router.delete('/subscriptions/:subscriptionId', authenticateToken, paymentContro
 router.post('/premium/checkout', authenticateToken, paymentController.createPremiumSession);
 router.delete('/premium/cancel',  authenticateToken, paymentController.cancelPremiumSubscription);
 
+// iOS アプリ内課金: Apple レシート検証 → 支援記録
+import { verifyIAPAndPledge } from '../controllers/iapController.js';
+router.post('/iap/verify', authenticateToken, verifyIAPAndPledge);
+
 export default router;

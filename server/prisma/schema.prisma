@@ -478,6 +478,10 @@ model Pledge {
   // べき等性確保: StripeセッションIDの一意制約
   stripeSessionId String? @unique
 
+  // iOS アプリ内課金
+  iapTransactionId String? @unique
+  paymentMethod    String? // 'STRIPE' | 'IAP_APPLE' | 'POINTS'
+
   @@index([projectId, createdAt])
   @@index([userId, createdAt])
   @@index([subscriptionId])
