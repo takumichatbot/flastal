@@ -844,16 +844,33 @@ export const deleteMyAccount = async (req, res) => {
         }
 
         await prisma.$transaction([
+            // Reports (reporter FK)
+            prisma.projectReport.deleteMany({ where: { reporterId: userId } }),
+            prisma.eventReport.deleteMany({ where: { reporterId: userId } }),
+            prisma.groupChatMessageReport.deleteMany({ where: { reporterId: userId } }),
+            prisma.chatMessageReport.deleteMany({ where: { reporterId: userId } }),
+            // Likes / reactions (must come before parent records)
+            prisma.postLike.deleteMany({ where: { userId } }),
+            prisma.postComment.deleteMany({ where: { userId } }),
+            prisma.reviewLike.deleteMany({ where: { userId } }),
+            prisma.floristPostLike.deleteMany({ where: { userId } }),
+            prisma.moodBoardLike.deleteMany({ where: { userId } }),
+            prisma.groupChatMessageReaction.deleteMany({ where: { userId } }),
+            // Parent records that own content
+            prisma.review.deleteMany({ where: { userId } }),
+            prisma.moodBoardItem.deleteMany({ where: { userId } }),
+            prisma.projectPost.deleteMany({ where: { userId } }),
+            prisma.post.deleteMany({ where: { userId } }),
+            prisma.message.deleteMany({ where: { userId } }),
+            prisma.superchat.deleteMany({ where: { userId } }),
+            prisma.payout.deleteMany({ where: { userId } }),
+            // Social / activity
             prisma.notification.deleteMany({ where: { userId } }),
             prisma.pushSubscription.deleteMany({ where: { userId } }),
             prisma.follow.deleteMany({ where: { OR: [{ followerId: userId }, { followingId: userId }] } }),
-            prisma.postLike.deleteMany({ where: { userId } }),
-            prisma.postComment.deleteMany({ where: { userId } }),
             prisma.pollVote.deleteMany({ where: { userId } }),
             prisma.groupChatMessage.deleteMany({ where: { userId } }),
             prisma.chatMessage.deleteMany({ where: { senderId: userId } }),
-            prisma.groupChatMessageReaction.deleteMany({ where: { userId } }),
-            prisma.moodBoardLike.deleteMany({ where: { userId } }),
             prisma.floristFavorite.deleteMany({ where: { userId } }),
             prisma.cheer.deleteMany({ where: { userId } }),
             prisma.artistPageFollow.deleteMany({ where: { userId } }),

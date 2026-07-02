@@ -41,10 +41,22 @@ export const getProjects = async (req, res) => {
             if (validStatuses.includes(status)) {
                 whereClause.status = status;
                 whereClause.projectType = 'PUBLIC';
+                // FUNDRAISING の場合は期限切れも除外
+                if (status === 'FUNDRAISING') {
+                    whereClause.OR = [
+                        { deadline: null },
+                        { deadline: { gt: new Date() } },
+                    ];
+                }
             }
         } else {
             whereClause.status = 'FUNDRAISING';
             whereClause.projectType = 'PUBLIC';
+            // deadline が設定されている場合、過去のものは除外
+            whereClause.OR = [
+                { deadline: null },
+                { deadline: { gt: new Date() } },
+            ];
         }
 
         // タグフィルター（ProjectTag リレーション経由）

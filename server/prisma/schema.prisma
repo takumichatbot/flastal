@@ -301,14 +301,15 @@ model User {
 }
 
 model PointTransaction {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  amount    Int      // 正: 加算, 負: 減算
-  type      String   // "PLEDGE_USED" | "PLEDGE_REFUND" | "REFERRAL_BONUS" | "ADMIN_GRANT" | "POINT_CHARGE" | "BADGE_REWARD"
-  note      String?
-  projectId String?
-  createdAt DateTime @default(now())
+  id               String   @id @default(cuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount           Int      // 正: 加算, 負: 減算
+  type             String   // "PLEDGE_USED" | "PLEDGE_REFUND" | "REFERRAL_BONUS" | "ADMIN_GRANT" | "POINT_CHARGE" | "BADGE_REWARD"
+  note             String?
+  projectId        String?
+  iapTransactionId String?  @unique
+  createdAt        DateTime @default(now())
 
   @@index([userId])
   @@index([createdAt])

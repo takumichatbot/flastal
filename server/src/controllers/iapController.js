@@ -46,6 +46,69 @@ async function verifyAppleReceipt(receiptData) {
   return result;
 }
 
+// IAP でポイントを付与する（/points ページから呼ばれる）
+export const addPointsViaIAP = async (req, res) => {
+  const userId = req.user.id;
+  const { receipt, productId } = req.body;
+
+  if (!receipt || !productId) {
+    return res.status(400).json({ message: '必須パラメータが不足しています' });
+  }
+
+  const points = PRODUCT_AMOUNTS[productId];
+  if (!points) {
+    return res.status(400).json({ message: '不明な商品 ID です' });
+  }
+
+  try {
+    const appleResult = await verifyAppleReceipt(receipt);
+    if (appleResult.status !== 0) {
+      logger.warn('Apple IAP 検証失敗 (points)', { status: appleResult.status, userId });
+      return res.status(400).json({ message: `Apple 検証エラー (status: ${appleResult.status})` });
+    }
+
+    const inApp = appleResult.receipt?.in_app || [];
+    const matchedItem = inApp.find(item => item.product_id === productId);
+    if (!matchedItem) {
+      return res.status(400).json({ message: 'レシートに該当商品が含まれていません' });
+    }
+
+    const transactionId = matchedItem.transaction_id;
+
+    // 二重処理防止
+    const existing = await prisma.pointTransaction.findFirst({
+      where: { iapTransactionId: transactionId },
+    });
+    if (existing) {
+      return res.json({ success: true, points, message: '既に処理済みです' });
+    }
+
+    // ポイント付与
+    await prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: userId },
+        data: { points: { increment: points } },
+      });
+      await tx.pointTransaction.create({
+        data: {
+          userId,
+          amount: points,
+          type: 'POINT_CHARGE',
+          note: 'App内課金（Apple Pay）',
+          iapTransactionId: transactionId,
+        },
+      });
+    });
+
+    logger.info('IAP ポイント付与完了', { userId, points, transactionId });
+    return res.json({ success: true, points });
+
+  } catch (error) {
+    logger.error('IAP ポイント付与エラー', { error: error.message, userId });
+    return res.status(500).json({ message: error.message || 'IAP 処理に失敗しました' });
+  }
+};
+
 export const verifyIAPAndPledge = async (req, res) => {
   const userId = req.user.id;
   const { receipt, productId, projectId, amount, comment } = req.body;
