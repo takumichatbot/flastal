@@ -209,12 +209,12 @@ body {
   }
 }
 
-/* ネイティブアプリ: スプラッシュ遷移時の白フラッシュ防止 */
+/* ネイティブアプリ: スプラッシュ遷移時のフラッシュ防止 */
 html.native-app {
-  background-color: #0c0008;
+  background-color: #fdf2f8;
 }
 html.native-app body {
-  background-color: #0c0008;
+  background-color: #fdf2f8;
 }
 
 /* iOS WebView: 選択ハイライト・コールアウト無効化 */

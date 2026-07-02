@@ -114,7 +114,7 @@ export default function NativeTabBar() {
     return () => { deepLinkListener?.then(l => l.remove()); };
   }, [isNative, router]);
 
-  const AUTH_PAGES = ['/login', '/register', '/forgot-password', '/reset-password', '/verify', '/app'];
+  const AUTH_PAGES = ['/login', '/register', '/forgot-password', '/reset-password', '/verify', '/app', '/onboarding'];
   if (!isNative || AUTH_PAGES.some(p => pathname?.startsWith(p))) return null;
 
   const tab = searchParams.get('tab') || '';

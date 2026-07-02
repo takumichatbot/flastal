@@ -11,7 +11,7 @@ const config: CapacitorConfig = {
   server: isDev
     ? {
         // 開発時: スプラッシュから始まるよう /app に直接接続
-        url: 'http://localhost:3000/app',
+        url: 'http://10.104.5.42:3000/app',
         cleartext: true,
       }
     : {
@@ -44,7 +44,7 @@ const config: CapacitorConfig = {
     SplashScreen: {
       launchShowDuration: 0,
       launchAutoHide: false,
-      backgroundColor: '#0c0008',
+      backgroundColor: '#fdf2f8',
       androidSplashResourceName: 'splash',
       androidScaleType: 'CENTER_CROP',
       showSpinner: false,
