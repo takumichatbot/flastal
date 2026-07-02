@@ -865,7 +865,7 @@ export const deleteMyAccount = async (req, res) => {
             prisma.superchat.deleteMany({ where: { userId } }),
             prisma.payout.deleteMany({ where: { userId } }),
             // Social / activity
-            prisma.notification.deleteMany({ where: { userId } }),
+            prisma.notification.deleteMany({ where: { recipientId: userId } }),
             prisma.pushSubscription.deleteMany({ where: { userId } }),
             prisma.follow.deleteMany({ where: { OR: [{ followerId: userId }, { followingId: userId }] } }),
             prisma.pollVote.deleteMany({ where: { userId } }),
