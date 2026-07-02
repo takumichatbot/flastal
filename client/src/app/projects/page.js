@@ -59,6 +59,7 @@ function TagChip({ tag, active, onClick }) {
 // ── Filter Sheet ──────────────────────────────────────────────
 function FilterSheet({
   open, onClose,
+  isNative,
   prefecture, setPrefecture,
   sort, setSort,
   selectedTags, toggleTag,
@@ -80,8 +81,8 @@ function FilterSheet({
           <motion.div
             initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
             transition={{ type: 'spring', damping: 28, stiffness: 300 }}
-            className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-[2rem] shadow-2xl overflow-hidden"
-            style={{ paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom))' }}
+            className="fixed bottom-0 left-0 right-0 z-[60] bg-white rounded-t-[2rem] shadow-2xl overflow-hidden"
+            style={{ paddingBottom: isNative ? 'calc(5rem + env(safe-area-inset-bottom))' : 'calc(1.5rem + env(safe-area-inset-bottom))' }}
           >
             {/* Drag handle */}
             <div className="flex justify-center pt-3 pb-1">
@@ -214,6 +215,7 @@ function ProjectCard({ project, index, searchQuery }) {
   const router = useRouter();
   const percent = Math.min(Math.round(((project.collectedAmount || 0) / (project.targetAmount || 1)) * 100), 100);
   const isSuccess = percent >= 100;
+  const isExpired = project.deadline ? new Date(project.deadline) < new Date() : false;
   const daysLeft = project.deadline
     ? Math.max(0, Math.ceil((new Date(project.deadline) - new Date()) / 86400000))
     : null;
@@ -237,12 +239,12 @@ function ProjectCard({ project, index, searchQuery }) {
         <div className="absolute top-2 left-2">
           <span className={cn(
             'px-2 py-0.5 rounded-full text-[9px] font-black text-white uppercase tracking-wide',
-            isSuccess ? 'bg-emerald-500' : project.status === 'COMPLETED' ? 'bg-purple-500' : 'bg-pink-500',
+            isSuccess ? 'bg-emerald-500' : project.status === 'COMPLETED' ? 'bg-purple-500' : isExpired ? 'bg-slate-400' : 'bg-pink-500',
           )}>
-            {isSuccess ? '達成' : project.status === 'COMPLETED' ? '完了' : '募集中'}
+            {isSuccess ? '達成' : project.status === 'COMPLETED' ? '完了' : isExpired ? '終了' : '募集中'}
           </span>
         </div>
-        {daysLeft !== null && project.status === 'FUNDRAISING' && (
+        {daysLeft !== null && project.status === 'FUNDRAISING' && !isExpired && (
           <div className="absolute top-2 right-2 bg-black/50 backdrop-blur-sm rounded-full px-2 py-0.5 flex items-center gap-1">
             <Clock size={9} className="text-rose-300" />
             <span className="text-[9px] font-black text-white">{daysLeft}日</span>
@@ -753,6 +755,7 @@ function ProjectsContent() {
       <FilterSheet
         open={filterOpen}
         onClose={() => setFilterOpen(false)}
+        isNative={isNativeApp}
         prefecture={prefecture}
         setPrefecture={setPrefecture}
         sort={sort}
