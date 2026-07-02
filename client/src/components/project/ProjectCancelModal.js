@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { FiAlertTriangle, FiX, FiInfo, FiCalendar, FiCheck } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
 export default function ProjectCancelModal({ isOpen, onClose, project, onCancelComplete }) {
   const [loading, setLoading] = useState(false);

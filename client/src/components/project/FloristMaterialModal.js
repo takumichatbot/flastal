@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { FiX, FiSave, FiDollarSign, FiAlertTriangle, FiFileText, FiInfo } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
 export default function FloristMaterialModal({ isOpen, onClose, project, onUpdate }) {
   const [loading, setLoading] = useState(false);

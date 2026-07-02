@@ -3,7 +3,7 @@
 import { cookies } from 'next/headers';
 
 // バックエンドのURL (環境変数から取得)
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
 /**
  * 1. 署名付きURLの発行

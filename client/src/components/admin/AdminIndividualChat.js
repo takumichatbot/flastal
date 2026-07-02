@@ -9,7 +9,7 @@ import {
 import toast from 'react-hot-toast';
 import { io } from 'socket.io-client';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
 // --- ヘルパー関数 ---
 

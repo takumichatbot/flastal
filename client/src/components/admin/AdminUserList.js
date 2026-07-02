@@ -5,7 +5,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { FiSearch, FiUser, FiLoader, FiFilter, FiChevronRight } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
 // --- ヘルパー: ロールに応じたスタイル ---
 const getRoleStyle = (role) => {
