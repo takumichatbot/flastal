@@ -836,7 +836,7 @@ export const deleteMyAccount = async (req, res) => {
     const userId = req.user.id;
     try {
         const activeProject = await prisma.project.findFirst({
-            where: { plannerId: userId, status: { in: ['FUNDRAISING', 'SHIPPED'] } },
+            where: { plannerId: userId, status: { in: ['FUNDRAISING', 'SUCCESSFUL', 'PROCESSING', 'READY_FOR_DELIVERY'] } },
             select: { id: true },
         });
         if (activeProject) {
