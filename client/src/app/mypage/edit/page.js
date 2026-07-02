@@ -148,7 +148,7 @@ export default function FanProfileEditPage() {
   );
 
   return (
-    <div className="min-h-screen bg-slate-50 py-12 px-4">
+    <div className="min-h-screen bg-slate-50 py-12 px-4 pb-32">
       <div className="max-w-2xl mx-auto">
         <div className="flex items-center gap-4 mb-10">
           <Link href="/mypage" className="p-2 bg-white rounded-full text-slate-400 hover:text-pink-500 shadow-sm border border-slate-100 transition-all">

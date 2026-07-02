@@ -453,15 +453,16 @@ function ProjectsContent() {
         // 配列レスポンス（後方互換）
         let arr = Array.isArray(data) ? data : [];
         // クライアント側フィルタリング（ステータス・ソート）
-        if (statusFilter) {
-          arr = arr.filter(p => {
-            const isSuccess = (p.collectedAmount || 0) >= (p.targetAmount || 1);
-            if (statusFilter === 'fundraising') return p.status === 'FUNDRAISING' && !isSuccess;
-            if (statusFilter === 'success') return isSuccess && p.status !== 'COMPLETED';
-            if (statusFilter === 'completed') return p.status === 'COMPLETED';
-            return true;
-          });
-        }
+        // フィルター未指定でも期限切れ募集中は除外
+        arr = arr.filter(p => {
+          const isSuccess = (p.collectedAmount || 0) >= (p.targetAmount || 1);
+          const isExpired = p.deadline ? new Date(p.deadline) < new Date() : false;
+          if (statusFilter === 'fundraising') return p.status === 'FUNDRAISING' && !isSuccess && !isExpired;
+          if (statusFilter === 'success') return isSuccess && p.status !== 'COMPLETED';
+          if (statusFilter === 'completed') return p.status === 'COMPLETED';
+          // デフォルト: FUNDRAISING で期限内のみ
+          return p.status === 'FUNDRAISING' && !isExpired;
+        });
         arr.sort((a, b) => {
           if (sort === 'popular') return (b.collectedAmount || 0) - (a.collectedAmount || 0);
           if (sort === 'deadline') {

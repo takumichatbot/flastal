@@ -9,7 +9,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mail, Lock, Eye, EyeOff, Loader2, Sparkles, ArrowRight, ShieldCheck } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, Loader2, Sparkles, ArrowRight } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { SignInWithApple } from '@capacitor-community/apple-sign-in';
 
@@ -22,8 +22,6 @@ function LoginForm() {
   const [showResend, setShowResend] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isAppleLoading, setIsAppleLoading] = useState(false);
-  const [totpRequired, setTotpRequired] = useState(false);
-  const [totpToken, setTotpToken] = useState('');
   const [errors, setErrors] = useState({});
 
   const isNativeApp = Capacitor.isNativePlatform();
@@ -46,31 +44,22 @@ function LoginForm() {
     e.preventDefault();
     setShowResend(false);
 
-    if (!totpRequired) {
-      const validationErrors = validate();
-      if (Object.keys(validationErrors).length > 0) {
-        setErrors(validationErrors);
-        return;
-      }
-      setErrors({});
+    const validationErrors = validate();
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors);
+      return;
     }
+    setErrors({});
 
     setIsLoading(true);
     try {
-      const body = totpRequired
-        ? { email, password, totpToken }
-        : { email, password };
+      const body = { email, password };
       const res = await fetch(`${API_URL}/api/users/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
       const data = await res.json();
-      if (data.requireTotp) {
-        setTotpRequired(true);
-        setTotpToken('');
-        return;
-      }
       if (!res.ok) {
         if (res.status === 403 && (data.message.includes('認証') || data.message.includes('Verification'))) {
           setShowResend(true);
@@ -263,35 +252,6 @@ function LoginForm() {
             )}
           </div>
 
-          {/* 2FA TOTP 入力（必要な場合のみ表示） */}
-          <AnimatePresence>
-            {totpRequired && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                className="bg-violet-50 border border-violet-200 rounded-2xl p-4"
-              >
-                <div className="flex items-center gap-2 mb-2">
-                  <ShieldCheck size={16} className="text-violet-500" />
-                  <p className="text-xs font-black text-violet-700">2段階認証コードを入力</p>
-                </div>
-                <p className="text-[11px] text-violet-500 mb-3">認証アプリに表示された6桁のコードを入力してください</p>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]{6}"
-                  maxLength={6}
-                  value={totpToken}
-                  onChange={(e) => setTotpToken(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                  placeholder="000000"
-                  className="w-full px-4 py-3 bg-white border-2 border-violet-200 rounded-xl outline-none font-black text-center text-2xl tracking-[0.5em] text-violet-700 focus:border-violet-400"
-                  autoFocus
-                />
-              </motion.div>
-            )}
-          </AnimatePresence>
-
           {/* 認証メール再送 */}
           <AnimatePresence>
             {showResend && (
@@ -318,10 +278,8 @@ function LoginForm() {
             className="w-full mt-1 py-3.5 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-2xl font-black text-base shadow-lg shadow-pink-200 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed transition-all"
           >
             {isLoading
-              ? <><Loader2 className="animate-spin" size={18} /> {totpRequired ? '確認中...' : 'ログイン中...'}</>
-              : totpRequired
-                ? <><ShieldCheck size={16} /><span>認証コードを確認</span></>
-                : <><span>ログインする</span><ArrowRight size={16} /></>
+              ? <><Loader2 className="animate-spin" size={18} /> ログイン中...</>
+              : <><span>ログインする</span><ArrowRight size={16} /></>
             }
           </motion.button>
 

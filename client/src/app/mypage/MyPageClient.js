@@ -21,8 +21,6 @@ import {
 import UploadForm from '@/app/components/UploadForm';
 import SupportLevelBadge from '@/app/components/SupportLevelBadge';
 import BadgeDisplay from '@/app/components/BadgeDisplay';
-import TotpSetup from '@/app/components/TotpSetup';
-import KycUpload from '@/app/components/KycUpload';
 import RecommendedProjects from '@/app/components/RecommendedProjects';
 import { EmptyState } from '@/app/components/EmptyState';
 import { PointsCard } from './components/PointsCard';
@@ -1377,12 +1375,6 @@ function DashboardContent() {
                     danger
                   />
                 </div>
-
-                {/* 2FA */}
-                <TotpSetup enabled={!!user.totpEnabled} onToggle={() => {}} />
-
-                {/* KYC */}
-                <KycUpload kycStatus={user.kycStatus || 'NONE'} />
 
                 {/* サポート */}
                 <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">

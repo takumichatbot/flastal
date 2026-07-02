@@ -28,7 +28,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         )
     }
 
-    // アプリがフォアグラウンド時にも通知を表示する
+    // アプリがフォアグラウンド時にも通知を表示する˚
     func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification,

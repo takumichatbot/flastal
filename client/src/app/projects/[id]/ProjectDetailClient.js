@@ -20,9 +20,9 @@ import { ProgressBar } from '@/app/components/ProgressBar';
 import { useKeyboardAwareScroll } from '@/app/hooks/useKeyboardAwareScroll';
 
 // --- Icons ---
-import { 
-  Clock, MapPin, User, Heart, Share2, MessageCircle, 
-  CheckCircle2, AlertTriangle, DollarSign, Calendar, 
+import {
+  Clock, MapPin, User, Heart, Share2, MessageCircle,
+  CheckCircle2, AlertTriangle, DollarSign, Calendar,
   ChevronLeft, ChevronRight, Home, Send, Image as ImageIcon,
   Award, Plus, Search, Loader2, X,
   FileText, Printer, Info, Lock, PenTool, Check, Wand2,
@@ -31,7 +31,6 @@ import {
 
 // --- Utils ---
 import { formatAmount } from '@/app/utils/formatPrice';
-import { useIAP, IAP_TIERS, findClosestTier } from '@/app/hooks/useIAP';
 
 // --- Components ---
 import OfficialBadge from '@/app/components/OfficialBadge';
@@ -326,8 +325,6 @@ function PledgeForm({ project, user, onPledgeSubmit, isPledger }) {
 
   const minAmount = project.minContributionAmount || 1000;
   const [quantity, setQuantity] = useState(1);
-  const [paymentMethod, setPaymentMethod] = useState('card'); // 'card' | 'konbini' | 'paypay' | 'iap'
-  const { purchasing: iapPurchasing, purchase: iapPurchase } = useIAP();
 
   const handleQuantityChange = (newQty) => {
       setQuantity(newQty);
@@ -339,7 +336,7 @@ function PledgeForm({ project, user, onPledgeSubmit, isPledger }) {
     if (finalAmount < minAmount) return toast.error(`支援金額は ${minAmount.toLocaleString()} pt以上に設定してください。`);
     if (!user && !data.guestName?.trim()) return toast.error('お名前を入力してください');
     if (!user && !data.guestEmail?.trim()) return toast.error('メールアドレスを入力してください');
-    
+
     if (user && cardAmount === 0) {
         onPledgeSubmit({
             projectId: project.id, userId: user.id, comment: data.comment,
@@ -347,51 +344,7 @@ function PledgeForm({ project, user, onPledgeSubmit, isPledger }) {
             amount: finalAmount,
         });
         reset();
-    }
-    else if (isNativeApp && paymentMethod === 'iap') {
-        // iOS アプリ内課金
-        const tier = findClosestTier(cardAmount);
-        const loadingToast = toast.loading('Apple Pay で処理中...');
-        try {
-            // cordova-plugin-purchase からレシートを取得して支援
-            const mod = await import('cordova-plugin-purchase');
-            const cdvStore = mod.store || window.CdvPurchase?.store;
-            if (!cdvStore) throw new Error('IAP が利用できません');
-
-            await new Promise((resolve, reject) => {
-                cdvStore.when(tier.productId).approved(async (transaction) => {
-                    try {
-                        const receipt = transaction.appStoreReceipt || transaction.receipt || '';
-                        const result = await iapPurchase({
-                            productId: tier.productId,
-                            projectId: project.id,
-                            amount: tier.amount,
-                            comment: data.comment,
-                            userId: user?.id,
-                            authenticatedFetch,
-                            apiUrl: API_URL,
-                            receipt,
-                        });
-                        transaction.finish();
-                        resolve(result);
-                    } catch (err) { reject(err); }
-                });
-                cdvStore.when(tier.productId).cancelled(() => reject(new Error('キャンセルされました')));
-                cdvStore.when(tier.productId).error((e) => reject(new Error(e?.message)));
-                cdvStore.order(tier.productId);
-            });
-
-            toast.success('支援が完了しました！ありがとうございます🎉', { id: loadingToast, duration: 5000 });
-            reset();
-        } catch (error) {
-            if (error.message !== 'キャンセルされました') {
-                toast.error(error.message || 'IAP エラーが発生しました', { id: loadingToast });
-            } else {
-                toast.dismiss(loadingToast);
-            }
-        }
-    }
-    else {
+    } else {
         const loadingToast = toast.loading('Stripe決済ページへ移動中...');
         try {
             const res = await authenticatedFetch(`${API_URL}/api/payment/checkout/create-checkout-session`, {
@@ -405,10 +358,10 @@ function PledgeForm({ project, user, onPledgeSubmit, isPledger }) {
                     tierId: pledgeType === 'tier' ? data.selectedTierId : undefined,
                     guestName: !user ? data.guestName : undefined,
                     guestEmail: !user ? data.guestEmail : undefined,
-                    paymentMethod,
+
                     successUrl: `${window.location.origin}/projects/${project.id}?payment=success`,
-                    cancelUrl: `${window.location.origin}/projects/${project.id}?payment=cancelled`,
-                })
+                    cancelUrl:  `${window.location.origin}/projects/${project.id}?payment=cancelled`,
+                }),
             });
             const result = await res.json();
             if (!res.ok) throw new Error(result.message || 'エラー');
@@ -613,79 +566,43 @@ function PledgeForm({ project, user, onPledgeSubmit, isPledger }) {
         {!user && (
             <div className="pt-3 space-y-2 border-t border-slate-100">
               <p className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">ゲスト情報</p>
-              <input id="guest-name-input" type="text" {...register('guestName')} aria-label="お名前（ハンドルネーム）" className="w-full p-3.5 bg-slate-50 border-transparent rounded-xl text-[16px] font-bold focus:bg-white focus:border-pink-400 focus:ring-4 focus:ring-pink-200/60 outline-none transition-all" placeholder="お名前 (ハンドルネーム)"/>
-              <input id="guest-email-input" type="email" autoComplete="email" {...register('guestEmail')} aria-label="メールアドレス" className="w-full p-3.5 bg-slate-50 border-transparent rounded-xl text-[16px] font-bold focus:bg-white focus:border-pink-400 focus:ring-4 focus:ring-pink-200/60 outline-none transition-all" placeholder="メールアドレス"/>
+              <input type="text" {...register('guestName')} className="w-full p-3.5 bg-slate-50 border-transparent rounded-xl text-[16px] font-bold focus:bg-white focus:border-pink-400 focus:ring-4 focus:ring-pink-200/60 outline-none transition-all" placeholder="お名前 (ハンドルネーム)"/>
+              <input type="email" autoComplete="email" {...register('guestEmail')} className="w-full p-3.5 bg-slate-50 border-transparent rounded-xl text-[16px] font-bold focus:bg-white focus:border-pink-400 focus:ring-4 focus:ring-pink-200/60 outline-none transition-all" placeholder="メールアドレス"/>
             </div>
         )}
 
-        {/* 支払い方法選択（カード決済がある場合のみ） */}
-        {cardAmount > 0 && (
-          <div className="pt-3 space-y-2 border-t border-slate-100">
-            <p className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">お支払い方法</p>
-            <div className={`grid gap-2 ${isNativeApp ? 'grid-cols-3' : 'grid-cols-3'}`}>
-              {[
-                ...(isNativeApp ? [{ id: 'iap', label: 'Apple Pay', icon: '' }] : []),
-                { id: 'card',    label: 'クレジットカード', icon: '💳' },
-                { id: 'konbini', label: 'コンビニ払い',     icon: '🏪' },
-                { id: 'paypay',  label: 'PayPay',           icon: '📱' },
-              ].map(m => (
-                <button
-                  key={m.id}
-                  type="button"
-                  onClick={() => setPaymentMethod(m.id)}
-                  className={`py-2.5 px-2 rounded-xl border-2 text-xs font-black text-center transition-all ${
-                    paymentMethod === m.id
-                      ? 'border-pink-400 bg-pink-50 text-pink-700 shadow-sm'
-                      : 'border-slate-100 bg-white text-slate-500 hover:border-slate-200'
-                  }`}
-                >
-                  {m.id === 'iap'
-                    ? <svg className="w-5 h-5 mx-auto mb-0.5" viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
-                    : <div className="text-lg mb-0.5">{m.icon}</div>
-                  }
-                  {m.label}
-                </button>
-              ))}
-            </div>
-            {paymentMethod === 'iap' && isNativeApp && (
-              <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 text-xs text-blue-700 font-medium">
-                <p className="font-black mb-1">Apple Pay（アプリ内課金）</p>
-                <p>支払い金額: <span className="font-black">{formatAmount(findClosestTier(cardAmount).amount)} 円</span></p>
-                {findClosestTier(cardAmount).amount > cardAmount && (
-                  <p className="text-[10px] text-blue-500 mt-1">※ ¥{(findClosestTier(cardAmount).amount - cardAmount).toLocaleString()} 切り上げになります</p>
-                )}
-              </div>
-            )}
-            {paymentMethod === 'konbini' && (
-              <p className="text-xs text-slate-400 font-medium px-1">
-                ※ 支払い期限は3日間です。ローソン・ファミリーマート・セブンイレブン等でお支払いいただけます。
-              </p>
-            )}
-            {(paymentMethod === 'card' || paymentMethod === 'konbini' || paymentMethod === 'paypay') && isNativeApp && (
-              <p className="text-[10px] text-slate-400 font-medium px-1">
-                ※ Stripe 決済ページが開きます（Safari 経由）
-              </p>
-            )}
-          </div>
-        )}
-
-        <div className="space-y-3">
-            {(
-              <motion.button
-                  whileTap={{ scale: 0.98 }}
-                  type="submit" disabled={isSubmitting || iapPurchasing || finalAmount <= 0}
-                  className="w-full py-3.5 md:py-4 font-black text-white bg-gradient-to-r from-pink-500 to-rose-500 hover:brightness-105 rounded-xl md:rounded-2xl disabled:from-slate-200 disabled:to-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed disabled:shadow-none flex justify-center items-center gap-2 text-sm md:text-base transition-all shadow-lg shadow-pink-200"
-              >
-                  {(isSubmitting || iapPurchasing) ? <Loader2 className="animate-spin" size={16}/> : (cardAmount === 0 ? <Sparkles size={16} className="text-pink-400"/> : <DollarSign size={16}/>)}
-                  {isSubmitting ? '処理中...' : iapPurchasing ? 'Apple Pay 処理中...' : (cardAmount === 0 ? 'ポイントだけで支援を完了する' : paymentMethod === 'iap' ? 'Apple Pay で支援する' : 'カード決済へ進む')}
+        <div className="space-y-2">
+            {/* ポイントで全額支払える場合 */}
+            {cardAmount === 0 && (
+              <motion.button whileTap={{ scale: 0.98 }} type="submit"
+                disabled={isSubmitting || finalAmount <= 0}
+                className="w-full py-3.5 md:py-4 font-black text-white bg-gradient-to-r from-pink-500 to-rose-500 hover:brightness-105 rounded-xl md:rounded-2xl disabled:from-slate-200 disabled:to-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed disabled:shadow-none flex justify-center items-center gap-2 text-sm md:text-base transition-all shadow-lg shadow-pink-200">
+                {isSubmitting ? <Loader2 className="animate-spin" size={16}/> : <Sparkles size={16} className="text-pink-400"/>}
+                {isSubmitting ? '処理中...' : 'ポイントで支援する'}
               </motion.button>
             )}
 
-            {user && userPoints < finalAmount && !isNativeApp && (
-                <Link href="/points" className="w-full py-3 bg-white border border-slate-200 text-slate-600 rounded-xl font-bold flex justify-center items-center gap-2 text-xs hover:bg-slate-50 hover:text-amber-500 transition-colors shadow-sm">
-                    <Zap size={14} className="text-amber-400" />
-                    事前にポイントをチャージしておく
-                </Link>
+            {/* ポイント不足の場合: 決済オプション */}
+            {cardAmount > 0 && (
+              <div className="space-y-2">
+                {/* ネイティブのみ: Apple Pay → /points でポイント購入 */}
+                {isNativeApp && (
+                  <Link href={`/points?redirect=/projects/${project.id}`}
+                    className="w-full py-3.5 rounded-2xl font-black text-white bg-black flex items-center justify-center gap-2 text-sm active:opacity-80 transition-opacity shadow-lg">
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
+                    </svg>
+                    Apple Pay
+                  </Link>
+                )}
+                {/* クレジットカード → Stripe (web/native 共通) */}
+                <motion.button whileTap={{ scale: 0.98 }} type="submit"
+                  disabled={isSubmitting || finalAmount <= 0}
+                  className="w-full py-3.5 md:py-4 font-black text-white bg-gradient-to-r from-pink-500 to-rose-500 hover:brightness-105 rounded-xl md:rounded-2xl disabled:from-slate-200 disabled:to-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed disabled:shadow-none flex justify-center items-center gap-2 text-sm md:text-base transition-all shadow-lg shadow-pink-200">
+                  {isSubmitting ? <Loader2 className="animate-spin" size={16}/> : <DollarSign size={16}/>}
+                  {isSubmitting ? '処理中...' : 'クレジットカードで支援する'}
+                </motion.button>
+              </div>
             )}
             {!user && (
               <p className="text-xs text-center text-slate-400 mt-2">

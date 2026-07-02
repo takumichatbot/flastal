@@ -3,23 +3,16 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Capacitor } from '@capacitor/core';
 
-// App Store Connect に登録するコンシューマブル商品
-// 各 ID は App Store Connect の商品 ID と一致させること
 export const IAP_TIERS = [
-  { productId: 'com.flastal.app.coin1000',  amount: 1000 },
-  { productId: 'com.flastal.app.coin2000',  amount: 2000 },
-  { productId: 'com.flastal.app.coin3000',  amount: 3000 },
-  { productId: 'com.flastal.app.coin5000',  amount: 5000 },
-  { productId: 'com.flastal.app.coin10000', amount: 10000 },
-  { productId: 'com.flastal.app.coin20000', amount: 20000 },
-  { productId: 'com.flastal.app.coin30000', amount: 30000 },
-  { productId: 'com.flastal.app.coin50000', amount: 50000 },
+  { productId: 'com.flastal.app.coin1000',  points: 1000,  price: 1000 },
+  { productId: 'com.flastal.app.coin2000',  points: 2000,  price: 2000 },
+  { productId: 'com.flastal.app.coin3000',  points: 3000,  price: 3000 },
+  { productId: 'com.flastal.app.coin5000',  points: 5000,  price: 5000 },
+  { productId: 'com.flastal.app.coin10000', points: 10000, price: 10000 },
+  { productId: 'com.flastal.app.coin20000', points: 20000, price: 20000 },
+  { productId: 'com.flastal.app.coin30000', points: 30000, price: 30000 },
+  { productId: 'com.flastal.app.coin50000', points: 50000, price: 50000 },
 ];
-
-// 指定金額に最も近い上のティアを返す（複数ティアの組み合わせは不要）
-export function findClosestTier(amount) {
-  return IAP_TIERS.find(t => t.amount >= amount) || IAP_TIERS[IAP_TIERS.length - 1];
-}
 
 export function useIAP() {
   const [ready, setReady] = useState(false);
@@ -29,18 +22,16 @@ export function useIAP() {
   useEffect(() => {
     if (!isNative) return;
 
-    let store;
     let mounted = true;
 
     const init = async () => {
       try {
         const mod = await import('cordova-plugin-purchase');
-        store = mod.store || window.CdvPurchase?.store;
+        const store = mod.store || window.CdvPurchase?.store;
         if (!store) return;
 
         store.verbosity = store.QUIET;
 
-        // 商品登録
         store.register(IAP_TIERS.map(t => ({
           id: t.productId,
           type: store.CONSUMABLE,
@@ -56,34 +47,34 @@ export function useIAP() {
     return () => { mounted = false; };
   }, [isNative]);
 
-  const purchase = useCallback(async ({ productId, projectId, amount, comment, userId, authenticatedFetch, apiUrl }) => {
+  // 汎用購入関数: apiEndpoint と body を外から指定する
+  const purchase = useCallback(async ({ productId, apiEndpoint, body, authenticatedFetch, apiUrl }) => {
     if (!isNative) throw new Error('Not native');
     setPurchasing(true);
 
     try {
       const mod = await import('cordova-plugin-purchase');
       const store = mod.store || window.CdvPurchase?.store;
-      if (!store) throw new Error('IAP store not available');
+      if (!store) throw new Error('IAP が利用できません');
 
       return await new Promise((resolve, reject) => {
-        // 購入完了ハンドラー
         store.when(productId).approved(async (transaction) => {
           try {
-            // バックエンドでレシート検証 → 支援を記録
-            const res = await authenticatedFetch(`${apiUrl}/api/payment/iap/verify`, {
+            const receiptData =
+              transaction.parentReceipt?.nativeData?.appStoreReceipt ||
+              transaction.nativeData?.appStoreReceipt ||
+              transaction.appStoreReceipt ||
+              transaction.transactionIdentifier ||
+              transaction.id;
+
+            if (!receiptData) throw new Error('レシートの取得に失敗しました');
+
+            const res = await authenticatedFetch(`${apiUrl}${apiEndpoint}`, {
               method: 'POST',
-              body: JSON.stringify({
-                receipt: transaction.transactionIdentifier || transaction.id,
-                productId,
-                projectId,
-                amount,
-                comment,
-                userId,
-                platform: 'ios',
-              }),
+              body: JSON.stringify({ ...body, receipt: receiptData, productId }),
             });
             const data = await res.json();
-            if (!res.ok) throw new Error(data.message || 'IAP検証に失敗しました');
+            if (!res.ok) throw new Error(data.message || 'IAP 検証に失敗しました');
 
             transaction.finish();
             resolve(data);

@@ -363,8 +363,7 @@ export default function AdminPage() {
                         <QuickLink href="/admin/users" icon={<Users/>} label="全ユーザー一覧・情報管理" />
                         <QuickLink href="/admin/contact" icon={<MessageSquare/>} label="個別チャット連絡" />
                         <QuickLink href="/admin/payouts" icon={<DollarSign/>} label="出金申請の管理" />
-                        <QuickLink href="/admin/kyc" icon={<UserCheck/>} label="KYC 本人確認審査" />
-                        <QuickLink href="/admin/fraud-flags" icon={<AlertTriangle/>} label="不正フラグ対応" />
+<QuickLink href="/admin/fraud-flags" icon={<AlertTriangle/>} label="不正フラグ対応" />
                         <QuickLink href="/admin/florists" icon={<Edit3/>} label="花屋手数料設定" />
                         <QuickLink href="/admin/email-templates" icon={<Mail/>} label="メールテンプレート設定" />
                         <QuickLink href="/admin/settings" icon={<Settings/>} label="システム全体設定" />
