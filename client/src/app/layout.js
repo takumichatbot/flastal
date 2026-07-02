@@ -101,7 +101,7 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="ja" className={`${inter.variable} ${notoSansJP.variable} ${zenKaku.variable} ${parisienne.variable}`}>
+    <html lang="ja" className={`${inter.variable} ${notoSansJP.variable} ${zenKaku.variable} ${parisienne.variable}`} suppressHydrationWarning>
       <head>
         {/* ネイティブアプリ判定: React 描画前にクラスを付与してフラッシュを防ぐ */}
         <script dangerouslySetInnerHTML={{ __html: `
