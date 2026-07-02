@@ -843,42 +843,42 @@ export const deleteMyAccount = async (req, res) => {
             return res.status(400).json({ message: '進行中の企画があるためアカウントを削除できません。企画を終了または中止してから再度お試しください。' });
         }
 
-        await prisma.$transaction([
+        await prisma.$transaction(async (tx) => {
             // Reports (reporter FK)
-            prisma.projectReport.deleteMany({ where: { reporterId: userId } }),
-            prisma.eventReport.deleteMany({ where: { reporterId: userId } }),
-            prisma.groupChatMessageReport.deleteMany({ where: { reporterId: userId } }),
-            prisma.chatMessageReport.deleteMany({ where: { reporterId: userId } }),
+            await tx.projectReport.deleteMany({ where: { reporterId: userId } });
+            await tx.eventReport.deleteMany({ where: { reporterId: userId } });
+            await tx.groupChatMessageReport.deleteMany({ where: { reporterId: userId } });
+            await tx.chatMessageReport.deleteMany({ where: { reporterId: userId } });
             // Likes / reactions (must come before parent records)
-            prisma.postLike.deleteMany({ where: { userId } }),
-            prisma.postComment.deleteMany({ where: { userId } }),
-            prisma.reviewLike.deleteMany({ where: { userId } }),
-            prisma.floristPostLike.deleteMany({ where: { userId } }),
-            prisma.moodBoardLike.deleteMany({ where: { userId } }),
-            prisma.groupChatMessageReaction.deleteMany({ where: { userId } }),
+            await tx.postLike.deleteMany({ where: { userId } });
+            await tx.postComment.deleteMany({ where: { userId } });
+            await tx.reviewLike.deleteMany({ where: { userId } });
+            await tx.floristPostLike.deleteMany({ where: { userId } });
+            await tx.moodBoardLike.deleteMany({ where: { userId } });
+            await tx.groupChatMessageReaction.deleteMany({ where: { userId } });
             // Parent records that own content
-            prisma.review.deleteMany({ where: { userId } }),
-            prisma.moodBoardItem.deleteMany({ where: { userId } }),
-            prisma.projectPost.deleteMany({ where: { userId } }),
-            prisma.post.deleteMany({ where: { userId } }),
-            prisma.message.deleteMany({ where: { userId } }),
-            prisma.superchat.deleteMany({ where: { userId } }),
-            prisma.payout.deleteMany({ where: { userId } }),
+            await tx.review.deleteMany({ where: { userId } });
+            await tx.moodBoardItem.deleteMany({ where: { userId } });
+            await tx.projectPost.deleteMany({ where: { userId } });
+            await tx.post.deleteMany({ where: { userId } });
+            await tx.message.deleteMany({ where: { userId } });
+            await tx.superchat.deleteMany({ where: { userId } });
+            await tx.payout.deleteMany({ where: { userId } });
             // Social / activity
-            prisma.notification.deleteMany({ where: { recipientId: userId } }),
-            prisma.pushSubscription.deleteMany({ where: { userId } }),
-            prisma.follow.deleteMany({ where: { OR: [{ followerId: userId }, { followingId: userId }] } }),
-            prisma.pollVote.deleteMany({ where: { userId } }),
-            prisma.groupChatMessage.deleteMany({ where: { userId } }),
-            prisma.chatMessage.deleteMany({ where: { senderId: userId } }),
-            prisma.floristFavorite.deleteMany({ where: { userId } }),
-            prisma.cheer.deleteMany({ where: { userId } }),
-            prisma.artistPageFollow.deleteMany({ where: { userId } }),
-            prisma.eventInterest.deleteMany({ where: { userId } }),
-            prisma.groupBuyEntry.deleteMany({ where: { userId } }),
-            prisma.pledge.updateMany({ where: { userId }, data: { userId: null } }),
-            prisma.user.delete({ where: { id: userId } }),
-        ]);
+            await tx.notification.deleteMany({ where: { recipientId: userId } });
+            await tx.pushSubscription.deleteMany({ where: { userId } });
+            await tx.follow.deleteMany({ where: { OR: [{ followerId: userId }, { followingId: userId }] } });
+            await tx.pollVote.deleteMany({ where: { userId } });
+            await tx.groupChatMessage.deleteMany({ where: { userId } });
+            await tx.chatMessage.deleteMany({ where: { userId } });
+            await tx.floristFavorite.deleteMany({ where: { userId } });
+            await tx.cheer.deleteMany({ where: { userId } });
+            await tx.artistPageFollow.deleteMany({ where: { userId } });
+            await tx.eventInterest.deleteMany({ where: { userId } });
+            await tx.groupBuyEntry.deleteMany({ where: { userId } });
+            await tx.pledge.updateMany({ where: { userId }, data: { userId: null } });
+            await tx.user.delete({ where: { id: userId } });
+        }, { timeout: 30000 });
 
         logger.info('deleteMyAccount: account deleted', { userId });
         res.json({ message: 'アカウントを削除しました。ご利用ありがとうございました。' });
