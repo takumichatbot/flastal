@@ -499,7 +499,16 @@ export const refreshAccessToken = async (req, res) => {
             return res.status(403).json({ message: 'このアカウントは利用停止中です。' });
         }
 
-        await prisma.refreshToken.delete({ where: { id: stored.id } });
+        // ローテーション時に即削除すると、クライアントの並行リクエスト（タブ連打・複数タブ等）が
+        // 同じトークンでrefreshした際に2本目以降が401になりセッションが強制終了してしまう。
+        // 60秒の猶予を残して失効させる（既に猶予中なら期限は延長しない）
+        const graceExpiry = new Date(Date.now() + 60 * 1000);
+        if (stored.expiresAt > graceExpiry) {
+            await prisma.refreshToken.update({
+                where: { id: stored.id },
+                data: { expiresAt: graceExpiry },
+            });
+        }
 
         const refreshedRoles = stored.user.roles?.length ? stored.user.roles : [stored.user.role];
         const { accessToken, refreshToken: newRefreshToken } = await generateTokens({

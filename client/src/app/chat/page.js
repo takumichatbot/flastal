@@ -10,7 +10,6 @@ import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { EmptyState } from '@/app/components/EmptyState';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
 function timeAgo(dateStr) {
   if (!dateStr) return '';
@@ -26,25 +25,23 @@ function timeAgo(dateStr) {
 }
 
 export default function ChatInboxPage() {
-  const { token, isAuthenticated, loading: authLoading } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, authenticatedFetch } = useAuth();
   const router = useRouter();
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
 
   const fetchRooms = useCallback(async () => {
-    if (!token) return;
     try {
-      const res = await fetch(`${API_URL}/api/project-details/my-chats`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      // 生fetchだとアクセストークン失効時に静かに失敗するため、リフレッシュ付きの共通fetchを使う
+      const res = await authenticatedFetch('/api/project-details/my-chats');
       if (res.ok) setRooms(await res.json());
     } catch {
       toast.error('チャットの読み込みに失敗しました');
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [authenticatedFetch]);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) { router.push('/login'); return; }

@@ -30,7 +30,17 @@ export function AuthProvider({ children }) {
   const [isLoading, setIsLoading] = useState(true);
   const isInitializing = useRef(true);
   const requestDebounce = useRef({});
+  // stateのtokenはクロージャに古い値が残るため、fetch時は常にrefから最新値を読む
+  const tokenRef = useRef(null);
+  // 並行401時にrefreshが多重実行されるのを防ぐ（リフレッシュトークンは使い捨てのため多重実行は即セッション破棄につながる）
+  const refreshPromiseRef = useRef(null);
   const router = useRouter();
+
+  const applyToken = useCallback((newToken) => {
+    tokenRef.current = newToken;
+    setToken(newToken);
+    if (typeof window !== 'undefined') window.__flastalToken = newToken;
+  }, []);
 
   const parseUserFromToken = useCallback((rawToken, extraData = null) => {
     if (!rawToken || rawToken === 'null' || rawToken === 'undefined' || rawToken === '') return null;
@@ -80,10 +90,8 @@ export function AuthProvider({ children }) {
     const userData = parseUserFromToken(newToken, extraData);
     if (userData) {
       setUser(userData);
-      // アクセストークンはメモリ（state）のみに保存。localStorageには書かない
-      setToken(userData._token);
-      // セッション内アクセス用（管理画面などのレガシーgetToken関数向け）
-      if (typeof window !== 'undefined') window.__flastalToken = userData._token;
+      // アクセストークンはメモリ（state/ref）のみに保存。localStorageには書かない
+      applyToken(userData._token);
       if (typeof window !== 'undefined') {
         localStorage.setItem('flastal-user-cache', JSON.stringify(extraData || {}));
         if (newRefreshToken) {
@@ -94,52 +102,71 @@ export function AuthProvider({ children }) {
     } else {
       if (!isInitializing.current) {
         setUser(null);
-        setToken(null);
+        applyToken(null);
         if (typeof window !== 'undefined') {
           localStorage.removeItem('flastal-user-cache');
           localStorage.removeItem('flastal-refresh-token');
           localStorage.removeItem('userStatus');
-          window.__flastalToken = null;
         }
       }
       return false;
     }
-  }, [parseUserFromToken]);
+  }, [parseUserFromToken, applyToken]);
 
   const refreshAccessToken = useCallback(async () => {
     if (typeof window === 'undefined') return null;
-    const rt = localStorage.getItem('flastal-refresh-token');
-    if (!rt) return null;
 
-    try {
-      const res = await fetch(`${BASE_BACKEND_URL}/api/auth/refresh`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refreshToken: rt }),
-      });
+    // 進行中のrefreshがあればそれを待つ（多重実行するとローテーション済みトークンで401になりセッションが飛ぶ）
+    if (refreshPromiseRef.current) {
+      return refreshPromiseRef.current;
+    }
 
-      if (!res.ok) {
-        setUser(null);
-        setToken(null);
-        localStorage.removeItem('flastal-user-cache');
-        localStorage.removeItem('flastal-refresh-token');
-        localStorage.removeItem('userStatus');
-        toast.error('セッションが切れました。再度ログインしてください。');
+    const doRefresh = async () => {
+      const rt = localStorage.getItem('flastal-refresh-token');
+      if (!rt) return null;
+
+      try {
+        const res = await fetch(`${BASE_BACKEND_URL}/api/auth/refresh`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refreshToken: rt }),
+        });
+
+        if (!res.ok) {
+          // 401/403（トークン無効・失効）のときだけセッションを破棄する。
+          // 429や5xx等の一時的な失敗でログアウトさせない
+          if (res.status === 401 || res.status === 403) {
+            setUser(null);
+            applyToken(null);
+            localStorage.removeItem('flastal-user-cache');
+            localStorage.removeItem('flastal-refresh-token');
+            localStorage.removeItem('userStatus');
+            // 起動時のサイレント再認証では従来どおりトーストを出さない
+            if (!isInitializing.current) {
+              toast.error('セッションが切れました。再度ログインしてください。', { id: 'session-expired' });
+            }
+          }
+          return null;
+        }
+
+        const data = await res.json();
+        const cleanToken = data.token.replace(/['"]+/g, '').trim();
+        // アクセストークンはメモリ（state/ref）のみに保存
+        if (data.refreshToken) {
+          localStorage.setItem('flastal-refresh-token', data.refreshToken);
+        }
+        applyToken(cleanToken);
+        return cleanToken;
+      } catch {
         return null;
       }
+    };
 
-      const data = await res.json();
-      const cleanToken = data.token.replace(/['"]+/g, '').trim();
-      // アクセストークンはメモリ（state）のみに保存
-      if (data.refreshToken) {
-        localStorage.setItem('flastal-refresh-token', data.refreshToken);
-      }
-      setToken(cleanToken);
-      return cleanToken;
-    } catch {
-      return null;
-    }
-  }, []);
+    refreshPromiseRef.current = doRefresh().finally(() => {
+      refreshPromiseRef.current = null;
+    });
+    return refreshPromiseRef.current;
+  }, [applyToken]);
 
   const authenticatedFetch = useCallback(async (url, options = {}, retryCount = 0) => {
     let finalUrl = url;
@@ -160,8 +187,8 @@ export function AuthProvider({ children }) {
     }
     requestDebounce.current[requestKey] = now;
 
-    // アクセストークンはメモリ（state）から取得。localStorageには保存しない
-    let currentToken = token;
+    // アクセストークンはrefから取得（stateだとrefresh直後のリトライでクロージャ内の古いトークンを掴むため）
+    let currentToken = tokenRef.current;
 
     const headers = { ...options.headers };
     if (!(options.body instanceof FormData)) {
@@ -196,7 +223,7 @@ export function AuthProvider({ children }) {
       }
       throw e;
     }
-  }, [token, refreshAccessToken]);
+  }, [refreshAccessToken]);
 
   useEffect(() => {
     // アクセストークンはメモリ管理のためページリロード時は再取得が必要。
@@ -212,24 +239,17 @@ export function AuthProvider({ children }) {
         const storedRefreshToken = localStorage.getItem('flastal-refresh-token');
         if (!storedRefreshToken) return;
 
-        // リフレッシュトークンを使ってアクセストークンをサイレント取得
-        const res = await fetch(`${BASE_BACKEND_URL}/api/auth/refresh`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ refreshToken: storedRefreshToken }),
-        });
-
-        if (!res.ok) {
-          localStorage.removeItem('flastal-user-cache');
-          localStorage.removeItem('flastal-refresh-token');
-          localStorage.removeItem('userStatus');
+        // リフレッシュトークンを使ってアクセストークンをサイレント取得。
+        // 初期化中に他のfetchが401を踏んでも多重refreshにならないよう、single-flightの共通経路を使う
+        const cleanToken = await refreshAccessToken();
+        if (!cleanToken) {
+          // 認証失敗（リフレッシュトークン破棄済み）のときだけキャッシュを消す。
+          // ネットワークエラー等の一時的な失敗ではキャッシュを保持する
+          if (!localStorage.getItem('flastal-refresh-token')) {
+            localStorage.removeItem('flastal-user-cache');
+            localStorage.removeItem('userStatus');
+          }
           return;
-        }
-
-        const data = await res.json();
-        const cleanToken = data.token.replace(/['"]+/g, '').trim();
-        if (data.refreshToken) {
-          localStorage.setItem('flastal-refresh-token', data.refreshToken);
         }
 
         // サーバーから最新のユーザー情報（roles等）を取得してキャッシュより優先する
@@ -268,7 +288,7 @@ export function AuthProvider({ children }) {
       }
     };
     initAuth();
-  }, [setSession]);
+  }, [setSession, refreshAccessToken]);
 
   const login = useCallback(async (newToken, extraData = null, newRefreshToken = null) => {
     isInitializing.current = false;
@@ -293,9 +313,9 @@ export function AuthProvider({ children }) {
     localStorage.removeItem('flastal-venue');
     localStorage.removeItem('userStatus');
     setUser(null);
-    setToken(null);
+    applyToken(null);
     router.push('/');
-  }, [router]);
+  }, [router, applyToken]);
 
   // ★修正: 更新時にローカルストレージも更新する
   const updateUser = useCallback((newUserData) => {
