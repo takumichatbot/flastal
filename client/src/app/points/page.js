@@ -230,7 +230,9 @@ function PointsPageContent() {
                         </div>
                         <div>
                           <p className="font-black text-slate-800 text-sm">Apple Pay で購入</p>
-                          <p className="text-[10px] text-slate-400 font-medium">購入したポイントで企画を支援できます</p>
+                          <p className="text-[10px] text-slate-400 font-medium">
+                            {iapReady ? '購入したポイントで企画を支援できます' : '商品情報を読み込んでいます…'}
+                          </p>
                         </div>
                       </div>
                     </div>
@@ -238,13 +240,15 @@ function PointsPageContent() {
                     <div className="divide-y divide-slate-50">
                       {IAP_TIERS.map((tier, i) => {
                         const isPopular = tier.points === 3000;
-                        const isPurchasing = iapPurchasing;
+                        // 商品情報が App Store から読み込まれる前にタップすると購入エラーになるため、
+                        // iapReady が true になるまでボタンを無効化する。
+                        const isDisabled = iapPurchasing || !iapReady;
                         return (
                           <motion.button
                             key={tier.productId}
                             whileTap={{ scale: 0.98 }}
                             onClick={() => handleIAPPurchase(tier)}
-                            disabled={isPurchasing}
+                            disabled={isDisabled}
                             className={cn(
                               'w-full flex items-center px-5 py-4 gap-4 text-left transition-colors',
                               'active:bg-amber-50 disabled:opacity-50',

@@ -48,6 +48,9 @@ services:
         sync: false
       - key: REDIS_URL
         sync: false
+      # Apple IAP レシート検証用の共有シークレット（App Store Connect > App内課金 > App用共有シークレット）
+      - key: APPLE_IAP_SHARED_SECRET
+        sync: false
 
   # ========================================
   # 2. フロントエンド (Next.js)
