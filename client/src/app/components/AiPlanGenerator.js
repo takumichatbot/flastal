@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { Cpu, Loader2, Check, X, Pencil, Zap, Sparkles } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useAuth } from '@/app/contexts/AuthContext';
 
 // 雰囲気の選択肢定義
 const TONE_OPTIONS = [
@@ -21,6 +22,7 @@ const LOADING_MESSAGES = [
 ];
 
 export default function AiPlanGenerator({ onGenerated, onClose }) {
+  const { authenticatedFetch } = useAuth();
   const [loading, setLoading] = useState(false);
   const [loadingMsgIndex, setLoadingMsgIndex] = useState(0);
   
@@ -64,11 +66,10 @@ export default function AiPlanGenerator({ onGenerated, onClose }) {
     setLoading(true);
 
     try {
-      const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
-      // ドラフトウィザード（全項目生成）を優先、なければ旧エンドポイント
-      const draftRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tools/draft-project`, {
+      // アクセストークンはメモリ管理のため、authenticatedFetch 経由で認証・自動リフレッシュを行う
+      // （localStorage の authToken は廃止済みで常に null になり Bearer null で 401 になっていた）
+      const draftRes = await authenticatedFetch('/api/tools/draft-project', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({
           genre: formData.genre || formData.eventName,
           budget: formData.budget,
