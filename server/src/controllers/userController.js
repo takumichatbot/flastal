@@ -68,7 +68,6 @@ export const getCreatedProjects = async (req, res) => {
             orderBy: { createdAt: 'desc' },
             include: {
                 offers: { include: { chatRoom: true, florist: true } },
-                review: true,
             }
         });
         res.status(200).json(projects);
@@ -886,12 +885,10 @@ export const deleteMyAccount = async (req, res) => {
             // Likes / reactions (must come before parent records)
             await tx.postLike.deleteMany({ where: { userId } });
             await tx.postComment.deleteMany({ where: { userId } });
-            await tx.reviewLike.deleteMany({ where: { userId } });
             await tx.floristPostLike.deleteMany({ where: { userId } });
             await tx.moodBoardLike.deleteMany({ where: { userId } });
             await tx.groupChatMessageReaction.deleteMany({ where: { userId } });
             // Parent records that own content
-            await tx.review.deleteMany({ where: { userId } });
             await tx.moodBoardItem.deleteMany({ where: { userId } });
             await tx.projectPost.deleteMany({ where: { userId } });
             await tx.post.deleteMany({ where: { userId } });

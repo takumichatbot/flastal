@@ -1119,11 +1119,6 @@ function DashboardContent() {
                           }
                         </div>
                         <p className="text-xs font-black text-slate-700 text-center line-clamp-2 leading-tight">{f.platformName}</p>
-                        {f.reviewCount > 0 && (
-                          <span className="text-[10px] font-bold text-amber-500 flex items-center gap-0.5">
-                            <Star size={10} className="fill-amber-400 text-amber-400" /> {f.reviewCount}件
-                          </span>
-                        )}
                       </a>
                     ))}
                   </div>

@@ -12,7 +12,7 @@ import ShareButtons from '@/app/components/ShareButtons';
 
 import {
     Camera, Award, Clock,
-    User, Heart, Star, X, Shield, Zap, AlertCircle, ArrowLeft, Briefcase,
+    User, Heart, X, Shield, Zap, AlertCircle, ArrowLeft, Briefcase,
     Store, Truck, Loader2, CheckCircle2, MapPin, Bookmark, BookmarkCheck
 } from 'lucide-react';
 
@@ -372,9 +372,7 @@ export default function FloristDetailPage() {
     );
   }
 
-  const reviews = florist.reviews || [];
-  const averageRating = reviews.length > 0 ? reviews.reduce((s, r) => s + (Number(r.rating) || 0), 0) / reviews.length : 0;
-  const isMyProfile = user && user.role === 'FLORIST' && user.id === florist.id; 
+  const isMyProfile = user && user.role === 'FLORIST' && user.id === florist.id;
 
   return (
     <>
@@ -450,12 +448,6 @@ export default function FloristDetailPage() {
                       <p className="text-xs md:text-sm text-slate-400 font-bold mt-1.5 uppercase tracking-widest">Professional Florist</p>
 
                       <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 mt-5">
-                          <div className="flex items-center px-4 py-2 bg-yellow-50 text-yellow-700 rounded-[1rem] border border-yellow-100 shadow-sm">
-                            <Star className="mr-2 fill-yellow-400 text-yellow-400" size={18}/>
-                            <span className="font-black text-lg">{averageRating.toFixed(1)}</span>
-                            <span className="text-[10px] ml-2 font-bold opacity-60">({reviews.length} reviews)</span>
-                          </div>
-
                           {florist.responseRate !== null && florist.responseRate !== undefined && (
                             <div className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-700 rounded-[1rem] border border-emerald-100 shadow-sm">
                               <CheckCircle2 size={15} className="text-emerald-500" />
@@ -498,8 +490,7 @@ export default function FloristDetailPage() {
                 <div className="flex gap-3 min-w-max">
                     {[
                         { id: 'profile', label: 'プロフィール' },
-                        { id: 'appeal', label: `制作実績 (${appealPosts.length})` },
-                        { id: 'reviews', label: `評価 (${reviews.length})` }
+                        { id: 'appeal', label: `制作実績 (${appealPosts.length})` }
                     ].map(tab => (
                         <button key={tab.id} onClick={() => setActiveTab(tab.id)} 
                           className={cn(
@@ -639,49 +630,6 @@ export default function FloristDetailPage() {
                                 <GlassCard className="flex flex-col items-center justify-center py-24 text-center">
                                     <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-4"><Camera className="text-slate-300" size={32} /></div>
                                     <p className="text-slate-400 font-black tracking-widest uppercase text-xs">No works posted yet</p>
-                                </GlassCard>
-                            )}
-                        </div>
-                    )}
-                    
-                    {activeTab === 'reviews' && (
-                        <div className="max-w-3xl mx-auto space-y-4">
-                            {reviews.length > 0 ? reviews.map((review, idx) => (
-                                <motion.div
-                                  key={review.id}
-                                  initial={{ opacity: 0, y: 24 }}
-                                  whileInView={{ opacity: 1, y: 0 }}
-                                  viewport={{ once: true, margin: '-60px' }}
-                                  transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1], delay: idx * 0.05 }}
-                                >
-                                <GlassCard className="!p-6 transition-all hover:border-pink-200">
-                                    <div className="flex items-start gap-4 mb-4">
-                                        <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 border border-slate-200 shrink-0 overflow-hidden">
-                                            {review.user?.iconUrl
-                                                ? <Image src={review.user.iconUrl} alt="" width={40} height={40} className="object-cover w-10 h-10" />
-                                                : <User size={18} />}
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <span className="font-black text-slate-800 text-sm block leading-tight">{review.user?.handleName || 'さん'}</span>
-                                            <span className="text-[10px] text-slate-400 font-bold mt-0.5 block">{new Date(review.createdAt).toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
-                                            {review.project && (
-                                                <span className="text-[10px] text-pink-500 font-black mt-1 block truncate">
-                                                    🌸 {review.project.title}
-                                                </span>
-                                            )}
-                                        </div>
-                                    </div>
-                                    <div className="bg-slate-50/80 p-4 rounded-2xl border border-slate-100 relative">
-                                        <span className="absolute -top-2 left-3 text-2xl text-slate-200 font-serif leading-none">"</span>
-                                        <p className="text-slate-600 text-sm leading-relaxed font-medium relative z-10 pt-1"><JpText>{review.comment || '（コメントなし）'}</JpText></p>
-                                    </div>
-                                </GlassCard>
-                                </motion.div>
-                            )) : (
-                                <GlassCard className="text-center py-16">
-                                    <div className="text-4xl mb-3">🌸</div>
-                                    <p className="font-black text-slate-400 text-sm">まだレビューがありません</p>
-                                    <p className="text-xs text-slate-300 mt-1">企画完了後にプランナーからレビューが届きます</p>
                                 </GlassCard>
                             )}
                         </div>

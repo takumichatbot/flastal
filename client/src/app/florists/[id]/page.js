@@ -29,8 +29,6 @@ export async function generateMetadata({ params }) {
     const ogParams = new URLSearchParams({
       name,
       ...(florist.prefecture ? { prefecture: florist.prefecture } : {}),
-      ...(florist.averageRating != null ? { rating: String(florist.averageRating) } : {}),
-      ...(florist.reviewCount != null ? { reviews: String(florist.reviewCount) } : {}),
       ...(florist.responseRate != null ? { responseRate: String(florist.responseRate) } : {}),
       ...(coverImage ? { image: coverImage } : {}),
     });

@@ -1,7 +1,7 @@
 import express from 'express';
 import * as actionController from '../controllers/projectActionController.js';
 import { authenticateToken } from '../middleware/auth.js';
-import { validate, cheerSchema, reviewSchema } from '../middleware/validate.js';
+import { validate, cheerSchema } from '../middleware/validate.js';
 
 const router = express.Router();
 
@@ -28,11 +28,6 @@ router.post('/group-chat/reactions', authenticateToken, actionController.toggleR
 router.post('/group-chat/:projectId/summarize', authenticateToken, actionController.summarizeChat);
 router.post('/group-chat/:messageId/report', authenticateToken, (req, res, next) => { req.body.type = 'GROUP'; next(); }, actionController.reportChat);
 router.post('/chat/:messageId/report', authenticateToken, (req, res, next) => { req.body.type = 'DIRECT'; next(); }, actionController.reportChat);
-
-// レビュー
-router.post('/reviews', authenticateToken, validate(reviewSchema), actionController.createReview);
-router.get('/reviews/featured', actionController.getFeaturedReviews);
-router.post('/reviews/:reviewId/like', actionController.toggleReviewLike);
 
 // チャットルーム情報 (個別チャット用)
 router.get('/chat/:roomId', actionController.getChatRoomInfo);

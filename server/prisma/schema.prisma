@@ -193,7 +193,6 @@ model User {
   bankAccount          BankAccount?  
   payouts              Payout[]      
   points               Int                @default(0)
-  reviewLikes          ReviewLike[]
   role                 UserRole           @default(USER)
   roles                UserRole[]         @default([USER])
   
@@ -236,7 +235,6 @@ model User {
   referredUsers        User[]                     @relation("Referrals")
   createdProjects      Project[]                  @relation("PlannerProjects")
   pledges              Pledge[]
-  reviews              Review[]
   messages             Message[]
   groupChatMessages    GroupChatMessage[]
   pollVotes            PollVote[]
@@ -359,7 +357,6 @@ model Project {
   planner                 User               @relation("PlannerProjects", fields: [plannerId], references: [id])
   pledges                 Pledge[]
   offers                  Offer[]
-  review                  Review?
   announcements           Announcement[]
   expenses                Expense[]
   commission              Commission?
@@ -518,7 +515,6 @@ model Florist {
   
   posts             FloristPost[]
   offers            Offer[]
-  reviews           Review[]
   payoutRequests    PayoutRequest[]
   sentChatMessages  ChatMessage[]        @relation("FloristChatMessages")
   postedLogistics   VenueLogisticsInfo[]
@@ -637,35 +633,6 @@ model Venue {
 
   addedById String?
   addedBy   User?   @relation("UserAddedVenues", fields: [addedById], references: [id])
-}
-
-model Review {
-  id        String   @id @default(cuid())
-  comment   String?  @db.Text
-  createdAt DateTime @default(now())
-
-  projectId String  @unique
-  project   Project @relation(fields: [projectId], references: [id])
-  floristId String
-  florist   Florist @relation(fields: [floristId], references: [id])
-  userId    String
-  user      User    @relation(fields: [userId], references: [id])
-
-  likes ReviewLike[]
-
-  @@index([floristId, createdAt])
-}
-
-model ReviewLike {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-
-  reviewId String
-  review   Review @relation(fields: [reviewId], references: [id])
-  userId   String
-  user     User   @relation(fields: [userId], references: [id])
-
-  @@unique([reviewId, userId])
 }
 
 // 応援コメント（支援前ユーザーも書けるコメント）

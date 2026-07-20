@@ -738,10 +738,7 @@ export default function ProjectDetailClient() {
   const [isQuotationModalOpen, setIsQuotationModalOpen] = useState(false);
   const [showDeadlineModal, setShowDeadlineModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
-  const [reviewComment, setReviewComment] = useState('');
-  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
-  const [arSrc, setArSrc] = useState(null); 
+  const [arSrc, setArSrc] = useState(null);
   const [arImageFile, setArImageFile] = useState(null);
   const [arHeight, setArHeight] = useState(200); 
   const [arGenLoading, setArGenLoading] = useState(false);
@@ -1208,33 +1205,6 @@ export default function ProjectDetailClient() {
           toast.error(e.message, { id: toastId });
       }
   }, [confirm, authenticatedFetch, id]);
-
-  const handleSubmitReview = async () => {
-    if (!reviewComment.trim()) return;
-    const floristId = activeOffer?.floristId;
-    if (!floristId) return;
-    setIsSubmittingReview(true);
-    const toastId = toast.loading('レビューを投稿中...');
-    try {
-      const res = await authenticatedFetch(`${API_URL}/api/projects/${project.id}/reviews`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ comment: reviewComment, floristId, projectId: project.id }),
-      });
-      if (!res?.ok) {
-        const err = await res?.json();
-        throw new Error(err?.message || '投稿失敗');
-      }
-      toast.success('レビューを投稿しました！ありがとうございます 🌸', { id: toastId });
-      setIsReviewModalOpen(false);
-      setReviewComment('');
-      fetchProject();
-    } catch (e) {
-      toast.error(e.message || '投稿に失敗しました', { id: toastId });
-    } finally {
-      setIsSubmittingReview(false);
-    }
-  };
 
   const handleDownloadIllustration = async (url) => {
       try {
@@ -1801,26 +1771,6 @@ export default function ProjectDetailClient() {
                              </button>
                          )}
 
-                          {/* フロリストレビュー (完了後・担当フロリストがいる場合のみ) */}
-                          {project?.status === 'COMPLETED' && activeOffer?.floristId && (
-                            <div className="mt-4 pt-4 border-t border-slate-100">
-                              {project.review ? (
-                                <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4">
-                                  <p className="text-xs font-black text-emerald-600 mb-1.5 flex items-center gap-1.5">
-                                    <CheckCircle2 size={12}/> レビュー投稿済み
-                                  </p>
-                                  <p className="text-xs text-slate-600 font-medium leading-relaxed">{project.review.comment}</p>
-                                </div>
-                              ) : (
-                                <button
-                                  onClick={() => setIsReviewModalOpen(true)}
-                                  className="w-full py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-2xl text-sm font-black transition-colors shadow-md flex items-center justify-center gap-2"
-                                >
-                                  <Star size={16}/> {floristName} をレビューする
-                                </button>
-                              )}
-                            </div>
-                          )}
                       </div>
                   </AppCard>
               )}
@@ -1868,52 +1818,6 @@ export default function ProjectDetailClient() {
         {isImageModalOpen && <ImageLightbox url={modalImageSrc} onClose={() => setIsImageModalOpen(false)} />}
         {isReportModalOpen && <ReportModal projectId={id} user={user} onClose={() => setReportModalOpen(false)} />}
         {isCompletionModalOpen && <CompletionReportModal project={project} user={user} onClose={() => setIsCompletionModalOpen(false)} onReportSubmitted={fetchProject} />}
-        {isReviewModalOpen && (
-          <motion.div
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/60 backdrop-blur-sm p-4"
-            style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
-            onClick={() => setIsReviewModalOpen(false)}
-          >
-            <motion.div
-              initial={{ y: 60, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 60, opacity: 0 }}
-              transition={{ type: 'spring', damping: 28, stiffness: 300 }}
-              className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl"
-              onClick={e => e.stopPropagation()}
-            >
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center shrink-0">
-                  <Star size={20} className="text-amber-500" />
-                </div>
-                <div>
-                  <h2 className="text-base font-black text-slate-900">{floristName} をレビュー</h2>
-                  <p className="text-xs font-bold text-slate-400">企画を通じた感想を書きましょう</p>
-                </div>
-              </div>
-              <textarea
-                value={reviewComment}
-                onChange={e => setReviewComment(e.target.value)}
-                placeholder="お花屋さんへの感謝や仕上がりの感想など…"
-                rows={4}
-                className="w-full p-4 bg-slate-50 rounded-2xl text-sm text-slate-800 font-medium outline-none focus:ring-2 focus:ring-amber-200 resize-none placeholder:text-slate-400 border border-transparent focus:border-amber-200"
-              />
-              <div className="flex gap-2 mt-4">
-                <button onClick={() => setIsReviewModalOpen(false)}
-                  className="flex-1 py-3 bg-slate-100 text-slate-600 rounded-2xl font-black text-sm active:scale-95 transition-transform">
-                  キャンセル
-                </button>
-                <button
-                  onClick={handleSubmitReview}
-                  disabled={!reviewComment.trim() || isSubmittingReview}
-                  className="flex-1 py-3 bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-2xl font-black text-sm shadow-lg disabled:opacity-50 active:scale-95 transition-transform"
-                >
-                  {isSubmittingReview ? '投稿中...' : '投稿する'}
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-
         {showSuccessModal && project && (
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}

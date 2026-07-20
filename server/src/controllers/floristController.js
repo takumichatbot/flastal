@@ -143,15 +143,12 @@ export const getFlorists = async (req, res) => {
                 SELECT f.id, f."platformName", f.portfolio, f.address, f."iconUrl",
                        f."portfolioImages", f.specialties, f."acceptsRushOrders",
                        f."baseDeliveryArea", f."baseDeliveryFee",
-                       COUNT(r.id)::int AS "reviewCount",
-                       0 AS "averageRating",
                        GREATEST(
                            similarity(f."platformName", ${kw}),
                            similarity(COALESCE(f.portfolio, ''), ${kw}) * 0.6,
                            CASE WHEN f."platformName" ILIKE ${kwLike} THEN 0.5 ELSE 0 END
                        ) AS _score
                 FROM "Florist" f
-                LEFT JOIN "Review" r ON r."floristId" = f.id
                 WHERE f.status = 'APPROVED'
                   ${prefClause}
                   ${rushClause}
@@ -162,7 +159,6 @@ export const getFlorists = async (req, res) => {
                     OR f."platformName" ILIKE ${kwLike}
                     OR f.portfolio ILIKE ${kwLike}
                   )
-                GROUP BY f.id
                 ORDER BY _score DESC, f."createdAt" DESC
                 LIMIT 100
             `);
@@ -207,19 +203,11 @@ export const getFlorists = async (req, res) => {
                 acceptsRushOrders: true,
                 baseDeliveryArea: true,
                 baseDeliveryFee: true,
-                _count: { select: { reviews: true } }
             },
             orderBy: { createdAt: 'desc' },
         }), 60);
 
-        const floristsWithRating = florists.map(florist => ({
-            ...florist,
-            reviewCount: florist._count.reviews,
-            averageRating: 0,
-            _count: undefined
-        }));
-
-        res.status(200).json(floristsWithRating);
+        res.status(200).json(florists);
     } catch (error) {
         logger.error('getFlorists Error', { context: 'floristController', error: error.message });
         res.status(500).json({ message: 'お花屋さんの取得中にエラーが発生しました。' });
@@ -233,19 +221,11 @@ export const getFloristById = async (req, res) => {
         const florist = await prisma.florist.findUnique({ where: { id } });
         if (!florist) return res.status(404).json({ message: '花屋が見つかりません。' });
 
-        const [appealPosts, reviews, offers] = await Promise.all([
+        const [appealPosts, offers] = await Promise.all([
             prisma.floristPost.findMany({
                 where: { floristId: id, isPublic: true },
                 include: { likes: { select: { userId: true } }, _count: { select: { likes: true } } },
                 orderBy: { createdAt: 'desc' }
-            }),
-            prisma.review.findMany({
-                where: { floristId: id },
-                orderBy: { createdAt: 'desc' },
-                include: {
-                    user: { select: { id: true, handleName: true, iconUrl: true } },
-                    project: { select: { id: true, title: true, imageUrl: true } },
-                },
             }),
             prisma.offer.findMany({
                 where: { floristId: id },
@@ -265,7 +245,6 @@ export const getFloristById = async (req, res) => {
         const { password, laruBotApiKey, customFeeRate, stripeAccountId, ...publicData } = florist;
 
         publicData.appealPosts = appealPosts;
-        publicData.reviews = reviews;
         publicData.responseRate = responseRate;
         publicData.avgResponseHours = avgResponseHours;
         
@@ -316,7 +295,6 @@ export const matchFloristsByAi = async (req, res) => {
                 offers: { select: { status: true, createdAt: true, updatedAt: true } },
                 _count: {
                     select: {
-                        reviews: true,
                         offers: {
                             where: { status: 'ACCEPTED' },
                         },
@@ -347,9 +325,9 @@ export const matchFloristsByAi = async (req, res) => {
                 else if (avgResponseHours < 48) responseTimeBonus = 5;
             }
 
-            // 実績スコア: ACCEPTEDオファー数 (最大+20点) + レビュー数 (最大+1点)
+            // 実績スコア: ACCEPTEDオファー数 (最大+20点)
             const acceptedCount = f._count.offers ?? 0;
-            const expScore = Math.min(acceptedCount * 2, 20) + Math.min(f._count.reviews / 10, 1);
+            const expScore = Math.min(acceptedCount * 2, 20);
 
             const total = tagScore + responseScore + responseTimeBonus + expScore;
 
@@ -359,8 +337,6 @@ export const matchFloristsByAi = async (req, res) => {
                 iconUrl: f.iconUrl,
                 portfolioImages: f.portfolioImages,
                 specialties: f.specialties,
-                averageRating: null,
-                reviewCount: f._count.reviews,
                 responseRate: f.offers.length > 0 ? Math.round(responseRate * 100) : null,
                 tagMatchCount: tagMatch,
                 matchScore: Math.round(total * 10) / 10,
@@ -1095,12 +1071,11 @@ export const getMyFavorites = async (req, res) => {
                         id: true, platformName: true, iconUrl: true,
                         portfolioImages: true, specialties: true,
                         baseDeliveryArea: true,
-                        _count: { select: { reviews: true } },
                     },
                 },
             },
         });
-        res.json(favorites.map(f => ({ ...f.florist, reviewCount: f.florist._count.reviews, _count: undefined })));
+        res.json(favorites.map(f => f.florist));
     } catch (error) {
         logger.error('getMyFavorites Error', { context: 'floristController', error: error.message });
         res.status(500).json({ message: 'お気に入りの取得に失敗しました' });
@@ -1152,17 +1127,6 @@ export const getFloristAnalytics = async (req, res) => {
         const allOffers = await prisma.offer.findMany({
             where: { floristId },
             select: { status: true, createdAt: true }
-        });
-
-        // レビュー一覧
-        const reviews = await prisma.review.findMany({
-            where: { floristId },
-            include: {
-                user: { select: { handleName: true, iconUrl: true } },
-                project: { select: { title: true } }
-            },
-            orderBy: { createdAt: 'desc' },
-            take: 10
         });
 
         // 月別集計（過去6ヶ月）
@@ -1229,14 +1193,12 @@ export const getFloristAnalytics = async (req, res) => {
             kpi: {
                 thisMonthRevenue,
                 thisMonthOrderCount,
-                totalReviewCount: reviews.length,
                 totalContribution,
                 totalAcceptedOffers: acceptedOffers.length
             },
             monthlyData,
             offerStatusCounts: statusCounts,
             productionStatusCounts,
-            recentReviews: reviews,
             balance: floristProfile?.balance ?? 0,
             totalEarnings,
         });

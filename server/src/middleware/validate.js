@@ -41,9 +41,3 @@ export const offerSchema = z.object({
   proposedAmount: z.number({ invalid_type_error: '金額を数値で入力してください' }).int().positive('金額は正の値で入力してください').optional(),
   estimatedDays: z.number().int().positive().optional(),
 });
-
-export const reviewSchema = z.object({
-  floristId: z.string().min(1, 'floristIdが必要です'),
-  projectId: z.string().min(1, 'projectIdが必要です'),
-  comment: z.string().min(1, 'コメントを入力してください').max(500, 'コメントは500文字以内で入力してください').trim(),
-});

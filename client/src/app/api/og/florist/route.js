@@ -7,12 +7,8 @@ export async function GET(request) {
 
   const shopName   = searchParams.get('name')?.slice(0, 30) || '花屋さん';
   const prefecture = searchParams.get('prefecture') || '';
-  const rating     = searchParams.get('rating') || '';
-  const reviews    = searchParams.get('reviews') || '0';
   const imageUrl   = searchParams.get('image');
   const responseRate = searchParams.get('responseRate');
-
-  const stars = rating ? '★'.repeat(Math.round(parseFloat(rating))) + '☆'.repeat(5 - Math.round(parseFloat(rating))) : '';
 
   return new ImageResponse(
     (
@@ -56,16 +52,6 @@ export async function GET(request) {
           {prefecture && (
             <div style={{ fontSize: 18, color: '#64748b', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
               📍 {prefecture}
-            </div>
-          )}
-
-          {/* 評価 */}
-          {rating && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <div style={{ fontSize: 28, color: '#f59e0b', letterSpacing: 2 }}>{stars}</div>
-              <div style={{ fontSize: 16, color: '#64748b', fontWeight: 700 }}>
-                {parseFloat(rating).toFixed(1)} / 5.0  （{reviews}件のレビュー）
-              </div>
             </div>
           )}
 

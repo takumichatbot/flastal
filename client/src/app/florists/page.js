@@ -12,7 +12,7 @@ import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 
 import {
-  Search, MapPin, Camera, Loader2, Zap, Award, Filter, Star,
+  Search, MapPin, Camera, Loader2, Zap, Award, Filter,
   Sparkles, ChevronRight, User, Send, Truck, ArrowLeft, X, SlidersHorizontal,
 } from 'lucide-react';
 
@@ -112,12 +112,6 @@ function FloristCard({ florist, projectId, onOffer, isOffering }) {
               <Award size={9} /> Florist Partner
             </p>
           </div>
-          {florist.reviewCount > 0 && (
-            <div className="flex items-center gap-1 bg-yellow-50 px-2 py-1 rounded-lg shrink-0 border border-yellow-100">
-              <Star size={11} className="fill-yellow-400 text-yellow-400" />
-              <span className="text-xs font-black text-yellow-600">{florist.averageRating?.toFixed(1)}</span>
-            </div>
-          )}
         </div>
 
         <div className="flex flex-wrap gap-1 mb-3">
@@ -228,7 +222,7 @@ function FilterSheet({ filters, onFilterChange, onTagSelect, onClose }) {
           <div>
             <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">並び順</label>
             <div className="flex gap-2">
-              {[{ value: 'newest', label: '新着順' }, { value: 'reviews', label: '実績数順' }].map(opt => (
+              {[{ value: 'newest', label: '新着順' }].map(opt => (
                 <button key={opt.value} onClick={() => onFilterChange({ target: { name: 'sort', value: opt.value, type: 'select-one' } })}
                   className={cn(
                     'flex-1 py-2.5 text-xs rounded-2xl font-black transition-all border',
@@ -311,9 +305,6 @@ function FloristsListContent() {
       if (!res.ok) throw new Error();
       let data = await res.json();
 
-      if (f.sort === 'reviews') {
-        data = [...data].sort((a, b) => (b.reviewCount || 0) - (a.reviewCount || 0));
-      }
       setFlorists(data);
 
       const params = new URLSearchParams();

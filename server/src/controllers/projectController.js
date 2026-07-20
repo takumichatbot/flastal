@@ -421,12 +421,6 @@ export const getProjectById = async (req, res) => {
                     }
                 },
                 quotation: { include: { items: true } },
-                review: {
-                    include: {
-                        user: { select: { id: true, handleName: true, iconUrl: true } },
-                        likes: true
-                    }
-                },
                 groupChatMessages: {
                     orderBy: { createdAt: 'asc' },
                     take: 100, // 直近100件のみ取得（追加分はpaginationで取得）

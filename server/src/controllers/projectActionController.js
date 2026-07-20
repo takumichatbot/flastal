@@ -224,45 +224,6 @@ export const reportChat = async (req, res) => {
     } catch (e) { res.status(500).json({ message: '報告失敗' }); }
 };
 
-export const createReview = async (req, res) => {
-    const { comment, projectId, floristId } = req.body;
-    try {
-        const review = await prisma.review.create({
-            data: { comment, projectId, floristId, userId: req.user.id }
-        });
-        res.status(201).json(review);
-    } catch (e) { 
-        if(e.code === 'P2002') return res.status(409).json({ message: 'レビューは1人1回までです' });
-        res.status(500).json({ message: '投稿失敗' }); 
-    }
-};
-
-export const getFeaturedReviews = async (req, res) => {
-    try {
-        const reviews = await prisma.review.findMany({
-            where: { comment: { not: '' } }, take: 3, orderBy: { createdAt: 'desc' },
-            include: { user: { select: { handleName: true } }, project: { select: { title: true } } }
-        });
-        res.json(reviews);
-    } catch (e) { res.status(500).json({ message: '取得失敗' }); }
-};
-
-export const toggleReviewLike = async (req, res) => {
-    const { reviewId } = req.params;
-    const userId = req.body.userId;
-    if (!userId) return res.status(401).json({ message: 'ログインが必要です' });
-    try {
-        const existing = await prisma.reviewLike.findUnique({ where: { reviewId_userId: { reviewId, userId } } });
-        if (existing) {
-            await prisma.reviewLike.delete({ where: { id: existing.id } });
-            res.json({ liked: false });
-        } else {
-            await prisma.reviewLike.create({ data: { reviewId, userId } });
-            res.json({ liked: true });
-        }
-    } catch (e) { res.status(500).json({ message: 'エラー' }); }
-};
-
 export const reportProject = async (req, res) => {
     const { projectId, reporterId, reason, details } = req.body;
     try {
