@@ -45,16 +45,20 @@ export const broadcastTicker = (type, text, href) => {
 // ★ ポイントチャージのセッション作成
 // ==========================================
 export const createPointSession = async (req, res) => {
-    const { amount, points } = req.body;
+    const { amount } = req.body;
     const userId = req.user.id;
     const frontendUrl = req.headers.origin || process.env.FRONTEND_URL || 'https://www.flastal.com';
 
-    if (!amount || !points) {
-        return res.status(400).json({ message: '金額とポイント数が正しくありません。' });
+    // ポイントは金額から導出する（1ポイント=1円）。
+    // クライアント指定の points は信用しない（¥1で100万ポイント等の水増しを防ぐ）。
+    const chargeAmount = parseInt(amount, 10);
+    if (!chargeAmount || chargeAmount < 50 || chargeAmount > 1000000) {
+        return res.status(400).json({ message: '金額が正しくありません。' });
     }
+    const points = chargeAmount; // 1pt = ¥1
 
     try {
-        const idempotencyKey = `point-charge-${userId}-${amount}-${points}`;
+        const idempotencyKey = `point-charge-${userId}-${chargeAmount}`;
         const session = await stripe.checkout.sessions.create(
             {
                 payment_method_types: ['card'],
@@ -99,8 +103,18 @@ export const createCheckoutSession = async (req, res) => {
 
     const userId = req.user ? req.user.id : null;
 
-    if (!cardAmount || cardAmount <= 0) {
-        return res.status(400).json({ message: 'カード決済金額が無効です' });
+    // 金額はサーバー側で検証・導出する（クライアントの cardAmount を信用しない）。
+    // 支援総額 = カード決済額 + 使用ポイント。カード決済額 = 支援総額 - 使用ポイント。
+    const totalAmountInt = parseInt(amount, 10);
+    const pointsToUseInt = parseInt(pointsToUse || 0, 10);
+    if (!totalAmountInt || totalAmountInt <= 0 || pointsToUseInt < 0 || pointsToUseInt > totalAmountInt) {
+        return res.status(400).json({ message: '金額が無効です' });
+    }
+    const serverCardAmount = totalAmountInt - pointsToUseInt;
+    // カード決済が発生するこのエンドポイントでは、カード額が Stripe 最低額(¥50)未満は不可
+    // （全額ポイント支払いは別エンドポイント createPledge を使用）
+    if (serverCardAmount < 50) {
+        return res.status(400).json({ message: 'カード決済金額が無効です（全額ポイントの場合はポイント支援をご利用ください）' });
     }
 
     // 対応する支払い方法タイプ
@@ -110,9 +124,14 @@ export const createCheckoutSession = async (req, res) => {
     try {
         const [project, userRecord] = await Promise.all([
             prisma.project.findUnique({ where: { id: projectId } }),
-            userId ? prisma.user.findUnique({ where: { id: userId }, select: { handleName: true } }) : Promise.resolve(null),
+            userId ? prisma.user.findUnique({ where: { id: userId }, select: { handleName: true, points: true } }) : Promise.resolve(null),
         ]);
         if (!project) return res.status(404).json({ message: '企画が見つかりません' });
+
+        // ログインユーザーがポイントを使う場合、残高を検証（不足なら拒否）
+        if (userId && pointsToUseInt > 0 && (userRecord?.points ?? 0) < pointsToUseInt) {
+            return res.status(400).json({ message: 'ポイント残高が不足しています' });
+        }
 
         const sessionParams = {
             payment_method_types: paymentMethodTypes,
@@ -122,10 +141,10 @@ export const createCheckoutSession = async (req, res) => {
                     product_data: {
                         name: `企画支援: ${project.title}`,
                         description: userId
-                            ? `${userRecord?.handleName || 'ユーザー'}様 支援総額 ${amount}円 (ポイント充当: ${pointsToUse || 0}pt)`
+                            ? `${userRecord?.handleName || 'ユーザー'}様 支援総額 ${totalAmountInt}円 (ポイント充当: ${pointsToUseInt}pt)`
                             : guestName ? `ゲスト支援: ${guestName}様` : 'ゲスト支援',
                     },
-                    unit_amount: parseInt(cardAmount),
+                    unit_amount: serverCardAmount,
                 },
                 quantity: 1,
             }],
@@ -139,9 +158,9 @@ export const createCheckoutSession = async (req, res) => {
                 type: 'pledge',
                 projectId,
                 userId: userId || 'guest',
-                totalAmount: amount.toString(),
-                pointsUsed: (pointsToUse || 0).toString(),
-                cardAmount: cardAmount.toString(),
+                totalAmount: totalAmountInt.toString(),
+                pointsUsed: pointsToUseInt.toString(),
+                cardAmount: serverCardAmount.toString(),
                 tierId: tierId || 'none',
                 comment: comment || '',
                 guestName: guestName || '',
@@ -154,7 +173,7 @@ export const createCheckoutSession = async (req, res) => {
                 : {}),
         };
 
-        const idempotencyKey = `checkout-${userId || 'guest'}-${projectId}-${cardAmount}-${paymentMethod}`;
+        const idempotencyKey = `checkout-${userId || 'guest'}-${projectId}-${serverCardAmount}-${paymentMethod}`;
         const session = await stripe.checkout.sessions.create(sessionParams, { idempotencyKey });
         res.json({ sessionUrl: session.url });
     } catch (error) {
@@ -538,6 +557,17 @@ export const createSubscriptionSession = async (req, res) => {
                     tierId: tierId || 'none',
                     amount: String(amount),
                 },
+                // Checkout Session のメタデータは Subscription にコピーされないため、
+                // subscription 側にも同じメタデータを付与する（webhook が subscription.metadata を読むため）
+                subscription_data: {
+                    metadata: {
+                        type: 'subscription',
+                        projectId,
+                        userId,
+                        tierId: tierId || 'none',
+                        amount: String(amount),
+                    },
+                },
             },
             { idempotencyKey: sessionIdempotencyKey }
         );
@@ -684,6 +714,10 @@ export const createPremiumSession = async (req, res) => {
                 cancel_url:  `${frontendUrl}/premium`,
                 client_reference_id: userId,
                 metadata: { type: 'premium_subscription', userId },
+                // Subscription 側にもメタデータを付与（webhook が subscription.metadata を読むため）
+                subscription_data: {
+                    metadata: { type: 'premium_subscription', userId },
+                },
             },
             { idempotencyKey }
         );

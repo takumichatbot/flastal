@@ -27,7 +27,7 @@ export default function FloristMaterialModal({ isOpen, onClose, project, onUpdat
 
         try {
             const token = window.__flastalToken;
-            const res = await fetch(`${API_URL}/api/projects/${project.id}/material-cost`, {
+            const res = await fetch(`${API_URL}/api/projects/${project.id}/materials`, {
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',

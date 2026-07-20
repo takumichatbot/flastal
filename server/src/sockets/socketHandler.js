@@ -40,8 +40,10 @@ export default function socketHandler(io) {
 
     jwt.verify(tokenString, process.env.JWT_SECRET, (err, decoded) => {
       if (err) {
-        socket.user = { id: 'guest', role: 'GUEST' };
-        return next();
+        // トークンが提供されているのに無効・期限切れの場合は、認証済みユーザーを
+        // 黙ってゲストに降格させず接続を拒否する。クライアント側でトークンを
+        // リフレッシュして再接続できるようにするため。
+        return next(new Error('auth expired'));
       }
       socket.user = decoded;
       next();

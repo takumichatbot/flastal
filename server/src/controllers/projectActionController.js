@@ -292,11 +292,11 @@ export const getGalleryFeed = async (req, res) => {
         // 2. ファンの投稿を取得 (Postモデル)
         // ※ Postモデルが存在し、公開ステータスなどが適切に設定されている前提
         const fanPosts = await prisma.post.findMany({
-            where: { 
+            where: {
                 // status: 'PUBLISHED', // もしステータス管理がある場合
-                deletedAt: null 
+                isPublic: true
             },
-            include: { 
+            include: {
                 user: { select: { handleName: true, iconUrl: true } } 
             },
             orderBy: { createdAt: 'desc' },

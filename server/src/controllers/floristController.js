@@ -312,9 +312,7 @@ export const matchFloristsByAi = async (req, res) => {
             where: { status: 'APPROVED' },
             select: {
                 id: true, platformName: true, iconUrl: true,
-                portfolioImages: true, specialties: true, prefecture: true,
-                catchPhrase: true,
-                reviews: { select: { rating: true } },
+                portfolioImages: true, specialties: true,
                 offers: { select: { status: true, createdAt: true, updatedAt: true } },
                 _count: {
                     select: {
@@ -331,12 +329,6 @@ export const matchFloristsByAi = async (req, res) => {
             // タグ一致スコア (1タグにつき+10点)
             const tagMatch = f.specialties.filter(s => targetTags.includes(s)).length;
             const tagScore = tagMatch * 10;
-
-            // 評価スコア (0〜2点)
-            const avgRating = f.reviews.length > 0
-                ? f.reviews.reduce((s, r) => s + r.rating, 0) / f.reviews.length
-                : 0;
-            const ratingScore = (avgRating / 5) * 2;
 
             // 返答率スコア (0〜2点)
             const responded = f.offers.filter(o => o.status !== 'PENDING').length;
@@ -359,10 +351,7 @@ export const matchFloristsByAi = async (req, res) => {
             const acceptedCount = f._count.offers ?? 0;
             const expScore = Math.min(acceptedCount * 2, 20) + Math.min(f._count.reviews / 10, 1);
 
-            // 都道府県一致ボーナス (0〜1点)
-            const prefScore = (prefecture && f.prefecture === prefecture) ? 1 : 0;
-
-            const total = tagScore + ratingScore + responseScore + responseTimeBonus + expScore + prefScore;
+            const total = tagScore + responseScore + responseTimeBonus + expScore;
 
             return {
                 id: f.id,
@@ -370,9 +359,7 @@ export const matchFloristsByAi = async (req, res) => {
                 iconUrl: f.iconUrl,
                 portfolioImages: f.portfolioImages,
                 specialties: f.specialties,
-                prefecture: f.prefecture,
-                catchPhrase: f.catchPhrase,
-                averageRating: avgRating > 0 ? Math.round(avgRating * 10) / 10 : null,
+                averageRating: null,
                 reviewCount: f._count.reviews,
                 responseRate: f.offers.length > 0 ? Math.round(responseRate * 100) : null,
                 tagMatchCount: tagMatch,
@@ -429,7 +416,10 @@ export const createOffer = async (req, res) => {
             }
         });
         
-        await createNotification(floristId, 'NEW_OFFER', `新しいオファーが届きました！`, projectId, `/florists/offers/${newOffer.id}`);
+        // NOTE: Florist は User テーブルと別で userId リレーションを持たないため、
+        // Notification.recipientId (User FK) には紐付けられない。通知はベストエフォート扱いとし、
+        // 失敗しても本処理（オファー作成）に影響させない。
+        Promise.resolve(createNotification(floristId, 'OFFER_STATUS_UPDATE', `新しいオファーが届きました！`, projectId, `/florists/offers/${newOffer.id}`)).catch(() => {});
         sendPushNotification(floristId, {
             title: '💌 新しいオファーが届きました',
             body: `「${project.title}」への出展オファーが届いています`,
@@ -672,8 +662,13 @@ export const approveQuotation = async (req, res) => {
                 }
             }
 
-            const offer = await tx.offer.findUnique({ where: { projectId: project.id }, include: { florist: true } });
-            
+            const offer = await tx.offer.findFirst({ where: { projectId: project.id, status: 'ACCEPTED' }, include: { florist: true } });
+            if (!offer) {
+                const err = new Error('この企画に承諾済みのお花屋さんが見つかりません。');
+                err.statusCode = 404;
+                throw err;
+            }
+
             const systemSettings = await tx.systemSettings.findFirst() || { platformFeeRate: 0.10 };
             const feeRate = offer.florist.customFeeRate ?? systemSettings.platformFeeRate ?? 0.10;
             const commission = Math.floor(finalQuotationAmount * feeRate);
@@ -692,13 +687,15 @@ export const approveQuotation = async (req, res) => {
                 data: { isApproved: true }
             });
 
-            await createNotification(
+            // Florist は User テーブルと別テーブルのため recipientId (User FK) には紐付かない。
+            // 通知はベストエフォート扱いとし、失敗してもトランザクションに影響させない。
+            Promise.resolve(createNotification(
                 offer.floristId,
                 'QUOTATION_APPROVED',
                 `見積もりが承認されました！制作を開始してください。(確定売上: ${netPayout.toLocaleString()}pt)`,
                 project.id,
                 `/florists/offers/${offer.id}`
-            );
+            )).catch(() => {});
             sendPushNotification(offer.floristId, {
                 title: '🎊 見積もりが承認されました！',
                 body: `「${project.title}」の見積もりが承認されました`,
@@ -709,7 +706,7 @@ export const approveQuotation = async (req, res) => {
         });
         res.status(200).json(result);
     } catch (error) {
-        res.status(400).json({ message: error.message });
+        res.status(error.statusCode || 400).json({ message: error.message });
     }
 };
 
@@ -718,8 +715,12 @@ export const finalizeQuotation = async (req, res) => {
     const floristId = req.user.id;
 
     try {
-        const quotation = await prisma.quotation.findUnique({ where: { id }, include: { project: { include: { offer: true } } } });
-        if (!quotation || quotation.project.offer?.floristId !== floristId) return res.status(403).json({ message: '権限がありません。' });
+        const quotation = await prisma.quotation.findUnique({
+            where: { id },
+            include: { project: { include: { offers: { where: { status: 'ACCEPTED' } } } } }
+        });
+        const acceptedOffer = quotation?.project?.offers?.[0];
+        if (!quotation || acceptedOffer?.floristId !== floristId) return res.status(403).json({ message: '権限がありません。' });
 
         const finalized = await prisma.quotation.update({
             where: { id },
@@ -954,16 +955,16 @@ export const getMyDeals = async (req, res) => {
 };
 
 export const deleteDeal = async (req, res) => {
-    const { id } = req.params;
+    const { dealId } = req.params;
     if (req.user.role !== 'FLORIST') return res.status(403).json({ message: '権限がありません。' });
-    
+
     try {
-        const deal = await prisma.floristDeal.findUnique({ where: { id } });
+        const deal = await prisma.floristDeal.findUnique({ where: { id: dealId } });
         if (!deal || deal.floristId !== req.user.id) {
             return res.status(404).json({ message: '削除対象が見つかりません' });
         }
-        
-        await prisma.floristDeal.delete({ where: { id } });
+
+        await prisma.floristDeal.delete({ where: { id: dealId } });
         res.status(204).send();
     } catch (error) {
         res.status(500).json({ message: '削除に失敗しました' });

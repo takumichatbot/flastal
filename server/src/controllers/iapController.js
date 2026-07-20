@@ -68,20 +68,31 @@ export const addPointsViaIAP = async (req, res) => {
     }
 
     const inApp = appleResult.receipt?.in_app || [];
-    const matchedItem = inApp.find(item => item.product_id === productId);
-    if (!matchedItem) {
+    // 同じ消耗型商品を再購入すると in_app に複数の取引が並ぶ。
+    // .find だと最古の取引が返り「処理済み」で新規購入にポイントが付かないため、
+    // 該当商品のうち「まだ未処理の取引」を新しい順に選ぶ。
+    const candidates = inApp
+      .filter(item => item.product_id === productId)
+      .sort((a, b) => Number(b.purchase_date_ms || 0) - Number(a.purchase_date_ms || 0));
+    if (candidates.length === 0) {
       return res.status(400).json({ message: 'レシートに該当商品が含まれていません' });
     }
 
-    const transactionId = matchedItem.transaction_id;
-
-    // 二重処理防止
-    const existing = await prisma.pointTransaction.findFirst({
-      where: { iapTransactionId: transactionId },
-    });
-    if (existing) {
+    let matchedItem = null;
+    let alreadyProcessed = false;
+    for (const item of candidates) {
+      const existing = await prisma.pointTransaction.findFirst({
+        where: { iapTransactionId: item.transaction_id },
+      });
+      if (!existing) { matchedItem = item; break; }
+      alreadyProcessed = true;
+    }
+    if (!matchedItem) {
+      // 全取引が処理済み（=真の重複）。冪等に成功を返す
       return res.json({ success: true, points, message: '既に処理済みです' });
     }
+
+    const transactionId = matchedItem.transaction_id;
 
     // ポイント付与
     await prisma.$transaction(async (tx) => {
@@ -131,24 +142,34 @@ export const verifyIAPAndPledge = async (req, res) => {
       return res.status(400).json({ message: `Apple 検証エラー (status: ${appleResult.status})` });
     }
 
-    // 2. レシート内に該当商品があるか確認
+    // 2. レシート内に該当商品があるか確認（未処理の取引を新しい順に選ぶ）
     const inApp = appleResult.receipt?.in_app || [];
-    const matchedItem = inApp.find(item => item.product_id === productId);
-    if (!matchedItem) {
+    const candidates = inApp
+      .filter(item => item.product_id === productId)
+      .sort((a, b) => Number(b.purchase_date_ms || 0) - Number(a.purchase_date_ms || 0));
+    if (candidates.length === 0) {
       return res.status(400).json({ message: 'レシートに該当商品が含まれていません' });
     }
 
-    // 3. 二重処理防止: transactionId を確認
-    const transactionId = matchedItem.transaction_id;
-    const existing = await prisma.pledge.findFirst({
-      where: { iapTransactionId: transactionId },
-    });
-    if (existing) {
-      return res.json({ message: '既に処理済みです', pledgeId: existing.id });
+    // 3. 二重処理防止: 未処理の transactionId を選ぶ
+    let matchedItem = null;
+    for (const item of candidates) {
+      const existing = await prisma.pledge.findFirst({
+        where: { iapTransactionId: item.transaction_id },
+      });
+      if (!existing) { matchedItem = item; break; }
     }
+    if (!matchedItem) {
+      return res.json({ message: '既に処理済みです' });
+    }
+    const transactionId = matchedItem.transaction_id;
 
-    // 4. 支援を記録（ポイント経由ではなく IAP 決済として直接記録）
-    const pledgeAmount = parseInt(amount, 10);
+    // 4. 支援を記録。支援額は商品IDから導出した金額に固定する
+    //    （クライアント指定の amount を信用せず、金額偽装を防ぐ）
+    if (parseInt(amount, 10) !== expectedAmount) {
+      return res.status(400).json({ message: '金額が商品と一致しません' });
+    }
+    const pledgeAmount = expectedAmount;
 
     const result = await prisma.$transaction(async (tx) => {
       const project = await tx.project.findUnique({

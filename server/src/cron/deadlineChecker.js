@@ -34,8 +34,13 @@ cron.schedule('0 0 * * *', async () => {
 
       // 目標金額に達していない場合 ＝ 自動キャンセル＆返還
       if (project.collectedAmount < project.targetAmount) {
+        // トランザクション内では通知（DB書き込み + push）を送らず、送信対象だけ収集しておく。
+        // 支援者が多い企画ではループ中の通知送信が 5秒のトランザクションタイムアウトを超え、
+        // 通知は送信済みなのに返還がロールバックされる不整合が起きるため。
+        const notificationsToSend = [];
+
         await prisma.$transaction(async (tx) => {
-          
+
           // 1. 企画のステータスを CANCELED に更新
           await tx.project.update({
             where: { id: project.id },
@@ -47,7 +52,7 @@ cron.schedule('0 0 * * *', async () => {
             }
           });
 
-          // 2. 支援者へポイント全額返還 & 通知を送信
+          // 2. 支援者へポイント全額返還（通知はコミット後にまとめて送信）
           if (project.collectedAmount > 0) {
             for (const pledge of project.pledges) {
               if (pledge.userId && pledge.amount > 0) {
@@ -57,30 +62,35 @@ cron.schedule('0 0 * * *', async () => {
                   data: { points: { increment: pledge.amount } }
                 });
 
-                // 支援者へ通知
-                await createNotification(
-                  pledge.userId,
-                  'PROJECT_STATUS_UPDATE',
-                  `企画「${project.title}」は募集期限が終了したため中止となりました。支援額 ${pledge.amount.toLocaleString()}pt は全額返還されました。`,
-                  project.id,
-                  `/projects/${project.id}`
-                );
+                // 支援者へ送る通知を収集
+                notificationsToSend.push({
+                  recipientId: pledge.userId,
+                  type: 'PROJECT_STATUS_UPDATE',
+                  message: `企画「${project.title}」は募集期限が終了したため中止となりました。支援額 ${pledge.amount.toLocaleString()}pt は全額返還されました。`,
+                  projectId: project.id,
+                  linkUrl: `/projects/${project.id}`,
+                });
               }
             }
           }
 
-          // 3. 企画者本人へ通知
-          await createNotification(
-            project.plannerId,
-            'PROJECT_STATUS_UPDATE',
-            `企画「${project.title}」は募集期限を過ぎたため、自動的に中止・ポイント返還処理が行われました。`,
-            project.id,
-            `/projects/${project.id}`
-          );
-          
+          // 3. 企画者本人への通知を収集
+          notificationsToSend.push({
+            recipientId: project.plannerId,
+            type: 'PROJECT_STATUS_UPDATE',
+            message: `企画「${project.title}」は募集期限を過ぎたため、自動的に中止・ポイント返還処理が行われました。`,
+            projectId: project.id,
+            linkUrl: `/projects/${project.id}`,
+          });
+
           logger.info('自動キャンセル＆返還完了', { context: 'CRON', projectId: project.id });
         });
-        
+
+        // トランザクションのコミット後に通知/pushを送信する（返還が確定してから通知）
+        for (const n of notificationsToSend) {
+          await createNotification(n.recipientId, n.type, n.message, n.projectId, n.linkUrl);
+        }
+
       } else {
         // 万が一「目標金額は達成しているのにステータスが更新されていなかった」企画があった場合の安全処理
         await prisma.project.update({

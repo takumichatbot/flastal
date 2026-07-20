@@ -16,7 +16,7 @@ export default function CompletionReportModal({ project, user, onClose, onReport
 
   // 収支計算
   const totalExpense = project.expenses?.reduce((sum, exp) => sum + exp.amount, 0) || 0;
-  const finalBalance = project.collectedAmount - totalExpense;
+  const finalBalance = (project.collectedAmount || 0) - totalExpense;
 
   // 画像アップロード処理
   const handleImageUpload = async (event) => {
@@ -186,7 +186,7 @@ export default function CompletionReportModal({ project, user, onClose, onReport
                 <div className="p-4 text-sm space-y-2">
                     <div className="flex justify-between">
                         <span className="text-gray-500">支援総額 (収入)</span>
-                        <span className="font-bold">{project.collectedAmount.toLocaleString()} pt</span>
+                        <span className="font-bold">{(project.collectedAmount || 0).toLocaleString()} pt</span>
                     </div>
                     <div className="flex justify-between text-red-600">
                         <span>経費合計 (支出)</span>

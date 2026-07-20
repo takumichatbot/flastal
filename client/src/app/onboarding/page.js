@@ -104,7 +104,7 @@ export default function OnboardingPage() {
   const saveGenresAndFinish = async () => {
     setIsSaving(true);
     try {
-      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const token = typeof window !== 'undefined' ? window.__flastalToken : null;
       if (token && selectedGenres.length > 0) {
         await fetch(`${API_URL}/api/users/me`, {
           method: 'PATCH',

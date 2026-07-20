@@ -41,7 +41,7 @@ export default function ReportModal({ projectId, user, onClose }) {
     const token = getAuthToken();
 
     try {
-      const res = await fetch(`${API_URL}/api/reports/project`, {
+      const res = await fetch(`${API_URL}/api/project-details/reports/project`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',

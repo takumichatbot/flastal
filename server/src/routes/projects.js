@@ -30,8 +30,9 @@ router.post('/', authenticateToken, projectController.createProject);
 router.patch('/:id', authenticateToken, projectController.updateProject); 
 router.patch('/:projectId/target-amount', authenticateToken, projectController.updateTargetAmount); 
 router.post('/:projectId/tiers', authenticateToken, projectController.setPledgeTiers); 
-router.patch('/:projectId/complete', authenticateToken, projectController.completeProject); 
-router.patch('/:projectId/cancel', authenticateToken, projectController.cancelProject); 
+router.patch('/:projectId/complete', authenticateToken, projectController.completeProject);
+router.patch('/:projectId/cancel', authenticateToken, projectController.cancelProject);
+router.patch('/:projectId/deadline', authenticateToken, projectController.updateDeadline);
 
 // ==========================================
 // 進行・花屋連携

@@ -60,7 +60,7 @@ export default function ReviewModal({ project, user, onClose, onReviewSubmitted 
     try {
       const token = window.__flastalToken;
 
-      const res = await fetch(`${API_URL}/api/reviews`, {
+      const res = await fetch(`${API_URL}/api/project-details/reviews`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',

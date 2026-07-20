@@ -46,7 +46,7 @@ function OrganizerLoginContent() {
         throw new Error(result.message || 'ログインに失敗しました。');
       }
 
-      login(result.token);
+      login(result.token, result.organizer, result.refreshToken);
       toast.success('主催者としてログインしました');
       router.push('/organizers/dashboard');
 

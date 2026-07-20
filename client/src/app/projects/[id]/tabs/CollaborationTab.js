@@ -360,7 +360,7 @@ export default function CollaborationTab({ ctx }) {
                     </div>
                   </div>
                   <div className="flex-1 overflow-hidden relative bg-white">
-                    <GroupChat project={project} user={ctx.user} isPlanner={isPlanner} isPledger={isPledger} socket={socket} onSummaryUpdate={setAiSummary} summary={aiSummary} />
+                    <GroupChat project={project} user={ctx.user} isPlanner={isPlanner} isPledger={isPledger} isFlorist={isFlorist} socket={socket} onSummaryUpdate={setAiSummary} onUpdate={fetchProject} summary={aiSummary} />
                   </div>
                 </AppCard>
               )}

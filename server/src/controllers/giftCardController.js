@@ -44,18 +44,29 @@ export const redeemGiftCard = async (req, res) => {
         if (card.redeemedById) return res.status(409).json({ message: 'このコードはすでに使用されています' });
         if (card.expiresAt < new Date()) return res.status(410).json({ message: 'このギフトカードの有効期限が切れています' });
 
-        const [updatedCard] = await prisma.$transaction([
-            prisma.giftCard.update({
-                where: { id: card.id },
+        // 同時リクエストでの二重付与を防ぐため、未使用(redeemedById=null)を条件に原子的に確保する。
+        // updateMany の count で「自分が確保できたか」を判定し、確保できた時のみポイントを付与する。
+        const points = card.points;
+        const result = await prisma.$transaction(async (tx) => {
+            const claimed = await tx.giftCard.updateMany({
+                where: { id: card.id, redeemedById: null },
                 data: { redeemedById: userId, redeemedAt: new Date() },
-            }),
-            prisma.user.update({
+            });
+            if (claimed.count === 0) {
+                return { ok: false };
+            }
+            await tx.user.update({
                 where: { id: userId },
-                data: { points: { increment: card.points } },
-            }),
-        ]);
+                data: { points: { increment: points } },
+            });
+            return { ok: true };
+        });
 
-        res.json({ success: true, points: card.points, card: updatedCard });
+        if (!result.ok) {
+            return res.status(409).json({ message: 'このコードはすでに使用されています' });
+        }
+
+        res.json({ success: true, points });
     } catch (err) {
         logger.error('redeemGiftCard error', { context: 'GiftCard', error: err.message });
         res.status(500).json({ message: 'ギフトカードの使用に失敗しました。' });

@@ -99,14 +99,15 @@ export const updateVenueProfile = async (req, res) => {
             data: {
                 venueName: data.venueName !== undefined ? data.venueName : undefined,
                 address: data.address !== undefined ? data.address : undefined,
-                isOfficial: data.isOfficial !== undefined ? data.isOfficial : undefined,
+                isOfficial: (isAdmin && data.isOfficial !== undefined) ? data.isOfficial : undefined,
                 isStandAllowed: data.isStandAllowed !== undefined ? data.isStandAllowed : undefined,
                 isBowlAllowed: data.isBowlAllowed !== undefined ? data.isBowlAllowed : undefined,
                 accessInfo: data.accessInfo !== undefined ? data.accessInfo : undefined,
                 standRegulation: data.standRegulation !== undefined ? data.standRegulation : undefined,
                 bowlRegulation: data.bowlRegulation !== undefined ? data.bowlRegulation : undefined,
                 retrievalRequired: data.retrievalRequired !== undefined ? data.retrievalRequired : undefined,
-                status: data.status !== undefined ? data.status : undefined,
+                // ★ status / isOfficial は管理者のみ変更可能（会場本人による権限昇格を防止）
+                status: (isAdmin && data.status !== undefined) ? data.status : undefined,
                 // ★ 画像配列の保存を確実に実行
                 imageUrls: Array.isArray(data.imageUrls) ? data.imageUrls : undefined
             }
@@ -209,5 +210,30 @@ export const getLogisticsInfo = async (req, res) => {
     } catch (e) {
         logger.error('getLogisticsInfo Error', { context: 'venueController', error: e.message });
         res.status(500).json({ message: '物流情報の取得に失敗しました。' });
+    }
+};
+
+// --- 物流情報への「参考になった」投票 ---
+export const markLogisticsHelpful = async (req, res) => {
+    const { venueId, logId } = req.params;
+    try {
+        const existing = await prisma.venueLogisticsInfo.findUnique({
+            where: { id: logId },
+            select: { id: true, venueId: true },
+        });
+
+        if (!existing || existing.venueId !== venueId) {
+            return res.status(404).json({ message: '物流情報が見つかりません。' });
+        }
+
+        const updated = await prisma.venueLogisticsInfo.update({
+            where: { id: logId },
+            data: { helpfulCount: { increment: 1 } },
+        });
+
+        res.json({ helpfulCount: updated.helpfulCount });
+    } catch (e) {
+        logger.error('markLogisticsHelpful Error', { context: 'venueController', error: e.message });
+        res.status(500).json({ message: '投票に失敗しました。' });
     }
 };

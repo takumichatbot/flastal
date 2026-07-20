@@ -17,7 +17,7 @@ export default function OrganizerMessagesPage() {
   const messageTextareaRef = useRef(null);
 
   useEffect(() => {
-    const t = localStorage.getItem('token');
+    const t = window.__flastalToken;
     setToken(t);
     if (!t) return;
     // 自分が主催者のプロジェクト一覧を取得

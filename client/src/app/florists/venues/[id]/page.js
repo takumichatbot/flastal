@@ -162,8 +162,8 @@ export default function VenueLogisticsPage() {
     ));
 
     try {
-        await fetch(`${API_URL}/api/logistics/${infoId}/helpful`, {
-            method: 'PATCH', headers: { 'Authorization': `Bearer ${token}` }
+        await fetch(`${API_URL}/api/venues/${id}/logistics/${infoId}/helpful`, {
+            method: 'POST', headers: { 'Authorization': `Bearer ${token}` }
         });
         toast.success('「役に立った」を送りました');
     } catch (e) {

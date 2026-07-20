@@ -391,10 +391,50 @@ export const aiParseEvent = async (req, res) => {
     }
 };
 
-export const toggleInterest = async (req, res) => { 
+// 「興味あり」のトグル（EventInterest 中間テーブルの作成/削除で永続化）
+export const toggleInterest = async (req, res) => {
     try {
-        res.json({ message: 'ok' }); 
-    } catch(e) {
-        res.status(500).json({ message: 'エラー' });
+        const userId = req.user.id;
+        const eventId = req.params.id;
+
+        const existing = await prisma.eventInterest.findUnique({
+            where: { userId_eventId: { userId, eventId } },
+        });
+
+        if (existing) {
+            await prisma.eventInterest.delete({ where: { id: existing.id } });
+            return res.json({ interested: false });
+        }
+
+        await prisma.eventInterest.create({ data: { userId, eventId } });
+        return res.json({ interested: true });
+    } catch (e) {
+        logger.error('toggleInterest Error', { context: 'eventController', error: e.message });
+        res.status(500).json({ message: '興味ありの更新に失敗しました。' });
+    }
+};
+
+// イベント通報（EventReport レコードを作成）
+export const reportEvent = async (req, res) => {
+    try {
+        const reporterId = req.user.id;
+        const eventId = req.params.id;
+        const { reason } = req.body;
+
+        if (!reason || !String(reason).trim()) {
+            return res.status(400).json({ message: '通報理由を入力してください。' });
+        }
+
+        const event = await prisma.event.findUnique({ where: { id: eventId }, select: { id: true } });
+        if (!event) return res.status(404).json({ message: 'イベントが見つかりません。' });
+
+        const report = await prisma.eventReport.create({
+            data: { eventId, reporterId, reason: String(reason).trim() },
+        });
+
+        res.status(201).json({ message: '通報を受け付けました。', id: report.id });
+    } catch (e) {
+        logger.error('reportEvent Error', { context: 'eventController', error: e.message });
+        res.status(500).json({ message: '通報の送信に失敗しました。' });
     }
 };

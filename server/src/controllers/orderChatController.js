@@ -23,8 +23,8 @@ export const getMessages = async (req, res) => {
       return res.status(404).json({ message: '注文が見つかりません。' });
     }
 
-    // 花屋は自分の注文のみアクセス可能
-    if (role === 'FLORIST' && order.floristId !== userId) {
+    // 管理者、または注文の所有花屋のみアクセス可能
+    if (role !== 'ADMIN' && !(role === 'FLORIST' && order.floristId === userId)) {
       return res.status(403).json({ message: 'この注文へのアクセス権限がありません。' });
     }
 

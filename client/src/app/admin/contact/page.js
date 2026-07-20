@@ -37,7 +37,7 @@ function AdminContactInner() {
             if (targetUser && (targetUser.email === searchTerm || targetUser.name === searchTerm)) return;
             setIsSearching(true);
             try {
-                const res = await fetch(`${API_URL}/api/admin/users?search=${encodeURIComponent(searchTerm)}`, {
+                const res = await fetch(`${API_URL}/api/admin/users/search?search=${encodeURIComponent(searchTerm)}`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 if (res.ok) {
@@ -92,7 +92,7 @@ function AdminContactInner() {
                 fileUrl = uploadData.url;
                 fileName = selectedFile.name;
             }
-            const res = await fetch(`${API_URL}/api/admin/contact/send`, {
+            const res = await fetch(`${API_URL}/api/admin/send-email`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify({ 

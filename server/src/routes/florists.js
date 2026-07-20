@@ -34,6 +34,7 @@ router.post('/request-payout', authenticateToken, floristController.requestPayou
 router.post('/posts', authenticateToken, floristController.createFloristPost);
 router.get('/deals', authenticateToken, floristController.getMyDeals);
 router.post('/deals', authenticateToken, floristController.createDeal);
+router.delete('/deals/:dealId', authenticateToken, floristController.deleteDeal);
 
 router.patch('/posts/:id', authenticateToken, floristController.updateFloristPost); // 更新用
 router.delete('/posts/:id', authenticateToken, floristController.deleteFloristPost); // 削除用

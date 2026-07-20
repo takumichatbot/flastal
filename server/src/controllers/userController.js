@@ -429,22 +429,27 @@ export const unfollowUser = async (req, res) => {
 };
 
 export const getFollowStatus = async (req, res) => {
-    const followerId = req.user.id;
-    const { userId: followingId } = req.params;
-    const follow = await prisma.follow.findUnique({
-        where: { followerId_followingId: { followerId, followingId } },
-    });
-    const counts = await prisma.user.findUnique({
-        where: { id: followingId },
-        select: {
-            _count: { select: { followers: true, following: true } },
-        },
-    });
-    res.json({
-        following: !!follow,
-        followersCount: counts?._count?.followers ?? 0,
-        followingCount: counts?._count?.following ?? 0,
-    });
+    try {
+        const followerId = req.user.id;
+        const { userId: followingId } = req.params;
+        const follow = await prisma.follow.findUnique({
+            where: { followerId_followingId: { followerId, followingId } },
+        });
+        const counts = await prisma.user.findUnique({
+            where: { id: followingId },
+            select: {
+                _count: { select: { followers: true, following: true } },
+            },
+        });
+        res.json({
+            following: !!follow,
+            followersCount: counts?._count?.followers ?? 0,
+            followingCount: counts?._count?.following ?? 0,
+        });
+    } catch (err) {
+        logger.error('getFollowStatus error', { context: 'userController', error: err.message });
+        res.status(500).json({ message: 'フォロー状態の取得に失敗しました。' });
+    }
 };
 
 // フォロー中の企画者の新着企画フィード
@@ -844,6 +849,35 @@ export const deleteMyAccount = async (req, res) => {
         }
 
         await prisma.$transaction(async (tx) => {
+            // Project.plannerId は必須FK（onDelete: Restrict）のため、削除前に必ず解消する必要がある。
+            // 進行中の企画は上でブロック済み。残る終了済み企画（COMPLETED/CANCELED/PENDING/REJECTED等）は
+            // 支援者の支援履歴・金額など第三者の記録を含むため削除せず、匿名プレースホルダーへ付け替えて保全する。
+            const remainingProjects = await tx.project.findFirst({
+                where: { plannerId: userId },
+                select: { id: true },
+            });
+            if (remainingProjects) {
+                const placeholder = await tx.user.upsert({
+                    where: { email: 'deleted-account@flastal.internal' },
+                    update: {},
+                    create: {
+                        email: 'deleted-account@flastal.internal',
+                        handleName: '退会したユーザー',
+                        password: '!',
+                        isVerified: true,
+                        isProfilePublic: false,
+                    },
+                });
+                await tx.project.updateMany({
+                    where: { plannerId: userId },
+                    data: { plannerId: placeholder.id },
+                });
+            }
+
+            // AuditLog.adminId も必須FK（onDelete: Restrict）。本人が管理者として残した監査ログを削除する
+            // （アカウント削除に伴う個人データ消去の一環）。
+            await tx.auditLog.deleteMany({ where: { adminId: userId } });
+
             // Reports (reporter FK)
             await tx.projectReport.deleteMany({ where: { reporterId: userId } });
             await tx.eventReport.deleteMany({ where: { reporterId: userId } });

@@ -75,13 +75,17 @@ export const handleStripeWebhook = async (req, res) => {
                 const result = await prisma.$transaction(async (tx) => {
                     // 1. ログインユーザーの場合、使用したポイントを引き落とす
                     if (userId !== 'guest' && parseInt(pointsUsed) > 0) {
-                        await tx.user.update({
-                            where: { id: userId },
+                        // 残高ガード付きで原子的に減算（負残高を防ぐ）
+                        const dec = await tx.user.updateMany({
+                            where: { id: userId, points: { gte: parseInt(pointsUsed) } },
                             data: {
                                 points: { decrement: parseInt(pointsUsed) },
                                 totalPledgedAmount: { increment: parseInt(totalAmount) }
                             }
                         });
+                        if (dec.count === 0) {
+                            throw new Error('ポイント残高不足のため支援処理を中止しました');
+                        }
                         await tx.pointTransaction.create({
                             data: {
                                 userId,
@@ -256,7 +260,7 @@ export const handleStripeWebhook = async (req, res) => {
                 logger.info('Pledge processed successfully', { context: 'Webhook', projectId });
                 await prisma.webhookLog.upsert({
                     where: { eventId: event.id },
-                    update: {},
+                    update: { status: 'success' }, // 成功を記録し、再配信時の二重処理を防ぐ
                     create: { eventId: event.id, eventType: event.type, status: 'success', metadata: meta },
                 }).catch(() => {});
             } catch (err) {
@@ -279,7 +283,7 @@ export const handleStripeWebhook = async (req, res) => {
                 logger.info('Shop order fulfilled', { context: 'Webhook', sessionId: session.id });
                 await prisma.webhookLog.upsert({
                     where: { eventId: event.id },
-                    update: {},
+                    update: { status: 'success' },
                     create: { eventId: event.id, eventType: event.type, status: 'success', metadata: meta },
                 }).catch(() => {});
             } catch (err) {
@@ -298,7 +302,7 @@ export const handleStripeWebhook = async (req, res) => {
         if (meta && meta.type === 'shop_subscription') {
             try {
                 await fulfillShopSubscription(session);
-                await prisma.webhookLog.upsert({ where: { eventId: event.id }, update: {}, create: { eventId: event.id, eventType: event.type, status: 'success', metadata: meta } }).catch(() => {});
+                await prisma.webhookLog.upsert({ where: { eventId: event.id }, update: { status: 'success' }, create: { eventId: event.id, eventType: event.type, status: 'success', metadata: meta } }).catch(() => {});
             } catch (err) {
                 logger.error('ShopSubscription Error', { context: 'Webhook', error: err.message });
                 await prisma.webhookLog.upsert({ where: { eventId: event.id }, update: { status: 'error', error: err.message }, create: { eventId: event.id, eventType: event.type, status: 'error', metadata: meta, error: err.message } }).catch(() => {});
@@ -311,7 +315,7 @@ export const handleStripeWebhook = async (req, res) => {
         if (meta && meta.type === 'superchat') {
             try {
                 await fulfillSuperchat(session);
-                await prisma.webhookLog.upsert({ where: { eventId: event.id }, update: {}, create: { eventId: event.id, eventType: event.type, status: 'success', metadata: meta } }).catch(() => {});
+                await prisma.webhookLog.upsert({ where: { eventId: event.id }, update: { status: 'success' }, create: { eventId: event.id, eventType: event.type, status: 'success', metadata: meta } }).catch(() => {});
             } catch (err) {
                 logger.error('Superchat Error', { context: 'Webhook', error: err.message });
                 await prisma.webhookLog.upsert({ where: { eventId: event.id }, update: { status: 'error', error: err.message }, create: { eventId: event.id, eventType: event.type, status: 'error', metadata: meta, error: err.message } }).catch(() => {});
@@ -325,7 +329,7 @@ export const handleStripeWebhook = async (req, res) => {
         if (meta && meta.type === 'group_buy') {
             try {
                 await fulfillGroupBuyEntry(session);
-                await prisma.webhookLog.upsert({ where: { eventId: event.id }, update: {}, create: { eventId: event.id, eventType: event.type, status: 'success', metadata: meta } }).catch(() => {});
+                await prisma.webhookLog.upsert({ where: { eventId: event.id }, update: { status: 'success' }, create: { eventId: event.id, eventType: event.type, status: 'success', metadata: meta } }).catch(() => {});
             } catch (err) {
                 logger.error('GroupBuy Error', { context: 'Webhook', error: err.message });
                 await prisma.webhookLog.upsert({ where: { eventId: event.id }, update: { status: 'error', error: err.message }, create: { eventId: event.id, eventType: event.type, status: 'error', metadata: meta, error: err.message } }).catch(() => {});
@@ -362,7 +366,7 @@ export const handleStripeWebhook = async (req, res) => {
                 logger.info('Points charged', { context: 'Webhook', points, userId });
                 await prisma.webhookLog.upsert({
                     where: { eventId: event.id },
-                    update: {},
+                    update: { status: 'success' },
                     create: { eventId: event.id, eventType: event.type, status: 'success', metadata: { userId, points } },
                 }).catch(() => {});
             } catch (err) {

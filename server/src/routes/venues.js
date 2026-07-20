@@ -17,6 +17,7 @@ router.get('/:id', venueController.getVenueById);
 // 物流情報
 router.get('/:venueId/logistics', venueController.getLogisticsInfo);
 router.post('/:venueId/logistics', authenticateToken, venueController.postLogisticsInfo);
+router.post('/:venueId/logistics/:logId/helpful', authenticateToken, venueController.markLogisticsHelpful);
 
 // 登録・更新・削除 (会場)
 router.post('/', authenticateToken, venueController.addVenueByUser);

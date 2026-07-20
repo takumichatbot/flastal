@@ -10,8 +10,8 @@ export default function BadgesPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) return;
+    const token = window.__flastalToken;
+    if (!token) { setLoading(false); return; }
     fetch(`${API_URL}/api/users/badges`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json())
       .then(d => { setBadges(d); setLoading(false); })

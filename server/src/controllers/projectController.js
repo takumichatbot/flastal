@@ -852,7 +852,8 @@ export const cancelProject = async (req, res) => {
 // 企画完了報告 (Complete)
 export const completeProject = async (req, res) => {
     const { projectId } = req.params;
-    const { userId, completionImageUrls, completionComment, surplusUsageDescription } = req.body;
+    const userId = req.user.id;
+    const { completionImageUrls, completionComment, surplusUsageDescription } = req.body;
 
     try {
         const project = await prisma.project.findUnique({
@@ -912,6 +913,33 @@ export const completeProject = async (req, res) => {
         res.status(200).json(completedProject);
     } catch (error) {
         res.status(500).json({ message: '完了報告中にエラーが発生しました。' });
+    }
+};
+
+// 締切日の更新（企画者のみ）
+export const updateDeadline = async (req, res) => {
+    const { projectId } = req.params;
+    const userId = req.user.id;
+    const { newDeadline } = req.body;
+
+    try {
+        const project = await prisma.project.findUnique({
+            where: { id: projectId },
+            select: { id: true, plannerId: true },
+        });
+
+        if (!project) return res.status(404).json({ message: '企画が見つかりません。' });
+        if (project.plannerId !== userId) return res.status(403).json({ message: '権限がありません。' });
+
+        const updatedProject = await prisma.project.update({
+            where: { id: projectId },
+            data: { deadline: newDeadline ? new Date(newDeadline) : null },
+        });
+
+        res.status(200).json(updatedProject);
+    } catch (error) {
+        logger.error('updateDeadline', { context: 'projectController', error: error.message });
+        res.status(500).json({ message: '締切日の更新に失敗しました。' });
     }
 };
 
@@ -1011,7 +1039,7 @@ export const updateMaterialCost = async (req, res) => {
             }
         });
 
-        await createNotification(project.plannerId, 'PROJECT_UPDATE', `資材費情報が更新されました。`, projectId, `/projects/${projectId}`);
+        await createNotification(project.plannerId, 'PROJECT_STATUS_UPDATE', `資材費情報が更新されました。`, projectId, `/projects/${projectId}`);
         res.json(updatedProject);
     } catch (error) {
         res.status(500).json({ message: '更新に失敗しました。' });
@@ -1023,7 +1051,7 @@ export const updateProductionStatus = async (req, res) => {
     const { projectId } = req.params;
     const { floristId, status } = req.body;
 
-    if (!['PROCESSING', 'READY_FOR_DELIVERY', 'DELIVERED'].includes(status)) {
+    if (!['PROCESSING', 'READY_FOR_DELIVERY', 'COMPLETED'].includes(status)) {
         return res.status(400).json({ message: '無効なステータスです。' });
     }
 
@@ -1049,9 +1077,8 @@ export const updateProjectStatus = async (req, res) => {
     const { status } = req.body;
     
     const VALID_STATUSES = [
-        'PENDING_APPROVAL', 'FUNDRAISING', 'REJECTED', 'OFFER_ACCEPTED', 
-        'DESIGN_FIXED', 'MATERIAL_PREP', 'PRODUCTION_IN_PROGRESS', 
-        'READY_FOR_DELIVERY', 'DELIVERED_OR_FINISHED'
+        'PENDING_APPROVAL', 'FUNDRAISING', 'SUCCESSFUL', 'PROCESSING',
+        'READY_FOR_DELIVERY', 'COMPLETED', 'CANCELED', 'REJECTED'
     ];
 
     if (!VALID_STATUSES.includes(status)) {
@@ -1786,7 +1813,7 @@ export const getPersonalizedFeed = async (req, res) => {
 // ★ AI花屋マッチング
 // ==========================================
 export const matchFlorists = async (req, res) => {
-    const { projectId } = req.params;
+    const { id: projectId } = req.params;
     try {
         const project = await prisma.project.findUnique({
             where: { id: projectId },
@@ -1803,7 +1830,7 @@ export const matchFlorists = async (req, res) => {
                 status: 'APPROVED',
                 ...(region ? { address: { contains: region } } : {}),
             },
-            select: { id: true, shopName: true, address: true, prefectures: true, minPrice: true, maxPrice: true, description: true, specialties: true },
+            select: { id: true, shopName: true, address: true, baseDeliveryArea: true, baseDeliveryFee: true, portfolio: true, specialties: true },
             take: 20,
         });
 
@@ -1822,7 +1849,7 @@ export const matchFlorists = async (req, res) => {
 配送先: ${project.deliveryAddress}
 
 候補花屋:
-${florists.map(f => `ID:${f.id} 店名:${f.shopName} 住所:${f.address} 価格帯:${f.minPrice}〜${f.maxPrice}円 得意分野:${f.specialties?.join(',') || 'なし'}`).join('\n')}`;
+${florists.map(f => `ID:${f.id} 店名:${f.shopName} 住所:${f.address} 配送エリア:${f.baseDeliveryArea || '未設定'} 配送料:${f.baseDeliveryFee ?? '未設定'}円 得意分野:${f.specialties?.join(',') || 'なし'}`).join('\n')}`;
 
         const completion = await openai.chat.completions.create({
             model: 'gpt-4o-mini',
@@ -1903,7 +1930,7 @@ export const generateCertificate = async (req, res) => {
             where: { id: pledgeId },
             include: {
                 user: { select: { handleName: true } },
-                project: { select: { id: true, title: true, status: true, targetArtist: true, updatedAt: true } },
+                project: { select: { id: true, title: true, status: true, updatedAt: true } },
             },
         });
 
@@ -1988,7 +2015,7 @@ export const generateCertificate = async (req, res) => {
         const rows = [
             { label: '支援者名', value: backerName },
             { label: 'プロジェクト名', value: project.title },
-            { label: '贈り先アーティスト', value: project.targetArtist || '未設定' },
+            { label: '企画名', value: project.title || '未設定' },
             { label: '支援金額', value: `¥${pledge.amount.toLocaleString()}` },
             { label: '完成日', value: completionDate },
         ];

@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Capacitor } from '@capacitor/core';
 
+const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
+
 export const IAP_TIERS = [
   { productId: 'com.flastal.app.coin1000',  points: 1000,  price: 1000 },
   { productId: 'com.flastal.app.coin2000',  points: 2000,  price: 2000 },
@@ -54,10 +56,33 @@ export function useIAP() {
             pendingRef.current.keys().next().value;
           const pending = productId ? pendingRef.current.get(productId) : null;
 
-          // 対応する進行中注文がなければ finish のみ実行し、未処理トランザクションをクリアする
-          // （Apple は未 finish のトランザクションを繰り返し提示するため、放置しない）。
+          // 対応する進行中注文がない孤立トランザクション（前回の起動中に検証が失敗して
+          // 未 finish のまま再提示された購入など）。ここで finish して捨てると、
+          // 支払い済みなのにポイント未付与のまま失われる。
+          // ログイン済みなら復旧付与を試み、成功/処理済みのときだけ finish する。
           if (!pending) {
-            try { await transaction.finish(); } catch (_) {}
+            try {
+              const token = typeof window !== 'undefined' ? window.__flastalToken : null;
+              const tier = productId && IAP_TIERS.find(t => t.productId === productId);
+              const receiptData =
+                transaction.parentReceipt?.nativeData?.appStoreReceipt ||
+                transaction.parentReceipt?.appStoreReceipt;
+              if (token && tier && receiptData) {
+                const res = await fetch(`${BACKEND_URL}/api/payment/iap/points`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                  body: JSON.stringify({ points: tier.points, receipt: receiptData, productId }),
+                });
+                // 付与成功、または「既に処理済み」(サーバーは冪等に success を返す)なら finish
+                if (res.ok) {
+                  await transaction.finish();
+                }
+                // 失敗時は finish せず、次回起動時に再度復旧を試みる
+              }
+              // トークン/レシートが無い場合も finish しない（次回に持ち越す）
+            } catch (_) {
+              // ネットワークエラー等：finish せず持ち越す
+            }
             return;
           }
 

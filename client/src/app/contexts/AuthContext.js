@@ -355,6 +355,7 @@ export function AuthProvider({ children }) {
     const approved = isLoading ? true : (user ? (user.status === 'APPROVED' || !isProfessional) : false);
     return {
       user, token, isAuthenticated: !!user, isLoading,
+      loading: isLoading,
       isAdmin: user?.role === 'ADMIN',
       isProfessional, isApproved: approved,
       isPending: user?.status === 'PENDING',

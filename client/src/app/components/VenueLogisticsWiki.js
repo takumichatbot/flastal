@@ -81,7 +81,7 @@ export default function VenueLogisticsWiki({ venueId, venueName, isFloristView =
         }));
 
         try {
-            await fetch(`${API_URL}/api/venues/logistics/${logId}/helpful`, {
+            await fetch(`${API_URL}/api/venues/${venueId}/logistics/${logId}/helpful`, {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${token}` }
             });

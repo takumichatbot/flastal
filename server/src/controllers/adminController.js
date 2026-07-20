@@ -165,7 +165,7 @@ export const getAllIllustratorsAdmin = async (req, res) => {
     const select = {
         id: true, email: true, handleName: true, status: true,
         role: true, roles: true, isVerified: true, createdAt: true,
-        illustratorProfile: { select: { penName: true, portfolio: true } },
+        illustratorProfile: { select: { bio: true, portfolioUrls: true } },
     };
     try {
         const data = await prisma.user.findMany({
@@ -200,8 +200,16 @@ export const getSystemSettings = async (req, res) => {
 
 export const updateSystemSettings = async (req, res) => {
     try {
+        const feeRate = parseFloat(req.body.platformFeeRate);
         let s = await prisma.systemSettings.findFirst();
-        const u = await prisma.systemSettings.update({ where: { id: s.id }, data: { platformFeeRate: parseFloat(req.body.platformFeeRate) } });
+        if (!s) {
+            // 設定行がまだ存在しない場合（新規DBなど）は作成する
+            const created = await prisma.systemSettings.create({
+                data: { platformFeeRate: isNaN(feeRate) ? 0.10 : feeRate },
+            });
+            return res.json(created);
+        }
+        const u = await prisma.systemSettings.update({ where: { id: s.id }, data: { platformFeeRate: feeRate } });
         return res.json(u);
     } catch (e) { return res.status(500).json({ message: 'Error' }); }
 };
@@ -237,19 +245,24 @@ export const updateAdminPayoutStatus = async (req, res) => {
         const { status, type, reason } = req.body;
         const payoutId = req.params.id;
 
+        // PayoutStatus enum は PENDING/PROCESSING/COMPLETED/FAILED/CANCELLED のみ。
+        // フロントから来る 'APPROVED' は承認＝処理中を意味するため 'PROCESSING' にマップする。
+        const statusMap = { APPROVED: 'PROCESSING' };
+        const dbStatus = statusMap[status] || status;
+
         let r;
         if (type === 'user') {
             // ユーザー出金申請（Payoutモデル）
             r = await prisma.payout.update({
                 where: { id: payoutId },
-                data: { status },
+                data: { status: dbStatus },
                 include: { user: { select: { id: true, email: true, handleName: true } } },
             });
         } else {
             // 花屋出金申請（PayoutRequestモデル）
             r = await prisma.payoutRequest.update({
                 where: { id: payoutId },
-                data: { status },
+                data: { status: dbStatus },
                 include: { florist: { select: { id: true, email: true, shopName: true, contactName: true } } },
             });
         }
@@ -680,6 +693,50 @@ export const reviewReport = async (req, res) => {
     try {
         return res.json(await prisma.projectReport.update({ where: { id: req.params.reportId }, data: { status: 'REVIEWED' } }));
     } catch (e) { return res.status(500).json({ message: 'Error' }); }
+};
+
+// 企画通報（ProjectReport）一覧の取得
+export const getProjectReports = async (req, res) => {
+    try {
+        const reports = await prisma.projectReport.findMany({
+            orderBy: { createdAt: 'desc' },
+            include: {
+                project: { select: { id: true, title: true } },
+                reporter: { select: { id: true, handleName: true, email: true } },
+            },
+        });
+        return res.json(reports || []);
+    } catch (e) {
+        logger.error('getProjectReports Error', { context: 'adminController', error: e.message });
+        return res.status(200).json([]);
+    }
+};
+
+// グループチャットメッセージの削除（管理者）
+export const deleteGroupChatMessage = async (req, res) => {
+    const { id } = req.params;
+    try {
+        // GroupChatMessageReaction は onDelete:Cascade 未設定のため先に削除する
+        await prisma.groupChatMessageReaction.deleteMany({ where: { messageId: id } });
+        await prisma.groupChatMessage.delete({ where: { id } });
+        return res.status(204).send();
+    } catch (e) {
+        logger.error('deleteGroupChatMessage Error', { context: 'adminController', error: e.message });
+        return res.status(500).json({ message: 'メッセージの削除に失敗しました' });
+    }
+};
+
+// お花屋さん（受発注）チャットメッセージの削除（管理者）
+export const deleteFloristChatMessage = async (req, res) => {
+    const { id } = req.params;
+    try {
+        // ChatMessageReport は onDelete:Cascade 設定済みのため本体削除で自動的に消える
+        await prisma.chatMessage.delete({ where: { id } });
+        return res.status(204).send();
+    } catch (e) {
+        logger.error('deleteFloristChatMessage Error', { context: 'adminController', error: e.message });
+        return res.status(500).json({ message: 'メッセージの削除に失敗しました' });
+    }
 };
 
 export const createVenueAdmin = async (req, res) => {

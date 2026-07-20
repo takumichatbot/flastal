@@ -17,20 +17,23 @@ export const loginOrganizer = async (req, res) => {
             return res.status(401).json({ message: 'メールアドレスまたはパスワードが正しくありません。' });
         }
 
+        // ビジネスロール（ORGANIZER）は7日JWTをaccess/refresh兼用にする
+        // （authControllerのgenerateBusinessTokenと同じ方式。/auth/refreshで再検証して再発行される）
         const token = jwt.sign(
             { id: organizer.id, email: organizer.email, role: 'ORGANIZER' },
             process.env.JWT_SECRET,
             { expiresIn: '7d' }
         );
 
-        res.json({ 
-            token, 
-            organizer: { 
-                id: organizer.id, 
-                name: organizer.name, 
+        res.json({
+            token,
+            refreshToken: token,
+            organizer: {
+                id: organizer.id,
+                name: organizer.name,
                 role: 'ORGANIZER',
                 status: organizer.status
-            } 
+            }
         });
     } catch (e) {
         logger.error('loginOrganizer Error', { context: 'organizerController', error: e.message });
@@ -62,7 +65,8 @@ export const getOrganizerProfile = async (req, res) => {
 export const updateOrganizerProfile = async (req, res) => {
     try {
         const targetId = req.params.id || req.user.id;
-        const { name, website, email, bio, iconUrl } = req.body;
+        // Organizerモデルに存在するフィールドのみ更新（bio/iconUrlは存在しないため除外）
+        const { name, website, email } = req.body;
 
         if (targetId !== req.user.id && req.user.role !== 'ADMIN') {
             return res.status(403).json({ message: '権限がありません。' });
@@ -73,10 +77,7 @@ export const updateOrganizerProfile = async (req, res) => {
             data: {
                 name: name !== undefined ? name : undefined,
                 website: website !== undefined ? website : undefined,
-                email: email !== undefined ? email : undefined,
-                bio: bio !== undefined ? bio : undefined,
-                // ★ アイコンURL（単数）または画像配列（複数）の保存を確実に実行
-                iconUrl: iconUrl !== undefined ? iconUrl : undefined
+                email: email !== undefined ? email : undefined
             }
         });
 

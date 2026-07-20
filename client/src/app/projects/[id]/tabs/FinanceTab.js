@@ -30,7 +30,7 @@ export default function FinanceTab({ ctx }) {
         <div className="bg-slate-50 p-4 rounded-xl text-xs md:text-sm space-y-2 md:space-y-3">
           <div className="flex justify-between items-center">
             <span className="text-slate-500 font-bold">収入 (支援総額)</span>
-            <span className="font-black text-sm md:text-base text-slate-800">{project.collectedAmount.toLocaleString()} pt</span>
+            <span className="font-black text-sm md:text-base text-slate-800">{(project.collectedAmount || 0).toLocaleString()} pt</span>
           </div>
           <div className="flex justify-between items-center text-rose-500">
             <span className="font-bold">支出合計</span>

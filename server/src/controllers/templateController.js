@@ -87,7 +87,6 @@ export const createTemplate = async (req, res) => {
                 select: {
                     plannerId: true,
                     targetAmount: true,
-                    targetArtist: true,
                     projectType: true,
                     description: true,
                     tags: {
@@ -107,7 +106,7 @@ export const createTemplate = async (req, res) => {
             templateData = {
                 ...templateData,
                 targetAmount: targetAmount ?? sourceProject.targetAmount,
-                targetArtist: targetArtist?.trim() || sourceProject.targetArtist || null,
+                targetArtist: targetArtist?.trim() || null,
                 projectType: projectType || sourceProject.projectType?.toString() || 'PUBLIC',
                 tags: Array.isArray(tags) && tags.length > 0
                     ? tags

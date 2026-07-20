@@ -235,14 +235,48 @@ export const fulfillGroupBuyEntry = async (stripeSession) => {
   }
 
   await prisma.$transaction(async (tx) => {
-    // GroupBuyEntry を PAID に更新
-    const entry = await tx.groupBuyEntry.update({
+    // 対象エントリを取得（口数と現在ステータス）
+    const existing = await tx.groupBuyEntry.findUnique({
       where: { stripeSessionId: stripeSession.id },
-      data: {
-        status: 'PAID',
-        stripePaymentId: stripeSession.payment_intent || null,
-      },
+      select: { status: true, slots: true },
     });
+    if (!existing) {
+      throw new Error(`GroupBuyEntry not found for session: ${stripeSession.id}`);
+    }
+
+    // まだPAIDでない場合のみ確定処理（Webhookの二重配信に対する冪等性）
+    if (existing.status !== 'PAID') {
+      // ★ オーバーセル防止: 確定直前に現在のPAID口数を再集計し、上限を超えるなら確定しない。
+      //    joinGroupBuy時のチェックは PENDING 作成前の集計なので、同時購入では上限超過しうる。
+      //    ここで再チェックし、超過する場合は例外でロールバックしてPAIDにしない（要返金は別途対応）。
+      const gbForCap = await tx.groupBuy.findUnique({
+        where: { id: groupBuyId },
+        include: {
+          entries: { where: { status: 'PAID' }, select: { slots: true } },
+        },
+      });
+      if (!gbForCap) throw new Error(`GroupBuy not found: ${groupBuyId}`);
+
+      if (gbForCap.maxSlots !== null) {
+        const paidSlots = gbForCap.entries.reduce((sum, e) => sum + e.slots, 0);
+        if (paidSlots + existing.slots > gbForCap.maxSlots) {
+          logger.error('GroupBuy oversell prevented at fulfillment', {
+            context: 'GroupBuy', groupBuyId, session: stripeSession.id,
+            paidSlots, entrySlots: existing.slots, maxSlots: gbForCap.maxSlots,
+          });
+          throw new Error(`GroupBuy oversell: ${groupBuyId} would exceed maxSlots (${gbForCap.maxSlots})`);
+        }
+      }
+
+      // GroupBuyEntry を PAID に更新
+      await tx.groupBuyEntry.update({
+        where: { stripeSessionId: stripeSession.id },
+        data: {
+          status: 'PAID',
+          stripePaymentId: stripeSession.payment_intent || null,
+        },
+      });
+    }
 
     // 目標口数達成チェック
     const gb = await tx.groupBuy.findUnique({

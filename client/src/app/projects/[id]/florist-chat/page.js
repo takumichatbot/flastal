@@ -188,7 +188,7 @@ export default function PlannerFloristChatPage() {
           });
 
           const messageType = file.type.startsWith('image/') ? 'IMAGE' : 'FILE';
-          handleSendMessage(null, null, messageType, fileUrl, file.name);
+          handleSendMessage(null, messageType, fileUrl, file.name);
           toast.success('送信しました', { id: toastId });
         } catch (error) {
             toast.error(`送信失敗: ${error.message}`, { id: toastId });

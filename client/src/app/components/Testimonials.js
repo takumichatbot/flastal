@@ -28,7 +28,7 @@ export default function Testimonials() {
     const fetchReviews = async () => {
       setLoading(true);
       try {
-        const res = await fetch(`${API_URL}/api/reviews/featured`);
+        const res = await fetch(`${API_URL}/api/project-details/reviews/featured`);
         if (res.ok) {
           const data = await res.json();
           setReviews(Array.isArray(data) ? data : []); 

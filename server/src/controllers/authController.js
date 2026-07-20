@@ -70,14 +70,23 @@ export const registerUser = async (req, res) => {
             if (referrer) userData.referredById = referrer.id;
         }
 
-        await prisma.user.create({ data: userData });
+        // 紹介ボーナス: 招待した人と新規ユーザー両方にポイント付与。
+        // ユーザー作成と両者へのポイント付与をトランザクションで原子的に実行する。
+        await prisma.$transaction(async (tx) => {
+            const createdUser = await tx.user.create({ data: userData });
+            if (referrer) {
+                await tx.user.update({
+                    where: { id: referrer.id },
+                    data: { points: { increment: REFERRAL_BONUS_POINTS } },
+                });
+                await tx.user.update({
+                    where: { id: createdUser.id },
+                    data: { points: { increment: REFERRAL_BONUS_POINTS } },
+                });
+            }
+        });
 
-        // 紹介ボーナス: 招待した人と新規ユーザー両方にポイント付与
         if (referrer) {
-            await prisma.user.update({
-                where: { id: referrer.id },
-                data: { points: { increment: REFERRAL_BONUS_POINTS } },
-            });
             queueEmail(referrer.email, 'REFERRAL_BONUS', {
                 userName: referrer.handleName || 'さん',
                 points: REFERRAL_BONUS_POINTS.toLocaleString(),
@@ -379,8 +388,9 @@ export const verifyEmail = async (req, res) => {
         }
 
         if (!record) {
-            record = await prisma.illustrator.findFirst({ where: { verificationToken: token } });
-            if (record) userType = 'illustrator';
+            // 絵師（ILLUSTRATOR）はUserテーブルに統合されているためuserモデルを使用
+            record = await prisma.user.findFirst({ where: { verificationToken: token, role: 'ILLUSTRATOR' } });
+            if (record) userType = 'user';
         }
 
         if (!record) return res.status(400).json({ message: '無効または期限切れのトークンです。' });
@@ -400,7 +410,8 @@ export const verifyEmail = async (req, res) => {
 export const resendVerification = async (req, res) => {
     const { email, userType } = req.body;
     try {
-        const models = { FLORIST: 'florist', VENUE: 'venue', ORGANIZER: 'organizer', USER: 'user', ILLUSTRATOR: 'illustrator' };
+        // ILLUSTRATORはUserテーブルに統合されているためuserモデルを使用
+        const models = { FLORIST: 'florist', VENUE: 'venue', ORGANIZER: 'organizer', USER: 'user', ILLUSTRATOR: 'user' };
         const modelName = models[userType] || 'user';
         
         const account = await prisma[modelName].findUnique({ where: { email: email.toLowerCase() } });

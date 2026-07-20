@@ -36,7 +36,11 @@ export async function runGroupBuyRefundJob() {
         for (const entry of gb.entries) {
           if (!entry.stripePaymentId) continue;
           try {
-            await stripe.refunds.create({ payment_intent: entry.stripePaymentId });
+            // idempotencyKey にエントリIDを渡すことで、クラッシュ再試行時の二重返金を防ぐ
+            await stripe.refunds.create(
+              { payment_intent: entry.stripePaymentId },
+              { idempotencyKey: entry.id }
+            );
             await prisma.groupBuyEntry.update({
               where: { id: entry.id },
               data: { status: 'REFUNDED' },

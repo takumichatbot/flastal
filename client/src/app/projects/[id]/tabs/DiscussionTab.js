@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
+import toast from 'react-hot-toast';
 import { MessageSquare, Send, Trash2, CornerDownRight, User } from 'lucide-react';
 import { useAuth } from '@/app/contexts/AuthContext';
 import { AppCard } from './shared.js';
@@ -41,14 +42,17 @@ function DiscussionPost({ post, projectId, onRefresh, currentUserId, depth = 0 }
         if (!replyBody.trim()) return;
         setSubmitting(true);
         try {
-            await authenticatedFetch(`${API_URL}/api/projects/${projectId}/discussions`, {
+            const res = await authenticatedFetch(`${API_URL}/api/projects/${projectId}/discussions`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ body: replyBody, parentId: post.id }),
             });
+            if (!res.ok) throw new Error('返信の投稿に失敗しました');
             setReplyBody('');
             setShowReply(false);
             onRefresh();
+        } catch (err) {
+            toast.error(err.message || '返信の投稿に失敗しました');
         } finally {
             setSubmitting(false);
         }
@@ -57,10 +61,13 @@ function DiscussionPost({ post, projectId, onRefresh, currentUserId, depth = 0 }
     const handleDeleteConfirm = async () => {
         setDeleting(true);
         try {
-            await authenticatedFetch(`${API_URL}/api/projects/${projectId}/discussions/${post.id}`, {
+            const res = await authenticatedFetch(`${API_URL}/api/projects/${projectId}/discussions/${post.id}`, {
                 method: 'DELETE',
             });
+            if (!res.ok) throw new Error('コメントの削除に失敗しました');
             onRefresh();
+        } catch (err) {
+            toast.error(err.message || 'コメントの削除に失敗しました');
         } finally {
             setDeleting(false);
             setShowDeleteModal(false);
@@ -147,13 +154,16 @@ export default function DiscussionTab({ ctx }) {
         if (!body.trim()) return;
         setSubmitting(true);
         try {
-            await authenticatedFetch(`${API_URL}/api/projects/${project.id}/discussions`, {
+            const res = await authenticatedFetch(`${API_URL}/api/projects/${project.id}/discussions`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ body }),
             });
+            if (!res.ok) throw new Error('コメントの投稿に失敗しました');
             setBody('');
             fetchPosts();
+        } catch (err) {
+            toast.error(err.message || 'コメントの投稿に失敗しました');
         } finally {
             setSubmitting(false);
         }

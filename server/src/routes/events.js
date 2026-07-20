@@ -24,6 +24,9 @@ router.get('/:id', eventController.getEventById);
 // 興味あり: /api/events/:id/interest
 router.post('/:id/interest', authenticateToken, eventController.toggleInterest);
 
+// 通報: /api/events/:id/report
+router.post('/:id/report', authenticateToken, eventController.reportEvent);
+
 // 更新・削除
 router.patch('/:id', authenticateToken, eventController.updateEvent);
 router.delete('/:id', authenticateToken, eventController.deleteEvent);
