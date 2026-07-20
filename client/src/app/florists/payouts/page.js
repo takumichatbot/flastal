@@ -66,7 +66,7 @@ export default function FloristPayoutsPage() {
     if (!isAuthenticated) return;
     try {
       setLoading(true);
-      const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+      const token = window.__flastalToken;
       const headers = { 'Authorization': `Bearer ${token}` };
 
       // ★ プロフィールAPIも叩いて売上残高（balance）を取得する
@@ -126,7 +126,7 @@ export default function FloristPayoutsPage() {
 
     setIsSubmitting(true);
     try {
-      const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+      const token = window.__flastalToken;
       const res = await fetch(`${API_URL}/api/florists/bank-accounts`, {
         method: 'POST', 
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
@@ -156,7 +156,7 @@ export default function FloristPayoutsPage() {
 
     setIsSubmitting(true);
     try {
-        const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+        const token = window.__flastalToken;
         
         // ★ 修正: 口座情報を文字列化してバックエンドに渡す
         const accountInfoStr = `銀行名: ${bankAccount.bankName}\n支店名: ${bankAccount.branchName}\n種別: ${bankAccount.accountType}\n口座番号: ${bankAccount.accountNumber}\n名義: ${bankAccount.accountHolder}`;

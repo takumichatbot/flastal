@@ -16,7 +16,7 @@ export default function FloristDealManager() {
   // トークン取得ヘルパー
   const getToken = () => {
     if (typeof window === 'undefined') return null;
-    return localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+    return window.__flastalToken;
   };
 
   // データ取得

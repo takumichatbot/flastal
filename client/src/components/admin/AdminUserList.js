@@ -42,7 +42,7 @@ export default function AdminUserList({ onUserSelect, selectedUser }) {
     // データ取得
     const fetchUsers = async () => {
         setIsLoading(true);
-        const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+        const token = window.__flastalToken;
         if (!token) {
             setIsLoading(false);
             return toast.error('認証情報がありません。');
@@ -94,7 +94,7 @@ export default function AdminUserList({ onUserSelect, selectedUser }) {
 
         onUserSelect(user, null); // まずUIを切り替え
         
-        const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+        const token = window.__flastalToken;
         if (!token) return;
 
         try {

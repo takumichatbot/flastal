@@ -50,7 +50,7 @@ export default function ProjectCancelModal({ isOpen, onClose, project, onCancelC
         const toastId = toast.loading('中止および精算処理を実行中...');
 
         try {
-            const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+            const token = window.__flastalToken;
             const res = await fetch(`${API_URL}/api/projects/${project.id}/cancel`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },

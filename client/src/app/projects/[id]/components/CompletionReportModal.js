@@ -27,7 +27,7 @@ export default function CompletionReportModal({ project, user, onClose, onReport
     const toastId = toast.loading(`${files.length}枚の画像をアップロード中...`);
     
     try {
-        const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, ''); // ★トークン取得を追加
+        const token = window.__flastalToken; // ★トークン取得を追加
         const uploadPromises = files.map(async (file) => {
             const formData = new FormData();
             formData.append('image', file);

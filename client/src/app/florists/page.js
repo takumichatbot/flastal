@@ -367,7 +367,7 @@ function FloristsListContent() {
     try {
       const fd = new FormData();
       fd.append('image', file);
-      const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+      const token = window.__flastalToken;
       const res = await fetch(`${API_URL}/api/ai/search-florist-by-image`, {
         method: 'POST', body: fd, headers: { Authorization: `Bearer ${token}` },
       });

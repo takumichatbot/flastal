@@ -95,7 +95,7 @@ export default function IllustratorProjectDetailPage() {
     // WebSocket (チャット) の接続
     useEffect(() => {
         if (!user || !id) return;
-        const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+        const token = window.__flastalToken;
         if (!token) return;
         
         const newSocket = io(API_URL, { transports: ['polling'], auth: { token: `Bearer ${token}` } });

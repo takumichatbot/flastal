@@ -81,7 +81,7 @@ export default function FeedPage() {
   const fetchFeed = async () => {
     setIsLoading(true);
     try {
-      const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+      const token = window.__flastalToken;
       const res = await fetch(`${API_URL}/api/users/feed/following`, {
         headers: { Authorization: `Bearer ${token}` },
       });

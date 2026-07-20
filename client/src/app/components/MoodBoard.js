@@ -35,7 +35,7 @@ export default function MoodBoard({ projectId, user }) {
     const toastId = toast.loading('ボードに追加中...');
 
     try {
-      const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+      const token = window.__flastalToken;
       if (!token) throw new Error('ログインが必要です');
       
       const formData = new FormData();
@@ -73,7 +73,7 @@ export default function MoodBoard({ projectId, user }) {
   };
 
   const handleLike = async (itemId) => {
-    const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+    const token = window.__flastalToken;
     if (!token) return toast.error('ログインしてください');
 
     setItems(prevItems => prevItems.map(item => {
@@ -103,7 +103,7 @@ export default function MoodBoard({ projectId, user }) {
 
   const handleDelete = async (itemId) => {
     if (!confirm('この画像をボードから削除しますか？')) return;
-    const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+    const token = window.__flastalToken;
     
     try {
         // ★修正: /api/project-details/moodboard/... に変更

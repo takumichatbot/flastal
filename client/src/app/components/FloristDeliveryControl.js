@@ -25,7 +25,7 @@ export default function FloristDeliveryControl({ projectId, currentStatus, onSta
     const toastId = toast.loading('ステータスを更新中...');
     
     try {
-      const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+      const token = window.__flastalToken;
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/projects/${projectId}/production-status`, {
         method: 'PATCH',
         headers: {

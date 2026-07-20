@@ -193,7 +193,7 @@ export default function Header() {
 
     // Socket.IO でリアルタイム通知
     const token = typeof window !== 'undefined'
-      ? (localStorage.getItem('authToken') || '').replace(/^"|"$/g, '')
+      ? (window.__flastalToken || '').replace(/^"|"$/g, '')
       : null;
 
     let socket = null;

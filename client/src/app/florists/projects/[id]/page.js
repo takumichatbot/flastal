@@ -214,7 +214,7 @@ function PhotoUploadArea({ urls = [], type, projectId, onUploadComplete }) {
         const toastId = toast.loading('アップロード中...');
         
         try {
-            const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+            const token = window.__flastalToken;
 
             const urlRes = await fetch(`${API_URL}/api/tools/s3-upload-url`, {
                 method: 'POST',
@@ -365,7 +365,7 @@ export default function FloristProjectDetailPage() {
     const updateLogistics = async (field, value) => {
         const toastId = toast.loading('ステータスを更新中...');
         try {
-            const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+            const token = window.__flastalToken;
             const res = await fetch(`${API_URL}/api/projects/${id}`, {
                 method: 'PATCH',
                 headers: { 

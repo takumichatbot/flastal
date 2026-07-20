@@ -771,7 +771,7 @@ const PersonalizedFeed = () => {
 
   useEffect(() => {
     if (!isAuthenticated) { setLoading(false); return; }
-    const t = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+    const t = window.__flastalToken;
     fetch(`${API_URL}/api/projects/feed/personalized`, {
       headers: { Authorization: `Bearer ${t}` },
     })
@@ -1321,7 +1321,7 @@ const TrustBadges = () => {
 const MainContent = () => {
   const { isAuthenticated, user } = useAuth();
   const token = typeof window !== 'undefined'
-    ? localStorage.getItem('authToken')?.replace(/^"|"$/g, '') || null
+    ? window.__flastalToken || null
     : null;
 
   return (

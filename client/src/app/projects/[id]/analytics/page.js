@@ -55,7 +55,7 @@ export default function ProjectAnalyticsPage() {
   const fetchAnalytics = async () => {
     setIsLoading(true);
     try {
-      const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+      const token = window.__flastalToken;
       const [analyticsRes, projectRes] = await Promise.all([
         fetch(`${API_URL}/api/projects/${id}/analytics`, { headers: { Authorization: `Bearer ${token}` } }),
         fetch(`${API_URL}/api/projects/${id}`),
@@ -102,7 +102,7 @@ export default function ProjectAnalyticsPage() {
               href={`${API_URL}/api/projects/${id}/export/pledges`}
               onClick={e => {
                 e.preventDefault();
-                const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+                const token = window.__flastalToken;
                 fetch(`${API_URL}/api/projects/${id}/export/pledges`, { headers: { Authorization: `Bearer ${token}` } })
                   .then(r => r.blob()).then(blob => {
                     const a = document.createElement('a');

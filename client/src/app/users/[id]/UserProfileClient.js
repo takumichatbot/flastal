@@ -193,7 +193,7 @@ export default function PublicUserProfile() {
 
   useEffect(() => {
     if (!isAuthenticated || !me || me.id === id) return;
-    const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+    const token = window.__flastalToken;
     fetch(`${API_URL}/api/users/${id}/follow`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.ok ? r.json() : null)
       .then(data => { if (data) setFollowStatus(data); })
@@ -203,7 +203,7 @@ export default function PublicUserProfile() {
   const handleFollow = async () => {
     if (!isAuthenticated) { router.push('/login'); return; }
     setFollowLoading(true);
-    const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+    const token = window.__flastalToken;
     const method = followStatus.following ? 'DELETE' : 'POST';
     try {
       const res = await fetch(`${API_URL}/api/users/${id}/follow`, {

@@ -65,7 +65,7 @@ function VenueEditModal({ event, onClose, onUpdate }) {
     setIsSubmitting(true);
     const toastId = toast.loading('更新中...');
     try {
-      const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+      const token = window.__flastalToken;
       const res = await fetch(`${API_URL}/api/events/${event.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
@@ -147,7 +147,7 @@ function ReportModal({ eventId, onClose }) {
     if (!reason) return toast.error('理由を入力してください');
     setIsSubmitting(true);
     try {
-      const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+      const token = window.__flastalToken;
       const res = await fetch(`${API_URL}/api/events/${eventId}/report`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },

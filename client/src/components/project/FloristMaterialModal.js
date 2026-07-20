@@ -34,7 +34,7 @@ export default function FloristMaterialModal({ isOpen, onClose, project, onUpdat
     }
 
     try {
-      const token = localStorage.getItem('authToken');
+      const token = window.__flastalToken;
       const res = await fetch(`${API_URL}/api/projects/${project.id}/materials`, {
         method: 'PATCH',
         headers: {

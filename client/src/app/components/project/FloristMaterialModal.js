@@ -26,7 +26,7 @@ export default function FloristMaterialModal({ isOpen, onClose, project, onUpdat
         const toastId = toast.loading('実費情報を保存中...');
 
         try {
-            const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+            const token = window.__flastalToken;
             const res = await fetch(`${API_URL}/api/projects/${project.id}/material-cost`, {
                 method: 'PATCH',
                 headers: {

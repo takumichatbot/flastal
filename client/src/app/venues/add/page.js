@@ -51,7 +51,7 @@ export default function AddVenuePage() {
     
     let activeToken = '';
     if (typeof window !== 'undefined') {
-        const rawToken = localStorage.getItem('authToken');
+        const rawToken = window.__flastalToken;
         activeToken = rawToken ? rawToken.replace(/"/g, '') : '';
     }
 

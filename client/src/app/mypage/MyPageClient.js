@@ -307,7 +307,7 @@ function DashboardContent() {
                 download={`receipt_${pledge.id}.pdf`}
                 onClick={e => {
                   e.stopPropagation();
-                  const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+                  const token = window.__flastalToken;
                   if (!token) return;
                   e.preventDefault();
                   fetch(`${API_URL}/api/payment/pledges/${pledge.id}/receipt`, {
@@ -326,7 +326,7 @@ function DashboardContent() {
               <button
                 onClick={e => {
                   e.stopPropagation();
-                  const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+                  const token = window.__flastalToken;
                   if (!token) return;
                   fetch(`${API_URL}/api/payment/pledges/${pledge.id}/invoice`, {
                     headers: { Authorization: `Bearer ${token}` },
@@ -345,7 +345,7 @@ function DashboardContent() {
                 <button
                   onClick={e => {
                     e.stopPropagation();
-                    const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+                    const token = window.__flastalToken;
                     if (!token) return;
                     fetch(`${API_URL}/api/projects/${pledge.project.id}/certificate/${pledge.id}`, {
                       headers: { Authorization: `Bearer ${token}` },
@@ -367,7 +367,7 @@ function DashboardContent() {
                   onClick={async e => {
                     e.stopPropagation();
                     if (!confirm('フラワースタンドを受け取りましたか？')) return;
-                    const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+                    const token = window.__flastalToken;
                     try {
                       const res = await fetch(`${API_URL}/api/users/pledges/${pledge.id}/confirm-received`, {
                         method: 'PATCH',
@@ -724,7 +724,7 @@ function DashboardContent() {
                 {/* おすすめの企画 */}
                 <RecommendedProjects
                   token={typeof window !== 'undefined'
-                    ? localStorage.getItem('authToken')?.replace(/^"|"$/g, '') || null
+                    ? window.__flastalToken || null
                     : null}
                 />
 

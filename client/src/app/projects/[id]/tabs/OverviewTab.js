@@ -50,7 +50,7 @@ function StretchGoalsSection({ project, isPlanner }) {
 
   const handleAdd = async () => {
     if (!form.targetAmount || !form.title) return;
-    const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+    const token = window.__flastalToken;
     const res = await fetch(`${API_URL}/api/projects/${project.id}/stretch-goals`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -66,7 +66,7 @@ function StretchGoalsSection({ project, isPlanner }) {
   };
 
   const handleDelete = async (id) => {
-    const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+    const token = window.__flastalToken;
     const res = await fetch(`${API_URL}/api/projects/${project.id}/stretch-goals/${id}`, {
       method: 'DELETE', headers: { Authorization: `Bearer ${token}` },
     });

@@ -36,7 +36,7 @@ export default function NotificationSettingsPage() {
   const [devices, setDevices] = useState([]);
 
   useEffect(() => {
-    const t = localStorage.getItem('authToken')?.replace(/^"|"$/g, '') || localStorage.getItem('token');
+    const t = window.__flastalToken || localStorage.getItem('token');
     setToken(t);
     if (!t) return;
     fetch(`${API_URL}/api/users/notification-settings`, {

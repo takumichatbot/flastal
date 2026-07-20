@@ -19,7 +19,7 @@ export default function PointHistoryPage() {
 
   useEffect(() => {
     const token =
-      (typeof window !== 'undefined' && localStorage.getItem('authToken')?.replace(/^"|"$/g, '')) ||
+      (typeof window !== 'undefined' && window.__flastalToken) ||
       (typeof window !== 'undefined' && localStorage.getItem('accessToken')) ||
       '';
 

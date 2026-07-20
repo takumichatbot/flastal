@@ -68,7 +68,7 @@ export default function AdminIndividualChat({ selectedUser, chatRoom, adminUserI
     useEffect(() => {
         if (!chatRoom) return;
 
-        const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+        const token = window.__flastalToken;
         if (!token) return;
 
         // 切断処理
@@ -128,7 +128,7 @@ export default function AdminIndividualChat({ selectedUser, chatRoom, adminUserI
 
     const fetchMessages = async () => {
         setIsLoading(true);
-        const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+        const token = window.__flastalToken;
         if (!token) return;
 
         try {

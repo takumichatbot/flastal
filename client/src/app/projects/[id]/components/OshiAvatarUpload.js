@@ -21,7 +21,7 @@ export default function OshiAvatarUpload({ projectId, onGenerated }) {
     if (!preview) return;
     setIsGenerating(true);
     try {
-      const token = typeof window !== 'undefined' ? localStorage.getItem('authToken') : null;
+      const token = typeof window !== 'undefined' ? window.__flastalToken : null;
       const res = await fetch(`/api/tools/generate-ar-avatar`, {
         method: 'POST',
         headers: {

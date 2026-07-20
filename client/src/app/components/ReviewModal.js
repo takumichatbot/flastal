@@ -58,7 +58,7 @@ export default function ReviewModal({ project, user, onClose, onReviewSubmitted 
     const toastId = toast.loading('レビューを送信中...');
 
     try {
-      const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+      const token = window.__flastalToken;
 
       const res = await fetch(`${API_URL}/api/reviews`, {
         method: 'POST',

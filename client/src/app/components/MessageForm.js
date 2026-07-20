@@ -31,7 +31,7 @@ export default function MessageForm({ projectId, onMessagePosted }) {
     }
     
     // トークン取得 (セキュリティのためヘッダーに付与推奨)
-    const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+    const token = window.__flastalToken;
 
     const promise = fetch(`${API_URL}/api/messages`, {
       method: 'POST',

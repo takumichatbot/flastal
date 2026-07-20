@@ -343,7 +343,7 @@ export default function AlbumPage() {
   const fetchPosts = useCallback(async (p = 1, reset = false, q = searchQuery, s = sort) => {
     if (reset) setLoading(true);
     try {
-      const token = typeof window !== 'undefined' ? localStorage.getItem('authToken')?.replace(/^"|"$/g, '') : null;
+      const token = typeof window !== 'undefined' ? window.__flastalToken : null;
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
       const params = new URLSearchParams({ page: p, limit: 12, sort: s, ...(q ? { search: q } : {}) });
       const res = await fetch(`${API_URL}/api/posts?${params}`, { headers });

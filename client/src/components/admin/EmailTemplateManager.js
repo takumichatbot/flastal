@@ -46,7 +46,7 @@ export default function EmailTemplateManager() {
   const fetchTemplates = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+      const token = window.__flastalToken;
       const res = await fetch(`${API_URL}/api/admin/email-templates`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -96,7 +96,7 @@ export default function EmailTemplateManager() {
     if (!selectedTemplate.key) return toast.error('テンプレートキー(KEY)は必須です');
     
     setSaving(true);
-    const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+    const token = window.__flastalToken;
 
     try {
       const res = await fetch(`${API_URL}/api/admin/email-templates`, {

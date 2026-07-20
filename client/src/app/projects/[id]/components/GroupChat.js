@@ -12,7 +12,7 @@ const AVAILABLE_EMOJIS = ['👍', '❤️', '🙌', '😂', '🌸', '✨'];
 
 const getAuthToken = () => {
   if (typeof window === 'undefined') return null;
-  const rawToken = localStorage.getItem('authToken');
+  const rawToken = window.__flastalToken;
   return rawToken ? rawToken.replace(/^"|"$/g, '') : null;
 };
 

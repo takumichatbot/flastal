@@ -60,7 +60,7 @@ function OrganizerDashboardContent() {
 
   const fetchEvents = useCallback(async () => {
     const token = typeof window !== 'undefined' 
-      ? (localStorage.getItem('flastal-token') || localStorage.getItem('authToken'))?.replace(/^"|"$/g, '') 
+      ? (localStorage.getItem('flastal-token') || window.__flastalToken)?.replace(/^"|"$/g, '')
       : null;
 
     if (!token) { setIsLoadingEvents(false); return; }

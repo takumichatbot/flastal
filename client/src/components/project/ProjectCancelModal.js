@@ -72,7 +72,7 @@ export default function ProjectCancelModal({ isOpen, onClose, project, onCancelC
     
     setLoading(true);
     try {
-      const token = localStorage.getItem('authToken');
+      const token = window.__flastalToken;
       const res = await fetch(`${API_URL}/api/projects/${project.id}/cancel`, {
         method: 'PATCH',
         headers: {

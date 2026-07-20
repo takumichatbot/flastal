@@ -540,7 +540,7 @@ function CreateProjectForm() {
     setIsAiCoverGenerating(true);
     const tid = toast.loading('AIでカバー画像を生成中...');
     try {
-      const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+      const token = window.__flastalToken;
       const res = await fetch(`${API_URL}/api/tools/generate-cover-image`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -614,7 +614,7 @@ function CreateProjectForm() {
     if (templates.length > 0) return; // キャッシュ済みなら再取得しない
     setIsLoadingTemplates(true);
     try {
-      const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+      const token = window.__flastalToken;
       const res = await fetch(`${API_URL}/api/templates`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -630,7 +630,7 @@ function CreateProjectForm() {
 
   const handleApplyTemplate = async (templateId) => {
     try {
-      const token = localStorage.getItem('authToken')?.replace(/^"|"$/g, '');
+      const token = window.__flastalToken;
       const res = await fetch(`${API_URL}/api/templates/${templateId}/use`, {
         headers: { Authorization: `Bearer ${token}` },
       });
