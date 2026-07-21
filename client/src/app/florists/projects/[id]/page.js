@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/app/contexts/AuthContext';
 import Image from 'next/image';
@@ -288,6 +288,7 @@ export default function FloristProjectDetailPage() {
     const { user, authenticatedFetch, loading: authLoading } = useAuth();
 
     const [project, setProject] = useState(null);
+    const logisticsUpdatingRef = useRef(false);
     const [offer, setOffer] = useState(null);
     const [loading, setLoading] = useState(true);
     
@@ -363,27 +364,32 @@ export default function FloristProjectDetailPage() {
     };
 
     const updateLogistics = async (field, value) => {
+        // 更新中の連打を無視（PATCHが競合して最後のレスポンスがUIと食い違うのを防ぐ）
+        if (logisticsUpdatingRef.current) return;
+        logisticsUpdatingRef.current = true;
         const toastId = toast.loading('ステータスを更新中...');
         try {
             const token = window.__flastalToken;
             const res = await fetch(`${API_URL}/api/projects/${id}`, {
                 method: 'PATCH',
-                headers: { 
+                headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
                 },
                 body: JSON.stringify({ [field]: value })
             });
-            
+
             if (!res.ok) {
                 const data = await res.json().catch(()=>({}));
                 throw new Error(data.message || '更新に失敗しました');
             }
-            
+
             toast.success('ステータスを更新しました', { id: toastId });
             fetchProjectDetails();
         } catch (error) {
             toast.error(error.message, { id: toastId });
+        } finally {
+            logisticsUpdatingRef.current = false;
         }
     };
 

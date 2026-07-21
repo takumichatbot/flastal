@@ -107,9 +107,10 @@ export default function AiPlanGenerator({ onGenerated, onClose }) {
                     キーワードから、人を惹きつける企画文を自動生成します。
                 </p>
             </div>
-            <button 
-                onClick={onClose} 
+            <button
+                onClick={onClose}
                 disabled={loading}
+                aria-label="閉じる"
                 className="bg-white/10 hover:bg-white/20 p-2 rounded-full transition-colors disabled:opacity-0"
             >
                 <X size={20} />

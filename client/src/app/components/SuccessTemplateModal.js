@@ -61,8 +61,9 @@ export default function SuccessTemplateModal({ onClose, onSelect }) {
                 過去の成功事例（達成率100%超）の構成をコピーして、企画作成をショートカットできます。
               </p>
             </div>
-            <button 
-              onClick={onClose} 
+            <button
+              onClick={onClose}
+              aria-label="閉じる"
               className="bg-white/20 hover:bg-white/30 text-white p-2 rounded-full transition-colors backdrop-blur-sm"
             >
               <X size={20} />

@@ -965,7 +965,11 @@ export const getAnalytics = async (req, res) => {
             }),
         ]);
 
-        const toMonthKey = (d) => `${new Date(d).getFullYear()}-${new Date(d).getMonth() + 1}`;
+        // UTC稼働サーバーでも月境界を JST 基準で集計する（+9h補正して UTC 部品を読む）
+        const toMonthKey = (d) => {
+            const j = new Date(new Date(d).getTime() + 9 * 3600 * 1000);
+            return `${j.getUTCFullYear()}-${j.getUTCMonth() + 1}`;
+        };
 
         // 月別集計
         const salesMap = {};
@@ -1275,7 +1279,8 @@ export const exportPayoutsCsv = async (req, res) => {
     try {
         const where = {};
         if (from) where.createdAt = { ...where.createdAt, gte: new Date(from) };
-        if (to)   where.createdAt = { ...where.createdAt, lte: new Date(to) };
+        // 終了日はその日いっぱいを含めるため、翌日0時未満(排他)で絞る
+        if (to)   where.createdAt = { ...where.createdAt, lt: new Date(new Date(to).getTime() + 86400000) };
 
         const commissions = await prisma.commission.findMany({
             where,

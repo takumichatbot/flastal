@@ -326,11 +326,12 @@ export const getProjectAnalytics = async (req, res) => {
             ? Math.round((project._count.pledges / project.viewCount) * 1000) / 10  // 小数点1桁
             : 0;
 
-        // 日別累積支援額（折れ線グラフ用）
+        // 日別累積支援額（折れ線グラフ用）。サーバーはUTC稼働のため、
+        // JST(+9h)に補正してから日付を切り出す（JSTの午前中の支援が前日に集計されるのを防ぐ）。
         const dailyMap = new Map();
         let running = 0;
         for (const p of project.pledges) {
-            const day = p.createdAt.toISOString().slice(0, 10);
+            const day = new Date(p.createdAt.getTime() + 9 * 3600 * 1000).toISOString().slice(0, 10);
             running += p.amount;
             dailyMap.set(day, running);
         }

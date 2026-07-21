@@ -329,6 +329,8 @@ export default function AlbumPage() {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const loadingMoreRef = useRef(false);
   const [showUpload, setShowUpload] = useState(false);
   const [viewMode, setViewMode] = useState('feed'); // 'feed' | 'grid'
   const [sort, setSort] = useState('new'); // 'new' | 'popular'
@@ -341,20 +343,26 @@ export default function AlbumPage() {
   const searchDebounce = useRef(null);
 
   const fetchPosts = useCallback(async (p = 1, reset = false, q = searchQuery, s = sort) => {
-    if (reset) setLoading(true);
+    // ページ追加読み込み中の二重発火を防ぐ（「もっと見る」連打で同じページが二重追加されるのを防止）
+    if (!reset && loadingMoreRef.current) return;
+    if (reset) setLoading(true); else { setLoadingMore(true); loadingMoreRef.current = true; }
     try {
       const token = typeof window !== 'undefined' ? window.__flastalToken : null;
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
       const params = new URLSearchParams({ page: p, limit: 12, sort: s, ...(q ? { search: q } : {}) });
       const res = await fetch(`${API_URL}/api/posts?${params}`, { headers });
+      if (!res.ok) throw new Error('fetch failed');
       const data = await res.json();
-      setPosts(prev => reset ? data.posts : [...prev, ...data.posts]);
+      const newPosts = data.posts || [];
+      setPosts(prev => reset ? newPosts : [...prev, ...newPosts]);
       setHasMore(p < data.pages);
       setPage(p);
     } catch {
       toast.error('フィードの取得に失敗しました');
     } finally {
       setLoading(false);
+      setLoadingMore(false);
+      loadingMoreRef.current = false;
     }
   }, [searchQuery, sort]);
 
@@ -534,9 +542,9 @@ export default function AlbumPage() {
             {posts.map(post => <FeedPostCard key={post.id} post={post} onDelete={handleDelete} />)}
             {hasMore && (
               <div className="flex justify-center py-6">
-                <button onClick={() => fetchPosts(page + 1, false, searchQuery, sort)} disabled={loading}
+                <button onClick={() => fetchPosts(page + 1, false, searchQuery, sort)} disabled={loading || loadingMore}
                   className="px-6 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-full text-sm font-black shadow-sm hover:shadow-md transition-all active:scale-95 disabled:opacity-50 flex items-center gap-2">
-                  {loading ? <Loader2 className="animate-spin" size={15} /> : <SlidersHorizontal size={14} />}
+                  {loadingMore ? <Loader2 className="animate-spin" size={15} /> : <SlidersHorizontal size={14} />}
                   もっと見る
                 </button>
               </div>
@@ -549,7 +557,7 @@ export default function AlbumPage() {
             </div>
             {hasMore && (
               <div className="flex justify-center py-6">
-                <button onClick={() => fetchPosts(page + 1, false, searchQuery, sort)} disabled={loading}
+                <button onClick={() => fetchPosts(page + 1, false, searchQuery, sort)} disabled={loading || loadingMore}
                   className="px-6 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-full text-sm font-black shadow-sm hover:shadow-md transition-all active:scale-95 disabled:opacity-50 flex items-center gap-2">
                   {loading ? <Loader2 className="animate-spin" size={15} /> : null}
                   もっと見る

@@ -137,9 +137,10 @@ export default function VenueLogisticsPostModal({ venueId, venueName, onClose, o
                             {venueName}
                         </p>
                     </div>
-                    <button 
-                        onClick={onClose} 
+                    <button
+                        onClick={onClose}
                         disabled={isSubmitting}
+                        aria-label="閉じる"
                         className="text-white/80 hover:text-white bg-white/10 hover:bg-white/20 rounded-full p-2 transition-colors"
                     >
                         <X size={20}/>

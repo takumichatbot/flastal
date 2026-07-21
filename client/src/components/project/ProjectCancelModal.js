@@ -111,7 +111,7 @@ export default function ProjectCancelModal({ isOpen, onClose, project, onCancelC
             <h3 className="text-lg font-bold text-gray-800">企画の中止手続き</h3>
             <p className="text-xs text-gray-500">この操作は取り消すことができません</p>
           </div>
-          <button onClick={onClose} className="ml-auto text-gray-400 hover:text-gray-600 p-2">
+          <button onClick={onClose} aria-label="閉じる" className="ml-auto text-gray-400 hover:text-gray-600 p-2">
             <FiX size={20} />
           </button>
         </div>

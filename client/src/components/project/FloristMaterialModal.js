@@ -77,8 +77,9 @@ export default function FloristMaterialModal({ isOpen, onClose, project, onUpdat
               プロジェクト: {project.title}
             </p>
           </div>
-          <button 
-            onClick={onClose} 
+          <button
+            onClick={onClose}
+            aria-label="閉じる"
             className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-2 rounded-full transition-colors"
           >
             <FiX size={24} />

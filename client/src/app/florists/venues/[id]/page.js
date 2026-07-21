@@ -58,6 +58,7 @@ export default function VenueLogisticsPage() {
 
   const [venue, setVenue] = useState(null);
   const [logistics, setLogistics] = useState([]);
+  const [helpfulVoted, setHelpfulVoted] = useState(new Set());
   const [loading, setLoading] = useState(true);
   
   const [modalImage, setModalImage] = useState(null);
@@ -156,18 +157,27 @@ export default function VenueLogisticsPage() {
   };
 
   const handleHelpful = async (infoId) => {
+    // 一度投票した項目は再投票不可（連打での多重加算を防ぐ）
+    if (helpfulVoted.has(infoId)) return;
     const token = getAuthToken();
-    setLogistics(prev => prev.map(item => 
+    setHelpfulVoted(prev => new Set(prev).add(infoId));
+    setLogistics(prev => prev.map(item =>
       item.id === infoId ? { ...item, helpfulCount: (item.helpfulCount || 0) + 1 } : item
     ));
 
     try {
-        await fetch(`${API_URL}/api/venues/${id}/logistics/${infoId}/helpful`, {
+        const res = await fetch(`${API_URL}/api/venues/${id}/logistics/${infoId}/helpful`, {
             method: 'POST', headers: { 'Authorization': `Bearer ${token}` }
         });
+        if (!res.ok) throw new Error();
         toast.success('「役に立った」を送りました');
     } catch (e) {
-        console.error(e);
+        // 失敗時は楽観的更新をロールバックし、再投票可能に戻す
+        setHelpfulVoted(prev => { const n = new Set(prev); n.delete(infoId); return n; });
+        setLogistics(prev => prev.map(item =>
+          item.id === infoId ? { ...item, helpfulCount: Math.max(0, (item.helpfulCount || 1) - 1) } : item
+        ));
+        toast.error('送信に失敗しました');
     }
   };
 
