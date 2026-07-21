@@ -79,13 +79,6 @@ export default function OfficialBadge({ projectId, isPlanner }) {
     }
   };
 
-  // ▼ アクション: 招待リンクをコピー（ダミー）
-  const copySecretLink = () => {
-    const dummyLink = `https://flastal.jp/secret/${projectId}?token=xyz123`;
-    navigator.clipboard.writeText(dummyLink);
-    toast.success('楽屋招待用URLをコピーしました');
-  };
-
   if (loading) return null;
 
   // ----------------------------------------------------------------
@@ -148,20 +141,6 @@ export default function OfficialBadge({ projectId, isPlanner }) {
                 以下の「秘密のURL」をQRコード化してファンレターに同封したり、マネージャー様経由で共有することで、
                 演者様がこのページにアクセスし「見たよ」ボタンを押せるようになります。
             </p>
-
-            <div className="flex gap-2 mb-4">
-                <input 
-                    readOnly 
-                    value={`https://flastal.jp/secret/${projectId}************`} 
-                    className="flex-1 bg-white border border-slate-300 rounded px-3 py-2 text-xs text-slate-500 font-mono"
-                />
-                <button 
-                    onClick={copySecretLink}
-                    className="bg-white border border-slate-300 text-slate-600 px-3 py-2 rounded hover:bg-slate-50 text-xs font-bold flex items-center gap-1"
-                >
-                    <Copy /> コピー
-                </button>
-            </div>
 
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
                 <p className="text-[10px] text-yellow-800 font-bold mb-2 flex items-center gap-1">

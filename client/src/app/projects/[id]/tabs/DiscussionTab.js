@@ -137,12 +137,21 @@ export default function DiscussionTab({ ctx }) {
     const [posts, setPosts] = useState([]);
     const [body, setBody] = useState('');
     const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState(false);
     const [submitting, setSubmitting] = useState(false);
 
     const fetchPosts = useCallback(async () => {
         try {
             const r = await fetch(`${API_URL}/api/projects/${project.id}/discussions`);
-            if (r.ok) setPosts(await r.json());
+            if (r.ok) {
+                setPosts(await r.json());
+                setLoadError(false);
+            } else {
+                // 読み込み失敗を「コメント0件」と混同しないよう、明示的にエラー状態にする
+                setLoadError(true);
+            }
+        } catch {
+            setLoadError(true);
         } finally {
             setLoading(false);
         }
@@ -193,6 +202,14 @@ export default function DiscussionTab({ ctx }) {
             {loading ? (
                 <div className="flex justify-center py-8">
                     <div className="w-6 h-6 border-2 border-pink-200 border-t-pink-500 rounded-full animate-spin" />
+                </div>
+            ) : loadError ? (
+                <div className="flex flex-col items-center py-8 text-center gap-3">
+                    <p className="text-sm font-bold text-slate-500">コメントを読み込めませんでした</p>
+                    <button onClick={() => { setLoading(true); fetchPosts(); }}
+                        className="px-5 py-2 bg-pink-500 text-white rounded-full text-xs font-black active:scale-95 transition-transform">
+                        再読み込み
+                    </button>
                 </div>
             ) : posts.length === 0 ? (
                 <EmptyState

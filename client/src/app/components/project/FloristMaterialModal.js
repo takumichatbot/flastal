@@ -75,7 +75,7 @@ export default function FloristMaterialModal({ isOpen, onClose, project, onUpdat
                             <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest">Material Cost</p>
                         </div>
                     </div>
-                    <button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-600 bg-white p-2 rounded-full shadow-sm transition-colors">
+                    <button type="button" onClick={onClose} aria-label="閉じる" className="text-slate-400 hover:text-slate-600 bg-white p-2 rounded-full shadow-sm transition-colors">
                         <X size={20}/>
                     </button>
                 </div>

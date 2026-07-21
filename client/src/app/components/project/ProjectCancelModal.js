@@ -87,7 +87,7 @@ export default function ProjectCancelModal({ isOpen, onClose, project, onCancelC
                             <p className="text-[10px] font-bold text-rose-500 uppercase tracking-widest">Cancellation Policy</p>
                         </div>
                     </div>
-                    <button onClick={onClose} className="text-slate-400 hover:text-slate-600 bg-white p-2 rounded-full shadow-sm transition-colors"><X size={20}/></button>
+                    <button onClick={onClose} aria-label="閉じる" className="text-slate-400 hover:text-slate-600 bg-white p-2 rounded-full shadow-sm transition-colors"><X size={20}/></button>
                 </div>
 
                 <div className="p-6 md:p-8 overflow-y-auto space-y-6">

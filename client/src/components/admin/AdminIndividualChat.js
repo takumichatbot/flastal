@@ -127,9 +127,9 @@ export default function AdminIndividualChat({ selectedUser, chatRoom, adminUserI
     }, [chatRoom]);
 
     const fetchMessages = async () => {
-        setIsLoading(true);
         const token = window.__flastalToken;
-        if (!token) return;
+        if (!token) return; // トークンが無い時は setIsLoading(true) の前に抜け、無限スピナーを防ぐ
+        setIsLoading(true);
 
         try {
             const res = await fetch(`${API_URL}/api/admin/chat-rooms/${chatRoom.id}/messages`, {
