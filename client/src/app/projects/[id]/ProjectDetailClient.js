@@ -320,8 +320,14 @@ function PledgeForm({ project, user, onPledgeSubmit, isPledger }) {
 
   const userPoints = user?.points || 0;
   const [pointsToUse, setPointsToUse] = useState(0);
-  const maxPoints = useMemo(() => Math.min(userPoints, finalAmount), [userPoints, finalAmount]);
-  const cardAmount = finalAmount - pointsToUse;
+  const maxPoints = useMemo(() => Math.max(0, Math.min(userPoints, finalAmount)), [userPoints, finalAmount]);
+
+  // 支援金額が下がった際に pointsToUse を再クランプ（cardAmount が負にならないようにする）
+  useEffect(() => {
+    setPointsToUse(p => Math.min(p, maxPoints));
+  }, [maxPoints]);
+
+  const cardAmount = Math.max(0, finalAmount - Math.min(pointsToUse, maxPoints));
 
   const minAmount = project.minContributionAmount || 1000;
   const [quantity, setQuantity] = useState(1);
@@ -604,7 +610,7 @@ function PledgeForm({ project, user, onPledgeSubmit, isPledger }) {
             )}
             {!user && (
               <p className="text-xs text-center text-slate-400 mt-2">
-                <a href="/auth/login" className="text-pink-500 font-semibold hover:underline">ログイン</a>
+                <a href="/login" className="text-pink-500 font-semibold hover:underline">ログイン</a>
                 {' '}するとポイントが貯まります ✨
               </p>
             )}
@@ -627,8 +633,9 @@ function TargetAmountModal({ project, user, onClose, onUpdate }) {
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ newTargetAmount: parseInt(newAmount, 10), userId: user.id }),
       });
-      if (res.ok) { onUpdate(); onClose(); toast.success('目標金額を更新しました！'); }
-    } catch(e) { toast.error('エラー'); } finally { setIsSubmitting(false); }
+      if (!res.ok) throw new Error('目標金額の更新に失敗しました');
+      onUpdate(); onClose(); toast.success('目標金額を更新しました！');
+    } catch(e) { toast.error(e.message || 'エラーが発生しました'); } finally { setIsSubmitting(false); }
   };
   return (
     <div className="fixed inset-0 bg-slate-900/60 flex justify-center items-center z-[100] p-4 backdrop-blur-sm" onClick={onClose}>
@@ -740,8 +747,9 @@ export default function ProjectDetailClient() {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [arSrc, setArSrc] = useState(null);
   const [arImageFile, setArImageFile] = useState(null);
-  const [arHeight, setArHeight] = useState(200); 
+  const [arHeight, setArHeight] = useState(200);
   const [arGenLoading, setArGenLoading] = useState(false);
+  const [oshiAvatarUrl, setOshiAvatarUrl] = useState(null);
 
   const [showGuestBanner, setShowGuestBanner] = useState(false);
   const [showAnnouncementForm, setShowAnnouncementForm] = useState(false);
@@ -870,14 +878,14 @@ export default function ProjectDetailClient() {
     documentTitle: `収支報告書_${project?.title || '企画'}`,
   });
 
-  const fetchProject = useCallback(async () => {
+  const fetchProject = useCallback(async (showLoader = true) => {
      if (!id) return;
      try {
-       setLoading(true);
-       const response = await fetch(`${API_URL}/api/projects/${id}`); 
+       if (showLoader) setLoading(true);
+       const response = await fetch(`${API_URL}/api/projects/${id}`);
        if (!response.ok) throw new Error('企画が見つかりません');
        const data = await response.json();
-       
+
        if (data.offers && data.offers.length > 0) {
            const acceptedOffer = data.offers.find(o => o.status === 'ACCEPTED');
            data.offer = acceptedOffer || data.offers[0];
@@ -887,9 +895,12 @@ export default function ProjectDetailClient() {
      } catch (error) {
        toast.error(error.message);
      } finally {
-       setLoading(false);
+       if (showLoader) setLoading(false);
      }
    }, [id]);
+
+  // 画面内アクション後の再取得はスケルトンを出さずに更新する（スクロール位置維持）
+  const refreshProject = useCallback(() => fetchProject(false), [fetchProject]);
 
   useEffect(() => { fetchProject(); }, [fetchProject]);
   useEffect(() => { fetchCheers(); }, [fetchCheers]);
@@ -959,13 +970,13 @@ export default function ProjectDetailClient() {
         setShowAnnouncementForm(false);
         setAnnouncementTitle('');
         setAnnouncementContent('');
-        fetchProject();
+        refreshProject();
     } catch (error) {
         toast.error(error.message, { id: toastId });
     } finally {
         setIsPostingAnnouncement(false);
     }
-  }, [announcementTitle, announcementContent, id, authenticatedFetch, fetchProject]);
+  }, [announcementTitle, announcementContent, id, authenticatedFetch, refreshProject]);
 
   const handleAddExpense = async (e) => {
       e.preventDefault();
@@ -981,7 +992,7 @@ export default function ProjectDetailClient() {
           toast.success('支出を追加しました', { id: toastId });
           setExpenseName('');
           setExpenseAmount('');
-          fetchProject();
+          refreshProject();
       } catch (err) {
           toast.error('追加に失敗しました', { id: toastId });
       }
@@ -993,7 +1004,7 @@ export default function ProjectDetailClient() {
           const res = await authenticatedFetch(`${API_URL}/api/project-details/expenses/${expenseId}`, { method: 'DELETE' });
           if (!res.ok) throw new Error('削除失敗');
           toast.success('削除しました');
-          fetchProject();
+          refreshProject();
       } catch (err) {
           toast.error('エラーが発生しました');
       }
@@ -1012,7 +1023,7 @@ export default function ProjectDetailClient() {
           if (!res.ok) throw new Error('追加失敗');
           toast.success('タスクを追加しました', { id: toastId });
           setNewTaskTitle('');
-          fetchProject();
+          refreshProject();
       } catch (err) {
           toast.error('追加に失敗しました', { id: toastId });
       }
@@ -1026,7 +1037,7 @@ export default function ProjectDetailClient() {
               body: JSON.stringify({ isCompleted: !currentStatus })
           });
           if (!res.ok) throw new Error('更新失敗');
-          fetchProject();
+          refreshProject();
       } catch (err) {
           toast.error('タスクの更新に失敗しました');
       }
@@ -1037,7 +1048,7 @@ export default function ProjectDetailClient() {
       try {
           const res = await authenticatedFetch(`${API_URL}/api/project-details/tasks/${taskId}`, { method: 'DELETE' });
           if (!res.ok) throw new Error('削除失敗');
-          fetchProject();
+          refreshProject();
       } catch (err) {
           toast.error('削除に失敗しました');
       }
@@ -1061,11 +1072,11 @@ export default function ProjectDetailClient() {
           if (!res.ok) throw new Error(result.message || '支援に失敗しました');
 
           toast.success('支援が完了しました！ありがとうございます🎉', { id: toastId, duration: 5000 });
-          fetchProject();
+          refreshProject();
       } catch (err) {
           toast.error(err.message, { id: toastId, duration: 5000 });
       }
-  }, [authenticatedFetch, fetchProject]);
+  }, [authenticatedFetch, refreshProject]);
 
   const handleUpload = async (e, type) => {
       const file = e.target?.files?.[0];
@@ -1168,9 +1179,9 @@ export default function ProjectDetailClient() {
           const res = await authenticatedFetch(`${API_URL}/api/projects/${id}/applications/${applicationId}/accept`, { method: 'PATCH' });
           if (!res.ok) throw new Error('採用処理に失敗しました');
           toast.success('クリエイターを採用しました！🎉 チャットから挨拶しましょう！', { id: toastId });
-          fetchProject();
+          refreshProject();
       } catch (e) { toast.error(e.message, { id: toastId }); }
-  }, [user, confirm, authenticatedFetch, id, fetchProject]);
+  }, [user, confirm, authenticatedFetch, id, refreshProject]);
 
   const handleAcceptIllustration = useCallback(async () => {
       if (!await confirm('イラストを検収し、報酬のポイントをクリエイターに支払いますか？\n※この操作は取り消せません。')) return;
@@ -1291,7 +1302,7 @@ export default function ProjectDetailClient() {
     cheerMessage, setCheerMessage,
     handlePostCheer, isPostingCheer,
     aiSummary, collabTab, setCollabTab,
-    activeOffer, socket, setAiSummary, fetchProject,
+    activeOffer, socket, setAiSummary, fetchProject: refreshProject,
     newTaskTitle, setNewTaskTitle,
     handleAddTask, handleToggleTask, handleDeleteTask,
     handleUpload, isIllustrationUploading,
@@ -1337,7 +1348,14 @@ export default function ProjectDetailClient() {
       {/* --- HERO IMAGE --- */}
       <div className="w-full max-w-6xl mx-auto md:px-4 lg:px-8 md:mt-6 mb-4 md:mb-8">
         {project.status !== 'COMPLETED' ? (
-            <div className="relative w-full aspect-[4/3] md:aspect-[21/9] md:rounded-[2rem] overflow-hidden shadow-sm group cursor-zoom-in" onClick={() => { if(project.imageUrl){setModalImageSrc(project.imageUrl); setIsImageModalOpen(true);} }}>
+            <div
+              role="button"
+              tabIndex={0}
+              aria-label="ヒーロー画像を拡大表示"
+              className="relative w-full aspect-[4/3] md:aspect-[21/9] md:rounded-[2rem] overflow-hidden shadow-sm group cursor-zoom-in"
+              onClick={() => { if(project.imageUrl){setModalImageSrc(project.imageUrl); setIsImageModalOpen(true);} }}
+              onKeyDown={(e) => { if ((e.key === 'Enter' || e.key === ' ') && project.imageUrl) { e.preventDefault(); setModalImageSrc(project.imageUrl); setIsImageModalOpen(true); } }}
+            >
                 {project.imageUrl ? (
                     <Image src={project.imageUrl} alt={project.title} fill className="object-cover transition-transform duration-700 group-hover:scale-105" priority />
                 ) : (
@@ -1572,7 +1590,7 @@ export default function ProjectDetailClient() {
                     <div className="flex items-center justify-between gap-2 mb-2">
                       <span className="text-xs font-black text-rose-600">
                         {project.deadline
-                          ? new Date(project.deadline).toLocaleDateString('ja-JP') + ' 23:59 締切'
+                          ? new Date(project.deadline).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }) + ' 締切'
                           : '締切日未定'}
                       </span>
                       {user?.role === 'ADMIN' && (
@@ -1620,13 +1638,13 @@ export default function ProjectDetailClient() {
               </p>
               <div className="flex gap-2">
                 <a
-                  href="/auth/register"
+                  href="/register"
                   className="flex-1 bg-white text-pink-600 font-black text-sm py-2 rounded-xl text-center hover:bg-pink-50 transition-colors"
                 >
                   無料でアカウント作成
                 </a>
                 <a
-                  href="/auth/login"
+                  href="/login"
                   className="px-4 bg-white/20 text-white font-semibold text-sm py-2 rounded-xl hover:bg-white/30 transition-colors"
                 >
                   ログイン
@@ -1817,7 +1835,7 @@ export default function ProjectDetailClient() {
       <AnimatePresence>
         {isImageModalOpen && <ImageLightbox url={modalImageSrc} onClose={() => setIsImageModalOpen(false)} />}
         {isReportModalOpen && <ReportModal projectId={id} user={user} onClose={() => setReportModalOpen(false)} />}
-        {isCompletionModalOpen && <CompletionReportModal project={project} user={user} onClose={() => setIsCompletionModalOpen(false)} onReportSubmitted={fetchProject} />}
+        {isCompletionModalOpen && <CompletionReportModal project={project} user={user} onClose={() => setIsCompletionModalOpen(false)} onReportSubmitted={refreshProject} />}
         {showSuccessModal && project && (
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -1865,33 +1883,33 @@ export default function ProjectDetailClient() {
           </motion.div>
         )}
         {isInstructionModalOpen && <InstructionSheetModal project={project} onClose={() => setIsInstructionModalOpen(false)} />}
-        {isQuotationModalOpen && <QuotationApprovalModal project={project} user={user} onClose={() => setIsQuotationModalOpen(false)} onUpdate={fetchProject} />}
+        {isQuotationModalOpen && <QuotationApprovalModal project={project} user={user} onClose={() => setIsQuotationModalOpen(false)} onUpdate={refreshProject} />}
         {isCancelModalOpen && (
              <ProjectCancelModal 
                  isOpen={isCancelModalOpen} 
                  onClose={() => setIsCancelModalOpen(false)} 
                  project={project} 
-                 onCancelComplete={() => { 
-                     fetchProject(); // データを再取得して画面のステータスを更新
+                 onCancelComplete={() => {
+                     refreshProject(); // データを再取得して画面のステータスを更新
                      toast.success('企画を中止し、支援者へポイントを返還しました。');
                      router.push('/projects'); // 一覧に戻す
                  }} 
              />
          )}
         {isTargetAmountModalOpen && (
-             <TargetAmountModal 
-                 project={project} 
-                 user={user} 
-                 onClose={() => setIsTargetAmountModalOpen(false)} 
-                 onUpdate={fetchProject} 
+             <TargetAmountModal
+                 project={project}
+                 user={user}
+                 onClose={() => setIsTargetAmountModalOpen(false)}
+                 onUpdate={refreshProject}
              />
          )}
 
         {showDeadlineModal && (
-             <DeadlineEditModal 
-                 project={project} 
-                 onClose={() => setShowDeadlineModal(false)} 
-                 onUpdate={fetchProject} 
+             <DeadlineEditModal
+                 project={project}
+                 onClose={() => setShowDeadlineModal(false)}
+                 onUpdate={refreshProject}
                  authenticatedFetch={authenticatedFetch}
              />
         )}
@@ -1930,7 +1948,13 @@ export default function ProjectDetailClient() {
                         <div className="w-full aspect-[3/4] bg-black rounded-[2rem] overflow-hidden shadow-2xl border-4 border-slate-800"><ArViewer src={arSrc} alt="AR" /></div>
                         <button onClick={() => { if (arSrc?.startsWith('blob:')) URL.revokeObjectURL(arSrc); setArSrc(null); setArImageFile(null); }} className="mt-8 px-6 py-3 bg-slate-100 rounded-full text-sm font-black text-slate-500 flex items-center hover:bg-slate-200 transition-colors"><RefreshCw className="mr-2" size={16}/> 別の画像で試す</button>
                         <div className="w-full mt-6">
-                          <OshiAvatarUpload projectId={id} onGenerated={(url) => { toast.success('アバターを追加しました！'); }} />
+                          <OshiAvatarUpload projectId={id} onGenerated={(url) => { if (url) setOshiAvatarUrl(url); }} />
+                          {oshiAvatarUrl && (
+                            <div className="mt-4 text-center">
+                              <p className="text-[11px] font-black text-violet-500 uppercase tracking-widest mb-2">生成された推しアバター</p>
+                              <Image src={oshiAvatarUrl} alt="生成された推しアバター" width={112} height={112} className="w-28 h-28 mx-auto rounded-2xl object-cover border border-violet-100 shadow-sm" unoptimized />
+                            </div>
+                          )}
                         </div>
                     </div>
                 )}

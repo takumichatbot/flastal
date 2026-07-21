@@ -15,7 +15,9 @@ function SponsorsSection({ projectId }) {
   const [sponsors, setSponsors] = useState([]);
   useEffect(() => {
     fetch(`${API_URL}/api/projects/${projectId}/sponsors`)
-      .then(r => r.ok ? r.json() : []).then(setSponsors);
+      .then(r => r.ok ? r.json() : [])
+      .then(d => setSponsors(Array.isArray(d) ? d : []))
+      .catch(() => setSponsors([]));
   }, [projectId]);
   if (sponsors.length === 0) return null;
   return (
@@ -41,27 +43,37 @@ function StretchGoalsSection({ project, isPlanner }) {
   const [goals, setGoals] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ targetAmount: '', title: '', description: '' });
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { user } = useAuth();
 
   useEffect(() => {
     fetch(`${API_URL}/api/projects/${project.id}/stretch-goals`)
-      .then(r => r.ok ? r.json() : []).then(setGoals);
+      .then(r => r.ok ? r.json() : [])
+      .then(d => setGoals(Array.isArray(d) ? d : []))
+      .catch(() => setGoals([]));
   }, [project.id]);
 
   const handleAdd = async () => {
     if (!form.targetAmount || !form.title) return;
-    const token = window.__flastalToken;
-    const res = await fetch(`${API_URL}/api/projects/${project.id}/stretch-goals`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ ...form, order: goals.length }),
-    });
-    if (res.ok) {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      const token = window.__flastalToken;
+      const res = await fetch(`${API_URL}/api/projects/${project.id}/stretch-goals`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ ...form, order: goals.length }),
+      });
+      if (!res.ok) throw new Error('ストレッチゴールの追加に失敗しました');
       const g = await res.json();
       setGoals(prev => [...prev, g]);
       setForm({ targetAmount: '', title: '', description: '' });
       setShowForm(false);
       toast.success('ストレッチゴールを追加しました');
+    } catch (err) {
+      toast.error(err.message || 'ストレッチゴールの追加に失敗しました');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -100,8 +112,10 @@ function StretchGoalsSection({ project, isPlanner }) {
           <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
             placeholder="詳細説明" rows={2} className="w-full px-3 py-2 text-sm rounded-lg border border-emerald-200 bg-white outline-none resize-none" />
           <div className="flex gap-2">
-            <button onClick={handleAdd} className="px-4 py-1.5 bg-emerald-500 text-white text-xs font-black rounded-lg">追加</button>
-            <button onClick={() => setShowForm(false)} className="px-4 py-1.5 bg-slate-200 text-slate-600 text-xs font-black rounded-lg">キャンセル</button>
+            <button onClick={handleAdd} disabled={isSubmitting} className="px-4 py-1.5 bg-emerald-500 text-white text-xs font-black rounded-lg disabled:opacity-50 flex items-center gap-1.5">
+              {isSubmitting && <Loader2 size={12} className="animate-spin" />}追加
+            </button>
+            <button onClick={() => setShowForm(false)} disabled={isSubmitting} className="px-4 py-1.5 bg-slate-200 text-slate-600 text-xs font-black rounded-lg disabled:opacity-50">キャンセル</button>
           </div>
         </div>
       )}

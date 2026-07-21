@@ -193,6 +193,7 @@ function DashboardContent() {
 
   const [data, setData] = useState(null);
   const [errorInfo, setErrorInfo] = useState(null);
+  const [respondingId, setRespondingId] = useState(null);
   const [activeTab, setActiveTab] = useState('pending');
   const isFetching = useRef(false);
 
@@ -217,6 +218,8 @@ function DashboardContent() {
         setErrorInfo(null);
       } else if (dashboardRes && dashboardRes.status === 401) {
         setErrorInfo("API Error: 401");
+      } else {
+        setErrorInfo('データの取得に失敗しました。時間をおいて再度お試しください。');
       }
     } catch (error) {
       setErrorInfo(error.message);
@@ -233,9 +236,11 @@ function DashboardContent() {
 
   // ★ 追加: オファーを受諾・辞退する処理
   const handleRespondToOffer = async (offerId, status) => {
+    if (respondingId) return; // 二重送信防止
     const confirmMsg = status === 'ACCEPTED' ? 'このオファーを受諾しますか？\n受諾すると企画者との専用チャットが開始されます。' : '本当にこのオファーを辞退しますか？（取り消せません）';
     if (!window.confirm(confirmMsg)) return;
 
+    setRespondingId(offerId);
     const toastId = toast.loading('処理中...');
     try {
       const res = await authenticatedFetch(`${API_URL}/api/florists/offers/${offerId}`, {
@@ -249,6 +254,8 @@ function DashboardContent() {
       fetchData(); // データを再取得して表示を更新
     } catch (error) {
       toast.error(error.message, { id: toastId });
+    } finally {
+      setRespondingId(null);
     }
   };
 
@@ -491,11 +498,11 @@ function DashboardContent() {
                           
                           {/* ★ 修正: 直接受諾・辞退できるボタンに変更 */}
                           <div className="w-full md:w-auto flex flex-col sm:flex-row gap-2">
-                             <button onClick={() => handleRespondToOffer(o.id, 'ACCEPTED')} className="w-full sm:w-auto text-center px-6 py-3.5 bg-sky-500 text-white rounded-full font-black hover:bg-sky-600 transition-all shadow-sm flex items-center justify-center gap-2 active:scale-95">
-                                <CheckCircle2 size={16}/> 受諾する
+                             <button onClick={() => handleRespondToOffer(o.id, 'ACCEPTED')} disabled={respondingId === o.id} className="w-full sm:w-auto text-center px-6 py-3.5 bg-sky-500 text-white rounded-full font-black hover:bg-sky-600 transition-all shadow-sm flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
+                                {respondingId === o.id ? <Loader2 size={16} className="animate-spin"/> : <CheckCircle2 size={16}/>} 受諾する
                              </button>
-                             <button onClick={() => handleRespondToOffer(o.id, 'REJECTED')} className="w-full sm:w-auto text-center px-6 py-3.5 bg-white border border-slate-200 text-rose-500 rounded-full font-black hover:bg-rose-50 transition-all shadow-sm flex items-center justify-center gap-2 active:scale-95">
-                                <XCircle size={16}/> 辞退する
+                             <button onClick={() => handleRespondToOffer(o.id, 'REJECTED')} disabled={respondingId === o.id} className="w-full sm:w-auto text-center px-6 py-3.5 bg-white border border-slate-200 text-rose-500 rounded-full font-black hover:bg-rose-50 transition-all shadow-sm flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
+                                {respondingId === o.id ? <Loader2 size={16} className="animate-spin"/> : <XCircle size={16}/>} 辞退する
                              </button>
                              <Link href={`/florists/projects/${o?.projectId || ''}`} className="w-full sm:w-auto text-center px-6 py-3.5 bg-slate-900 border border-transparent text-white rounded-full font-black hover:bg-slate-800 hover:shadow-lg transition-all shadow-sm flex items-center justify-center">
                                 詳細を確認

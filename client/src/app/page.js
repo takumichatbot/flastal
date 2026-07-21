@@ -1342,10 +1342,10 @@ const MainContent = () => {
             <p className="text-2xl font-black text-slate-800 mb-2 tracking-tight">推しへ、世界でひとつのフラスタを。</p>
             <p className="text-sm text-slate-500 mb-6 font-medium">会員登録無料・支援のたびポイント獲得</p>
             <div className="flex gap-3 justify-center flex-wrap">
-              <a href="/auth/register" className="bg-gradient-to-r from-pink-500 to-rose-500 text-white font-black px-7 py-3.5 rounded-2xl hover:opacity-90 active:opacity-70 transition-opacity shadow-lg shadow-pink-200">
+              <a href="/register" className="bg-gradient-to-r from-pink-500 to-rose-500 text-white font-black px-7 py-3.5 rounded-2xl hover:opacity-90 active:opacity-70 transition-opacity shadow-lg shadow-pink-200">
                 無料で始める
               </a>
-              <a href="/auth/login" className="bg-white text-slate-700 font-black px-7 py-3.5 rounded-2xl border-2 border-slate-100 hover:border-pink-200 active:opacity-70 transition-colors">
+              <a href="/login" className="bg-white text-slate-700 font-black px-7 py-3.5 rounded-2xl border-2 border-slate-100 hover:border-pink-200 active:opacity-70 transition-colors">
                 ログインする
               </a>
             </div>

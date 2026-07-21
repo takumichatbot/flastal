@@ -225,3 +225,18 @@ html.native-app body {
 input, textarea, select, button {
   -webkit-touch-callout: default;
 }
+
+/* キーボードフォーカス可視化（アクセシビリティ） */
+*:focus-visible {
+  outline: 2px solid #ec4899;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* モーション低減設定への配慮 */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -29,14 +29,23 @@ export default function ChatInboxPage() {
   const router = useRouter();
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [search, setSearch] = useState('');
 
   const fetchRooms = useCallback(async () => {
     try {
       // 生fetchだとアクセストークン失効時に静かに失敗するため、リフレッシュ付きの共通fetchを使う
       const res = await authenticatedFetch('/api/project-details/my-chats');
-      if (res.ok) setRooms(await res.json());
+      if (res.ok) {
+        setRooms(await res.json());
+        setLoadError(false);
+      } else {
+        // 500等の失敗を「空」と混同しないよう、明示的にエラー状態にする
+        setLoadError(true);
+        toast.error('チャットの読み込みに失敗しました');
+      }
     } catch {
+      setLoadError(true);
       toast.error('チャットの読み込みに失敗しました');
     } finally {
       setLoading(false);
@@ -65,7 +74,7 @@ export default function ChatInboxPage() {
         className="flex-shrink-0 bg-white/95 backdrop-blur-xl border-b border-slate-100 shadow-sm"
         style={{ paddingTop: 'env(safe-area-inset-top)' }}
       >
-        <div className="flex items-center gap-3 px-4 h-14 max-w-xl mx-auto">
+        <div className="flex items-center gap-3 px-4 h-14 max-w-xl md:max-w-3xl mx-auto">
           <button
             onClick={() => router.back()}
             className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 active:bg-slate-200 transition-colors shrink-0"
@@ -81,7 +90,7 @@ export default function ChatInboxPage() {
         </div>
 
         {rooms.length > 4 && (
-          <div className="px-4 pb-3 max-w-xl mx-auto">
+          <div className="px-4 pb-3 max-w-xl md:max-w-3xl mx-auto">
             <div className="relative">
               <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
               <input
@@ -98,12 +107,26 @@ export default function ChatInboxPage() {
 
       {/* ── コンテンツ ── */}
       <div
-        className="flex-1 overflow-y-auto max-w-xl mx-auto w-full"
+        className="flex-1 overflow-y-auto max-w-xl md:max-w-3xl mx-auto w-full"
         style={{ paddingBottom: 'calc(64px + env(safe-area-inset-bottom))' }}
       >
         {loading ? (
           <div className="flex justify-center items-center h-48">
             <Loader2 className="animate-spin text-pink-400" size={28} />
+          </div>
+        ) : loadError ? (
+          <div className="flex flex-col items-center justify-center py-24 px-6 text-center">
+            <div className="w-16 h-16 bg-rose-50 rounded-full flex items-center justify-center mb-4">
+              <MessageCircle size={26} className="text-rose-300" />
+            </div>
+            <p className="text-sm font-black text-slate-600">チャットを読み込めませんでした</p>
+            <p className="text-xs text-slate-400 font-medium mt-1">通信環境をご確認のうえ、もう一度お試しください</p>
+            <button
+              onClick={() => { setLoading(true); fetchRooms(); }}
+              className="mt-5 px-6 py-2.5 bg-pink-500 text-white rounded-full text-xs font-black shadow-md shadow-pink-200 active:scale-95 transition-transform"
+            >
+              再読み込み
+            </button>
           </div>
         ) : filtered.length === 0 ? (
           <EmptyState

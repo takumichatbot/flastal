@@ -8,15 +8,21 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onre
 export default function BadgesPage() {
   const [badges, setBadges] = useState({ earned: [], locked: [] });
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  useEffect(() => {
+  const loadBadges = () => {
     const token = window.__flastalToken;
-    if (!token) { setLoading(false); return; }
+    if (!token) { setLoading(false); setError(true); return; }
+    setLoading(true);
+    setError(false);
     fetch(`${API_URL}/api/users/badges`, { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => r.json())
-      .then(d => { setBadges(d); setLoading(false); })
-      .catch(() => setLoading(false));
-  }, []);
+      .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+      .then(d => setBadges({ earned: d?.earned || [], locked: d?.locked || [] }))
+      .catch(() => setError(true))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => { loadBadges(); }, []);
 
   if (loading) return (
     <div className="max-w-md mx-auto px-4 py-8 space-y-3">
@@ -36,7 +42,20 @@ export default function BadgesPage() {
         </h1>
       </div>
 
-      {badges.earned?.length > 0 && (
+      {error && (
+        <div className="py-16 text-center">
+          <Award size={48} className="mx-auto text-rose-200 mb-3" />
+          <p className="text-slate-500 text-sm font-bold mb-4">バッジ情報を読み込めませんでした</p>
+          <button
+            onClick={loadBadges}
+            className="px-5 py-2.5 bg-yellow-500 text-white text-xs font-black rounded-xl shadow-md active:scale-95 transition-transform"
+          >
+            再読み込み
+          </button>
+        </div>
+      )}
+
+      {!error && badges.earned?.length > 0 && (
         <section className="mb-6">
           <h2 className="text-sm font-bold text-slate-500 mb-3">獲得済み（{badges.earned.length}個）</h2>
           <div className="grid grid-cols-3 gap-3">
@@ -51,7 +70,7 @@ export default function BadgesPage() {
         </section>
       )}
 
-      {badges.locked?.length > 0 && (
+      {!error && badges.locked?.length > 0 && (
         <section>
           <h2 className="text-sm font-bold text-slate-500 mb-3">未獲得</h2>
           <div className="grid grid-cols-3 gap-3">
@@ -66,10 +85,10 @@ export default function BadgesPage() {
         </section>
       )}
 
-      {badges.earned?.length === 0 && badges.locked?.length === 0 && (
+      {!error && badges.earned?.length === 0 && badges.locked?.length === 0 && (
         <div className="py-16 text-center">
           <Award size={48} className="mx-auto text-slate-200 mb-3" />
-          <p className="text-slate-400 text-sm">バッジ情報を読み込めませんでした</p>
+          <p className="text-slate-400 text-sm">まだ獲得できるバッジがありません</p>
         </div>
       )}
     </div>

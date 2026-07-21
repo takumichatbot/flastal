@@ -34,31 +34,38 @@ export default function NotificationSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [token, setToken] = useState(null);
   const [devices, setDevices] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
     const t = window.__flastalToken || localStorage.getItem('token');
     setToken(t);
-    if (!t) return;
+    if (!t) { setLoading(false); setLoadError(true); return; }
     fetch(`${API_URL}/api/users/notification-settings`, {
       headers: { Authorization: `Bearer ${t}` },
     })
-      .then(r => r.json())
-      .then(d => setSettings(d))
-      .catch(() => {});
+      .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+      .then(d => { setSettings(d || {}); setLoadError(false); })
+      .catch(() => { setLoadError(true); toast.error('通知設定を読み込めませんでした'); })
+      .finally(() => setLoading(false));
     fetch(`${API_URL}/api/users/push-subscriptions`, {
       headers: { Authorization: `Bearer ${t}` },
     })
-      .then(r => r.json())
+      .then(r => r.ok ? r.json() : [])
       .then(d => Array.isArray(d) ? setDevices(d) : null)
       .catch(() => {});
   }, []);
 
+  // 設定が正常に読み込めた場合のみ保存を許可（全OFFの空オブジェクトで実データを上書きしない）
+  const canSave = !loading && !loadError;
+
   const removeDevice = async (id) => {
     try {
-      await fetch(`${API_URL}/api/users/push-subscriptions/${id}`, {
+      const res = await fetch(`${API_URL}/api/users/push-subscriptions/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
+      if (!res.ok) throw new Error();
       setDevices(prev => prev.filter(d => d.id !== id));
       toast.success('デバイスの登録を解除しました');
     } catch {
@@ -71,6 +78,7 @@ export default function NotificationSettingsPage() {
   };
 
   const save = async () => {
+    if (!canSave) return;
     setSaving(true);
     try {
       const res = await fetch(`${API_URL}/api/users/notification-settings`, {
@@ -99,6 +107,23 @@ export default function NotificationSettingsPage() {
         </h1>
       </div>
 
+      {loading ? (
+        <div className="space-y-6">
+          {[1, 2].map(i => (
+            <div key={i} className="space-y-3">
+              <div className="h-4 w-24 bg-slate-100 rounded animate-pulse" />
+              <div className="h-40 bg-slate-100 rounded-2xl animate-pulse" />
+            </div>
+          ))}
+        </div>
+      ) : loadError ? (
+        <div className="bg-white rounded-2xl border border-rose-100 p-6 text-center">
+          <p className="text-sm font-bold text-slate-700 mb-1">通知設定を読み込めませんでした</p>
+          <p className="text-xs text-slate-400">
+            ページを再読み込みしてお試しください。設定が読み込めるまで保存はできません。
+          </p>
+        </div>
+      ) : (
       <div className="space-y-6">
         {SETTINGS.map(({ category, icon: Icon, items }) => (
           <div key={category}>
@@ -126,6 +151,7 @@ export default function NotificationSettingsPage() {
           </div>
         ))}
       </div>
+      )}
 
       {devices.length > 0 && (
         <div className="mt-6">
@@ -157,10 +183,10 @@ export default function NotificationSettingsPage() {
 
       <button
         onClick={save}
-        disabled={saving}
+        disabled={saving || !canSave}
         className="mt-8 w-full bg-pink-500 text-white font-black py-3 rounded-2xl hover:bg-pink-600 disabled:opacity-50 transition-colors"
       >
-        {saving ? '保存中...' : '設定を保存'}
+        {saving ? '保存中...' : loading ? '読み込み中...' : '設定を保存'}
       </button>
     </div>
   );

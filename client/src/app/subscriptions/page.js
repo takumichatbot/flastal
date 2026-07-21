@@ -41,7 +41,7 @@ export default function SubscriptionsPage() {
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 pb-24">
+        <div className="min-h-screen bg-slate-50" style={{ paddingBottom: 'calc(6rem + env(safe-area-inset-bottom))' }}>
             <div className="max-w-2xl mx-auto px-4 pt-10">
                 <h1 className="text-2xl font-black text-slate-800 mb-1 flex items-center gap-2">
                     <RefreshCw size={22} className="text-pink-500" /> 定期支援管理

@@ -3,6 +3,7 @@ import prisma from '../config/prisma.js';
 import { createNotification } from '../utils/notification.js';
 import { queueEmail } from '../utils/email.js';
 import { logger } from '../utils/logger.js';
+import stripe from '../config/stripe.js';
 
 // 毎日深夜 0時0分 に実行される設定 ('0 0 * * *')
 // ※日本時間(JST)で動かすための設定を入れています
@@ -38,6 +39,8 @@ cron.schedule('0 0 * * *', async () => {
         // 支援者が多い企画ではループ中の通知送信が 5秒のトランザクションタイムアウトを超え、
         // 通知は送信済みなのに返還がロールバックされる不整合が起きるため。
         const notificationsToSend = [];
+        // ゲスト（カード決済）への返金は Stripe 経由のため、コミット後にまとめて処理する
+        const guestRefunds = [];
 
         await prisma.$transaction(async (tx) => {
 
@@ -55,8 +58,9 @@ cron.schedule('0 0 * * *', async () => {
           // 2. 支援者へポイント全額返還（通知はコミット後にまとめて送信）
           if (project.collectedAmount > 0) {
             for (const pledge of project.pledges) {
-              if (pledge.userId && pledge.amount > 0) {
-                // ポイント返還
+              if (pledge.amount <= 0) continue;
+              if (pledge.userId) {
+                // 会員: ポイント返還
                 await tx.user.update({
                   where: { id: pledge.userId },
                   data: { points: { increment: pledge.amount } }
@@ -70,6 +74,11 @@ cron.schedule('0 0 * * *', async () => {
                   projectId: project.id,
                   linkUrl: `/projects/${project.id}`,
                 });
+              } else if (pledge.stripeSessionId) {
+                // ゲスト（カード決済）: コミット後に Stripe で全額返金する
+                guestRefunds.push({ stripeSessionId: pledge.stripeSessionId, amount: pledge.amount });
+              } else {
+                logger.error('ゲスト自動返金不可: stripeSessionId 欠落（要手動対応）', { context: 'CRON', pledgeId: pledge.id });
               }
             }
           }
@@ -89,6 +98,27 @@ cron.schedule('0 0 * * *', async () => {
         // トランザクションのコミット後に通知/pushを送信する（返還が確定してから通知）
         for (const n of notificationsToSend) {
           await createNotification(n.recipientId, n.type, n.message, n.projectId, n.linkUrl);
+        }
+
+        // ゲスト（カード決済）への Stripe 返金（冪等キー付き・ベストエフォート）
+        for (const gr of guestRefunds) {
+          try {
+            const session = await stripe.checkout.sessions.retrieve(gr.stripeSessionId);
+            const paymentIntent = typeof session.payment_intent === 'string'
+              ? session.payment_intent
+              : session.payment_intent?.id;
+            if (!paymentIntent) {
+              logger.error('ゲスト自動返金不可: payment_intent 取得失敗（要手動対応）', { context: 'CRON', session: gr.stripeSessionId });
+              continue;
+            }
+            await stripe.refunds.create(
+              { payment_intent: paymentIntent, amount: gr.amount },
+              { idempotencyKey: `deadline-refund-${gr.stripeSessionId}` }
+            );
+            logger.info('ゲスト自動返金完了', { context: 'CRON', session: gr.stripeSessionId, amount: gr.amount });
+          } catch (err) {
+            logger.error('ゲスト自動返金失敗（要手動対応）', { context: 'CRON', session: gr.stripeSessionId, error: err.message });
+          }
         }
 
       } else {

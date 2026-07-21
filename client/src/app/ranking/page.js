@@ -60,7 +60,7 @@ export default function RankingPage() {
     }, []);
 
     return (
-        <div className="min-h-screen bg-[#F7F7FA] pb-24">
+        <div className="min-h-screen bg-[#F7F7FA]" style={{ paddingBottom: 'calc(6rem + env(safe-area-inset-bottom))' }}>
             {/* ヘッダー */}
             <div className="bg-gradient-to-br from-pink-500 to-violet-600 text-white px-4 pt-12 pb-8 text-center">
                 <div className="flex items-center justify-center gap-2 mb-2">

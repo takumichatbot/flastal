@@ -7,6 +7,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onre
 
 export default function OrganizerMessagesPage() {
   const [projects, setProjects] = useState([]);
+  const [loadingProjects, setLoadingProjects] = useState(true);
   const [selectedProject, setSelectedProject] = useState('');
   const [tiers, setTiers] = useState([]);
   const [selectedTier, setSelectedTier] = useState('');
@@ -19,12 +20,17 @@ export default function OrganizerMessagesPage() {
   useEffect(() => {
     const t = window.__flastalToken;
     setToken(t);
-    if (!t) return;
+    if (!t) { setLoadingProjects(false); return; }
     // 自分が主催者のプロジェクト一覧を取得
+    setLoadingProjects(true);
     fetch(`${API_URL}/api/projects?myPlanned=true`, { headers: { Authorization: `Bearer ${t}` } })
-      .then(r => r.json())
-      .then(d => setProjects(Array.isArray(d) ? d : d.projects || []))
-      .catch(() => {});
+      .then(async r => {
+        if (!r.ok) throw new Error('企画一覧の取得に失敗しました');
+        const d = await r.json();
+        setProjects(Array.isArray(d) ? d : d.projects || []);
+      })
+      .catch(err => toast.error(err.message || '企画一覧の取得に失敗しました'))
+      .finally(() => setLoadingProjects(false));
   }, []);
 
   useEffect(() => {
@@ -36,12 +42,13 @@ export default function OrganizerMessagesPage() {
     fetch(`${API_URL}/api/projects/${selectedProject}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
-      .then(r => r.json())
-      .then(d => {
+      .then(async r => {
+        if (!r.ok) throw new Error('ティア情報の取得に失敗しました');
+        const d = await r.json();
         setTiers(Array.isArray(d.pledgeTiers) ? d.pledgeTiers : []);
         setSelectedTier('');
       })
-      .catch(() => {});
+      .catch(err => toast.error(err.message || 'ティア情報の取得に失敗しました'));
   }, [selectedProject, token]);
 
   const handleMessageResize = (e) => {
@@ -99,11 +106,15 @@ export default function OrganizerMessagesPage() {
           <select
             value={selectedProject}
             onChange={e => setSelectedProject(e.target.value)}
-            className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-pink-300"
+            disabled={loadingProjects}
+            className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-pink-300 disabled:opacity-60"
           >
-            <option value="">企画を選択...</option>
+            <option value="">{loadingProjects ? '企画を読み込み中...' : '企画を選択...'}</option>
             {projects.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
           </select>
+          {!loadingProjects && projects.length === 0 && (
+            <p className="text-xs font-bold text-slate-400 mt-1.5">送信できる企画がありません。</p>
+          )}
         </div>
 
         {selectedProject && (

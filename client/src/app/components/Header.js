@@ -68,7 +68,8 @@ function NotificationDropdown({ notifications, fetchNotifications, unreadCount, 
       <div className="relative" ref={dropdownRef}>
         <motion.button 
           whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
-          onClick={() => { setIsOpen(!isOpen); if (!isOpen) fetchNotifications(); }} 
+          onClick={() => { setIsOpen(!isOpen); if (!isOpen) fetchNotifications(); }}
+          aria-label={`通知${unreadCount > 0 ? ` ${unreadCount}件未読` : ''}`}
           className="relative p-2.5 rounded-full hover:bg-slate-100 text-slate-500 hover:text-pink-500 transition-colors"
         >
           <Bell size={20} />
@@ -96,6 +97,8 @@ function NotificationDropdown({ notifications, fetchNotifications, unreadCount, 
                 {notifications.length > 0 ? (
                   notifications.map((notif) => (
                     <div key={notif.id} onClick={() => handleRead(notif.id, notif.linkUrl)}
+                      role="button" tabIndex={0}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleRead(notif.id, notif.linkUrl); } }}
                       className={`px-5 py-4 flex gap-4 cursor-pointer border-b border-slate-50 last:border-0 hover:bg-slate-50 transition-colors ${!notif.isRead ? 'bg-sky-50/30' : ''}`}
                     >
                       <div className="mt-0.5 bg-white p-2 rounded-[1rem] shadow-sm border border-slate-100 shrink-0 h-fit">
@@ -422,7 +425,7 @@ export default function Header() {
                     >
                       <div className="relative w-8 h-8 rounded-full overflow-hidden bg-indigo-50 border border-indigo-100 shrink-0 transition-transform group-hover:scale-105">
                           {user.iconUrl ? (
-                              <Image src={user.iconUrl} alt="User Icon" fill className="object-cover" />
+                              <Image src={user.iconUrl} alt={`${user?.handleName || 'ユーザー'}のアイコン`} fill className="object-cover" />
                           ) : (
                               <div className="w-full h-full flex items-center justify-center text-indigo-400"><User size={16}/></div>
                           )}
@@ -508,7 +511,7 @@ export default function Header() {
                       <Link href="/" onClick={() => setIsMobileMenuOpen(false)} className="text-xl font-black text-slate-900 tracking-tighter hover:text-pink-500 transition-colors">
                           FLASTAL
                       </Link>
-                      <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 bg-slate-50 rounded-full hover:bg-slate-100 transition-colors">
+                      <button onClick={() => setIsMobileMenuOpen(false)} aria-label="メニューを閉じる" className="p-2 bg-slate-50 rounded-full hover:bg-slate-100 transition-colors">
                           <X size={24} />
                       </button>
                   </div>
@@ -518,7 +521,7 @@ export default function Header() {
                           <div className="flex items-center justify-between bg-slate-50/80 p-5 rounded-[2rem] border border-slate-100 shadow-sm">
                               <div className="flex items-center gap-4">
                                   <div className="relative w-14 h-14 rounded-full overflow-hidden bg-white border-2 border-white shadow-sm">
-                                      {user.iconUrl ? <Image src={user.iconUrl} alt="User Avatar" fill className="object-cover" /> : <User size={24} className="m-3 text-slate-300" />}
+                                      {user.iconUrl ? <Image src={user.iconUrl} alt={`${user?.handleName || 'ユーザー'}のアイコン`} fill className="object-cover" /> : <User size={24} className="m-3 text-slate-300" />}
                                   </div>
                                   <div>
                                       <p className="font-black text-lg text-slate-800">{displayName}</p>

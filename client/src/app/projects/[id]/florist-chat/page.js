@@ -360,14 +360,14 @@ export default function PlannerFloristChatPage() {
                             {/* 入力エリア */}
                             <div className="p-3 md:p-4 bg-white/90 backdrop-blur-xl border-t border-slate-200/60 z-10">
                                 <div className="flex items-end gap-2 bg-slate-100 p-1.5 rounded-3xl border border-slate-200 focus-within:border-sky-300 focus-within:ring-4 focus-within:ring-sky-50 transition-all">
-                                    <button type="button" onClick={() => fileInputRef.current.click()} disabled={isUploading} className="p-3 bg-white text-slate-500 hover:text-sky-500 rounded-full shadow-sm hover:shadow transition-all flex-shrink-0 disabled:opacity-50"><ImageIcon size={20} /></button>
+                                    <button type="button" onClick={() => fileInputRef.current.click()} disabled={isUploading} aria-label="ファイルを添付" className="p-3 bg-white text-slate-500 hover:text-sky-500 rounded-full shadow-sm hover:shadow transition-all flex-shrink-0 disabled:opacity-50"><ImageIcon size={20} /></button>
                                     <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" disabled={isUploading} />
 
                                     <div className="flex-grow pl-2">
-                                        <textarea value={freeText} onChange={(e) => setFreeText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleFreeTextSubmit(e); } }} placeholder={isUploading ? "送信中..." : "お花屋さんにメッセージを送信..."} disabled={isUploading} rows="1" className="w-full bg-transparent border-0 px-2 py-3.5 focus:ring-0 outline-none resize-none text-sm font-medium max-h-32 disabled:opacity-50 placeholder:text-slate-400 placeholder:font-bold" style={{ minHeight: '48px' }} />
+                                        <textarea value={freeText} onChange={(e) => setFreeText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleFreeTextSubmit(e); } }} placeholder={isUploading ? "送信中..." : "お花屋さんにメッセージを送信..."} disabled={isUploading} rows="1" className="w-full bg-transparent border-0 px-2 py-3.5 focus:ring-0 outline-none resize-none text-[16px] font-medium max-h-32 disabled:opacity-50 placeholder:text-slate-400 placeholder:font-bold" style={{ minHeight: '48px' }} />
                                     </div>
 
-                                    <button onClick={handleFreeTextSubmit} disabled={isUploading || !freeText.trim()} className={`p-3.5 rounded-full text-white shadow-md transition-all flex-shrink-0 flex items-center justify-center ${(!freeText.trim() || isUploading) ? 'bg-slate-300 cursor-not-allowed' : 'bg-gradient-to-r from-sky-500 to-indigo-500 hover:scale-105 active:scale-95'}`}><Send size={18} className="ml-0.5" /></button>
+                                    <button onClick={handleFreeTextSubmit} disabled={isUploading || !freeText.trim()} aria-label="送信" className={`p-3.5 rounded-full text-white shadow-md transition-all flex-shrink-0 flex items-center justify-center ${(!freeText.trim() || isUploading) ? 'bg-slate-300 cursor-not-allowed' : 'bg-gradient-to-r from-sky-500 to-indigo-500 hover:scale-105 active:scale-95'}`}><Send size={18} className="ml-0.5" /></button>
                                 </div>
                             </div>
                         </>

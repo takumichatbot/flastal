@@ -176,7 +176,7 @@ function FilterSheet({ filters, onFilterChange, onTagSelect, onClose }) {
         initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
         transition={{ type: 'spring', damping: 28, stiffness: 300 }}
         onClick={e => e.stopPropagation()}
-        className="bg-white rounded-t-[2.5rem] shadow-2xl max-h-[80vh] flex flex-col overflow-hidden"
+        className="bg-white rounded-t-[2.5rem] shadow-2xl max-h-[80dvh] flex flex-col overflow-hidden"
       >
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
           <div>
@@ -251,7 +251,7 @@ function FilterSheet({ filters, onFilterChange, onTagSelect, onClose }) {
           </div>
         </div>
 
-        <div className="px-5 py-4 border-t border-slate-100">
+        <div className="px-5 py-4 border-t border-slate-100 pb-[max(1rem,env(safe-area-inset-bottom))]">
           <button onClick={onClose}
             className="w-full h-12 bg-gradient-to-r from-pink-500 to-rose-500 text-white font-black rounded-2xl shadow-lg shadow-pink-200 text-sm">
             この条件で絞り込む
@@ -404,7 +404,7 @@ function FloristsListContent() {
         {/* Title row */}
         <div className="max-w-7xl mx-auto px-4 h-14 flex items-center gap-3">
           <button onClick={() => router.back()}
-            className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 active:bg-slate-200 transition-colors shrink-0">
+            className="w-11 h-11 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 active:bg-slate-200 transition-colors shrink-0">
             <ArrowLeft size={18} />
           </button>
           <div className="flex-1 min-w-0">
@@ -494,7 +494,7 @@ function FloristsListContent() {
       </div>
 
       {/* ── Content ──────────────────────────────────── */}
-      <div className="max-w-7xl mx-auto px-4 py-5 pb-20">
+      <div className="max-w-7xl mx-auto px-4 py-5" style={{ paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))' }}>
         {/* Offer mode banner */}
         {projectId && (
           <div className="mb-4 p-4 bg-pink-50 border border-pink-200 rounded-2xl flex items-center justify-between gap-3">

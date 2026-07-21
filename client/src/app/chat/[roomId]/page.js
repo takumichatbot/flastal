@@ -38,6 +38,7 @@ export default function ChatRoomPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
+  const [connectionUnstable, setConnectionUnstable] = useState(false);
 
   const bottomRef = useRef(null);
   const textareaRef = useRef(null);
@@ -65,12 +66,18 @@ export default function ChatRoomPage() {
         prevMsgCountRef.current = prev.length;
         return incoming;
       });
+      setConnectionUnstable(false);
     } catch {
-      toast.error('メッセージの読み込みに失敗しました');
+      // バックグラウンドの定期ポーリングでは、失敗のたびにトーストを積み上げず
+      // 初回読み込み時のみ通知（固定IDで重複も防止）。以降は控えめなインライン表示に留める。
+      if (isLoading) {
+        toast.error('メッセージの読み込みに失敗しました', { id: 'chat-poll' });
+      }
+      setConnectionUnstable(true);
     } finally {
       setIsLoading(false);
     }
-  }, [roomId, token]);
+  }, [roomId, token, isLoading]);
 
   useEffect(() => {
     fetchData();
@@ -224,6 +231,20 @@ export default function ChatRoomPage() {
           </Link>
         )}
       </div>
+
+      {/* ── 接続不安定インジケーター ── */}
+      <AnimatePresence>
+        {connectionUnstable && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="flex-shrink-0 bg-amber-50 border-b border-amber-100 text-amber-600 text-[11px] font-bold text-center py-1.5"
+          >
+            接続が不安定です。再接続を試みています…
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ── メッセージエリア ── */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-1">

@@ -18,12 +18,28 @@ export const issueGiftCard = async (req, res) => {
         const code = generateCode();
         const expiresAt = new Date(Date.now() + expiresInDays * 86400 * 1000);
 
-        const card = await prisma.giftCard.create({
-            data: { code, points, message, issuedById: userId, expiresAt },
+        // 発行者の残高から原子的にポイントを差し引く（残高不足なら発行不可）。
+        // これをしないと「自分で発行→自分で受取」で無限にポイントを生成できてしまう。
+        const card = await prisma.$transaction(async (tx) => {
+            const dec = await tx.user.updateMany({
+                where: { id: userId, points: { gte: points } },
+                data: { points: { decrement: points } },
+            });
+            if (dec.count === 0) {
+                const err = new Error('ポイント残高が不足しています');
+                err.statusCode = 400;
+                throw err;
+            }
+            return tx.giftCard.create({
+                data: { code, points, message, issuedById: userId, expiresAt },
+            });
         });
 
         res.status(201).json(card);
     } catch (err) {
+        if (err.statusCode === 400) {
+            return res.status(400).json({ message: err.message });
+        }
         logger.error('issueGiftCard error', { context: 'GiftCard', error: err.message });
         res.status(500).json({ message: 'ギフトカードの発行に失敗しました。' });
     }

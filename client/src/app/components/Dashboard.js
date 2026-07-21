@@ -192,7 +192,7 @@ export default function Dashboard() {
                 <h3 className="font-bold text-gray-800 text-lg">{user.handleName}</h3>
                 <p className="text-xs text-gray-400 mb-6">@{user.id.slice(0, 8)}</p>
                 
-                <Link href="/mypage/profile" className="block w-full py-2.5 text-sm font-bold text-slate-600 bg-slate-50 hover:bg-slate-100 rounded-xl transition-colors">
+                <Link href="/mypage/edit" className="block w-full py-2.5 text-sm font-bold text-slate-600 bg-slate-50 hover:bg-slate-100 rounded-xl transition-colors">
                     プロフィール編集
                 </Link>
             </div>

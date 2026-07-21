@@ -84,9 +84,9 @@ export const getProjects = async (req, res) => {
         if (sort === 'deadline') orderBy = { deadline: 'asc' };
         if (sort === 'percent') orderBy = { collectedAmount: 'desc' }; // クライアント側で達成率計算
 
-        // ページネーション
-        const pageNum = parseInt(page || 1, 10);
-        const take = parseInt(limit || 12, 10);
+        // ページネーション（page=0 や負値で skip が負になり 500 になるのを防ぐ）
+        const pageNum = Math.max(1, parseInt(page || 1, 10) || 1);
+        const take = Math.max(1, parseInt(limit || 12, 10) || 12);
         const skip = (pageNum - 1) * take;
 
         // テキスト検索ありの場合
@@ -733,6 +733,9 @@ export const cancelProject = async (req, res) => {
     const { actualMaterialCost = 0 } = req.body; 
 
     try {
+        // ゲスト（userId=null / カード決済）の返金は Stripe 経由のため、
+        // トランザクション内で対象を集め、コミット後にまとめて返金する。
+        const guestRefunds = [];
         const result = await prisma.$transaction(async (tx) => {
             const project = await tx.project.findUnique({
                 where: { id: projectId },
@@ -759,10 +762,10 @@ export const cancelProject = async (req, res) => {
                 totalCancelFee = Math.min(finalMaterialCost, collectedAmount);
                 refundRatio = collectedAmount > 0 ? (collectedAmount - totalCancelFee) / collectedAmount : 0;
                 
-            } else if (diffDays >= 4 && diffDays <= 5) {
+            } else if (diffDays >= 4 && diffDays <= 6) {
                 totalCancelFee = Math.floor(collectedAmount * 0.5);
                 refundRatio = 0.5;
-                
+
             } else if (diffDays >= 0 && diffDays <= 3) {
                 totalCancelFee = collectedAmount;
                 refundRatio = 0;
@@ -778,7 +781,14 @@ export const cancelProject = async (req, res) => {
                 for (const pledge of project.pledges) {
                     const refundForPledge = Math.floor(pledge.amount * refundRatio);
                     
-                    if (refundForPledge > 0 && pledge.userId) {
+                    if (refundForPledge > 0 && !pledge.userId) {
+                        // ゲスト（カード決済）: コミット後に Stripe で実返金する
+                        if (pledge.stripeSessionId) {
+                            guestRefunds.push({ stripeSessionId: pledge.stripeSessionId, amount: refundForPledge });
+                        } else {
+                            logger.error('ゲスト返金不可: stripeSessionId 欠落（要手動対応）', { context: 'cancelProject', pledgeId: pledge.id });
+                        }
+                    } else if (refundForPledge > 0 && pledge.userId) {
                         await tx.user.update({
                             where: { id: pledge.userId },
                             data: { points: { increment: refundForPledge } }
@@ -833,9 +843,30 @@ export const cancelProject = async (req, res) => {
                 project: canceledProject, 
                 totalRefund: totalRefundAmount,
                 totalCancelFee: totalCancelFee,
-                appliedPolicy: diffDays >= 7 ? '①7日前以前' : (diffDays >= 4 ? '②5-4日前' : '③3日前以降')
+                appliedPolicy: diffDays >= 7 ? '①7日前以前' : (diffDays >= 4 ? '②6-4日前' : '③3日前以降')
             };
         });
+
+        // ゲスト（カード決済）への Stripe 返金（トランザクション外・冪等キー付き・ベストエフォート）
+        for (const gr of guestRefunds) {
+            try {
+                const session = await stripe.checkout.sessions.retrieve(gr.stripeSessionId);
+                const paymentIntent = typeof session.payment_intent === 'string'
+                    ? session.payment_intent
+                    : session.payment_intent?.id;
+                if (!paymentIntent) {
+                    logger.error('ゲスト返金不可: payment_intent 取得失敗（要手動対応）', { context: 'cancelProject', session: gr.stripeSessionId });
+                    continue;
+                }
+                await stripe.refunds.create(
+                    { payment_intent: paymentIntent, amount: gr.amount },
+                    { idempotencyKey: `cancel-refund-${gr.stripeSessionId}` }
+                );
+                logger.info('ゲスト返金完了', { context: 'cancelProject', session: gr.stripeSessionId, amount: gr.amount });
+            } catch (err) {
+                logger.error('ゲスト返金失敗（要手動対応）', { context: 'cancelProject', session: gr.stripeSessionId, error: err.message });
+            }
+        }
 
         res.status(200).json({ message: '中止処理が完了しました。', result });
     } catch (error) {

@@ -263,10 +263,10 @@ export default function FloristPrivateChatPage() {
                             <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" disabled={isUploading} />
                             
                             <div className="flex-grow pl-2">
-                            <textarea value={freeText} onChange={(e) => setFreeText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleFreeTextSubmit(e); } }} placeholder={isUploading ? "送信中..." : "企画者にメッセージを送信..."} disabled={isUploading} rows="1" className="w-full bg-transparent border-0 px-2 py-3.5 focus:ring-0 outline-none resize-none text-sm font-medium max-h-32 disabled:opacity-50 placeholder:text-slate-400 placeholder:font-bold" style={{ minHeight: '48px' }} />
+                            <textarea value={freeText} onChange={(e) => setFreeText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleFreeTextSubmit(e); } }} placeholder={isUploading ? "送信中..." : "企画者にメッセージを送信..."} disabled={isUploading} rows="1" className="w-full bg-transparent border-0 px-2 py-3.5 focus:ring-0 outline-none resize-none text-[16px] font-medium max-h-32 disabled:opacity-50 placeholder:text-slate-400 placeholder:font-bold" style={{ minHeight: '48px' }} />
                             </div>
 
-                            <button onClick={handleFreeTextSubmit} disabled={isUploading || !freeText.trim()} className={`p-3.5 rounded-full text-white shadow-md transition-all flex-shrink-0 flex items-center justify-center ${(!freeText.trim() || isUploading) ? 'bg-slate-300 cursor-not-allowed' : 'bg-gradient-to-r from-sky-500 to-indigo-500 hover:scale-105 active:scale-95'}`}><Send size={18} className="ml-0.5" /></button>
+                            <button onClick={handleFreeTextSubmit} disabled={isUploading || !freeText.trim()} aria-label="送信" className={`p-3.5 rounded-full text-white shadow-md transition-all flex-shrink-0 flex items-center justify-center ${(!freeText.trim() || isUploading) ? 'bg-slate-300 cursor-not-allowed' : 'bg-gradient-to-r from-sky-500 to-indigo-500 hover:scale-105 active:scale-95'}`}><Send size={18} className="ml-0.5" /></button>
                         </div>
                     </div>
                 </div>

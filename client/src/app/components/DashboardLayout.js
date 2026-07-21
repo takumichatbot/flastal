@@ -48,7 +48,7 @@ export function DashboardSidebar({
               <div className="p-8 pb-6 flex flex-col items-center border-b border-slate-50">
                 <div className="w-24 h-24 rounded-[2rem] relative overflow-hidden border-4 border-white shadow-xl mb-4 group ring-4 ring-[var(--oshi-color)]/5">
                   {user?.iconUrl ? (
-                    <Image src={user.iconUrl} alt="icon" fill className="object-cover" />
+                    <Image src={user.iconUrl} alt={`${user?.handleName || user?.platformName || 'ユーザー'}のアイコン`} fill className="object-cover" />
                   ) : (
                     <div className="w-full h-full bg-slate-50 flex items-center justify-center text-slate-200">
                       <User size={40}/>

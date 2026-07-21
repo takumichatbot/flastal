@@ -6,7 +6,8 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useAuth } from '../contexts/AuthContext';
 import { motion } from 'framer-motion';
-import { Rss, Users, ArrowLeft, RefreshCw, LayoutGrid } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { Rss, Users, ArrowLeft, RefreshCw, LayoutGrid, AlertCircle } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -71,6 +72,7 @@ export default function FeedPage() {
   const [projects, setProjects] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isEmpty, setIsEmpty] = useState(false);
+  const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
     if (loading) return;
@@ -80,16 +82,20 @@ export default function FeedPage() {
 
   const fetchFeed = async () => {
     setIsLoading(true);
+    setHasError(false);
     try {
       const token = window.__flastalToken;
       const res = await fetch(`${API_URL}/api/users/feed/following`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (res.ok) {
-        const data = await res.json();
-        setProjects(data.projects || []);
-        setIsEmpty((data.projects || []).length === 0);
-      }
+      if (!res.ok) throw new Error('フィードの取得に失敗しました');
+      const data = await res.json();
+      setProjects(data.projects || []);
+      setIsEmpty((data.projects || []).length === 0);
+    } catch (err) {
+      setHasError(true);
+      setIsEmpty(false);
+      toast.error(err.message || 'フィードの取得に失敗しました');
     } finally {
       setIsLoading(false);
     }
@@ -104,10 +110,10 @@ export default function FeedPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-24">
+    <div className="min-h-screen bg-slate-50" style={{ paddingBottom: 'calc(6rem + env(safe-area-inset-bottom))' }}>
       {/* ヘッダー */}
       <div className="bg-white border-b border-slate-200 sticky top-0 z-10 shadow-sm">
-        <div className="max-w-2xl mx-auto px-4 py-4 flex items-center gap-3">
+        <div className="max-w-2xl md:max-w-4xl mx-auto px-4 py-4 flex items-center gap-3">
           <button onClick={() => router.back()} className="p-2 hover:bg-slate-100 rounded-full text-slate-500">
             <ArrowLeft size={20} />
           </button>
@@ -121,8 +127,21 @@ export default function FeedPage() {
         </div>
       </div>
 
-      <div className="max-w-2xl mx-auto px-4 py-6">
-        {isEmpty ? (
+      <div className="max-w-2xl md:max-w-4xl mx-auto px-4 py-6">
+        {hasError ? (
+          <div className="flex flex-col items-center justify-center py-24 text-center">
+            <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mb-4">
+              <AlertCircle size={28} className="text-red-400" />
+            </div>
+            <h2 className="text-base font-black text-slate-700 mb-2">フィードを読み込めませんでした</h2>
+            <p className="text-sm text-slate-400 mb-6 leading-relaxed">
+              通信環境をご確認のうえ<br />再度お試しください
+            </p>
+            <button onClick={fetchFeed} className="px-6 py-3 bg-pink-500 text-white rounded-full text-sm font-black shadow-md hover:bg-pink-600 transition-colors flex items-center gap-2">
+              <RefreshCw size={16} /> 再読み込み
+            </button>
+          </div>
+        ) : isEmpty ? (
           <div className="flex flex-col items-center justify-center py-24 text-center">
             <div className="w-16 h-16 bg-pink-50 rounded-full flex items-center justify-center mb-4">
               <Users size={28} className="text-pink-300" />

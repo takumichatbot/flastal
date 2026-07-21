@@ -10,6 +10,7 @@ import { DeleteConfirmModal } from '../components/DeleteConfirmModal';
 import { Capacitor } from '@capacitor/core';
 import toast from 'react-hot-toast';
 import { compressImage } from '../utils/compressImage';
+import ImageWithFallback from '../components/ImageWithFallback';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -58,7 +59,7 @@ function PhotoCard({ photo, onDelete, canDelete, token, onLikeUpdate }) {
         <>
             <div className="group relative rounded-2xl overflow-hidden bg-slate-100 aspect-square cursor-pointer"
                 onClick={() => setShowFull(true)}>
-                <Image
+                <ImageWithFallback
                     src={photo.imageUrl}
                     alt={photo.caption || photo.project?.title || ''}
                     fill
@@ -94,7 +95,7 @@ function PhotoCard({ photo, onDelete, canDelete, token, onLikeUpdate }) {
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4" onClick={() => setShowFull(false)}>
                     <div className="relative max-w-2xl w-full bg-white rounded-2xl overflow-hidden shadow-2xl" onClick={e => e.stopPropagation()}>
                         <div className="relative aspect-video bg-black">
-                            <Image src={photo.imageUrl} alt={photo.caption || ''} fill className="object-contain" unoptimized />
+                            <ImageWithFallback src={photo.imageUrl} alt={photo.caption || ''} fill className="object-contain" unoptimized />
                         </div>
                         <div className="p-4">
                             {photo.caption && <p className="text-sm font-bold text-slate-700 mb-2">{photo.caption}</p>}
@@ -190,13 +191,23 @@ function UploadModal({ onClose, onSuccess, token }) {
     const submit = async () => {
         if (!imageUrl || !projectId) return;
         setUploading(true);
-        const res = await fetch(`${API_URL}/api/gallery/${projectId}`, {
-            method: 'POST',
-            headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ imageUrl, caption }),
-        });
-        setUploading(false);
-        if (res.ok) onSuccess();
+        try {
+            const res = await fetch(`${API_URL}/api/gallery/${projectId}`, {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ imageUrl, caption }),
+            });
+            if (res.ok) {
+                toast.success('達成写真を投稿しました！');
+                onSuccess();
+            } else {
+                toast.error('投稿に失敗しました');
+            }
+        } catch {
+            toast.error('通信エラーが発生しました');
+        } finally {
+            setUploading(false);
+        }
     };
 
     return (

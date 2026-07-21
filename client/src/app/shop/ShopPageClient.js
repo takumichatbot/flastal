@@ -136,13 +136,20 @@ export default function FloristShopPage() {
     if (activeCategory) params.set('category', activeCategory);
     if (search) params.set('q', search);
 
-    const res = await fetch(`${API_URL}/api/shop/products?${params}`);
-    if (res.ok) {
-      const data = await res.json();
-      setProducts(data.products);
-      setTotal(data.total);
+    try {
+      const res = await fetch(`${API_URL}/api/shop/products?${params}`);
+      if (res.ok) {
+        const data = await res.json();
+        setProducts(data.products);
+        setTotal(data.total);
+      } else {
+        throw new Error();
+      }
+    } catch {
+      toast.error('商品の読み込みに失敗しました');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [activeCategory, search, page]);
 
   const fetchCartCount = useCallback(async () => {

@@ -255,8 +255,12 @@ export const requestUserPayout = async (req, res) => {
             const user = await tx.user.findUnique({ where: { id: req.user.id } });
             if (user.points < requestAmount) throw new Error('ポイント残高が不足しています。');
 
-            // KYC チェック: 累計出金が 100,000pt 超の場合は本人確認必須
-            const payoutSum = await tx.payout.aggregate({ _sum: { amount: true }, where: { userId: req.user.id } });
+            // KYC チェック: 累計出金が 100,000pt 超の場合は本人確認必須。
+            // 失敗/取消の出金は累計に含めない（早期にしきい値超えと誤判定しないため）。
+            const payoutSum = await tx.payout.aggregate({
+                _sum: { amount: true },
+                where: { userId: req.user.id, status: { notIn: ['FAILED', 'CANCELLED'] } },
+            });
             const cumulative = (payoutSum._sum.amount || 0) + requestAmount;
             if (cumulative >= 100000 && user.kycStatus !== 'APPROVED') {
                 throw new Error('累計出金が10万ptを超えるため、本人確認が必要です。マイページ > 設定 > 本人確認から申請してください。');
@@ -471,6 +475,7 @@ export const getFollowingFeed = async (req, res) => {
                     plannerId: { in: followingIds },
                     status: 'FUNDRAISING',
                     projectType: 'PUBLIC',
+                    visibility: 'PUBLIC', // 非公開(UNLISTED)企画がフィードに漏れないようにする
                 },
                 include: {
                     planner: { select: { id: true, handleName: true, iconUrl: true } },
@@ -485,6 +490,7 @@ export const getFollowingFeed = async (req, res) => {
                     plannerId: { in: followingIds },
                     status: 'FUNDRAISING',
                     projectType: 'PUBLIC',
+                    visibility: 'PUBLIC',
                 },
             }),
         ]);
@@ -661,7 +667,9 @@ export const getReferralStats = async (req, res) => {
         const now = new Date();
         const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-        const [user, referredUsers, conversions, thisMonthReferredCount] = await Promise.all([
+        // カウント/合計は count()/aggregate() で正確に集計する。
+        // referredUsers/conversions の配列は take:50 の表示用（そこから件数や合計を導出しない）。
+        const [user, referredUsers, conversions, thisMonthReferredCount, referredCount, conversionAgg] = await Promise.all([
             prisma.user.findUnique({
                 where: { id: userId },
                 select: { referralCode: true, points: true },
@@ -680,10 +688,16 @@ export const getReferralStats = async (req, res) => {
             prisma.user.count({
                 where: { referredById: userId, createdAt: { gte: startOfMonth } },
             }),
+            prisma.user.count({ where: { referredById: userId } }),
+            prisma.affiliateConversion.aggregate({
+                where: { referrerId: userId },
+                _count: true,
+                _sum: { reward: true, pledgeAmount: true },
+            }),
         ]);
 
-        const totalReward = conversions.reduce((s, c) => s + c.reward, 0);
-        const totalPledge = conversions.reduce((s, c) => s + c.pledgeAmount, 0);
+        const totalReward = conversionAgg._sum.reward || 0;
+        const totalPledge = conversionAgg._sum.pledgeAmount || 0;
 
         res.json({
             referralCode: user?.referralCode,
@@ -691,10 +705,10 @@ export const getReferralStats = async (req, res) => {
                 ? `https://flastal.com/register?ref=${user.referralCode}`
                 : null,
             points: user?.points ?? 0,
-            referredCount: referredUsers.length,
+            referredCount,
             thisMonthReferredCount,
             referredUsers,
-            conversionCount: conversions.length,
+            conversionCount: conversionAgg._count,
             totalReward,
             totalPledge,
             conversions,

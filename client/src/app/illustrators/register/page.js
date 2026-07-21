@@ -247,7 +247,7 @@ export default function IllustratorRegisterPage() {
                 <Lock className="text-slate-400" size={18} />
               </div>
               <input
-                type={showPassword ? 'text' : 'password'} name="password" required value={formData.password} onChange={handleChange}
+                type={showPassword ? 'text' : 'password'} name="password" required minLength={8} value={formData.password} onChange={handleChange}
                 className="w-full pl-12 pr-12 py-3.5 bg-white/50 border border-slate-200 rounded-2xl focus:outline-none focus:border-amber-400 focus:ring-4 focus:ring-amber-100 transition-all font-bold text-slate-700 placeholder:text-slate-300"
                 placeholder="8文字以上"
               />

@@ -234,7 +234,7 @@ export const fulfillGroupBuyEntry = async (stripeSession) => {
     throw new Error(`GroupBuy not found: ${groupBuyId}`);
   }
 
-  await prisma.$transaction(async (tx) => {
+  const outcome = await prisma.$transaction(async (tx) => {
     // 対象エントリを取得（口数と現在ステータス）
     const existing = await tx.groupBuyEntry.findUnique({
       where: { stripeSessionId: stripeSession.id },
@@ -244,68 +244,83 @@ export const fulfillGroupBuyEntry = async (stripeSession) => {
       throw new Error(`GroupBuyEntry not found for session: ${stripeSession.id}`);
     }
 
-    // まだPAIDでない場合のみ確定処理（Webhookの二重配信に対する冪等性）
-    if (existing.status !== 'PAID') {
-      // ★ オーバーセル防止: 確定直前に現在のPAID口数を再集計し、上限を超えるなら確定しない。
-      //    joinGroupBuy時のチェックは PENDING 作成前の集計なので、同時購入では上限超過しうる。
-      //    ここで再チェックし、超過する場合は例外でロールバックしてPAIDにしない（要返金は別途対応）。
-      const gbForCap = await tx.groupBuy.findUnique({
-        where: { id: groupBuyId },
-        include: {
-          entries: { where: { status: 'PAID' }, select: { slots: true } },
-        },
-      });
-      if (!gbForCap) throw new Error(`GroupBuy not found: ${groupBuyId}`);
-
-      if (gbForCap.maxSlots !== null) {
-        const paidSlots = gbForCap.entries.reduce((sum, e) => sum + e.slots, 0);
-        if (paidSlots + existing.slots > gbForCap.maxSlots) {
-          logger.error('GroupBuy oversell prevented at fulfillment', {
-            context: 'GroupBuy', groupBuyId, session: stripeSession.id,
-            paidSlots, entrySlots: existing.slots, maxSlots: gbForCap.maxSlots,
-          });
-          throw new Error(`GroupBuy oversell: ${groupBuyId} would exceed maxSlots (${gbForCap.maxSlots})`);
-        }
-      }
-
-      // GroupBuyEntry を PAID に更新
-      await tx.groupBuyEntry.update({
-        where: { stripeSessionId: stripeSession.id },
-        data: {
-          status: 'PAID',
-          stripePaymentId: stripeSession.payment_intent || null,
-        },
-      });
+    // PENDING 以外（PAID=確定済み / REFUNDED=返金済み）は Webhook 二重配信なので何もしない
+    if (existing.status !== 'PENDING') {
+      return { oversold: false, transitionedToFunded: false };
     }
 
-    // 目標口数達成チェック
-    const gb = await tx.groupBuy.findUnique({
+    // ★ オーバーセル判定: 確定直前に現在のPAID口数を再集計し、上限を超えるか確認する。
+    //    joinGroupBuy時のチェックは PENDING 作成前の集計なので、同時購入では上限超過しうる。
+    const gbForCap = await tx.groupBuy.findUnique({
       where: { id: groupBuyId },
-      include: {
-        entries: { where: { status: 'PAID' }, select: { slots: true } },
-      },
+      include: { entries: { where: { status: 'PAID' }, select: { slots: true } } },
+    });
+    if (!gbForCap) throw new Error(`GroupBuy not found: ${groupBuyId}`);
+
+    if (gbForCap.maxSlots !== null) {
+      const paidSlots = gbForCap.entries.reduce((sum, e) => sum + e.slots, 0);
+      if (paidSlots + existing.slots > gbForCap.maxSlots) {
+        // オーバーセル: 例外でロールバックすると Stripe が同じイベントを無限リトライし、
+        // 決済も取られたままになる。エントリを REFUNDED にして返金対象とし、正常終了する。
+        await tx.groupBuyEntry.update({
+          where: { stripeSessionId: stripeSession.id },
+          data: { status: 'REFUNDED', stripePaymentId: stripeSession.payment_intent || null },
+        });
+        logger.warn('GroupBuy oversell → entry marked REFUNDED', {
+          context: 'GroupBuy', groupBuyId, session: stripeSession.id,
+          paidSlots, entrySlots: existing.slots, maxSlots: gbForCap.maxSlots,
+        });
+        return { oversold: true, paymentIntent: stripeSession.payment_intent || null, transitionedToFunded: false };
+      }
+    }
+
+    // 正常確定: GroupBuyEntry を PAID に更新
+    await tx.groupBuyEntry.update({
+      where: { stripeSessionId: stripeSession.id },
+      data: { status: 'PAID', stripePaymentId: stripeSession.payment_intent || null },
     });
 
+    // 目標口数達成チェック（この処理が OPEN→FUNDED の遷移を起こしたかを記録する）
+    const gb = await tx.groupBuy.findUnique({
+      where: { id: groupBuyId },
+      include: { entries: { where: { status: 'PAID' }, select: { slots: true } } },
+    });
     if (!gb) throw new Error(`GroupBuy not found: ${groupBuyId}`);
-
     const totalSoldSlots = gb.entries.reduce((sum, e) => sum + e.slots, 0);
 
+    let transitionedToFunded = false;
     if (gb.status === 'OPEN' && totalSoldSlots >= gb.targetSlots) {
-      await tx.groupBuy.update({
-        where: { id: groupBuyId },
-        data: { status: 'FUNDED' },
-      });
+      await tx.groupBuy.update({ where: { id: groupBuyId }, data: { status: 'FUNDED' } });
+      transitionedToFunded = true;
       logger.info('GroupBuy FUNDED', { context: 'GroupBuy', groupBuyId, soldSlots: totalSoldSlots, targetSlots: gb.targetSlots });
     }
+    return { oversold: false, transitionedToFunded, title: gb.title };
   });
+
+  // オーバーセルで確定できなかった決済は返金する（トランザクション外・冪等キー付き）
+  if (outcome.oversold) {
+    if (outcome.paymentIntent) {
+      try {
+        await stripe.refunds.create(
+          { payment_intent: outcome.paymentIntent },
+          { idempotencyKey: `gb-oversell-refund-${stripeSession.id}` }
+        );
+        logger.info('GroupBuy oversell refunded', { context: 'GroupBuy', session: stripeSession.id });
+      } catch (err) {
+        logger.error('GroupBuy oversell refund failed (要手動対応)', { context: 'GroupBuy', session: stripeSession.id, error: err.message });
+      }
+    } else {
+      logger.error('GroupBuy oversell but no payment_intent (要手動返金)', { context: 'GroupBuy', session: stripeSession.id });
+    }
+    return; // 成立通知は送らない
+  }
 
   logger.info('Entry fulfilled', { context: 'GroupBuy', session: stripeSession.id, groupBuyId });
 
-  // グループ購入成立時：PAIDエントリのユーザー全員にWeb Push通知を送る
-  // トランザクション外で実行し、失敗してもWebhook処理に影響させない
-  try {
-    const gbAfter = await prisma.groupBuy.findUnique({ where: { id: groupBuyId } });
-    if (gbAfter && gbAfter.status === 'FUNDED') {
+  // 成立の瞬間（OPEN→FUNDEDの遷移時）のみ、PAIDユーザー全員に通知する。
+  // 以降の購入ごとに既存参加者へ再通知しない。
+  if (outcome.transitionedToFunded) {
+    try {
       const entries = await prisma.groupBuyEntry.findMany({
         where: { groupBuyId, status: 'PAID', userId: { not: null } },
         select: { userId: true },
@@ -313,12 +328,12 @@ export const fulfillGroupBuyEntry = async (stripeSession) => {
       for (const e of entries) {
         sendPushNotification(e.userId, {
           title: '🎉 グループ購入が成立しました！',
-          body: `「${gbAfter.title}」が目標口数に達しました`,
+          body: `「${outcome.title}」が目標口数に達しました`,
           url: `/group-buy/${groupBuyId}`,
         }).catch(() => {});
       }
+    } catch (err) {
+      logger.warn('Push notification error', { context: 'GroupBuy', error: err.message });
     }
-  } catch (err) {
-    logger.warn('Push notification error', { context: 'GroupBuy', error: err.message });
   }
 };

@@ -823,10 +823,12 @@ export const requestPayout = async (req, res) => {
         }
 
         const result = await prisma.$transaction(async (tx) => {
-            const florist = await tx.florist.findUnique({ where: { id: floristId } });
-            if (florist.balance < payoutAmount) throw new Error('売上残高が不足しています。');
-
-            await tx.florist.update({ where: { id: floristId }, data: { balance: { decrement: payoutAmount } } });
+            // 残高ガード付きで原子的に減算（read-then-write の競合で残高がマイナスになるのを防ぐ）。
+            const dec = await tx.florist.updateMany({
+                where: { id: floristId, balance: { gte: payoutAmount } },
+                data: { balance: { decrement: payoutAmount } },
+            });
+            if (dec.count === 0) throw new Error('売上残高が不足しています。');
             return await tx.payoutRequest.create({
                 data: { amount: payoutAmount, accountInfo, floristId, status: 'PENDING' }
             });

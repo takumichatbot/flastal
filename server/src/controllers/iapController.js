@@ -115,6 +115,10 @@ export const addPointsViaIAP = async (req, res) => {
     return res.json({ success: true, points });
 
   } catch (error) {
+    // iapTransactionId の一意制約違反（同一取引の同時二重送信）は冪等に成功扱いにする
+    if (error.code === 'P2002') {
+      return res.json({ success: true, points, message: '既に処理済みです' });
+    }
     logger.error('IAP ポイント付与エラー', { error: error.message, userId });
     return res.status(500).json({ message: error.message || 'IAP 処理に失敗しました' });
   }
@@ -212,6 +216,10 @@ export const verifyIAPAndPledge = async (req, res) => {
     return res.json({ success: true, pledgeId: result.id });
 
   } catch (error) {
+    // iapTransactionId の一意制約違反（同一取引の同時二重送信）は冪等に処理済み扱い
+    if (error.code === 'P2002') {
+      return res.json({ success: true, message: '既に処理済みです' });
+    }
     logger.error('IAP 検証エラー', { error: error.message, userId });
     return res.status(500).json({ message: error.message || 'IAP 処理に失敗しました' });
   }

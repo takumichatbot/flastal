@@ -158,14 +158,14 @@ export default function NativeTabBar() {
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
                       exit={{ scale: 0 }}
-                      className="absolute -top-1.5 -right-2.5 bg-rose-500 text-white text-[8px] font-black min-w-[16px] h-4 px-0.5 rounded-full flex items-center justify-center shadow-sm border-2 border-white"
+                      className="absolute -top-1.5 -right-2.5 bg-rose-500 text-white text-[10px] font-black min-w-[16px] h-4 px-0.5 rounded-full flex items-center justify-center shadow-sm border-2 border-white"
                     >
                       {unread > 9 ? '9+' : unread}
                     </motion.span>
                   )}
                 </AnimatePresence>
               </div>
-              <span className={`text-[9px] font-black transition-colors ${isActive ? 'text-pink-500' : 'text-slate-400'}`}>
+              <span className={`text-[11px] font-black transition-colors ${isActive ? 'text-pink-500' : 'text-slate-400'}`}>
                 {t.label}
               </span>
             </button>

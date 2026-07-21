@@ -207,7 +207,7 @@ export default function MatchingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans pb-20">
+    <div className="min-h-screen bg-slate-50 font-sans" style={{ paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))' }}>
       {/* ヒーローヘッダー */}
       <div className="bg-gradient-to-br from-pink-500 to-rose-500 text-white py-12 px-4 text-center relative overflow-hidden">
         {/* 装飾 */}

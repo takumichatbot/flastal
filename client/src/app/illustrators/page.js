@@ -8,7 +8,8 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Search, Brush, Loader2, Sparkles, ChevronRight, Clock, User, PenTool, X, ChevronLeft } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { Search, Brush, Loader2, Sparkles, ChevronRight, Clock, User, PenTool, X, ChevronLeft, AlertCircle } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -134,6 +135,7 @@ function IllustratorsListContent() {
 
   const [illustrators, setIllustrators] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
   const [projectId, setProjectId] = useState(null);
   const [keyword, setKeyword] = useState('');
   const [activeTag, setActiveTag] = useState('');
@@ -147,10 +149,15 @@ function IllustratorsListContent() {
   useEffect(() => {
     const fetchIllustrators = async () => {
       setLoading(true);
+      setHasError(false);
       try {
         const res = await fetch(`${API_URL}/api/illustrators`);
-        if (res.ok) setIllustrators(await res.json());
-      } catch { /* ignore */ } finally { setLoading(false); }
+        if (!res.ok) throw new Error('クリエイター一覧の取得に失敗しました');
+        setIllustrators(await res.json());
+      } catch (err) {
+        setHasError(true);
+        toast.error(err.message || 'クリエイター一覧の取得に失敗しました');
+      } finally { setLoading(false); }
     };
     fetchIllustrators();
   }, []);
@@ -247,6 +254,18 @@ function IllustratorsListContent() {
         {loading ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             {[...Array(8)].map((_, i) => <SkeletonCard key={i} />)}
+          </div>
+        ) : hasError ? (
+          <div className="flex flex-col items-center justify-center py-24 text-center">
+            <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mb-4 text-red-400 shadow-sm border border-red-100">
+              <AlertCircle size={28} />
+            </div>
+            <p className="font-black text-slate-700 text-base mb-1.5">クリエイターを読み込めませんでした</p>
+            <p className="text-xs font-bold text-slate-400 mb-6">通信環境をご確認のうえ再度お試しください</p>
+            <button onClick={() => window.location.reload()}
+              className="px-6 py-3 bg-slate-900 text-white font-black rounded-full text-sm">
+              再読み込み
+            </button>
           </div>
         ) : filtered.length > 0 ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">

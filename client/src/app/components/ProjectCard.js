@@ -160,8 +160,8 @@ export default function ProjectCard({ project }) {
                         <div className="w-5 h-5 rounded-full overflow-hidden border border-slate-200 shrink-0">
                            {/* アイコンもフォールバック対応 */}
                            <ImageWithFallback 
-                              src={project.planner?.iconUrl} 
-                              alt="Planner" 
+                              src={project.planner?.iconUrl}
+                              alt={`${project.planner?.handleName || '企画者'}のアイコン`}
                               width={20} 
                               height={20} 
                               fallbackText="" // アイコンなのでテキストなし

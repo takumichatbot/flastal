@@ -31,6 +31,19 @@ function cn(...classes) {
   return classes.filter(Boolean).join(' ');
 }
 
+// クリップボードへコピー（ネイティブ WKWebView / Web 両対応・失敗時は例外を投げる）
+async function copyToClipboard(text) {
+  try {
+    const { Capacitor } = await import('@capacitor/core');
+    if (Capacitor?.isNativePlatform?.()) {
+      const { Clipboard } = await import('@capacitor/clipboard');
+      await Clipboard.write({ string: text });
+      return;
+    }
+  } catch { /* Web の navigator.clipboard にフォールバック */ }
+  await navigator.clipboard.writeText(text);
+}
+
 function ProjectCard({ project, roleType }) {
   const router = useRouter();
 
@@ -44,7 +57,7 @@ function ProjectCard({ project, roleType }) {
   const badgeColor = project.status === 'COMPLETED' ? 'bg-purple-500' : isSuccess ? 'bg-emerald-500' : 'bg-pink-500';
 
   return (
-    <div onClick={() => router.push(`/projects/${project.id}`)} className="block group h-full cursor-pointer">
+    <Link href={`/projects/${project.id}`} className="block group h-full">
       <div className="bg-white/90 backdrop-blur-md rounded-[1.5rem] overflow-hidden border border-white shadow-sm hover:shadow-[0_12px_30px_rgba(244,114,182,0.15)] transition-all duration-300 hover:-translate-y-1 relative h-full flex flex-col">
         <div className="relative w-full aspect-video bg-slate-100 shrink-0">
           {project.imageUrl ? (
@@ -89,7 +102,7 @@ function ProjectCard({ project, roleType }) {
             {project.status === 'FUNDRAISING' && (
               <div className="mt-3 pt-3 border-t border-slate-100 border-dashed relative z-20">
                 <button
-                  onClick={(e) => { e.stopPropagation(); router.push(`/projects/${project.id}#pledge-section`); }}
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); router.push(`/projects/${project.id}#pledge-section`); }}
                   className="w-full py-2.5 bg-pink-50 hover:bg-pink-500 text-pink-600 hover:text-white rounded-xl text-xs font-black transition-colors flex items-center justify-center gap-1.5"
                 >
                   <Heart size={12} className="fill-current" />
@@ -100,7 +113,7 @@ function ProjectCard({ project, roleType }) {
           </div>
         </div>
       </div>
-    </div>
+    </Link>
   );
 }
 
@@ -162,6 +175,27 @@ function DashboardContent() {
   const [postComments, setPostComments] = useState([]);
   const [commentText, setCommentText] = useState('');
   const [sendingComment, setSendingComment] = useState(false);
+  const [downloadingDoc, setDownloadingDoc] = useState(null);
+
+  // 領収書 / 請求書 / 証明書 PDF ダウンロード（res.ok 検証 + ダウンロード中状態）
+  const downloadPdf = async (url, filename, docKey) => {
+    const token = window.__flastalToken;
+    if (!token) { toast.error('ログインが必要です'); return; }
+    setDownloadingDoc(docKey);
+    try {
+      const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) throw new Error();
+      const blob = await res.blob();
+      const objUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = objUrl; a.download = filename;
+      a.click(); URL.revokeObjectURL(objUrl);
+    } catch {
+      toast.error('ダウンロードに失敗しました');
+    } finally {
+      setDownloadingDoc(null);
+    }
+  };
 
   const fetchMyData = useCallback(async () => {
     if (!user?.id) return;
@@ -302,63 +336,48 @@ function DashboardContent() {
                 {pledge.project?.status === 'COMPLETED' ? '完了' :
                  pledge.project?.status === 'SUCCESSFUL' ? '達成' : '募集中'}
               </span>
-              <a
-                href={`${API_URL}/api/payment/pledges/${pledge.id}/receipt`}
-                download={`receipt_${pledge.id}.pdf`}
-                onClick={e => {
-                  e.stopPropagation();
-                  const token = window.__flastalToken;
-                  if (!token) return;
-                  e.preventDefault();
-                  fetch(`${API_URL}/api/payment/pledges/${pledge.id}/receipt`, {
-                    headers: { Authorization: `Bearer ${token}` },
-                  }).then(r => r.blob()).then(blob => {
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url; a.download = `receipt_${pledge.id}.pdf`;
-                    a.click(); URL.revokeObjectURL(url);
-                  }).catch(() => toast.error('ダウンロードに失敗しました'));
-                }}
-                className="flex items-center gap-1 text-[9px] font-black text-slate-400 hover:text-violet-500 transition-colors"
-              >
-                <Download size={11}/> 領収書
-              </a>
               <button
                 onClick={e => {
                   e.stopPropagation();
-                  const token = window.__flastalToken;
-                  if (!token) return;
-                  fetch(`${API_URL}/api/payment/pledges/${pledge.id}/invoice`, {
-                    headers: { Authorization: `Bearer ${token}` },
-                  }).then(r => r.blob()).then(blob => {
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url; a.download = `invoice_${pledge.id}.pdf`;
-                    a.click(); URL.revokeObjectURL(url);
-                  }).catch(() => toast.error('ダウンロードに失敗しました'));
+                  downloadPdf(
+                    `${API_URL}/api/payment/pledges/${pledge.id}/receipt`,
+                    `receipt_${pledge.id}.pdf`,
+                    `receipt_${pledge.id}`
+                  );
                 }}
-                className="flex items-center gap-1 text-[9px] font-black text-slate-400 hover:text-indigo-500 transition-colors"
+                disabled={downloadingDoc === `receipt_${pledge.id}`}
+                className="flex items-center gap-1 text-[9px] font-black text-slate-400 hover:text-violet-500 transition-colors disabled:opacity-50"
               >
-                <Download size={11}/> 請求書
+                <Download size={11}/> {downloadingDoc === `receipt_${pledge.id}` ? 'DL中...' : '領収書'}
+              </button>
+              <button
+                onClick={e => {
+                  e.stopPropagation();
+                  downloadPdf(
+                    `${API_URL}/api/payment/pledges/${pledge.id}/invoice`,
+                    `invoice_${pledge.id}.pdf`,
+                    `invoice_${pledge.id}`
+                  );
+                }}
+                disabled={downloadingDoc === `invoice_${pledge.id}`}
+                className="flex items-center gap-1 text-[9px] font-black text-slate-400 hover:text-indigo-500 transition-colors disabled:opacity-50"
+              >
+                <Download size={11}/> {downloadingDoc === `invoice_${pledge.id}` ? 'DL中...' : '請求書'}
               </button>
               {pledge.project?.status === 'COMPLETED' && (
                 <button
                   onClick={e => {
                     e.stopPropagation();
-                    const token = window.__flastalToken;
-                    if (!token) return;
-                    fetch(`${API_URL}/api/projects/${pledge.project.id}/certificate/${pledge.id}`, {
-                      headers: { Authorization: `Bearer ${token}` },
-                    }).then(r => r.blob()).then(blob => {
-                      const url = URL.createObjectURL(blob);
-                      const a = document.createElement('a');
-                      a.href = url; a.download = `certificate_${pledge.id}.pdf`;
-                      a.click(); URL.revokeObjectURL(url);
-                    }).catch(() => toast.error('ダウンロードに失敗しました'));
+                    downloadPdf(
+                      `${API_URL}/api/projects/${pledge.project.id}/certificate/${pledge.id}`,
+                      `certificate_${pledge.id}.pdf`,
+                      `certificate_${pledge.id}`
+                    );
                   }}
-                  className="flex items-center gap-1 text-[9px] font-black text-pink-500 hover:text-pink-600 transition-colors"
+                  disabled={downloadingDoc === `certificate_${pledge.id}`}
+                  className="flex items-center gap-1 text-[9px] font-black text-pink-500 hover:text-pink-600 transition-colors disabled:opacity-50"
                 >
-                  <FileDown size={11}/> 証明書DL
+                  <FileDown size={11}/> {downloadingDoc === `certificate_${pledge.id}` ? 'DL中...' : '証明書DL'}
                 </button>
               )}
               {/* フラワースタンド受け取り確認 */}
@@ -490,7 +509,7 @@ function DashboardContent() {
               onClick={() => setActiveTab('settings')}
             >
               {user.iconUrl
-                ? <Image src={user.iconUrl} alt="Icon" fill className="object-cover group-hover:scale-110 transition-transform" />
+                ? <Image src={user.iconUrl} alt={`${user.handleName || 'Guest'}のアイコン`} fill className="object-cover group-hover:scale-110 transition-transform" />
                 : <div className="w-full h-full flex items-center justify-center text-slate-300"><User size={32} /></div>
               }
             </div>
@@ -569,7 +588,7 @@ function DashboardContent() {
                       className="relative w-16 h-16 rounded-2xl overflow-hidden border-2 border-white/40 shadow-lg shrink-0 bg-white/20 active:scale-95 transition-transform"
                     >
                       {user.iconUrl
-                        ? <Image src={user.iconUrl} alt="Icon" fill className="object-cover" />
+                        ? <Image src={user.iconUrl} alt={`${user.handleName || 'ゲスト'}のアイコン`} fill className="object-cover" />
                         : <User size={28} className="absolute inset-0 m-auto text-white/70" />
                       }
                     </button>
@@ -1051,12 +1070,13 @@ function DashboardContent() {
                                 method: 'POST',
                                 body: JSON.stringify({ content: commentText.trim() }),
                               });
-                              if (res.ok) {
-                                const comment = await res.json();
-                                setPostComments(prev => [...prev, comment]);
-                                setSelectedPost(p => ({ ...p, _count: { ...p._count, comments: (p._count?.comments ?? 0) + 1 } }));
-                                setCommentText('');
-                              }
+                              if (!res.ok) throw new Error();
+                              const comment = await res.json();
+                              setPostComments(prev => [...prev, comment]);
+                              setSelectedPost(p => ({ ...p, _count: { ...p._count, comments: (p._count?.comments ?? 0) + 1 } }));
+                              setCommentText('');
+                            } catch {
+                              toast.error('コメントの送信に失敗しました');
                             } finally { setSendingComment(false); }
                           }}
                           placeholder="コメントを追加..."
@@ -1072,12 +1092,13 @@ function DashboardContent() {
                                 method: 'POST',
                                 body: JSON.stringify({ content: commentText.trim() }),
                               });
-                              if (res.ok) {
-                                const comment = await res.json();
-                                setPostComments(prev => [...prev, comment]);
-                                setSelectedPost(p => ({ ...p, _count: { ...p._count, comments: (p._count?.comments ?? 0) + 1 } }));
-                                setCommentText('');
-                              }
+                              if (!res.ok) throw new Error();
+                              const comment = await res.json();
+                              setPostComments(prev => [...prev, comment]);
+                              setSelectedPost(p => ({ ...p, _count: { ...p._count, comments: (p._count?.comments ?? 0) + 1 } }));
+                              setCommentText('');
+                            } catch {
+                              toast.error('コメントの送信に失敗しました');
                             } finally { setSendingComment(false); }
                           }}
                           className="w-9 h-9 bg-pink-500 rounded-full flex items-center justify-center text-white disabled:opacity-40 active:scale-95 transition-all shrink-0"
@@ -1259,7 +1280,7 @@ function DashboardContent() {
                     <div className="p-[2px] rounded-2xl bg-gradient-to-br from-pink-400 to-rose-500 shrink-0 shadow-md shadow-pink-100">
                       <div className="relative w-16 h-16 rounded-2xl overflow-hidden bg-slate-100">
                         {user.iconUrl
-                          ? <Image src={user.iconUrl} alt="アイコン" fill className="object-cover" />
+                          ? <Image src={user.iconUrl} alt={`${user.handleName || 'ゲスト'}のアイコン`} fill className="object-cover" />
                           : <User size={28} className="absolute inset-0 m-auto text-slate-300" />
                         }
                       </div>
@@ -1346,10 +1367,13 @@ function DashboardContent() {
                     icon={<Copy size={16} />}
                     label="招待コードをコピーする"
                     value={user.referralCode || '----'}
-                    onClick={() => {
-                      if (user.referralCode) {
-                        navigator.clipboard.writeText(user.referralCode);
+                    onClick={async () => {
+                      if (!user.referralCode) return;
+                      try {
+                        await copyToClipboard(user.referralCode);
                         toast.success('招待コードをコピーしました');
+                      } catch {
+                        toast.error('コピーに失敗しました');
                       }
                     }}
                   />
@@ -1374,7 +1398,7 @@ function DashboardContent() {
                 {/* サポート */}
                 <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-5 pt-4 pb-1">サポート</p>
-                  <SettingsRow icon={<HelpCircle size={16} />} label="よくある質問" href="/faq" />
+                  <SettingsRow icon={<HelpCircle size={16} />} label="よくある質問" href="/guide" />
                   <SettingsRow icon={<Mail size={16} />} label="お問い合わせ" href="/contact" />
                 </div>
 
@@ -1468,11 +1492,13 @@ function FeedSection({ authenticatedFetch }) {
   const router = useRouter();
   const [feedItems, setFeedItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [page, setPage] = useState(1);
 
   const fetchFeed = useCallback(async (p = 1) => {
     setLoading(true);
+    if (p === 1) setError(false);
     try {
       const res = await authenticatedFetch(`${API_URL}/api/feed?page=${p}`);
       if (!res.ok) throw new Error();
@@ -1481,7 +1507,7 @@ function FeedSection({ authenticatedFetch }) {
       setHasMore(data.hasMore);
       setPage(p);
     } catch {
-      // サイレント失敗
+      if (p === 1) setError(true);
     } finally {
       setLoading(false);
     }
@@ -1493,6 +1519,26 @@ function FeedSection({ authenticatedFetch }) {
     return (
       <div className="py-8 flex justify-center">
         <Loader2 className="w-6 h-6 text-pink-400 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!loading && error && feedItems.length === 0) {
+    return (
+      <div className="bg-white/60 rounded-[1.5rem] border border-white p-6 text-center">
+        <div className="w-12 h-12 bg-rose-50 rounded-full flex items-center justify-center mx-auto mb-3">
+          <Rss size={20} className="text-rose-300" />
+        </div>
+        <p className="text-sm font-black text-slate-600 mb-1">フィードを読み込めませんでした</p>
+        <p className="text-xs font-bold text-slate-400 leading-relaxed mb-4">
+          通信環境をご確認のうえ、再度お試しください
+        </p>
+        <button
+          onClick={() => fetchFeed(1)}
+          className="inline-flex items-center gap-1.5 px-4 py-2 bg-pink-500 text-white text-xs font-black rounded-full shadow-sm active:scale-95 transition-transform"
+        >
+          再読み込み
+        </button>
       </div>
     );
   }

@@ -23,8 +23,13 @@ function TeamSection({ project }) {
   const isOwner = user?.id === project.plannerId;
 
   const fetchMembers = useCallback(async () => {
-    const res = await fetch(`${API_URL}/api/projects/${project.id}/team/members`);
-    if (res.ok) setMembers(await res.json());
+    try {
+      const res = await fetch(`${API_URL}/api/projects/${project.id}/team/members`);
+      if (res.ok) {
+        const data = await res.json();
+        setMembers(Array.isArray(data) ? data : []);
+      }
+    } catch { /* silent: 表示のみのためトーストは出さない */ }
   }, [project.id]);
 
   useEffect(() => { fetchMembers(); }, [fetchMembers]);
@@ -161,6 +166,7 @@ function ExclusiveSection({ project, isPlanner, isPledger }) {
   const [locked, setLocked] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ title: '', body: '', contentType: 'TEXT' });
+  const [creating, setCreating] = useState(false);
 
   const fetchContents = useCallback(async () => {
     const res = await authenticatedFetch(`${API_URL}/api/projects/${project.id}/team/exclusive`);

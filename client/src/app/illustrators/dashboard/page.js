@@ -97,6 +97,7 @@ export default function IllustratorDashboard() {
   const [applications, setApplications] = useState([]);
   const [loadingData, setLoadingData] = useState(true);
   const [hasProfile, setHasProfile] = useState(null);
+  const [processingId, setProcessingId] = useState(null);
 
   // データの取得
   const fetchDashboardData = useCallback(async () => {
@@ -140,20 +141,24 @@ export default function IllustratorDashboard() {
 
   // オファー承認・辞退処理
   const handleOfferAction = async (offerId, action) => {
+      if (processingId) return; // 二重送信防止（ポイントのエスクロー処理があるため）
       const confirmMsg = action === 'ACCEPT' ? 'この依頼を受注しますか？' : 'この依頼を辞退しますか？';
       if (!window.confirm(confirmMsg)) return;
 
+      setProcessingId(offerId);
       const toastId = toast.loading('処理中...');
       try {
           const res = await authenticatedFetch(`${API_URL}/api/illustrators/offers/${offerId}/${action.toLowerCase()}`, {
               method: 'PATCH'
           });
           if (!res.ok) throw new Error('処理に失敗しました');
-          
+
           toast.success(action === 'ACCEPT' ? '受注しました！' : '辞退しました', { id: toastId });
           fetchDashboardData(); // データ再取得
       } catch (e) {
           toast.error(e.message, { id: toastId });
+      } finally {
+          setProcessingId(null);
       }
   };
 
@@ -278,8 +283,8 @@ export default function IllustratorDashboard() {
                                                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">提示金額 (報酬)</p>
                                                 <p className="text-3xl font-black text-amber-500 font-mono mb-4">{offer.amount?.toLocaleString()} <span className="text-sm font-bold text-amber-600/60">pt</span></p>
                                                 <div className="space-y-2">
-                                                    <button onClick={() => handleOfferAction(offer.id, 'ACCEPT')} className="w-full py-3 bg-amber-500 text-white font-black rounded-xl shadow-md hover:bg-amber-600 transition-colors">承認して受注する</button>
-                                                    <button onClick={() => handleOfferAction(offer.id, 'REJECT')} className="w-full py-3 bg-white text-slate-400 font-black rounded-xl border border-slate-200 hover:bg-slate-50 hover:text-rose-500 transition-colors">今回は辞退する</button>
+                                                    <button onClick={() => handleOfferAction(offer.id, 'ACCEPT')} disabled={processingId === offer.id} className="w-full py-3 bg-amber-500 text-white font-black rounded-xl shadow-md hover:bg-amber-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">{processingId === offer.id && <Loader2 size={16} className="animate-spin"/>} 承認して受注する</button>
+                                                    <button onClick={() => handleOfferAction(offer.id, 'REJECT')} disabled={processingId === offer.id} className="w-full py-3 bg-white text-slate-400 font-black rounded-xl border border-slate-200 hover:bg-slate-50 hover:text-rose-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">{processingId === offer.id && <Loader2 size={16} className="animate-spin"/>} 今回は辞退する</button>
                                                 </div>
                                             </div>
                                         </div>

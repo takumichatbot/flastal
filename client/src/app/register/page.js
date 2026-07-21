@@ -186,10 +186,11 @@ export default function RegisterPage() {
 
           {/* ニックネーム */}
           <div>
-            <label className="block text-[11px] font-bold text-slate-500 mb-1 ml-1">ニックネーム <span className="text-pink-500">*</span></label>
+            <label htmlFor="register-handleName" className="block text-[11px] font-bold text-slate-500 mb-1 ml-1">ニックネーム <span className="text-pink-500">*</span></label>
             <div className={inputWrapClass}>
               <User className="absolute left-3.5 text-slate-400" size={16} />
               <input
+                id="register-handleName"
                 type="text"
                 value={formData.handleName}
                 onChange={(e) => setFormData({ ...formData, handleName: e.target.value })}
@@ -202,10 +203,11 @@ export default function RegisterPage() {
 
           {/* メールアドレス */}
           <div>
-            <label className="block text-[11px] font-bold text-slate-500 mb-1 ml-1">メールアドレス <span className="text-pink-500">*</span></label>
+            <label htmlFor="register-email" className="block text-[11px] font-bold text-slate-500 mb-1 ml-1">メールアドレス <span className="text-pink-500">*</span></label>
             <div className={inputWrapClass}>
               <Mail className="absolute left-3.5 text-slate-400" size={16} />
               <input
+                id="register-email"
                 type="email"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}

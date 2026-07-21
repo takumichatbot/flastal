@@ -15,9 +15,12 @@ const TYPE_LABELS = {
 export default function PointHistoryPage() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const API = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
-  useEffect(() => {
+  const loadHistory = () => {
+    setLoading(true);
+    setError(false);
     const token =
       (typeof window !== 'undefined' && window.__flastalToken) ||
       (typeof window !== 'undefined' && localStorage.getItem('accessToken')) ||
@@ -28,14 +31,37 @@ export default function PointHistoryPage() {
     })
       .then(r => r.ok ? r.json() : Promise.reject())
       .then(d => setData(d))
-      .catch(() => setData({ transactions: [], currentBalance: 0, total: 0, totalPages: 0 }))
+      .catch(() => setError(true))
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    loadHistory();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [API]);
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#FAF9FF]">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-400" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#FAF9FF] px-4 text-center">
+        <div className="w-16 h-16 bg-rose-50 rounded-full flex items-center justify-center mb-4">
+          <Zap size={28} className="text-rose-300" />
+        </div>
+        <p className="text-sm font-black text-slate-600 mb-1">ポイント情報を読み込めませんでした</p>
+        <p className="text-xs text-slate-400 mb-5">通信環境をご確認のうえ、再度お試しください</p>
+        <button
+          onClick={loadHistory}
+          className="px-5 py-2.5 bg-pink-500 text-white text-xs font-black rounded-xl shadow-md active:scale-95 transition-transform"
+        >
+          再読み込み
+        </button>
       </div>
     );
   }

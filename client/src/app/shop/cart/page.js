@@ -29,11 +29,18 @@ export default function CartPage() {
 
   const fetchCart = useCallback(async () => {
     if (!isFlorist || !token) { setLoading(false); return; }
-    const res = await fetch(`${API_URL}/api/shop/cart`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (res.ok) setCart(await res.json());
-    setLoading(false);
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/api/shop/cart`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) setCart(await res.json());
+      else throw new Error();
+    } catch {
+      toast.error('カートの読み込みに失敗しました');
+    } finally {
+      setLoading(false);
+    }
   }, [isFlorist, token]);
 
   useEffect(() => {

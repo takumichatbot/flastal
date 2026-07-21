@@ -270,7 +270,7 @@ export default function FloristRegisterPage() {
                 <div className="relative">
                   <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                   <input
-                    type={showPassword ? 'text' : 'password'} required name="password" value={formData.password} onChange={handleChange}
+                    type={showPassword ? 'text' : 'password'} required minLength={8} name="password" value={formData.password} onChange={handleChange}
                     placeholder="8文字以上の英数字"
                     className="w-full pl-12 pr-12 py-3.5 bg-white/50 border border-slate-200 rounded-2xl focus:outline-none focus:border-pink-400 focus:ring-4 focus:ring-pink-100 transition-all font-bold text-slate-700 placeholder:text-slate-300"
                   />

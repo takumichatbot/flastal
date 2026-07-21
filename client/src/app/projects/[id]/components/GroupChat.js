@@ -6,6 +6,7 @@ import Markdown from 'react-markdown';
 import { Globe, Loader2, User, Send, ImageIcon, Smile, AlertTriangle, X, FileText, Cpu, RefreshCw, Copy, MessageSquare } from 'lucide-react';
 
 import PollCreationModal from './PollCreationModal';
+import ImageWithFallback from '@/app/components/ImageWithFallback';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 const AVAILABLE_EMOJIS = ['👍', '❤️', '🙌', '😂', '🌸', '✨'];
@@ -56,7 +57,7 @@ const ChatReportModal = ({ messageId, onClose }) => {
     return (
         <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm transition-opacity">
             <div className="bg-white rounded-[2rem] p-6 w-full max-w-sm shadow-2xl relative">
-                <button onClick={onClose} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 bg-slate-100 p-2 rounded-full transition-colors">
+                <button onClick={onClose} aria-label="閉じる" className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 bg-slate-100 p-2 rounded-full transition-colors">
                     <X size={16} />
                 </button>
                 
@@ -221,7 +222,9 @@ const ChatMessage = ({ msg, user, isPlanner, isPledger, onReaction, onReport, te
             {/* アイコン */}
             <div className="flex-shrink-0 mb-1">
                 {iconUrl ? (
-                    <img src={iconUrl} alt={senderName} className="h-9 w-9 rounded-full object-cover shadow-sm border border-slate-100" loading="lazy" />
+                    <div className="h-9 w-9 rounded-full overflow-hidden shadow-sm border border-slate-100">
+                        <ImageWithFallback src={iconUrl} alt={senderName} width={36} height={36} fallbackText="" className="object-cover w-full h-full" />
+                    </div>
                 ) : (
                     <div className="h-9 w-9 rounded-full bg-gradient-to-br from-indigo-100 to-sky-100 text-indigo-500 flex items-center justify-center font-bold shadow-sm">
                         <User size={16}/>
@@ -255,7 +258,7 @@ const ChatMessage = ({ msg, user, isPlanner, isPledger, onReaction, onReport, te
                         }
                     `}>
                         {msg.messageType === 'IMAGE' ? (
-                            <img src={msg.fileUrl} alt="画像" className="max-w-full h-auto rounded-xl my-1 cursor-zoom-in hover:opacity-90 transition-opacity border border-black/5" loading="lazy" />
+                            <ImageWithFallback src={msg.fileUrl} alt="画像" width={0} height={0} sizes="(max-width: 768px) 60vw, 320px" className="w-auto h-auto max-w-full max-h-72 rounded-xl my-1 cursor-zoom-in hover:opacity-90 transition-opacity border border-black/5" />
                         ) : msg.messageType === 'FILE' ? (
                             <a href={msg.fileUrl} target="_blank" rel="noopener noreferrer" className={`flex items-center gap-2 font-bold hover:underline p-2 rounded-xl ${isOwn ? 'bg-black/10' : 'bg-slate-50 text-sky-600'}`}>
                                 📎 {msg.fileName || 'ファイルを表示'}
@@ -394,7 +397,11 @@ export default function GroupChat({ project, user, isPlanner, isPledger, isFlori
   }, []);
 
   const handleSendMessage = (templateId, content, messageType, fileUrl, fileName) => {
-    if (!socket || !user) return toast.error('接続エラー');
+    // socket が未接続だと emit は黙って捨てられるため、接続状態まで確認する
+    if (!socket || !socket.connected || !user) {
+      toast.error('接続エラー');
+      return false;
+    }
     socket.emit('sendGroupChatMessage', {
       projectId: project.id,
       userId: user.id,
@@ -404,14 +411,16 @@ export default function GroupChat({ project, user, isPlanner, isPledger, isFlori
       fileUrl,
       fileName
     });
+    return true;
   };
 
   const handleFreeTextSubmit = (e) => {
     e?.preventDefault();
-    if (freeText.trim()) {
-      handleSendMessage(null, freeText, 'TEXT', null, null);
-      setFreeText('');
-    }
+    const text = freeText.trim();
+    if (!text) return;
+    setFreeText(''); // 楽観的に入力欄をクリア
+    const sent = handleSendMessage(null, text, 'TEXT', null, null);
+    if (!sent) setFreeText(text); // 送信できなかった場合は入力内容を復元
   };
 
   const handleFileUpload = async (event) => {
@@ -531,7 +540,7 @@ export default function GroupChat({ project, user, isPlanner, isPledger, isFlori
                       <h3 className="font-black text-amber-800 flex items-center text-xs">
                           <FileText className="mr-1.5 text-amber-500"/> AI 決定事項まとめ
                       </h3>
-                      <button onClick={() => { navigator.clipboard.writeText(summary); toast.success('コピーしました'); }} className="text-[10px] text-amber-700 hover:text-amber-900 bg-white/50 px-2.5 py-1 rounded-md font-bold transition-colors">
+                      <button onClick={async () => { try { await navigator.clipboard.writeText(summary); toast.success('コピーしました'); } catch { toast.error('コピーに失敗しました'); } }} className="text-[10px] text-amber-700 hover:text-amber-900 bg-white/50 px-2.5 py-1 rounded-md font-bold transition-colors">
                           コピー
                       </button>
                   </div>
@@ -593,10 +602,11 @@ export default function GroupChat({ project, user, isPlanner, isPledger, isFlori
           )}
 
           <div className="flex items-end gap-2 bg-slate-100 p-1.5 rounded-3xl border border-slate-200 focus-within:border-pink-300 focus-within:ring-4 focus-within:ring-pink-50 transition-all">
-             <button 
-                type="button" 
-                onClick={() => fileInputRef.current.click()} 
+             <button
+                type="button"
+                onClick={() => fileInputRef.current.click()}
                 disabled={isUploading || !hasPermission}
+                aria-label="ファイルを添付"
                 className="p-3 bg-white text-slate-500 hover:text-pink-500 rounded-full shadow-sm hover:shadow transition-all flex-shrink-0 disabled:opacity-50"
               >
                 <ImageIcon size={20} />
@@ -621,9 +631,10 @@ export default function GroupChat({ project, user, isPlanner, isPledger, isFlori
                />
              </div>
 
-             <button 
+             <button
                onClick={handleFreeTextSubmit}
-               disabled={isUploading || !freeText.trim() || !hasPermission} 
+               disabled={isUploading || !freeText.trim() || !hasPermission}
+               aria-label="送信"
                className={`p-3.5 rounded-full text-white shadow-md transition-all flex-shrink-0 flex items-center justify-center ${
                  (!freeText.trim() || isUploading || !hasPermission)
                    ? 'bg-slate-300 cursor-not-allowed' 
