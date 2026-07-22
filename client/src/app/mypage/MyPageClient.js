@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import Image from 'next/image';
+import ImageWithFallback from '@/app/components/ImageWithFallback';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Home, Heart, Bell, User, Camera, Settings,
@@ -61,7 +62,7 @@ function ProjectCard({ project, roleType }) {
       <div className="bg-white/90 backdrop-blur-md rounded-[1.5rem] overflow-hidden border border-white shadow-sm hover:shadow-[0_12px_30px_rgba(244,114,182,0.15)] transition-all duration-300 hover:-translate-y-1 relative h-full flex flex-col">
         <div className="relative w-full aspect-video bg-slate-100 shrink-0">
           {project.imageUrl ? (
-            <Image src={project.imageUrl} alt={project.title || '企画画像'} fill className="object-cover group-hover:scale-105 transition-transform duration-700" />
+            <ImageWithFallback src={project.imageUrl} alt={project.title || '企画画像'} fill className="object-cover group-hover:scale-105 transition-transform duration-700" />
           ) : (
             <div className="absolute inset-0 bg-gradient-to-br from-pink-100 to-rose-100 flex items-center justify-center text-4xl">💐</div>
           )}
@@ -313,7 +314,7 @@ function DashboardContent() {
             <Link href={`/projects/${pledge.project?.id}`} className="flex items-center gap-3 flex-1 min-w-0 active:scale-[0.99] transition-transform">
               <div className="relative w-14 h-14 rounded-xl overflow-hidden shrink-0 bg-slate-100">
                 {pledge.project?.imageUrl
-                  ? <Image src={pledge.project.imageUrl} alt={pledge.project.title || 'プロジェクト画像'} fill className="object-cover" sizes="56px" />
+                  ? <ImageWithFallback src={pledge.project.imageUrl} alt={pledge.project.title || 'プロジェクト画像'} fill className="object-cover" sizes="56px" />
                   : <div className="absolute inset-0 flex items-center justify-center text-2xl">🌸</div>
                 }
               </div>
@@ -788,7 +789,7 @@ function DashboardContent() {
                           onClick={() => { setActiveTab('album'); }}
                           className="relative aspect-square bg-slate-100 active:opacity-70 transition-opacity overflow-hidden"
                         >
-                          <Image src={post.imageUrl} alt={post.eventName} fill className="object-cover" sizes="33vw" />
+                          <ImageWithFallback src={post.imageUrl} alt={post.eventName} fill className="object-cover" sizes="33vw" />
                         </button>
                       ))}
                     </div>
@@ -911,7 +912,7 @@ function DashboardContent() {
                           }}
                           className="relative aspect-square bg-slate-100 cursor-pointer overflow-hidden"
                         >
-                          <Image src={post.imageUrl} alt={post.eventName} fill className="object-cover" />
+                          <ImageWithFallback src={post.imageUrl} alt={post.eventName} fill className="object-cover" />
                           {/* like/comment overlay on hover */}
                           <div className="absolute inset-0 bg-black/0 hover:bg-black/30 transition-all duration-200 flex items-center justify-center gap-4 opacity-0 hover:opacity-100">
                             <span className="text-white font-black text-sm flex items-center gap-1">

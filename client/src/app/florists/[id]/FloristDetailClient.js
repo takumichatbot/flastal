@@ -4,6 +4,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
+import ImageWithFallback from '@/app/components/ImageWithFallback';
 import Link from 'next/link';
 import toast from 'react-hot-toast'; 
 import { useAuth } from '@/app/contexts/AuthContext';
@@ -530,7 +531,7 @@ export default function FloristDetailPage() {
                                           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 md:gap-4">
                                               {florist.portfolioImages.map((url, i) => (
                                                   <div key={i} className="relative aspect-square rounded-[1rem] overflow-hidden border-2 border-white shadow-sm cursor-zoom-in group" onClick={() => { setModalImageSrc(url); setIsImageModalOpen(true); }}>
-                                                      <Image src={url} alt={`portfolio-${i}`} fill sizes="(max-width: 768px) 50vw, 33vw" style={{objectFit: 'cover'}} className="group-hover:scale-110 transition-transform duration-500" />
+                                                      <ImageWithFallback src={url} alt={`portfolio-`} fill sizes="(max-width: 768px) 50vw, 33vw" style={{objectFit: 'cover'}} className="group-hover:scale-110 transition-transform duration-500" />
                                                   </div>
                                               ))}
                                           </div>
@@ -612,7 +613,7 @@ export default function FloristDetailPage() {
                                         return (
                                             <div key={post.id} className="group relative aspect-square bg-slate-100 rounded-[2rem] overflow-hidden shadow-sm hover:shadow-[0_16px_40px_rgba(0,0,0,0.1)] transition-all duration-500 border border-white">
                                                 {post.imageUrl && (
-                                                    <Image src={post.imageUrl} alt="作品" fill sizes="(max-width: 768px) 33vw, 50vw" style={{objectFit: 'cover'}} className="transition-transform duration-700 group-hover:scale-105" />
+                                                    <ImageWithFallback src={post.imageUrl} alt="作品" fill sizes="(max-width: 768px) 33vw, 50vw" style={{objectFit: 'cover'}} className="transition-transform duration-700 group-hover:scale-105" />
                                                 )}
                                                 <div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-5 md:p-6">
                                                     <p className="text-white text-[10px] md:text-xs font-bold leading-relaxed line-clamp-3"><JpText>{post.content}</JpText></p>

@@ -91,9 +91,27 @@ export const getProjects = async (req, res) => {
 
         // テキスト検索ありの場合
         if (kw) {
+            // キーワード検索は Typesense/SQL で候補を取得するが、タグ・金額フィルタは適用されない。
+            // 追加フィルタがある場合のみ、候補IDを構造化フィルタで交差させて絞り込む（結果の形状・順序は維持）。
+            const hasExtraFilters = !!(tags || minAmount || maxAmount);
+            const applyExtraFilters = async (arr) => {
+                if (!hasExtraFilters || arr.length === 0) return arr;
+                const ids = arr.map(x => x.id);
+                const kwFilterClause = {};
+                if (whereClause.tags) kwFilterClause.tags = whereClause.tags;
+                if (whereClause.targetAmount) kwFilterClause.targetAmount = whereClause.targetAmount;
+                const matching = await prisma.project.findMany({
+                    where: { id: { in: ids }, ...kwFilterClause },
+                    select: { id: true },
+                });
+                const allowed = new Set(matching.map(m => m.id));
+                return arr.filter(x => allowed.has(x.id));
+            };
+
             // Typesense で検索 → 失敗時は pg_trgm にフォールバック
-            const tsHits = await searchProjects(kw, { limit: 100, filterBy: prefecture?.trim() ? `deliveryAddress:=${prefecture.trim()}` : '' });
-            if (tsHits !== null) {
+            const tsHitsRaw = await searchProjects(kw, { limit: 100, filterBy: prefecture?.trim() ? `deliveryAddress:=${prefecture.trim()}` : '' });
+            if (tsHitsRaw !== null) {
+                const tsHits = await applyExtraFilters(tsHitsRaw);
                 if (page || limit) {
                     const sliced = tsHits.slice(skip, skip + take);
                     return res.status(200).json({
@@ -143,16 +161,17 @@ export const getProjects = async (req, res) => {
                 LIMIT 100
             `);
 
+            const filteredResults = await applyExtraFilters(results);
             if (page || limit) {
-                const sliced = results.slice(skip, skip + take);
+                const sliced = filteredResults.slice(skip, skip + take);
                 return res.status(200).json({
                     projects: sliced,
-                    total: results.length,
+                    total: filteredResults.length,
                     page: pageNum,
-                    totalPages: Math.ceil(results.length / take),
+                    totalPages: Math.ceil(filteredResults.length / take),
                 });
             }
-            return res.status(200).json(results);
+            return res.status(200).json(filteredResults);
         }
 
         if (prefecture?.trim()) {
@@ -163,16 +182,44 @@ export const getProjects = async (req, res) => {
         const isDefaultQuery = !kw && !prefecture && myProjects !== 'true' && !tags && !minAmount && !maxAmount && !status && !page && !limit;
         const cacheKey = isDefaultQuery ? `projects:public` : null;
 
+        const listInclude = {
+            planner: { select: { handleName: true, iconUrl: true } },
+            tags: { include: { tag: { select: { name: true, slug: true, color: true } } } },
+            venue: { select: { venueName: true } },
+        };
+
+        // 達成率(percent)ソートは collectedAmount/targetAmount の比で並べる必要があり、
+        // Prisma の orderBy では表現できないため、軽量クエリで全件の比を計算→ページのIDを確定してから本体を取得する。
+        // （collectedAmount 降順のままだと、金額は小さいが達成率の高い企画がページをまたいで正しく並ばない）
+        if (sort === 'percent') {
+            const lite = await prisma.project.findMany({
+                where: whereClause,
+                select: { id: true, collectedAmount: true, targetAmount: true },
+            });
+            const ratio = (p) => (p.targetAmount > 0 ? (p.collectedAmount || 0) / p.targetAmount : 0);
+            lite.sort((a, b) => ratio(b) - ratio(a));
+            const total = lite.length;
+            const pageIds = lite.slice(skip, skip + take).map(p => p.id);
+            const pageProjects = await prisma.project.findMany({
+                where: { id: { in: pageIds } },
+                include: listInclude,
+            });
+            const orderIdx = new Map(pageIds.map((id, i) => [id, i]));
+            pageProjects.sort((a, b) => orderIdx.get(a.id) - orderIdx.get(b.id));
+            return res.status(200).json({
+                projects: pageProjects,
+                total,
+                page: pageNum,
+                totalPages: Math.ceil(total / take),
+            });
+        }
+
         // ページネーション付きクエリ
         if (page || limit || tags || minAmount || maxAmount || sort || status) {
             const [projects, total] = await Promise.all([
                 prisma.project.findMany({
                     where: whereClause,
-                    include: {
-                        planner: { select: { handleName: true, iconUrl: true } },
-                        tags: { include: { tag: { select: { name: true, slug: true, color: true } } } },
-                        venue: { select: { venueName: true } },
-                    },
+                    include: listInclude,
                     orderBy,
                     skip,
                     take,

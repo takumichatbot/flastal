@@ -15,6 +15,7 @@ import {
   Grid3X3, Rows3, Flame, Clock, SlidersHorizontal
 } from 'lucide-react';
 import UploadForm from '../components/UploadForm';
+import ImageWithFallback from '../components/ImageWithFallback';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://flastal-backend.onrender.com';
 
@@ -229,7 +230,7 @@ function FeedPostCard({ post: initialPost, onDelete }) {
 
         {/* image */}
         <div className="relative aspect-square bg-slate-100 cursor-pointer select-none" onClick={handleDoubleTap}>
-          <Image src={post.imageUrl} alt={post.eventName} fill className="object-cover" sizes="(max-width: 640px) 100vw, 512px" />
+          <ImageWithFallback src={post.imageUrl} alt={post.eventName} fill className="object-cover" sizes="(max-width: 640px) 100vw, 512px" />
           <AnimatePresence>
             {likeAnim && (
               <motion.div
@@ -310,7 +311,7 @@ function GridPostCard({ post, onClick }) {
       onClick={() => onClick(post)}
       className="relative aspect-square bg-slate-100 cursor-pointer overflow-hidden"
     >
-      <Image src={post.imageUrl} alt={post.eventName} fill className="object-cover" sizes="33vw" />
+      <ImageWithFallback src={post.imageUrl} alt={post.eventName} fill className="object-cover" sizes="33vw" />
       <div className="absolute inset-0 bg-black/0 hover:bg-black/20 transition-all duration-200" />
       {post._count.likes > 0 && (
         <div className="absolute bottom-1.5 left-1.5 flex items-center gap-1 bg-black/50 backdrop-blur-sm rounded-full px-1.5 py-0.5">
@@ -604,7 +605,7 @@ export default function AlbumPage() {
 
                 {/* image */}
                 <div className="relative aspect-square bg-slate-100 shrink-0">
-                  <Image src={gridSelectedPost.imageUrl} alt={gridSelectedPost.eventName} fill className="object-cover" sizes="400px" />
+                  <ImageWithFallback src={gridSelectedPost.imageUrl} alt={gridSelectedPost.eventName} fill className="object-cover" sizes="400px" />
                 </div>
 
                 {/* actions */}

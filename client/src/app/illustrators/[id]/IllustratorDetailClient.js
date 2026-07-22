@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
+import ImageWithFallback from '@/app/components/ImageWithFallback';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/app/contexts/AuthContext';
@@ -413,7 +414,7 @@ function IllustratorDetailContent() {
                     {illustrator.portfolioUrls.map((url, idx) => (
                       <div key={idx} onClick={() => setPreviewImageUrl(url)}
                         className="relative aspect-square rounded-2xl overflow-hidden group cursor-zoom-in bg-slate-100 border border-slate-100">
-                        <Image src={url} alt={`Portfolio ${idx}`} fill sizes="(max-width:640px) 50vw, 33vw"
+                        <ImageWithFallback src={url} alt={`Portfolio `} fill sizes="(max-width:640px) 50vw, 33vw"
                           className="object-cover transition-transform duration-500 group-hover:scale-110" />
                         <div className="absolute inset-0 bg-slate-900/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                           <ZoomIn size={20} className="text-white" />
